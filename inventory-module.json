@@ -1,0 +1,108 @@
+{
+    "module_name": "Inventory Module",
+    "core_features": [
+      {
+        "feature": "Product Management",
+        "description": "Create and manage products, product category, variants, SKU, costing methods",
+        "pages": [
+          {
+            "name": "Product Management Page",
+            "details": [
+              "Table of all products with search & filters (category, SKU, active/inactive)",
+              "Create/Edit Product Form: Product name, category, SKU, description, costing method, unit of measure, re-order level, variants",
+              "Actions: Create, Edit, Deactivate"
+            ]
+          }
+        ]
+      },
+      {
+        "feature": "Stock Management",
+        "description": "Real-time stock levels. Incoming, outgoing, and internal stock moves. Stock valuation and costing. Low stock notification, aging report",
+        "pages": [
+          {
+            "name": "Stock Management Page",
+            "details": [
+              "Table of stock levels grouped by product & warehouse: current qty, reserved qty, available qty, stock value",
+              "Form Stock Adjustment: Product, warehouse, qty in/out, reason code",
+              "Incoming deliveries (from purchase orders)",
+              "Outgoing deliveries (from sales orders)",
+              "Internal Transfer: From location, To location, product, qty"
+            ]
+          }
+        ]
+      },
+      {
+        "feature": "Operations/Flows",
+        "description": "Incoming shipments, outgoing shipments (delivery), internal transfer",
+        "pages": [
+          {
+            "name": "Operations/Flows Page",
+            "details": [
+              "Incoming Shipments: Track and confirm receipts, link to purchase orders",
+              "Outgoing Shipments: Link with sales delivery, confirm and assign shipments",
+              "Internal Transfers: Process and record inventory movement within company locations"
+            ]
+          }
+        ]
+      },
+      {
+        "feature": "Warehouse Management",
+        "description": "Manage list of warehouses and locations. Storage location. Removal strategies (FIFO, LIFO, FEFO), stock transfers",
+        "pages": [
+          {
+            "name": "Warehouse Management Page",
+            "details": [
+              "Table of warehouses: Name, code, location, capacity",
+              "Create/Edit Warehouse: Name, address, manager, capacity, removal strategy",
+              "Table of storage locations: rack/bin/aisle",
+              "Create/Edit Location: Location code, description, capacity, parent warehouse, removal strategy"
+            ]
+          }
+        ]
+      },
+      {
+        "feature": "Sales Integration",
+        "description": "Integrate incoming/outgoing shipments with Sales and Purchasing Modules",
+        "pages": [
+          {
+            "name": "Sales Integration Page",
+            "details": [
+              "Automatically update stock based on sales orders and purchase orders",
+              "Sync product availability with sales module",
+              "Integration with order fulfillment"
+            ]
+          }
+        ]
+      },
+      {
+        "feature": "Reporting",
+        "description": "Operations Report, Returned Product, Stock per-Warehouse, Warehouse Capacity Report, Inventory Valuation, Stock In/Out Report",
+        "pages": [
+          {
+            "name": "Inventory Dashboard",
+            "details": [
+              "Warehouse Capacity Report: Utilization of each warehouse",
+              "Detailed log of stock movement by date/product",
+              "Inventory Valuation Report: Value of stock per warehouse",
+              "Product Performance Report: Fast-moving vs slow-moving, returns, shrinkage"
+            ]
+          }
+        ]
+      },
+      {
+        "feature": "Manufacturing Integration",
+        "description": "Alternate products, reserve stock, automatic deduction upon BOM and WO execution",
+        "pages": [
+          {
+            "name": "Manufacturing Integration Page",
+            "details": [
+              "Reserve stock for manufacturing orders",
+              "Deduct inventory when Bill of Materials (BOM) and work orders (WO) are executed",
+              "Support alternate products for flexible manufacturing flows"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+  

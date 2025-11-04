@@ -1,0 +1,272 @@
+[
+  {
+    "id": 1,
+    "name": "Laptop HP EliteBook 840",
+    "module": "Inventori",
+    "status": "Stok Rendah",
+    "amount": "15",
+    "priority": "Tinggi",
+    "assignee": "Andi Sutrisno"
+  },
+  {
+    "id": 2,
+    "name": "Pesanan SO-2024-001",
+    "module": "Penjualan",
+    "status": "Selesai",
+    "amount": "Rp 45.500.000",
+    "priority": "Sedang",
+    "assignee": "Budi Santoso"
+  },
+  {
+    "id": 3,
+    "name": "Invoice INV-2024-156",
+    "module": "Keuangan",
+    "status": "Pending",
+    "amount": "Rp 12.750.000",
+    "priority": "Tinggi",
+    "assignee": "Sari Wijaya"
+  },
+  {
+    "id": 4,
+    "name": "Produksi Batch PB-001",
+    "module": "Manufaktur",
+    "status": "Dalam Proses",
+    "amount": "500 unit",
+    "priority": "Tinggi",
+    "assignee": "Rudi Hermawan"
+  },
+  {
+    "id": 5,
+    "name": "Kertas A4 Premium",
+    "module": "Inventori",
+    "status": "Tersedia",
+    "amount": "2.500",
+    "priority": "Rendah",
+    "assignee": "Andi Sutrisno"
+  },
+  {
+    "id": 6,
+    "name": "Rekrutmen Programmer",
+    "module": "SDM",
+    "status": "Interview",
+    "amount": "3 kandidat",
+    "priority": "Tinggi",
+    "assignee": "Maya Sari"
+  },
+  {
+    "id": 7,
+    "name": "PO Komputer Server",
+    "module": "Pengadaan",
+    "status": "Pending Approval",
+    "amount": "Rp 85.000.000",
+    "priority": "Tinggi",
+    "assignee": "Budi Santoso"
+  },
+  {
+    "id": 8,
+    "name": "Tinta Printer Canon",
+    "module": "Inventori",
+    "status": "Habis",
+    "amount": "0",
+    "priority": "Kritis",
+    "assignee": "Andi Sutrisno"
+  },
+  {
+    "id": 9,
+    "name": "Kontrak Klien ABC Corp",
+    "module": "Penjualan",
+    "status": "Negosiasi",
+    "amount": "Rp 125.000.000",
+    "priority": "Tinggi",
+    "assignee": "Dewi Lestari"
+  },
+  {
+    "id": 10,
+    "name": "Pembayaran Gaji Oktober",
+    "module": "Keuangan",
+    "status": "Selesai",
+    "amount": "Rp 185.500.000",
+    "priority": "Tinggi",
+    "assignee": "Sari Wijaya"
+  },
+  {
+    "id": 11,
+    "name": "Maintenance Mesin A",
+    "module": "Manufaktur",
+    "status": "Terjadwal",
+    "amount": "8 jam",
+    "priority": "Sedang",
+    "assignee": "Agus Prasetyo"
+  },
+  {
+    "id": 12,
+    "name": "Training Keselamatan Kerja",
+    "module": "SDM",
+    "status": "Dalam Proses",
+    "amount": "25 peserta",
+    "priority": "Sedang",
+    "assignee": "Maya Sari"
+  },
+  {
+    "id": 13,
+    "name": "Supplier Bahan Baku XYZ",
+    "module": "Pengadaan",
+    "status": "Evaluasi",
+    "amount": "Kontrak 1 tahun",
+    "priority": "Sedang",
+    "assignee": "Hendra Wijaya"
+  },
+  {
+    "id": 14,
+    "name": "Monitor LED 24 inch",
+    "module": "Inventori",
+    "status": "Stok Optimal",
+    "amount": "45",
+    "priority": "Rendah",
+    "assignee": "Andi Sutrisno"
+  },
+  {
+    "id": 15,
+    "name": "Follow Up Quotation QT-001",
+    "module": "Penjualan",
+    "status": "Pending",
+    "amount": "Rp 35.200.000",
+    "priority": "Tinggi",
+    "assignee": "Dewi Lestari"
+  },
+  {
+    "id": 16,
+    "name": "Reimbursement Tim Marketing",
+    "module": "Keuangan",
+    "status": "Review",
+    "amount": "Rp 8.500.000",
+    "priority": "Sedang",
+    "assignee": "Sari Wijaya"
+  },
+  {
+    "id": 17,
+    "name": "Quality Check Produk",
+    "module": "Manufaktur",
+    "status": "Selesai",
+    "amount": "1.200 unit",
+    "priority": "Tinggi",
+    "assignee": "Rudi Hermawan"
+  },
+  {
+    "id": 18,
+    "name": "Evaluasi Kinerja Q4",
+    "module": "SDM",
+    "status": "Berlangsung",
+    "amount": "45 karyawan",
+    "priority": "Tinggi",
+    "assignee": "Maya Sari"
+  },
+  {
+    "id": 19,
+    "name": "Tender Proyek Infrastruktur",
+    "module": "Pengadaan",
+    "status": "Dokumen Lengkap",
+    "amount": "Rp 450.000.000",
+    "priority": "Kritis",
+    "assignee": "Hendra Wijaya"
+  },
+  {
+    "id": 20,
+    "name": "Mouse Wireless Logitech",
+    "module": "Inventori",
+    "status": "Perlu Reorder",
+    "amount": "8",
+    "priority": "Sedang",
+    "assignee": "Andi Sutrisno"
+  },
+  {
+    "id": 21,
+    "name": "Demo Produk ke Klien DEF",
+    "module": "Penjualan",
+    "status": "Terjadwal",
+    "amount": "Presentasi",
+    "priority": "Tinggi",
+    "assignee": "Dewi Lestari"
+  },
+  {
+    "id": 22,
+    "name": "Audit Keuangan Eksternal",
+    "module": "Keuangan",
+    "status": "Dalam Proses",
+    "amount": "Laporan Q3",
+    "priority": "Kritis",
+    "assignee": "Sari Wijaya"
+  },
+  {
+    "id": 23,
+    "name": "Upgrade Sistem Produksi",
+    "module": "Manufaktur",
+    "status": "Perencanaan",
+    "amount": "6 bulan",
+    "priority": "Tinggi",
+    "assignee": "Agus Prasetyo"
+  },
+  {
+    "id": 24,
+    "name": "Program Magang Mahasiswa",
+    "module": "SDM",
+    "status": "Rekrutmen",
+    "amount": "10 posisi",
+    "priority": "Sedang",
+    "assignee": "Maya Sari"
+  },
+  {
+    "id": 25,
+    "name": "Kontrak Jasa Cleaning",
+    "module": "Pengadaan",
+    "status": "Negosiasi Harga",
+    "amount": "Rp 15.000.000/tahun",
+    "priority": "Rendah",
+    "assignee": "Hendra Wijaya"
+  },
+  {
+    "id": 26,
+    "name": "Keyboard Mechanical",
+    "module": "Inventori",
+    "status": "Pre-Order",
+    "amount": "20",
+    "priority": "Rendah",
+    "assignee": "Andi Sutrisno"
+  },
+  {
+    "id": 27,
+    "name": "Renewal Kontrak Enterprise",
+    "module": "Penjualan",
+    "status": "Review Legal",
+    "amount": "Rp 250.000.000",
+    "priority": "Kritis",
+    "assignee": "Dewi Lestari"
+  },
+  {
+    "id": 28,
+    "name": "Budget Planning 2025",
+    "module": "Keuangan",
+    "status": "Draft",
+    "amount": "Rp 2.5 Miliar",
+    "priority": "Kritis",
+    "assignee": "Sari Wijaya"
+  },
+  {
+    "id": 29,
+    "name": "Kalibrasi Alat Ukur",
+    "module": "Manufaktur",
+    "status": "Terjadwal",
+    "amount": "12 alat",
+    "priority": "Tinggi",
+    "assignee": "Agus Prasetyo"
+  },
+  {
+    "id": 30,
+    "name": "Workshop Leadership",
+    "module": "SDM",
+    "status": "Pending Approval",
+    "amount": "15 peserta",
+    "priority": "Sedang",
+    "assignee": "Maya Sari"
+  }
+]

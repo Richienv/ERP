@@ -1,0 +1,116 @@
+
+
+**🔴 TIER 1 - CRITICAL (3 modules, 34 functions)**
+1. **Human Capital Management (HCM)** - 10 functions
+   - Employee Master Data Management
+   - Attendance & Time Tracking
+   - Payroll Processing
+   - BPJS Integration (Kesehatan & Ketenagakerjaan)
+   - PPh21 Income Tax Calculation
+   - THR Management
+   - Leave Management
+   - Performance Review & Appraisal
+   - Salary Slip Generation
+   - Payroll Tax Reporting
+
+2. **Finance & Accounting (FIN)** - 14 functions
+   - Chart of Accounts
+   - Journal Entry Recording
+   - Accounts Payable
+   - Accounts Receivable
+   - E-Faktur Integration
+   - E-Bupot Tax Withholding
+   - Bank Reconciliation
+   - Cash Management & Bank Accounts
+   - Fixed Asset Depreciation
+   - Budget Planning & Variance Analysis
+   - Financial Statements
+   - Tax Compliance & Filing
+   - General Ledger & Trial Balance
+   - Inter-company Transactions
+
+3. **Inventory & Stock Management (INV)** - 10 functions
+   - Product Master Data
+   - Stock Card Management (Kartu Stok)
+   - Warehouse Management
+   - Incoming Goods Receipt
+   - Goods Issue / Stock Deduction
+   - Physical Inventory Count (Stok Opname)
+   - Stock Valuation & COGS
+   - Inventory Reports & Analysis
+   - Product Variants & SKU
+   - Batch & Serial Number Tracking
+
+**🟡 TIER 2 - ESSENTIAL (4 modules, 28 functions)**
+4. Procurement & Purchasing (7 functions)
+5. Sales & Account Receivable (8 functions)
+6. General Affair & Asset Management (6 functions)
+7. Dashboard & Reporting (7 functions)
+
+**🟢 TIER 3 - ADVANCED (4 modules, 12 functions)**
+8. Manufacturing / Production (4 functions)
+9. Project Management (4 functions)
+10. Customer Relationship Management (4 functions)
+11. Fixed Assets Register (3 functions)
+
+***
+
+### 🎯 **AI-Optimized Features:**
+
+✅ **Unique Identifiers:**
+- Module IDs: `MOD-001` through `MOD-011`
+- Module Codes: `HCM`, `FIN`, `INV`, `PUR`, `SAL`, `GA`, `RPT`, `MFG`, `PRJ`, `CRM`, `FIX`
+- Function IDs: `HCM-F001`, `FIN-F002`, `INV-F003`, etc.
+
+✅ **Page Route Mappings:**
+- Every module and function has exact page routes
+- Example: `/hcm/employee-master`, `/finance/e-faktur`, `/inventory/stock-card`
+
+✅ **Complete Metadata:**
+- Module name in English + Bahasa Indonesia
+- Priority tier classification
+- Legal requirements
+- Affected regulations
+- Total function counts
+- Function summaries
+
+✅ **Integration Requirements:**
+- Critical integrations listed per module
+- Example: BPJS portals, DJP e-Faktur, bank systems, biometric devices
+
+✅ **Key Reports:**
+- All major reports listed per module
+- Example: Payroll summary, BPJS report, Financial Statements, Stock Cards
+
+✅ **Indonesian Compliance:**
+- 5 mandatory compliance features detailed
+- Agency names, requirements, deadlines
+- e-Faktur, e-Bupot, BPJS, SPT Tahunan, PSAK
+
+✅ **Summary Statistics:**
+- Total: 11 modules, 74 functions
+- Tier breakdown with exact counts
+- Language: Bilingual (English + Bahasa Indonesia)
+- Currency: IDR + 6 foreign currencies
+
+***
+
+### 📊 **Perfect for AI Implementation:**
+
+This JSON structure gives your AI **everything it needs**:
+- Clear module hierarchy (Tier 1 → Tier 2 → Tier 3)
+- Exact function names in both languages
+- Complete integration requirements
+- Indonesian legal compliance details
+- Page routing structure
+- Report requirements
+
+**Use this file to:**
+1. Generate database schemas
+2. Create API endpoints
+3. Build UI navigation menus
+4. Implement compliance features
+5. Design report templates
+6. Set up integrations
+
+All with **zero ambiguity** for perfect AI understanding! 🚀
