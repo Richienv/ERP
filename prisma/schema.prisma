@@ -54,6 +54,10 @@ model User {
   role          String    @default("user") // admin, user, manager
   accounts      Account[]
   sessions      Session[]
+  
+  // Sales relations
+  customersAsSalesPerson Customer[]
+  assignedLeads          Lead[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -163,6 +167,9 @@ model Product {
   stockLevels    StockLevel[]
   stockMovements StockMovement[]
   stockAlerts    StockAlert[]
+  priceListItems PriceListItem[]
+  quotationItems QuotationItem[]
+  salesOrderItems SalesOrderItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -248,4 +255,475 @@ enum StockAlertType {
   OUT_OF_STOCK
   OVERSTOCK
   EXPIRY_WARNING
+}
+
+// ================================
+// Sales & CRM Module
+// ================================
+
+// Customer Categories
+model CustomerCategory {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String?
+  isActive    Boolean @default(true)
+
+  customers Customer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_categories")
+}
+
+// Customer Master Data
+model Customer {
+  id               String                @id @default(cuid())
+  code             String                @unique
+  name             String
+  legalName        String?
+  customerType     CustomerType
+  categoryId       String?
+  
+  // Indonesian Business Information
+  npwp             String?               // Nomor Pokok Wajib Pajak
+  nik              String?               // NIK (for individual)
+  taxAddress       String?
+  isTaxable        Boolean               @default(true)
+  taxStatus        TaxStatus             @default(PKP)
+  
+  // E-Faktur Integration
+  eFakturCredentials Json?               // Store encrypted e-faktur credentials
+  
+  // Contact Information
+  phone            String?
+  email            String?
+  website          String?
+  
+  // Credit Management
+  creditLimit      Decimal               @default(0) @db.Decimal(15, 2)
+  creditTerm       Int                   @default(30) // days
+  paymentTerm      PaymentTerm           @default(NET_30)
+  creditStatus     CreditStatus          @default(GOOD)
+  
+  // Business Settings
+  currency         String                @default("IDR")
+  priceListId      String?
+  salesPersonId    String?
+  
+  // Status & Flags
+  isActive         Boolean               @default(true)
+  isProspect       Boolean               @default(false)
+  lastOrderDate    DateTime?
+  totalOrderValue  Decimal               @default(0) @db.Decimal(15, 2)
+  
+  // Relations
+  category         CustomerCategory?     @relation(fields: [categoryId], references: [id])
+  priceList        PriceList?            @relation(fields: [priceListId], references: [id])
+  salesPerson      User?                 @relation(fields: [salesPersonId], references: [id])
+  
+  // Related entities
+  addresses        CustomerAddress[]
+  contacts         CustomerContact[]
+  quotations       Quotation[]
+  salesOrders      SalesOrder[]
+  creditNotes      CreditNote[]
+  leads            Lead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customers")
+}
+
+// Customer Addresses (Indonesian format)
+model CustomerAddress {
+  id           String      @id @default(cuid())
+  customerId   String
+  type         AddressType @default(BILLING)
+  
+  // Address Components
+  address1     String
+  address2     String?
+  kelurahan    String?
+  kecamatan    String?
+  kabupaten    String
+  provinsi     String
+  postalCode   String
+  country      String      @default("Indonesia")
+  
+  // Flags
+  isPrimary    Boolean     @default(false)
+  isActive     Boolean     @default(true)
+  
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_addresses")
+}
+
+// Customer Contacts
+model CustomerContact {
+  id          String  @id @default(cuid())
+  customerId  String
+  
+  // Contact Information
+  name        String
+  title       String?
+  department  String?
+  phone       String?
+  mobile      String?
+  email       String?
+  
+  // Flags
+  isPrimary   Boolean @default(false)
+  isActive    Boolean @default(true)
+  
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_contacts")
+}
+
+// Price Lists
+model PriceList {
+  id          String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String?
+  currency    String  @default("IDR")
+  isActive    Boolean @default(true)
+  
+  customers   Customer[]
+  priceItems  PriceListItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("price_lists")
+}
+
+// Price List Items
+model PriceListItem {
+  id          String    @id @default(cuid())
+  priceListId String
+  productId   String
+  price       Decimal   @db.Decimal(15, 2)
+  minQty      Int       @default(1)
+  validFrom   DateTime?
+  validTo     DateTime?
+  isActive    Boolean   @default(true)
+  
+  priceList PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([priceListId, productId])
+  @@map("price_list_items")
+}
+
+// Quotations
+model Quotation {
+  id               String           @id @default(cuid())
+  number           String           @unique
+  customerId       String
+  customerRef      String?
+  
+  // Dates
+  quotationDate    DateTime         @default(now())
+  validUntil       DateTime
+  
+  // Terms
+  paymentTerm      PaymentTerm      @default(NET_30)
+  deliveryTerm     String?
+  
+  // Amounts
+  subtotal         Decimal          @default(0) @db.Decimal(15, 2)
+  taxAmount        Decimal          @default(0) @db.Decimal(15, 2)
+  discountAmount   Decimal          @default(0) @db.Decimal(15, 2)
+  total            Decimal          @default(0) @db.Decimal(15, 2)
+  
+  // Status
+  status           QuotationStatus  @default(DRAFT)
+  
+  // Notes
+  notes            String?
+  internalNotes    String?
+  
+  // Relations
+  customer         Customer         @relation(fields: [customerId], references: [id])
+  items            QuotationItem[]
+  salesOrders      SalesOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("quotations")
+}
+
+// Quotation Items
+model QuotationItem {
+  id           String    @id @default(cuid())
+  quotationId  String
+  productId    String
+  
+  description  String?
+  quantity     Decimal   @db.Decimal(10, 3)
+  unitPrice    Decimal   @db.Decimal(15, 2)
+  discount     Decimal   @default(0) @db.Decimal(5, 2) // percentage
+  taxRate      Decimal   @default(11) @db.Decimal(5, 2) // PPN 11%
+  lineTotal    Decimal   @db.Decimal(15, 2)
+  
+  product   Product   @relation(fields: [productId], references: [id])
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("quotation_items")
+}
+
+// Sales Orders
+model SalesOrder {
+  id               String          @id @default(cuid())
+  number           String          @unique
+  customerId       String
+  quotationId      String?
+  customerRef      String?
+  
+  // Dates
+  orderDate        DateTime        @default(now())
+  requestedDate    DateTime?
+  confirmedDate    DateTime?
+  
+  // Terms
+  paymentTerm      PaymentTerm     @default(NET_30)
+  deliveryTerm     String?
+  
+  // Amounts
+  subtotal         Decimal         @default(0) @db.Decimal(15, 2)
+  taxAmount        Decimal         @default(0) @db.Decimal(15, 2)
+  discountAmount   Decimal         @default(0) @db.Decimal(15, 2)
+  total            Decimal         @default(0) @db.Decimal(15, 2)
+  
+  // Status
+  status           SalesOrderStatus @default(DRAFT)
+  
+  // Notes
+  notes            String?
+  internalNotes    String?
+  
+  // Relations
+  customer         Customer        @relation(fields: [customerId], references: [id])
+  quotation        Quotation?      @relation(fields: [quotationId], references: [id])
+  items            SalesOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_orders")
+}
+
+// Sales Order Items
+model SalesOrderItem {
+  id            String     @id @default(cuid())
+  salesOrderId  String
+  productId     String
+  
+  description   String?
+  quantity      Decimal    @db.Decimal(10, 3)
+  unitPrice     Decimal    @db.Decimal(15, 2)
+  discount      Decimal    @default(0) @db.Decimal(5, 2) // percentage
+  taxRate       Decimal    @default(11) @db.Decimal(5, 2) // PPN 11%
+  lineTotal     Decimal    @db.Decimal(15, 2)
+  
+  // Delivery tracking
+  qtyDelivered  Decimal    @default(0) @db.Decimal(10, 3)
+  qtyInvoiced   Decimal    @default(0) @db.Decimal(10, 3)
+  
+  product    Product    @relation(fields: [productId], references: [id])
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_order_items")
+}
+
+// Leads Management
+model Lead {
+  id            String     @id @default(cuid())
+  customerId    String?
+  
+  // Lead Information
+  title         String
+  description   String?
+  source        LeadSource @default(WEBSITE)
+  status        LeadStatus @default(NEW)
+  priority      Priority   @default(MEDIUM)
+  
+  // Contact Information
+  contactName   String
+  contactEmail  String?
+  contactPhone  String?
+  company       String?
+  
+  // Sales Information
+  estimatedValue Decimal?  @db.Decimal(15, 2)
+  probability    Int       @default(0) // 0-100%
+  expectedClose  DateTime?
+  
+  // Assignment
+  assignedTo     String?
+  
+  // Relations
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  assignee       User?     @relation(fields: [assignedTo], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("leads")
+}
+
+// Credit Notes
+model CreditNote {
+  id           String          @id @default(cuid())
+  number       String          @unique
+  customerId   String
+  
+  // Reference
+  reference    String?         // Invoice or SO reference
+  reason       CreditReason
+  
+  // Amounts
+  amount       Decimal         @db.Decimal(15, 2)
+  taxAmount    Decimal         @default(0) @db.Decimal(15, 2)
+  total        Decimal         @db.Decimal(15, 2)
+  
+  // Status
+  status       CreditNoteStatus @default(DRAFT)
+  
+  // Dates
+  issueDate    DateTime        @default(now())
+  
+  // Notes
+  notes        String?
+  
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("credit_notes")
+}
+
+// ================================
+// Sales & CRM Enums
+// ================================
+
+enum CustomerType {
+  INDIVIDUAL    // Perorangan
+  COMPANY       // Perusahaan
+  GOVERNMENT    // Instansi Pemerintah
+}
+
+enum TaxStatus {
+  PKP           // Pengusaha Kena Pajak
+  NON_PKP       // Non PKP
+  EXEMPT        // Bebas Pajak
+}
+
+enum PaymentTerm {
+  CASH          // Tunai
+  NET_15        // 15 hari
+  NET_30        // 30 hari
+  NET_45        // 45 hari
+  NET_60        // 60 hari
+  NET_90        // 90 hari
+  COD           // Cash on Delivery
+}
+
+enum CreditStatus {
+  GOOD          // Baik
+  WATCH         // Perlu Perhatian
+  HOLD          // Ditahan
+  BLOCKED       // Diblokir
+}
+
+enum AddressType {
+  BILLING       // Penagihan
+  SHIPPING      // Pengiriman
+  OFFICE        // Kantor
+  WAREHOUSE     // Gudang
+}
+
+enum QuotationStatus {
+  DRAFT         // Draft
+  SENT          // Terkirim
+  ACCEPTED      // Diterima
+  REJECTED      // Ditolak
+  EXPIRED       // Kedaluwarsa
+  CONVERTED     // Dikonversi ke SO
+}
+
+enum SalesOrderStatus {
+  DRAFT         // Draft
+  CONFIRMED     // Dikonfirmasi
+  IN_PROGRESS   // Dalam Proses
+  DELIVERED     // Terkirim
+  INVOICED      // Ditagih
+  COMPLETED     // Selesai
+  CANCELLED     // Dibatalkan
+}
+
+enum LeadSource {
+  WEBSITE       // Website
+  REFERRAL      // Referensi
+  ADVERTISEMENT // Iklan
+  COLD_CALL     // Cold Call
+  EXHIBITION    // Pameran
+  SOCIAL_MEDIA  // Media Sosial
+  EMAIL         // Email
+  OTHER         // Lainnya
+}
+
+enum LeadStatus {
+  NEW           // Baru
+  CONTACTED     // Dihubungi
+  QUALIFIED     // Terkualifikasi
+  PROPOSAL      // Proposal
+  NEGOTIATION   // Negosiasi
+  WON           // Menang
+  LOST          // Kalah
+}
+
+enum Priority {
+  LOW           // Rendah
+  MEDIUM        // Sedang
+  HIGH          // Tinggi
+  URGENT        // Mendesak
+}
+
+enum CreditReason {
+  RETURN        // Retur Barang
+  DISCOUNT      // Diskon Tambahan
+  DAMAGED       // Barang Rusak
+  OVERPAYMENT   // Kelebihan Bayar
+  ADJUSTMENT    // Penyesuaian
+  OTHER         // Lainnya
+}
+
+enum CreditNoteStatus {
+  DRAFT         // Draft
+  APPROVED      // Disetujui
+  APPLIED       // Diterapkan
+  CANCELLED     // Dibatalkan
 }

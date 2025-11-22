@@ -88,11 +88,59 @@ const data = {
       title: "Penjualan & CRM",
       url: "/sales",
       icon: IconUsers,
+      items: [
+        {
+          title: "Dashboard Sales",
+          url: "/sales",
+        },
+        {
+          title: "Kelola Pelanggan",
+          url: "/sales/customers",
+        },
+        {
+          title: "Penawaran",
+          url: "/sales/quotations",
+        },
+        {
+          title: "Pesanan Penjualan",
+          url: "/sales/orders",
+        },
+        {
+          title: "Penjualan",
+          url: "/sales/sales",
+        },
+        {
+          title: "Lead & Pipeline",
+          url: "/sales/leads",
+        },
+        {
+          title: "Daftar Harga",
+          url: "/sales/pricelists",
+        },
+      ],
     },
     {
       title: "Pengadaan",
       url: "/procurement",
       icon: IconShoppingCart,
+      items: [
+        {
+          title: "Dashboard Pengadaan",
+          url: "/procurement",
+        },
+        {
+          title: "Pemasok (Vendor)",
+          url: "/procurement/vendors",
+        },
+        {
+          title: "Pesanan Pembelian",
+          url: "/procurement/orders",
+        },
+        {
+          title: "Permintaan Pembelian",
+          url: "/procurement/requests",
+        },
+      ],
     },
     {
       title: "Keuangan",
@@ -117,6 +165,36 @@ const data = {
       title: "Manufaktur",
       url: "/manufacturing",
       icon: IconTool,
+      items: [
+        {
+          title: "Dashboard Manufaktur",
+          url: "/manufacturing",
+        },
+        {
+          title: "Bill of Materials (BoM)",
+          url: "/manufacturing/bom",
+        },
+        {
+          title: "Order Produksi (MO)",
+          url: "/manufacturing/orders",
+        },
+        {
+          title: "Perintah Kerja (SPK)",
+          url: "/manufacturing/work-orders",
+        },
+        {
+          title: "Pusat Kerja & Routing",
+          url: "/manufacturing/work-centers",
+        },
+        {
+          title: "Perencanaan (MPS)",
+          url: "/manufacturing/planning",
+        },
+        {
+          title: "Kontrol Kualitas (QC)",
+          url: "/manufacturing/quality",
+        },
+      ],
     },
     {
       title: "SDM",
@@ -134,6 +212,25 @@ const data = {
         {
           title: "Absensi",
           url: "/hcm/attendance",
+        },
+      ],
+    },
+    {
+      title: "Dokumen & Sistem",
+      url: "/documents",
+      icon: IconFileDescription,
+      items: [
+        {
+          title: "Data Master",
+          url: "/documents/master",
+        },
+        {
+          title: "Laporan Sistem",
+          url: "/documents/reports",
+        },
+        {
+          title: "Dokumentasi",
+          url: "/documents/docs",
         },
       ],
     },
@@ -216,28 +313,11 @@ const data = {
       icon: IconSearch,
     },
   ],
-  documents: [
-    {
-      name: "Data Master",
-      url: "/master-data",
-      icon: IconDatabase,
-    },
-    {
-      name: "Laporan Sistem",
-      url: "/reports",
-      icon: IconReport,
-    },
-    {
-      name: "Dokumentasi",
-      url: "/docs",
-      icon: IconFileDescription,
-    },
-  ],
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -255,7 +335,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>

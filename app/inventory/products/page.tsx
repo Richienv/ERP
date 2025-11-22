@@ -1,365 +1,325 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  Eye,
+  Plus,
   Package,
-  AlertTriangle
+  AlertTriangle,
+  Boxes,
+  Search,
+  Filter,
+  Download
 } from "lucide-react"
 import Link from "next/link"
+import { ProductDataTable } from "@/components/inventory/product-data-table"
+import { getStockStatus } from "@/lib/inventory-utils"
+import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
 
-// Mock data untuk products
+// Mock data - Textile Factory Products
 const mockProducts = [
   {
     id: "1",
-    code: "ELK001",
-    name: "Laptop Dell Inspiron 15",
-    category: "Elektronik",
-    unit: "pcs",
-    costPrice: 8500000,
-    sellingPrice: 12000000,
-    currentStock: 25,
+    code: "FAB-CTN-001",
+    name: "Kain Katun Combed 30s - Putih",
+    description: "Kain katun combed 30s kualitas premium warna putih",
+    categoryId: "1",
+    unit: "roll",
+    costPrice: 2500000,
+    sellingPrice: 3200000,
     minStock: 10,
     maxStock: 50,
-    status: "active",
-    stockStatus: "normal"
+    reorderLevel: 15,
+    barcode: "899123456001",
+    isActive: true,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-11-01"),
+    category: {
+      id: "1",
+      code: "FAB",
+      name: "Kain Katun",
+      description: "Bahan kain katun",
+      parentId: null,
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01")
+    },
+    _count: {
+      stockLevels: 3,
+      stockMovements: 45
+    },
+    currentStock: 25
   },
   {
-    id: "2", 
-    code: "FUR001",
-    name: "Meja Kantor Eksekutif",
-    category: "Furniture",
-    unit: "pcs", 
-    costPrice: 2500000,
-    sellingPrice: 3500000,
-    currentStock: 8,
-    minStock: 10,
-    maxStock: 30,
-    status: "active",
-    stockStatus: "low"
+    id: "2",
+    code: "FAB-DEN-001",
+    name: "Kain Denim Raw 14oz",
+    description: "Kain denim raw weight 14oz lebar 150cm",
+    categoryId: "2",
+    unit: "roll",
+    costPrice: 3500000,
+    sellingPrice: 4800000,
+    minStock: 15,
+    maxStock: 60,
+    reorderLevel: 20,
+    barcode: "899123456002",
+    isActive: true,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-11-01"),
+    category: {
+      id: "2",
+      code: "DEN",
+      name: "Denim",
+      description: "Bahan denim/jeans",
+      parentId: null,
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01")
+    },
+    _count: {
+      stockLevels: 2,
+      stockMovements: 32
+    },
+    currentStock: 8
   },
   {
     id: "3",
-    code: "OFF001", 
-    name: "Printer HP LaserJet",
-    category: "Peralatan Kantor",
-    unit: "pcs",
-    costPrice: 3200000,
-    sellingPrice: 4500000,
-    currentStock: 0,
-    minStock: 5,
-    maxStock: 20,
-    status: "active", 
-    stockStatus: "out"
+    code: "ACC-BTN-001",
+    name: "Kancing Kemeja 18L - Putih",
+    description: "Kancing kemeja standar ukuran 18L warna putih",
+    categoryId: "3",
+    unit: "gross",
+    costPrice: 45000,
+    sellingPrice: 65000,
+    minStock: 50,
+    maxStock: 200,
+    reorderLevel: 60,
+    barcode: "899123456003",
+    isActive: true,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-11-01"),
+    category: {
+      id: "3",
+      code: "ACC",
+      name: "Aksesori",
+      description: "Aksesori garmen",
+      parentId: null,
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01")
+    },
+    _count: {
+      stockLevels: 1,
+      stockMovements: 15
+    },
+    currentStock: 0
   },
   {
     id: "4",
-    code: "ELK002",
-    name: "Mouse Wireless Logitech",
-    category: "Elektronik",
-    unit: "pcs",
-    costPrice: 150000,
-    sellingPrice: 250000,
-    currentStock: 45,
-    minStock: 20,
-    maxStock: 100,
-    status: "active",
-    stockStatus: "normal"
+    code: "THR-PLY-001",
+    name: "Benang Polyester 40/2 - Hitam",
+    description: "Benang jahit polyester ukuran 40/2 warna hitam",
+    categoryId: "4",
+    unit: "cone",
+    costPrice: 15000,
+    sellingPrice: 22000,
+    minStock: 100,
+    maxStock: 500,
+    reorderLevel: 120,
+    barcode: "899123456004",
+    isActive: true,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-11-01"),
+    category: {
+      id: "4",
+      code: "THR",
+      name: "Benang",
+      description: "Benang jahit",
+      parentId: null,
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01")
+    },
+    _count: {
+      stockLevels: 2,
+      stockMovements: 88
+    },
+    currentStock: 45
   },
   {
     id: "5",
-    code: "STA001",
-    name: "Kertas A4 80gsm",
-    category: "Stationery",
-    unit: "rim",
-    costPrice: 45000,
-    sellingPrice: 65000,
-    currentStock: 120,
-    minStock: 50,
-    maxStock: 200,
-    status: "active",
-    stockStatus: "normal"
-  },
-  {
-    id: "6",
-    code: "ELK003",
-    name: "Keyboard Mechanical",
-    category: "Elektronik", 
-    unit: "pcs",
-    costPrice: 450000,
-    sellingPrice: 650000,
-    currentStock: 3,
+    code: "FAB-RAY-001",
+    name: "Kain Rayon Viscose - Motif Bunga",
+    description: "Kain rayon viscose motif bunga lebar 150cm",
+    categoryId: "1",
+    unit: "roll",
+    costPrice: 2800000,
+    sellingPrice: 3600000,
     minStock: 10,
-    maxStock: 30,
-    status: "active",
-    stockStatus: "critical"
+    maxStock: 40,
+    reorderLevel: 12,
+    barcode: "899123456005",
+    isActive: true,
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-11-01"),
+    category: {
+      id: "1",
+      code: "FAB",
+      name: "Kain Rayon",
+      description: "Bahan kain rayon",
+      parentId: null,
+      isActive: true,
+      createdAt: new Date("2024-01-01"),
+      updatedAt: new Date("2024-01-01")
+    },
+    _count: {
+      stockLevels: 1,
+      stockMovements: 12
+    },
+    currentStock: 3
   }
 ]
 
-// Format currency helper
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0
-  }).format(amount)
-}
-
-// Get stock status badge
-const getStockStatusBadge = (stockStatus: string) => {
-  switch (stockStatus) {
-    case 'out':
-      return <Badge variant="destructive">Habis Stok</Badge>
-    case 'critical':
-      return <Badge variant="destructive">Kritis</Badge>
-    case 'low':
-      return <Badge variant="secondary">Menipis</Badge>
-    default:
-      return <Badge variant="default">Normal</Badge>
-  }
-}
-
 export default function ProductsPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterCategory, setFilterCategory] = useState("all")
-
-  // Filter products based on search and category
-  const filteredProducts = mockProducts.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.code.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = filterCategory === "all" || product.category === filterCategory
-    return matchesSearch && matchesCategory
-  })
-
-  // Get unique categories for filter
-  const categories = ["all", ...new Set(mockProducts.map(p => p.category))]
+  // Calculate stats from data
+  const totalProducts = mockProducts.length
+  const normalStock = mockProducts.filter(p => getStockStatus(p.currentStock, p.minStock, p.maxStock) === 'normal').length
+  const lowStock = mockProducts.filter(p => {
+    const status = getStockStatus(p.currentStock, p.minStock, p.maxStock)
+    return status === 'low' || status === 'critical'
+  }).length
+  const outOfStock = mockProducts.filter(p => getStockStatus(p.currentStock, p.minStock, p.maxStock) === 'out').length
 
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       {/* Header */}
       <div className="flex items-center justify-between space-y-2">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Kelola Produk</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Kelola Material Kain</h2>
           <p className="text-muted-foreground">
-            Daftar dan kelola semua produk inventori
+            Daftar dan kelola semua stok kain, benang, dan aksesori
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Export
+          </Button>
           <Button asChild>
             <Link href="/inventory/products/new">
               <Plus className="mr-2 h-4 w-4" />
-              Tambah Produk
+              Tambah Material
             </Link>
           </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Produk</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl:grid-cols-2 @5xl:grid-cols-4">
+        <Card className="@container/card">
+          <CardHeader>
+            <CardDescription>Total Item Material</CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+              {totalProducts}
+            </CardTitle>
+            <CardAction>
+              <Badge variant="outline">
+                <IconTrendingUp />
+                +4.5%
+              </Badge>
+            </CardAction>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{mockProducts.length}</div>
-            <p className="text-xs text-muted-foreground">
-              Produk aktif
-            </p>
-          </CardContent>
+          <CardFooter className="flex-col items-start gap-1.5 text-sm">
+            <div className="line-clamp-1 flex gap-2 font-medium">
+              Item aktif dalam sistem <Package className="size-4" />
+            </div>
+            <div className="text-muted-foreground">
+              Termasuk kain dan aksesori
+            </div>
+          </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stok Normal</CardTitle>
-            <Package className="h-4 w-4 text-green-600" />
+        <Card className="@container/card">
+          <CardHeader>
+            <CardDescription>Stok Normal</CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-green-600">
+              {normalStock}
+            </CardTitle>
+            <CardAction>
+              <Badge variant="outline" className="border-green-600 text-green-600">
+                <IconTrendingUp />
+                Optimal
+              </Badge>
+            </CardAction>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {mockProducts.filter(p => p.stockStatus === 'normal').length}
+          <CardFooter className="flex-col items-start gap-1.5 text-sm">
+            <div className="line-clamp-1 flex gap-2 font-medium text-green-600">
+              Ketersediaan aman <Boxes className="size-4" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Stok mencukupi
-            </p>
-          </CardContent>
+            <div className="text-muted-foreground">
+              Siap untuk produksi
+            </div>
+          </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stok Menipis</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-yellow-600" />
+        <Card className="@container/card">
+          <CardHeader>
+            <CardDescription>Stok Menipis</CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-yellow-600">
+              {lowStock}
+            </CardTitle>
+            <CardAction>
+              <Badge variant="outline" className="border-yellow-600 text-yellow-600">
+                <IconTrendingDown />
+                Perhatian
+              </Badge>
+            </CardAction>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {mockProducts.filter(p => p.stockStatus === 'low' || p.stockStatus === 'critical').length}
+          <CardFooter className="flex-col items-start gap-1.5 text-sm">
+            <div className="line-clamp-1 flex gap-2 font-medium text-yellow-600">
+              Perlu restock segera <AlertTriangle className="size-4" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Perlu restok
-            </p>
-          </CardContent>
+            <div className="text-muted-foreground">
+              Di bawah level minimum
+            </div>
+          </CardFooter>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Habis Stok</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-600" />
+        <Card className="@container/card">
+          <CardHeader>
+            <CardDescription>Habis Stok</CardDescription>
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-red-600">
+              {outOfStock}
+            </CardTitle>
+            <CardAction>
+              <Badge variant="outline" className="border-red-600 text-red-600">
+                <IconTrendingDown />
+                Kritis
+              </Badge>
+            </CardAction>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {mockProducts.filter(p => p.stockStatus === 'out').length}
+          <CardFooter className="flex-col items-start gap-1.5 text-sm">
+            <div className="line-clamp-1 flex gap-2 font-medium text-red-600">
+              Stok kosong <AlertTriangle className="size-4" />
             </div>
-            <p className="text-xs text-muted-foreground">
-              Stok kosong
-            </p>
-          </CardContent>
+            <div className="text-muted-foreground">
+              Hambat produksi
+            </div>
+          </CardFooter>
         </Card>
       </div>
 
-      {/* Search and Filter */}
+      {/* Products Data Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Daftar Produk</CardTitle>
+          <CardTitle>Daftar Material & Produk</CardTitle>
           <CardDescription>
-            Kelola produk dan monitor level stok
+            Kelola inventori kain, benang, dan aksesori dengan detail lengkap
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari produk atau kode..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Kategori: {filterCategory === "all" ? "Semua" : filterCategory}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter Kategori</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {categories.map((category) => (
-                  <DropdownMenuItem
-                    key={category}
-                    onClick={() => setFilterCategory(category)}
-                  >
-                    {category === "all" ? "Semua Kategori" : category}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Products Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Kode</TableHead>
-                  <TableHead>Nama Produk</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Satuan</TableHead>
-                  <TableHead className="text-right">Harga Beli</TableHead>
-                  <TableHead className="text-right">Harga Jual</TableHead>
-                  <TableHead className="text-center">Stok</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.code}</TableCell>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>{product.category}</TableCell>
-                    <TableCell>{product.unit}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(product.costPrice)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(product.sellingPrice)}</TableCell>
-                    <TableCell className="text-center">
-                      <div className="space-y-1">
-                        <div className="font-medium">{product.currentStock}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Min: {product.minStock} | Max: {product.maxStock}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getStockStatusBadge(product.stockStatus)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
-                            <Link href={`/inventory/products/${product.id}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Lihat Detail
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/inventory/products/${product.id}/edit`}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Hapus
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          {filteredProducts.length === 0 && (
-            <div className="text-center py-4">
-              <p className="text-muted-foreground">Tidak ada produk yang ditemukan</p>
-            </div>
-          )}
+          <ProductDataTable data={mockProducts} />
         </CardContent>
       </Card>
     </div>

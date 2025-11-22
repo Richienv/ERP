@@ -1,0 +1,46 @@
+{
+    "module_name": "Sales & CRM Module",
+    "core_features": [
+      {
+        "feature": "Customer Management",
+        "description": "Manage customer companies, contacts, addresses, tagging, e-Faktur credentials, and track customer targets and rewards."
+      },
+      {
+        "feature": "Quotation & Sales Order Management",
+        "description": "Handle quotations and sales orders with discounting, margin calculations, revisions, expiry tracking, approvals, deliveries, invoicing, and multi-currency support."
+      },
+      {
+        "feature": "Credit & Risk Management",
+        "description": "Set and enforce credit limits, overlimit approvals, creditor status formulas, and payment term approvals to control financial risk."
+      },
+      {
+        "feature": "Product & Pricelist Management",
+        "description": "Maintain product databases, bundles, variants, attributes, SKUs, barcodes, and manage customer-specific or company-wide pricelists."
+      },
+      {
+        "feature": "Sales Forecasting, Reporting & Analytics",
+        "description": "Provide detailed reports (pivots, margins, top products/customers, profitability), customer segmentation (RFM), and predictive sales forecasts using statistical and AI models."
+      },
+      {
+        "feature": "Contract & Agreement Management",
+        "description": "Manage long-term sales agreements or blanket orders with multiple deliveries and printouts."
+      },
+      {
+        "feature": "Sales Team & Performance Management",
+        "description": "Organize multi-level sales teams, assign leaders/members, manage access rights, set activity targets, and track achievement."
+      },
+      {
+        "feature": "Leads & Pipeline Management",
+        "description": "Track and manage sales leads, opportunities, pipeline stages, activity logs, reasons for won/lost deals, and online lead forms."
+      },
+      {
+        "feature": "Mobile Sales Application",
+        "description": "Support Android/iOS apps for customer management, quotation/orders, GPS tracking, KPI tracking, call logs, and offline hybrid use."
+      },
+      {
+        "feature": "Promotions & Loyalty Programs",
+        "description": "Manage customer incentives through sales coupons, discounts, free products/shipping, loyalty points, rewards, and promotion validity controls."
+      }
+    ]
+  }
+  

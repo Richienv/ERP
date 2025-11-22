@@ -95,6 +95,173 @@ export const productFiltersSchema = z.object({
   limit: z.number().int().min(1).max(100).optional().default(10),
 })
 
+// ================================
+// Sales & CRM Validation Schemas
+// ================================
+
+// Customer validation schema
+export const createCustomerSchema = z.object({
+  code: z.string().min(1, 'Kode pelanggan wajib diisi').max(50, 'Kode pelanggan maksimal 50 karakter'),
+  name: z.string().min(1, 'Nama pelanggan wajib diisi').max(200, 'Nama pelanggan maksimal 200 karakter'),
+  legalName: z.string().optional(),
+  customerType: z.enum(['INDIVIDUAL', 'COMPANY', 'GOVERNMENT'], {
+    required_error: 'Tipe pelanggan wajib dipilih',
+  }),
+  categoryId: z.string().optional(),
+  
+  // Indonesian Business Information
+  npwp: z.string()
+    .optional()
+    .refine((val) => !val || /^\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}$/.test(val), {
+      message: 'Format NPWP tidak valid (XX.XXX.XXX.X-XXX.XXX)',
+    }),
+  nik: z.string()
+    .optional()
+    .refine((val) => !val || /^\d{16}$/.test(val), {
+      message: 'NIK harus 16 digit angka',
+    }),
+  taxAddress: z.string().optional(),
+  isTaxable: z.boolean().optional().default(true),
+  taxStatus: z.enum(['PKP', 'NON_PKP', 'EXEMPT']).optional().default('PKP'),
+  
+  // Contact Information
+  phone: z.string().optional(),
+  email: z.string().email('Format email tidak valid').optional().or(z.literal('')),
+  website: z.string().url('Format website tidak valid').optional().or(z.literal('')),
+  
+  // Credit Management
+  creditLimit: z.number().min(0, 'Limit kredit tidak boleh negatif').optional().default(0),
+  creditTerm: z.number().int().min(0, 'Term kredit tidak boleh negatif').optional().default(30),
+  paymentTerm: z.enum(['CASH', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'NET_90', 'COD']).optional().default('NET_30'),
+  
+  // Settings
+  currency: z.string().optional().default('IDR'),
+  priceListId: z.string().optional(),
+  salesPersonId: z.string().optional(),
+  
+  // Status
+  isActive: z.boolean().optional().default(true),
+  isProspect: z.boolean().optional().default(false),
+})
+
+// Customer Address validation schema
+export const createCustomerAddressSchema = z.object({
+  customerId: z.string().min(1, 'ID pelanggan wajib diisi'),
+  type: z.enum(['BILLING', 'SHIPPING', 'OFFICE', 'WAREHOUSE']).optional().default('BILLING'),
+  
+  // Indonesian Address Components
+  address1: z.string().min(1, 'Alamat wajib diisi'),
+  address2: z.string().optional(),
+  kelurahan: z.string().optional(),
+  kecamatan: z.string().optional(),
+  kabupaten: z.string().min(1, 'Kabupaten/Kota wajib diisi'),
+  provinsi: z.string().min(1, 'Provinsi wajib diisi'),
+  postalCode: z.string().min(1, 'Kode pos wajib diisi'),
+  country: z.string().optional().default('Indonesia'),
+  
+  // Flags
+  isPrimary: z.boolean().optional().default(false),
+  isActive: z.boolean().optional().default(true),
+})
+
+// Customer Contact validation schema
+export const createCustomerContactSchema = z.object({
+  customerId: z.string().min(1, 'ID pelanggan wajib diisi'),
+  
+  // Contact Information
+  name: z.string().min(1, 'Nama kontak wajib diisi'),
+  title: z.string().optional(),
+  department: z.string().optional(),
+  phone: z.string().optional(),
+  mobile: z.string().optional(),
+  email: z.string().email('Format email tidak valid').optional().or(z.literal('')),
+  
+  // Flags
+  isPrimary: z.boolean().optional().default(false),
+  isActive: z.boolean().optional().default(true),
+})
+
+// Quotation validation schema
+export const createQuotationSchema = z.object({
+  customerId: z.string().min(1, 'Pelanggan wajib dipilih'),
+  customerRef: z.string().optional(),
+  validUntil: z.date({
+    required_error: 'Tanggal berlaku sampai wajib diisi',
+  }),
+  paymentTerm: z.enum(['CASH', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'NET_90', 'COD']).optional().default('NET_30'),
+  deliveryTerm: z.string().optional(),
+  notes: z.string().optional(),
+  internalNotes: z.string().optional(),
+})
+
+// Quotation Item validation schema
+export const createQuotationItemSchema = z.object({
+  productId: z.string().min(1, 'Produk wajib dipilih'),
+  description: z.string().optional(),
+  quantity: z.number().min(0.001, 'Jumlah harus lebih dari 0'),
+  unitPrice: z.number().min(0, 'Harga satuan tidak boleh negatif'),
+  discount: z.number().min(0, 'Diskon tidak boleh negatif').max(100, 'Diskon maksimal 100%').optional().default(0),
+  taxRate: z.number().min(0, 'Tarif pajak tidak boleh negatif').max(100, 'Tarif pajak maksimal 100%').optional().default(11),
+})
+
+// Complete quotation with items schema
+export const createCompleteQuotationSchema = z.object({
+  quotation: createQuotationSchema,
+  items: z.array(createQuotationItemSchema).min(1, 'Minimal harus ada 1 item quotation'),
+})
+
+// Search and filter schemas for customers
+export const customerFiltersSchema = z.object({
+  search: z.string().optional(),
+  customerType: z.enum(['INDIVIDUAL', 'COMPANY', 'GOVERNMENT']).optional(),
+  categoryId: z.string().optional(),
+  creditStatus: z.enum(['GOOD', 'WATCH', 'HOLD', 'BLOCKED']).optional(),
+  taxStatus: z.enum(['PKP', 'NON_PKP', 'EXEMPT']).optional(),
+  isActive: z.boolean().optional(),
+  isProspect: z.boolean().optional(),
+  sortBy: z.enum(['name', 'code', 'createdAt', 'updatedAt', 'totalOrderValue']).optional().default('name'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('asc'),
+  page: z.number().int().min(1).optional().default(1),
+  limit: z.number().int().min(1).max(100).optional().default(10),
+})
+
+// Sales Order Validation Schemas
+export const createSalesOrderSchema = z.object({
+  customerId: z.string().min(1, 'Customer wajib diisi'),
+  quotationId: z.string().optional(),
+  customerRef: z.string().optional(),
+  orderDate: z.date().default(() => new Date()),
+  requestedDate: z.date().optional(),
+  paymentTerm: z.enum(['CASH', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'NET_90', 'COD']).default('NET_30'),
+  deliveryTerm: z.string().optional(),
+  notes: z.string().optional(),
+  internalNotes: z.string().optional(),
+})
+
+export const createSalesOrderItemSchema = z.object({
+  productId: z.string().min(1, 'Produk wajib diisi'),
+  description: z.string().optional(),
+  quantity: z.number().positive('Quantity harus lebih dari 0'),
+  unitPrice: z.number().positive('Harga satuan harus lebih dari 0'),
+  discount: z.number().min(0).max(100, 'Diskon maksimal 100%').default(0),
+  taxRate: z.number().min(0).max(100, 'Tarif pajak maksimal 100%').default(11),
+})
+
+export const createCompleteSalesOrderSchema = z.object({
+  salesOrder: createSalesOrderSchema,
+  items: z.array(createSalesOrderItemSchema).min(1, 'Minimal harus ada 1 item pesanan'),
+})
+
+export const salesOrderFiltersSchema = z.object({
+  search: z.string().optional(),
+  status: z.enum(['DRAFT', 'CONFIRMED', 'IN_PROGRESS', 'DELIVERED', 'INVOICED', 'COMPLETED', 'CANCELLED']).optional(),
+  customerId: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  page: z.number().int().min(1).optional().default(1),
+  limit: z.number().int().min(1).max(100).optional().default(10),
+})
+
 // Type exports
 export type CreateProductInput = z.infer<typeof createProductSchema>
 export type UpdateProductInput = z.infer<typeof updateProductSchema>
@@ -104,3 +271,16 @@ export type CreateStockMovementInput = z.infer<typeof createStockMovementSchema>
 export type SignInInput = z.infer<typeof signInSchema>
 export type SignUpInput = z.infer<typeof signUpSchema>
 export type ProductFiltersInput = z.infer<typeof productFiltersSchema>
+
+// Sales & CRM Type exports
+export type CreateCustomerInput = z.infer<typeof createCustomerSchema>
+export type CreateCustomerAddressInput = z.infer<typeof createCustomerAddressSchema>
+export type CreateCustomerContactInput = z.infer<typeof createCustomerContactSchema>
+export type CreateQuotationInput = z.infer<typeof createQuotationSchema>
+export type CreateQuotationItemInput = z.infer<typeof createQuotationItemSchema>
+export type CreateCompleteQuotationInput = z.infer<typeof createCompleteQuotationSchema>
+export type CustomerFiltersInput = z.infer<typeof customerFiltersSchema>
+export type CreateSalesOrderInput = z.infer<typeof createSalesOrderSchema>
+export type CreateSalesOrderItemInput = z.infer<typeof createSalesOrderItemSchema>
+export type CreateCompleteSalesOrderInput = z.infer<typeof createCompleteSalesOrderSchema>
+export type SalesOrderFiltersInput = z.infer<typeof salesOrderFiltersSchema>
