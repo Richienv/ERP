@@ -25,10 +25,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { 
-  Plus, 
-  Trash2, 
-  Search, 
+import {
+  Plus,
+  Trash2,
+  Search,
   Calculator,
   Building2,
   Package,
@@ -138,7 +138,7 @@ export function QuotationForm() {
       discount: 0,
       total: product.price
     }
-    
+
     setQuotationItems([...quotationItems, newItem])
     setShowProductSearch(false)
   }
@@ -150,10 +150,10 @@ export function QuotationForm() {
   }
 
   // Update quotation item
-  const updateQuotationItem = (index: number, field: keyof QuotationItem, value: any) => {
+  const updateQuotationItem = (index: number, field: keyof QuotationItem, value: string | number) => {
     const updatedItems = [...quotationItems]
     updatedItems[index] = { ...updatedItems[index], [field]: value }
-    
+
     // Recalculate total when quantity, unit price, or discount changes
     if (field === 'quantity' || field === 'unitPrice' || field === 'discount') {
       const item = updatedItems[index]
@@ -161,7 +161,7 @@ export function QuotationForm() {
       const discountAmount = (subtotal * item.discount) / 100
       updatedItems[index].total = subtotal - discountAmount
     }
-    
+
     setQuotationItems(updatedItems)
   }
 
@@ -174,7 +174,7 @@ export function QuotationForm() {
     }, 0)
     const taxAmount = subtotal * 0.11 // PPN 11%
     const grandTotal = subtotal + taxAmount
-    
+
     return {
       subtotal,
       totalDiscount,
@@ -191,12 +191,12 @@ export function QuotationForm() {
       items: quotationItems,
       totals
     }
-    
+
     console.log("Quotation Data:", quotationData)
     toast.success("Quotation berhasil dibuat!", {
       description: "Data quotation akan diproses dan disimpan ke database."
     })
-    
+
     // Reset form
     reset()
     setQuotationItems([])
@@ -437,7 +437,7 @@ export function QuotationForm() {
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
-              Belum ada produk dipilih. Klik "Tambah Produk" untuk memulai.
+              Belum ada produk dipilih. Klik &quot;Tambah Produk&quot; untuk memulai.
             </div>
           )}
 

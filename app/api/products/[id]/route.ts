@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+
 import { ApiResponse, ProductWithRelations } from '@/lib/types'
 
 // GET /api/products/[id] - Get single product
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { id } = params
+    const { id } = await params
 
     const product = await prisma.product.findUnique({
       where: { id },
@@ -53,7 +48,7 @@ export async function GET(
 
     // Calculate current stock
     const currentStock = product.stockLevels.reduce((sum, level) => sum + level.quantity, 0)
-    
+
     let stockStatus = 'normal'
     if (currentStock <= 0) {
       stockStatus = 'out'
@@ -87,15 +82,10 @@ export async function GET(
 // PUT /api/products/[id] - Update product
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
 
     // Check if product exists
@@ -166,15 +156,10 @@ export async function PUT(
 // DELETE /api/products/[id] - Delete product
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { id } = params
+    const { id } = await params
 
     // Check if product exists
     const existingProduct = await prisma.product.findUnique({
