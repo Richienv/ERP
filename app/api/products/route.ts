@@ -1,15 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+
 import { ProductFilters, ApiResponse, PaginatedResponse, ProductWithRelations } from '@/lib/types'
 
 // GET /api/products - Fetch products with filtering and pagination
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+
 
     const { searchParams } = new URL(request.url)
     const filters: ProductFilters = {
@@ -77,7 +74,7 @@ export async function GET(request: NextRequest) {
     // Calculate stock status for each product
     const productsWithStockStatus = products.map((product) => {
       const totalStock = product.stockLevels.reduce((sum, level) => sum + level.quantity, 0)
-      
+
       let stockStatus = 'normal'
       if (totalStock <= 0) {
         stockStatus = 'out'
@@ -128,16 +125,13 @@ export async function GET(request: NextRequest) {
 // POST /api/products - Create new product
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-    }
+
 
     const body = await request.json()
-    
+
     // Validate required fields
     const { code, name, unit, costPrice, sellingPrice, minStock, maxStock, reorderLevel } = body
-    
+
     if (!code || !name || !unit) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields: code, name, unit' },

@@ -28,7 +28,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { 
+import {
   ArrowLeft,
   Save,
   Building2,
@@ -48,32 +48,32 @@ const customerFormSchema = z.object({
   name: z.string().min(1, "Nama pelanggan harus diisi"),
   legalName: z.string().optional(),
   customerType: z.enum(["INDIVIDUAL", "COMPANY", "GOVERNMENT"], {
-    required_error: "Jenis pelanggan harus dipilih",
+    errorMap: () => ({ message: "Jenis pelanggan harus dipilih" }),
   }),
   categoryId: z.string().optional(),
-  
+
   // Indonesian Business Information
   npwp: z.string().optional(),
   nik: z.string().optional(),
   taxAddress: z.string().optional(),
   isTaxable: z.boolean().default(true),
   taxStatus: z.enum(["PKP", "NON_PKP", "EXEMPT"]).default("PKP"),
-  
+
   // Contact Information
   phone: z.string().optional(),
   email: z.string().email("Format email tidak valid").optional().or(z.literal("")),
   website: z.string().url("Format website tidak valid").optional().or(z.literal("")),
-  
+
   // Credit Management
   creditLimit: z.string().transform((val) => val ? parseFloat(val) : 0),
   creditTerm: z.string().transform((val) => val ? parseInt(val) : 30),
   paymentTerm: z.enum(["CASH", "NET_15", "NET_30", "NET_45", "NET_60", "NET_90", "COD"]).default("NET_30"),
-  
+
   // Business Settings
   currency: z.string().default("IDR"),
   priceListId: z.string().optional(),
   salesPersonId: z.string().optional(),
-  
+
   // Status
   isActive: z.boolean().default(true),
   isProspect: z.boolean().default(false),
@@ -96,7 +96,7 @@ const defaultValues: Partial<CustomerFormValues> = {
 
 // Indonesian provinces list
 const provinces = [
-  "DKI Jakarta", "Jawa Barat", "Jawa Tengah", "Jawa Timur", 
+  "DKI Jakarta", "Jawa Barat", "Jawa Tengah", "Jawa Timur",
   "DI Yogyakarta", "Banten", "Sumatera Utara", "Sumatera Barat",
   "Sumatera Selatan", "Riau", "Kalimantan Timur", "Sulawesi Selatan"
 ]
@@ -118,10 +118,10 @@ export default function NewCustomerPage() {
     try {
       // Simulate API call
       console.log("Creating customer:", data)
-      
+
       // Mock delay
       await new Promise(resolve => setTimeout(resolve, 1000))
-      
+
       // Redirect to customers list
       router.push("/sales/customers")
     } catch (error) {
@@ -210,9 +210,9 @@ export default function NewCustomerPage() {
                     <FormItem>
                       <FormLabel>Nama {customerType === "INDIVIDUAL" ? "Lengkap" : "Perusahaan"} *</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder={customerType === "INDIVIDUAL" ? "John Doe" : "PT. Contoh Perusahaan"} 
-                          {...field} 
+                        <Input
+                          placeholder={customerType === "INDIVIDUAL" ? "John Doe" : "PT. Contoh Perusahaan"}
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
@@ -454,10 +454,10 @@ export default function NewCustomerPage() {
                       <FormItem>
                         <FormLabel>Alamat Pajak</FormLabel>
                         <FormControl>
-                          <Textarea 
-                            placeholder="Alamat sesuai yang terdaftar di NPWP..." 
+                          <Textarea
+                            placeholder="Alamat sesuai yang terdaftar di NPWP..."
                             className="resize-none"
-                            {...field} 
+                            {...field}
                           />
                         </FormControl>
                         <FormMessage />
@@ -489,10 +489,10 @@ export default function NewCustomerPage() {
                     <FormItem>
                       <FormLabel>Limit Kredit (IDR)</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="0" 
-                          {...field} 
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          {...field}
                         />
                       </FormControl>
                       <FormDescription>
@@ -510,10 +510,10 @@ export default function NewCustomerPage() {
                     <FormItem>
                       <FormLabel>Jangka Waktu Kredit (Hari)</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="30" 
-                          {...field} 
+                        <Input
+                          type="number"
+                          placeholder="30"
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />
