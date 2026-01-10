@@ -1,227 +1,269 @@
 "use client";
 
+import { useState } from "react";
+import {
+    Plus,
+    Search,
+    Filter,
+    MoreVertical,
+    Shirt,
+    Calendar,
+    User,
+    Clock,
+    CheckCircle2,
+    AlertCircle
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
     Table,
     TableBody,
     TableCell,
     TableHead,
     TableHeader,
-    TableRow
+    TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import {
-    Plus,
-    Search,
-    Filter,
-    MoreHorizontal,
-    Factory,
-    Clock,
-    CheckCircle2,
-    AlertCircle
-} from "lucide-react";
-import Link from "next/link";
-import { mockManufacturingOrders } from "@/components/manufacturing/orders/data";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+} from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
 
-export default function ManufacturingOrdersPage() {
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'DONE': return 'bg-green-100 text-green-700 border-green-200';
-            case 'IN_PROGRESS': return 'bg-blue-100 text-blue-700 border-blue-200';
-            case 'CONFIRMED': return 'bg-purple-100 text-purple-700 border-purple-200';
-            case 'PLANNED': return 'bg-slate-100 text-slate-700 border-slate-200';
-            case 'CANCELLED': return 'bg-red-100 text-red-700 border-red-200';
-            default: return 'bg-gray-100 text-gray-700';
-        }
-    };
+// Mock Data for Production Orders
+const ORDERS = [
+    { id: "PO-001", style: "Classic Blue Jeans", qty: 500, status: "In Progress", producer: "Line A", date: "12/08/2026", cost: 1550000, progress: 65, workers: ["Budi", "Siti", "Joko"] },
+    { id: "PO-002", style: "Denim Jacket V2", qty: 200, status: "Pending", producer: "Line B", date: "14/08/2026", cost: 950000, progress: 0, workers: ["Rina"] },
+    { id: "PO-003", style: "Slim Fit Chinos", qty: 350, status: "Completed", producer: "Line A", date: "01/08/2026", cost: 1100000, progress: 100, workers: ["Budi", "Sanni"] },
+    { id: "PO-004", style: "Cotton T-Shirt Basic", qty: 1000, status: "In Progress", producer: "Line C", date: "15/08/2026", cost: 500000, progress: 30, workers: ["Ahmad", "Dedi"] },
+    { id: "PO-005", style: "Cargo Shorts", qty: 400, status: "Pending", producer: "Line B", date: "18/08/2026", cost: 800000, progress: 0, workers: [] },
+];
 
-    const getPriorityColor = (priority: string) => {
-        switch (priority) {
-            case 'HIGH': return 'text-red-600 bg-red-50 border-red-100';
-            case 'MEDIUM': return 'text-yellow-600 bg-yellow-50 border-yellow-100';
-            case 'LOW': return 'text-blue-600 bg-blue-50 border-blue-100';
-            default: return 'text-gray-600';
-        }
+export default function ProductionOrdersPage() {
+    const [selectedOrder, setSelectedOrder] = useState<typeof ORDERS[0] | null>(null);
+
+    const formatRupiah = (num: number) => {
+        return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
     };
 
     return (
         <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            <div className="flex items-center justify-between space-y-2">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Order Produksi (MO)</h2>
-                    <p className="text-muted-foreground">
-                        Kelola jadwal dan pelaksanaan produksi barang.
-                    </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Button asChild>
-                        <Link href="/manufacturing/orders/new">
-                            <Plus className="mr-2 h-4 w-4" />
-                            Buat Order Baru
-                        </Link>
-                    </Button>
-                </div>
-            </div>
-
-            {/* Summary Cards */}
-            <div className="grid gap-4 md:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Order Aktif</CardTitle>
-                        <Factory className="h-4 w-4 text-blue-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">
-                            {mockManufacturingOrders.filter(mo => ['IN_PROGRESS', 'CONFIRMED'].includes(mo.status)).length}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Sedang berjalan di lantai produksi
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Terjadwal</CardTitle>
-                        <Clock className="h-4 w-4 text-slate-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-slate-600">
-                            {mockManufacturingOrders.filter(mo => mo.status === 'PLANNED').length}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Menunggu konfirmasi material
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Selesai Bulan Ini</CardTitle>
-                        <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">
-                            {mockManufacturingOrders.filter(mo => mo.status === 'DONE').length}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            On-time delivery 98%
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Prioritas Tinggi</CardTitle>
-                        <AlertCircle className="h-4 w-4 text-red-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-600">
-                            {mockManufacturingOrders.filter(mo => mo.priority === 'HIGH' && mo.status !== 'DONE').length}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            Butuh perhatian segera
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Filters & Search */}
             <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                    <div className="relative w-[300px]">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input placeholder="Cari No. MO atau nama produk..." className="pl-8" />
+                <div>
+                    <h2 className="text-3xl font-bold tracking-tight">Production Orders</h2>
+                    <p className="text-muted-foreground">Track manufacturing progress and cost allocation.</p>
+                </div>
+                <Button>
+                    <Plus className="mr-2 h-4 w-4" /> Create Order
+                </Button>
+            </div>
+
+            {/* Toolbar */}
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center flex-1 gap-2 max-w-sm">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input placeholder="Search PO#, Style..." className="pl-9" />
                     </div>
                     <Button variant="outline" size="icon">
                         <Filter className="h-4 w-4" />
                     </Button>
                 </div>
-                <div className="flex items-center space-x-2">
-                    <Input type="date" className="w-[150px]" />
-                </div>
             </div>
 
-            {/* Data Table */}
+            {/* Main Table */}
             <div className="rounded-md border bg-card">
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead className="w-[140px]">No. Order</TableHead>
-                            <TableHead>Produk</TableHead>
-                            <TableHead className="w-[100px]">Jumlah</TableHead>
-                            <TableHead className="w-[150px]">Deadline</TableHead>
-                            <TableHead className="w-[120px]">Status</TableHead>
-                            <TableHead className="w-[150px]">Progress</TableHead>
-                            <TableHead className="w-[100px]">Prioritas</TableHead>
-                            <TableHead className="text-right w-[80px]">Aksi</TableHead>
+                            <TableHead className="w-[100px]">Order #</TableHead>
+                            <TableHead>Style / Product</TableHead>
+                            <TableHead>Qty</TableHead>
+                            <TableHead>Producer</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {mockManufacturingOrders.map((mo) => (
-                            <TableRow key={mo.id}>
-                                <TableCell className="font-medium">{mo.moNumber}</TableCell>
+                        {ORDERS.map((order) => (
+                            <TableRow
+                                key={order.id}
+                                className="cursor-pointer hover:bg-muted/50"
+                                onClick={() => setSelectedOrder(order)}
+                            >
+                                <TableCell className="font-medium">{order.id}</TableCell>
                                 <TableCell>
-                                    <div className="flex flex-col">
-                                        <span className="font-medium">{mo.productName}</span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {mo.productCode}
-                                        </span>
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 rounded bg-secondary flex items-center justify-center">
+                                            <Shirt className="h-4 w-4 text-muted-foreground" />
+                                        </div>
+                                        <span className="font-medium">{order.style}</span>
                                     </div>
                                 </TableCell>
+                                <TableCell>{order.qty}</TableCell>
+                                <TableCell>{order.producer}</TableCell>
                                 <TableCell>
-                                    {mo.quantity} {mo.uom}
-                                </TableCell>
-                                <TableCell>
-                                    {mo.deadline.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                </TableCell>
-                                <TableCell>
-                                    <Badge
-                                        variant="outline"
-                                        className={getStatusColor(mo.status)}
-                                    >
-                                        {mo.status.replace('_', ' ')}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex items-center gap-2">
-                                        <Progress value={mo.progress} className="h-2" />
-                                        <span className="text-xs text-muted-foreground w-[30px]">{mo.progress}%</span>
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant="outline" className={getPriorityColor(mo.priority)}>
-                                        {mo.priority}
+                                    <Badge variant={
+                                        order.status === "Completed" ? "default" :
+                                            order.status === "In Progress" ? "secondary" :
+                                                "outline"
+                                    } className={order.status === "Completed" ? "bg-emerald-500 hover:bg-emerald-600" : ""}>
+                                        {order.status}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon">
-                                                <MoreHorizontal className="h-4 w-4" />
-                                                <span className="sr-only">Menu</span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                            <DropdownMenuItem>Lihat Detail</DropdownMenuItem>
-                                            <DropdownMenuItem>Update Progress</DropdownMenuItem>
-                                            <DropdownMenuItem>Cek Ketersediaan Material</DropdownMenuItem>
-                                            {mo.status === 'PLANNED' && (
-                                                <>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem>Konfirmasi Order</DropdownMenuItem>
-                                                </>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>
                 </Table>
             </div>
+
+            {/* Slide-Over Detail Panel */}
+            <Sheet open={!!selectedOrder} onOpenChange={(open) => !open && setSelectedOrder(null)}>
+                <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+                    {selectedOrder && (
+                        <>
+                            <SheetHeader className="space-y-4 pb-6 border-b">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <SheetTitle className="text-2xl">{selectedOrder.id}: {selectedOrder.qty} Units</SheetTitle>
+                                        <SheetDescription>{selectedOrder.style}</SheetDescription>
+                                    </div>
+                                    <Badge variant="outline" className="text-sm">{selectedOrder.status}</Badge>
+                                </div>
+                                <div className="flex gap-6 text-sm">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-muted-foreground">Start Date</span>
+                                        <span className="font-medium">{selectedOrder.date}</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-muted-foreground">Est. Completion</span>
+                                        <span className="font-medium">20/08/2026</span>
+                                    </div>
+                                    <div className="flex flex-col gap-1">
+                                        <span className="text-muted-foreground">Progress</span>
+                                        <span className="font-medium text-blue-600">{selectedOrder.progress}%</span>
+                                    </div>
+                                </div>
+                            </SheetHeader>
+
+                            <div className="py-6 space-y-8">
+
+                                {/* Allocated Materials Section */}
+                                <div className="space-y-4">
+                                    <h3 className="font-semibold flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4 text-emerald-500" /> Allocated Materials
+                                    </h3>
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between items-center text-sm p-3 bg-secondary/30 rounded-lg">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 bg-blue-500/10 rounded flex items-center justify-center text-blue-600 font-bold">D</div>
+                                                <div>
+                                                    <p className="font-medium">Denim Fabric 13oz</p>
+                                                    <p className="text-xs text-muted-foreground">1.250 Meters</p>
+                                                </div>
+                                            </div>
+                                            <span className="font-medium">Rp 950.000</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm p-3 bg-secondary/30 rounded-lg">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 bg-zinc-500/10 rounded flex items-center justify-center text-zinc-600 font-bold">Z</div>
+                                                <div>
+                                                    <p className="font-medium">YKK Zippers (Metal)</p>
+                                                    <p className="text-xs text-muted-foreground">500 Units</p>
+                                                </div>
+                                            </div>
+                                            <span className="font-medium">Rp 250.000</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-sm p-3 bg-secondary/30 rounded-lg">
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 bg-orange-500/10 rounded flex items-center justify-center text-orange-600 font-bold">T</div>
+                                                <div>
+                                                    <p className="font-medium">Sewing Thread (Navy)</p>
+                                                    <p className="text-xs text-muted-foreground">50 Spools</p>
+                                                </div>
+                                            </div>
+                                            <span className="font-medium">Rp 75.000</span>
+                                        </div>
+                                        <Separator />
+                                        <div className="flex justify-between font-bold">
+                                            <span>Total Material Cost</span>
+                                            <span>Rp 1.275.000</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Cost Breakdown Section */}
+                                <div className="space-y-4">
+                                    <h3 className="font-semibold flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4 text-blue-500" /> Cost Breakdown
+                                    </h3>
+                                    <div className="space-y-2 text-sm">
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Base Production (Ovt)</span>
+                                            <span>Rp 150.000</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Worker Assignments</span>
+                                            <span>Rp 125.000</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Profit Emerging</span>
+                                            <span className="text-emerald-600">Rp 0 (Est)</span>
+                                        </div>
+                                        <Separator className="my-2" />
+                                        <div className="flex justify-between text-lg font-bold">
+                                            <span>Total Cost</span>
+                                            <span>{formatRupiah(selectedOrder.cost)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Worker Assignments Section */}
+                                <div className="space-y-4">
+                                    <h3 className="font-semibold flex items-center gap-2">
+                                        <User className="h-4 w-4 text-purple-500" /> Worker Assignments
+                                    </h3>
+                                    <div className="grid gap-3">
+                                        {selectedOrder.workers.length > 0 ? selectedOrder.workers.map((worker, i) => (
+                                            <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+                                                <div className="flex items-center gap-3">
+                                                    <Avatar className="h-8 w-8">
+                                                        <AvatarFallback className="bg-primary/10 text-primary text-xs">{worker.substring(0, 2).toUpperCase()}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="text-sm font-medium">{worker}</p>
+                                                        <p className="text-xs text-muted-foreground">Cutting • Sewing</p>
+                                                    </div>
+                                                </div>
+                                                <Badge variant="secondary" className="text-[10px]">Active</Badge>
+                                            </div>
+                                        )) : (
+                                            <p className="text-sm text-muted-foreground italic">No workers assigned yet.</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="pt-4">
+                                    <Button className="w-full">
+                                        Update Progress & Costs
+                                    </Button>
+                                </div>
+
+                            </div>
+                        </>
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     );
 }

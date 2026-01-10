@@ -1,327 +1,170 @@
 "use client"
 
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import * as React from "react"
+import { KanbanBoard, KanbanColumn, KanbanTask } from "@/components/ui/trello-kanban-board"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
+import { Plus, X } from "lucide-react"
 import {
-  Plus,
-  Package,
-  AlertTriangle,
-  Boxes,
-  Search,
-  Filter,
-  Download
-} from "lucide-react"
-import Link from "next/link"
-import { ProductDataTable } from "@/components/inventory/product-data-table"
-import { getStockStatus } from "@/lib/inventory-utils"
-import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
-// Mock data - Textile Factory Products
-const mockProducts = [
+// Mock data for products flow
+const productColumns: KanbanColumn[] = [
   {
-    id: "1",
-    code: "FAB-CTN-001",
-    name: "Kain Katun Combed 30s - Putih",
-    description: "Kain katun combed 30s kualitas premium warna putih",
-    categoryId: "1",
-    unit: "roll",
-    costPrice: 2500000,
-    sellingPrice: 3200000,
-    minStock: 10,
-    maxStock: 50,
-    reorderLevel: 15,
-    barcode: "899123456001",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-11-01"),
-    category: {
-      id: "1",
-      code: "FAB",
-      name: "Kain Katun",
-      description: "Bahan kain katun",
-      parentId: null,
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01")
-    },
-    _count: {
-      stockLevels: 3,
-      stockMovements: 45
-    },
-    currentStock: 25
+    id: "draft",
+    title: "Konsep / Draf",
+    tasks: [
+      { id: "p-1", title: "Winter Jacket Prototype", description: "Needs material selection", labels: ["design"] },
+      { id: "p-2", title: "Silk Scarf V2", labels: ["research"] },
+    ],
   },
   {
-    id: "2",
-    code: "FAB-DEN-001",
-    name: "Kain Denim Raw 14oz",
-    description: "Kain denim raw weight 14oz lebar 150cm",
-    categoryId: "2",
-    unit: "roll",
-    costPrice: 3500000,
-    sellingPrice: 4800000,
-    minStock: 15,
-    maxStock: 60,
-    reorderLevel: 20,
-    barcode: "899123456002",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-11-01"),
-    category: {
-      id: "2",
-      code: "DEN",
-      name: "Denim",
-      description: "Bahan denim/jeans",
-      parentId: null,
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01")
-    },
-    _count: {
-      stockLevels: 2,
-      stockMovements: 32
-    },
-    currentStock: 8
+    id: "sourcing",
+    title: "Pencarian Bahan",
+    tasks: [
+      { id: "p-3", title: "Denim Jeans 501", description: "Waiting for supplier confirmation on denim rolls.", labels: ["urgent", "procurement"] },
+      { id: "p-4", title: "Cotton T-Shirt Basic", assignee: "Budi" },
+    ],
   },
   {
-    id: "3",
-    code: "ACC-BTN-001",
-    name: "Kancing Kemeja 18L - Putih",
-    description: "Kancing kemeja standar ukuran 18L warna putih",
-    categoryId: "3",
-    unit: "gross",
-    costPrice: 45000,
-    sellingPrice: 65000,
-    minStock: 50,
-    maxStock: 200,
-    reorderLevel: 60,
-    barcode: "899123456003",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-11-01"),
-    category: {
-      id: "3",
-      code: "ACC",
-      name: "Aksesori",
-      description: "Aksesori garmen",
-      parentId: null,
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01")
-    },
-    _count: {
-      stockLevels: 1,
-      stockMovements: 15
-    },
-    currentStock: 0
+    id: "production",
+    title: "Dalam Produksi",
+    tasks: [
+      { id: "p-5", title: "Linen Shirt Summer", description: "Cutting phase complete, moving to sewing.", labels: ["production"] },
+    ],
   },
   {
-    id: "4",
-    code: "THR-PLY-001",
-    name: "Benang Polyester 40/2 - Hitam",
-    description: "Benang jahit polyester ukuran 40/2 warna hitam",
-    categoryId: "4",
-    unit: "cone",
-    costPrice: 15000,
-    sellingPrice: 22000,
-    minStock: 100,
-    maxStock: 500,
-    reorderLevel: 120,
-    barcode: "899123456004",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-11-01"),
-    category: {
-      id: "4",
-      code: "THR",
-      name: "Benang",
-      description: "Benang jahit",
-      parentId: null,
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01")
-    },
-    _count: {
-      stockLevels: 2,
-      stockMovements: 88
-    },
-    currentStock: 45
+    id: "quality-control",
+    title: "Kontrol Kualitas",
+    tasks: [
+      { id: "p-6", title: "Velvet Dress", assignee: "Siti" },
+    ],
   },
   {
-    id: "5",
-    code: "FAB-RAY-001",
-    name: "Kain Rayon Viscose - Motif Bunga",
-    description: "Kain rayon viscose motif bunga lebar 150cm",
-    categoryId: "1",
-    unit: "roll",
-    costPrice: 2800000,
-    sellingPrice: 3600000,
-    minStock: 10,
-    maxStock: 40,
-    reorderLevel: 12,
-    barcode: "899123456005",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-11-01"),
-    category: {
-      id: "1",
-      code: "FAB",
-      name: "Kain Rayon",
-      description: "Bahan kain rayon",
-      parentId: null,
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01")
-    },
-    _count: {
-      stockLevels: 1,
-      stockMovements: 12
-    },
-    currentStock: 3
-  }
+    id: "ready",
+    title: "Stok Siap",
+    tasks: [
+      { id: "p-7", title: "Chino Pants Tan", labels: ["stock"] },
+      { id: "p-8", title: "Polo Shirt Navy", labels: ["stock"] },
+    ],
+  },
 ]
 
-export default function ProductsPage() {
-  // Calculate stats from data
-  const totalProducts = mockProducts.length
-  const normalStock = mockProducts.filter(p => getStockStatus(p.currentStock, p.minStock, p.maxStock) === 'normal').length
-  const lowStock = mockProducts.filter(p => {
-    const status = getStockStatus(p.currentStock, p.minStock, p.maxStock)
-    return status === 'low' || status === 'critical'
-  }).length
-  const outOfStock = mockProducts.filter(p => getStockStatus(p.currentStock, p.minStock, p.maxStock) === 'out').length
+export default function ProductsKanbanPage() {
+  const [selectedTask, setSelectedTask] = React.useState<KanbanTask | null>(null)
+  const [isSheetOpen, setIsSheetOpen] = React.useState(false)
+
+  const handleTaskClick = (task: KanbanTask) => {
+    setSelectedTask(task)
+    setIsSheetOpen(true)
+  }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between space-y-2">
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] bg-black p-4 md:p-8 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Kelola Material Kain</h2>
-          <p className="text-muted-foreground">
-            Daftar dan kelola semua stok kain, benang, dan aksesori
+          <h1 className="text-3xl font-medium tracking-tight text-white font-serif">Kelola Produk</h1>
+          <p className="text-zinc-400 mt-1">
+            Lacak siklus produk dari konsep hingga siap stok.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          <Button asChild>
-            <Link href="/inventory/products/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Material
-            </Link>
-          </Button>
-        </div>
+        <Button className="bg-white text-black hover:bg-zinc-200">
+          <Plus className="mr-2 h-4 w-4" />
+          Produk Baru
+        </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl:grid-cols-2 @5xl:grid-cols-4">
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Total Item Material</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {totalProducts}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <IconTrendingUp />
-                +4.5%
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Item aktif dalam sistem <Package className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Termasuk kain dan aksesori
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Stok Normal</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-green-600">
-              {normalStock}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-green-600 text-green-600">
-                <IconTrendingUp />
-                Optimal
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-green-600">
-              Ketersediaan aman <Boxes className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Siap untuk produksi
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Stok Menipis</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-yellow-600">
-              {lowStock}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-yellow-600 text-yellow-600">
-                <IconTrendingDown />
-                Perhatian
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-yellow-600">
-              Perlu restock segera <AlertTriangle className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Di bawah level minimum
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Habis Stok</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-red-600">
-              {outOfStock}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-red-600 text-red-600">
-                <IconTrendingDown />
-                Kritis
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-red-600">
-              Stok kosong <AlertTriangle className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Hambat produksi
-            </div>
-          </CardFooter>
-        </Card>
+      <div className="flex-1 overflow-hidden rounded-3xl bg-zinc-900/50 border border-zinc-800 p-6">
+        <KanbanBoard
+          columns={productColumns}
+          columnColors={{
+            draft: "bg-zinc-500",
+            sourcing: "bg-amber-600",
+            production: "bg-blue-600",
+            "quality-control": "bg-purple-600",
+            ready: "bg-emerald-600"
+          }}
+          labelColors={{
+            design: "bg-pink-500",
+            research: "bg-violet-500",
+            urgent: "bg-rose-500",
+            procurement: "bg-amber-500",
+            production: "bg-blue-500",
+            stock: "bg-emerald-500"
+          }}
+          className="h-full"
+          onTaskClick={handleTaskClick}
+        />
       </div>
 
-      {/* Products Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Material & Produk</CardTitle>
-          <CardDescription>
-            Kelola inventori kain, benang, dan aksesori dengan detail lengkap
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ProductDataTable data={mockProducts} />
-        </CardContent>
-      </Card>
+      {/* Task Detail Sheet */}
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="bg-zinc-950 border-zinc-800 text-zinc-100 sm:max-w-md">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="text-2xl font-serif">{selectedTask?.title}</SheetTitle>
+            <SheetDescription className="text-zinc-400">
+              Product ID: {selectedTask?.id}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="title" className="text-zinc-400">Title</Label>
+              <Input id="title" defaultValue={selectedTask?.title} className="bg-zinc-900 border-zinc-800 focus-visible:ring-indigo-500" />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="desc" className="text-zinc-400">Description</Label>
+              <Textarea
+                id="desc"
+                defaultValue={selectedTask?.description || ""}
+                placeholder="Add product details..."
+                className="bg-zinc-900 border-zinc-800 min-h-[120px] focus-visible:ring-indigo-500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-zinc-400">Labels</Label>
+              <div className="flex flex-wrap gap-2">
+                {selectedTask?.labels?.map(label => (
+                  <Badge key={label} variant="outline" className="border-zinc-700 bg-zinc-900 text-zinc-300">
+                    {label}
+                  </Badge>
+                ))}
+                <Button variant="outline" size="sm" className="h-6 border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-white text-xs">
+                  <Plus className="h-3 w-3 mr-1" /> Add Label
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="assignee" className="text-zinc-400">Assignee</Label>
+              <div className="flex items-center gap-2 p-2 rounded-md border border-zinc-800 bg-zinc-900">
+                <div className="h-6 w-6 rounded-full bg-indigo-500/20 text-indigo-300 flex items-center justify-center text-xs font-bold border border-indigo-500/30">
+                  {selectedTask?.assignee?.substring(0, 2) || "?"}
+                </div>
+                <span className="text-sm">{selectedTask?.assignee || "Unassigned"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-8">
+            <Button className="flex-1 bg-white text-black hover:bg-zinc-200">Save Changes</Button>
+            <Button variant="outline" className="border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-white" onClick={() => setIsSheetOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+
+        </SheetContent>
+      </Sheet>
     </div>
   )
 }

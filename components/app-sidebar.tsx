@@ -17,7 +17,11 @@ import {
   IconCurrencyDollar,
   IconChartLine,
   IconTruck,
+  IconBuildingStore,
+  IconWorld,
+  IconReceipt,
 } from "@tabler/icons-react"
+import { useAuth } from "@/lib/auth-context"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
@@ -34,11 +38,6 @@ import {
 } from "@/components/ui/sidebar"
 
 const data = {
-  user: {
-    name: "Admin John",
-    email: "admin@perusahaan.com",
-    avatar: "/avatars/admin.jpg",
-  },
   navMain: [
     {
       title: "Dasbor",
@@ -114,8 +113,23 @@ const data = {
           url: "/sales/leads",
         },
         {
+          title: "Point of Sale (POS)",
+          url: "/dashboard/pos",
+        },
+        {
           title: "Daftar Harga",
           url: "/sales/pricelists",
+        },
+      ],
+    },
+    {
+      title: "E-commerce",
+      url: "/dashboard/ecommerce",
+      icon: IconWorld,
+      items: [
+        {
+          title: "Dashboard Toko",
+          url: "/dashboard/ecommerce",
         },
       ],
     },
@@ -147,6 +161,22 @@ const data = {
       url: "/finance",
       icon: IconCurrencyDollar,
       items: [
+        {
+          title: "Invoicing",
+          url: "/finance/invoices",
+        },
+        {
+          title: "Penerimaan (AR)",
+          url: "/finance/payments",
+        },
+        {
+          title: "Tagihan Vendor (AP)",
+          url: "/finance/bills",
+        },
+        {
+          title: "Pembayaran (AP)",
+          url: "/finance/vendor-payments",
+        },
         {
           title: "Chart of Accounts",
           url: "/finance/chart-accounts",
@@ -316,6 +346,76 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useAuth()
+
+  // Filter navigation for Staff Role
+  const isStaff = user?.role === "ROLE_STAFF"
+  const isAccountant = user?.role === "ROLE_ACCOUNTANT"
+
+  const staffNav = [
+    {
+      title: "Portal Staf",
+      url: "/staff",
+      icon: IconDashboard,
+      isActive: true,
+    }
+  ]
+
+  const accountantNav = [
+    {
+      title: "Financial Command Center",
+      url: "/accountant",
+      icon: IconDashboard,
+      isActive: true,
+    },
+    // Keep access to detailed Finance module if needed, but primary is Command Center
+    {
+      title: "Modul Keuangan",
+      url: "/finance",
+      icon: IconCurrencyDollar,
+      items: data.navMain.find(i => i.url === "/finance")?.items || []
+    }
+  ]
+
+  // Manager Navigation
+  const managerNav = [
+    {
+      title: "Factory Command Center",
+      url: "/manager",
+      icon: IconDashboard, // Using Dashboard icon as it is a Command Center
+      isActive: true,
+    },
+    {
+      title: "Manufaktur",
+      url: "/manufacturing",
+      icon: IconTool,
+      items: data.navMain.find(i => i.url === "/manufacturing")?.items || []
+    },
+    {
+      title: "Inventori",
+      url: "/inventory",
+      icon: IconDatabase,
+      items: data.navMain.find(i => i.url === "/inventory")?.items || []
+    },
+    {
+      title: "Pengadaan",
+      url: "/procurement",
+      icon: IconShoppingCart,
+      items: data.navMain.find(i => i.url === "/procurement")?.items || []
+    }
+  ]
+
+  let filteredNavMain = data.navMain
+  if (isStaff) {
+    filteredNavMain = staffNav
+  } else if (isAccountant) {
+    filteredNavMain = accountantNav
+  } else if (user?.role === "ROLE_MANAGER") {
+    filteredNavMain = managerNav
+  }
+
+  const filteredNavSecondary = (isStaff || isAccountant || user?.role === "ROLE_MANAGER") ? [] : data.navSecondary
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -334,11 +434,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={filteredNavMain} />
+        {!isStaff && <NavSecondary items={filteredNavSecondary} className="mt-auto" />}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   )

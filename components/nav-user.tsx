@@ -28,17 +28,57 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { useAuth } from "@/lib/auth-context"
+import { useRouter } from "next/navigation"
 
 export function NavUser({
-  user,
+  user: propUser,
 }: {
-  user: {
+  user?: {
     name: string
     email: string
     avatar: string
   }
 }) {
   const { isMobile } = useSidebar()
+  const { user: authUser, logout } = useAuth()
+  const router = useRouter()
+
+  // Helper to format role name nicely
+  const formatRole = (role: string) => {
+    const roleMap: Record<string, string> = {
+      "ROLE_CEO": "Pemilik & CEO",
+      "ROLE_MANAGER": "Manajer Operasional",
+      "ROLE_ACCOUNTANT": "Akuntan",
+      "ROLE_STAFF": "Staf"
+    }
+    return roleMap[role] || role.replace("ROLE_", "").replace(/_/g, " ")
+  }
+
+  // Prioritize authUser, fallback to propUser, then default placeholder
+  const user = authUser ? {
+    name: authUser.name,
+    email: formatRole(authUser.role), // Show localized role as email/subtitle
+    avatar: authUser.avatar || "",
+  } : propUser || {
+    name: "Tamu",
+    email: "guest@erp.com",
+    avatar: ""
+  }
+
+  // If no authUser and no propUser, show login button
+  if (!authUser && !propUser) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton onClick={() => router.push("/login")}>
+            <IconLogout className="size-4" />
+            <span>Masuk</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    )
+  }
 
   return (
     <SidebarMenu>
@@ -51,7 +91,9 @@ export function NavUser({
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                <AvatarFallback className="rounded-lg">
+                  {user.name.substring(0, 2).toUpperCase()}
+                </AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -72,7 +114,9 @@ export function NavUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                  <AvatarFallback className="rounded-lg">
+                    {user.name.substring(0, 2).toUpperCase()}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user.name}</span>
@@ -86,21 +130,21 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <IconUserCircle />
-                Account
+                Akun
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconCreditCard />
-                Billing
+                Tagihan
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconNotification />
-                Notifications
+                Notifikasi
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={logout}>
               <IconLogout />
-              Log out
+              Keluar
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

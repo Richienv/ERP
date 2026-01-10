@@ -1,0 +1,239 @@
+# **ACCOUNTANT DEDICATED WORKSPACE - Feature Wishlist for Textile Factory ERP**
+
+*Imagining myself as a textile factory owner who needs my accountant to be productive, accurate, and give me real-time financial visibility*
+
+***
+
+## **💰 MY BUSINESS CONTEXT AS TEXTILE FACTORY OWNER**
+
+**My Financial Pain Points:**
+- **Cash flow crisis:** I've paid suppliers Rp 800M this month, but customers owe me Rp 1.2B - some invoices 90 days overdue
+- **Costing nightmares:** I quoted customer Rp 45,000/meter but after production, actual cost was Rp 48,000 - lost Rp 3M on that order
+- **Tax compliance stress:** Monthly VAT filing deadline approaching, my accountant spending 3 days manually compiling data
+- **Bank reconciliation chaos:** 5 bank accounts, hundreds of transactions, takes 2 weeks to reconcile each month
+- **Audit season panic:** Auditors request documents, accountant searches through filing cabinets for days
+
+**What I'm Willing to PAY FOR:**
+Features that save my accountant's time, prevent costly errors, ensure compliance, and give me instant financial visibility so I can make decisions confidently.
+
+***
+
+## **📊 SECTION 1: REAL-TIME FINANCIAL COMMAND CENTER**
+
+### **Feature 1.1: Live Financial Dashboard with Drill-Down Capability**
+
+**What I Want My Accountant to See (and I want to see too on my phone):**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🏭 KAIN JAYA TEXTILE - FINANCIAL DASHBOARD                  │
+│ Updated: 13:05 WIB, Jan 9, 2026                             │
+│                                                              │
+│ 💵 CASH POSITION                                            │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ Total Cash: Rp 2.45 Miliar 🟢                           │ │
+│ │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━│ │
+│ │                                                          │ │
+│ │ Bank BCA (****1234):      Rp 1.2M    (+Rp 450jt today) │ │
+│ │ Bank Mandiri (****5678):  Rp 800jt   (No movement)     │ │
+│ │ Bank BNI (****9012):      Rp 350jt   (-Rp 200jt today) │ │
+│ │ Petty Cash - Office:      Rp 45jt                       │ │
+│ │ Petty Cash - Factory:     Rp 55jt                       │ │
+│ │                                                          │ │
+│ │ 📊 7-Day Forecast:                                      │ │
+│ │ Expected IN:  Rp 680jt (5 customer payments due)       │ │
+│ │ Expected OUT: Rp 920jt (8 supplier payments due)       │ │
+│ │ ⚠️ ALERT: Cash shortfall Rp 240jt by Jan 16            │ │
+│ │ Recommendation: Delay payment to PT Sumber Kain        │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                              │
+│ 📈 RECEIVABLES (What Customers Owe Me)                      │
+│ Total Outstanding: Rp 3.8 Miliar                            │
+│ • Current (0-30 days):    Rp 1.2M 🟢  12 invoices         │
+│ • Due Soon (31-60 days):  Rp 950jt 🟡  8 invoices         │
+│ • Overdue (61-90 days):   Rp 850jt 🟠  6 invoices         │
+│ • CRITICAL (>90 days):    Rp 800jt 🔴  4 invoices         │
+│                                                              │
+│ 🔴 TOP 3 URGENT COLLECTIONS:                                │
+│ 1. CV Garmen Sejahtera: Rp 340jt (112 days) [Send Reminder]│
+│ 2. PT Mode Fashion:      Rp 280jt (95 days)  [Call Now]    │
+│ 3. Toko Baju Indah:      Rp 180jt (88 days)  [Visit]       │
+│                                                              │
+│ 📉 PAYABLES (What I Owe Suppliers)                          │
+│ Total Outstanding: Rp 2.1 Miliar                            │
+│ • Not Due Yet:           Rp 1.1M 🟢                         │
+│ • Due This Week:         Rp 650jt 🟡  Priority: 6 suppliers│
+│ • Overdue (Need to pay): Rp 350jt 🔴  3 suppliers angry!   │
+│                                                              │
+│ 💰 PROFITABILITY THIS MONTH (Jan 1-9)                       │
+│ Revenue:        Rp 1.85M  (Target: Rp 6.5M/month)          │
+│ Cost of Sales:  Rp 1.28M  (Margin: 30.8%)                  │
+│ Gross Profit:   Rp 570jt                                    │
+│ Operating Exp:  Rp 385jt                                    │
+│ Net Profit:     Rp 185jt  (10% margin) ✓                   │
+│                                                              │
+│ [View Detailed P&L] [Cash Flow Statement] [Balance Sheet]  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Why I'll PAY GOOD MONEY for This:**
+
+**Real-Life Scenario - Monday Morning 8 AM:**
+- I open dashboard on my phone during breakfast
+- I see: "Cash shortfall Rp 240M by Jan 16"
+- **OLD WAY:** I'd discover this on Jan 16 when supplier payment bounces, supplier gets angry, threatens to stop deliveries, I scramble to get emergency loan
+- **WITH THIS:** I immediately call my sales team: "Push PT Mode Fashion to pay their Rp 280M invoice this week - offer 2% discount for immediate payment." Crisis averted, saved 18% loan interest.
+
+**Business Impact:**
+- Never surprised by cash shortages = No emergency loans at 18% annual interest
+- **ROI Calculation:** Just preventing ONE cash crisis loan of Rp 500M saves me Rp 7.5M in interest per month
+- I'd pay **Rp 15M/year** for this feature alone
+
+***
+
+### **Feature 1.2: Smart Invoice Aging with Auto-Follow-Up Templates**
+
+**What My Accountant Needs:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 📧 RECEIVABLES COLLECTION ASSISTANT                          │
+│                                                              │
+│ Customer: CV GARMEN SEJAHTERA                               │
+│ Total Outstanding: Rp 340,000,000                           │
+│ Payment Behavior Score: 6.2/10 (Usually pays late)         │
+│                                                              │
+│ 📋 INVOICE DETAILS:                                         │
+│ ┌──────────┬──────────────┬─────────────┬────────┬────────┐ │
+│ │ Invoice  │ Date         │ Amount      │ Due    │ Aging  │ │
+│ ├──────────┼──────────────┼─────────────┼────────┼────────┤ │
+│ │ INV-2543 │ Sep 18, 2025 │ Rp 140jt   │ Oct 18 │ 112 d 🔴│ │
+│ │ INV-2687 │ Oct 25, 2025 │ Rp 95jt    │ Nov 25 │ 75 d  🔴│ │
+│ │ INV-2801 │ Nov 30, 2025 │ Rp 105jt   │ Dec 30 │ 40 d  🟡│ │
+│ └──────────┴──────────────┴─────────────┴────────┴────────┘ │
+│                                                              │
+│ 📞 COLLECTION HISTORY:                                      │
+│ • Dec 20: Email reminder sent - No response                 │
+│ • Dec 28: Phone call - "Will pay next week"                 │
+│ • Jan 5:  WhatsApp message - "Processing payment"           │
+│                                                              │
+│ 🤖 AI-SUGGESTED ACTIONS:                                    │
+│ Based on payment history, this customer typically pays      │
+│ after 3rd reminder + phone call. Success rate: 78%          │
+│                                                              │
+│ Recommended Actions:                                         │
+│ 1. 🔥 URGENT: Legal notice for INV-2543 (>90 days)         │
+│ 2. 📞 Schedule meeting with owner                           │
+│ 3. 💰 Offer: 5% discount if pay full Rp 340jt this week    │
+│ 4. ⚠️  Put on credit hold - No new orders until paid       │
+│                                                              │
+│ ✉️ AUTO-GENERATED MESSAGES:                                │
+│ [Send Polite Reminder] [Send Firm Notice] [Send Legal]     │
+│                                                              │
+│ 📄 DRAFT EMAIL PREVIEW:                                     │
+│ ─────────────────────────────────────────────────────────  │
+│ Dear Mr. Budi,                                              │
+│                                                              │
+│ We hope this message finds you well. This is a friendly    │
+│ reminder regarding outstanding invoices totaling            │
+│ Rp 340,000,000 with your company.                          │
+│                                                              │
+│ Invoice INV-2543 is now 112 days overdue. We value our     │
+│ business relationship and would like to resolve this.       │
+│                                                              │
+│ As a gesture of goodwill, we can offer 5% discount         │
+│ (saving Rp 17M) if full payment is received by Jan 12.     │
+│                                                              │
+│ Payment details: [Auto-inserted from system]               │
+│                                                              │
+│ Please contact our accounts team if you need to discuss    │
+│ payment terms.                                              │
+│                                                              │
+│ Best regards,                                               │
+│ Finance Department - Kain Jaya Textile                      │
+│ ─────────────────────────────────────────────────────────  │
+│ [Edit Message] [Send Now] [Schedule for Tomorrow 9 AM]     │
+│                                                              │
+│ 📊 If unpaid by Jan 20:                                     │
+│ • Auto-escalate to: Owner (Me)                             │
+│ • Suggest: Engage debt collection agency                    │
+│ • Block new orders automatically                            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Why This is Worth Money:**
+
+**Current Pain:**
+- My accountant, Ibu Sari, spends 2 FULL DAYS per week chasing payments
+- Manually checks which invoices are due
+- Types same reminder emails again and again
+- Forgets to follow up on some customers
+- No systematic approach = money left on table
+
+**With This Feature:**
+- Every Monday 9 AM: System auto-generates reminder list
+- One-click sends professional reminders to all overdue customers
+- Tracks all communication automatically
+- Escalates to me only for critical cases (>90 days, high amount)
+
+**ROI:**
+- Ibu Sari's time saved: 2 days/week = 8 days/month
+- Her salary: Rp 12M/month, so wasted time = Rp 3.2M/month
+- **More importantly:** Faster collection = better cash flow
+- If I collect just 5% faster (reduce 60-day aging to 57 days), I free up ~Rp 200M in working capital
+- That's money I don't need to borrow at 18% = **Saving Rp 3M/month**
+
+**What I'd Pay:** Rp 20M/year subscription - worth every rupiah
+
+***
+
+### **Feature 1.3: Automated Bank Reconciliation with AI Matching**
+
+**The Problem I Face Now:**
+- 5 bank accounts × 500 transactions/month = 2,500 transactions to reconcile
+- My accountant manually downloads bank statements (CSV from each bank)
+- Manually matches each transaction to invoices/payments/expenses
+- Takes 3-4 FULL DAYS every month
+- Errors happen = financial reports delayed
+
+**What I Want:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🏦 SMART BANK RECONCILIATION                                │
+│                                                              │
+│ Bank Account: BCA - 1234567890                              │
+│ Statement Period: Jan 1-9, 2026                             │
+│ Total Transactions: 147                                      │
+│                                                              │
+│ 📊 RECONCILIATION STATUS:                                   │
+│ ✅ Auto-matched: 134 transactions (91%)                     │
+│ 🟡 Suggested matches: 8 transactions (5%)                   │
+│ ⚠️  Requires review: 5 transactions (4%)                    │
+│                                                              │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                              │
+│ 🟡 REVIEW SUGGESTED MATCHES:                                │
+│                                                              │
+│ Bank Transaction #47:                                        │
+│ Date: Jan 5, 2026                                           │
+│ Credit: Rp 95,750,000                                       │
+│ Description: "TRSF FROM CV GARMEN - INV2687"               │
+│                                                              │
+│ 🤖 AI Matched to:                                           │
+│ Invoice: INV-2687                                           │
+│ Customer: CV Garmen Sejahtera                               │
+│ Amount: Rp 95,000,000                                       │
+│ Due Date: Nov 25, 2025                                      │
+│                                                              │
+│ 💡 Analysis:                                                │
+│ Match Confidence: 95%                                        │
+│ Difference: +Rp 750,000 (Bank charges/rounding)            │
+│ Recommendation: Accept match, record Rp 750k as bank fee   │
+│                                                              │
+│ [✓ Accept Match] [✗ Reject] [Split Transaction]            │
+│                                                              │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│                                                              │
+│ ⚠️  UNMATCHED TRANSACTIONS NEED ATTENTION:                  │
+│                                                              │

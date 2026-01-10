@@ -1,0 +1,234 @@
+{
+    "role": "ROLE_MANAGER",
+    "dashboard_title": "Factory Command Center",
+    "description": "God Mode view for managers to oversee factory operations, critical alerts, and staff performance.",
+    "features": [
+        {
+            "id": "operations_dashboard",
+            "name": "Operations KPIs (God Mode)",
+            "ui_component": "OperationsDashboard",
+            "description": "High-level aggregate metrics for the entire facility.",
+            "data_requirements": [
+                {
+                    "field": "production_efficiency",
+                    "type": "percentage",
+                    "example": 87,
+                    "target": 85
+                },
+                {
+                    "field": "orders_on_track",
+                    "type": "fraction",
+                    "example": "23/28"
+                },
+                {
+                    "field": "quality_pass_rate",
+                    "type": "percentage",
+                    "example": 94,
+                    "target": 95
+                },
+                {
+                    "field": "active_workers_count",
+                    "type": "fraction",
+                    "example": "142/150",
+                    "detail": "8 Absent"
+                }
+            ]
+        },
+        {
+            "id": "critical_alerts",
+            "name": "Critical Alerts & Decisions",
+            "ui_component": "OperationsDashboard (Alerts Section)",
+            "description": "Actionable items requiring immediate manager intervention.",
+            "items": [
+                {
+                    "type": "Quality Defect",
+                    "fields": [
+                        "Order No",
+                        "Customer",
+                        "Defect Amount",
+                        "Financial Impact",
+                        "Assignee"
+                    ],
+                    "actions": [
+                        "Reject",
+                        "Approve Rework"
+                    ]
+                },
+                {
+                    "type": "Machine Breakdown",
+                    "fields": [
+                        "Machine ID",
+                        "Impact (Orders affected)",
+                        "Cost"
+                    ],
+                    "actions": [
+                        "Outsource",
+                        "Approve Repair"
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "production_lines",
+            "name": "Live Production Line Status",
+            "ui_component": "ProductionLineStatus",
+            "description": "Real-time status of manufacturing lines.",
+            "data_requirements": [
+                {
+                    "field": "line_id",
+                    "type": "string"
+                },
+                {
+                    "field": "line_name",
+                    "type": "string"
+                },
+                {
+                    "field": "supervisor",
+                    "type": "string"
+                },
+                {
+                    "field": "current_order_id",
+                    "type": "string"
+                },
+                {
+                    "field": "item_name",
+                    "type": "string"
+                },
+                {
+                    "field": "progress",
+                    "type": "percentage"
+                },
+                {
+                    "field": "status",
+                    "type": "enum",
+                    "values": [
+                        "On Schedule",
+                        "Delayed",
+                        "Maintenance",
+                        "Quality Hold"
+                    ]
+                },
+                {
+                    "field": "estimated_completion",
+                    "type": "datetime"
+                }
+            ]
+        },
+        {
+            "id": "staff_tracking",
+            "name": "Staff Activity Tracker",
+            "ui_component": "StaffTrackingCard",
+            "description": "Live view of floor staff, their assignments, and efficiency.",
+            "data_requirements": [
+                {
+                    "field": "staff_id",
+                    "type": "string"
+                },
+                {
+                    "field": "name",
+                    "type": "string"
+                },
+                {
+                    "field": "role",
+                    "type": "string"
+                },
+                {
+                    "field": "shift",
+                    "type": "string"
+                },
+                {
+                    "field": "status",
+                    "type": "enum",
+                    "values": [
+                        "active",
+                        "busy",
+                        "break",
+                        "offline"
+                    ]
+                },
+                {
+                    "field": "current_task",
+                    "type": "string"
+                },
+                {
+                    "field": "efficiency_score",
+                    "type": "percentage",
+                    "nullable": true
+                }
+            ]
+        },
+        {
+            "id": "manager_workload",
+            "name": "Manager Accountability",
+            "ui_component": "ManagerWorkload",
+            "description": "Tracking workload of key subordinate managers.",
+            "data_requirements": [
+                {
+                    "field": "manager_name",
+                    "type": "string"
+                },
+                {
+                    "field": "department",
+                    "type": "string"
+                },
+                {
+                    "field": "active_tasks_count",
+                    "type": "integer"
+                },
+                {
+                    "field": "overdue_tasks_count",
+                    "type": "integer"
+                },
+                {
+                    "field": "completed_today_count",
+                    "type": "integer"
+                },
+                {
+                    "field": "current_focus",
+                    "type": "string"
+                }
+            ]
+        },
+        {
+            "id": "task_board",
+            "name": "Task Management Center",
+            "ui_component": "ManagerTaskBoard",
+            "description": "Kanban board for operational tasks.",
+            "data_requirements": [
+                {
+                    "field": "tasks",
+                    "type": "array",
+                    "item_structure": {
+                        "id": "string",
+                        "title": "string",
+                        "priority": "enum(URGENT, HIGH, NORMAL)",
+                        "status": "enum(TODO, IN_PROGRESS, REVIEW, COMPLETED)",
+                        "assignee": "string",
+                        "due_date": "datetime",
+                        "tags": "array<string>"
+                    }
+                }
+            ],
+            "actions": [
+                {
+                    "name": "move_task",
+                    "method": "PATCH",
+                    "endpoint": "/api/tasks/{id}/status"
+                },
+                {
+                    "name": "create_task",
+                    "method": "POST",
+                    "endpoint": "/api/tasks"
+                }
+            ]
+        }
+    ],
+    "api_endpoints_summary": [
+        "GET /api/manager/dashboard-stats",
+        "GET /api/production/lines/status",
+        "GET /api/staff/activity",
+        "GET /api/manager/workload",
+        "GET /api/tasks",
+        "POST /api/decisions/alert-action"
+    ]
+}

@@ -1,0 +1,419 @@
+# **REALISTIC ERP USER ROLES FOR A TEXTILE FACTORY**
+
+Based on industry research and typical textile manufacturing operations, here are the practical user roles you would need in your ERP system:
+
+***
+
+## **🏭 ORGANIZATIONAL HIERARCHY & ERP ROLES**
+
+### **TIER 1: EXECUTIVE MANAGEMENT** (Strategic Decision Makers)
+
+#### **1. Managing Director / CEO**
+**ERP Role:** `ROLE_MANAGING_DIRECTOR`
+
+**What they need to see:**
+- Real-time profitability dashboard across all product lines
+- Cash flow summary and financial health indicators
+- Top 10 customers by revenue and payment behavior
+- Critical alerts: Stock-outs, quality rejections, delayed shipments
+- Monthly P&L comparison vs targets
+- Factory utilization rates and efficiency trends
+
+**Typical daily usage:**
+- 8 AM: Check overnight production output on mobile app
+- 10 AM: Review pending approvals (> $10,000 purchases, new customer credit limits)
+- 3 PM: Look at order pipeline vs capacity for next 3 months
+- Weekly: Deep dive into cost per meter/piece trends
+
+**Permissions:**
+- View ALL data across all departments
+- Approve: Large purchases, new suppliers, pricing changes >15%
+- Cannot: Delete transaction records (audit control)
+
+***
+
+#### **2. General Manager (Operations)**
+**ERP Role:** `ROLE_GM_OPERATIONS`
+
+**Responsibilities in ERP:**
+- Oversee production planning vs actual execution
+- Coordinate between sales, production, and procurement
+- Monitor machine efficiency and downtime
+- Handle escalations from department managers
+
+**Dashboard needs:**
+- Production efficiency by line (OEE - Overall Equipment Effectiveness)
+- Order fulfillment rates and on-time delivery %
+- Inventory turnover ratios
+- Quality rejection rates by process
+
+**Real scenario:**
+*Tuesday 9 AM: GM sees "Dyeing Line 2 - Downtime: 4 hours". Opens ticket, sees maintenance team already working on it. Calls Production Manager: "Can we shift Order #2034 to Line 1?" Reschedules in ERP, notifies customer of 1-day delay via automated email.*[1][2]
+
+***
+
+### **TIER 2: DEPARTMENT HEADS** (Operational Leadership)
+
+#### **3. Production Manager**
+**ERP Role:** `ROLE_PRODUCTION_MANAGER`
+
+**Core ERP functions:**
+- Create and modify production schedules
+- Assign work orders to specific lines/shifts
+- Track real-time production progress
+- Manage production capacity planning
+- Record production waste and reasons
+
+**Specific screens they use:**
+```
+📊 Production Schedule (Gantt View)
+├─ Line 1: Weaving | Order #2456 (2000m) | Progress: 65%
+├─ Line 2: Knitting | Order #2401 (5000 pcs) | Progress: 30%
+├─ Line 3: Dyeing | Maintenance | Expected resume: 2 PM
+└─ Line 4: Finishing | Order #2390 | Complete ✓
+```
+
+**Real-life example:**
+*Scenario: Customer calls - urgent order for 3,000 meters of polyester fabric needed in 5 days*
+- Production Manager opens ERP capacity planning
+- Sees Line 1 has gap between current orders
+- Creates work order WO-20260109-001
+- Allocates: 2 shifts x 8 hours = 16 hours production time
+- System calculates: Need 450kg polyester yarn, 20kg dye
+- Checks inventory: Only 200kg polyester available
+- Creates urgent purchase requisition → Sent to Purchasing Manager
+- Confirms delivery date to sales team: Jan 14[3][1]
+
+**Permissions:**
+- Create/edit production orders
+- View all material inventory
+- Create material requisitions
+- Access quality reports
+- CANNOT: Approve purchases, change pricing, delete historical data
+
+***
+
+#### **4. Quality Control Manager**
+**ERP Role:** `ROLE_QC_MANAGER`
+
+**ERP responsibilities:**
+- Record incoming material inspection results
+- Log in-process quality checks (fabric weight, color matching, strength tests)
+- Document final product inspection
+- Issue quality hold/release decisions
+- Track defect rates by supplier and production line
+- Manage corrective action requests (CAR)
+
+**Quality inspection workflow in ERP:**
+```
+Incoming Material QC:
+┌────────────────────────────────────┐
+│ Purchase Order: PO-2026-0089       │
+│ Supplier: PT Benang Jaya           │
+│ Item: Cotton Yarn 30s (500 kg)    │
+│                                     │
+│ Inspection Results:                │
+│ ✓ Count: 29.8s (Tolerance: ±0.5)  │
+│ ✓ Moisture: 7.2% (Spec: <8%)      │
+│ ✗ Strength: 185 cN (Spec: >190)   │
+│                                     │
+│ Decision: [REJECT] [ACCEPT] [HOLD] │
+│ Reason: Below strength requirement │
+│                                     │
+│ Action: Create supplier complaint  │
+│ Notify: Purchasing Manager          │
+└────────────────────────────────────┘
+```
+
+**Typical situation:**
+*Dyeing batch fails color matching test. QC Manager logs defect in ERP → System automatically:*
+- Puts 500 meters on quality hold (can't be shipped)
+- Notifies Dyeing Supervisor for rework
+- Creates NCR (Non-Conformance Report) #NCR-20260109-01
+- Alerts Production Manager about schedule impact
+- Tracks rework cost for later analysis[4][3]
+
+***
+
+#### **5. Merchandising Manager** (Commercial/Sales Coordinator)
+**ERP Role:** `ROLE_MERCHANDISING_MANAGER`
+
+**Textile industry context:** In textiles, merchandisers bridge between customers and production
+
+**Key ERP activities:**
+- Receive customer inquiries and log in system
+- Create cost estimates (fabric + labor + overhead)
+- Generate quotations with delivery timelines
+- Convert approved quotes to confirmed orders
+- Track order progress and update customers
+- Coordinate sample approvals with production
+
+**Order lifecycle in ERP:**
+```
+Inquiry → Quotation → Sample Approval → Confirmed Order → Production → Shipment
+  ↓          ↓             ↓                ↓              ↓           ↓
+[Log]    [Create]      [Track]          [Convert]      [Monitor]  [Dispatch]
+```
+
+**Real scenario:**
+*Customer (Zara) emails: "Need 5,000 pieces cotton T-shirt fabric, 180 GSM, white"*
+
+Merchandiser in ERP:
+1. Creates inquiry #INQ-2026-0234
+2. Opens cost calculator:
+   - Cotton yarn 30s: 0.5 kg × Rp 45,000 = Rp 22,500
+   - Knitting cost: Rp 8,000/kg
+   - Dyeing (white): Rp 5,000/kg
+   - Finishing: Rp 3,000/kg
+   - Total: Rp 38,500/kg + 15% margin = **Rp 44,275/kg**
+3. Checks production capacity: Available slot in 2 weeks
+4. Creates quotation #QT-2026-0234: Price $3.2/kg, Delivery: Jan 25
+5. Sends PDF to customer via ERP email integration
+6. When approved → Converts to Sales Order #SO-2026-0156[5][1][3]
+
+**Permissions:**
+- Create inquiries, quotations, sales orders
+- View production schedule (read-only)
+- View inventory availability (read-only)
+- Access customer pricing history
+- CANNOT: Modify production orders, approve purchases
+
+***
+
+#### **6. Purchase Manager**
+**ERP Role:** `ROLE_PURCHASE_MANAGER`
+
+**Primary responsibilities:**
+- Review material requisitions from production
+- Create purchase orders to suppliers
+- Track supplier delivery performance
+- Manage supplier master data (pricing, lead times, payment terms)
+- Handle supplier negotiations and contracts
+
+**Procurement workflow:**
+```
+Material Requirement → Compare Suppliers → Create PO → Track Delivery → GRN
+```
+
+**Daily routine in ERP:**
+- 8 AM: Review pending requisitions (15 items waiting)
+- Check which items are below reorder level
+- Auto-generate POs for regular supplies (system suggests based on MOQ)
+- For new items: Compare 3 supplier quotes in ERP
+- Create PO-2026-0145 to PT Sumber Kain: 2000m polyester, delivery Jan 15
+- System sends PO to supplier email automatically
+- Track: 8 POs in transit, 2 overdue (system shows red flag)[2][6]
+
+**Approval limits in ERP:**
+- Up to Rp 50 million: Self-approval
+- Rp 50-200 million: Requires GM approval
+- Above Rp 200 million: Requires MD approval
+- New suppliers: Always requires GM approval
+
+***
+
+#### **7. Warehouse Manager**
+**ERP Role:** `ROLE_WAREHOUSE_MANAGER`
+
+**Key ERP functions:**
+- Goods Receipt Note (GRN) for incoming materials
+- Goods Issue Note (GIN) for production withdrawals
+- Stock transfers between warehouses
+- Physical stock counting and reconciliation
+- Manage bin locations and FIFO/FEFO
+- Monitor slow-moving and obsolete inventory
+
+**ERP warehouse module usage:**
+```
+📦 WAREHOUSE DASHBOARD
+├─ Raw Material Warehouse
+│  ├─ Cotton Yarn: 2,450 kg (Location: Rack A1-A5)
+│  ├─ Polyester: 1,200 kg (Location: Rack B1-B3)
+│  └─ Dyes: 245 kg (Various locations)
+│
+├─ Work-in-Progress (WIP)
+│  ├─ Greige Fabric: 5,600 meters
+│  └─ Dyed Fabric (awaiting QC): 2,100 meters
+│
+└─ Finished Goods
+   ├─ Ready to Ship: 8,900 meters (12 orders)
+   └─ Quality Hold: 500 meters (1 batch)
+```
+
+**Real scenario - Morning GRN:**
+*Truck arrives with delivery from supplier PT Benang Jaya (PO-2026-0089)*
+- Warehouse staff scans GRN barcode
+- ERP shows: Expected 500kg cotton yarn
+- Physically count: 498kg (2kg shortage)
+- Record in ERP: Received 498kg, shortage 2kg
+- System automatically:
+  - Updates inventory
+  - Alerts Purchase Manager about shortage
+  - Adjusts pending production calculations
+  - Creates debit note for supplier[1][2]
+
+***
+
+### **TIER 3: SUPERVISORS & OPERATORS** (Execution Level)
+
+#### **8. Production Supervisor / Line Chief**
+**ERP Role:** `ROLE_PRODUCTION_SUPERVISOR`
+
+**Typical users:** One per production line/shift
+
+**ERP access (usually simplified/mobile interface):**
+- View assigned work orders for their line
+- Record production output (hourly/shift-based)
+- Log machine downtime and reasons
+- Record material consumption
+- Mark work order completion
+- Report quality issues
+
+**Shop floor ERP terminal:**
+```
+┌──────────────────────────────────┐
+│ LINE 3 - DYEING SECTION          │
+│ Shift: A (07:00-15:00)           │
+│ Supervisor: Pak Joko             │
+│                                   │
+│ ACTIVE ORDER: WO-2026-0234       │
+│ Product: Cotton Fabric - Navy    │
+│ Target: 2,000 meters             │
+│ Completed: 1,340 meters (67%)    │
+│                                   │
+│ [Record Output]                  │
+│ [Report Downtime]                │
+│ [Request Material]                │
+│ [Report Quality Issue]            │
+└──────────────────────────────────┘
+```
+
+**Hourly update:**
+*10 AM: Supervisor enters production: +180 meters completed*
+- System updates: 1,340 → 1,520 meters
+- Auto-calculates: Still need 480 meters = ~3 hours remaining
+- Updates production schedule automatically
+- Merchandiser sees real-time progress on their dashboard[7][2][3]
+
+***
+
+#### **9. Machine Operators**
+**ERP Role:** `ROLE_OPERATOR`
+
+**Limited ERP access:**
+- Clock in/out (attendance)
+- View today's work assignment
+- Scan/enter production output
+- Report machine issues via simple form
+
+**Why they need ERP access:**
+- Real-time production tracking
+- Piece-rate wage calculation (many textile workers paid per meter/piece)
+- Quality accountability (output traced to specific operator)
+
+**Simple mobile interface:**
+```
+👷 Operator: Budi Santoso #EMP-2045
+📍 Machine: Weaving Loom #12
+
+Today's assignment:
+Order: #WO-2026-0234
+Fabric: Polyester 75D
+Target: 400 meters
+
+Your output:
+Morning: 185 meters ✓
+[Record new batch]
+
+Your earnings today: Rp 245,000
+(Rate: Rp 650/meter × 185m)
+```
+
+**Permissions:**
+- View only their own assignments
+- Record their own output
+- CANNOT: View costs, other orders, change assignments[2][3]
+
+***
+
+#### **10. Quality Inspector**
+**ERP Role:** `ROLE_QC_INSPECTOR`
+
+**Mobile/tablet ERP app usage:**
+- Access inspection checklists
+- Record measurements and test results
+- Take photos of defects
+- Pass/fail decisions
+- Generate inspection reports
+
+**In-process inspection:**
+```
+🔍 INSPECTION REPORT
+Order: WO-2026-0234
+Process: Dyeing
+Inspector: Siti #QC-12
+
+Batch: DYE-20260109-03
+Fabric: Cotton, Navy Blue
+Quantity: 250 meters
+
+✓ Color matching: PASS (△E < 0.8)
+✓ Fabric weight: 182 GSM (Spec: 180±5)
+✓ Width: 150cm (Spec: 148-152cm)
+✗ Pilling grade: 3 (Spec: Min 3.5)
+
+Decision: HOLD for review
+Notify: QC Manager
+Action: Request supervisor review
+```
+
+***
+
+### **TIER 4: SUPPORT FUNCTIONS**
+
+#### **11. Maintenance Supervisor**
+**ERP Role:** `ROLE_MAINTENANCE_SUPERVISOR`
+
+**Equipment management in ERP:**
+- View all machines and their maintenance schedules
+- Log maintenance activities and spare parts used
+- Track machine downtime causes
+- Create preventive maintenance schedules
+- Manage spare parts inventory
+
+**Why this matters in textiles:**
+- Dyeing machines: Need monthly chemical system cleaning
+- Weaving looms: Daily oil checks, weekly tension adjustments
+- Dryers: Bi-weekly filter cleaning
+- Missing maintenance = Costly breakdowns
+
+**ERP preventive maintenance module:**
+```
+🔧 MAINTENANCE SCHEDULE
+
+This Week:
+⚠️  Dyeing Machine #2 - Monthly service (Overdue 2 days)
+📅 Weaving Loom #7 - Tension calibration (Due Jan 12)
+📅 Compressor #1 - Filter replacement (Due Jan 14)
+
+Spare Parts Low Stock:
+🔴 Loom needle #45 (10 pcs remaining, Min: 50)
+🟡 Dyeing pump seal (25 pcs, Min: 20)
+```
+
+***
+
+#### **12. HR / Admin Officer**
+**ERP Role:** `ROLE_HR_ADMIN`
+
+**HR module functions:**
+- Employee master data (personal info, contracts, skills)
+- Attendance tracking integration
+- Leave management
+- Payroll preparation (export to payroll system)
+- Training records (especially for machinery operation)
+- Performance tracking
+
+**Textile-specific HR needs:**
+- Skill matrix: Which operators certified for which machines?
+- Shift

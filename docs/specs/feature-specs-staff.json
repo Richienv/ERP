@@ -1,0 +1,139 @@
+{
+    "role": "ROLE_STAFF",
+    "dashboard_title": "Portal Staf (Staff Portal)",
+    "description": "Main interface for general employees to manage daily administrative and operational tasks.",
+    "features": [
+        {
+            "id": "morning_focus",
+            "name": "Morning Focus & Greeting",
+            "ui_component": "MorningFocus",
+            "description": "Personalized greeting with date and a section to set daily goals.",
+            "data_requirements": [
+                {
+                    "field": "user_name",
+                    "type": "string",
+                    "source": "Auth Profile"
+                },
+                {
+                    "field": "current_date",
+                    "type": "date",
+                    "source": "System"
+                },
+                {
+                    "field": "daily_focus_text",
+                    "type": "string",
+                    "editable": true,
+                    "storage": "Local/User Preference"
+                }
+            ],
+            "actions": [
+                {
+                    "name": "set_focus",
+                    "method": "POST",
+                    "endpoint": "/api/staff/focus"
+                }
+            ]
+        },
+        {
+            "id": "attendance",
+            "name": "Attendance & Shifts",
+            "ui_component": "MetricCard (Main)",
+            "description": "Clock in/out functionality and shift status.",
+            "data_requirements": [
+                {
+                    "field": "shift_name",
+                    "type": "string",
+                    "example": "Morning Shift"
+                },
+                {
+                    "field": "clock_in_time",
+                    "type": "datetime",
+                    "nullable": true
+                },
+                {
+                    "field": "clock_out_time",
+                    "type": "datetime",
+                    "nullable": true
+                },
+                {
+                    "field": "status",
+                    "type": "enum",
+                    "values": [
+                        "Present",
+                        "Absent",
+                        "Late",
+                        "On Leave"
+                    ]
+                }
+            ],
+            "actions": [
+                {
+                    "name": "clock_in",
+                    "method": "POST",
+                    "endpoint": "/api/attendance/clock-in"
+                },
+                {
+                    "name": "clock_out",
+                    "method": "POST",
+                    "endpoint": "/api/attendance/clock-out"
+                }
+            ]
+        },
+        {
+            "id": "quick_actions",
+            "name": "Quick Actions Menu",
+            "ui_component": "QuickLauncher / BentoGrid",
+            "description": "Shortcuts to frequent HR and administrative tasks.",
+            "sub_features": [
+                {
+                    "name": "Request Leave (Cuti)",
+                    "action": "Navigate to /staff/leave",
+                    "requirements": "Leave balance, Leave types"
+                },
+                {
+                    "name": "Pay Slip (Slip Gaji)",
+                    "action": "View/Download PDF",
+                    "requirements": "Payroll period ID, PDF file generation"
+                },
+                {
+                    "name": "Overtime Request (Lembur)",
+                    "action": "Open Modal/Form",
+                    "requirements": "Date, Duration, Reason"
+                },
+                {
+                    "name": "Medical/Reimbursement",
+                    "action": "Navigate to /staff/claims",
+                    "requirements": "Claim types, File upload (receipts)"
+                }
+            ]
+        },
+        {
+            "id": "metrics_overview",
+            "name": "Personal Metrics",
+            "ui_component": "Dashboard Grid",
+            "description": "Overview of personal performance and administrative status.",
+            "elements": [
+                {
+                    "label": "On-Time Arrival",
+                    "value_type": "percentage",
+                    "trend": "up/down"
+                },
+                {
+                    "label": "Tasks Completed",
+                    "value_type": "integer"
+                },
+                {
+                    "label": "Remaining Leave",
+                    "value_type": "days_count"
+                }
+            ]
+        }
+    ],
+    "api_endpoints_summary": [
+        "GET /api/staff/profile",
+        "GET /api/staff/dashboard-stats",
+        "POST /api/attendance/clock-in",
+        "POST /api/attendance/clock-out",
+        "POST /api/staff/focus"
+    ]
+}

@@ -1,360 +1,160 @@
 "use client"
 
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter, CardAction } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
-  Users,
   FileText,
-  DollarSign,
-  Target,
-  Phone,
-  Calendar,
   PlusCircle,
-  ShoppingBag,
-  Briefcase,
-  ArrowUpRight,
-  ArrowDownRight,
-  Clock
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  AlertTriangle,
+  Factory,
+  ArrowRight
 } from "lucide-react"
 import Link from "next/link"
-import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-// Mock data untuk sales dashboard - Textile Factory Context
-const salesMetrics = {
-  totalCustomers: 156,
-  activeLeads: 23,
-  monthlyQuotations: 45,
-  monthlyRevenue: 2450000000, // 2.45 miliar
-  conversionRate: 68.5,
-  pendingOrders: 12,
-  thisMonthCalls: 89,
-  upcomingFollowups: 15
-}
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount)
-}
+import { SalesActionCenter } from "@/components/sales-dashboard/sales-action-center"
+import { SalesPipelineWidget } from "@/components/sales-dashboard/sales-pipeline"
+import { OrderBookWidget } from "@/components/sales-dashboard/order-book"
+import { ProductVariantWidget } from "@/components/sales-dashboard/product-variants"
 
 export default function SalesDashboard() {
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-zinc-50/50 dark:bg-black min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between space-y-2">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Dashboard Penjualan</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Command Center Penjualan</h2>
           <p className="text-muted-foreground">
-            Overview kinerja penjualan kain, benang, dan manajemen relasi pelanggan
+            Monitor penjualan tekstil, kapasitas produksi, dan backlog order.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <Button variant="outline" asChild>
-            <Link href="/sales/leads/new">
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Lead Baru
+            <Link href="/sales/quotations/new">
+              <FileText className="mr-2 h-4 w-4" /> Buat Penawaran
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/sales/quotations/new">
-              <FileText className="mr-2 h-4 w-4" />
-              Buat Penawaran
+            <Link href="/sales/orders/new">
+              <PlusCircle className="mr-2 h-4 w-4" /> Order Baru
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl:grid-cols-2 @5xl:grid-cols-4">
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Total Revenue</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-green-600">
-              {formatCurrency(salesMetrics.monthlyRevenue).replace(/\D00$/, '')}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-green-600 text-green-600">
-                <IconTrendingUp />
-                +12.5%
+      {/* Top Row: Textile Specific KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-l-4 border-l-blue-500">
+          <CardHeader className="pb-2">
+            <CardDescription>Total Penjualan (Bulan Ini)</CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-bold">Rp 2.45 M</CardTitle>
+              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                <TrendingUp className="mr-1 h-3 w-3" /> +12.5%
               </Badge>
-            </CardAction>
+            </div>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-green-600">
-              Omset bulan ini <DollarSign className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Target: Rp 3.000.000.000
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Pelanggan Aktif</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {salesMetrics.totalCustomers}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <Users className="mr-1 size-3" />
-                Mitra
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Pabrik & Distributor <Briefcase className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Total database pelanggan
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Lead & Prospek</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-blue-600">
-              {salesMetrics.activeLeads}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-blue-600 text-blue-600">
-                <IconTrendingUp />
-                Potensial
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-blue-600">
-              Dalam negosiasi <Target className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Peluang deal baru
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Conversion Rate</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {salesMetrics.conversionRate}%
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <IconTrendingUp />
-                Efektif
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Lead to Customer <Users className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Rata-rata industri: 45%
-            </div>
-          </CardFooter>
-        </Card>
-      </div>
-
-      {/* Quick Actions & Recent Activity */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        {/* Quick Actions */}
-        <Card className="col-span-3">
-          <CardHeader>
-            <CardTitle>Aksi Cepat</CardTitle>
-            <CardDescription>
-              Akses cepat fitur penjualan harian
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="h-24 flex-col hover:bg-primary/5 hover:border-primary/50 transition-all" asChild>
-                <Link href="/sales/customers">
-                  <Users className="h-8 w-8 mb-3 text-blue-600" />
-                  <span className="font-medium">Data Pelanggan</span>
-                  <span className="text-xs text-muted-foreground mt-1">Kelola database mitra</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-24 flex-col hover:bg-primary/5 hover:border-primary/50 transition-all" asChild>
-                <Link href="/sales/leads">
-                  <Target className="h-8 w-8 mb-3 text-orange-600" />
-                  <span className="font-medium">Pipeline Lead</span>
-                  <span className="text-xs text-muted-foreground mt-1">Monitor prospek</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-24 flex-col hover:bg-primary/5 hover:border-primary/50 transition-all" asChild>
-                <Link href="/sales/quotations">
-                  <FileText className="h-8 w-8 mb-3 text-green-600" />
-                  <span className="font-medium">Buat Penawaran</span>
-                  <span className="text-xs text-muted-foreground mt-1">Kirim quotation kain</span>
-                </Link>
-              </Button>
-              <Button variant="outline" className="h-24 flex-col hover:bg-primary/5 hover:border-primary/50 transition-all" asChild>
-                <Link href="/sales/orders">
-                  <ShoppingBag className="h-8 w-8 mb-3 text-purple-600" />
-                  <span className="font-medium">Sales Order</span>
-                  <span className="text-xs text-muted-foreground mt-1">Proses pesanan masuk</span>
-                </Link>
-              </Button>
+          <CardContent>
+            <div className="text-xs text-muted-foreground flex gap-1 items-center">
+              <span className="font-medium text-foreground">Gross Margin:</span> <span className="text-emerald-600 font-bold">18.2%</span> (Target: 15%)
             </div>
           </CardContent>
         </Card>
 
-        {/* Activity Summary */}
-        <Card className="col-span-4">
-          <CardHeader>
-            <CardTitle>Aktivitas Penjualan</CardTitle>
-            <CardDescription>
-              Ringkasan aktivitas tim sales minggu ini
-            </CardDescription>
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="pb-2">
+            <CardDescription>Order Book (Backlog)</CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-bold">Rp 3.8 M</CardTitle>
+              <Factory className="h-4 w-4 text-orange-500" />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                    <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Penawaran Terkirim</p>
-                    <p className="text-xs text-muted-foreground">Quotation kain & jasa celup</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-blue-600">{salesMetrics.monthlyQuotations}</p>
-                  <p className="text-xs text-muted-foreground">dokumen</p>
-                </div>
-              </div>
+            <div className="text-xs text-muted-foreground">
+              Order confirmed belum kirim. <span className="text-orange-600 font-bold">Beban Produksi Tinggi.</span>
+            </div>
+          </CardContent>
+        </Card>
 
-              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-full">
-                    <Phone className="h-5 w-5 text-green-600 dark:text-green-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Interaksi Pelanggan</p>
-                    <p className="text-xs text-muted-foreground">Call & Meeting visit pabrik</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-green-600">{salesMetrics.thisMonthCalls}</p>
-                  <p className="text-xs text-muted-foreground">aktivitas</p>
-                </div>
-              </div>
+        <Card className="border-l-4 border-l-purple-500">
+          <CardHeader className="pb-2">
+            <CardDescription>Outstanding Quotation</CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-bold">45 Quotes</CardTitle>
+              <span className="text-xs font-medium text-muted-foreground">Rp 5.2 M Potensi</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden mt-1">
+              <div className="h-full bg-purple-500" style={{ width: '45%' }} />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">45% Hot Leads</p>
+          </CardContent>
+        </Card>
 
-              <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-full">
-                    <Calendar className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">Jadwal Follow-up</p>
-                    <p className="text-xs text-muted-foreground">Agenda 7 hari ke depan</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-yellow-600">{salesMetrics.upcomingFollowups}</p>
-                  <p className="text-xs text-muted-foreground">agenda</p>
-                </div>
-              </div>
+        <Card className="border-l-4 border-l-red-500">
+          <CardHeader className="pb-2">
+            <CardDescription>Piutang (AR)</CardDescription>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-bold text-red-600">Rp 850 Jt</CardTitle>
+              <Badge variant="destructive" className="h-5 text-[10px]">High Risk</Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xs text-muted-foreground flex justify-between">
+              <span>DSO Rata-rata:</span>
+              <span className="font-bold text-foreground">42 Hari</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recent Quotations & Top Customers */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Penawaran Terbaru</CardTitle>
-            <CardDescription>
-              Status quotation yang baru dibuat
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { id: "QT-2411-001", customer: "PT. Garment Indah Jaya", amount: 45000000, status: "Sent", date: "Hari ini" },
-                { id: "QT-2411-002", customer: "CV. Tekstil Makmur", amount: 32000000, status: "Draft", date: "Kemarin" },
-                { id: "QT-2411-003", customer: "Boutique Fashion A", amount: 78000000, status: "Accepted", date: "2 hari lalu" },
-                { id: "QT-2411-004", customer: "UD. Kain Sejahtera", amount: 23000000, status: "Sent", date: "3 hari lalu" },
-                { id: "QT-2411-005", customer: "PT. Mode Nusantara", amount: 56000000, status: "Draft", date: "4 hari lalu" }
-              ].map((quote) => (
-                <div key={quote.id} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-muted rounded-md">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{quote.customer}</p>
-                      <div className="flex items-center text-xs text-muted-foreground">
-                        <span className="font-mono mr-2">{quote.id}</span>
-                        <span>• {quote.date}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold">{formatCurrency(quote.amount).replace(/\D00$/, '')}</p>
-                    <Badge variant={quote.status === 'Accepted' ? 'default' : quote.status === 'Sent' ? 'secondary' : 'outline'} className="text-[10px] h-5">
-                      {quote.status}
-                    </Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Pelanggan</CardTitle>
-            <CardDescription>
-              Kontribusi revenue tertinggi bulan ini
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {[
-                { name: "PT. Garment Indah Jaya", value: 245000000, orders: 8, type: "Pabrik" },
-                { name: "CV. Tekstil Makmur", value: 189000000, orders: 5, type: "Distributor" },
-                { name: "Boutique Fashion A", value: 156000000, orders: 4, type: "Retail" },
-                { name: "UD. Kain Sejahtera", value: 134000000, orders: 6, type: "Grosir" },
-                { name: "PT. Mode Nusantara", value: 98000000, orders: 3, type: "Brand" }
-              ].map((customer, index) => (
-                <div key={customer.name} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${index === 0 ? "bg-yellow-100 text-yellow-700" :
-                        index === 1 ? "bg-gray-100 text-gray-700" :
-                          index === 2 ? "bg-orange-100 text-orange-700" :
-                            "bg-muted text-muted-foreground"
-                      }`}>
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{customer.name}</p>
-                      <p className="text-xs text-muted-foreground">{customer.type} • {customer.orders} order</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-green-600">{formatCurrency(customer.value).replace(/\D00$/, '')}</p>
-                    <div className="flex items-center justify-end text-xs text-green-600">
-                      <ArrowUpRight className="h-3 w-3 mr-1" />
-                      High Value
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Main Dashboard Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+        {/* Visual Pipeline */}
+        <SalesPipelineWidget />
+        {/* Action Center - To Do List */}
+        <SalesActionCenter />
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
+        {/* Order Book vs Capacity */}
+        <OrderBookWidget />
+        {/* Product Variants Analysis */}
+        <ProductVariantWidget />
+      </div>
+
+      {/* Tabs for Detailed Tables */}
+      <Tabs defaultValue="orders" className="w-full">
+        <TabsList>
+          <TabsTrigger value="orders">Sales Orders Terkini</TabsTrigger>
+          <TabsTrigger value="discounts">Diskon & Margin</TabsTrigger>
+          <TabsTrigger value="risk">Resiko Pembayaran</TabsTrigger>
+        </TabsList>
+        <TabsContent value="orders">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Sales Orders Terbaru</CardTitle>
+                  <CardDescription>Monitoring status order dan jadwal kirim.</CardDescription>
+                </div>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/sales/orders">Lihat Semua <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
+              </div>
+            </CardHeader>
+            {/* Placeholder for table, preserving clean layout */}
+            <div className="p-6 text-center text-sm text-muted-foreground border-t bg-zinc-50/50">
+              Widget tabel lengkap akan dimuat di sini...
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
