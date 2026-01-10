@@ -139,26 +139,26 @@ export default function StaffPage() {
             {/* Mobile-Friendly Tabs for Role Simulation */}
             <Tabs defaultValue="production" className="w-full space-y-6" onValueChange={setActiveTab}>
                 <div className="pb-2 overflow-x-auto">
-                    <TabsList className="w-full justify-start h-12 p-1 bg-white/50 backdrop-blur dark:bg-zinc-900/50 border rounded-xl gap-1">
-                        <TabsTrigger value="production" className="data-[state=active]:bg-indigo-100 data-[state=active]:text-indigo-700 dark:data-[state=active]:bg-indigo-900/40 dark:data-[state=active]:text-indigo-300 rounded-lg px-3 py-2">
+                    <TabsList className="w-full justify-start h-14 p-1.5 bg-zinc-100/50 dark:bg-zinc-900/50 border border-black rounded-xl gap-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <TabsTrigger value="production" className="h-full data-[state=active]:bg-indigo-100 data-[state=active]:text-indigo-900 data-[state=active]:border-black data-[state=active]:border-2 data-[state=active]:shadow-sm rounded-lg px-4 font-bold uppercase tracking-wide transition-all">
                             <Factory className="w-4 h-4 mr-2" />
                             Produksi
-                            <Badge className="ml-2 bg-indigo-600 hover:bg-indigo-600 h-5 px-1.5 text-[10px]">2</Badge>
+                            <Badge className="ml-2 bg-indigo-600 hover:bg-indigo-600 h-5 px-1.5 text-[10px] border-black text-white">2</Badge>
                         </TabsTrigger>
-                        <TabsTrigger value="quality" className="data-[state=active]:bg-teal-100 data-[state=active]:text-teal-700 dark:data-[state=active]:bg-teal-900/40 dark:data-[state=active]:text-teal-300 rounded-lg px-3 py-2">
+                        <TabsTrigger value="quality" className="h-full data-[state=active]:bg-teal-100 data-[state=active]:text-teal-900 data-[state=active]:border-black data-[state=active]:border-2 data-[state=active]:shadow-sm rounded-lg px-4 font-bold uppercase tracking-wide transition-all">
                             <ClipboardCheck className="w-4 h-4 mr-2" />
                             Kualitas
-                            <Badge className="ml-2 bg-teal-600 hover:bg-teal-600 h-5 px-1.5 text-[10px]">1</Badge>
+                            <Badge className="ml-2 bg-teal-600 hover:bg-teal-600 h-5 px-1.5 text-[10px] border-black text-white">1</Badge>
                         </TabsTrigger>
-                        <TabsTrigger value="warehouse" className="data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 dark:data-[state=active]:bg-amber-900/40 dark:data-[state=active]:text-amber-300 rounded-lg px-3 py-2">
+                        <TabsTrigger value="warehouse" className="h-full data-[state=active]:bg-amber-100 data-[state=active]:text-amber-900 data-[state=active]:border-black data-[state=active]:border-2 data-[state=active]:shadow-sm rounded-lg px-4 font-bold uppercase tracking-wide transition-all">
                             <Truck className="w-4 h-4 mr-2" />
                             Gudang
-                            <Badge className="ml-2 bg-amber-600 hover:bg-amber-600 h-5 px-1.5 text-[10px]">2</Badge>
+                            <Badge className="ml-2 bg-amber-600 hover:bg-amber-600 h-5 px-1.5 text-[10px] border-black text-white">2</Badge>
                         </TabsTrigger>
-                        <TabsTrigger value="maintenance" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700 dark:data-[state=active]:bg-red-900/40 dark:data-[state=active]:text-red-300 rounded-lg px-3 py-2">
+                        <TabsTrigger value="maintenance" className="h-full data-[state=active]:bg-red-100 data-[state=active]:text-red-900 data-[state=active]:border-black data-[state=active]:border-2 data-[state=active]:shadow-sm rounded-lg px-4 font-bold uppercase tracking-wide transition-all">
                             <Wrench className="w-4 h-4 mr-2" />
                             Teknisi
-                            <Badge className="ml-2 bg-red-600 hover:bg-red-600 h-5 px-1.5 text-[10px]">1</Badge>
+                            <Badge className="ml-2 bg-red-600 hover:bg-red-600 h-5 px-1.5 text-[10px] border-black text-white">1</Badge>
                         </TabsTrigger>
                     </TabsList>
                 </div>

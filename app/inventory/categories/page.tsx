@@ -1,494 +1,380 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  FolderOpen,
+  Tag,
+  Package,
+  Layers,
+  Plus,
+  Search,
+  Filter,
+  MoreVertical,
+  ChevronRight,
+  Archive,
+  ArrowRight,
+  X,
+  Trash2,
+  Save
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Plus,
-  Search,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  Eye,
-  FolderOpen,
-  Package,
-  Layers,
-  Boxes,
-  Tag
-} from "lucide-react"
-import { formatCurrency } from "@/lib/inventory-utils"
-import { IconTrendingUp } from "@tabler/icons-react"
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-// Mock data untuk categories - Textile/Jeans Factory
-const mockCategories = [
+// Mock data structure
+const categories = [
   {
-    id: "1",
-    code: "BAH-BAKU",
+    id: "ROOT-001",
     name: "Bahan Baku",
-    description: "Bahan utama untuk produksi tekstil dan jeans",
-    parentId: null,
-    parent: null,
-    children: ["2", "3", "4"],
-    totalProducts: 25,
-    totalStockValue: 850000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 0
+    code: "RAW-MTL",
+    itemCount: 450,
+    value: 850000000,
+    color: "bg-blue-100",
+    description: "Raw materials for production including fabrics, threads, and buttons.",
+    subs: [
+      { name: "Kain (Fabrics)", count: 200 },
+      { name: "Benang (Threads)", count: 150 },
+      { name: "Kancing (Buttons)", count: 100 },
+    ]
   },
   {
-    id: "2",
-    code: "KAIN",
-    name: "Kain & Tekstil",
-    description: "Berbagai jenis kain untuk produksi garment",
-    parentId: "1",
-    parent: "Bahan Baku",
-    children: [],
-    totalProducts: 12,
-    totalStockValue: 580000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 1
-  },
-  {
-    id: "3",
-    code: "BENANG",
-    name: "Benang & Thread",
-    description: "Benang jahit dan bordir berbagai jenis",
-    parentId: "1",
-    parent: "Bahan Baku",
-    children: [],
-    totalProducts: 8,
-    totalStockValue: 120000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 1
-  },
-  {
-    id: "4",
-    code: "AKSESORI",
-    name: "Aksesori & Trim",
-    description: "Kancing, zipper, label, dan aksesori lainnya",
-    parentId: "1",
-    parent: "Bahan Baku",
-    children: [],
-    totalProducts: 15,
-    totalStockValue: 150000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 1
-  },
-  {
-    id: "5",
-    code: "PROD-JADI",
+    id: "ROOT-002",
     name: "Produk Jadi",
-    description: "Produk garment siap jual",
-    parentId: null,
-    parent: null,
-    children: ["6", "7", "8"],
-    totalProducts: 45,
-    totalStockValue: 1250000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 0
+    code: "FIN-GOODS",
+    itemCount: 1200,
+    value: 1250000000,
+    color: "bg-emerald-100",
+    description: "Finished goods ready for sale and distribution.",
+    subs: [
+      { name: "Kemeja (Shirts)", count: 400 },
+      { name: "Celana (Pants)", count: 500 },
+      { name: "Jaket (Outerwear)", count: 300 },
+    ]
   },
   {
-    id: "6",
-    code: "JEANS",
-    name: "Jeans & Denim",
-    description: "Produk jeans berbagai model dan ukuran",
-    parentId: "5",
-    parent: "Produk Jadi",
-    children: [],
-    totalProducts: 20,
-    totalStockValue: 650000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 1
+    id: "ROOT-003",
+    name: "Packaging",
+    code: "PCK-MAT",
+    itemCount: 5000,
+    value: 45000000,
+    color: "bg-amber-100",
+    description: "Packaging materials for shipping and retail display.",
+    subs: [
+      { name: "Box Kardus", count: 2000 },
+      { name: "Plastic Wrap", count: 3000 },
+    ]
   },
   {
-    id: "7",
-    code: "JAKET",
-    name: "Jaket & Outerwear",
-    description: "Jaket jeans dan outerwear lainnya",
-    parentId: "5",
-    parent: "Produk Jadi",
-    children: [],
-    totalProducts: 15,
-    totalStockValue: 420000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 1
+    id: "ROOT-004",
+    name: "Mesin & Tools",
+    code: "MCH-TOOLS",
+    itemCount: 45,
+    value: 320000000,
+    color: "bg-zinc-100",
+    description: "Machinery, spare parts, and maintenance tools.",
+    subs: [
+      { name: "Sparepart Mesin", count: 30 },
+      { name: "Oli & Lubricants", count: 15 },
+    ]
   },
   {
-    id: "8",
-    code: "KEMEJA",
-    name: "Kemeja & Shirt",
-    description: "Kemeja denim dan casual shirt",
-    parentId: "5",
-    parent: "Produk Jadi",
-    children: [],
-    totalProducts: 10,
-    totalStockValue: 180000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 1
-  },
-  {
-    id: "9",
+    id: "ROOT-005",
+    name: "Work In Process",
     code: "WIP",
-    name: "Work in Process",
-    description: "Barang setengah jadi dalam proses produksi",
-    parentId: null,
-    parent: null,
-    children: [],
-    totalProducts: 8,
-    totalStockValue: 320000000,
-    isActive: true,
-    createdAt: "2024-01-15",
-    level: 0
-  },
-  {
-    id: "10",
-    code: "LIMBAH",
-    name: "Limbah & Sisa",
-    description: "Sisa produksi dan limbah yang dapat dimanfaatkan",
-    parentId: null,
-    parent: null,
-    children: [],
-    totalProducts: 3,
-    totalStockValue: 25000000,
-    isActive: false,
-    createdAt: "2024-01-15",
-    level: 0
+    itemCount: 850,
+    value: 120000000,
+    color: "bg-purple-100",
+    description: "Semi-finished goods currently in production lines.",
+    subs: [
+      { name: "Cutting Pieces", count: 400 },
+      { name: "Sewing Partial", count: 450 },
+    ]
   }
 ]
 
 export default function CategoriesPage() {
-  const [searchTerm, setSearchTerm] = useState("")
-
-  // Filter categories
-  const filteredCategories = mockCategories.filter(category =>
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    category.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    category.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
-
-  // Calculate stats
-  const totalCategories = mockCategories.length
-  const activeCategories = mockCategories.filter(c => c.isActive).length
-  const totalProducts = mockCategories.reduce((sum, c) => sum + c.totalProducts, 0)
-  const totalValue = mockCategories.reduce((sum, c) => sum + c.totalStockValue, 0)
-
-  const getCategoryIcon = (level: number) => {
-    if (level === 0) return <FolderOpen className="h-4 w-4 text-blue-600" />
-    return <Tag className="h-4 w-4 text-gray-600" />
-  }
-
-  const getCategoryRow = (category: any) => {
-    const indent = category.level * 20
-    return (
-      <TableRow key={category.id}>
-        <TableCell className="font-medium">
-          <div className="flex items-center" style={{ paddingLeft: `${indent}px` }}>
-            {getCategoryIcon(category.level)}
-            <span className="ml-2">{category.code}</span>
-          </div>
-        </TableCell>
-        <TableCell>
-          <div>
-            <div className="font-medium">{category.name}</div>
-            {category.description && (
-              <div className="text-xs text-muted-foreground line-clamp-1">
-                {category.description}
-              </div>
-            )}
-          </div>
-        </TableCell>
-        <TableCell>
-          {category.parent ? (
-            <Badge variant="outline" className="text-xs">
-              {category.parent}
-            </Badge>
-          ) : (
-            <Badge variant="default" className="text-xs">
-              Root
-            </Badge>
-          )}
-        </TableCell>
-        <TableCell className="text-center">
-          <div className="font-medium">{category.totalProducts}</div>
-          <div className="text-xs text-muted-foreground">produk</div>
-        </TableCell>
-        <TableCell className="text-right">
-          {formatCurrency(category.totalStockValue).replace(/\D00$/, '')}
-        </TableCell>
-        <TableCell className="text-center">
-          <Badge variant={category.isActive ? "default" : "secondary"}>
-            {category.isActive ? "Aktif" : "Nonaktif"}
-          </Badge>
-        </TableCell>
-        <TableCell className="text-right">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Buka menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Eye className="mr-2 h-4 w-4" />
-                Lihat Detail
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Plus className="mr-2 h-4 w-4" />
-                Tambah Sub-kategori
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-600">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Hapus
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </TableCell>
-      </TableRow>
-    )
-  }
+  const [selectedCategory, setSelectedCategory] = useState<any>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between space-y-2">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans">
+
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Kategori Produk</h2>
-          <p className="text-muted-foreground">
-            Klasifikasi bahan baku, produk jadi, dan aksesori
-          </p>
+          <h2 className="text-3xl font-black font-serif tracking-tight text-black">Pohon Kategori</h2>
+          <p className="text-muted-foreground mt-1 font-medium">Struktur dan klasifikasi aset inventori.</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Tambah Kategori
+        <Button
+          onClick={() => setIsCreateOpen(true)}
+          className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide transition-transform active:translate-y-1 active:shadow-none"
+        >
+          <Plus className="mr-2 h-4 w-4" /> Kategori Baru
+        </Button>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 bg-white p-2 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="Search categories..." className="pl-9 border-black focus-visible:ring-black font-medium" />
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="border-black font-bold uppercase hover:bg-zinc-100">
+            <Filter className="mr-2 h-4 w-4" /> Filter
+          </Button>
+          <Button variant="ghost" size="icon" className="hover:bg-zinc-100">
+            <Layers className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl:grid-cols-2 @5xl:grid-cols-4">
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Total Kategori</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {totalCategories}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <Layers className="mr-1 size-3" />
-                Grup
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              {activeCategories} kategori aktif <Layers className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Pengelompokan material
-            </div>
-          </CardFooter>
-        </Card>
+      {/* Main Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {categories.map((cat) => (
+          <CategoryCard key={cat.id} category={cat} onClick={() => setSelectedCategory(cat)} />
+        ))}
 
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Total Item</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {totalProducts}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <Package className="mr-1 size-3" />
-                SKU
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Tersebar di semua kategori <Package className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Total SKU terdaftar
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Nilai Stok Kategori</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-blue-600">
-              {formatCurrency(totalValue).replace(/\D00$/, '')}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-blue-600 text-blue-600">
-                <IconTrendingUp />
-                Aset
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-blue-600">
-              Valuasi per kategori <IconTrendingUp className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Total nilai inventori
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Kategori Utama</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {mockCategories.filter(c => c.level === 0).length}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <FolderOpen className="mr-1 size-3" />
-                Root
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Induk kategori <FolderOpen className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Level teratas hierarki
-            </div>
-          </CardFooter>
-        </Card>
+        {/* Create Trigger Card */}
+        <button
+          onClick={() => setIsCreateOpen(true)}
+          className="group relative flex flex-col items-center justify-center border-2 border-dashed border-zinc-300 hover:border-black rounded-xl p-8 transition-colors h-full min-h-[300px] bg-zinc-50 hover:bg-white"
+        >
+          <div className="h-16 w-16 bg-white border border-zinc-200 group-hover:border-black rounded-full flex items-center justify-center mb-4 shadow-sm group-hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
+            <Plus className="h-8 w-8 text-zinc-400 group-hover:text-black" />
+          </div>
+          <h3 className="text-lg font-black text-zinc-400 group-hover:text-black uppercase">Buat Kategori Root</h3>
+          <p className="text-sm text-zinc-400 font-medium text-center mt-2 max-w-[200px]">Tambahkan klasifikasi utama baru untuk gudang.</p>
+        </button>
       </div>
 
-      {/* Categories Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Kategori</CardTitle>
-          <CardDescription>
-            Struktur hierarki kategori untuk pengorganisasian stok yang lebih baik
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari kategori, kode, atau deskripsi..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
+      {/* DIALOGS */}
+      <CreateCategoryDialog open={isCreateOpen} onOpenChange={setIsCreateOpen} />
+      {selectedCategory && (
+        <CategoryDetailDialog
+          category={selectedCategory}
+          open={!!selectedCategory}
+          onOpenChange={(open: boolean) => !open && setSelectedCategory(null)}
+        />
+      )}
+
+    </div>
+  )
+}
+
+function CategoryCard({ category, onClick }: { category: any, onClick: () => void }) {
+  return (
+    <Card
+      onClick={onClick}
+      className="group relative border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all bg-white rounded-xl overflow-hidden flex flex-col cursor-pointer"
+    >
+      <div className={`h-2 w-full ${category.color} border-b border-black/10`} />
+
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <div className="space-y-1">
+            <Badge variant="outline" className="border-black text-[10px] font-bold uppercase tracking-wider bg-zinc-50">{category.code}</Badge>
+            <CardTitle className="text-2xl font-black uppercase leading-none">{category.name}</CardTitle>
           </div>
-
-          {/* Categories Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Kode</TableHead>
-                  <TableHead>Nama Kategori</TableHead>
-                  <TableHead>Parent</TableHead>
-                  <TableHead className="text-center">Jumlah Produk</TableHead>
-                  <TableHead className="text-right">Nilai Stok</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCategories.map(getCategoryRow)}
-              </TableBody>
-            </Table>
+          <div className="h-10 w-10 bg-black text-white rounded-lg flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+            <FolderOpen className="h-5 w-5" />
           </div>
+        </div>
+      </CardHeader>
 
-          {filteredCategories.length === 0 && (
-            <div className="text-center py-4">
-              <p className="text-muted-foreground">Tidak ada kategori yang ditemukan</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <CardContent className="space-y-6 flex-1">
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 gap-4 py-2 border-y border-dashed border-zinc-200">
+          <div>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Total Items</p>
+            <p className="text-lg font-black">{category.itemCount.toLocaleString()}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Est. Value</p>
+            <p className="text-lg font-black text-emerald-600">Rp {(category.value / 1000000).toFixed(0)}M</p>
+          </div>
+        </div>
 
-      {/* Category Structure Visualization */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Visualisasi Struktur</CardTitle>
-          <CardDescription>
-            Peta hierarki kategori bahan baku hingga produk jadi
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {mockCategories.filter(c => c.level === 0).map((parent) => (
-              <div key={parent.id} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
-                <div className="flex items-center space-x-2 mb-3">
-                  <FolderOpen className="h-5 w-5 text-blue-600" />
-                  <div>
-                    <h4 className="font-semibold">{parent.name}</h4>
-                    <p className="text-xs text-muted-foreground">{parent.code}</p>
-                  </div>
+        {/* Subcategories List */}
+        <div className="space-y-3">
+          <p className="text-xs font-bold uppercase flex items-center gap-2">
+            <Layers className="h-3 w-3" /> Sub-Categories
+          </p>
+          <div className="space-y-2">
+            {category.subs.map((sub: any, idx: number) => (
+              <div key={idx} className="flex items-center justify-between text-sm p-2 bg-zinc-50 border border-black/5 rounded-lg group-hover:bg-white group-hover:border-black/10 transition-colors">
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-black/20" />
+                  <span className="font-medium text-zinc-700">{sub.name}</span>
                 </div>
-                <div className="space-y-2">
-                  {mockCategories
-                    .filter(c => c.parentId === parent.id)
-                    .map((child) => (
-                      <div key={child.id} className="flex items-center space-x-2 pl-4 py-1.5 bg-muted/30 rounded border border-transparent hover:border-border transition-colors">
-                        <Tag className="h-3 w-3 text-gray-600" />
-                        <span className="text-sm">{child.name}</span>
-                        <Badge variant="secondary" className="text-[10px] h-5 ml-auto">
-                          {child.totalProducts}
-                        </Badge>
-                      </div>
-                    ))}
-                </div>
-                <div className="mt-4 pt-3 border-t grid grid-cols-2 gap-2">
-                  <div className="text-xs">
-                    <span className="text-muted-foreground block">Total Produk</span>
-                    <span className="font-medium">{parent.totalProducts}</span>
-                  </div>
-                  <div className="text-xs text-right">
-                    <span className="text-muted-foreground block">Nilai Stok</span>
-                    <span className="font-medium text-blue-600">{formatCurrency(parent.totalStockValue).replace(/\D00$/, '')}</span>
-                  </div>
-                </div>
+                <Badge variant="secondary" className="text-[10px] font-bold bg-white border border-black/10">{sub.count}</Badge>
               </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </CardContent>
+
+      <CardFooter className="pt-4 border-t border-black bg-zinc-50">
+        <Button variant="ghost" className="w-full justify-between hover:bg-black hover:text-white group/btn transition-all uppercase font-bold text-xs border border-transparent hover:border-black">
+          Manage Tree <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+        </Button>
+      </CardFooter>
+    </Card>
+  )
+}
+
+function CreateCategoryDialog({ open, onOpenChange }: { open: boolean, onOpenChange: (v: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0 bg-white">
+        <DialogHeader className="p-6 border-b border-black bg-zinc-50">
+          <DialogTitle className="text-xl font-black uppercase leading-tight flex items-center gap-2">
+            <div className="bg-black text-white p-1 rounded-md"><Plus className="h-4 w-4" /></div>
+            Create Category
+          </DialogTitle>
+          <DialogDescription className="text-black/60 font-medium">
+            Add a new root or sub-category to the inventory tree.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="uppercase text-xs font-bold text-muted-foreground">Category Name</Label>
+              <Input placeholder="e.g. Raw Material" className="border-black focus-visible:ring-black font-bold" />
+            </div>
+            <div className="space-y-2">
+              <Label className="uppercase text-xs font-bold text-muted-foreground">Category Code</Label>
+              <Input placeholder="e.g. RAW-001" className="border-black focus-visible:ring-black font-mono" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="uppercase text-xs font-bold text-muted-foreground">Parent Category</Label>
+            <Select>
+              <SelectTrigger className="border-black focus:ring-black font-medium">
+                <SelectValue placeholder="Select Parent (Optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="root">No Parent (Root Category)</SelectItem>
+                <SelectItem value="raw">Bahan Baku</SelectItem>
+                <SelectItem value="finish">Produk Jadi</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="uppercase text-xs font-bold text-muted-foreground">Description</Label>
+            <Textarea placeholder="Describe what items belong here..." className="border-black focus-visible:ring-black min-h-[100px]" />
+          </div>
+        </div>
+
+        <DialogFooter className="p-4 border-t border-black bg-zinc-50 flex gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 border-black font-bold uppercase bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+            Cancel
+          </Button>
+          <Button onClick={() => onOpenChange(false)} className="flex-1 bg-black text-white hover:bg-zinc-800 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+            Create Category
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function CategoryDetailDialog({ category, open, onOpenChange }: { category: any, open: boolean, onOpenChange: (v: boolean) => void }) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0 bg-white">
+        <DialogHeader className={`p-6 border-b border-black ${category.color}`}>
+          <div className="flex justify-between items-start">
+            <div>
+              <Badge variant="outline" className="border-black bg-white text-black mb-2 shadow-sm">{category.code}</Badge>
+              <DialogTitle className="text-3xl font-black uppercase leading-none">{category.name}</DialogTitle>
+            </div>
+            <div className="h-12 w-12 bg-black text-white flex items-center justify-center rounded-xl shadow-md">
+              <FolderOpen className="h-6 w-6" />
+            </div>
+          </div>
+          <DialogDescription className="text-black/70 font-medium mt-2">
+            {category.description}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="p-6 space-y-6">
+          {/* Metrics */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 border border-black rounded-lg bg-zinc-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              <p className="text-xs uppercase font-bold text-muted-foreground">Items in Category</p>
+              <p className="text-2xl font-black mt-1">{category.itemCount.toLocaleString()}</p>
+            </div>
+            <div className="p-4 border border-black rounded-lg bg-zinc-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              <p className="text-xs uppercase font-bold text-muted-foreground">Total Valuation</p>
+              <p className="text-2xl font-black mt-1 text-emerald-600">Rp {(category.value / 1000000).toLocaleString()}M</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold uppercase text-sm flex items-center gap-2">
+                <Layers className="h-4 w-4" /> Sub-Categories Tree
+              </h3>
+              <Button size="sm" variant="outline" className="h-7 text-xs border-black font-bold uppercase hover:bg-black hover:text-white">
+                <Plus className="h-3 w-3 mr-1" /> Add Sub
+              </Button>
+            </div>
+            <div className="border border-black rounded-lg divide-y divide-black/10 overflow-hidden">
+              {category.subs.map((sub: any, i: number) => (
+                <div key={i} className="p-3 bg-white flex items-center justify-between hover:bg-zinc-50 group">
+                  <div className="flex items-center gap-3">
+                    <Tag className="h-4 w-4 text-muted-foreground group-hover:text-black" />
+                    <span className="font-medium">{sub.name}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge variant="secondary" className="font-bold border border-black/5">{sub.count} Items</Badge>
+                    <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-red-600">
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="p-4 border-t border-black bg-zinc-50 flex gap-2 justify-between">
+          <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50 font-bold uppercase">
+            <Trash2 className="mr-2 h-4 w-4" /> Delete Category
+          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="border-black font-bold uppercase bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+              Close
+            </Button>
+            <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+              <Save className="mr-2 h-4 w-4" /> Save Changes
+            </Button>
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
