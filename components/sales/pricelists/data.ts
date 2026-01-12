@@ -1,82 +1,88 @@
 
-export const mockPriceLists = [
+export interface PriceBook {
+    id: string;
+    title: string;
+    subtitle: string;
+    coverParams: {
+        color: string;
+        pattern: string; // "dots", "grid", "waves", "solid"
+        icon: string; // Using lucide-react names or similar simple identifiers
+    };
+    items: PriceItem[];
+    validUntil: string;
+}
+
+export interface PriceItem {
+    id: string;
+    code: string;
+    name: string;
+    spec: string; // e.g., "100% Cotton, 30s"
+    price: number;
+    minQty: number;
+    unit: string;
+}
+
+export const PRICE_BOOKS: PriceBook[] = [
     {
-        id: "PL-001",
-        code: "PL-SUMMER-24",
-        name: "Koleksi Musim Panas 2024",
-        description: "Harga ritel standar untuk musim panas mendatang. Termasuk kain cerah dan bahan campuran ringan.",
-        currency: "IDR",
-        itemCount: 45,
-        status: "ACTIVE",
-        lastUpdated: new Date("2024-06-15"),
-        coverColor: "bg-yellow-400",
+        id: "pb-001",
+        title: "Export Collection",
+        subtitle: "Spring/Summer 2025",
+        validUntil: "2025-06-30",
+        coverParams: {
+            color: "bg-orange-500",
+            pattern: "waves",
+            icon: "globe",
+        },
         items: [
-            { name: "Cotton Combed 30s", price: 125000 },
-            { name: "Rayon Viscose", price: 95000 },
-            { name: "Linen Pure", price: 150000 },
-            { name: "Bamboo Jersey", price: 135000 },
+            { id: "item-e1", code: "EXP-C30", name: "Premium Cotton 30s", spec: "Combed, Reactive Dye", price: 85000, minQty: 1000, unit: "kg" },
+            { id: "item-e2", code: "EXP-R40", name: "Rayon Twill", spec: "High Twist, Soft Finish", price: 62000, minQty: 2000, unit: "m" },
+            { id: "item-e3", code: "EXP-L10", name: "Linen Blend", spec: "55% Linen, 45% Cotton", price: 110000, minQty: 500, unit: "m" },
         ]
     },
     {
-        id: "PL-002",
-        code: "PL-DISTRIBUTOR-VIP",
-        name: "Distributor VIP",
-        description: "Tarif diskon khusus untuk Distributor Tingkat 1. Memerlukan MOQ 500 yard.",
-        currency: "IDR",
-        itemCount: 120,
-        status: "ACTIVE",
-        lastUpdated: new Date("2024-01-10"),
-        coverColor: "bg-black text-white",
+        id: "pb-002",
+        title: "Local Wholesale",
+        subtitle: "Java & Bali Market",
+        validUntil: "2024-12-31",
+        coverParams: {
+            color: "bg-blue-600",
+            pattern: "grid",
+            icon: "store",
+        },
         items: [
-            { name: "Cotton Combed 30s", price: 110000 },
-            { name: "Rayon Viscose", price: 85000 },
-            { name: "Linen Pure", price: 135000 },
-            { name: "Polyester Blend", price: 45000 },
+            { id: "item-l1", code: "LOC-P20", name: "Polyester PE", spec: "20s, Standard Grade", price: 28000, minQty: 100, unit: "kg" },
+            { id: "item-l2", code: "LOC-TC", name: "TC 65/35", spec: "Tetoron Cotton", price: 35000, minQty: 100, unit: "kg" },
+            { id: "item-l3", code: "LOC-DF", name: "Dry Fit Mesh", spec: "Sports Active Wear", price: 42000, minQty: 50, unit: "kg" },
         ]
     },
     {
-        id: "PL-003",
-        code: "PL-CLEARANCE",
-        name: "Cuci Gudang Akhir Tahun",
-        description: "Obral penghabisan stok barang 2023. Harga berlaku selama persediaan masih ada.",
-        currency: "IDR",
-        itemCount: 15,
-        status: "INACTIVE",
-        lastUpdated: new Date("2023-12-01"),
-        coverColor: "bg-red-500 text-white",
+        id: "pb-003",
+        title: "Industrial Tech",
+        subtitle: "Safety & Heavy Duty",
+        validUntil: "2025-12-31",
+        coverParams: {
+            color: "bg-zinc-800",
+            pattern: "dots",
+            icon: "shield",
+        },
         items: [
-            { name: "Stok Lama Cotton", price: 65000 },
-            { name: "Kain Defect Minor", price: 40000 },
+            { id: "item-i1", code: "IND-AR", name: "Aramid Fiber", spec: "Fire Resistant Level 4", price: 450000, minQty: 10, unit: "m" },
+            { id: "item-i2", code: "IND-WP", name: "Waterproof Canvas", spec: "600D PVC Coated", price: 55000, minQty: 100, unit: "m" },
         ]
     },
     {
-        id: "PL-004",
-        code: "PL-PROMO-LEBARAN",
-        name: "Promo Spesial Lebaran",
-        description: "Spesial musim liburan dengan fokus pada kain sutra premium dan bordir.",
-        currency: "IDR",
-        itemCount: 30,
-        status: "DRAFT",
-        lastUpdated: new Date("2024-07-01"),
-        coverColor: "bg-green-600 text-white",
+        id: "pb-004",
+        title: "Clearance Sale",
+        subtitle: "Q1 2024 Overstock",
+        validUntil: "2024-04-01",
+        coverParams: {
+            color: "bg-red-500",
+            pattern: "solid",
+            icon: "tag",
+        },
         items: [
-            { name: "Silk Satin Premium", price: 180000 },
-            { name: "Jacquard Gold", price: 210000 },
-        ]
-    },
-    {
-        id: "PL-005",
-        code: "PL-EXPORT-USD",
-        name: "Ekspor (USD) - Pasar AS",
-        description: "Penetapan harga untuk mitra Amerika Serikat, termasuk penyangga biaya pengiriman.",
-        currency: "USD",
-        itemCount: 80,
-        status: "ACTIVE",
-        lastUpdated: new Date("2024-05-20"),
-        coverColor: "bg-blue-600 text-white",
-        items: [
-            { name: "Cotton Combed 30s", price: 8.5 },
-            { name: "Bamboo Jersey", price: 9.2 },
+            { id: "item-c1", code: "CLR-N70", name: "Nylon 70D", spec: "Old Stock (Good Cond)", price: 15000, minQty: 1000, unit: "m" },
+            { id: "item-c2", code: "CLR-PR", name: "Print Misrun", spec: "Various Patterns", price: 12000, minQty: 500, unit: "kg" },
         ]
     }
 ];

@@ -291,42 +291,36 @@ export function FinanceSnapshot() {
                     </CardContent>
 
 
-                    <div className="flex gap-2">
-                        <Button size="sm" variant="secondary" className="w-full text-xs font-black uppercase tracking-wider h-8 bg-zinc-100 hover:bg-zinc-200 border-2 border-transparent text-zinc-900" onClick={(e) => { e.stopPropagation(); }}>
-                            Pay & Save
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                </Card>
 
-            {/* 4. NET MARGIN */}
-            <Card
-                className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
-                onClick={() => setSelectedMetric("profitability")}
-            >
-                <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                        <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-black" /> Net Margin</span>
-                        <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
-                            Healthy
-                        </Badge>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                    <div className="text-3xl font-black tracking-tight">10.0%</div>
-                    <p className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
-                        <ArrowUpRight className="h-3 w-3 text-emerald-500" />
-                        +1.2% vs Last Month
-                    </p>
+                {/* 4. NET MARGIN */}
+                <Card
+                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
+                    onClick={() => setSelectedMetric("profitability")}
+                >
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-black" /> Net Margin</span>
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                Healthy
+                            </Badge>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">10.0%</div>
+                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
+                            <ArrowUpRight className="h-3 w-3 text-emerald-500" />
+                            +1.2% vs Last Month
+                        </p>
 
-                    <div className="flex gap-2">
-                        <Button size="sm" variant="ghost" className="w-full text-xs font-black uppercase tracking-wider h-8 hover:bg-emerald-50 text-emerald-700" onClick={(e) => { e.stopPropagation(); }}>
-                            Analysis
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
-        </div >
+                        <div className="flex gap-2">
+                            <Button size="sm" variant="ghost" className="w-full text-xs font-black uppercase tracking-wider h-8 hover:bg-emerald-50 text-emerald-700" onClick={(e) => { e.stopPropagation(); }}>
+                                Analysis
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div >
 
             <Dialog open={!!selectedMetric} onOpenChange={() => setSelectedMetric(null)}>
                 <DialogContent showCloseButton={false} className="max-w-4xl border-none shadow-none bg-transparent p-0 overflow-visible">
