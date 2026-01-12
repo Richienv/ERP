@@ -1,18 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
     Table,
     TableBody,
@@ -33,441 +32,190 @@ import {
     AlertCircle,
     Download,
     Printer,
-    CreditCard
+    CreditCard,
+    TrendingUp,
+    Store,
+    ArrowUpRight,
+    ArrowDownRight,
+    SearchCode,
+    Receipt
 } from "lucide-react"
 import Link from "next/link"
 import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
+import { cn } from "@/lib/utils"
+import { motion } from "framer-motion"
 
-// Mock data for sales invoices - Textile Factory Context
-const mockInvoices = [
-    {
-        id: '1',
-        invoiceNumber: 'INV-2411-001',
-        salesOrderNumber: 'SO-2411-001',
-        customer: {
-            id: '1',
-            name: 'PT. Garment Indah Jaya',
-            code: 'CUST-001'
-        },
-        invoiceDate: '2024-11-20',
-        dueDate: '2024-12-20',
-        paidDate: null,
-        paymentTerm: 'NET_30',
-        status: 'UNPAID',
-        subtotal: 150000000,
-        taxAmount: 16500000,
-        total: 166500000,
-        paidAmount: 0,
-        itemCount: 3,
-        salesPerson: 'Ahmad Setiawan',
-        notes: "Tagihan Batch 1 - Cotton Combed"
-    },
-    {
-        id: '2',
-        invoiceNumber: 'INV-2411-002',
-        salesOrderNumber: 'SO-2411-002',
-        customer: {
-            id: '2',
-            name: 'CV. Tekstil Makmur',
-            code: 'CUST-002'
-        },
-        invoiceDate: '2024-11-18',
-        dueDate: '2024-12-03',
-        paidDate: '2024-11-19',
-        paymentTerm: 'NET_15',
-        status: 'PAID',
-        subtotal: 85000000,
-        taxAmount: 9350000,
-        total: 94350000,
-        paidAmount: 94350000,
-        itemCount: 2,
-        salesPerson: 'Siti Rahmawati',
-        notes: "Lunas - Jasa Celup"
-    },
-    {
-        id: '3',
-        invoiceNumber: 'INV-2411-003',
-        salesOrderNumber: 'SO-2411-003',
-        customer: {
-            id: '3',
-            name: 'Boutique Fashion A',
-            code: 'CUST-003'
-        },
-        invoiceDate: '2024-11-15',
-        dueDate: '2024-11-15',
-        paidDate: '2024-11-15',
-        paymentTerm: 'CASH',
-        status: 'PAID',
-        subtotal: 52000000,
-        taxAmount: 5720000,
-        total: 57720000,
-        paidAmount: 57720000,
-        itemCount: 1,
-        salesPerson: 'Budi Prasetyo',
-        notes: "Cash - Kain Rayon"
-    },
-    {
-        id: '4',
-        invoiceNumber: 'INV-2411-004',
-        salesOrderNumber: 'SO-2410-008',
-        customer: {
-            id: '4',
-            name: 'PT. Mode Nusantara',
-            code: 'CUST-004'
-        },
-        invoiceDate: '2024-10-25',
-        dueDate: '2024-11-25',
-        paidDate: null,
-        paymentTerm: 'NET_30',
-        status: 'OVERDUE',
-        subtotal: 120000000,
-        taxAmount: 13200000,
-        total: 133200000,
-        paidAmount: 50000000,
-        itemCount: 4,
-        salesPerson: 'Dewi Kartika',
-        notes: "Partial payment received"
-    },
-    {
-        id: '5',
-        invoiceNumber: 'INV-2411-005',
-        salesOrderNumber: 'SO-2411-005',
-        customer: {
-            id: '5',
-            name: 'UD. Kain Sejahtera',
-            code: 'CUST-005'
-        },
-        invoiceDate: '2024-11-21',
-        dueDate: '2024-12-21',
-        paidDate: null,
-        paymentTerm: 'NET_30',
-        status: 'UNPAID',
-        subtotal: 45000000,
-        taxAmount: 4950000,
-        total: 49950000,
-        paidAmount: 0,
-        itemCount: 2,
-        salesPerson: 'Ahmad Setiawan',
-        notes: "Tagihan Kain Perca"
-    }
+// --- Mock Data ---
+
+const RECENT_WINS = [
+    { customer: "PT. Garment Indah", value: 150000000, time: "10:45 AM", type: "Big Win" },
+    { customer: "Boutique A", value: 25000000, time: "11:00 AM", type: "Regular" },
+    { customer: "CV. Tekstil Jaya", value: 85000000, time: "11:15 AM", type: "Win" },
+    { customer: "Fashion Nova", value: 12000000, time: "11:30 AM", type: "Walk-in" },
+    { customer: "Sport Wear ID", value: 200000000, time: "11:45 AM", type: "Mega Win" },
 ]
 
-// Get invoice status badge
-const getInvoiceStatusBadge = (status: string) => {
-    switch (status) {
-        case 'PAID':
-            return <Badge variant="default" className="bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800">Lunas</Badge>
-        case 'UNPAID':
-            return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 hover:bg-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800">Belum Bayar</Badge>
-        case 'PARTIAL':
-            return <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800">Parsial</Badge>
-        case 'OVERDUE':
-            return <Badge variant="destructive" className="bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800">Jatuh Tempo</Badge>
-        default:
-            return <Badge variant="outline">Unknown</Badge>
-    }
-}
+const INVOICES = [
+    { id: '1', number: 'INV-2411-001', customer: 'PT. Garment Indah Jaya', date: '2024-11-20', due: '2024-12-20', total: 166500000, status: 'UNPAID' },
+    { id: '2', number: 'INV-2411-002', customer: 'CV. Tekstil Makmur', date: '2024-11-18', due: '2024-12-03', total: 94350000, status: 'PAID' },
+    { id: '3', number: 'INV-2411-003', customer: 'Boutique Fashion A', date: '2024-11-15', due: '2024-11-15', total: 57720000, status: 'PAID' },
+    { id: '4', number: 'INV-2411-004', customer: 'PT. Mode Nusantara', date: '2024-10-25', due: '2024-11-25', total: 133200000, status: 'OVERDUE' },
+    { id: '5', number: 'INV-2411-005', customer: 'UD. Kain Sejahtera', date: '2024-11-21', due: '2024-12-21', total: 49950000, status: 'UNPAID' },
+]
 
-// Format currency
-const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(amount)
-}
-
-// Format date
-const formatDate = (dateString: string | null) => {
-    if (!dateString) return "-"
-    return new Date(dateString).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-export default function SalesPage() {
+export default function SalesStreamPage() {
     const [searchTerm, setSearchTerm] = useState("")
-    const [filterStatus, setFilterStatus] = useState("all")
 
-    // Filter invoices
-    const filteredInvoices = mockInvoices.filter(invoice => {
-        const matchesSearch = invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            invoice.customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            invoice.salesOrderNumber.toLowerCase().includes(searchTerm.toLowerCase())
-        const matchesStatus = filterStatus === "all" || invoice.status === filterStatus
-        return matchesSearch && matchesStatus
-    })
-
-    const salesStats = {
-        totalInvoices: mockInvoices.length,
-        totalRevenue: mockInvoices.reduce((sum, inv) => sum + inv.total, 0),
-        paidInvoices: mockInvoices.filter(inv => inv.status === 'PAID').length,
-        outstandingAmount: mockInvoices.reduce((sum, inv) => sum + (inv.total - inv.paidAmount), 0),
-        monthlyGrowth: 12.5
-    }
+    const formatRupiah = (num: number) => {
+        return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
+    };
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-            {/* Header */}
-            <div className="flex items-center justify-between space-y-2">
-                <div>
-                    <h2 className="text-3xl font-bold tracking-tight">Faktur Penjualan</h2>
-                    <p className="text-muted-foreground">
-                        Kelola tagihan, pembayaran, dan piutang pelanggan
-                    </p>
+        <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-zinc-50 dark:bg-zinc-950">
+
+            {/* === TICKER TAPE === */}
+            <div className="h-10 bg-black text-white overflow-hidden flex items-center relative z-10 shadow-md">
+                <div className="font-black bg-red-600 px-4 h-full flex items-center z-20 shadow-[4px_0px_10px_rgba(0,0,0,0.5)] uppercase tracking-wide text-xs">
+                    Live Stream
                 </div>
-                <div className="flex items-center space-x-2">
-                    <Button variant="outline">
-                        <Download className="mr-2 h-4 w-4" />
-                        Ekspor Laporan
-                    </Button>
+                <div className="flex animate-marquee whitespace-nowrap ml-4">
+                    {/* Duplicate specifically for marquee effect (usually handle via CSS) */}
+                    {[...RECENT_WINS, ...RECENT_WINS, ...RECENT_WINS].map((win, i) => (
+                        <div key={i} className="flex items-center gap-2 mx-6 text-sm">
+                            <span className="font-mono text-zinc-400">{win.time}</span>
+                            <span className="font-bold text-green-400">+{formatRupiah(win.value).replace(",00", "")}</span>
+                            <span className="font-medium text-zinc-300">from {win.customer}</span>
+                            {win.value > 100000000 && <span className="px-1.5 py-0.5 bg-yellow-500 text-black text-[10px] font-black rounded-sm uppercase">Big Win</span>}
+                        </div>
+                    ))}
                 </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl:grid-cols-2 @5xl:grid-cols-4">
-                <Card className="@container/card">
-                    <CardHeader>
-                        <CardDescription>Total Tagihan</CardDescription>
-                        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-                            {salesStats.totalInvoices}
-                        </CardTitle>
-                        <CardAction>
-                            <Badge variant="outline">
-                                <FileText className="mr-1 size-3" />
-                                Bulan Ini
-                            </Badge>
-                        </CardAction>
-                    </CardHeader>
-                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
-                        <div className="line-clamp-1 flex gap-2 font-medium">
-                            Invoice Terbit <Calendar className="size-4" />
-                        </div>
-                        <div className="text-muted-foreground">
-                            Total dokumen tagihan
-                        </div>
-                    </CardFooter>
-                </Card>
+            <div className="flex-1 p-4 md:p-8 pt-6 space-y-6">
 
-                <Card className="@container/card">
-                    <CardHeader>
-                        <CardDescription>Total Revenue</CardDescription>
-                        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-green-600">
-                            {formatCurrency(salesStats.totalRevenue).replace(/\D00$/, '')}
-                        </CardTitle>
-                        <CardAction>
-                            <Badge variant="outline" className="border-green-600 text-green-600">
-                                <IconTrendingUp />
-                                +{salesStats.monthlyGrowth}%
-                            </Badge>
-                        </CardAction>
-                    </CardHeader>
-                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
-                        <div className="line-clamp-1 flex gap-2 font-medium text-green-600">
-                            Omset Penjualan <DollarSign className="size-4" />
-                        </div>
-                        <div className="text-muted-foreground">
-                            Total nilai faktur
-                        </div>
-                    </CardFooter>
-                </Card>
+                {/* Header Section */}
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h2 className="text-4xl font-black tracking-tight uppercase">Revenue Stream</h2>
+                        <p className="text-muted-foreground font-medium mt-1">Real-time financial performance & closing metrics.</p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" className="border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                            <Download className="mr-2 h-4 w-4" /> Export
+                        </Button>
+                        <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-transparent font-bold shadow-lg">
+                            <Receipt className="mr-2 h-4 w-4" /> Buat Invoice
+                        </Button>
+                    </div>
+                </div>
 
-                <Card className="@container/card">
-                    <CardHeader>
-                        <CardDescription>Pembayaran Diterima</CardDescription>
-                        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-blue-600">
-                            {salesStats.paidInvoices}
-                        </CardTitle>
-                        <CardAction>
-                            <Badge variant="outline" className="border-blue-600 text-blue-600">
-                                <CheckCircle className="mr-1 size-3" />
-                                Lunas
-                            </Badge>
-                        </CardAction>
-                    </CardHeader>
-                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
-                        <div className="line-clamp-1 flex gap-2 font-medium text-blue-600">
-                            Cash Flow Masuk <CreditCard className="size-4" />
+                {/* === METRIC GRID (Bank Statement Style) === */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Daily Closing Card - The "Cash Register" */}
+                    <Card className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden bg-white dark:bg-zinc-900 group">
+                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                            <Store className="h-24 w-24" />
                         </div>
-                        <div className="text-muted-foreground">
-                            Invoice lunas bulan ini
+                        <CardHeader className="pb-2">
+                            <CardDescription className="text-xs font-bold uppercase tracking-widest text-zinc-500">Daily Closing</CardDescription>
+                            <CardTitle className="text-3xl font-black tracking-tighter">
+                                {formatRupiah(255000000).replace(",00", "")}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardFooter className="pt-0">
+                            <div className="flex items-center gap-2 text-green-600 font-bold bg-green-50 px-2 py-1 rounded-md border border-green-200">
+                                <ArrowUpRight className="h-4 w-4" /> +12.5% vs Yesterday
+                            </div>
+                        </CardFooter>
+                        <div className="h-1.5 w-full bg-zinc-100 mt-4">
+                            <div className="h-full bg-black w-[75%]" /> {/* Progress toward daily target */}
                         </div>
-                    </CardFooter>
-                </Card>
+                    </Card>
 
-                <Card className="@container/card">
-                    <CardHeader>
-                        <CardDescription>Piutang (Outstanding)</CardDescription>
-                        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-red-600">
-                            {formatCurrency(salesStats.outstandingAmount).replace(/\D00$/, '')}
-                        </CardTitle>
-                        <CardAction>
-                            <Badge variant="outline" className="border-red-600 text-red-600">
-                                <AlertCircle className="mr-1 size-3" />
-                                Belum Bayar
-                            </Badge>
-                        </CardAction>
-                    </CardHeader>
-                    <CardFooter className="flex-col items-start gap-1.5 text-sm">
-                        <div className="line-clamp-1 flex gap-2 font-medium text-red-600">
-                            Perlu Penagihan <IconTrendingDown className="size-4" />
-                        </div>
-                        <div className="text-muted-foreground">
-                            Total tagihan belum lunas
-                        </div>
-                    </CardFooter>
-                </Card>
-            </div>
+                    {/* Pending AR Card */}
+                    <Card className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-zinc-50 dark:bg-zinc-900">
+                        <CardHeader className="pb-2">
+                            <CardDescription className="text-xs font-bold uppercase tracking-widest text-zinc-500">Unpaid Invoices (AR)</CardDescription>
+                            <CardTitle className="text-3xl font-black tracking-tighter text-orange-600">
+                                {formatRupiah(133000000).replace(",00", "")}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardFooter className="pt-0 justify-between items-end">
+                            <div className="text-sm text-muted-foreground font-medium">5 Invoices Open</div>
+                            <Button size="sm" variant="ghost" className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 -mr-2">Nagih Sekarang <ArrowUpRight className="ml-1 h-3 w-3" /></Button>
+                        </CardFooter>
+                    </Card>
 
-            {/* Invoices Table */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Daftar Faktur & Pembayaran</CardTitle>
-                    <CardDescription>
-                        Monitoring status pembayaran dan jatuh tempo invoice
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <div className="flex items-center space-x-4 mb-4">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    {/* Cash In Hand */}
+                    <Card className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-zinc-900 text-white dark:bg-zinc-800">
+                        <CardHeader className="pb-2">
+                            <CardDescription className="text-xs font-bold uppercase tracking-widest text-zinc-400">Net Cash In</CardDescription>
+                            <CardTitle className="text-3xl font-black tracking-tighter text-green-400">
+                                {formatRupiah(57720000).replace(",00", "")}
+                            </CardTitle>
+                        </CardHeader>
+                        <CardFooter className="pt-0">
+                            <div className="text-zinc-400 text-sm">Realized revenue this month.</div>
+                        </CardFooter>
+                    </Card>
+                </div>
+
+
+                {/* === INVOICE STREAM (Ticker Style List) === */}
+                <div className="border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="p-4 border-b-2 border-black flex justify-between items-center bg-zinc-50 dark:bg-zinc-800">
+                        <h3 className="font-black text-lg uppercase flex items-center gap-2">
+                            <Filter className="h-5 w-5" /> Transaction Log
+                        </h3>
+                        <div className="relative w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Cari nomor invoice, customer, atau SO..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-8"
+                                placeholder="Search ref or customer..."
+                                className="pl-9 bg-white border-2 border-zinc-200 focus-visible:border-black focus-visible:ring-0 rounded-lg font-medium"
                             />
                         </div>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="outline">
-                                    <Filter className="mr-2 h-4 w-4" />
-                                    Status: {filterStatus === "all" ? "Semua" : filterStatus}
+                    </div>
+
+                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                        {INVOICES.map((inv) => (
+                            <div key={inv.id} className="p-4 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer">
+                                <div className="flex items-center gap-4">
+                                    <div className={cn(
+                                        "h-12 w-12 rounded-lg border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+                                        inv.status === 'PAID' ? "bg-green-100 text-green-700" :
+                                            inv.status === 'OVERDUE' ? "bg-red-100 text-red-700" : "bg-white text-zinc-700"
+                                    )}>
+                                        {inv.status === 'PAID' ? 'PD' : inv.status === 'OVERDUE' ? 'OD' : 'OP'}
+                                    </div>
+                                    <div>
+                                        <div className="font-bold text-lg leading-none">{inv.customer}</div>
+                                        <div className="text-sm text-muted-foreground font-mono mt-1">{inv.number} • {inv.date}</div>
+                                    </div>
+                                </div>
+
+                                <div className="text-right">
+                                    <div className="font-black text-lg">{formatRupiah(inv.total).replace(",00", "")}</div>
+                                    <div className={cn("text-xs font-bold uppercase",
+                                        inv.status === 'PAID' ? "text-green-600" :
+                                            inv.status === 'OVERDUE' ? "text-red-600" : "text-yellow-600"
+                                    )}>
+                                        {inv.status}
+                                    </div>
+                                </div>
+
+                                <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <ArrowUpRight className="h-5 w-5" />
                                 </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => setFilterStatus("all")}>
-                                    Semua Status
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setFilterStatus("PAID")}>
-                                    Lunas
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setFilterStatus("UNPAID")}>
-                                    Belum Bayar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setFilterStatus("OVERDUE")}>
-                                    Jatuh Tempo
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                            </div>
+                        ))}
                     </div>
 
-                    {/* Invoice Table */}
-                    <div className="rounded-md border">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>No. Invoice</TableHead>
-                                    <TableHead>Customer</TableHead>
-                                    <TableHead className="text-center">Tgl Invoice</TableHead>
-                                    <TableHead className="text-center">Jatuh Tempo</TableHead>
-                                    <TableHead className="text-center">Total Tagihan</TableHead>
-                                    <TableHead className="text-center">Sisa Tagihan</TableHead>
-                                    <TableHead className="text-center">Status</TableHead>
-                                    <TableHead className="text-right">Aksi</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredInvoices.map((invoice) => (
-                                    <TableRow key={invoice.id}>
-                                        <TableCell className="font-medium">
-                                            <div className="space-y-1">
-                                                <div className="flex items-center">
-                                                    <FileText className="mr-2 h-3 w-3 text-muted-foreground" />
-                                                    {invoice.invoiceNumber}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground ml-5">
-                                                    Ref: {invoice.salesOrderNumber}
-                                                </div>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="font-medium">{invoice.customer.name}</div>
-                                            <div className="text-xs text-muted-foreground">{invoice.paymentTerm}</div>
-                                        </TableCell>
-                                        <TableCell className="text-center text-sm">
-                                            {formatDate(invoice.invoiceDate)}
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className={`text-sm ${invoice.status === 'OVERDUE' ? 'text-red-600 font-medium' : ''}`}>
-                                                {formatDate(invoice.dueDate)}
-                                                {invoice.status === 'OVERDUE' && (
-                                                    <div className="text-[10px] text-red-600 flex items-center justify-center mt-0.5">
-                                                        <AlertCircle className="h-3 w-3 mr-1" /> Overdue
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="text-sm font-bold">{formatCurrency(invoice.total).replace(/\D00$/, '')}</div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="text-sm text-muted-foreground">
-                                                {formatCurrency(invoice.total - invoice.paidAmount).replace(/\D00$/, '')}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            {getInvoiceStatusBadge(invoice.status)}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" className="h-8 w-8 p-0">
-                                                        <span className="sr-only">Buka menu</span>
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/sales/invoices/${invoice.id}`}>
-                                                            <Eye className="mr-2 h-4 w-4" />
-                                                            Lihat Detail
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    {invoice.status !== 'PAID' && (
-                                                        <DropdownMenuItem>
-                                                            <CreditCard className="mr-2 h-4 w-4" />
-                                                            Catat Pembayaran
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem>
-                                                        <Printer className="mr-2 h-4 w-4" />
-                                                        Cetak Invoice
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem>
-                                                        <Download className="mr-2 h-4 w-4" />
-                                                        Download PDF
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800 border-t-2 border-black text-center">
+                        <Button variant="link" className="text-muted-foreground hover:text-black">View All Transactions</Button>
                     </div>
+                </div>
 
-                    {filteredInvoices.length === 0 && (
-                        <div className="text-center py-4">
-                            <p className="text-muted-foreground">Tidak ada invoice yang ditemukan</p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
+            </div>
         </div>
     )
 }

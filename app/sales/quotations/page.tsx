@@ -30,8 +30,8 @@ import {
   Plus,
   FileText,
   Send,
+  AlertTriangle,
   CheckCircle,
-  XCircle,
   Clock,
   ArrowRight,
   Building2,
@@ -40,6 +40,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
+import { QuotationKanban } from "@/components/sales/quotation-kanban"
 
 // Mock data untuk quotations - Textile Factory Context
 const mockQuotations = [
@@ -235,311 +236,105 @@ export default function QuotationsPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl:grid-cols-2 @5xl:grid-cols-4">
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Total Penawaran</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {mockQuotations.length}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <FileText className="mr-1 size-3" />
-                Bulan Ini
-              </Badge>
-            </CardAction>
+      {/* Stats Cards - Ritchie Minimal */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <CardDescription className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Pipe Value (Sent)</CardDescription>
+                <CardTitle className="text-3xl font-black">
+                  {formatCurrency(mockQuotations.filter(q => q.status === 'SENT').reduce((acc, q) => acc + q.total, 0)).replace(/\D00$/, '')}
+                </CardTitle>
+              </div>
+              <div className="h-8 w-8 rounded bg-blue-50 border border-blue-200 flex items-center justify-center">
+                <IconTrendingUp className="h-4 w-4 text-blue-600" />
+              </div>
+            </div>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Aktif & Arsip <FileText className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Total dokumen dibuat
-            </div>
-          </CardFooter>
         </Card>
 
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Menunggu Respons</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-blue-600">
-              {mockQuotations.filter(q => q.status === 'SENT').length}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-blue-600 text-blue-600">
-                <Send className="mr-1 size-3" />
-                Terkirim
-              </Badge>
-            </CardAction>
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <CardDescription className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Win Rate</CardDescription>
+                <CardTitle className="text-3xl font-black text-emerald-600">
+                  {Math.round((mockQuotations.filter(q => q.status === 'ACCEPTED' || q.status === 'CONVERTED').length / mockQuotations.length) * 100)}%
+                </CardTitle>
+              </div>
+              <div className="h-8 w-8 rounded bg-emerald-50 border border-emerald-200 flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
+              </div>
+            </div>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-blue-600">
-              Follow-up segera <Clock className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Menunggu persetujuan customer
-            </div>
-          </CardFooter>
         </Card>
 
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Win Rate</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-green-600">
-              {Math.round((mockQuotations.filter(q => q.status === 'ACCEPTED' || q.status === 'CONVERTED').length / mockQuotations.length) * 100)}%
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-green-600 text-green-600">
-                <IconTrendingUp />
-                Sukses
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <CardDescription className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Active Deals</CardDescription>
+                <CardTitle className="text-3xl font-black text-black">
+                  {mockQuotations.filter(q => q.status === 'SENT' || q.status === 'DRAFT').length}
+                </CardTitle>
+              </div>
+              <Badge variant="outline" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                Target: 15
               </Badge>
-            </CardAction>
+            </div>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-green-600">
-              Diterima/Converted <CheckCircle className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Konversi ke Sales Order
-            </div>
-          </CardFooter>
         </Card>
 
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Perlu Perhatian</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-yellow-600">
-              {mockQuotations.filter(q => q.status === 'EXPIRED' || isExpiringSoon(q.validUntil)).length}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-yellow-600 text-yellow-600">
-                <Clock className="mr-1 size-3" />
-                Urgent
-              </Badge>
-            </CardAction>
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-red-50">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <div className="space-y-1">
+                <CardDescription className="font-bold text-xs uppercase tracking-wider text-red-800">Stalled / Expiring</CardDescription>
+                <CardTitle className="text-3xl font-black text-red-600">
+                  {mockQuotations.filter(q => q.status === 'EXPIRED' || isExpiringSoon(q.validUntil)).length}
+                </CardTitle>
+              </div>
+              <div className="h-8 w-8 rounded bg-white border border-red-200 flex items-center justify-center">
+                <AlertTriangle className="h-4 w-4 text-red-600" />
+              </div>
+            </div>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-yellow-600">
-              Expiring/Expired <IconTrendingDown className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Perbarui masa berlaku
-            </div>
-          </CardFooter>
         </Card>
       </div>
 
-      {/* Quotations Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Penawaran Harga</CardTitle>
-          <CardDescription>
-            Monitor status penawaran dan konversi penjualan
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari nomor quotation, nama customer, atau referensi PO..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Status: {filterStatus === "all" ? "Semua" : filterStatus}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFilterStatus("all")}>
-                  Semua Status
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("DRAFT")}>
-                  Draft
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("SENT")}>
-                  Terkirim
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("ACCEPTED")}>
-                  Diterima
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("REJECTED")}>
-                  Ditolak
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("EXPIRED")}>
-                  Kedaluwarsa
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("CONVERTED")}>
-                  Dikonversi
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Sales: {filterSalesPerson === "all" ? "Semua" : filterSalesPerson}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter Sales Person</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFilterSalesPerson("all")}>
-                  Semua Sales
-                </DropdownMenuItem>
-                {salesPersons.filter(sp => sp !== "all").map((salesPerson) => (
-                  <DropdownMenuItem
-                    key={salesPerson}
-                    onClick={() => setFilterSalesPerson(salesPerson)}
-                  >
-                    {salesPerson}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+      {/* Kanban Board Area */}
+      <div className="flex items-center space-x-4 mb-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search deals..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+          />
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button variant="outline" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold">
+            <Filter className="mr-2 h-4 w-4" /> Filter by Sales
+          </Button>
+          <Button className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold bg-black text-white hover:bg-zinc-800" asChild>
+            <Link href="/sales/quotations/new">
+              <Plus className="mr-2 h-4 w-4" /> New Quote
+            </Link>
+          </Button>
+        </div>
+      </div>
 
-          {/* Quotation Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>No. Quotation</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Sales Person</TableHead>
-                  <TableHead className="text-center">Tanggal</TableHead>
-                  <TableHead className="text-center">Valid Until</TableHead>
-                  <TableHead className="text-center">Items</TableHead>
-                  <TableHead className="text-center">Total</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredQuotations.map((quotation) => (
-                  <TableRow key={quotation.id}>
-                    <TableCell className="font-medium">
-                      <div className="space-y-1">
-                        <div className="flex items-center">
-                          <FileText className="mr-2 h-3 w-3 text-muted-foreground" />
-                          {quotation.number}
-                        </div>
-                        {quotation.customerRef && (
-                          <div className="text-xs text-muted-foreground ml-5">
-                            Ref: {quotation.customerRef}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{quotation.customerName}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {quotation.salesPerson}
-                    </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {formatDate(quotation.quotationDate)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className={`text-sm ${isExpiringSoon(quotation.validUntil) && quotation.status !== 'CONVERTED' && quotation.status !== 'ACCEPTED' ? 'text-red-600 font-medium' : ''}`}>
-                        {formatDate(quotation.validUntil)}
-                        {isExpiringSoon(quotation.validUntil) && quotation.status !== 'CONVERTED' && quotation.status !== 'ACCEPTED' && (
-                          <div className="text-[10px] text-red-600 flex items-center justify-center mt-0.5">
-                            <Clock className="h-3 w-3 mr-1" /> Expiring
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant="secondary" className="font-normal">
-                        {quotation.itemCount} item
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="space-y-1">
-                        <div className="text-sm font-bold">{formatCurrency(quotation.total).replace(/\D00$/, '')}</div>
-                        {quotation.discountAmount > 0 && (
-                          <div className="text-[10px] text-green-600">
-                            Hemat {formatCurrency(quotation.discountAmount).replace(/\D00$/, '')}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getQuotationStatusBadge(quotation.status)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
-                            <Link href={`/sales/quotations/${quotation.id}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Lihat Detail
-                            </Link>
-                          </DropdownMenuItem>
-                          {(quotation.status === 'DRAFT' || quotation.status === 'SENT') && (
-                            <DropdownMenuItem asChild>
-                              <Link href={`/sales/quotations/${quotation.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                              </Link>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          {quotation.status === 'DRAFT' && (
-                            <DropdownMenuItem>
-                              <Send className="mr-2 h-4 w-4" />
-                              Kirim via Email
-                            </DropdownMenuItem>
-                          )}
-                          {(quotation.status === 'ACCEPTED' || quotation.status === 'SENT') && (
-                            <DropdownMenuItem asChild>
-                              <Link href={`/sales/orders/new?quotationId=${quotation.id}`}>
-                                <ArrowRight className="mr-2 h-4 w-4" />
-                                Konversi ke SO
-                              </Link>
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem>
-                            <Printer className="mr-2 h-4 w-4" />
-                            Cetak PDF
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+      <div className="h-full">
+        <QuotationKanban quotations={filteredQuotations} />
+      </div>
 
-          {filteredQuotations.length === 0 && (
-            <div className="text-center py-4">
-              <p className="text-muted-foreground">Tidak ada penawaran yang ditemukan</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {filteredQuotations.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground font-medium">No quotations match your filter.</p>
+        </div>
+      )}
     </div>
   )
 }

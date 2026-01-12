@@ -30,31 +30,31 @@ export function DetailedMaterialTable() {
     ]
 
     return (
-        <Card className="border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white dark:bg-black mt-6">
-            <CardHeader className="p-6 border-b border-black bg-zinc-50 dark:bg-zinc-900">
+        <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white mt-6">
+            <CardHeader className="p-6 border-b-2 border-black bg-zinc-50">
                 <div className="flex items-center justify-between">
                     <div>
                         <CardTitle className="text-xl font-black uppercase tracking-wider flex items-center gap-2">
                             <Package className="h-5 w-5 text-purple-600" />
                             Material Gap Analysis
                         </CardTitle>
-                        <p className="text-sm text-muted-foreground font-medium mt-1">Real-time stock vs. required production needs.</p>
+                        <p className="text-sm text-muted-foreground font-bold mt-1">Real-time stock vs. required production needs.</p>
                     </div>
-                    <Button variant="outline" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white text-black hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all">
+                    <Button variant="outline" className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] bg-white text-black font-bold hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all">
                         <ShoppingCart className="mr-2 h-4 w-4" /> Bulk Order
                     </Button>
                 </div>
             </CardHeader>
             <CardContent className="p-0">
                 <Table>
-                    <TableHeader className="bg-zinc-100 dark:bg-zinc-900 border-b border-black/10">
-                        <TableRow className="border-b border-black/5 hover:bg-transparent">
-                            <TableHead className="font-bold text-black dark:text-white w-[250px]">Material Name</TableHead>
-                            <TableHead className="font-bold text-black dark:text-white">Current Stock</TableHead>
-                            <TableHead className="font-bold text-black dark:text-white">Required (Min)</TableHead>
-                            <TableHead className="font-bold text-black dark:text-white">Gap / Deficit</TableHead>
-                            <TableHead className="font-bold text-black dark:text-white">Status</TableHead>
-                            <TableHead className="font-bold text-black dark:text-white text-right">Action</TableHead>
+                    <TableHeader className="bg-zinc-100 border-b-2 border-black">
+                        <TableRow className="border-b-2 border-black hover:bg-transparent">
+                            <TableHead className="font-black text-black uppercase w-[250px]">Material Name</TableHead>
+                            <TableHead className="font-black text-black uppercase">Current Stock</TableHead>
+                            <TableHead className="font-black text-black uppercase">Required (Min)</TableHead>
+                            <TableHead className="font-black text-black uppercase">Gap / Deficit</TableHead>
+                            <TableHead className="font-black text-black uppercase">Status</TableHead>
+                            <TableHead className="font-black text-black uppercase text-right">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -64,27 +64,27 @@ export function DetailedMaterialTable() {
                             const percentage = Math.round((item.stock / item.needed) * 100);
 
                             return (
-                                <TableRow key={item.id} className="hover:bg-muted/50 transition-colors border-b border-black/5 last:border-0">
+                                <TableRow key={item.id} className="hover:bg-zinc-50 transition-colors border-b-2 border-black/10 last:border-0 group">
                                     <TableCell>
                                         <div className="flex flex-col">
-                                            <span className="font-bold text-sm">{item.name}</span>
-                                            <span className="text-xs text-muted-foreground">{item.id} • {item.category}</span>
+                                            <span className="font-black text-sm text-black">{item.name}</span>
+                                            <span className="text-xs font-bold text-muted-foreground">{item.id} • {item.category}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-mono font-medium">
+                                    <TableCell className="font-mono font-bold text-black">
                                         {item.stock.toLocaleString()} <span className="text-muted-foreground text-xs">{item.unit}</span>
                                     </TableCell>
-                                    <TableCell className="font-mono font-medium text-muted-foreground">
+                                    <TableCell className="font-mono font-bold text-muted-foreground">
                                         {item.needed.toLocaleString()} <span className="text-xs">{item.unit}</span>
                                     </TableCell>
                                     <TableCell>
                                         {isDeficit ? (
-                                            <div className="flex items-center gap-2 text-red-600 font-bold bg-red-50 w-fit px-2 py-1 rounded border border-red-200">
+                                            <div className="flex items-center gap-2 text-red-700 font-black bg-red-100 w-fit px-2 py-1 rounded border-2 border-red-500">
                                                 <TrendingDown className="h-3 w-3" />
                                                 -{deficit.toLocaleString()} {item.unit}
                                             </div>
                                         ) : (
-                                            <div className="flex items-center gap-2 text-emerald-600 font-bold bg-emerald-50 w-fit px-2 py-1 rounded border border-emerald-200">
+                                            <div className="flex items-center gap-2 text-emerald-700 font-black bg-emerald-100 w-fit px-2 py-1 rounded border-2 border-emerald-500">
                                                 <TrendingUp className="h-3 w-3" />
                                                 Safe
                                             </div>
@@ -92,13 +92,13 @@ export function DetailedMaterialTable() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-2">
-                                            <div className="h-2 w-16 bg-zinc-100 rounded-full overflow-hidden border border-black/10">
+                                            <div className="h-3 w-16 bg-zinc-200 rounded-full overflow-hidden border border-black/20">
                                                 <div
                                                     className={`h-full ${percentage < 50 ? 'bg-red-500' : percentage < 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
                                                     style={{ width: `${Math.min(percentage, 100)}%` }}
                                                 />
                                             </div>
-                                            <span className="text-xs font-bold">{percentage}%</span>
+                                            <span className="text-xs font-black text-zinc-600">{percentage}%</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -121,7 +121,7 @@ function RestockDialog({ item, deficit }: { item: any, deficit: number }) {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button size="sm" className={`
-                    border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none
+                    border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none font-bold uppercase
                     ${deficit > 0
                         ? "bg-black text-white hover:bg-zinc-800"
                         : "bg-white text-black hover:bg-zinc-100"}
@@ -129,49 +129,49 @@ function RestockDialog({ item, deficit }: { item: any, deficit: number }) {
                     {deficit > 0 ? "Restock Now" : "Add Stock"}
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-black">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl font-black uppercase">
+            <DialogContent className="sm:max-w-[425px] border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white p-0 overflow-hidden">
+                <DialogHeader className="p-6 bg-zinc-50 border-b-2 border-black">
+                    <DialogTitle className="flex items-center gap-2 text-xl font-black uppercase tracking-tight">
                         <ShoppingCart className="h-5 w-5 text-purple-600" />
                         Restock Request
                     </DialogTitle>
-                    <DialogDescription>
-                        Create a purchase request for <span className="font-bold text-foreground">{item.name}</span>.
+                    <DialogDescription className="font-bold text-muted-foreground">
+                        Create purchase request for <span className="text-black">{item.name}</span>.
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-4 py-4">
+                <div className="grid gap-4 p-6">
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right text-xs font-bold uppercase text-muted-foreground">Current</Label>
-                        <div className="col-span-3 font-mono font-bold">{item.stock} {item.unit}</div>
+                        <Label className="text-right text-xs font-black uppercase text-muted-foreground">Current</Label>
+                        <div className="col-span-3 font-mono font-bold text-lg">{item.stock} {item.unit}</div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right text-xs font-bold uppercase text-muted-foreground">Shortage</Label>
-                        <div className="col-span-3 font-mono font-bold text-red-600">
+                        <Label className="text-right text-xs font-black uppercase text-muted-foreground">Shortage</Label>
+                        <div className="col-span-3 font-mono font-bold text-red-600 text-lg">
                             {deficit > 0 ? `-${deficit} ${item.unit}` : "None"}
                         </div>
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="quantity" className="text-right">Order Qty</Label>
+                        <Label htmlFor="quantity" className="text-right font-black uppercase text-xs">Order Qty</Label>
                         <Input
                             id="quantity"
                             defaultValue={deficit > 0 ? deficit : 100}
-                            className="col-span-3 border-black focus-visible:ring-black"
+                            className="col-span-3 border-2 border-black font-bold h-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                         />
                     </div>
                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="vendor" className="text-right">Vendor</Label>
+                        <Label htmlFor="vendor" className="text-right font-black uppercase text-xs">Vendor</Label>
                         <Input
                             id="vendor"
                             defaultValue="Preferred Vendor"
-                            className="col-span-3 border-black focus-visible:ring-black"
+                            className="col-span-3 border-2 border-black font-bold h-10 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                         />
                     </div>
                 </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={() => setOpen(false)} className="border-black hover:bg-zinc-100">Cancel</Button>
-                    <Button type="submit" onClick={() => setOpen(false)} className="bg-purple-600 text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-purple-700 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all">
+                <DialogFooter className="p-6 bg-zinc-50 border-t-2 border-black gap-2">
+                    <Button variant="outline" onClick={() => setOpen(false)} className="border-2 border-black font-bold hover:bg-zinc-200">Cancel</Button>
+                    <Button type="submit" onClick={() => setOpen(false)} className="bg-purple-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all font-black uppercase">
                         Confirm Order
                     </Button>
                 </DialogFooter>

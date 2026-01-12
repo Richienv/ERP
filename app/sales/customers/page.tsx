@@ -35,10 +35,12 @@ import {
   MapPin,
   Briefcase,
   ShoppingBag,
-  CreditCard
+  CreditCard,
+  AlertCircle
 } from "lucide-react"
 import Link from "next/link"
 import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
+import { CustomerRolodexCard } from "@/components/sales/customer-rolodex-card"
 
 // Mock data untuk customers - Textile Factory Context
 const mockCustomers = [
@@ -226,286 +228,128 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl:grid-cols-2 @5xl:grid-cols-4">
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Total Pelanggan</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {mockCustomers.filter(c => !c.isProspect).length}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <Building2 className="mr-1 size-3" />
-                Mitra
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Pelanggan aktif <Briefcase className="size-4" />
+      {/* Stats Cards - Ritchie Minimal */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-zinc-900 text-white">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-zinc-400 font-bold uppercase tracking-wider text-xs">Total Pelanggan</CardDescription>
+            <div className="flex justify-between items-end">
+              <CardTitle className="text-4xl font-black">{mockCustomers.filter(c => !c.isProspect).length}</CardTitle>
+              <div className="h-8 w-8 rounded bg-zinc-800 flex items-center justify-center border border-zinc-700">
+                <Building2 className="h-4 w-4" />
+              </div>
             </div>
-            <div className="text-muted-foreground">
-              Sudah melakukan transaksi
+          </CardHeader>
+          <CardFooter className="pt-0 pb-4">
+            <div className="flex items-center gap-2 text-sm text-zinc-300">
+              <span className="bg-emerald-500 w-2 h-2 rounded-full inline-block animate-pulse" />
+              <span>Active & Transacting</span>
             </div>
           </CardFooter>
         </Card>
 
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Prospek Baru</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-blue-600">
-              {mockCustomers.filter(c => c.isProspect).length}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-blue-600 text-blue-600">
-                <IconTrendingUp />
-                Potensial
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-blue-600">
-              Calon mitra <User className="size-4" />
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Prospek Baru</CardDescription>
+            <div className="flex justify-between items-end">
+              <CardTitle className="text-4xl font-black">{mockCustomers.filter(c => c.isProspect).length}</CardTitle>
+              <div className="h-8 w-8 rounded bg-blue-50 flex items-center justify-center border border-blue-200">
+                <User className="h-4 w-4 text-blue-600" />
+              </div>
             </div>
-            <div className="text-muted-foreground">
-              Belum ada transaksi
+          </CardHeader>
+          <CardFooter className="pt-0 pb-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-blue-600">
+              <IconTrendingUp className="h-4 w-4" />
+              <span>Potential Leads</span>
             </div>
           </CardFooter>
         </Card>
 
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Tipe Pelanggan</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-green-600">
-              {mockCustomers.filter(c => c.customerType === 'FACTORY').length}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-green-600 text-green-600">
-                <Building2 className="mr-1 size-3" />
-                Pabrik
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-green-600">
-              Segmen Pabrik Garment <ShoppingBag className="size-4" />
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Credit Watch</CardDescription>
+            <div className="flex justify-between items-end">
+              <CardTitle className="text-4xl font-black text-orange-600">{mockCustomers.filter(c => c.creditStatus === 'WATCH' || c.creditStatus === 'HOLD').length}</CardTitle>
+              <div className="h-8 w-8 rounded bg-orange-50 flex items-center justify-center border border-orange-200">
+                <AlertCircle className="h-4 w-4 text-orange-600" />
+              </div>
             </div>
-            <div className="text-muted-foreground">
-              Kontributor revenue terbesar
+          </CardHeader>
+          <CardFooter className="pt-0 pb-4">
+            <div className="flex items-center gap-2 text-sm font-bold text-orange-600">
+              <span>Over Limit / Late Pay</span>
             </div>
           </CardFooter>
         </Card>
 
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Credit Watch</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-yellow-600">
-              {mockCustomers.filter(c => c.creditStatus === 'WATCH' || c.creditStatus === 'HOLD').length}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-yellow-600 text-yellow-600">
-                <CreditCard className="mr-1 size-3" />
-                Limit
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-yellow-600">
-              Perlu perhatian <IconTrendingDown className="size-4" />
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Factory Segment</CardDescription>
+            <div className="flex justify-between items-end">
+              <CardTitle className="text-4xl font-black">{mockCustomers.filter(c => c.customerType === 'FACTORY').length}</CardTitle>
+              <div className="h-8 w-8 rounded bg-zinc-100 flex items-center justify-center border border-black">
+                <ShoppingBag className="h-4 w-4 text-black" />
+              </div>
             </div>
-            <div className="text-muted-foreground">
-              Over limit atau telat bayar
+          </CardHeader>
+          <CardFooter className="pt-0 pb-4">
+            <div className="text-sm text-muted-foreground">
+              Mayoritas Revenue Stream
             </div>
           </CardFooter>
         </Card>
       </div>
 
-      {/* Customers Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Mitra & Pelanggan</CardTitle>
-          <CardDescription>
-            Kelola data kontak, limit kredit, dan riwayat transaksi
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari nama perusahaan, kode, atau email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
+      {/* Customers Grid Rolodex */}
+      <Card className="border-0 shadow-none bg-transparent">
+        <CardHeader className="px-0 pt-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-2xl font-black uppercase tracking-tight">Customer Database</CardTitle>
+              <CardDescription className="text-base font-medium text-black/60">Daftar lengkap pelanggan & distributor</CardDescription>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Tipe: {filterType === "all" ? "Semua" : filterType}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter Tipe Pelanggan</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFilterType("all")}>
-                  Semua Tipe
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterType("FACTORY")}>
-                  Pabrik Garment
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterType("DISTRIBUTOR")}>
-                  Distributor
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterType("WHOLESALE")}>
-                  Grosir
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterType("RETAIL")}>
-                  Retail
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Status: {filterStatus === "all" ? "Semua" : filterStatus}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFilterStatus("all")}>
-                  Semua Status
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("active")}>
-                  Aktif
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("inactive")}>
-                  Tidak Aktif
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("prospect")}>
-                  Prospek
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
-          {/* Customer Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Kode</TableHead>
-                  <TableHead>Nama Perusahaan</TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Kontak</TableHead>
-                  <TableHead>Lokasi</TableHead>
-                  <TableHead className="text-center">Credit Limit</TableHead>
-                  <TableHead className="text-center">Total Order</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Last Order</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex flex-col">
-                        <span>{customer.code}</span>
-                        {customer.isProspect && (
-                          <Badge variant="outline" className="w-fit text-[10px] mt-1">Prospek</Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <p className="font-medium">{customer.name}</p>
-                        <p className="text-xs text-muted-foreground line-clamp-1">{customer.legalName}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getCustomerTypeBadge(customer.customerType)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center text-xs">
-                          <Phone className="mr-1 h-3 w-3 text-muted-foreground" />
-                          {customer.phone}
-                        </div>
-                        <div className="flex items-center text-xs text-muted-foreground">
-                          <Mail className="mr-1 h-3 w-3" />
-                          {customer.email}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center text-sm">
-                        <MapPin className="mr-1 h-3 w-3 text-muted-foreground" />
-                        {customer.city}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="text-sm font-medium">
-                        {formatCurrency(customer.creditLimit).replace(/\D00$/, '')}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="text-sm font-medium">
-                        {formatCurrency(customer.totalOrderValue).replace(/\D00$/, '')}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getCreditStatusBadge(customer.creditStatus)}
-                    </TableCell>
-                    <TableCell className="text-center text-xs text-muted-foreground">
-                      {formatDate(customer.lastOrderDate)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
-                            <Link href={`/sales/customers/${customer.id}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Lihat Detail
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/sales/customers/${customer.id}/edit`}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit Data
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
-                            <Link href={`/sales/quotations/new?customerId=${customer.id}`}>
-                              <Plus className="mr-2 h-4 w-4" />
-                              Buat Penawaran
-                            </Link>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="flex items-center space-x-2">
+              <div className="relative w-full md:w-[300px]">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customers..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus-visible:ring-0"
+                />
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold">
+                    <Filter className="mr-2 h-4 w-4" /> Filter
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="border-black">
+                  {/* Existing filter items */}
+                  <DropdownMenuLabel>Filter Tipe Pelanggan</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => setFilterType("all")}>Semua Tipe</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("FACTORY")}>Pabrik Garment</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("DISTRIBUTOR")}>Distributor</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilterType("RETAIL")}>Retail</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            {filteredCustomers.map((customer) => (
+              <CustomerRolodexCard key={customer.id} customer={customer} />
+            ))}
           </div>
 
           {filteredCustomers.length === 0 && (
-            <div className="text-center py-4">
-              <p className="text-muted-foreground">Tidak ada data pelanggan yang ditemukan</p>
+            <div className="text-center py-12 border-2 border-dashed border-zinc-300 rounded-xl">
+              <p className="text-muted-foreground font-medium text-lg">No customers found.</p>
+              <Button variant="link" onClick={() => setSearchTerm("")}>Clear Search</Button>
             </div>
           )}
         </CardContent>

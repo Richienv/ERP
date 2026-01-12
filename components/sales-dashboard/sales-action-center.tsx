@@ -19,46 +19,46 @@ import { useState } from "react"
 
 export function SalesActionCenter() {
     return (
-        <Card className="col-span-1 md:col-span-3 lg:col-span-2 h-full border-l-4 border-l-emerald-500 shadow-sm">
-            <CardHeader className="pb-3">
+        <Card className="col-span-1 md:col-span-3 lg:col-span-2 h-full border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white">
+            <CardHeader className="pb-3 border-b border-black bg-zinc-50 dark:bg-zinc-900">
                 <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg font-bold flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-emerald-600" />
+                    <CardTitle className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-black" />
                         To-Do Sales
                     </CardTitle>
-                    <span className="text-xs text-muted-foreground bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full">
+                    <Badge variant="outline" className="text-xs font-bold bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] px-2 py-1">
                         8 Tasks
-                    </span>
+                    </Badge>
                 </div>
-                <CardDescription>Aksi prioritas hari ini</CardDescription>
+                <CardDescription className="font-medium text-black/60">Aksi prioritas hari ini</CardDescription>
             </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
+            <CardContent className="p-4 overflow-y-auto max-h-[500px]">
+                <div className="space-y-6">
                     {/* Quotations Section */}
                     <div>
-                        <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">Penawaran (Quotations)</h4>
+                        <h4 className="font-black text-[10px] text-muted-foreground uppercase tracking-widest mb-3 border-b border-black/10 pb-1">Penawaran (Quotations)</h4>
                         <div className="space-y-2">
-                            <div className="flex items-center justify-between group cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 rounded transition-colors border border-dashed border-zinc-200 dark:border-zinc-800">
+                            <div className="flex items-center justify-between group cursor-pointer hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none p-3 rounded-lg transition-all border border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-2 w-2 rounded-full bg-orange-500" />
+                                    <div className="h-3 w-3 rounded-sm border border-black bg-orange-500" />
                                     <div className="flex flex-col">
-                                        <span className="text-sm font-medium">Follow-up PT. Garment Indah</span>
-                                        <span className="text-xs text-muted-foreground">Sent 3 days ago • Rp 450 Jt</span>
+                                        <span className="text-sm font-bold uppercase">PT. Garment Indah</span>
+                                        <span className="text-[10px] font-mono text-muted-foreground">Sent 3 days ago • Rp 450 Jt</span>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded border border-black hover:bg-black hover:text-white transition-colors">
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </div>
-                            <div className="flex items-center justify-between group cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 rounded transition-colors border border-dashed border-zinc-200 dark:border-zinc-800">
+                            <div className="flex items-center justify-between group cursor-pointer hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none p-3 rounded-lg transition-all border border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                                 <div className="flex items-center gap-3">
-                                    <div className="h-2 w-2 rounded-full bg-red-500" />
+                                    <div className="h-3 w-3 rounded-sm border border-black bg-red-600" />
                                     <div className="flex flex-col">
-                                        <span className="text-sm font-medium">Expiring: CV. Maju Jaya</span>
-                                        <span className="text-xs text-muted-foreground">Expires tomorrow • Rp 120 Jt</span>
+                                        <span className="text-sm font-bold uppercase">CV. Maju Jaya</span>
+                                        <span className="text-[10px] font-mono text-muted-foreground">Expires tomorrow • Rp 120 Jt</span>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded border border-black hover:bg-black hover:text-white transition-colors">
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -67,7 +67,7 @@ export function SalesActionCenter() {
 
                     {/* Sales Orders Section */}
                     <div>
-                        <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">Sales Orders (SO)</h4>
+                        <h4 className="font-black text-[10px] text-muted-foreground uppercase tracking-widest mb-3 border-b border-black/10 pb-1">Sales Orders (SO)</h4>
                         <div className="space-y-2">
 
                             {/* APPROVAL DIALOG ITEM */}
@@ -78,17 +78,17 @@ export function SalesActionCenter() {
 
                     {/* Invoicing Section */}
                     <div>
-                        <h4 className="font-semibold text-xs text-muted-foreground uppercase tracking-wider mb-2">Billing & Invoicing</h4>
+                        <h4 className="font-black text-[10px] text-muted-foreground uppercase tracking-widest mb-3 border-b border-black/10 pb-1">Billing & Invoicing</h4>
                         <div className="space-y-2">
-                            <div className="flex items-center justify-between group cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 rounded transition-colors border border-dashed border-zinc-200 dark:border-zinc-800">
+                            <div className="flex items-center justify-between group cursor-pointer hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none p-3 rounded-lg transition-all border border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                                 <div className="flex items-center gap-3">
-                                    <AlertCircle className="h-4 w-4 text-blue-500" />
+                                    <AlertCircle className="h-4 w-4 text-blue-600" />
                                     <div className="flex flex-col">
-                                        <span className="text-sm font-medium">Siap Invoice: 3 Pengiriman</span>
-                                        <span className="text-xs text-muted-foreground">Barang sudah diterima customer</span>
+                                        <span className="text-sm font-bold uppercase">Siap Invoice</span>
+                                        <span className="text-[10px] font-mono text-muted-foreground">3 Pengiriman Terkonfirmasi</span>
                                     </div>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-6 w-6">
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded border border-black hover:bg-black hover:text-white transition-colors">
                                     <ArrowRight className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -107,15 +107,15 @@ function OrderApprovalDialog() {
     return (
         <Dialog open={isOpen} onOpenChange={(v) => { setIsOpen(v); if (!v) setActionState('idle'); }}>
             <DialogTrigger asChild>
-                <div className="flex items-center justify-between group cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 p-2 rounded transition-colors border border-dashed border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center justify-between group cursor-pointer hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none p-3 rounded-lg transition-all border border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                     <div className="flex items-center gap-3">
-                        <ShoppingBag className="h-4 w-4 text-purple-500" />
+                        <ShoppingBag className="h-4 w-4 text-purple-600" />
                         <div className="flex flex-col">
-                            <span className="text-sm font-medium">Approval: Order Besar #SO-099</span>
-                            <span className="text-xs text-muted-foreground">Margin rendah (8%) • Memerlukan persetujuan</span>
+                            <span className="text-sm font-bold uppercase">Approval: Order Besar</span>
+                            <span className="text-[10px] font-mono text-muted-foreground">#SO-099 • Margin 8% (Low)</span>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 bg-purple-50 text-purple-600 hover:bg-purple-100 hover:text-purple-700">
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded border border-black hover:bg-black hover:text-white transition-colors">
                         <ArrowRight className="h-4 w-4" />
                     </Button>
                 </div>

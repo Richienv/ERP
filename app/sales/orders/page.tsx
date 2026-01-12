@@ -39,6 +39,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
+import { OrderExecutionCard } from "@/components/sales/order-execution-card"
 
 // Mock data for sales orders - Textile Factory Context
 const mockSalesOrders = [
@@ -214,256 +215,102 @@ export default function SalesOrdersPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="*:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card grid grid-cols-1 gap-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:shadow-xs @xl:grid-cols-2 @5xl:grid-cols-4">
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Total Pesanan</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-              {orderStats.totalOrders}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline">
-                <ShoppingBag className="mr-1 size-3" />
-                Bulan Ini
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium">
-              Semua Status <FileText className="size-4" />
+      {/* Stats Cards - Ritchie Minimal */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-zinc-900 text-white">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-zinc-400 font-bold uppercase tracking-wider text-xs">Total Pesanan</CardDescription>
+            <div className="flex justify-between items-end">
+              <CardTitle className="text-4xl font-black">{orderStats.totalOrders}</CardTitle>
+              <div className="h-8 w-8 rounded bg-zinc-800 border border-zinc-700 flex items-center justify-center">
+                <ShoppingBag className="h-4 w-4 text-white" />
+              </div>
             </div>
-            <div className="text-muted-foreground">
-              Total Sales Order
+          </CardHeader>
+        </Card>
+
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Revenue</CardDescription>
+            <div className="flex justify-between items-end">
+              <CardTitle className="text-3xl font-black text-green-600">{formatCurrency(orderStats.totalValue).replace(/\D00$/, '')}</CardTitle>
+              <div className="h-8 w-8 rounded bg-green-50 border border-green-200 flex items-center justify-center">
+                <IconTrendingUp className="h-4 w-4 text-green-600" />
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Processing</CardDescription>
+            <div className="flex justify-between items-end">
+              <CardTitle className="text-4xl font-black text-blue-600">{orderStats.processingOrders}</CardTitle>
+              <div className="h-8 w-8 rounded bg-blue-50 border border-blue-200 flex items-center justify-center">
+                <Package className="h-4 w-4 text-blue-600" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardFooter className="pt-0 pb-4">
+            <div className="text-sm font-bold text-blue-600 animate-pulse">
+              Live Production
             </div>
           </CardFooter>
         </Card>
 
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Nilai Transaksi</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-green-600">
-              {formatCurrency(orderStats.totalValue).replace(/\D00$/, '')}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-green-600 text-green-600">
-                <IconTrendingUp />
-                Revenue
-              </Badge>
-            </CardAction>
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
+          <CardHeader className="pb-2">
+            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Completed</CardDescription>
+            <div className="flex justify-between items-end">
+              <CardTitle className="text-3xl font-black text-purple-600">{orderStats.completedOrders}</CardTitle>
+              <div className="h-8 w-8 rounded bg-purple-50 border border-purple-200 flex items-center justify-center">
+                <Truck className="h-4 w-4 text-purple-600" />
+              </div>
+            </div>
           </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-green-600">
-              Total Omset <CheckCircle className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Estimasi pendapatan
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Sedang Diproses</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-blue-600">
-              {orderStats.processingOrders}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-blue-600 text-blue-600">
-                <Clock className="mr-1 size-3" />
-                Aktif
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-blue-600">
-              Produksi/Packing <Package className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Perlu dipantau
-            </div>
-          </CardFooter>
-        </Card>
-
-        <Card className="@container/card">
-          <CardHeader>
-            <CardDescription>Selesai Dikirim</CardDescription>
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl text-purple-600">
-              {orderStats.completedOrders}
-            </CardTitle>
-            <CardAction>
-              <Badge variant="outline" className="border-purple-600 text-purple-600">
-                <Truck className="mr-1 size-3" />
-                Delivered
-              </Badge>
-            </CardAction>
-          </CardHeader>
-          <CardFooter className="flex-col items-start gap-1.5 text-sm">
-            <div className="line-clamp-1 flex gap-2 font-medium text-purple-600">
-              Tiba di Customer <CheckCircle className="size-4" />
-            </div>
-            <div className="text-muted-foreground">
-              Siap penagihan
-            </div>
-          </CardFooter>
         </Card>
       </div>
 
-      {/* Orders Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Daftar Sales Order</CardTitle>
-          <CardDescription>
-            Monitoring status pesanan dari konfirmasi hingga pengiriman
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Cari nomor SO, customer, atau referensi..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-8"
-              />
+      {/* Orders List */}
+      <Card className="border-0 shadow-none bg-transparent">
+        <CardHeader className="px-0 pt-0">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-2xl font-black uppercase tracking-tight">Execution Command Center</CardTitle>
+              <CardDescription className="text-base font-medium text-black/60">Live feed produksi dan pengiriman pesanan</CardDescription>
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Filter className="mr-2 h-4 w-4" />
-                  Status: {filterStatus === "all" ? "Semua" : filterStatus}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Filter Status</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setFilterStatus("all")}>
-                  Semua Status
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("DRAFT")}>
-                  Draft
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("CONFIRMED")}>
-                  Terkonfirmasi
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("PROCESSING")}>
-                  Diproses
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("SHIPPED")}>
-                  Dikirim
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("DELIVERED")}>
-                  Selesai
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setFilterStatus("CANCELLED")}>
-                  Dibatalkan
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
 
-          {/* Order Table */}
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>No. Order</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="text-center">Tgl Order</TableHead>
-                  <TableHead className="text-center">Tgl Kirim</TableHead>
-                  <TableHead>Detail Pesanan</TableHead>
-                  <TableHead className="text-center">Total</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">
-                      <div className="space-y-1">
-                        <div className="flex items-center">
-                          <ShoppingBag className="mr-2 h-3 w-3 text-muted-foreground" />
-                          {order.number}
-                        </div>
-                        {order.quotationNumber && (
-                          <div className="text-xs text-muted-foreground ml-5">
-                            Ref: {order.quotationNumber}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{order.customer.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {formatDate(order.orderDate)}
-                    </TableCell>
-                    <TableCell className="text-center text-sm">
-                      {formatDate(order.requestedDate)}
-                    </TableCell>
-                    <TableCell className="max-w-[200px]">
-                      <div className="text-sm truncate" title={order.notes}>
-                        {order.notes}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {order.itemCount} items
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <div className="text-sm font-bold">{formatCurrency(order.total).replace(/\D00$/, '')}</div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {getOrderStatusBadge(order.status)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem asChild>
-                            <Link href={`/sales/orders/${order.id}`}>
-                              <Eye className="mr-2 h-4 w-4" />
-                              Lihat Detail
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={`/sales/orders/${order.id}/edit`}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem>
-                            <Truck className="mr-2 h-4 w-4" />
-                            Buat Pengiriman
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <FileText className="mr-2 h-4 w-4" />
-                            Buat Invoice
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="flex items-center space-x-2">
+              <div className="relative w-full md:w-[300px]">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search orders..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] focus-visible:ring-0"
+                />
+              </div>
+              <Button variant="outline" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold">
+                <Filter className="mr-2 h-4 w-4" /> Filter
+              </Button>
+              <Button className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold bg-black text-white hover:bg-zinc-800" asChild>
+                <Link href="/sales/orders/new">
+                  <Plus className="mr-2 h-4 w-4" /> New Order
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="space-y-1">
+            {filteredOrders.map((order) => (
+              <OrderExecutionCard key={order.id} order={order} />
+            ))}
           </div>
 
           {filteredOrders.length === 0 && (
-            <div className="text-center py-4">
-              <p className="text-muted-foreground">Tidak ada pesanan yang ditemukan</p>
+            <div className="text-center py-12 border-2 border-dashed border-zinc-300 rounded-xl">
+              <p className="text-muted-foreground font-medium text-lg">No orders found.</p>
             </div>
           )}
         </CardContent>

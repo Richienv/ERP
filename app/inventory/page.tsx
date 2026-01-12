@@ -1,12 +1,12 @@
 "use client"
 
 import { BentoLauncher, BentoLauncherItem } from "@/components/dashboard/bento-launcher"
-import { Package, ClipboardList, ArrowRightLeft, AlertTriangle, Layers, BarChart, Settings2 } from "lucide-react"
+import { Package, ClipboardList, ArrowRightLeft, AlertTriangle, Layers, BarChart, Settings2, Zap, Siren } from "lucide-react"
 import { GlobalKPIs } from "@/components/inventory/global-kpis"
 import { WarehouseCard } from "@/components/inventory/warehouse-card"
 import { PerformanceCharts } from "@/components/inventory/performance-charts"
 import { Button } from "@/components/ui/button"
-import { DetailedMaterialTable } from "@/components/inventory/detailed-material-table" // NEW
+import { DetailedMaterialTable } from "@/components/inventory/detailed-material-table"
 
 // Inventory Sub-Modules
 const inventoryModules: BentoLauncherItem[] = [
@@ -62,77 +62,78 @@ export default function InventoryPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-medium text-foreground font-serif tracking-tight">Manajemen Gudang</h1>
-            <p className="text-muted-foreground mt-1">Overview operasional dan kesehatan stok gudang harian.</p>
+            <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase mb-2 flex items-center gap-3">
+              Manajemen Logistik <span className="bg-black text-white text-xs px-2 py-1 rounded-full animate-pulse flex items-center gap-1"><Siren className="h-3 w-3 text-red-500" /> LIVE MODE</span>
+            </h1>
+            <p className="text-muted-foreground font-bold text-lg">Command Center operasional gudang & pemantauan real-time.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm">
-              <Settings2 className="mr-2 h-4 w-4" /> Konfigurasi
+            <Button variant="outline" className="h-10 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all">
+              <Settings2 className="mr-2 h-4 w-4" /> Config
             </Button>
-            <Button size="sm">
-              Laporan Harian
+            <Button className="h-10 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-black text-white font-black hover:bg-zinc-800 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all">
+              <Zap className="mr-2 h-4 w-4 text-yellow-400" /> Auto-Report
             </Button>
           </div>
         </div>
 
-        {/* 1. Global KPIs */}
+        {/* 1. Global KPIs (Action Command) */}
         <section>
           <GlobalKPIs />
           <DetailedMaterialTable />
         </section>
 
         {/* 2. Quick Actions (Bento Launcher) */}
-        <section className="bg-secondary/20 p-6 rounded-3xl border border-border/50">
-          <h2 className="text-lg font-semibold mb-4 text-foreground">Aksi Cepat & Modul</h2>
+        <section className="bg-white p-6 rounded-xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+          <h2 className="text-xl font-black mb-6 text-foreground uppercase tracking-tight flex items-center gap-2">
+            ⚡ Modul Cepat
+          </h2>
           <BentoLauncher items={inventoryModules} columns={3} />
         </section>
 
-        {/* 3. Per-Warehouse Activity (Cards) */}
+        {/* 3. Per-Warehouse Activity (Cards) with NEW LOGIC */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 text-foreground">Status Gudang</h2>
+          <h2 className="text-xl font-black mb-6 text-foreground uppercase tracking-tight">Status Operasional Gudang (Real-time)</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <WarehouseCard
               name="Gudang A - Bahan Baku"
               manager="Budi Santoso"
               staffActive={24}
-              tasksPending={12}
-              ordersToPick={45}
-              ordersShipped={120}
-              receiptsOpen={5}
-              stockAccuracy={99.2}
-              lowStockItems={3}
-              capacity={85}
+              pickingRate={450}
+              targetRate={400} // Overachieving!
+              dockStatus="BUSY"
+              zoneUsageA={85}
+              zoneUsageB={40}
+              packingBacklog={12}
             />
             <WarehouseCard
               name="Gudang B - Barang Jadi"
               manager="Siti Aminah"
               staffActive={32}
-              tasksPending={68}
-              ordersToPick={150}
-              ordersShipped={310}
-              receiptsOpen={12}
-              stockAccuracy={98.5}
-              lowStockItems={0}
-              capacity={65}
+              pickingRate={210}
+              targetRate={350} // Critical Underperformance
+              dockStatus="CONGESTED" // Problem
+              zoneUsageA={95} // Full
+              zoneUsageB={92} // Full
+              packingBacklog={68}
             />
             <WarehouseCard
               name="Gudang C - Distribusi"
               manager="Rudi Hartono"
               staffActive={18}
-              tasksPending={8}
-              ordersToPick={20}
-              ordersShipped={85}
-              receiptsOpen={2}
-              stockAccuracy={99.8}
-              lowStockItems={1}
-              capacity={40}
+              pickingRate={180}
+              targetRate={200}
+              dockStatus="IDLE"
+              zoneUsageA={30}
+              zoneUsageB={20}
+              packingBacklog={2}
             />
           </div>
         </section>
 
         {/* 4. Performance Section */}
         <section>
-          <h2 className="text-xl font-semibold mb-4 text-foreground">Analisis Performa</h2>
+          <h2 className="text-xl font-black mb-6 text-foreground uppercase tracking-tight">Analisis Prediktif & Biaya</h2>
           <PerformanceCharts />
         </section>
 
