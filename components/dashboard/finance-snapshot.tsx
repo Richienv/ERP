@@ -181,79 +181,126 @@ export function FinanceSnapshot() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* 1. CASH POSITION */}
                 <Card
-                    className="border-l-4 border-l-emerald-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
+                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
                     onClick={() => setSelectedMetric("cash")}
                 >
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 group-hover:text-emerald-600 transition-colors">
-                            <Wallet className="h-4 w-4" />
-                            POSISI KAS
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><Wallet className="h-4 w-4 text-black" /> Posisi Kas</span>
+                            <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                High Burn
+                            </Badge>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">Rp 2.45 Miliar</div>
-                        <div className="mt-4 flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg text-xs font-medium">
-                            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                            <span>Defisit Rp 240jt per 16 Jan</span>
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">Rp 2.45 M</div>
+                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
+                            <ArrowDownRight className="h-3 w-3 text-red-500" />
+                            Burn Rate: <span className="text-red-500">Rp 45jt / hari</span>
+                        </p>
+
+                        <div className="flex gap-2">
+                            <Button size="sm" className="w-full text-xs font-black uppercase tracking-wider h-8 bg-black text-white hover:bg-zinc-800 border-2 border-transparent shadow-none" onClick={(e) => { e.stopPropagation(); }}>
+                                Approve OPEX
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* 2. RECEIVABLES */}
+                {/* 2. RECEIVABLES (Risk Focused) */}
                 <Card
-                    className="border-l-4 border-l-amber-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
+                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
                     onClick={() => setSelectedMetric("receivables")}
                 >
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 group-hover:text-amber-600 transition-colors">
-                            <ArrowDownRight className="h-4 w-4" />
-                            PIUTANG EST
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><ArrowDownRight className="h-4 w-4 text-black" /> Piutang</span>
+                            <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                High Risk
+                            </Badge>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">Rp 3.8 Miliar</div>
-                        <div className="mt-4 pt-2 text-xs font-medium text-red-500 bg-red-50 p-2 rounded block w-full text-center">
-                            Prioritas: CV Garmen (112 hari)
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">Rp 3.8 M</div>
+
+                        <div className="mt-2 mb-4 space-y-2">
+                            <div className="bg-red-50 border-l-2 border-red-500 p-2 text-xs">
+                                <span className="font-bold text-red-800 block">⚠️ CV Garmen (112 Days)</span>
+                                <span className="text-red-600">Status: Unresponsive (3 calls)</span>
+                            </div>
+                            <div className="text-xs font-bold text-zinc-400 flex justify-between">
+                                <span>Predicted Bad Debt:</span>
+                                <span className="text-zinc-600">Rp 150jt</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-red-50" onClick={(e) => { e.stopPropagation(); }}>
+                                Legal Notice
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* 3. PAYABLES */}
+                {/* 3. PAYABLES (Opportunity Focused) */}
                 <Card
-                    className="border-l-4 border-l-red-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
+                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
                     onClick={() => setSelectedMetric("payables")}
                 >
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 group-hover:text-red-600 transition-colors">
-                            <ArrowUpRight className="h-4 w-4" />
-                            HUTANG (Vendor)
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><ArrowUpRight className="h-4 w-4 text-black" /> Hutang</span>
+                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                Opportunity
+                            </Badge>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">Rp 2.1 Miliar</div>
-                        <div className="mt-4 bg-zinc-100 p-2 rounded text-xs text-center text-muted-foreground">
-                            3 pemasok minggu ini
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">Rp 2.1 M</div>
+
+                        <div className="mt-2 mb-4 space-y-2">
+                            <div className="bg-blue-50 border-l-2 border-blue-500 p-2 text-xs">
+                                <span className="font-bold text-blue-800 block">💎 Save 5% (Rp 12.5jt)</span>
+                                <span className="text-blue-600">If paying PT. Bahan Baku today</span>
+                            </div>
+                            <div className="text-xs font-bold text-zinc-400 flex justify-between">
+                                <span>Cash Availability:</span>
+                                <span className="text-emerald-600">Sufficient</span>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-2">
+                            <Button size="sm" variant="secondary" className="w-full text-xs font-black uppercase tracking-wider h-8 bg-zinc-100 hover:bg-zinc-200 border-2 border-transparent text-zinc-900" onClick={(e) => { e.stopPropagation(); }}>
+                                Pay & Save
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* 4. PROFITABILITY */}
+                {/* 4. NET MARGIN */}
                 <Card
-                    className="border-l-4 border-l-indigo-500 shadow-sm cursor-pointer hover:shadow-md transition-all hover:bg-zinc-50 dark:hover:bg-zinc-900/20 group"
+                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
                     onClick={() => setSelectedMetric("profitability")}
                 >
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2 group-hover:text-indigo-600 transition-colors">
-                            <TrendingUp className="h-4 w-4" />
-                            NET MARGIN
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-black" /> Net Margin</span>
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                Healthy
+                            </Badge>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">10.0%</div>
-                        <div className="mt-4 flex gap-2 justify-center">
-                            <span className="inline-flex items-center px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-xs font-medium">
-                                On Track
-                            </span>
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">10.0%</div>
+                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
+                            <ArrowUpRight className="h-3 w-3 text-emerald-500" />
+                            +1.2% vs Last Month
+                        </p>
+
+                        <div className="flex gap-2">
+                            <Button size="sm" variant="ghost" className="w-full text-xs font-black uppercase tracking-wider h-8 hover:bg-emerald-50 text-emerald-700" onClick={(e) => { e.stopPropagation(); }}>
+                                Analysis
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>

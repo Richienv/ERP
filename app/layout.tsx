@@ -41,7 +41,7 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme="ritchie-minimal"
           enableSystem
           disableTransitionOnChange
           themes={["light", "dark", "claude", "autumn", "earth", "ritchie", "ritchie-minimal"]}

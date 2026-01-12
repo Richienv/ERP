@@ -9,6 +9,7 @@ export type UserRole =
     | "ROLE_MANAGER"
     | "ROLE_ACCOUNTANT"
     | "ROLE_STAFF"
+    | "ROLE_SALES"
     | "GUEST"
 
 export interface User {
@@ -66,6 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             case "ROLE_STAFF":
                 router.push("/staff")
                 break
+            case "ROLE_SALES":
+                router.push("/sales")
+                break
             default:
                 router.push("/dashboard")
         }
@@ -85,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return "/accountant"
             case "ROLE_MANAGER":
                 return "/manager"
+            case "ROLE_SALES":
+                return "/sales"
             case "ROLE_CEO":
             default:
                 return "/dashboard"

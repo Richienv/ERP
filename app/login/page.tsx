@@ -97,6 +97,7 @@ export default function LoginPage() {
                                     <SelectItem value="ROLE_CEO">Pemilik / CEO</SelectItem>
                                     <SelectItem value="ROLE_MANAGER">Manajer Operasional</SelectItem>
                                     <SelectItem value="ROLE_ACCOUNTANT">Akuntan & Keuangan</SelectItem>
+                                    <SelectItem value="ROLE_SALES">Sales & Marketing</SelectItem>
                                     <SelectItem value="ROLE_STAFF">Staf</SelectItem>
                                 </SelectGroup>
                             </SelectContent>
