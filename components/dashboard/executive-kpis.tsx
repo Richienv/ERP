@@ -8,57 +8,69 @@ export function ExecutiveKPIs() {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-            {/* 1. PENGADAAN (Procurement - Supply Risk) */}
+            {/* 1. PENGADAAN (Procurement - Detailed List) */}
             <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white">
                 <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
                     <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
                         <span className="flex items-center gap-2"><Truck className="h-4 w-4 text-blue-600" /> Pengadaan</span>
-                        <span className="text-[10px] bg-red-100 text-red-700 px-1 py-0.5 rounded font-black">LATE ALERT</span>
+                        <span className="text-[10px] bg-zinc-100 text-zinc-900 px-1 py-0.5 rounded font-black">2 DELAYS</span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
-                    <div className="text-3xl font-black tracking-tight">Cotton 30s</div>
-                    <p className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
-                        <span className="text-red-500">Delayed 5 Days</span> (Vendor A)
-                    </p>
+                    <div className="text-3xl font-black tracking-tight">12 PO</div>
+                    <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Active Orders</p>
 
-                    <div className="space-y-2 mb-4 p-2 bg-zinc-50 rounded border border-zinc-100">
-                        <div className="text-xs font-bold text-zinc-600">
-                            Impact Assessment:
-                        </div>
-                        <div className="flex justify-between text-xs text-zinc-500">
-                            <span>Line 3 Stoppage:</span>
-                            <span className="font-bold text-red-600">High Risk (48h)</span>
-                        </div>
+                    <div className="mb-4">
+                        <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Critical Delays (Material)</p>
+                        <ul className="space-y-1">
+                            <li className="flex justify-between text-xs font-bold">
+                                <span>• Cotton 30s (Vendor A)</span>
+                                <span className="text-red-600">Late 5d</span>
+                            </li>
+                            <li className="flex justify-between text-xs font-medium text-zinc-600">
+                                <span>• Dye Red (Vendor B)</span>
+                                <span>Late 2d</span>
+                            </li>
+                        </ul>
                     </div>
 
-                    <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-blue-50">
+                    <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
                         Switch Vendor
                     </Button>
                 </CardContent>
             </Card>
 
-            {/* 2. GUDANG (Inventory - Dead Stock Insight) */}
+            {/* 2. GUDANG (Inventory - Detailed List) */}
             <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white">
                 <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
                     <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
                         <span className="flex items-center gap-2"><Package className="h-4 w-4 text-emerald-600" /> Gudang</span>
-                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1 py-0.5 rounded font-black">AUDIT REQ</span>
+                        <span className="text-[10px] bg-zinc-100 text-zinc-900 px-1 py-0.5 rounded font-black">AUDIT REQ</span>
                     </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-4">
                     <div className="text-3xl font-black tracking-tight">Rp 250 Jt</div>
                     <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Dead Stock Value (&gt;6 Mo)</p>
 
-                    <div className="space-y-2 mb-4 p-2 bg-zinc-50 rounded border border-zinc-100">
-                        <div className="text-xs font-bold text-zinc-600">Top Stagnant Items:</div>
-                        <ul className="text-xs text-zinc-500 space-y-1">
-                            <li className="flex justify-between"><span>• Neon Fabric</span> <span className="font-bold">1200m</span></li>
-                            <li className="flex justify-between"><span>• Poly Grade B</span> <span className="font-bold">800m</span></li>
+                    <div className="mb-4">
+                        <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Stagnant Items</p>
+                        <ul className="space-y-1">
+                            <li className="flex justify-between text-xs font-bold">
+                                <span>• Neon Fabric</span>
+                                <span>1,200 m</span>
+                            </li>
+                            <li className="flex justify-between text-xs font-medium text-zinc-600">
+                                <span>• Poly Grade B</span>
+                                <span>800 m</span>
+                            </li>
+                            <li className="flex justify-between text-xs font-medium text-zinc-600">
+                                <span>• Buttons (Old)</span>
+                                <span>50 kg</span>
+                            </li>
                         </ul>
                     </div>
 
-                    <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-emerald-50">
+                    <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
                         Flash Sale (50%)
                     </Button>
                 </CardContent>
