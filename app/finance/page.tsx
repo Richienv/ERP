@@ -1,11 +1,13 @@
-"use client"
-
 import { FinanceMetricCard } from "@/components/finance/finance-metric-card"
 import { ActionItemsWidget } from "@/components/finance/action-items-widget"
 import { CashFlowChart } from "@/components/finance/cash-flow-chart"
 import { DollarSign, Wallet, CreditCard, Activity, ArrowUpRight, FileText, PiggyBank, Scale } from "lucide-react"
+import { getFinancialMetrics } from "@/lib/actions/finance"
+import { formatCompactNumber } from "@/lib/utils"
 
-export default function FinanceDashboardPage() {
+export default async function FinanceDashboardPage() {
+    const metrics = await getFinancialMetrics()
+
     return (
         <div className="p-6 md:p-8 space-y-8 bg-zinc-50/50 dark:bg-black min-h-screen">
 
@@ -29,7 +31,7 @@ export default function FinanceDashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <FinanceMetricCard
                     title="Posisi Kas (Cash on Hand)"
-                    value="Rp 2.45M"
+                    value={`Rp ${formatCompactNumber(metrics.cashBalance)}`}
                     trend="+12% vs bln lalu"
                     trendUp={true}
                     icon={Wallet}
@@ -37,25 +39,25 @@ export default function FinanceDashboardPage() {
                 />
                 <FinanceMetricCard
                     title="Piutang Usaha (AR)"
-                    value="Rp 850jt"
+                    value={`Rp ${formatCompactNumber(metrics.receivables)}`}
                     trend="+5% vs bln lalu"
                     trendUp={false} // increasing AR might be bad or neutral, keeping consistent
-                    description="12 Invoice Overdue"
+                    description="From Unpaid Invoices"
                     icon={FileText}
                     color="blue"
                 />
                 <FinanceMetricCard
                     title="Utang Usaha (AP)"
-                    value="Rp 340jt"
+                    value={`Rp ${formatCompactNumber(metrics.payables)}`}
                     trend="-2% vs bln lalu"
                     trendUp={true} // decreasing AP is good
-                    description="5 Bill Jatuh Tempo"
+                    description="From Unpaid Bills"
                     icon={CreditCard}
                     color="rose"
                 />
                 <FinanceMetricCard
                     title="Laba Bersih (YTD)"
-                    value="Rp 1.2M"
+                    value={`${metrics.netMargin}%`}
                     trend="+18% vs thn lalu"
                     trendUp={true}
                     icon={PiggyBank}

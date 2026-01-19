@@ -21,19 +21,19 @@ export async function GET(
             location: true,
           },
         },
-        stockMovements: {
+        transactions: {
           include: {
             warehouse: true,
           },
           orderBy: {
             createdAt: 'desc',
           },
-          take: 10, // Last 10 movements
+          take: 10, // Last 10 transactions
         },
         _count: {
           select: {
             stockLevels: true,
-            stockMovements: true,
+            transactions: true,
           },
         },
       },
@@ -166,7 +166,7 @@ export async function DELETE(
       where: { id },
       include: {
         stockLevels: true,
-        stockMovements: true,
+        transactions: true,
       },
     })
 
@@ -179,7 +179,7 @@ export async function DELETE(
 
     // Check if product has stock or movements
     const hasStock = existingProduct.stockLevels.some(level => level.quantity > 0)
-    const hasMovements = existingProduct.stockMovements.length > 0
+    const hasMovements = existingProduct.transactions.length > 0
 
     if (hasStock || hasMovements) {
       // Soft delete - mark as inactive instead of hard delete

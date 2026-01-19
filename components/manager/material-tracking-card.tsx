@@ -16,17 +16,22 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 
-export function MaterialTrackingCard() {
+
+interface MaterialTrackingCardProps {
+    data: any[]
+}
+
+export function MaterialTrackingCard({ data }: MaterialTrackingCardProps) {
     const [selectedItem, setSelectedItem] = useState<any>(null)
     const [isOpen, setIsOpen] = useState(false)
 
-    const materials = [
-        { id: 1, name: "Cotton Combed 30s", status: "OK", stock: "1,200 kg", color: "text-emerald-600", bg: "bg-emerald-50", warehouse: "Gudang Utama A", lastRestock: "2 days ago" },
-        { id: 2, name: "Polyester Yarn", status: "Low Stock", stock: "450 kg", color: "text-red-600", bg: "bg-red-50", warehouse: "Gudang Benang B", lastRestock: "2 weeks ago" },
-        { id: 3, name: "Indigo Blue Dye", status: "Warning", stock: "156 L", color: "text-amber-600", bg: "bg-amber-50", warehouse: "Gudang Kimia C", lastRestock: "1 month ago" },
-        { id: 4, name: "Spandex Thread", status: "OK", stock: "800 cones", color: "text-emerald-600", bg: "bg-emerald-50", warehouse: "Gudang Benang A", lastRestock: "5 days ago" },
-        { id: 5, name: "Packing Cartons", status: "OK", stock: "5,000 pcs", color: "text-emerald-600", bg: "bg-emerald-50", warehouse: "Gudang Logistik", lastRestock: "1 week ago" },
-    ]
+    // Data from server: { id, orderId, name, stock, status, warehouse, lastRestock }
+    const materials = data.map(m => ({
+        ...m,
+        color: m.status === 'Critical' ? 'text-red-600' : m.status === 'Low Stock' ? 'text-amber-600' : 'text-emerald-600',
+        bg: m.status === 'Critical' ? 'bg-red-50' : m.status === 'Low Stock' ? 'bg-amber-50' : 'bg-emerald-50'
+    }))
+
 
     const handleItemClick = (item: any) => {
         setSelectedItem(item)
@@ -56,7 +61,7 @@ export function MaterialTrackingCard() {
                                 >
                                     <div>
                                         <p className="font-bold text-sm group-hover/item:text-purple-600 transition-colors">{item.name}</p>
-                                        <p className="text-xs text-muted-foreground mt-1">Stock: {item.stock}</p>
+                                        <p className="text-xs text-muted-foreground mt-1">Stock: {item.stockLevel} {item.unit}</p>
                                     </div>
                                     <Badge variant="outline" className={`border-black shadow-sm ${item.bg} ${item.color}`}>
                                         {item.status}
@@ -102,7 +107,7 @@ export function MaterialTrackingCard() {
                                 <span className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
                                     <Box className="h-3 w-3" /> Stock Level
                                 </span>
-                                <p className="text-2xl font-black text-foreground">{selectedItem?.stock}</p>
+                                <p className="text-2xl font-black text-foreground">{selectedItem?.stockLevel}</p>
                                 <span className="text-[10px] text-green-600 font-bold flex items-center">
                                     <TrendingUp className="h-3 w-3 mr-1" /> Healthy
                                 </span>

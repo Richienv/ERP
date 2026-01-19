@@ -6,13 +6,15 @@ import { Progress } from "@/components/ui/progress"
 import { Factory, AlertCircle, ArrowRight } from "lucide-react"
 import Link from "next/link"
 
-export function ProductionLineStatus() {
-    const lines = [
-        { id: "Line 1", name: "Weaving", job: "SO-2026-0256", desc: "5000m Cotton", progress: 78, status: "On Schedule", color: "text-emerald-600", supervisor: "Pak Budi", eta: "Jan 10, 3PM" },
-        { id: "Line 2", name: "Knitting", job: "SO-2026-0245", desc: "3000 pcs T-shirt", progress: 45, status: "Delayed 4hrs", color: "text-amber-600", supervisor: "Ibu Siti", eta: "Delayed" },
-        { id: "Line 3", name: "Dyeing", job: "MAINTENANCE", desc: "Repair in progress", progress: 0, status: "Down since 2PM", color: "text-red-600", supervisor: "Pak Joko", eta: "Jan 10, 9AM" },
-        { id: "Line 4", name: "Dyeing", job: "SO-2026-0234", desc: "Navy fabric Rework", progress: 0, status: "Quality Hold", color: "text-red-600", supervisor: "Ibu Dewi", eta: "Decision Needed" },
-        { id: "Line 5", name: "Finishing", job: "SO-2026-0267", desc: "2000m Ready", progress: 92, status: "Finishing", color: "text-emerald-600", supervisor: "Pak Bambang", eta: "Ship today 8PM" },
+
+interface ProductionLineStatusProps {
+    data: any[]
+}
+
+export function ProductionLineStatus({ data }: ProductionLineStatusProps) {
+    const lines = data.length > 0 ? data : [
+        // Fallback/Demo data if real data empty
+        { id: "Line 1", name: "Weaving", job: "SO-2026-0256", desc: "No Active Job", progress: 0, status: "Idle", color: "text-zinc-600", supervisor: "-", eta: "-" },
     ]
 
     return (

@@ -1,0 +1,82 @@
+To build a deterministic (Non-AI) solution that maps a document to your ERP workflow, you need to treat the document as a **Configuration File** or a **Script** rather than a "story."
+
+This approach relies on a **"Controlled Natural Language" (CNL)** or a strict **Template**. If the user follows the rules, the system works 100% of the time without guessing.
+
+### 1. The "Specific Document" (The Input Template)
+You cannot use a free-text Word document because that requires AI to understand. Instead, you must use a structured **Excel Template** or a **"Mad Libs" style Form**. This allows your code to read exact cells and rows.
+
+**Recommended Format: The "Process Logic" Excel Sheet**
+Create a spreadsheet with fixed columns that match your code logic.
+*   **Row 1 (Headers):** `Step_Order`, `Role`, `Action_Verb`, `Object`, `Condition`, `Mapped_Module_Key`
+*   **Row 2 (Example):** `1`, `Sales Manager`, `Create`, `Sales Order`, `Value > $5000`, `MOD_SALES_01`
+
+**The "Mad Libs" Sentence Rule (for Word/Text):**
+If you prefer a text document, enforce a strict syntax (Gherkin style):
+> "WHEN **[Role]** performs **[Action]** on **[Object]** IF **[Condition]** THEN TRIGGER **[Module]**"
+
+***
+
+### 2. The Implementation (How It Works Technically)
+This is a standard "Parser-Mapper-Visualizer" pipeline. It requires **no AI**, just standard programming logic.
+
+#### **Component A: The "Dictionary" (Your System Catalog)**
+Your software engineers must create a **`modules.json`** file that acts as the "Menu" of your ERP.
+*   **Structure:**
+    ```json
+    {
+      "MOD_SALES_01": {
+        "name": "Create Sales Order",
+        "inputs": ["Customer_ID", "Item_List"],
+        "next_allowed_steps": ["MOD_APPROVAL_01", "MOD_INVOICE_01"]
+      },
+      "MOD_APPROVAL_01": {
+        "name": "Manager Approval",
+        "role_required": "Manager"
+      }
+    }
+    ```
+
+#### **Component B: The Parser (The Reader)**
+*   **Input:** The user uploads the Excel file defined in Step 1.
+*   **Code Action:**
+    1.  Use a Python library like `pandas` to read the Excel file.
+    2.  Validate the data: "Does the text in the 'Action' column match our allowed verbs?"
+    3.  **Exact Match Lookup:** The code takes the keyword from the Excel row (e.g., "Create Sales Order") and looks it up in your `modules.json` file.
+    4.  *Error Handling:* If the user types "Make Sales Order" instead of "Create Sales Order," the system throws an error: *"Invalid Action on Row 2. Did you mean 'Create'?"* (This forces the user to be specific).
+
+#### **Component C: The Visualizer (The Flowchart)**
+*   **Logic:** The parser creates a list of "Nodes" (Modules) and "Edges" (Connections based on step order).
+*   **Library:** Use **Mermaid.js** (e.g., `graph TD; A-->B`) or **React Flow**.
+*   **Output:** The system instantly draws the box-and-arrow diagram based on the Excel rows.
+
+***
+
+### 3. Summary for Your Engineers
+Give this specification to your developers:
+
+> "We are building a **Deterministic Workflow Generator**.
+> 1.  **Input:** A strict CSV/Excel template where users define steps (Role, Action, Condition).
+> 2.  **Validation:** A Python backend (`pandas`) reads the CSV and validates every 'Action' against our internal `capabilities.json` registry.
+> 3.  **Visualization:** If validation passes, generate a **Mermaid.js** syntax string (e.g., `graph TD; A[Step1] --> B[Step2]`) and render it in the frontend.
+> 4.  **No AI:** Do not use LLMs. Use strict string matching and dictionary lookups to ensure 100% accuracy."
+
+### 4. Why This is Better Than AI (For Your Case)
+*   **Zero Hallucinations:** AI might invent a feature you don't have. This approach ensures the diagram *only* contains real features.
+*   **Instant Adaptation:** If you add a new module to your ERP, you just add one line to your `modules.json` file, and the parser immediately supports it.
+*   **Training:** You force your clients to think in terms of *your* system's capabilities, which reduces "gap analysis" friction later.
+
+[1](https://www.erpresearch.com/en/erp-requirements-template-excel)
+[2](https://www.smartsheet.com/content/requirements-gathering-templates)
+[3](https://www.velosio.com/blog/erp-requirements-gathering-process/)
+[4](https://blogs.prominder360.com/erp-requirements-template-checklist/)
+[5](https://clickup.com/blog/requirements-gathering-templates/)
+[6](https://stackoverflow.com/questions/56502586/python-algorithm-for-creating-flowcharts-from-excel-data)
+[7](https://www.scitepress.org/papers/2012/40242/40242.pdf)
+[8](https://github.com/camunda-community-hub/CsvToDmnConverter)
+[9](https://arxiv.org/abs/1406.2096)
+[10](https://www.erpfocus.com/erp-rfp-guide-and-template.html)
+[11](https://github.com/cdfmlr/pyflowchart)
+[12](https://ceur-ws.org/Vol-1920/BPM_2017_paper_183.pdf)
+[13](https://bpmn-python.readthedocs.io/en/latest/api/bpmn_process_csv_export.html)
+[14](https://arxiv.org/pdf/2311.11895.pdf)
+[15](https://www.clicklearn.com/ebooks/erp-implementation-plan-template/)

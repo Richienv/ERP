@@ -22,6 +22,7 @@ import {
   IconReceipt,
 } from "@tabler/icons-react"
 import { useAuth } from "@/lib/auth-context"
+import { useWorkflowConfig } from "@/components/workflow/workflow-config-context"
 
 import { NavDocuments } from "@/components/nav-documents"
 import { NavMain } from "@/components/nav-main"
@@ -58,28 +59,16 @@ const data = {
           url: "/inventory/products",
         },
         {
-          title: "Level Stok",
-          url: "/inventory/stock",
-        },
-        {
           title: "Pergerakan Stok",
           url: "/inventory/movements",
         },
         {
-          title: "Gudang",
+          title: "Gudang & Lokasi",
           url: "/inventory/warehouses",
         },
         {
-          title: "Kategori",
-          url: "/inventory/categories",
-        },
-        {
-          title: "Penyesuaian Stok",
+          title: "Stock Opname",
           url: "/inventory/adjustments",
-        },
-        {
-          title: "Peringatan Stok",
-          url: "/inventory/alerts",
         },
       ],
     },
@@ -405,6 +394,39 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   ]
 
+  const { activeModules } = useWorkflowConfig();
+
+  // MODULE MAPPING: Title Keyword -> Module Key Fragment
+  // "MOD_SALES_01" -> "SALES" -> Matches "Penjualan"
+  const MODULE_MAP: Record<string, string> = {
+    "Penjualan": "SALES",
+    "CRM": "SALES",
+    "Inventori": "STOCK", // Maps to MOD_STOCK
+    "Keuangan": "FINANCE", // Maps to MOD_PAYMENT, MOD_INVOICE (which are Finance) --> "PAYMENT", "INVOICE"
+    // For cleaner logic: if ActiveModules contains ANY key that maps to this Section.
+    // e.g. "Keuangan" section is active if "MOD_INVOICE" or "MOD_PAYMENT" is active.
+  };
+
+  const isSectionActive = (title: string, items: any[]) => {
+    if (!activeModules) return true; // Show all if no config
+
+    // Default: Show Dashboard
+    if (title === "Dasbor") return true;
+
+    // Mapping Logic
+    let relevantKeys: string[] = [];
+    if (title.includes("Penjualan")) relevantKeys = ["SALES", "QUOTATION", "LEAD"];
+    if (title.includes("Inventori")) relevantKeys = ["STOCK", "WAREHOUSE", "PRODUCT"];
+    if (title.includes("Keuangan")) relevantKeys = ["INVOICE", "PAYMENT", "BILL"];
+    if (title.includes("Pengadaan")) relevantKeys = ["PURCHASE", "VENDOR"];
+    if (title.includes("Manufaktur")) relevantKeys = ["MANUFACTURING", "PRODUCTION"];
+    if (title.includes("SDM")) relevantKeys = ["HR", "EMPLOYEE"];
+
+    // Check if any relevant key is in activeModules
+    return activeModules.some(m => relevantKeys.some(k => m.includes(k)));
+  };
+
+
   let filteredNavMain = data.navMain
   if (isStaff) {
     filteredNavMain = staffNav
@@ -412,6 +434,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     filteredNavMain = accountantNav
   } else if (user?.role === "ROLE_MANAGER") {
     filteredNavMain = managerNav
+  }
+
+  // Apply Workflow Visibility Filter on top of Role Filter
+  if (activeModules) {
+    filteredNavMain = filteredNavMain.filter(item => isSectionActive(item.title, item.items || []));
   }
 
   const filteredNavSecondary = (isStaff || isAccountant || user?.role === "ROLE_MANAGER") ? [] : data.navSecondary

@@ -1,0 +1,58 @@
+{
+    "MOD_SALES_01": {
+        "name": "Buat Pesanan Penjualan",
+        "model": "SalesOrder",
+        "action": "CREATE",
+        "description": "Create a new sales order from a quotation or directly.",
+        "role_required": "Sales Staff"
+    },
+    "MOD_SALES_02": {
+        "name": "Setujui Pesanan Penjualan",
+        "model": "SalesOrder",
+        "action": "APPROVE",
+        "description": "Manager approval for high-value orders.",
+        "role_required": "Sales Manager"
+    },
+    "MOD_QUOTATION_01": {
+        "name": "Buat Penawaran Harga",
+        "model": "Quotation",
+        "action": "CREATE",
+        "description": "Draft a price quotation for a customer.",
+        "role_required": "Sales Staff"
+    },
+    "MOD_STOCK_01": {
+        "name": "Cek Level Stok",
+        "model": "StockLevel",
+        "action": "CHECK_STOCK",
+        "description": "Verify inventory availability.",
+        "role_required": "Warehouse Staff"
+    },
+    "MOD_STOCK_02": {
+        "name": "Reservasi Stok",
+        "model": "StockLevel",
+        "action": "RESERVE",
+        "description": "Reserve items for a confirmed order.",
+        "role_required": "Warehouse Staff"
+    },
+    "MOD_STOCK_03": {
+        "name": "Kirim Pesanan",
+        "model": "StockMovement",
+        "action": "SHIP",
+        "description": "Process outbound shipment.",
+        "role_required": "Warehouse Manager"
+    },
+    "MOD_INVOICE_01": {
+        "name": "Buat Faktur",
+        "model": "Invoice",
+        "action": "CREATE",
+        "description": "Create invoice from sales order or shipment.",
+        "role_required": "Accountant"
+    },
+    "MOD_PAYMENT_01": {
+        "name": "Terima Pembayaran",
+        "model": "Payment",
+        "action": "PAY",
+        "description": "Record incoming payment from customer.",
+        "role_required": "Accountant"
+    }
+}

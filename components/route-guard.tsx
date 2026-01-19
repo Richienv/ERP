@@ -13,7 +13,7 @@ const ROLE_PERMISSIONS = {
 }
 
 // Routes that don't require checking (public or auth related)
-const PUBLIC_ROUTES = ["/login", "/auth"]
+const PUBLIC_ROUTES = ["/login", "/auth", "/signup", "/forgot-password"]
 
 export function RouteGuard({ children }: { children: React.ReactNode }) {
     const { user, isAuthenticated } = useAuth()

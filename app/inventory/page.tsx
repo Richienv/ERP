@@ -1,60 +1,15 @@
-"use client"
 
-import { BentoLauncher, BentoLauncherItem } from "@/components/dashboard/bento-launcher"
-import { Package, ClipboardList, ArrowRightLeft, AlertTriangle, Layers, BarChart, Settings2, Zap, Siren } from "lucide-react"
+import { InventoryQuickActions } from "@/components/inventory/inventory-quick-actions"
+import { Siren, Settings2, Zap } from "lucide-react"
 import { GlobalKPIs } from "@/components/inventory/global-kpis"
 import { WarehouseCard } from "@/components/inventory/warehouse-card"
-import { PerformanceCharts } from "@/components/inventory/performance-charts"
 import { Button } from "@/components/ui/button"
 import { DetailedMaterialTable } from "@/components/inventory/detailed-material-table"
+import { ProcurementInsights } from "@/components/inventory/procurement-insights"
+import { getMaterialGapAnalysis } from "@/app/actions/inventory"
 
-// Inventory Sub-Modules
-const inventoryModules: BentoLauncherItem[] = [
-  {
-    title: "Kelola Produk",
-    href: "/inventory/products",
-    icon: Package,
-    color: "text-emerald-500",
-    description: "Katalog, Harga, Varian"
-  },
-  {
-    title: "Level Stok",
-    href: "/inventory/stock",
-    icon: Layers,
-    color: "text-blue-500",
-    description: "Jumlah Saat Ini, Status Gudang"
-  },
-  {
-    title: "Pergerakan Stok",
-    href: "/inventory/movements",
-    icon: ArrowRightLeft,
-    color: "text-purple-500",
-    description: "Masuk, Keluar, Riwayat Transfer"
-  },
-  {
-    title: "Audit Stok",
-    href: "/inventory/audit",
-    icon: ClipboardList,
-    color: "text-orange-500",
-    description: "Stok Opname & Penyesuaian"
-  },
-  {
-    title: "Peringatan Stok",
-    href: "/inventory/alerts",
-    icon: AlertTriangle,
-    color: "text-rose-500",
-    description: "Peringatan Level Kritis"
-  },
-  {
-    title: "Laporan Gudang",
-    href: "/inventory/reports",
-    icon: BarChart,
-    color: "text-cyan-500",
-    description: "Valuasi & Analisis Perputaran"
-  },
-]
-
-export default function InventoryPage() {
+export default async function InventoryPage() {
+  const materialGapData = await getMaterialGapAnalysis()
   return (
     <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-8 pb-20">
@@ -80,62 +35,56 @@ export default function InventoryPage() {
         {/* 1. Global KPIs (Action Command) */}
         <section>
           <GlobalKPIs />
-          <DetailedMaterialTable />
+          <DetailedMaterialTable data={materialGapData} />
         </section>
 
-        {/* 2. Quick Actions (Bento Launcher) */}
-        <section className="bg-white p-6 rounded-xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-          <h2 className="text-xl font-black mb-6 text-foreground uppercase tracking-tight flex items-center gap-2">
-            ⚡ Modul Cepat
-          </h2>
-          <BentoLauncher items={inventoryModules} columns={3} />
+        {/* 2. Procurement Insights (Data Driven) */}
+        <section>
+          <ProcurementInsights />
         </section>
 
-        {/* 3. Per-Warehouse Activity (Cards) with NEW LOGIC */}
+        {/* 3. Per-Warehouse Activity (Cards) */}
         <section>
           <h2 className="text-xl font-black mb-6 text-foreground uppercase tracking-tight">Status Operasional Gudang (Real-time)</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             <WarehouseCard
+              id="17748eec-45a0-4512-951b-c59113bc5c26"
               name="Gudang A - Bahan Baku"
               manager="Budi Santoso"
               staffActive={24}
-              pickingRate={450}
-              targetRate={400} // Overachieving!
               dockStatus="BUSY"
-              zoneUsageA={85}
-              zoneUsageB={40}
-              packingBacklog={12}
+              inventoryValue={4500000000} // 4.5 Miliar
+              depreciationValue={125000000} // 125 Juta
+              activePOs={8}
+              activeTasks={142}
             />
             <WarehouseCard
+              id="17748eec-45a0-4512-951b-c59113bc5c26" // Reusing ID for demo/mock as not fetched dynamically here yet
               name="Gudang B - Barang Jadi"
               manager="Siti Aminah"
               staffActive={32}
-              pickingRate={210}
-              targetRate={350} // Critical Underperformance
-              dockStatus="CONGESTED" // Problem
-              zoneUsageA={95} // Full
-              zoneUsageB={92} // Full
-              packingBacklog={68}
+              dockStatus="CONGESTED"
+              inventoryValue={8200000000} // 8.2 Miliar
+              depreciationValue={45000000} // 45 Juta
+              activePOs={3}
+              activeTasks={85}
             />
             <WarehouseCard
+              id="17748eec-45a0-4512-951b-c59113bc5c26"
               name="Gudang C - Distribusi"
               manager="Rudi Hartono"
               staffActive={18}
-              pickingRate={180}
-              targetRate={200}
               dockStatus="IDLE"
-              zoneUsageA={30}
-              zoneUsageB={20}
-              packingBacklog={2}
+              inventoryValue={1200000000} // 1.2 Miliar
+              depreciationValue={12000000} // 12 Juta
+              activePOs={12}
+              activeTasks={210}
             />
           </div>
         </section>
 
-        {/* 4. Performance Section */}
-        <section>
-          <h2 className="text-xl font-black mb-6 text-foreground uppercase tracking-tight">Analisis Prediktif & Biaya</h2>
-          <PerformanceCharts />
-        </section>
+        {/* 4. Quick Actions (Moved to Bottom) */}
+        <InventoryQuickActions />
 
       </div>
     </div>

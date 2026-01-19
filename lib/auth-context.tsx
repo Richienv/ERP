@@ -2,8 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
+import { type User } from "@supabase/supabase-js"
 
-// Define the User Type based on our Roles
+// Define the User Role (SystemRole)
 export type UserRole =
     | "ROLE_CEO"
     | "ROLE_MANAGER"
@@ -12,95 +14,114 @@ export type UserRole =
     | "ROLE_SALES"
     | "GUEST"
 
-export interface User {
-    username: string
-    name: string
-    role: UserRole
+// Extended User type to include our metadata
+export interface AppUser extends User {
+    role?: UserRole
+    name?: string
     avatar?: string
 }
 
 interface AuthContextType {
-    user: User | null
+    user: AppUser | null
     isAuthenticated: boolean
-    login: (username: string, role: UserRole) => void
-    logout: () => void
+    isLoading: boolean
+    logout: () => Promise<void>
     homePath: string
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<User | null>(null)
+    const [user, setUser] = useState<AppUser | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
+    const supabase = createClient()
 
-    // Load user from local storage on mount
     useEffect(() => {
-        const storedUser = localStorage.getItem("erp_user")
-        if (storedUser) {
-            setUser(JSON.parse(storedUser))
+        // Check active session
+        const checkSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession()
+                if (session?.user) {
+                    await fetchUserProfile(session.user)
+                } else {
+                    setUser(null)
+                }
+            } catch (error) {
+                console.error("Session check failed", error)
+            } finally {
+                setIsLoading(false)
+            }
         }
-    }, [])
 
-    const login = (username: string, role: UserRole) => {
-        // Mock user data creation
-        const newUser: User = {
-            username,
-            name: username, // For simplicity, use username as name or map it later
-            role,
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}`
+        checkSession()
+
+        // Listen for auth changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user) {
+                await fetchUserProfile(session.user)
+            } else {
+                setUser(null)
+                setIsLoading(false)
+                // router.push("/login") // Don't force push here, let middleware handle it or individual pages
+            }
+        })
+
+        return () => {
+            subscription.unsubscribe()
+        }
+    }, [router])
+
+    const fetchUserProfile = async (authUser: User) => {
+        // In a real app, query "public.Employee" or "public.User" here.
+        // For now, we will use metadata or fallback mechanism
+        // We will default to ROLE_CEO for the first user or based on email logic if you prefer
+
+        // TEMPORARY: If email is 'ceo@erp.com' -> CEO. Else -> STAFF
+        // Long term: fetch tables
+
+        // Mocking fetching role from DB based on auth ID
+        let role: UserRole = "ROLE_STAFF" // Default
+
+        // Check if metadata has role (if we set it during signup)
+        if (authUser.user_metadata?.role) {
+            role = authUser.user_metadata.role
         }
 
-        setUser(newUser)
-        localStorage.setItem("erp_user", JSON.stringify(newUser))
-
-        // Redirect logic based on role
-        switch (role) {
-            case "ROLE_CEO":
-                router.push("/dashboard")
-                break
-            case "ROLE_MANAGER":
-                router.push("/manager")
-                break
-            case "ROLE_ACCOUNTANT":
-                router.push("/accountant")
-                break
-            case "ROLE_STAFF":
-                router.push("/staff")
-                break
-            case "ROLE_SALES":
-                router.push("/sales")
-                break
-            default:
-                router.push("/dashboard")
+        // Construct AppUser
+        const appUser: AppUser = {
+            ...authUser,
+            role: role,
+            name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || "User",
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${authUser.email}`
         }
+
+        setUser(appUser)
+        setIsLoading(false)
     }
 
-    const logout = () => {
+    const logout = async () => {
+        await supabase.auth.signOut()
         setUser(null)
-        localStorage.removeItem("erp_user")
         router.push("/login")
+        router.refresh()
     }
 
-    const getHomePath = (userRole?: UserRole) => {
-        switch (userRole) {
-            case "ROLE_STAFF":
-                return "/staff"
-            case "ROLE_ACCOUNTANT":
-                return "/accountant"
-            case "ROLE_MANAGER":
-                return "/manager"
-            case "ROLE_SALES":
-                return "/sales"
-            case "ROLE_CEO":
-            default:
-                return "/dashboard"
+    // Determine Home Path based on Role
+    const homePath = React.useMemo(() => {
+        if (!user) return "/dashboard"
+        switch (user.role) {
+            case "ROLE_CEO": return "/dashboard"
+            case "ROLE_MANAGER": return "/manager"
+            case "ROLE_ACCOUNTANT": return "/finance" // or /accountant
+            case "ROLE_STAFF": return "/staff"
+            case "ROLE_SALES": return "/sales"
+            default: return "/dashboard"
         }
-    }
-
-    const homePath = getHomePath(user?.role)
+    }, [user])
 
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated: !!user, login, logout, homePath }}>
+        <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, logout, homePath }}>
             {children}
         </AuthContext.Provider>
     )

@@ -2,6 +2,8 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowUpRight, ArrowDownRight, AlertTriangle, CheckCircle2, DollarSign, Wallet, TrendingUp, Calendar, Sparkles, Send, X, Bot } from "lucide-react"
+import Link from "next/link"
+import { Skeleton } from "@/components/ui/skeleton"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -86,8 +88,37 @@ const ThreeDBarShape = (props: any) => {
     );
 };
 
-export function FinanceSnapshot() {
+import { formatCompactNumber, formatIDR } from "@/lib/utils"
+
+// ... imports
+
+interface FinanceSnapshotProps {
+    data?: {
+        cashBalance: number
+        burnRate: number
+        accountsReceivable: number
+        accountsPayable: number
+        netProfit: number
+        totalRevenue: number
+        overdueInvoices?: any[]
+        upcomingPayables?: any[]
+    } | null
+}
+
+export function FinanceSnapshot({ data }: FinanceSnapshotProps) {
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
+
+    // Formatted Values (or defaults if loading/null)
+    // Formatted Values (or defaults if loading/null)
+    const cashDisplay = data ? formatCompactNumber(data.cashBalance) : null
+    const burnDisplay = data ? formatCompactNumber(data.burnRate) : null
+    const arDisplay = data ? formatCompactNumber(data.accountsReceivable) : null
+    const apDisplay = data ? formatCompactNumber(data.accountsPayable) : null
+    // Calculate Margin % if data exists
+    const marginPercent = data && data.totalRevenue > 0
+        ? ((data.netProfit / data.totalRevenue) * 100).toFixed(1)
+        : null
+
 
     const renderMetricDetail = () => {
         if (!selectedMetric) return null
@@ -180,147 +211,173 @@ export function FinanceSnapshot() {
         <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* 1. CASH POSITION */}
-                <Card
-                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
-                    onClick={() => setSelectedMetric("cash")}
-                >
-                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                            <span className="flex items-center gap-2"><Wallet className="h-4 w-4 text-black" /> Posisi Kas</span>
-                            <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
-                                High Burn
-                            </Badge>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="text-3xl font-black tracking-tight">Rp 2.45 M</div>
-                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
-                            <ArrowDownRight className="h-3 w-3 text-red-500" />
-                            Burn Rate: <span className="text-red-500">Rp 45jt / hari</span>
-                        </p>
+                <Link href="/finance">
+                    <Card
+                        className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
+                    >
+                        <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                            <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                                <span className="flex items-center gap-2"><Wallet className="h-4 w-4 text-black" /> Posisi Kas</span>
+                                <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                    High Burn
+                                </Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            <div className="text-3xl font-black tracking-tight">{cashDisplay ? `Rp ${cashDisplay}` : <Skeleton className="h-9 w-32" />}</div>
+                            <div className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
+                                {burnDisplay ? (
+                                    <>
+                                        <ArrowDownRight className="h-3 w-3 text-red-500" />
+                                        Burn Rate: <span className="text-red-500">Rp {burnDisplay} / hari</span>
+                                    </>
+                                ) : <Skeleton className="h-4 w-24" />}
+                            </div>
 
-                        <div className="flex gap-2">
-                            <Button size="sm" className="w-full text-xs font-black uppercase tracking-wider h-8 bg-black text-white hover:bg-zinc-800 border-2 border-transparent shadow-none" onClick={(e) => { e.stopPropagation(); }}>
-                                Approve OPEX
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <div className="flex gap-2">
+                                <Button size="sm" className="w-full text-xs font-black uppercase tracking-wider h-8 bg-black text-white hover:bg-zinc-800 border-2 border-transparent shadow-none">
+                                    View Finance
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
 
                 {/* 2. RECEIVABLES (Detailed List) */}
-                <Card
-                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
-                    onClick={() => setSelectedMetric("receivables")}
-                >
-                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                            <span className="flex items-center gap-2"><ArrowDownRight className="h-4 w-4 text-black" /> Piutang</span>
-                            <Badge className="bg-zinc-100 text-zinc-900 hover:bg-zinc-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
-                                3 Overdue
-                            </Badge>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="text-3xl font-black tracking-tight">Rp 3.8 M</div>
+                <Link href="/finance/invoices">
+                    <Card
+                        className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
+                    >
+                        <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                            <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                                <span className="flex items-center gap-2"><ArrowDownRight className="h-4 w-4 text-black" /> Piutang</span>
+                                <Badge className="bg-zinc-100 text-zinc-900 hover:bg-zinc-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                    3 Overdue
+                                </Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            <div className="text-3xl font-black tracking-tight">{arDisplay ? `Rp ${arDisplay}` : <Skeleton className="h-9 w-28" />}</div>
 
-                        <div className="mt-3 mb-4">
-                            <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Overdue Details</p>
-                            <ul className="space-y-1">
-                                <li className="flex justify-between text-xs font-bold">
-                                    <span>• CV Garmen (112d)</span>
-                                    <span className="text-red-600">Rp 150jt</span>
-                                </li>
-                                <li className="flex justify-between text-xs font-medium text-zinc-600">
-                                    <span>• Toko Kain A (45d)</span>
-                                    <span>Rp 45jt</span>
-                                </li>
-                                <li className="flex justify-between text-xs font-medium text-zinc-600">
-                                    <span>• Butik Rina (32d)</span>
-                                    <span>Rp 12jt</span>
-                                </li>
-                            </ul>
-                        </div>
+                            <div className="mt-3 mb-4">
+                                <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Overdue Details</p>
+                                <ul className="space-y-1">
+                                    {data?.overdueInvoices && data.overdueInvoices.length > 0 ? (
+                                        data.overdueInvoices.map((inv: any) => {
+                                            // Calculate days overdue
+                                            const days = Math.floor((new Date().getTime() - new Date(inv.dueDate).getTime()) / (1000 * 3600 * 24))
+                                            return (
+                                                <li key={inv.id} className="flex justify-between text-xs font-bold text-zinc-600">
+                                                    <span>• {inv.customer?.name} ({days}d)</span>
+                                                    <span className="text-red-600">Rp {formatCompactNumber(Number(inv.balanceDue))}</span>
+                                                </li>
+                                            )
+                                        })
+                                    ) : (
+                                        // Show Skeleton or Empty State
+                                        data?.overdueInvoices ? (
+                                            <li className="text-xs text-zinc-400 italic">No overdue invoices</li>
+                                        ) : (
+                                            <>
+                                                <li className="flex justify-between"><Skeleton className="h-3 w-28" /><Skeleton className="h-3 w-12" /></li>
+                                                <li className="flex justify-between"><Skeleton className="h-3 w-20" /><Skeleton className="h-3 w-10" /></li>
+                                            </>
+                                        )
+                                    )}
+                                </ul>
+                            </div>
 
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50" onClick={(e) => { e.stopPropagation(); }}>
-                                Legal Notice
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
+                                    View Invoices
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
 
                 {/* 3. PAYABLES (Detailed List) */}
-                <Card
-                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
-                    onClick={() => setSelectedMetric("payables")}
-                >
-                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                            <span className="flex items-center gap-2"><ArrowUpRight className="h-4 w-4 text-black" /> Hutang</span>
-                            <Badge className="bg-zinc-100 text-zinc-900 hover:bg-zinc-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
-                                Due This Week
-                            </Badge>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="text-3xl font-black tracking-tight">Rp 2.1 M</div>
+                <Link href="/finance/bills">
+                    <Card
+                        className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
+                    >
+                        <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                            <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                                <span className="flex items-center gap-2"><ArrowUpRight className="h-4 w-4 text-black" /> Hutang</span>
+                                <Badge className="bg-zinc-100 text-zinc-900 hover:bg-zinc-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                    Due This Week
+                                </Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            <div className="text-3xl font-black tracking-tight">{apDisplay ? `Rp ${apDisplay}` : <Skeleton className="h-9 w-28" />}</div>
 
-                        <div className="mt-3 mb-4">
-                            <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Upcoming Payments</p>
-                            <ul className="space-y-1">
-                                <li className="flex justify-between text-xs font-bold">
-                                    <span>• PT. Bahan Baku</span>
-                                    <span className="text-black">Rp 200jt</span>
-                                </li>
-                                <li className="flex justify-between text-xs font-medium text-zinc-600">
-                                    <span>• Logistics Corp</span>
-                                    <span>Rp 45jt</span>
-                                </li>
-                                <li className="flex justify-between text-xs font-medium text-zinc-600">
-                                    <span>• Maintenance Svc</span>
-                                    <span>Rp 12jt</span>
-                                </li>
-                            </ul>
-                        </div>
+                            <div className="mt-3 mb-4">
+                                <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Upcoming Payments</p>
+                                <ul className="space-y-1">
+                                    {data?.upcomingPayables && data.upcomingPayables.length > 0 ? (
+                                        data.upcomingPayables.map((inv: any) => (
+                                            <li key={inv.id} className="flex justify-between text-xs font-bold">
+                                                <span>• {inv.supplier?.name || 'Unknown'}</span>
+                                                <span className="text-black">Rp {formatCompactNumber(Number(inv.balanceDue))}</span>
+                                            </li>
+                                        ))
+                                    ) : (
+                                        // Show Skeleton or Empty State
+                                        data?.upcomingPayables ? (
+                                            <li className="text-xs text-zinc-400 italic">No upcoming payments</li>
+                                        ) : (
+                                            <>
+                                                <li className="flex justify-between"><Skeleton className="h-3 w-24" /><Skeleton className="h-3 w-12" /></li>
+                                                <li className="flex justify-between"><Skeleton className="h-3 w-20" /><Skeleton className="h-3 w-10" /></li>
+                                            </>
+                                        )
+                                    )}
+                                </ul>
+                            </div>
 
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="secondary" className="w-full text-xs font-black uppercase tracking-wider h-8 bg-zinc-100 hover:bg-zinc-200 border-2 border-transparent text-zinc-900" onClick={(e) => { e.stopPropagation(); }}>
-                                Pay Now
-                            </Button>
-                        </div>
-                    </CardContent>
-
-
-                </Card>
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="secondary" className="w-full text-xs font-black uppercase tracking-wider h-8 bg-zinc-100 hover:bg-zinc-200 border-2 border-transparent text-zinc-900">
+                                    View Bills
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
 
                 {/* 4. NET MARGIN */}
-                <Card
-                    className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
-                    onClick={() => setSelectedMetric("profitability")}
-                >
-                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                            <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-black" /> Net Margin</span>
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
-                                Healthy
-                            </Badge>
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                        <div className="text-3xl font-black tracking-tight">10.0%</div>
-                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
-                            <ArrowUpRight className="h-3 w-3 text-emerald-500" />
-                            +1.2% vs Last Month
-                        </p>
+                <Link href="/finance/reports">
+                    <Card
+                        className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer bg-white group"
+                    >
+                        <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                            <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                                <span className="flex items-center gap-2"><TrendingUp className="h-4 w-4 text-black" /> Net Margin</span>
+                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-none px-1.5 py-0 text-[10px] uppercase font-black tracking-wider">
+                                    Healthy
+                                </Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-4">
+                            <div className="text-3xl font-black tracking-tight">{marginPercent ? `${marginPercent}%` : <Skeleton className="h-9 w-24" />}</div>
+                            <div className="text-xs font-bold text-zinc-400 mt-1 mb-4 flex items-center gap-1">
+                                {marginPercent ? (
+                                    <>
+                                        <ArrowUpRight className="h-3 w-3 text-emerald-500" />
+                                        +1.2% vs Last Month
+                                    </>
+                                ) : <Skeleton className="h-4 w-32" />}
+                            </div>
 
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="ghost" className="w-full text-xs font-black uppercase tracking-wider h-8 hover:bg-emerald-50 text-emerald-700" onClick={(e) => { e.stopPropagation(); }}>
-                                Analysis
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div >
+                            <div className="flex gap-2">
+                                <Button size="sm" variant="ghost" className="w-full text-xs font-black uppercase tracking-wider h-8 hover:bg-emerald-50 text-emerald-700">
+                                    View Reports
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </Link>
+            </div>
 
             <Dialog open={!!selectedMetric} onOpenChange={() => setSelectedMetric(null)}>
                 <DialogContent showCloseButton={false} className="max-w-4xl border-none shadow-none bg-transparent p-0 overflow-visible">

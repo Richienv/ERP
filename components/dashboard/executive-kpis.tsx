@@ -1,150 +1,197 @@
-"use client"
-
+// ... imports
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Truck, Package, ShoppingCart, Users } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Truck, Package, ShoppingCart, Users, Factory } from "lucide-react"
+import Link from "next/link"
 
-export function ExecutiveKPIs() {
+import { formatCompactNumber, formatIDR } from "@/lib/utils"
+
+interface ExecutiveKPIsProps {
+    procurement?: {
+        activeCount: number
+        delays: Array<{ id: string, number: string, supplierName: string, productName: string, daysLate: number }>
+    }
+    inventory?: {
+        auditDate?: Date
+        warehouseName?: string
+    }
+    production?: {
+        activeWorkOrders: number
+        totalProduction: number
+        efficiency: number
+    }
+    hr?: {
+        totalSalary: number
+        lateEmployees: Array<{ id: string, name: string, department: string, checkInTime: string }>
+        pendingLeaves: number
+    }
+    sales?: {
+        totalRevenue: number
+        totalOrders: number
+        activeOrders: number
+        recentOrders: any[]
+    }
+}
+
+export function ExecutiveKPIs({ procurement, inventory, production, hr, sales }: ExecutiveKPIsProps) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
-            {/* 1. PENGADAAN (Procurement - Detailed List) */}
-            <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white">
-                <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                        <span className="flex items-center gap-2"><Truck className="h-4 w-4 text-blue-600" /> Pengadaan</span>
-                        <span className="text-[10px] bg-zinc-100 text-zinc-900 px-1 py-0.5 rounded font-black">2 DELAYS</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                    <div className="text-3xl font-black tracking-tight">12 PO</div>
-                    <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Active Orders</p>
+            {/* 1. PENGADAAN (Procurement) */}
+            <Link href="/procurement/orders">
+                <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white cursor-pointer h-full">
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><Truck className="h-4 w-4 text-blue-600" /> Pengadaan</span>
+                            {procurement?.delays?.length ? (
+                                <span className="text-[10px] bg-red-100 text-red-900 px-1 py-0.5 rounded font-black">{procurement.delays.length} DELAYS</span>
+                            ) : procurement ? (
+                                <span className="text-[10px] bg-zinc-100 text-zinc-900 px-1 py-0.5 rounded font-black">ON TRACK</span>
+                            ) : <Skeleton className="h-5 w-16" />}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">{procurement ? `${procurement.activeCount} PO` : <Skeleton className="h-9 w-24" />}</div>
+                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Active Orders</p>
 
-                    <div className="mb-4">
-                        <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Critical Delays (Material)</p>
-                        <ul className="space-y-1">
-                            <li className="flex justify-between text-xs font-bold">
-                                <span>• Cotton 30s (Vendor A)</span>
-                                <span className="text-red-600">Late 5d</span>
-                            </li>
-                            <li className="flex justify-between text-xs font-medium text-zinc-600">
-                                <span>• Dye Red (Vendor B)</span>
-                                <span>Late 2d</span>
-                            </li>
-                        </ul>
-                    </div>
+                        <div className="mb-4">
+                            <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Critical Delays</p>
+                            {procurement ? (
+                                procurement.delays?.length ? (
+                                    <ul className="space-y-1">
+                                        {procurement.delays.map((po, i) => (
+                                            <li key={i} className="flex justify-between text-xs font-bold">
+                                                <span>• {po.productName}</span>
+                                                <span className="text-red-600">Late {po.daysLate}d</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                ) : (
+                                    <p className="text-xs font-medium text-zinc-500">No critical delays</p>
+                                )
+                            ) : <Skeleton className="h-4 w-full" />}
+                        </div>
 
-                    <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
-                        Switch Vendor
-                    </Button>
-                </CardContent>
-            </Card>
+                        <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
+                            View Procurement
+                        </Button>
+                    </CardContent>
+                </Card>
+            </Link>
 
-            {/* 2. GUDANG (Inventory - Detailed List) */}
-            <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white">
-                <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                        <span className="flex items-center gap-2"><Package className="h-4 w-4 text-emerald-600" /> Gudang</span>
-                        <span className="text-[10px] bg-zinc-100 text-zinc-900 px-1 py-0.5 rounded font-black">AUDIT REQ</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                    <div className="text-3xl font-black tracking-tight">Rp 250 Jt</div>
-                    <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Dead Stock Value (&gt;6 Mo)</p>
+            {/* 2. GUDANG (Inventory) */}
+            <Link href="/inventory">
+                <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white cursor-pointer h-full">
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><Package className="h-4 w-4 text-emerald-600" /> Gudang</span>
+                            {!inventory ? <Skeleton className="h-5 w-16" /> : inventory.auditDate ? (
+                                <span className="text-[10px] bg-amber-100 text-amber-900 px-1 py-0.5 rounded font-black">AUDIT REQ</span>
+                            ) : null}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">{inventory ? 'Rp 250 Jt' : <Skeleton className="h-9 w-24" />}</div>
+                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Dead Stock Value (&gt;6 Mo)</p>
 
-                    <div className="mb-4">
-                        <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Stagnant Items</p>
-                        <ul className="space-y-1">
-                            <li className="flex justify-between text-xs font-bold">
-                                <span>• Neon Fabric</span>
-                                <span>1,200 m</span>
-                            </li>
-                            <li className="flex justify-between text-xs font-medium text-zinc-600">
-                                <span>• Poly Grade B</span>
-                                <span>800 m</span>
-                            </li>
-                            <li className="flex justify-between text-xs font-medium text-zinc-600">
-                                <span>• Buttons (Old)</span>
-                                <span>50 kg</span>
-                            </li>
-                        </ul>
-                    </div>
+                        <div className="mb-4">
+                            <p className="text-[10px] font-bold text-zinc-400 mb-1 uppercase tracking-wider">Next Audit</p>
+                            {inventory ? (
+                                inventory.auditDate ? (
+                                    <div className="text-xs font-bold">
+                                        <p className="mb-1">{inventory.warehouseName}</p>
+                                        <p className="text-amber-700">{new Date(inventory.auditDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}</p>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs font-medium text-zinc-500">No scheduled audits</p>
+                                )
+                            ) : <Skeleton className="h-8 w-full" />}
+                        </div>
 
-                    <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
-                        Flash Sale (50%)
-                    </Button>
-                </CardContent>
-            </Card>
+                        <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
+                            View Inventory
+                        </Button>
+                    </CardContent>
+                </Card>
+            </Link>
 
             {/* 3. PENJUALAN (Sales) */}
-            <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white">
-                <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                        <span className="flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-orange-600" /> Penjualan</span>
-                        <span className="text-[10px] bg-green-100 text-green-700 px-1 py-0.5 rounded font-black">+15%</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                    <div className="text-3xl font-black tracking-tight">Rp 2.4 M</div>
-                    <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Pendapatan (Jan)</p>
+            <Link href="/sales/orders">
+                <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white cursor-pointer h-full">
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><ShoppingCart className="h-4 w-4 text-blue-600" /> Penjualan</span>
+                            {sales ? (
+                                <span className="text-[10px] bg-blue-100 text-blue-900 px-1 py-0.5 rounded font-black">ACTIVE</span>
+                            ) : <Skeleton className="h-5 w-16" />}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">{sales ? `Rp ${formatCompactNumber(sales.totalRevenue)}` : <Skeleton className="h-9 w-24" />}</div>
+                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Revenue (MTD)</p>
 
-                    <div className="space-y-1 mb-4">
-                        <p className="text-[10px] font-black uppercase text-zinc-400">Top Contributors</p>
-                        <div className="flex justify-between text-xs font-bold">
-                            <span>1. PT. Maju Jaya</span>
-                            <span>Rp 450jt</span>
+                        <div className="space-y-1 mb-4">
+                            <div className="flex justify-between text-xs font-bold">
+                                <span>Active Orders</span>
+                                <span>{sales ? sales.activeOrders : <Skeleton className="h-4 w-8 inline-block" />}</span>
+                            </div>
+                            {sales?.recentOrders?.[0] && (
+                                <div className="flex justify-between text-xs font-bold">
+                                    <span>Recent</span>
+                                    <span className="text-blue-600 truncate max-w-[100px]">{sales.recentOrders[0].customer.split(' ')[0]}</span>
+                                </div>
+                            )}
                         </div>
-                        <div className="flex justify-between text-xs font-bold">
-                            <span>2. CV. Tekstil B</span>
-                            <span>Rp 320jt</span>
-                        </div>
-                        <div className="flex justify-between text-xs font-bold">
-                            <span>3. Toko Kain C</span>
-                            <span>Rp 150jt</span>
-                        </div>
-                    </div>
 
-                    <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-orange-50">
-                        Laporan Sales
-                    </Button>
-                </CardContent>
-            </Card>
+                        <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-zinc-50">
+                            View Orders
+                        </Button>
+                    </CardContent>
+                </Card>
+            </Link>
 
             {/* 4. KARYAWAN (HR) */}
-            <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white">
-                <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
-                    <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
-                        <span className="flex items-center gap-2"><Users className="h-4 w-4 text-purple-600" /> Karyawan</span>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-4">
-                    <div className="text-3xl font-black tracking-tight">Rp 450 Jt</div>
-                    <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Est. Gaji Bulan Ini</p>
+            <Link href="/hcm">
+                <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white cursor-pointer h-full">
+                    <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
+                        <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
+                            <span className="flex items-center gap-2"><Users className="h-4 w-4 text-purple-600" /> Karyawan</span>
+                            {!hr ? <Skeleton className="h-5 w-16" /> : null}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                        <div className="text-3xl font-black tracking-tight">{hr ? formatCompactNumber(hr.totalSalary) : <Skeleton className="h-9 w-24" />}</div>
+                        <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Est. Gaji Bulan Ini</p>
 
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-green-50 p-2 rounded border border-green-100">
-                            <p className="text-[10px] font-black uppercase text-green-700 mb-1">Bonus (Top Perf.)</p>
-                            <ul className="text-xs font-bold text-green-800 space-y-0.5">
-                                <li>• Susi (Sales)</li>
-                                <li>• Rina (Admin)</li>
-                                <li>• Joko (Gudang)</li>
-                            </ul>
+                        <div className="grid grid-cols-2 gap-3 mb-4">
+                            <div className="bg-blue-50 p-2 rounded border border-blue-100">
+                                <p className="text-[10px] font-black uppercase text-blue-700 mb-1">Cuti Pending</p>
+                                <div className="text-xl font-black text-blue-800">{hr ? hr.pendingLeaves : <Skeleton className="h-6 w-8" />}</div>
+                            </div>
+                            <div className="bg-red-50 p-2 rounded border border-red-100">
+                                <p className="text-[10px] font-black uppercase text-red-700 mb-1">Terlambat</p>
+                                {hr ? (
+                                    hr.lateEmployees?.length ? (
+                                        <ul className="text-xs font-bold text-red-800 space-y-0.5">
+                                            {hr.lateEmployees.slice(0, 2).map((emp, i) => (
+                                                <li key={i}>• {emp.name.split(' ')[0]}</li>
+                                            ))}
+                                            {hr.lateEmployees.length > 2 && <li>+ {hr.lateEmployees.length - 2} more</li>}
+                                        </ul>
+                                    ) : (
+                                        <span className="text-[10px] text-zinc-500">None today</span>
+                                    )
+                                ) : <Skeleton className="h-8 w-full" />}
+                            </div>
                         </div>
-                        <div className="bg-red-50 p-2 rounded border border-red-100">
-                            <p className="text-[10px] font-black uppercase text-red-700 mb-1">Terlambat (Today)</p>
-                            <ul className="text-xs font-bold text-red-800 space-y-0.5">
-                                <li>• Andi S. (35m)</li>
-                                <li>• Budi K. (15m)</li>
-                                <li>• Dedi (10m)</li>
-                            </ul>
-                        </div>
-                    </div>
 
-                    <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-purple-50">
-                        Approval Cuti
-                    </Button>
-                </CardContent>
-            </Card>
+                        <Button size="sm" variant="outline" className="w-full text-xs font-black uppercase tracking-wider h-8 border-2 border-black hover:bg-purple-50">
+                            View HR
+                        </Button>
+                    </CardContent>
+                </Card>
+            </Link>
         </div>
     )
 }

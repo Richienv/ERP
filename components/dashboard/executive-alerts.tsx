@@ -14,32 +14,17 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 
-export function ExecutiveAlerts() {
+
+interface ExecutiveAlertsProps {
+    data: any[]
+}
+
+export function ExecutiveAlerts({ data }: ExecutiveAlertsProps) {
     const [selectedAlert, setSelectedAlert] = useState<any>(null)
     const [isOpen, setIsOpen] = useState(false)
 
-    const alerts = [
-        {
-            id: 1,
-            type: "Major Defect",
-            title: "Order #SO-2026-0234 (Zara)",
-            message: "1,500m dyed wrong color. Impact: Rp 67.5M Loss.",
-            impact: "Rp 67.5M",
-            details: "Quality control detected significant color variance in Batch #992. The entire batch needs re-dyeing or scrapping. This will delay shipment by 3 days.",
-            severity: "critical",
-            machine: "Dyeing Unit A-02"
-        },
-        {
-            id: 2,
-            type: "Machine Breakdown",
-            title: "Dyeing Machine #2",
-            message: "Affecting 3 orders. Cost: Rp 45M.",
-            impact: "Rp 45M",
-            details: "Main pump failure detected. Maintenance team alerted. Estimated repair time: 4 hours. Backlog accumulating for Orders #202, #205.",
-            severity: "high",
-            machine: "Dyeing Unit D-02"
-        }
-    ]
+    const alerts = data && data.length > 0 ? data : []
+
 
     const handleAlertClick = (alert: any) => {
         setSelectedAlert(alert)

@@ -1,5 +1,3 @@
-"use client"
-
 import {
   CreditCard,
   DollarSign,
@@ -20,6 +18,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
+import { getProcurementStats } from "@/lib/actions/procurement"
+import { formatIDR } from "@/lib/utils"
+import Link from "next/link"
 
 // Sub-modules
 const procurementModules: BentoLauncherItem[] = [
@@ -46,7 +47,9 @@ const procurementModules: BentoLauncherItem[] = [
   },
 ]
 
-export default function ProcurementPage() {
+export default async function ProcurementPage() {
+  const stats = await getProcurementStats()
+
   return (
     <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
       <div className="max-w-7xl mx-auto space-y-8 pb-20">
@@ -61,9 +64,11 @@ export default function ProcurementPage() {
             <Button variant="outline" className="border-black font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]">
               Laporan Spend
             </Button>
-            <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide active:translate-y-1 active:shadow-none transition-all">
-              <Plus className="mr-2 h-4 w-4" /> Buat PO Baru
-            </Button>
+            <Link href="/procurement/orders/new">
+              <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide active:translate-y-1 active:shadow-none transition-all">
+                <Plus className="mr-2 h-4 w-4" /> Buat PO Baru
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -86,7 +91,9 @@ export default function ProcurementPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-black">Rp 2.4M</span>
+                <span className="text-4xl font-black text-black">
+                  {formatIDR(stats.openPOValue)}
+                </span>
               </div>
               <div className="mt-4 space-y-2">
                 <div className="flex justify-between text-xs font-bold uppercase text-muted-foreground">
@@ -114,26 +121,16 @@ export default function ProcurementPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-black">12</span>
+                <span className="text-4xl font-black text-black">{stats.pendingCount}</span>
                 <span className="text-sm font-bold text-muted-foreground uppercase">Requests</span>
               </div>
               <p className="text-xs font-bold text-black/60 mt-2">Menunggu persetujuan manajer.</p>
             </CardContent>
             <CardFooter className="pt-0 pb-4">
-              <div className="flex -space-x-2">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="h-8 w-8 rounded-full border border-black bg-zinc-100 flex items-center justify-center text-[10px] font-bold shadow-sm z-10 hover:z-20 transition-all hover:scale-110">
-                    User
-                  </div>
-                ))}
-                <div className="h-8 w-8 rounded-full border border-black bg-black text-white flex items-center justify-center text-[10px] font-bold z-0 pl-2">
-                  +9
-                </div>
-              </div>
             </CardFooter>
           </Card>
 
-          {/* 3. Receivables */}
+          {/* 3. Receivables -> Incoming Goods */}
           <Card className="group relative border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all bg-white rounded-xl overflow-hidden">
             <div className="h-2 w-full bg-blue-500 border-b border-black/10" />
             <CardHeader className="pb-2">
@@ -149,7 +146,7 @@ export default function ProcurementPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-black text-black">8</span>
+                <span className="text-4xl font-black text-black">{stats.incomingCount}</span>
                 <span className="text-sm font-bold text-muted-foreground uppercase">Orders</span>
               </div>
               <p className="text-xs font-bold text-black/60 mt-2">Estimasi tiba minggu ini.</p>
@@ -177,18 +174,26 @@ export default function ProcurementPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-0">
-              {[1, 2, 3].map((_, i) => (
-                <div key={i} className="flex gap-4 py-3 border-b border-dashed border-zinc-200 last:border-0 hover:bg-zinc-50 p-2 rounded-lg transition-colors">
-                  <div className="h-2 w-2 mt-2 rounded-full bg-black/20" />
-                  <div>
-                    <p className="text-sm font-bold">PO-2023-09-{i} Created</p>
-                    <p className="text-xs text-muted-foreground">oleh Budi Santoso • 2 jam lalu</p>
+              {stats.recentActivity.length > 0 ? (
+                stats.recentActivity.map((po, i) => (
+                  <div key={po.id} className="flex gap-4 py-3 border-b border-dashed border-zinc-200 last:border-0 hover:bg-zinc-50 p-2 rounded-lg transition-colors">
+                    <div className="h-2 w-2 mt-2 rounded-full bg-black/20" />
+                    <div>
+                      <p className="text-sm font-bold">{po.number} Created</p>
+                      <p className="text-xs text-muted-foreground">
+                        {po.supplier.name} • {new Date(po.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="ml-auto">
+                      <Badge variant="outline" className="text-[10px] border-black/20">{po.status}</Badge>
+                    </div>
                   </div>
-                  <div className="ml-auto">
-                    <Badge variant="outline" className="text-[10px] border-black/20">Draft</Badge>
-                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-muted-foreground text-sm">
+                  Belum ada aktivitas.
                 </div>
-              ))}
+              )}
             </CardContent>
           </Card>
 
@@ -199,6 +204,7 @@ export default function ProcurementPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Keeping static alerts for now, can be dynamic later */}
               <div className="p-3 bg-red-50 border border-red-100 rounded-lg flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-red-600 shrink-0" />
                 <div>
@@ -208,13 +214,6 @@ export default function ProcurementPage() {
                 <Button size="sm" variant="outline" className="ml-auto h-7 text-xs border-red-200 text-red-700 hover:bg-red-100 border-2">
                   Renew
                 </Button>
-              </div>
-              <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg flex items-start gap-3">
-                <Clock className="h-5 w-5 text-amber-600 shrink-0" />
-                <div>
-                  <h4 className="text-sm font-bold text-amber-900">Delivery Delayed</h4>
-                  <p className="text-xs text-amber-700 mt-1">PO-992 terlambat 2 hari dari estimasi.</p>
-                </div>
               </div>
             </CardContent>
           </Card>

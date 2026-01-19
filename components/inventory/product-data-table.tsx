@@ -77,12 +77,12 @@ const mockProducts: ProductWithRelations[] = [
     },
     _count: {
       stockLevels: 3,
-      stockMovements: 15
+      transactions: 15
     }
   },
   {
     id: "2",
-    code: "FUR001", 
+    code: "FUR001",
     name: "Meja Kantor Eksekutif",
     description: "Meja kantor eksekutif dengan laci",
     categoryId: "2",
@@ -98,7 +98,7 @@ const mockProducts: ProductWithRelations[] = [
     updatedAt: new Date("2024-11-01"),
     category: {
       id: "2",
-      code: "FUR", 
+      code: "FUR",
       name: "Furniture",
       description: "Furniture kantor",
       parentId: null,
@@ -108,7 +108,7 @@ const mockProducts: ProductWithRelations[] = [
     },
     _count: {
       stockLevels: 2,
-      stockMovements: 8
+      transactions: 8
     }
   },
   // Add more products as needed...
@@ -117,9 +117,9 @@ const mockProducts: ProductWithRelations[] = [
 // Add current stock to products (would come from stock levels in real app)
 const productsWithStock = mockProducts.map(product => ({
   ...product,
-  currentStock: product.code === "ELK001" ? 25 : 
-                product.code === "FUR001" ? 8 : 
-                Math.floor(Math.random() * 50),
+  currentStock: product.code === "ELK001" ? 25 :
+    product.code === "FUR001" ? 8 :
+      Math.floor(Math.random() * 50),
 }))
 
 export type ProductWithStock = typeof productsWithStock[0]
@@ -165,18 +165,18 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     accessorKey: "costPrice",
     header: "Harga Beli",
     cell: ({ row }) => (
-      <CurrencyDisplay 
-        amount={row.getValue("costPrice")} 
+      <CurrencyDisplay
+        amount={row.getValue("costPrice")}
         className="text-right block"
       />
     ),
   },
   {
-    accessorKey: "sellingPrice", 
+    accessorKey: "sellingPrice",
     header: "Harga Jual",
     cell: ({ row }) => (
-      <CurrencyDisplay 
-        amount={row.getValue("sellingPrice")} 
+      <CurrencyDisplay
+        amount={row.getValue("sellingPrice")}
         className="text-right block"
       />
     ),
@@ -187,7 +187,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     cell: ({ row }) => {
       const product = row.original
       const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
-      
+
       return (
         <div className="text-center">
           <div className="font-medium">{formatNumber(product.currentStock)}</div>
@@ -204,7 +204,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     cell: ({ row }) => {
       const product = row.original
       const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
-      
+
       return (
         <div className="text-center">
           <StockStatusBadge status={stockStatus} />
@@ -214,7 +214,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
   },
   {
     id: "actions",
-    header: "Aksi", 
+    header: "Aksi",
     cell: ({ row }) => {
       const product = row.original
 
@@ -388,9 +388,9 @@ export function ProductDataTable({ data }: ProductDataTableProps) {
                       {header.isPlaceholder
                         ? null
                         : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                     </TableHead>
                   )
                 })}

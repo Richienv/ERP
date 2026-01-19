@@ -5,10 +5,10 @@ export type {
   Warehouse,
   Location,
   StockLevel,
-  StockMovement,
+  InventoryTransaction,
   StockAlert,
   User,
-  StockMovementType,
+  TransactionType,
   StockAlertType,
 } from '@prisma/client'
 
@@ -18,7 +18,7 @@ export interface ProductWithRelations extends Product {
   stockLevels?: StockLevel[]
   _count?: {
     stockLevels: number
-    stockMovements: number
+    transactions: number
   }
 }
 
@@ -28,10 +28,10 @@ export interface StockLevelWithRelations extends StockLevel {
   location?: Location | null
 }
 
-export interface StockMovementWithRelations extends StockMovement {
+export interface InventoryTransactionWithRelations extends InventoryTransaction {
   product: Product
   warehouse: Warehouse
-  location?: Location | null
+  location?: Location | null // Optional: Specific Bin/Rack location
 }
 
 // Form schemas using Zod

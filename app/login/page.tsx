@@ -2,31 +2,76 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useAuth, UserRole } from "@/lib/auth-context"
+import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Factory, Lock, User, Key, Mail, Eye, EyeOff } from "lucide-react"
+import { Lock, Mail, Eye, EyeOff, AlertCircle } from "lucide-react"
+import Link from "next/link"
+import { toast } from "sonner"
 
 export default function LoginPage() {
-    const { login } = useAuth()
-    const [username, setUsername] = useState("")
+    const router = useRouter()
+    const supabase = createClient()
+
+    const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
-    const [role, setRole] = useState<UserRole | "">("")
     const [isLoading, setIsLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!username || !role) return
+        if (!email || !password) return
 
         setIsLoading(true)
-        // Simulate network delay
-        setTimeout(() => {
-            login(username, role as UserRole)
+        setError(null)
+
+        try {
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            })
+
+            if (error) {
+                setError(error.message)
+                toast.error("Login gagal: " + error.message)
+                return
+            }
+
+            // Check role and redirect accordingly
+            const { data: { user } } = await supabase.auth.getUser()
+            const role = user?.user_metadata?.role as string
+
+            toast.success("Login berhasil!")
+            router.refresh()
+
+            // Dynamic Redirect
+            switch (role) {
+                case "ROLE_CEO":
+                    router.push("/dashboard")
+                    break
+                case "ROLE_MANAGER":
+                    router.push("/manager")
+                    break
+                case "ROLE_ACCOUNTANT":
+                    router.push("/finance")
+                    break
+                case "ROLE_SALES":
+                    router.push("/sales")
+                    break
+                case "ROLE_STAFF":
+                    router.push("/staff")
+                    break
+                default:
+                    router.push("/dashboard")
+            }
+        } catch (err) {
+            console.error("Login Error:", err)
+            setError("Terjadi kesalahan sistem")
+        } finally {
             setIsLoading(false)
-        }, 800)
+        }
     }
 
     return (
@@ -43,15 +88,24 @@ export default function LoginPage() {
                 </div>
 
                 <form onSubmit={handleLogin} className="space-y-6 mt-8">
-                    {/* Username */}
+                    {/* Error Alert */}
+                    {error && (
+                        <div className="p-3 bg-red-50 border border-red-100 rounded-lg flex items-center gap-2 text-sm text-red-600 font-medium">
+                            <AlertCircle className="w-4 h-4" />
+                            {error}
+                        </div>
+                    )}
+
+                    {/* Email */}
                     <div className="space-y-2">
-                        <Label htmlFor="username" className="text-base font-bold">Nama Pengguna</Label>
+                        <Label htmlFor="email" className="text-base font-bold">Email</Label>
                         <Input
-                            id="username"
-                            placeholder="Masukkan nama Anda"
+                            id="email"
+                            type="email"
+                            placeholder="nama@perusahaan.com"
                             className="h-12 border-2 border-black rounded-xl text-base px-4 focus-visible:ring-0 focus-visible:border-black shadow-none"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             required
                         />
                     </div>
@@ -60,9 +114,11 @@ export default function LoginPage() {
                     <div className="space-y-2">
                         <div className="flex justify-between items-center">
                             <Label htmlFor="password" className="text-base font-bold">Kata Sandi</Label>
-                            <button type="button" className="text-sm font-bold underline decoration-2 underline-offset-4 text-black hover:opacity-70">
-                                Lupa Password?
-                            </button>
+                            <Link href="/forgot-password">
+                                <span className="text-sm font-bold underline decoration-2 underline-offset-4 text-black hover:opacity-70">
+                                    Lupa Password?
+                                </span>
+                            </Link>
                         </div>
                         <div className="relative">
                             <Input
@@ -72,7 +128,7 @@ export default function LoginPage() {
                                 className="h-12 border-2 border-black rounded-xl text-base px-4 pr-10 focus-visible:ring-0 focus-visible:border-black shadow-none"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                            // disabled // Removing disabled for better demo feel
+                                required
                             />
                             <button
                                 type="button"
@@ -82,26 +138,6 @@ export default function LoginPage() {
                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
                         </div>
-                    </div>
-
-                    {/* Role Selection (Kept for functionality, styled to match) */}
-                    <div className="space-y-2">
-                        <Label className="text-base font-bold">Pilih Jabatan</Label>
-                        <Select onValueChange={(val) => setRole(val as UserRole)} required>
-                            <SelectTrigger className="h-12 border-2 border-black rounded-xl text-base px-4 focus:ring-0 focus:border-black shadow-none">
-                                <SelectValue placeholder="Pilih peran departemen Anda" />
-                            </SelectTrigger>
-                            <SelectContent className="border-2 border-black rounded-xl shadow-none">
-                                <SelectGroup>
-                                    <SelectLabel>Pilih Peran</SelectLabel>
-                                    <SelectItem value="ROLE_CEO">Pemilik / CEO</SelectItem>
-                                    <SelectItem value="ROLE_MANAGER">Manajer Operasional</SelectItem>
-                                    <SelectItem value="ROLE_ACCOUNTANT">Akuntan & Keuangan</SelectItem>
-                                    <SelectItem value="ROLE_SALES">Sales & Marketing</SelectItem>
-                                    <SelectItem value="ROLE_STAFF">Staf</SelectItem>
-                                </SelectGroup>
-                            </SelectContent>
-                        </Select>
                     </div>
 
                     {/* Sign In Button */}
@@ -116,7 +152,7 @@ export default function LoginPage() {
 
                 <div className="text-center space-y-4">
                     <p className="font-medium">
-                        Belum punya akun? <a href="#" className="font-bold underline decoration-2 underline-offset-4">Daftar</a>
+                        Belum punya akun? <Link href="/signup" className="font-bold underline decoration-2 underline-offset-4">Daftar</Link>
                     </p>
 
                     <div className="relative py-2">
@@ -128,15 +164,19 @@ export default function LoginPage() {
                         </div>
                     </div>
 
-                    {/* Social Buttons */}
+                    {/* Social Buttons Stub */}
                     <div className="space-y-3">
-                        <Button variant="outline" className="w-full h-12 border-2 border-zinc-100 rounded-xl hover:bg-zinc-50 hover:border-zinc-200 text-base font-semibold justify-center gap-3 shadow-none">
+                        {/* Removed Google/Passkey specifically unless requested, to keep clean. 
+                             Or keep Google as placeholder action? 
+                             kept Google but made it functional-ish or toast stub 
+                         */}
+                        <Button
+                            variant="outline"
+                            className="w-full h-12 border-2 border-zinc-100 rounded-xl hover:bg-zinc-50 hover:border-zinc-200 text-base font-semibold justify-center gap-3 shadow-none"
+                            onClick={() => toast.info("Google Auth belum dikonfigurasi")}
+                        >
                             <span className="text-red-500 font-bold text-xl">G</span>
                             Lanjutkan dengan Google
-                        </Button>
-                        <Button variant="outline" className="w-full h-12 border-2 border-zinc-100 rounded-xl hover:bg-zinc-50 hover:border-zinc-200 text-base font-semibold justify-center gap-3 shadow-none">
-                            <Key className="w-5 h-5" />
-                            Gunakan Kunci Akses ERP
                         </Button>
                     </div>
                 </div>

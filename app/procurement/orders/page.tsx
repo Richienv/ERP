@@ -38,16 +38,26 @@ import {
     TabsTrigger,
 } from "@/components/ui/tabs"
 
-// Mock Orders Data
-const orders = [
-    { id: "PO-2024-001", vendor: "PT Textile Sejahtera", date: "2024-01-10", total: "Rp 45.000.000", status: "Draft", items: 5, eta: "-" },
-    { id: "PO-2024-002", vendor: "Zhejiang Fabrics Ltd", date: "2024-01-08", total: "Rp 128.500.000", status: "Sent", items: 12, eta: "2024-01-25" },
-    { id: "PO-2024-003", vendor: "Global Chemical Indo", date: "2024-01-05", total: "Rp 12.000.000", status: "Approved", items: 3, eta: "2024-01-12" },
-    { id: "PO-2024-004", vendor: "CV Benang Emas", date: "2024-01-02", total: "Rp 8.500.000", status: "Received", items: 8, eta: "Received" },
-    { id: "PO-2024-005", vendor: "Mitra Pack", date: "2023-12-28", total: "Rp 5.200.000", status: "Received", items: 20, eta: "Received" },
-]
+import { getAllPurchaseOrders } from "@/lib/actions/procurement"
+import { useEffect } from "react"
+import { formatIDR } from "@/lib/utils"
+
+// ...
 
 export default function PurchaseOrdersPage() {
+    const [orders, setOrders] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        async function fetchOrders() {
+            const data = await getAllPurchaseOrders()
+            // Map status to match Badge variants if needed, but for now direct is fine
+            setOrders(data)
+            setLoading(false)
+        }
+        fetchOrders()
+    }, [])
+
     return (
         <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans">
 
@@ -121,7 +131,7 @@ export default function PurchaseOrdersPage() {
                                                 {po.status}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right font-black">{po.total}</TableCell>
+                                        <TableCell className="text-right font-black">{formatIDR(po.total)}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-black hover:text-white rounded-full">

@@ -19,60 +19,38 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 
-export function RitchieActivityFeed() {
+
+interface RitchieActivityFeedProps {
+    data: any[]
+}
+
+export function RitchieActivityFeed({ data }: RitchieActivityFeedProps) {
     const [selectedItem, setSelectedItem] = useState<any>(null)
     const [isOpen, setIsOpen] = useState(false)
 
-    const activities = [
-        {
-            id: 1,
-            title: "Pesanan Produksi Baru #PO-8932",
-            desc: "Pesanan masuk untuk 500 lusin Kaos Polos.",
-            details: "Pesanan dari Client 'Distro Jaya'. Membutuhkan bahan Cotton Combed 30s. Deadline 14 hari lagi.",
-            time: "10m ago",
-            icon: FileText,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
-            type: "Order",
-            user: "Sales Admin"
-        },
-        {
-            id: 2,
-            title: "Stok Benang Polyester Rendah",
-            desc: "Stok di Gudang A tersisa < 150 kg.",
-            details: "Peringatan sistem otomatis. Minimum level adalah 200kg. Segera lakukan restock.",
-            time: "45m ago",
-            icon: AlertCircle,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
-            type: "Inventory",
-            user: "System AI"
-        },
-        {
-            id: 3,
-            title: "QC Lolos - Batch #B-992",
-            desc: "Hasil pewarnaan batch Cotton Combed 24s OK.",
-            details: "Lulus inspeksi kualitas level A. Siap untuk proses cutting.",
-            time: "2h ago",
-            icon: CheckCircle2,
-            color: "text-emerald-600",
-            bg: "bg-emerald-50",
-            type: "Quality",
-            user: "Budi Santoso (QC)"
-        },
-        {
-            id: 4,
-            title: "Karyawan Baru Terdaftar",
-            desc: "3 operator jahit baru ditambahkan ke HR.",
-            details: "Proses rekrutmen batch Januari selesai. Data biometrik perlu direkam.",
-            time: "5h ago",
-            icon: UserPlus,
-            color: "text-purple-600",
-            bg: "bg-purple-50",
-            type: "HR",
-            user: "Dewi (HR Manager)"
-        },
-    ]
+    // Map the incoming data to icons and proper display format if needed, OR assume data is already formatted by server action.
+    // The server action returns { id, type, title, desc, date, color, bg }.
+    // We need to map 'type' to Icon.
+
+    const getIcon = (type: string) => {
+        switch (type) {
+            case 'Order': return FileText
+            case 'Inventory': return AlertCircle
+            case 'Quality': return CheckCircle2
+            case 'HR': return UserPlus
+            default: return Clock
+        }
+    }
+
+    const activities = (data || []).map(item => ({
+        ...item,
+        title: item.title || item.message, // Fallback to message if title missing (server returns message)
+        desc: item.desc || (item.user ? `By ${item.user}` : item.type), // Synthesize desc if missing
+        icon: getIcon(item.type),
+        time: item.time ? new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+        details: item.message // reuse message for details
+    }))
+
 
     const handleItemClick = (item: any) => {
         setSelectedItem(item)

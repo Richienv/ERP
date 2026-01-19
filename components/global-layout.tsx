@@ -20,13 +20,13 @@ interface GlobalLayoutProps {
 
 export function GlobalLayout({ children }: GlobalLayoutProps) {
   const pathname = usePathname()
-  const isLoginPage = pathname === "/login"
+  const isAuthPage = ["/login", "/signup", "/forgot-password", "/auth/callback"].includes(pathname)
 
   return (
     <AuthProvider>
       <AIProvider>
         <RouteGuard>
-          {isLoginPage ? (
+          {isAuthPage ? (
             <main className="min-h-screen bg-zinc-100 dark:bg-zinc-950">
               {children}
               <Toaster />

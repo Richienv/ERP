@@ -13,10 +13,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { 
-  ArrowLeft, 
-  Edit, 
-  Trash2, 
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
   Package,
   TrendingUp,
   TrendingDown,
@@ -48,7 +48,7 @@ const getProductDetail = (id: string) => {
       updatedAt: "2024-01-20"
     }
   }
-  
+
   return mockProducts[id] || null
 }
 
@@ -80,13 +80,13 @@ const stockLocations = [
   }
 ]
 
-// Mock data untuk stock movements
-const stockMovements = [
+// Mock data untuk transactions
+const transactions = [
   {
     date: "2024-01-20",
     type: "IN",
-    reason: "Purchase Order",
-    reference: "PO-2024-001",
+    notes: "Purchase Order",
+    referenceId: "PO-2024-001",
     quantity: 10,
     warehouse: "Gudang Utama",
     unitCost: 8500000
@@ -94,8 +94,8 @@ const stockMovements = [
   {
     date: "2024-01-18",
     type: "OUT",
-    reason: "Sales Order",
-    reference: "SO-2024-005",
+    notes: "Sales Order",
+    referenceId: "SO-2024-005",
     quantity: -3,
     warehouse: "Gudang Utama",
     unitCost: 8500000
@@ -103,8 +103,8 @@ const stockMovements = [
   {
     date: "2024-01-15",
     type: "TRANSFER",
-    reason: "Internal Transfer",
-    reference: "TR-2024-003",
+    notes: "Internal Transfer",
+    referenceId: "TR-2024-003",
     quantity: -5,
     warehouse: "Gudang Utama",
     unitCost: 8500000
@@ -112,8 +112,8 @@ const stockMovements = [
   {
     date: "2024-01-15",
     type: "TRANSFER",
-    reason: "Internal Transfer",
-    reference: "TR-2024-003",
+    notes: "Internal Transfer",
+    referenceId: "TR-2024-003",
     quantity: 5,
     warehouse: "Gudang Cabang",
     unitCost: 8500000
@@ -279,31 +279,28 @@ export default function ProductDetailPage() {
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab("overview")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "overview"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
-            }`}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === "overview"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+              }`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab("stock")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "stock"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
-            }`}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === "stock"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+              }`}
           >
             Lokasi Stok
           </button>
           <button
             onClick={() => setActiveTab("movements")}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === "movements"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
-            }`}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${activeTab === "movements"
+              ? "border-primary text-primary"
+              : "border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300"
+              }`}
           >
             Riwayat Gerakan
           </button>
@@ -452,19 +449,18 @@ export default function ProductDetailPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockMovements.map((movement, index) => (
+                  {transactions.map((tx, index) => (
                     <TableRow key={index}>
-                      <TableCell>{new Date(movement.date).toLocaleDateString('id-ID')}</TableCell>
-                      <TableCell>{getMovementTypeBadge(movement.type)}</TableCell>
-                      <TableCell>{movement.reason}</TableCell>
-                      <TableCell className="font-mono text-sm">{movement.reference}</TableCell>
-                      <TableCell className={`text-center font-medium ${
-                        movement.quantity > 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {movement.quantity > 0 ? '+' : ''}{movement.quantity}
+                      <TableCell>{new Date(tx.date).toLocaleDateString('id-ID')}</TableCell>
+                      <TableCell>{getMovementTypeBadge(tx.type)}</TableCell>
+                      <TableCell>{tx.notes || '-'}</TableCell>
+                      <TableCell className="font-mono text-sm">{tx.referenceId || '-'}</TableCell>
+                      <TableCell className={`text-center font-medium ${tx.quantity > 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                        {tx.quantity > 0 ? '+' : ''}{tx.quantity}
                       </TableCell>
-                      <TableCell>{movement.warehouse}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(movement.unitCost)}</TableCell>
+                      <TableCell>{tx.warehouse}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(Number(tx.unitCost || 0))}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

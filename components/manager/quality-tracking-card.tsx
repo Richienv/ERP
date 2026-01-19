@@ -16,50 +16,23 @@ import {
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-export function QualityTrackingCard() {
+
+interface QualityTrackingCardProps {
+    data: any
+}
+
+export function QualityTrackingCard({ data }: QualityTrackingCardProps) {
     const [selectedItem, setSelectedItem] = useState<any>(null)
     const [isOpen, setIsOpen] = useState(false)
 
-    const inspections = [
-        {
-            id: 1,
-            batch: "Batch #4092",
-            material: "Cotton 30s",
-            time: "2m ago",
-            result: "Pass",
-            color: "text-emerald-500",
-            badgeColor: "bg-emerald-100 text-emerald-800",
-            defectType: "None",
-            inspector: "Sarah (QC Lead)"
-        },
-        {
-            id: 2,
-            batch: "Batch #4091",
-            material: "Dyeing Navy",
-            time: "15m ago",
-            result: "Fail",
-            color: "text-red-500",
-            badgeColor: "bg-red-100 text-red-800",
-            defectType: "Color Mismatch (Delta E > 2.0)",
-            inspector: "Budi (QC)"
-        },
-        {
-            id: 3,
-            batch: "Batch #4090",
-            material: "Cotton 24s",
-            time: "45m ago",
-            result: "Pass",
-            color: "text-emerald-500",
-            badgeColor: "bg-emerald-100 text-emerald-800",
-            defectType: "None",
-            inspector: "Sarah (QC Lead)"
-        },
-    ]
+    // data = { passRate, recentInspections: [] }
+    const inspections = (data?.recentInspections || []).map((item: any) => ({
+        ...item,
+        color: item.result === 'Pass' ? "text-emerald-600" : "text-red-600",
+        badgeColor: item.result === 'Pass' ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-red-50 text-red-700 border-red-200",
+    }))
 
-    const handleItemClick = (item: any) => {
-        setSelectedItem(item)
-        setIsOpen(true)
-    }
+    const passRate = data?.passRate || 0
 
     return (
         <div className="h-full group/card">
@@ -70,48 +43,66 @@ export function QualityTrackingCard() {
                         Quality Control
                     </CardTitle>
                     <Badge variant="outline" className="bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                        98.5% Pass
+                        {passRate}% Pass Rate
                     </Badge>
                 </CardHeader>
-                <CardContent className="p-4 flex-1 space-y-4">
-                    {/* Main Stats */}
-                    <div className="flex items-center justify-between p-3 bg-zinc-50 border border-black rounded-lg shadow-sm">
-                        <span className="text-sm font-bold text-muted-foreground">Today's Rate</span>
-                        <span className="text-3xl font-black text-emerald-600">98.5%</span>
+                <CardContent className="p-0 flex-1 flex flex-col">
+                    {/* Header Stats */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-zinc-50/50 border-b border-black/5">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase text-muted-foreground">Daily Target</span>
+                            <span className="text-sm font-black">100 Batch</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold uppercase text-muted-foreground">Defect Rate</span>
+                            <Badge className="h-5 bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold">1.5% (Low)</Badge>
+                        </div>
                     </div>
 
-                    {/* Recent Inspections List */}
-                    <div className="space-y-3">
-                        <p className="text-xs font-black uppercase text-muted-foreground tracking-wider">Latest Inspections</p>
-
-                        <div className="space-y-1">
-                            {inspections.map((item) => (
+                    {/* Inspections List */}
+                    <div className="flex-1 overflow-auto">
+                        <div className="divide-y divide-black/5">
+                            {inspections.map((item: any) => (
                                 <div
                                     key={item.id}
                                     onClick={() => handleItemClick(item)}
-                                    className="flex items-center justify-between p-2 border-b border-black/5 hover:bg-zinc-50 transition-colors cursor-pointer rounded-lg group/item"
+                                    className="p-3 hover:bg-zinc-50 transition-colors cursor-pointer group/item text-left block"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        {item.result === 'Pass' ?
-                                            <CheckCircle2 className={`h-4 w-4 ${item.color}`} /> :
-                                            <XCircle className={`h-4 w-4 ${item.color}`} />
-                                        }
+                                    <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`h-8 w-8 rounded flex items-center justify-center border border-black/10 ${item.result === 'Pass' ? 'bg-emerald-100/50' : 'bg-red-100/50'}`}>
+                                                {item.result === 'Pass' ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <FileWarning className="h-4 w-4 text-red-600" />}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-sm leading-none group-hover/item:text-emerald-600 transition-colors">{item.batch}</p>
+                                                <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{item.material}</p>
+                                            </div>
+                                        </div>
+                                        <Badge variant="outline" className={`text-[10px] shadow-sm ${item.badgeColor}`}>
+                                            {item.result}
+                                        </Badge>
+                                    </div>
+
+                                    <div className="pl-10 grid grid-cols-2 gap-2 mt-2">
                                         <div>
-                                            <p className="font-bold text-xs group-hover/item:text-emerald-600 transition-colors">{item.batch}</p>
-                                            <p className="text-[10px] text-muted-foreground">{item.material} • {item.time}</p>
+                                            <span className="text-[10px] text-muted-foreground font-bold uppercase block">Inspector</span>
+                                            <span className="text-xs font-medium text-foreground">{item.inspector}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-[10px] text-muted-foreground font-bold uppercase block">Details</span>
+                                            <span className="text-xs font-medium text-foreground truncate block">
+                                                {item.result === 'Pass' ? `Score: ${item.score}/100` : item.defectType}
+                                            </span>
                                         </div>
                                     </div>
-                                    <Badge variant="secondary" className={`text-[10px] ${item.badgeColor}`}>{item.result}</Badge>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    <div className="pt-2 flex items-center justify-center">
-                        <Link href="/manufacturing/quality">
-                            <div className="flex items-center text-xs font-bold text-muted-foreground hover:text-emerald-600 transition-colors cursor-pointer">
-                                View Full Report <ArrowRight className="ml-1 h-3 w-3" />
-                            </div>
+                    <div className="p-3 border-t border-black/10 bg-zinc-50 text-center">
+                        <Link href="/manufacturing/quality" className="text-xs font-bold text-muted-foreground hover:text-emerald-600 flex items-center justify-center transition-colors">
+                            View Full QC Report <ArrowRight className="ml-1 h-3 w-3" />
                         </Link>
                     </div>
                 </CardContent>
