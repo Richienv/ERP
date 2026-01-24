@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { DetailedMaterialTable } from "@/components/inventory/detailed-material-table"
 import { ProcurementInsights } from "@/components/inventory/procurement-insights"
 import { getMaterialGapAnalysis } from "@/app/actions/inventory"
+import { MaterialInputForm } from "@/components/inventory/material-input-form"
+// Cache Buster: Force Refresh 2
 
 export default async function InventoryPage() {
   const materialGapData = await getMaterialGapAnalysis()
@@ -18,17 +20,13 @@ export default async function InventoryPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase mb-2 flex items-center gap-3">
-              Manajemen Logistik <span className="bg-black text-white text-xs px-2 py-1 rounded-full animate-pulse flex items-center gap-1"><Siren className="h-3 w-3 text-red-500" /> LIVE MODE</span>
+              Manajemen Logistik
             </h1>
             <p className="text-muted-foreground font-bold text-lg">Command Center operasional gudang & pemantauan real-time.</p>
           </div>
+
           <div className="flex gap-2">
-            <Button variant="outline" className="h-10 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all">
-              <Settings2 className="mr-2 h-4 w-4" /> Config
-            </Button>
-            <Button className="h-10 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-black text-white font-black hover:bg-zinc-800 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] transition-all">
-              <Zap className="mr-2 h-4 w-4 text-yellow-400" /> Auto-Report
-            </Button>
+            <MaterialInputForm />
           </div>
         </div>
 

@@ -24,14 +24,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
 
+import { updateQuotationStatus } from "@/lib/actions/sales"
+import { toast } from "sonner"
+
 interface Quotation {
     id: string
     number: string
     customerName: string
     total: number
     status: string
-    quotationDate: string
-    validUntil: string
+    quotationDate: string // ISO String
+    validUntil: string // ISO String
     salesPerson: string
     notes: string
 }
@@ -41,6 +44,20 @@ interface QuotationKanbanProps {
 }
 
 export function QuotationKanban({ quotations }: QuotationKanbanProps) {
+
+    const handleStatusChange = async (id: string, newStatus: string) => {
+        try {
+            const result = await updateQuotationStatus(id, newStatus)
+            if (result.success) {
+                toast.success(`Quotation updated to ${newStatus}`)
+            } else {
+                toast.error("Failed to update status")
+            }
+        } catch (error) {
+            toast.error("Error updating status")
+        }
+    }
+
 
     // Calculate Win Probability based on status and age (Mock)
     const getWinProbability = (qt: Quotation) => {
@@ -97,7 +114,19 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                             <DropdownMenuItem>View Details</DropdownMenuItem>
                             <DropdownMenuItem>Edit Quote</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-blue-600 font-bold">Follow Up</DropdownMenuItem>
+                            <DropdownMenuLabel>Change Status</DropdownMenuLabel>
+                            {qt.status === 'DRAFT' && (
+                                <DropdownMenuItem onClick={() => handleStatusChange(qt.id, 'SENT')}>Mark as Sent</DropdownMenuItem>
+                            )}
+                            {qt.status === 'SENT' && (
+                                <>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(qt.id, 'ACCEPTED')} className="text-emerald-600 font-bold">Mark Accepted</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleStatusChange(qt.id, 'REJECTED')} className="text-red-600">Mark Rejected</DropdownMenuItem>
+                                </>
+                            )}
+                            {qt.status === 'ACCEPTED' && (
+                                <DropdownMenuItem className="text-purple-600 font-bold">Convert to PO</DropdownMenuItem>
+                            )}
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </div>

@@ -11,6 +11,7 @@ async function main() {
         // ==========================================
         await prisma.stockAuditItem.deleteMany({})
         await prisma.stockAudit.deleteMany({})
+        await prisma.stockAudit.deleteMany({})
         await prisma.workOrder.deleteMany({})
         await prisma.purchaseOrderItem.deleteMany({})
         await prisma.purchaseOrder.deleteMany({})
@@ -23,7 +24,14 @@ async function main() {
         await prisma.attendance.deleteMany({})
         await prisma.executiveSnapshot.deleteMany({})
         await prisma.employee.deleteMany({})
+        await prisma.user.deleteMany({}) // Clean users
         await prisma.warehouse.deleteMany({})
+        await prisma.systemRole.deleteMany({}) // Clean roles
+        await prisma.salesOrderItem.deleteMany({})
+        await prisma.salesOrder.deleteMany({})
+        await prisma.quotationItem.deleteMany({})
+        await prisma.quotation.deleteMany({})
+        await prisma.customer.deleteMany({})
 
         console.log("Cleaned up existing data.")
 
@@ -114,6 +122,37 @@ async function main() {
         const budi = employees.find(e => e.employeeId === 'E002')
         const dedi = employees.find(e => e.employeeId === 'E003')
 
+        // 5b. USERS & ROLES
+        // Create Standard Roles
+        await prisma.systemRole.createMany({
+            data: [
+                { code: 'ADMIN', name: 'System Administrator', description: 'Full access to all modules', permissions: ['ALL'], isSystem: true },
+                { code: 'RD_MANAGER', name: 'R&D Manager', description: 'Product Design, BOM, Costing', permissions: ['RD', 'PRODUCT_MASTER'] },
+                { code: 'PURCHASING', name: 'Purchasing Staff', description: 'PO, Vendor Management', permissions: ['PURCHASING', 'VENDOR_MASTER'] },
+                { code: 'PRODUCTION', name: 'Production Manager', description: 'Work Orders, Manufacturing Plan', permissions: ['PRODUCTION', 'MO'] },
+                { code: 'WAREHOUSE', name: 'Warehouse Staff', description: 'Receiving, Delivery, Stock', permissions: ['INVENTORY', 'STOCK_OPNAME'] },
+                { code: 'FINANCE', name: 'Finance Staff', description: 'Invoicing, Payments, Accounting', permissions: ['FINANCE', 'ACCOUNTING'] },
+                { code: 'SALES', name: 'Sales Staff', description: 'Quotations, Sales Orders, CRM', permissions: ['SALES', 'CRM'] },
+                { code: 'MD', name: 'Merchandiser', description: 'Lead for Makloon & Production Tracking', permissions: ['PRODUCTION', 'MAKLOON'] },
+            ]
+        })
+
+        const userRichie = await prisma.user.create({
+            data: {
+                name: 'Richie Novell',
+                email: 'richie@erp.com',
+                role: 'manager'
+            }
+        })
+
+        const userAndi = await prisma.user.create({
+            data: {
+                name: 'Andi Saputra',
+                email: 'andi@erp.com',
+                role: 'user'
+            }
+        })
+
         // Attendance (Lateness)
         const today = new Date(); today.setHours(0, 0, 0, 0)
         if (andi) await prisma.attendance.create({ data: { employeeId: andi.id, date: today, checkIn: new Date(new Date().setHours(8, 35)), isLate: true } })
@@ -166,6 +205,89 @@ async function main() {
                 activeHeadcount: 142,
                 totalProduction: 12500,
                 avgEfficiency: new Prisma.Decimal(88.5)
+            }
+        })
+
+        // ==========================================
+        // 9. SALES & CRM
+        // ==========================================
+        // Customers
+        const customerA = await prisma.customer.create({
+            data: {
+                code: 'CUST-001',
+                name: 'PT. Garment Indah Jaya',
+                email: 'purchasing@garmentindah.com',
+                phone: '021-555-0101',
+                customerType: 'COMPANY',
+                // status: 'ACTIVE', // Removed invalid
+                salesPersonId: userAndi.id // Assign sales person here
+            }
+        })
+
+        const customerB = await prisma.customer.create({
+            data: {
+                code: 'CUST-002',
+                name: 'CV. Tekstil Makmur',
+                email: 'owner@tekstilmakmur.com',
+                phone: '022-555-0202',
+                customerType: 'COMPANY',
+                // status: 'ACTIVE', // Removed invalid
+                salesPersonId: userAndi.id
+            }
+        })
+
+        // Quotations
+        await prisma.quotation.create({
+            data: {
+                number: 'QT-2411-001',
+                customerId: customerA.id,
+                status: 'SENT',
+                quotationDate: new Date(),
+                validUntil: new Date(new Date().setDate(new Date().getDate() + 7)),
+                subtotal: 45000000,
+                taxAmount: 4950000,
+                total: 49950000, // Correct field name
+                notes: 'Penawaran kain Cotton Combed 30s & 24s',
+                items: {
+                    create: [
+                        { productId: cotton.id, quantity: 100, unitPrice: 450000, lineTotal: 45000000 }
+                    ]
+                }
+            }
+        })
+
+        await prisma.quotation.create({
+            data: {
+                number: 'QT-2411-002',
+                customerId: customerB.id,
+                status: 'ACCEPTED', // Won Deal
+                quotationDate: new Date(new Date().setDate(new Date().getDate() - 2)),
+                validUntil: new Date(new Date().setDate(new Date().getDate() + 5)),
+                subtotal: 32000000,
+                taxAmount: 3520000,
+                total: 35520000, // Correct field name
+                notes: 'Siap kirim batch 1',
+                items: {
+                    create: [
+                        { productId: dyeRed.id, quantity: 50, unitPrice: 640000, lineTotal: 32000000 }
+                    ]
+                }
+            }
+        })
+
+        // Sales Orders
+        await prisma.salesOrder.create({
+            data: {
+                number: 'SO-2024-001',
+                customerId: customerA.id,
+                status: 'CONFIRMED',
+                orderDate: new Date(),
+                // description: 'Repeat order from QT-2411-001', // Removed invalid
+                items: {
+                    create: [
+                        { productId: cotton.id, quantity: 200, unitPrice: 450000, lineTotal: 90000000 }
+                    ]
+                }
             }
         })
 

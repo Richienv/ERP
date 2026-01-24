@@ -26,13 +26,20 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
+        // Pre-fetch Expense Account IDs to avoid relation filter in aggregate
+        const expenseAccounts = await prisma.gLAccount.findMany({
+            where: { type: 'EXPENSE' },
+            select: { id: true }
+        })
+        const expenseAccountIds = expenseAccounts.map(a => a.id)
+
         const [
             ar,
             overdueInvoices,
             ap,
             upcomingPayables,
             cashAccounts,
-            expenseLines,
+            expenseLines, // This will be the result of a simpler query
             revenue,
             expenses
         ] = await Promise.all([
@@ -86,7 +93,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             prisma.journalLine.aggregate({
                 _sum: { debit: true },
                 where: {
-                    account: { type: 'EXPENSE' },
+                    accountId: { in: expenseAccountIds },
                     entry: { date: { gte: thirtyDaysAgo } }
                 }
             }),

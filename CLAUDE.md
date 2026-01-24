@@ -13,6 +13,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Development Server
 The development server runs on http://localhost:3002 by default (port 3000 may be in use).
 
+### Testing Standards
+> **CRITICAL RULE**: Every time you perform a task or implementation, you **MUST** run a terminal test using `npx vitest` (or specific test file) to verify if the task passes or fails. You must visibly verify the output of your implementation before considering the task complete.
+
+- `npx vitest` - Run all tests
+- `npx vitest run path/to/file.test.ts` - Run a specific test file
+- Always create or update tests for new features/logic.
+
 ## Error Resolution Log (2025-11-04)
 
 ### Issues Fixed:

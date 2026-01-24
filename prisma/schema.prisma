@@ -942,6 +942,7 @@ model PurchaseOrderItem {
   productId       String @db.Uuid
 
   quantity   Int
+  receivedQty Int @default(0)
   unitPrice  Decimal @db.Decimal(15, 2)
   totalPrice Decimal @db.Decimal(15, 2)
 
@@ -1064,6 +1065,7 @@ model EmployeeTask {
   type       TaskType
   status     TaskStatus @default(PENDING)
   priority   Priority   @default(MEDIUM)
+  notes      String?    // For rejection reasons or extra details
   
   // Polymorphic-ish reference to business docs
   relatedId  String?  // e.g. PO ID, Batch ID (Legacy/Fallback)
@@ -1090,6 +1092,7 @@ model EmployeeTask {
 
 enum TaskType {
   PO_REVIEW
+  PURCHASE_REQUEST
   PRODUCTION
   LOGISTICS
   SALES
@@ -1103,6 +1106,7 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   BLOCKED
+  REJECTED
 }
 
 // ================================

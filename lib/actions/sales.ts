@@ -10,7 +10,7 @@ export interface SalesStats {
     recentOrders: any[]
 }
 
-import { unstable_cache } from "next/cache"
+import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
 
 export const getSalesStats = unstable_cache(
     async (): Promise<SalesStats> => {
@@ -76,10 +76,116 @@ export const getSalesStats = unstable_cache(
 export async function getAllCustomers() {
     try {
         return await prisma.customer.findMany({
-            where: { isActive: true },
+            // where: { status: 'ACTIVE' }, // Status field doesn't exist yet
             orderBy: { name: 'asc' }
         })
     } catch (error) {
         return []
+    }
+}
+
+// 1. GET ALL QUOTATIONS
+export async function getQuotations(filters?: { status?: string, search?: string }) {
+    try {
+        const whereInput: any = {}
+
+        if (filters?.status && filters.status !== 'all') {
+            whereInput.status = filters.status.toUpperCase() // Ensure Upper match Enum
+        }
+
+        if (filters?.search) {
+            whereInput.OR = [
+                { number: { contains: filters.search, mode: 'insensitive' } },
+                { customer: { name: { contains: filters.search, mode: 'insensitive' } } }
+            ]
+        }
+
+        const quotations = await prisma.quotation.findMany({
+            where: whereInput,
+            include: {
+                customer: {
+                    include: {
+                        salesPerson: true // Fetch via Customer
+                    }
+                },
+                _count: {
+                    select: { items: true }
+                }
+            },
+            orderBy: { quotationDate: 'desc' }
+        })
+
+        return quotations.map(q => ({
+            id: q.id,
+            number: q.number,
+            customerId: q.customerId,
+            customerName: q.customer?.name || "Unknown Customer",
+            customerRef: null,
+            quotationDate: q.quotationDate.toISOString(),
+            validUntil: q.validUntil.toISOString(),
+            status: q.status,
+            subtotal: Number(q.subtotal),
+            taxAmount: Number(q.taxAmount),
+            discountAmount: 0,
+            total: Number(q.total), // Correct field: total
+            itemCount: q._count.items,
+            salesPerson: q.customer?.salesPerson?.name || "Unassigned", // Map from Customer
+            notes: q.notes
+        }))
+
+    } catch (error) {
+        console.error("Error fetching quotations:", error)
+        return []
+    }
+}
+
+// 2. CREATE NEW QUOTATION
+export async function createQuotation(data: any) {
+    try {
+        console.log("Creating Quotation:", data)
+
+        // Customer Logic (Mock: Find first or create if not exists - Simplified for now)
+        let customer = await prisma.customer.findFirst()
+        if (!customer) throw new Error("No customers found. Please seed.")
+
+        // Generate Number
+        const count = await prisma.quotation.count()
+        const number = `QT-${new Date().getFullYear()}-${String(count + 1).padStart(3, '0')}`
+
+        const quote = await prisma.quotation.create({
+            data: {
+                number: number,
+                customerId: customer.id,
+                status: 'DRAFT',
+                quotationDate: new Date(),
+                validUntil: new Date(new Date().setDate(new Date().getDate() + 14)), // 2 weeks validity
+                subtotal: 0,
+                taxAmount: 0,
+                total: 0, // Correct field
+                notes: data.notes || "Draft Quotation"
+            }
+        })
+
+        revalidateTag('dashboard-sales-stats')
+        revalidatePath('/sales/quotations')
+        return { success: true, message: "Quotation created", id: quote.id }
+
+    } catch (error) {
+        console.error("Error creating quotation:", error)
+        return { success: false, error: "Failed to create quotation" }
+    }
+}
+
+// 3. UPDATE STATUS (Kanban Drag & Drop)
+export async function updateQuotationStatus(id: string, newStatus: string) {
+    try {
+        await prisma.quotation.update({
+            where: { id },
+            data: { status: newStatus as any }
+        })
+        revalidateTag('dashboard-sales-stats')
+        return { success: true }
+    } catch (error) {
+        return { success: false, error: "Failed to update status" }
     }
 }

@@ -53,30 +53,30 @@ export function SalesPipelineWidget() {
 
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-black pt-6">
                     <div className="bg-white border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-4 rounded-lg">
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mb-2 flex items-center gap-2">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mb-2 flex items-center gap-2">
                             <div className="h-2 w-2 bg-orange-500 rounded-full border border-black"></div>
                             Backlog Produksi
-                        </p>
+                        </div>
                         <div className="flex items-center justify-between">
                             <span className="text-2xl font-black">12 Orders</span>
                             <span className="text-orange-600 font-bold text-xs uppercase border border-orange-200 bg-orange-50 px-2 py-1 rounded">Perlu Jadwal</span>
                         </div>
                     </div>
                     <div className="bg-white border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-4 rounded-lg">
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mb-2 flex items-center gap-2">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mb-2 flex items-center gap-2">
                             <div className="h-2 w-2 bg-emerald-500 rounded-full border border-black"></div>
                             Siap Kirim
-                        </p>
+                        </div>
                         <div className="flex items-center justify-between">
                             <span className="text-2xl font-black">8 Orders</span>
                             <span className="text-emerald-600 font-bold text-xs uppercase border border-emerald-200 bg-emerald-50 px-2 py-1 rounded">Menunggu DO</span>
                         </div>
                     </div>
                     <div className="bg-white border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-4 rounded-lg">
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mb-2 flex items-center gap-2">
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mb-2 flex items-center gap-2">
                             <div className="h-2 w-2 bg-red-600 rounded-full border border-black"></div>
                             Risk Revenue
-                        </p>
+                        </div>
                         <div className="flex items-center justify-between">
                             <span className="text-2xl font-black">Rp 350jt</span>
                             <span className="text-red-600 font-bold text-xs uppercase border border-red-200 bg-red-50 px-2 py-1 rounded">No Invoice</span>

@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   Truck
 } from "lucide-react"
-import { BentoLauncher, BentoLauncherItem } from "@/components/dashboard/bento-launcher"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -21,31 +20,7 @@ import { Progress } from "@/components/ui/progress"
 import { getProcurementStats } from "@/lib/actions/procurement"
 import { formatIDR } from "@/lib/utils"
 import Link from "next/link"
-
-// Sub-modules
-const procurementModules: BentoLauncherItem[] = [
-  {
-    title: "Pemasok (Vendor)",
-    href: "/procurement/vendors",
-    icon: Users,
-    color: "text-blue-600",
-    description: "Database relasi & performa supplier"
-  },
-  {
-    title: "Pesanan (PO)",
-    href: "/procurement/orders",
-    icon: ShoppingCart,
-    color: "text-emerald-600",
-    description: "Status order & pembayaran"
-  },
-  {
-    title: "Permintaan (PR)",
-    href: "/procurement/requests",
-    icon: FileText,
-    color: "text-amber-600",
-    description: "Inbox persetujuan pembelian"
-  },
-]
+import { ProcurementModules } from "@/components/procurement/procurement-modules"
 
 export default async function ProcurementPage() {
   const stats = await getProcurementStats()
@@ -156,14 +131,7 @@ export default async function ProcurementPage() {
         </section>
 
         {/* Quick Launch */}
-        <section className="bg-zinc-50 p-6 rounded-3xl border border-black/10">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
-              <ArrowUpRight className="h-5 w-5" /> Module Shortcuts
-            </h2>
-          </div>
-          <BentoLauncher items={procurementModules} columns={3} />
-        </section>
+        <ProcurementModules />
 
         {/* Activity Stream */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-8">

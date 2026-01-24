@@ -2,7 +2,7 @@
 'use server'
 
 import { prisma } from "@/lib/prisma"
-import { unstable_cache } from "next/cache"
+import { unstable_cache, revalidateTag, revalidatePath } from "next/cache"
 
 export const getWarehouses = unstable_cache(
     async () => {
@@ -69,38 +69,46 @@ export const getInventoryKPIs = unstable_cache(
 
 export const getMaterialGapAnalysis = unstable_cache(
     async () => {
-        const products = await prisma.product.findMany({
-            where: { isActive: true },
-            include: {
-                stockLevels: {
-                    include: { warehouse: true }
-                },
-                category: true,
-                purchaseOrderItems: {
-                    where: {
-                        purchaseOrder: { status: { in: ['OPEN', 'PARTIAL'] } }
+        const [products, pendingTasks] = await Promise.all([
+            prisma.product.findMany({
+                where: { isActive: true },
+                include: {
+                    stockLevels: {
+                        include: { warehouse: true }
                     },
-                    include: {
-                        purchaseOrder: { select: { id: true, number: true, expectedDate: true } }
-                    }
-                },
-                // 3. Supplier Intelligence
-                supplierItems: {
-                    where: { isPreferred: true }, // Get preferred vendor
-                    include: { supplier: { select: { name: true, contactName: true } } },
-                    take: 1
-                },
-                // 4. Alternatives
-                alternativeProduct: { select: { id: true, name: true, code: true } },
-                // 5. BOM & Demand (Critical for loop)
-                BOMItem: {
-                    include: {
-                        bom: {
-                            include: {
-                                product: {
-                                    include: {
-                                        workOrders: {
-                                            where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
+                    category: true,
+                    purchaseOrderItems: {
+                        where: {
+                            purchaseOrder: { status: { in: ['OPEN', 'PARTIAL'] } }
+                        },
+                        include: {
+                            purchaseOrder: {
+                                include: { supplier: true }
+                            }
+                        },
+                        orderBy: {
+                            purchaseOrder: { expectedDate: 'asc' }
+                        }
+                    },
+                    supplierItems: {
+                        where: { isPreferred: true },
+                        include: { supplier: { select: { name: true, contactName: true } } },
+                        take: 1
+                    },
+                    workOrders: {
+                        where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
+                    },
+                    alternativeProduct: true,
+                    // 5. BOM & Demand (Critical for loop)
+                    BOMItem: {
+                        include: {
+                            bom: {
+                                include: {
+                                    product: {
+                                        include: {
+                                            workOrders: {
+                                                where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
+                                            }
                                         }
                                     }
                                 }
@@ -108,8 +116,14 @@ export const getMaterialGapAnalysis = unstable_cache(
                         }
                     }
                 }
-            }
-        })
+            }),
+            prisma.employeeTask.findMany({
+                where: { type: 'PURCHASE_REQUEST', status: 'PENDING' },
+                select: { relatedId: true }
+            })
+        ])
+
+        const pendingSet = new Set(pendingTasks.map(t => t.relatedId))
 
         return products.map(p => {
             const currentStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
@@ -152,15 +166,28 @@ export const getMaterialGapAnalysis = unstable_cache(
             // How many days until we run out?
             const stockEndsInDays = burnRate > 0 ? (currentStock / burnRate) : 999
 
-            // Reorder Point = (Average Daily Usage * Lead Time) + Safety Stock
-            const reorderPoint = (burnRate * leadTime) + safetyStock
+            // Reorder Point = Max of ((Average Daily Usage * Lead Time) + Safety Stock) OR MinStock
+            const calculatedROP = (burnRate * leadTime) + safetyStock
+            const reorderPoint = Math.max(calculatedROP, p.minStock || 0)
 
-            // Gap = (Demand + Reorder Point) - (Current Stock + Incoming)
-            // If we have immediate WO demand, that increases urgency
+            // Gap = (Demand + Reorder Point) - (Current Stock)
+            // WE EXCLUDE INCOMING QTY from Gap calculation to ensure "Receive Goods" button stays visible until physically received.
             const totalProjectedNeed = woDemandQty + reorderPoint
-            const totalProjectedStock = currentStock + incomingQty
+            const totalProjectedStock = currentStock // + incomingQty (removed to keep gap > 0 until receipt)
 
             const gap = totalProjectedNeed - totalProjectedStock
+
+            // Map all open POs for the dialog
+            const openPOs = p.purchaseOrderItems.map(poi => ({
+                id: poi.purchaseOrder.id,
+                number: poi.purchaseOrder.number,
+                supplierName: poi.purchaseOrder.supplier.name,
+                expectedDate: poi.purchaseOrder.expectedDate,
+                orderedQty: poi.quantity,
+                receivedQty: (poi as any).receivedQty || 0,
+                remainingQty: poi.quantity - ((poi as any).receivedQty || 0),
+                unitPrice: Number(poi.unitPrice)
+            })).filter(po => po.remainingQty > 0)
 
             // Status Logic
             let status = 'OK'
@@ -180,7 +207,11 @@ export const getMaterialGapAnalysis = unstable_cache(
                 // Stock
                 currentStock,
                 incomingQty,
-                warehouses: p.stockLevels.map(sl => ({ name: sl.warehouse.name, qty: sl.quantity })),
+                warehouses: p.stockLevels.map(sl => ({
+                    id: sl.warehouse.id,
+                    name: sl.warehouse.name,
+                    qty: sl.quantity
+                })),
 
                 // Planning
                 minStock: p.minStock,
@@ -192,6 +223,7 @@ export const getMaterialGapAnalysis = unstable_cache(
 
                 // Demand & Status
                 status,
+                isPendingRequest: pendingSet.has(p.id),
                 gap: gap > 0 ? gap : 0,
                 demandSources: activeWOs, // Detailed breakdown
 
@@ -215,13 +247,219 @@ export const getMaterialGapAnalysis = unstable_cache(
                 alternative: p.alternativeProduct ? {
                     name: p.alternativeProduct.name,
                     code: p.alternativeProduct.code
-                } : null
+                } : null,
+
+                // Open POs for Goods Receipt
+                openPOs
             }
         })
     },
-    ['material-gap-analysis-v3'],
-    { revalidate: 60, tags: ['inventory', 'gap-analysis'] }
+    ['material-gap-analysis'],
+    { revalidate: 30, tags: ['inventory', 'gap-analysis'] }
 )
+
+// ==========================================
+// GOODS RECEIPT ACTION
+// ==========================================
+export async function receiveGoodsFromPO(data: {
+    poId: string,
+    itemId: string,
+    warehouseId: string,
+    receivedQty: number
+}) {
+    try {
+        console.log("Receiving Goods:", data)
+
+        // 1. Get PO Item details
+        const po = await prisma.purchaseOrder.findUnique({
+            where: { id: data.poId },
+            include: { items: true }
+        })
+
+        if (!po) throw new Error("PO Not Found")
+
+        const poItem = po.items.find(i => i.productId === data.itemId)
+        if (!poItem) throw new Error("Item not found in this PO")
+
+        // 2. Validate/Fetch Warehouse
+        let targetWarehouseId = data.warehouseId;
+
+        // specific check if ID is reliable, otherwise fallback
+        let warehouseExists = null;
+        if (targetWarehouseId && targetWarehouseId.length > 10) {
+            try {
+                warehouseExists = await prisma.warehouse.findUnique({ where: { id: targetWarehouseId } })
+            } catch (e) {
+                // Ignore invalid UUID error
+            }
+        }
+
+        if (!warehouseExists) {
+            console.warn(`Warehouse ID ${targetWarehouseId} not found or invalid, falling back to default.`)
+            const defaultWarehouse = await prisma.warehouse.findFirst()
+            if (!defaultWarehouse) throw new Error("No warehouses found in system.")
+            targetWarehouseId = defaultWarehouse.id
+        }
+
+        // 2. Perform all updates in a transaction for data integrity & speed
+        await prisma.$transaction(async (tx) => {
+            // A. Create Transaction Record
+            await tx.inventoryTransaction.create({
+                data: {
+                    productId: data.itemId,
+                    warehouseId: targetWarehouseId,
+                    type: 'PO_RECEIVE', // Correct enum value from schema
+                    quantity: data.receivedQty,
+                    notes: `Received from PO ${po.number}`,
+                    performedBy: 'System User'
+                }
+            })
+
+            // B. Update Stock Level (Upsert)
+            const existingLevel = await tx.stockLevel.findFirst({
+                where: { productId: data.itemId, warehouseId: targetWarehouseId }
+            })
+
+            if (existingLevel) {
+                await tx.stockLevel.update({
+                    where: { id: existingLevel.id },
+                    data: {
+                        quantity: { increment: data.receivedQty },
+                        availableQty: { increment: data.receivedQty }
+                    }
+                })
+            } else {
+                await tx.stockLevel.create({
+                    data: {
+                        productId: data.itemId,
+                        warehouseId: targetWarehouseId,
+                        quantity: data.receivedQty,
+                        availableQty: data.receivedQty
+                    }
+                })
+            }
+
+            // C. Update PO Item
+            await tx.purchaseOrderItem.update({
+                where: { id: poItem.id },
+                data: { receivedQty: { increment: data.receivedQty } }
+            })
+
+            // D. Check PO Completion
+            const updatedPO = await tx.purchaseOrder.findUnique({
+                where: { id: data.poId },
+                include: { items: true }
+            })
+
+            if (updatedPO) {
+                const allReceived = updatedPO.items.every(i => i.receivedQty >= i.quantity)
+                const newStatus = allReceived ? 'RECEIVED' : 'PARTIAL'
+                if (updatedPO.status !== newStatus && updatedPO.status !== 'RECEIVED') {
+                    await tx.purchaseOrder.update({
+                        where: { id: data.poId },
+                        data: { status: newStatus }
+                    })
+                }
+            }
+        }, {
+            maxWait: 5000, // 5s max wait to get a connection
+            timeout: 20000 // 20s for the transaction itself (fixes P2028)
+        })
+
+        // Optimized: Removed blocking revalidatePath.
+        // The Client already updates optimistically. 
+        // Background revalidation or next visit will sync data.
+        // revalidatePath('/inventory')
+
+        return { success: true, message: `Successfully received ${data.receivedQty} units.` }
+
+        return { success: true, message: `Successfully received ${data.receivedQty} units.` }
+
+    } catch (error) {
+        console.error("Error receiving goods:", error)
+        return { success: false, error: "Failed to receive goods" }
+    }
+}
+
+// ==========================================
+// PURCHASE REQUEST ACTION
+// ==========================================
+export async function requestPurchase(data: {
+    itemId: string,
+    quantity: number,
+    notes?: string
+}) {
+    try {
+        console.log("Requesting Purchase:", data)
+
+        // 1. Check for Duplicate Pending Requests
+        const existingTask = await prisma.employeeTask.findFirst({
+            where: {
+                relatedId: data.itemId,
+                type: 'PURCHASE_REQUEST',
+                status: 'PENDING'
+            }
+        })
+
+        if (existingTask) {
+            console.warn("Duplicate request detected for item:", data.itemId)
+            return {
+                success: false,
+                message: "A pending request for this item already exists.",
+                alreadyPending: true
+            }
+        }
+
+        // 2. Parallel Fetching: Product and Assignee
+        const [product, assignee] = await Promise.all([
+            prisma.product.findUnique({
+                where: { id: data.itemId },
+                include: { supplierItems: { include: { supplier: true } } }
+            }),
+            prisma.employee.findFirst({
+                where: { OR: [{ firstName: { contains: 'Richie', mode: 'insensitive' } }, { position: 'CEO' }] }
+            })
+        ])
+
+        if (!product) throw new Error("Product not found")
+
+        // User Fallback (if Richie not found, get any active)
+        const finalAssignee = assignee || await prisma.employee.findFirst({ where: { status: 'ACTIVE' } })
+        if (!finalAssignee) throw new Error("No active employee found")
+
+        // 3. Create Employee Task (PENDING)
+        // We do NOT create a PO here anymore. The procurement team will do that.
+        const newTask = await prisma.employeeTask.create({
+            data: {
+                employeeId: finalAssignee.id,
+                title: `Purchase Request: ${product.name}`,
+                type: 'PURCHASE_REQUEST',
+                priority: 'HIGH',
+                status: 'PENDING',
+                relatedId: data.itemId,
+                notes: data.notes || `Requested by System (Gap Analysis)`
+            }
+        })
+
+        // Revalidate cache
+        revalidateTag('inventory')
+        revalidateTag('procurement')
+
+        console.log("Purchase Request Task Created:", newTask)
+
+        return {
+            success: true,
+            message: "Request sent to Procurement Team",
+            pendingTask: newTask
+        }
+
+    } catch (error) {
+        console.error("Error requesting purchase:", error)
+        return { success: false, error: "Failed to request purchase" }
+    }
+}
+
+
 
 export const getProcurementInsights = unstable_cache(
     async () => {
@@ -342,4 +580,39 @@ export const getProcurementInsights = unstable_cache(
     },
     ['procurement-insights'],
     { revalidate: 60, tags: ['inventory', 'procurement'] }
+)
+
+export const getProductsForKanban = unstable_cache(
+    async () => {
+        const products = await prisma.product.findMany({
+            where: { isActive: true },
+            include: {
+                category: true,
+                stockLevels: true
+            }
+        })
+
+        return products.map(p => {
+            const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+
+            // Determine Status
+            let status = 'IN_STOCK'
+            if (totalStock === 0) status = 'OUT_OF_STOCK'
+            else if (totalStock <= p.minStock) status = 'LOW_STOCK'
+
+            return {
+                id: p.id,
+                code: p.code,
+                name: p.name,
+                category: p.category?.name || 'Uncategorized',
+                unit: p.unit,
+                minStock: p.minStock,
+                totalStock: totalStock,
+                status: status,
+                image: '/placeholder.png' // Mock if needed
+            }
+        })
+    },
+    ['inventory-kanban'],
+    { revalidate: 60, tags: ['inventory', 'products'] }
 )
