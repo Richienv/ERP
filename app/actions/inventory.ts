@@ -27,7 +27,10 @@ export const getWarehouses = unstable_cache(
             status: 'Active',
             totalValue: 0, // Calculate if needed
             activePOs: 0,
-            pendingTasks: 0
+            pendingTasks: 0,
+            items: w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0),
+            staff: 15, // Mock
+            phone: '+62 812-3456-7890' // Mock
         }))
     },
     ['warehouses-list'],
