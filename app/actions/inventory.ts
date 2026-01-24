@@ -616,3 +616,48 @@ export const getProductsForKanban = unstable_cache(
     ['inventory-kanban'],
     { revalidate: 60, tags: ['inventory', 'products'] }
 )
+
+export const getWarehouseDetails = unstable_cache(
+    async (id: string) => {
+        const warehouse = await prisma.warehouse.findUnique({
+            where: { id },
+            include: {
+                stockLevels: {
+                    include: {
+                        product: {
+                            include: { category: true }
+                        }
+                    }
+                }
+            }
+        })
+
+        if (!warehouse) return null
+
+        // Group by Category
+        const categoryMap = new Map<string, { id: string, name: string, itemCount: number, stockCount: number, value: number }>()
+
+        warehouse.stockLevels.forEach(sl => {
+            const catName = sl.product.category?.name || 'Uncategorized'
+            const catId = sl.product.category?.id || 'uncat'
+
+            const existing = categoryMap.get(catId) || { id: catId, name: catName, itemCount: 0, stockCount: 0, value: 0 }
+
+            existing.itemCount += 1
+            existing.stockCount += sl.quantity
+            existing.value += sl.quantity * Number(sl.product.costPrice)
+
+            categoryMap.set(catId, existing)
+        })
+
+        return {
+            id: warehouse.id,
+            name: warehouse.name,
+            code: warehouse.code,
+            address: warehouse.city || warehouse.address || '',
+            categories: Array.from(categoryMap.values())
+        }
+    },
+    ['warehouse-details'],
+    { revalidate: 60, tags: ['inventory', 'warehouse-details'] }
+)
