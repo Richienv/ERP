@@ -18,9 +18,16 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
         const saved = localStorage.getItem("erp_active_modules");
         if (saved) {
             try {
-                setActiveModulesState(JSON.parse(saved));
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed)) {
+                    setActiveModulesState(parsed);
+                } else {
+                    console.warn("Invalid config format in localStorage, resetting.");
+                    localStorage.removeItem("erp_active_modules");
+                }
             } catch (e) {
                 console.error("Failed to parse active modules", e);
+                localStorage.removeItem("erp_active_modules");
             }
         }
     }, []);
@@ -36,11 +43,12 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
 
     const isModuleActive = (moduleName: string) => {
         if (!activeModules) return true; // Show all if no config
+        if (!Array.isArray(activeModules)) return true; // Safety fallback
         // Check if any active module string contains the moduleName (fuzzy match for simplicity)
         // e.g. "MOD_SALES" enables "Penjualan & CRM" if we map it correctly.
         // Better: We define a mapping in the Sidebar. 
         // For now, let's assume we pass a key like "SALES" and check if it exists in the active set.
-        return activeModules.some(m => m.includes(moduleName) || moduleName.includes(m));
+        return activeModules.some(m => typeof m === 'string' && (m.includes(moduleName) || moduleName.includes(m)));
     };
 
     return (
