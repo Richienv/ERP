@@ -227,7 +227,7 @@
       align(right)[#text(fill: brand-colors.text-light)[Tax (#tax-rate%):]],
       align(right)[#format-currency(tax-amount, currency: currency)],
       
-      grid.cell(colspan: 2, #line(length: 100%, stroke: 1pt + brand-colors.border)),
+      grid.cell(colspan: 2, line(length: 100%, stroke: 1pt + brand-colors.border)),
       
       align(right)[#text(size: 12pt, weight: "bold", fill: brand-colors.primary)[Total:]],
       align(right)[#text(size: 14pt, weight: "bold", fill: brand-colors.primary)[#format-currency(total, currency: currency)]]

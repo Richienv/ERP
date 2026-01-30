@@ -3,10 +3,11 @@ import { spawn } from "child_process"
 import path from "path"
 import fs from "fs/promises"
 import crypto from "crypto"
+import os from "os"
 
 const TYPST_BINARY = path.join(process.cwd(), "bin", "typst")
 const TEMPLATE_DIR = path.join(process.cwd(), "templates")
-const CACHE_DIR = path.join(process.cwd(), "tmp", "typst-cache")
+const CACHE_DIR = path.join(os.tmpdir(), "erp-typst-cache")
 
 export class DocumentService {
 
