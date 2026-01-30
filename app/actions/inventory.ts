@@ -899,3 +899,115 @@ export async function updateWarehouse(id: string, data: { name: string, code: st
         return { success: false, error: e.message || "Database Error" }
     }
 }
+
+// REAL IMPLEMENTATION
+export async function submitSpotAudit(data: {
+    warehouseId: string;
+    productId: string;
+    actualQty: number;
+    auditorName: string;
+    notes?: string;
+}) {
+    try {
+        const { warehouseId, productId, actualQty, auditorName, notes } = data;
+
+        // 1. Get current system stock (Location-agnostic / Default Location)
+        const existingStock = await prisma.stockLevel.findFirst({
+            where: { productId, warehouseId, locationId: null }
+        });
+
+        const systemQty = existingStock?.quantity || 0;
+        const discrepancy = actualQty - systemQty;
+
+        if (discrepancy !== 0) {
+            if (existingStock) {
+                await prisma.stockLevel.update({
+                    where: { id: existingStock.id },
+                    data: { quantity: actualQty }
+                });
+            } else {
+                await prisma.stockLevel.create({
+                    data: {
+                        productId,
+                        warehouseId,
+                        quantity: actualQty,
+                        locationId: null
+                    }
+                });
+            }
+
+            // 3. Record Transaction
+            await prisma.inventoryTransaction.create({
+                data: {
+                    type: 'ADJUSTMENT', // Fixed Enum
+                    quantity: discrepancy, // Signed value (+ for IN, - for OUT)
+                    productId,
+                    warehouseId,
+                    referenceId: `AUDIT-${Date.now()}`,
+                    notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
+                }
+            });
+
+            revalidateTag('inventory')
+            revalidateTag('warehouse-details')
+            // revalidatePath('/inventory/audit') // Optional: Explicitly refresh the calling page
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        console.error("Error submitting spot audit:", error);
+        return { success: false, error: "Failed to submit audit" };
+    }
+}
+
+export async function getRecentAudits() {
+    try {
+        const transactions = await prisma.inventoryTransaction.findMany({
+            where: {
+                referenceId: { startsWith: 'AUDIT-' }
+            },
+            take: 20,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                product: { include: { category: true } },
+                warehouse: true
+            }
+        });
+
+        return transactions.map(tx => {
+            // Parse notes for System/Actual qty if available
+            // Format: "Spot Audit by {name}. System: {sys}, Actual: {act}."
+            let auditor = 'System';
+            let systemQty = 0;
+            let actualQty = 0;
+
+            if (tx.notes) {
+                const auditorMatch = tx.notes.match(/Spot Audit by (.*?)\./);
+                if (auditorMatch) auditor = auditorMatch[1];
+
+                const sysMatch = tx.notes.match(/System:\s*(\d+)/);
+                if (sysMatch) systemQty = parseInt(sysMatch[1]);
+
+                const actMatch = tx.notes.match(/Actual:\s*(\d+)/);
+                if (actMatch) actualQty = parseInt(actMatch[1]);
+            }
+
+            return {
+                id: tx.id,
+                productName: tx.product.name,
+                warehouse: tx.warehouse.name,
+                category: tx.product.category?.name || 'Uncategorized',
+                systemQty,
+                actualQty,
+                auditor,
+                date: tx.createdAt,
+                status: (actualQty === systemQty) ? 'MATCH' : 'MISMATCH'
+            };
+        });
+
+    } catch (error) {
+        console.error("Error fetching audits:", error);
+        return [];
+    }
+}
