@@ -1,4 +1,3 @@
-"use client";
 
 import {
   ArrowUpRight,
@@ -6,145 +5,160 @@ import {
   ArrowRightLeft,
   Calendar,
   Filter,
-  Download
+  Activity
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ManualMovementDialog } from "@/components/inventory/manual-movement-dialog";
+import { getStockMovements, getProductsForKanban, getWarehouses } from "@/app/actions/inventory";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
-const MOVEMENTS = [
-  { id: "MV-001", type: "IN", item: "Denim Fabric 13oz", qty: 500, unit: "Meters", from: "Supplier (PT. Tekstil Jaya)", to: "Gudang A - Rack 04", date: "Today, 10:30", user: "Budi S." },
-  { id: "MV-002", type: "OUT", item: "YKK Zippers", qty: 200, unit: "Pcs", from: "Gudang A", to: "Production Line 1", date: "Today, 09:15", user: "Siti A." },
-  { id: "MV-003", type: "TRANSFER", item: "Chino Pants (WIP)", qty: 100, unit: "Pcs", from: "Sewing", to: "Finishing", date: "Today, 08:45", user: "Joko" },
-  { id: "MV-004", type: "OUT", item: "Cotton Thread White", qty: 50, unit: "Spools", from: "Gudang A", to: "Production Line 2", date: "Yesterday", user: "Rina" },
-  { id: "MV-005", type: "IN", item: "Packaging Boxes", qty: 1000, unit: "Pcs", from: "Supplier (Boxindo)", to: "Gudang B", date: "Yesterday", user: "Budi S." },
-];
+export const dynamic = 'force-dynamic';
 
-export default function StockMovementsPage() {
+export default async function StockMovementsPage() {
+  const [movements, products, warehouses] = await Promise.all([
+    getStockMovements(100),
+    getProductsForKanban(),
+    getWarehouses()
+  ]);
+
+  // Calculate Daily Stats
+  const today = new Date().toDateString();
+  const todaysMoves = movements.filter(m => new Date(m.date).toDateString() === today);
+
+  const inboundCount = todaysMoves.filter(m => ['PO_RECEIVE', 'PRODUCTION_IN', 'RETURN_IN', 'ADJUSTMENT_IN', 'INITIAL'].some(t => m.type.includes(t)) && m.qty > 0).reduce((acc, curr) => acc + curr.qty, 0);
+  const outboundCount = todaysMoves.filter(m => ['SO_SHIPMENT', 'PRODUCTION_OUT', 'RETURN_OUT', 'SCRAP', 'ADJUSTMENT_OUT'].some(t => m.type.includes(t)) || m.qty < 0).reduce((acc, curr) => acc + Math.abs(curr.qty), 0);
+  const transferCount = todaysMoves.filter(m => m.type === 'TRANSFER').length;
+
+  // Group by Date
+  const groupedMovements = movements.reduce((groups, move) => {
+    const date = new Date(move.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    if (!groups[date]) {
+      groups[date] = [];
+    }
+    groups[date].push(move);
+    return groups;
+  }, {} as Record<string, typeof movements>);
+
+  // Helper for icons/colors
+  const getTypeConfig = (type: string, qty: number) => {
+    if (type.includes('IN') || (type === 'INITIAL') || (type === 'ADJUSTMENT' && qty > 0)) return { icon: ArrowDownRight, color: 'text-emerald-600', bg: 'bg-emerald-100', border: 'border-emerald-200', label: 'INBOUND' };
+    if (type.includes('OUT') || type === 'SCRAP' || (type === 'ADJUSTMENT' && qty < 0)) return { icon: ArrowUpRight, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200', label: 'OUTBOUND' };
+    if (type === 'TRANSFER') return { icon: ArrowRightLeft, color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200', label: 'TRANSFER' };
+    return { icon: Activity, color: 'text-zinc-600', bg: 'bg-zinc-100', border: 'border-zinc-200', label: 'ACTIVITY' };
+  };
+
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black font-serif tracking-tight">Pergerakan Stok</h2>
-          <p className="text-muted-foreground mt-1">Riwayat keluar masuk barang dan transfer internal.</p>
+          <h2 className="text-3xl font-black font-serif tracking-tight">Stock Movement</h2>
+          <p className="text-muted-foreground mt-1">Real-time history of goods flow and adjustments.</p>
         </div>
-        <Button className="bg-white text-black hover:bg-zinc-100 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
-          <Download className="mr-2 h-4 w-4" /> Export Log
-        </Button>
+        <ManualMovementDialog
+          products={products.map(p => ({ id: p.id, name: p.name, code: p.code }))}
+          warehouses={warehouses.map(w => ({ id: w.id, name: w.name }))}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Summary Cards */}
-        <div className="bg-emerald-50 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-emerald-50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between group hover:-translate-y-1 transition-transform">
           <div>
-            <p className="text-xs font-bold uppercase text-emerald-800">Total Inbound (Today)</p>
-            <h3 className="text-3xl font-black text-emerald-900 mt-1">1,500 <span className="text-sm font-medium">Items</span></h3>
+            <p className="text-xs font-bold uppercase text-emerald-800 tracking-wider">Inbound (Today)</p>
+            <h3 className="text-3xl font-black text-emerald-900 mt-1">{inboundCount.toLocaleString()} <span className="text-sm font-bold text-emerald-700/60">Units</span></h3>
           </div>
-          <div className="h-10 w-10 bg-emerald-100 rounded-full flex items-center justify-center border border-black">
-            <ArrowDownRight className="h-6 w-6 text-emerald-700" />
+          <div className="h-12 w-12 bg-emerald-200 rounded-full flex items-center justify-center border-2 border-black shadow-sm group-hover:rotate-12 transition-transform">
+            <ArrowDownRight className="h-6 w-6 text-emerald-900" />
           </div>
         </div>
-        <div className="bg-blue-50 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-blue-50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between group hover:-translate-y-1 transition-transform">
           <div>
-            <p className="text-xs font-bold uppercase text-blue-800">Total Outbound (Today)</p>
-            <h3 className="text-3xl font-black text-blue-900 mt-1">250 <span className="text-sm font-medium">Items</span></h3>
+            <p className="text-xs font-bold uppercase text-blue-800 tracking-wider">Outbound (Today)</p>
+            <h3 className="text-3xl font-black text-blue-900 mt-1">{outboundCount.toLocaleString()} <span className="text-sm font-bold text-blue-700/60">Units</span></h3>
           </div>
-          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center border border-black">
-            <ArrowUpRight className="h-6 w-6 text-blue-700" />
+          <div className="h-12 w-12 bg-blue-200 rounded-full flex items-center justify-center border-2 border-black shadow-sm group-hover:-rotate-12 transition-transform">
+            <ArrowUpRight className="h-6 w-6 text-blue-900" />
           </div>
         </div>
-        <div className="bg-purple-50 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between">
+        <div className="bg-purple-50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between group hover:-translate-y-1 transition-transform">
           <div>
-            <p className="text-xs font-bold uppercase text-purple-800">Internal Transfers</p>
-            <h3 className="text-3xl font-black text-purple-900 mt-1">12 <span className="text-sm font-medium">Moves</span></h3>
+            <p className="text-xs font-bold uppercase text-purple-800 tracking-wider">Transfers (Today)</p>
+            <h3 className="text-3xl font-black text-purple-900 mt-1">{transferCount.toLocaleString()} <span className="text-sm font-bold text-purple-700/60">Moves</span></h3>
           </div>
-          <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center border border-black">
-            <ArrowRightLeft className="h-6 w-6 text-purple-700" />
+          <div className="h-12 w-12 bg-purple-200 rounded-full flex items-center justify-center border-2 border-black shadow-sm group-hover:scale-110 transition-transform">
+            <ArrowRightLeft className="h-6 w-6 text-purple-900" />
           </div>
         </div>
       </div>
 
-      {/* Main Log Table */}
-      <Card className="border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden mt-6">
-        <CardHeader className="bg-zinc-50 border-b border-black">
-          <div className="flex items-center justify-between">
-            <CardTitle className="uppercase font-black text-lg">Transaction Log</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" className="border-black shadow-sm font-bold"><Calendar className="h-4 w-4 mr-2" /> Date Range</Button>
-              <Button variant="outline" size="sm" className="border-black shadow-sm font-bold"><Filter className="h-4 w-4 mr-2" /> Filter Type</Button>
+      <div className="mt-8">
+        <h3 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
+          <Activity className="h-5 w-5" /> Activity Log
+        </h3>
+
+        <div className="relative border-l-2 border-dashed border-black/20 ml-4 space-y-8">
+          {Object.entries(groupedMovements).map(([date, moves]) => (
+            <div key={date} className="relative pl-8">
+              <div className="absolute -left-[9px] top-0 h-4 w-4 rounded-full border-2 border-black bg-white" />
+              <h4 className="text-sm font-black uppercase mb-4 text-zinc-500 bg-zinc-100/50 inline-block px-2 py-1 rounded border border-zinc-200">{date}</h4>
+
+              <div className="space-y-3">
+                {moves.map((move) => {
+                  const config = getTypeConfig(move.type, move.qty);
+                  const Icon = config.icon;
+
+                  return (
+                    <div key={move.id} className="relative group">
+                      <div className="bg-white border-2 border-black rounded-lg p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-between gap-4">
+
+                        <div className="flex items-center gap-4">
+                          <div className={cn("h-10 w-10 rounded-md border-2 border-black flex items-center justify-center shrink-0", config.bg)}>
+                            <Icon className={cn("h-5 w-5", config.color)} />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="outline" className={cn("font-black text-[10px] border-black bg-white", config.color)}>
+                                {move.type.replace('_', ' ')}
+                              </Badge>
+                              <span className="text-xs font-bold text-zinc-400 font-mono">#{move.id.slice(0, 8)}</span>
+                            </div>
+                            <h4 className="font-bold text-sm">{move.item} <span className="font-normal text-zinc-500">({move.code})</span></h4>
+
+                            <div className="text-xs mt-1 flex items-center gap-2 text-zinc-600">
+                              <span className="font-bold">{move.warehouse}</span>
+                              {move.type === 'TRANSFER' ? <ArrowRightLeft className="h-3 w-3" /> : (config.label === 'INBOUND' ? <ArrowRightLeft className="h-3 w-3 rotate-180 opacity-0" /> : <ArrowRightLeft className="h-3 w-3 opacity-0" />)}
+                              {/* Contextual Info */}
+                              {move.type === 'TRANSFER' && <span className="font-bold">{move.entity}</span>}
+                              {move.type === 'PO_RECEIVE' && <span>from <span className="font-bold">{move.entity}</span> (PO: {move.reference})</span>}
+                              {move.type === 'SO_SHIPMENT' && <span>to <span className="font-bold">{move.entity}</span> (SO: {move.reference})</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <div className={cn("text-lg font-black", config.color)}>
+                            {move.qty > 0 ? '+' : ''}{move.qty} <span className="text-xs font-bold text-black opacity-60">{move.unit}</span>
+                          </div>
+                          <div className="text-xs font-bold text-zinc-400 mt-1">
+                            {new Date(move.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {move.user}
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        </CardHeader>
-        <div className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="w-[100px] font-bold text-black uppercase text-xs">ID</TableHead>
-                <TableHead className="w-[100px] font-bold text-black uppercase text-xs">Type</TableHead>
-                <TableHead className="font-bold text-black uppercase text-xs">Item</TableHead>
-                <TableHead className="font-bold text-black uppercase text-xs">Quantity</TableHead>
-                <TableHead className="font-bold text-black uppercase text-xs">From / To</TableHead>
-                <TableHead className="font-bold text-black uppercase text-xs">Date / User</TableHead>
-                <TableHead className="text-right font-bold text-black uppercase text-xs">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {MOVEMENTS.map((mv) => (
-                <TableRow key={mv.id} className="cursor-pointer hover:bg-zinc-50">
-                  <TableCell className="font-mono text-xs font-bold text-muted-foreground">{mv.id}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={`border-black shadow-sm font-bold uppercase text-[10px] w-20 justify-center ${mv.type === 'IN' ? 'bg-emerald-100 text-emerald-800' :
-                          mv.type === 'OUT' ? 'bg-blue-100 text-blue-800' :
-                            'bg-purple-100 text-purple-800'
-                        }`}
-                    >
-                      {mv.type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-bold">{mv.item}</TableCell>
-                  <TableCell>
-                    <span className={`font-black ${mv.type === 'IN' ? 'text-emerald-700' : 'text-blue-700'}`}>
-                      {mv.type === 'IN' ? '+' : '-'}{mv.qty}
-                    </span>
-                    <span className="text-xs text-muted-foreground ml-1">{mv.unit}</span>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    <div className="flex flex-col">
-                      <span className="text-muted-foreground">From: <strong className="text-foreground">{mv.from}</strong></span>
-                      <span className="text-muted-foreground">To: <strong className="text-foreground">{mv.to}</strong></span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-xs">
-                    <div className="flex flex-col">
-                      <span className="font-bold">{mv.date}</span>
-                      <span className="text-muted-foreground">By {mv.user}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:bg-black hover:text-white rounded-full"><ArrowUpRight className="h-4 w-4" /></Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          ))}
+
+          {movements.length === 0 && (
+            <div className="pl-8 text-zinc-400 italic font-medium">No movements recorded yet.</div>
+          )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

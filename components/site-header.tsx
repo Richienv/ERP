@@ -54,7 +54,7 @@ export function SiteHeader() {
   const isStaff = user?.role === "ROLE_STAFF"
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background dark:bg-zinc-950 relative z-40 border-border/40 dark:border-zinc-800">
+    <header className="flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm dark:bg-zinc-950/95 border-border/40 dark:border-zinc-800 shadow-sm transition-all duration-200 z-30 relative">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
         <SidebarTrigger className="mr-2 text-foreground md:hidden" />
         <SidebarTrigger className="mr-2 text-foreground hidden md:flex" />

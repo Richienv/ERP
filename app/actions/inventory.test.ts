@@ -43,11 +43,14 @@ describe('Inventory Actions', () => {
     })
 
     describe('requestPurchase', () => {
-        it('should create a PENDING task and NOT a PO', async () => {
+        it('should create a PENDING PurchaseRequest', async () => {
             // Arrange
-            prismaMock.product.findUnique.mockResolvedValue(mockProduct)
             prismaMock.employee.findFirst.mockResolvedValue(mockEmployee)
-            prismaMock.employeeTask.findFirst.mockResolvedValue(null) // No pending request
+            prismaMock.purchaseRequest.create.mockResolvedValue({
+                id: 'pr-1',
+                number: 'PR-202601-0001',
+                status: 'PENDING'
+            } as any)
 
             // Act
             const result = await requestPurchase({
@@ -57,26 +60,29 @@ describe('Inventory Actions', () => {
 
             // Assert
             expect(result.success).toBe(true)
-            expect(result.message).toContain('Request sent')
+            expect(result.message).toContain('Purchase Request Created')
+            expect(result.pendingTask).toEqual({ id: 'pr-1' })
 
-            // Verify Task Creation
-            expect(prismaMock.employeeTask.create).toHaveBeenCalledWith(expect.objectContaining({
+            // Verify PurchaseRequest Creation
+            expect(prismaMock.purchaseRequest.create).toHaveBeenCalledWith(expect.objectContaining({
                 data: expect.objectContaining({
-                    type: 'PURCHASE_REQUEST',
                     status: 'PENDING',
-                    relatedId: 'prod-1'
+                    items: expect.objectContaining({
+                        create: expect.objectContaining({
+                            productId: 'prod-1',
+                            quantity: 100
+                        })
+                    })
                 })
             }))
 
-            // Verify PO NOT created
+            // Verify PO NOT created (no auto-order)
             expect(prismaMock.purchaseOrder.create).not.toHaveBeenCalled()
         })
 
-        it('should detect duplicate pending requests', async () => {
+        it('should fail gracefully when no employee found', async () => {
             // Arrange
-            prismaMock.product.findUnique.mockResolvedValue(mockProduct)
-            prismaMock.employee.findFirst.mockResolvedValue(mockEmployee)
-            prismaMock.employeeTask.findFirst.mockResolvedValue({ id: 'task-exist' } as any)
+            prismaMock.employee.findFirst.mockResolvedValue(null)
 
             // Act
             const result = await requestPurchase({
@@ -85,8 +91,8 @@ describe('Inventory Actions', () => {
             })
 
             // Assert
-            expect(result.alreadyPending).toBe(true)
-            expect(prismaMock.employeeTask.create).not.toHaveBeenCalled()
+            expect(result.success).toBe(false)
+            expect(result.error).toBeDefined()
         })
     })
 

@@ -34,18 +34,14 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
           ) : (
             <SidebarProvider>
               <AppSidebar />
-              <SidebarInset>
-                <div className="flex min-h-screen flex-col bg-background">
-                  <SiteHeader />
-                  <div className="flex-1 flex flex-col">
-                    <main className="flex-1">
-                      {children}
-                    </main>
-                  </div>
-                  <AIFloatingButton />
-                  <AISidebar />
-                  <Toaster />
+              <SidebarInset className="max-h-svh overflow-hidden">
+                <SiteHeader />
+                <div className="flex-1 overflow-auto p-4 pt-0 gap-4 flex flex-col">
+                  {children}
                 </div>
+                <AIFloatingButton />
+                <AISidebar />
+                <Toaster />
               </SidebarInset>
             </SidebarProvider>
           )}

@@ -1,31 +1,43 @@
-
-import { getWarehouseDetails } from "@/app/actions/inventory"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, Box, LayoutGrid, MapPin, Package } from "lucide-react"
 import Link from "next/link"
-import { notFound } from "next/navigation"
+import {
+    ArrowLeft,
+    MapPin,
+    Box,
+    LayoutGrid,
+    Package
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card"
+import { getWarehouseDetails } from "@/app/actions/inventory"
+import { WarehouseEditDialog } from "@/components/inventory/warehouse-edit-dialog"
 
-interface PageProps {
-    params: Promise<{
-        id: string
-    }>
-}
-
-export default async function WarehouseDetailPage(props: PageProps) {
-    const params = await props.params
+export default async function WarehousePage({ params }: { params: { id: string } }) {
     const warehouse = await getWarehouseDetails(params.id)
 
     if (!warehouse) {
-        notFound()
+        return (
+            <div className="p-8 text-center text-muted-foreground">
+                <h1 className="text-xl font-bold">Warehouse Not Found</h1>
+                <Button asChild className="mt-4" variant="outline">
+                    <Link href="/inventory/warehouses">Back to List</Link>
+                </Button>
+            </div>
+        )
     }
 
-    const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val)
+    // Local helper if not imported
+    const formatCurrency = (amount: number) =>
+        new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(amount)
 
     return (
         <div className="p-6 space-y-6">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 w-full">
                 <Button variant="outline" size="icon" asChild>
                     <Link href="/inventory/warehouses"><ArrowLeft className="h-4 w-4" /></Link>
                 </Button>
@@ -37,6 +49,9 @@ export default async function WarehouseDetailPage(props: PageProps) {
                         <span>•</span>
                         <Badge variant="secondary" className="text-xs">{warehouse.code}</Badge>
                     </div>
+                </div>
+                <div className="ml-auto">
+                    <WarehouseEditDialog warehouse={{ ...warehouse, capacity: warehouse.capacity ?? undefined }} />
                 </div>
             </div>
 

@@ -17,31 +17,69 @@ async function main() {
     }
 
     // 2. Create Chart of Accounts
+    // 2. Create Chart of Accounts (Standard Indonesian COA)
     const accounts = [
-        // --- ASSETS ---
-        { code: '1000', name: 'Kas & Bank', type: 'ASSET', isSystem: true },
-        { code: '1010', name: 'Bank BCA', type: 'ASSET', isSystem: false },
-        { code: '1020', name: 'Petty Cash', type: 'ASSET', isSystem: false },
+        // --- ASSETS (HARTA) ---
+        // 1100 - Current Assets (Harta Lancar)
+        { code: '1000', name: 'Kas & Setara Kas', type: 'ASSET', isSystem: true },
+        { code: '1101', name: 'Kas Besar', type: 'ASSET', isSystem: false },
+        { code: '1102', name: 'Petty Cash', type: 'ASSET', isSystem: false },
+        { code: '1110', name: 'Bank BCA', type: 'ASSET', isSystem: false },
+        { code: '1111', name: 'Bank Mandiri', type: 'ASSET', isSystem: false },
         { code: '1200', name: 'Piutang Usaha (AR)', type: 'ASSET', isSystem: true },
-        { code: '1400', name: 'Persediaan (Inventory)', type: 'ASSET', isSystem: true },
+        { code: '1300', name: 'Persediaan Barang Jadi', type: 'ASSET', isSystem: true },
+        { code: '1310', name: 'Persediaan Bahan Baku', type: 'ASSET', isSystem: true },
+        { code: '1320', name: 'Persediaan Dalam Proses (WIP)', type: 'ASSET', isSystem: true },
 
-        // --- LIABILITIES ---
+        // 1200 - Fixed Assets (Harta Tetap)
+        { code: '1500', name: 'Tanah & Bangunan', type: 'ASSET', isSystem: false },
+        { code: '1510', name: 'Kendaraan', type: 'ASSET', isSystem: false },
+        { code: '1520', name: 'Peralatan Kantor', type: 'ASSET', isSystem: false },
+        { code: '1590', name: 'Akumulasi Penyusutan', type: 'ASSET', isSystem: true },
+
+        // --- LIABILITIES (KEWAJIBAN) ---
+        // 2100 - Short Term Liabilities
         { code: '2000', name: 'Utang Usaha (AP)', type: 'LIABILITY', isSystem: true },
         { code: '2100', name: 'Utang Gaji', type: 'LIABILITY', isSystem: false },
-        { code: '2200', name: 'Utang Pajak', type: 'LIABILITY', isSystem: false },
+        { code: '2110', name: 'Utang Pajak (PPN/PPh)', type: 'LIABILITY', isSystem: false },
+        { code: '2120', name: 'Biaya Yang Masih Harus Dibayar', type: 'LIABILITY', isSystem: false },
 
-        // --- EQUITY ---
+        // 2200 - Long Term Liabilities
+        { code: '2500', name: 'Utang Bank Jangka Panjang', type: 'LIABILITY', isSystem: false },
+
+        // --- EQUITY (MODAL) ---
         { code: '3000', name: 'Modal Disetor', type: 'EQUITY', isSystem: true },
         { code: '3100', name: 'Laba Ditahan', type: 'EQUITY', isSystem: true },
+        { code: '3200', name: 'Prive Pemilik', type: 'EQUITY', isSystem: false },
 
-        // --- REVENUE ---
+        // --- REVENUE (PENDAPATAN) ---
         { code: '4000', name: 'Pendapatan Penjualan', type: 'REVENUE', isSystem: true },
+        { code: '4100', name: 'Diskon Penjualan', type: 'REVENUE', isSystem: true },
+        { code: '4200', name: 'Retur Penjualan', type: 'REVENUE', isSystem: true },
+        { code: '4800', name: 'Pendapatan Lain-lain', type: 'REVENUE', isSystem: false },
 
-        // --- EXPENSES ---
-        { code: '6000', name: 'Beban Pokok Penjualan (HPP)', type: 'EXPENSE', isSystem: true },
-        { code: '6100', name: 'Beban Gaji', type: 'EXPENSE', isSystem: false },
-        { code: '6200', name: 'Beban Operasional', type: 'EXPENSE', isSystem: false },
-        { code: '6300', name: 'Beban Pemasaran', type: 'EXPENSE', isSystem: false },
+        // --- COGS (HPP) ---
+        { code: '5000', name: 'Beban Pokok Penjualan (HPP)', type: 'EXPENSE', isSystem: true },
+        { code: '5100', name: 'Pembelian Bahan Baku', type: 'EXPENSE', isSystem: true },
+        { code: '5200', name: 'Upah Langsung Produksi', type: 'EXPENSE', isSystem: true },
+
+        // --- EXPENSES (BEBAN OPERASIONAL) ---
+        // 6100 - Sales & Marketing Expenses
+        { code: '6100', name: 'Beban Iklan & Promosi', type: 'EXPENSE', isSystem: false },
+        { code: '6110', name: 'Komisi Penjualan', type: 'EXPENSE', isSystem: false },
+
+        // 6200 - General & Admin Expenses
+        { code: '6200', name: 'Beban Gaji Kantor', type: 'EXPENSE', isSystem: false },
+        { code: '6210', name: 'Beban Listrik, Air, Internet', type: 'EXPENSE', isSystem: false },
+        { code: '6220', name: 'Beban Sewa', type: 'EXPENSE', isSystem: false },
+        { code: '6230', name: 'Beban Perlengkapan Kantor', type: 'EXPENSE', isSystem: false },
+        { code: '6240', name: 'Beban Reparasi & Pemeliharaan', type: 'EXPENSE', isSystem: false },
+        { code: '6290', name: 'Beban Penyusutan', type: 'EXPENSE', isSystem: true },
+
+        // --- OTHER EXPENSES ---
+        { code: '7100', name: 'Beban Bunga Bank', type: 'EXPENSE', isSystem: false },
+        { code: '7200', name: 'Beban Administrasi Bank', type: 'EXPENSE', isSystem: false },
+        { code: '7900', name: 'Beban Pajak Penghasilan', type: 'EXPENSE', isSystem: true },
     ]
 
     const accountMap = new Map<string, string>()
@@ -68,8 +106,8 @@ async function main() {
     }
 
     // 3. Create Opening Balance Journal Entry
-    const bankId = accountMap.get('1010')
-    const capitalId = accountMap.get('3000')
+    const bankId = accountMap.get('1110') // Bank BCA
+    const capitalId = accountMap.get('3000') // Modal Disetor
 
     if (bankId && capitalId) {
         console.log('Creating Opening Balance Journal Entry...')

@@ -1,7 +1,5 @@
 
-import { Suspense } from 'react'
-import { getInventoryKPIs, getProductsForKanban } from '@/app/actions/inventory'
-import { InventoryStatsHud } from '@/components/inventory/inventory-stats-hud'
+import { getProductsForKanban } from '@/app/actions/inventory'
 import { InventoryKanbanBoard } from '@/components/inventory/inventory-kanban-board'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -9,11 +7,7 @@ import { Plus, SlidersHorizontal } from 'lucide-react'
 import { ProductDataTable } from '@/components/inventory/product-data-table' // Assuming this exists from previous structure
 
 export default async function InventoryProductsPage() {
-  const kpisData = getInventoryKPIs()
-  const productsData = getProductsForKanban()
-
-  // Parallel fetch
-  const [kpis, products] = await Promise.all([kpisData, productsData])
+  const products = await getProductsForKanban()
 
   return (
     <div className="p-6 space-y-6">
@@ -32,9 +26,7 @@ export default async function InventoryProductsPage() {
         </div>
       </div>
 
-      <Suspense fallback={<div className="h-24 bg-slate-100 animate-pulse rounded-lg" />}>
-        <InventoryStatsHud data={kpis} />
-      </Suspense>
+
 
       <Tabs defaultValue="kanban" className="w-full">
         <TabsList className="mb-4 bg-white border">

@@ -189,3 +189,197 @@ export async function updateQuotationStatus(id: string, newStatus: string) {
         return { success: false, error: "Failed to update status" }
     }
 }
+
+// 4. INVOICE ACTIONS
+import { postJournalEntry } from "@/lib/actions/finance"
+
+// Create Invoice (Draft)
+export async function createInvoice(data: { customerId: string, items: { description: string, quantity: number, price: number }[], dueDate: Date }) {
+    try {
+        const count = await prisma.invoice.count({ where: { type: 'INV_OUT' } })
+        const year = new Date().getFullYear()
+        const number = `INV-${year}-${String(count + 1).padStart(4, '0')}`
+
+        const subtotal = data.items.reduce((acc, item) => acc + (item.quantity * item.price), 0)
+        const taxAmount = subtotal * 0.11 // PPN 11%
+        const totalAmount = subtotal + taxAmount
+
+        const invoice = await prisma.invoice.create({
+            data: {
+                number,
+                customerId: data.customerId,
+                type: 'INV_OUT',
+                status: 'DRAFT',
+                issueDate: new Date(),
+                dueDate: data.dueDate,
+                subtotal,
+                taxAmount,
+                discountAmount: 0,
+                totalAmount,
+                balanceDue: totalAmount,
+                items: {
+                    create: data.items.map(item => ({
+                        description: item.description,
+                        quantity: item.quantity,
+                        unitPrice: item.price,
+                        amount: item.quantity * item.price
+                    }))
+                }
+            }
+        })
+
+        try {
+            revalidateTag('dashboard-sales-stats')
+        } catch (e) {
+            console.log('Skipping revalidation (Script context)')
+        }
+        return { success: true, invoiceId: invoice.id }
+
+    } catch (error: any) {
+        console.error("Create Invoice Error:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+// Approve Invoice -> Post to GL
+export async function approveInvoice(id: string) {
+    try {
+        const invoice = await prisma.invoice.findUnique({
+            where: { id },
+            include: { customer: true }
+        })
+
+        if (!invoice) throw new Error("Invoice not found")
+        if (invoice.status !== 'DRAFT') throw new Error("Invoice already processed")
+
+        // 1. Update Status
+        await prisma.invoice.update({
+            where: { id },
+            data: { status: 'ISSUED' }
+        })
+
+        // 2. Post Journal Entry
+        // Debit: Piutang Usaha (1200)
+        // Credit: Pendapatan Penjualan (4000)
+        // Credit: Utang Pajak PPN (2110) - If we track tax separately
+        // For simplicity, let's just do AR vs Revenue for now, OR split if we have tax account.
+        // We have '2110' Utang Pajak. Let's do it right: 
+        // Debit AR (Total)
+        // Credit Revenue (Subtotal)
+        // Credit Tax Payable (Tax)
+
+        await postJournalEntry({
+            description: `Invoice ${invoice.number} - ${invoice.customer?.name}`,
+            date: new Date(),
+            reference: invoice.number,
+            lines: [
+                {
+                    accountCode: '1200', // Piutang Usaha
+                    debit: Number(invoice.totalAmount),
+                    credit: 0
+                },
+                {
+                    accountCode: '4000', // Pendapatan
+                    debit: 0,
+                    credit: Number(invoice.subtotal)
+                },
+                {
+                    accountCode: '2110', // Utang Pajak
+                    debit: 0,
+                    credit: Number(invoice.taxAmount)
+                }
+            ]
+        })
+
+        try {
+            revalidateTag('dashboard-sales-stats')
+        } catch (e) {
+            console.log('Skipping revalidation (Script context)')
+        }
+        return { success: true }
+
+    } catch (error: any) {
+        console.error("Approve Invoice Error:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+// Record Payment -> Post to GL
+export async function recordPayment(invoiceId: string, amount: number, method: string = 'TRANSFER') {
+    try {
+        const invoice = await prisma.invoice.findUnique({
+            where: { id: invoiceId },
+            include: { customer: true }
+        })
+
+        if (!invoice) throw new Error("Invoice not found")
+
+        // 1. Create Payment Record
+        const count = await prisma.payment.count()
+        const number = `PAY-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`
+
+        const payment = await prisma.payment.create({
+            data: {
+                number,
+                amount,
+                method: method as any,
+                invoiceId: invoice.id,
+                customerId: invoice.customerId,
+                date: new Date(),
+                reference: `REF-${new Date().getTime()}`,
+            }
+        })
+
+        // 2. Update Invoice Balance
+        const newBalance = Number(invoice.balanceDue) - amount
+        let newStatus = invoice.status
+        if (newBalance <= 0) newStatus = 'PAID'
+        else newStatus = 'PARTIAL'
+
+        await prisma.invoice.update({
+            where: { id: invoiceId },
+            data: {
+                balanceDue: newBalance,
+                status: newStatus
+            }
+        })
+
+        // 3. Post Journal Entry
+        // Debit: Bank BCA (1110) - Assuming all transfer to BCA for now
+        // Credit: Piutang Usaha (1200)
+
+        // Find Bank Account based on method?
+        // Let's default to Bank BCA (1110) for TRANSFER, Cash (1101) for CASH
+        let debitAccount = '1110' // BCA
+        if (method === 'CASH') debitAccount = '1101' // Kas Besar
+
+        await postJournalEntry({
+            description: `Payment for ${invoice.number} (${method})`,
+            date: new Date(),
+            reference: payment.reference || "PAY",
+            lines: [
+                {
+                    accountCode: debitAccount,
+                    debit: amount,
+                    credit: 0
+                },
+                {
+                    accountCode: '1200', // Piutang Usaha
+                    credit: amount,
+                    debit: 0
+                }
+            ]
+        })
+
+        try {
+            revalidateTag('dashboard-sales-stats')
+        } catch (e) {
+            console.log('Skipping revalidation (Script context)')
+        }
+        return { success: true }
+
+    } catch (error: any) {
+        console.error("Payment Error:", error)
+        return { success: false, error: error.message }
+    }
+}

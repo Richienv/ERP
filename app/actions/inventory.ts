@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { unstable_cache, revalidateTag, revalidatePath } from "next/cache"
+import { calculateProductStatus } from "@/lib/inventory-logic"
 
 export const getWarehouses = unstable_cache(
     async () => {
@@ -15,23 +16,44 @@ export const getWarehouses = unstable_cache(
             }
         })
 
-        return warehouses.map(w => ({
-            id: w.id,
-            name: w.name,
-            code: w.code,
-            location: w.city || w.address || 'Unknown',
-            type: 'General', // Fallback as description/type might be missing
-            capacity: 10000, // Mock or fetch if available
-            utilization: Math.floor(Math.random() * 100), // Mock for now
-            manager: 'Staff', // Mock
-            status: 'Active',
-            totalValue: 0, // Calculate if needed
-            activePOs: 0,
-            pendingTasks: 0,
-            items: w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0),
-            staff: 15, // Mock
-            phone: '+62 812-3456-7890' // Mock
-        }))
+        // Fetch details for Managers
+        const managerIds = warehouses.map(w => w.managerId).filter(Boolean) as string[]
+        const managers = await prisma.employee.findMany({
+            where: { id: { in: managerIds } },
+            select: { id: true, firstName: true, lastName: true, phone: true }
+        })
+
+        // In a real app, you'd relate employees to warehouses. 
+        // For now, we assume a static staff count per warehouse or fetch generally.
+        // Let's just pretend we have 5-15 staff per warehouse.
+
+        return warehouses.map(w => {
+            const manager = managers.find(m => m.id === w.managerId)
+            const managerName = manager ? `${manager.firstName} ${manager.lastName || ''}`.trim() : 'Unassigned'
+            const managerPhone = manager?.phone || '-'
+
+            const totalItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            const capacity = w.capacity || 50000 // Default if missing
+            const utilization = capacity > 0 ? Math.min(Math.round((totalItems / capacity) * 100), 100) : 0
+
+            return {
+                id: w.id,
+                name: w.name,
+                code: w.code,
+                location: [w.city, w.province].filter(Boolean).join(', ') || w.address || 'Unknown Location',
+                type: 'Warehouse',
+                capacity: capacity,
+                utilization: utilization,
+                manager: managerName,
+                status: w.isActive ? 'Active' : 'Inactive',
+                totalValue: 0,
+                activePOs: 0,
+                pendingTasks: 0,
+                items: totalItems,
+                staff: Math.floor(Math.random() * (15 - 5 + 1) + 5), // Mock for UI aesthetics until relation exists
+                phone: managerPhone
+            }
+        })
     },
     ['warehouses-list'],
     { revalidate: 60, tags: ['inventory', 'warehouses'] }
@@ -178,7 +200,12 @@ export const getMaterialGapAnalysis = unstable_cache(
             const totalProjectedNeed = woDemandQty + reorderPoint
             const totalProjectedStock = currentStock // + incomingQty (removed to keep gap > 0 until receipt)
 
-            const gap = totalProjectedNeed - totalProjectedStock
+            let gap = totalProjectedNeed - totalProjectedStock
+
+            // If Manual Alert is ON, force gap to be positive to show in Alert Tab
+            if (p.manualAlert && gap <= 0) {
+                gap = 1 // Artificial gap to trigger visibility
+            }
 
             // Map all open POs for the dialog
             const openPOs = p.purchaseOrderItems.map(poi => ({
@@ -228,6 +255,7 @@ export const getMaterialGapAnalysis = unstable_cache(
                 status,
                 isPendingRequest: pendingSet.has(p.id),
                 gap: gap > 0 ? gap : 0,
+                manualAlert: p.manualAlert, // Pass to frontend for badge
                 demandSources: activeWOs, // Detailed breakdown
 
                 // Financials
@@ -264,6 +292,25 @@ export const getMaterialGapAnalysis = unstable_cache(
 // ==========================================
 // GOODS RECEIPT ACTION
 // ==========================================
+export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number }) {
+    try {
+        await prisma.warehouse.create({
+            data: {
+                name: data.name,
+                code: data.code,
+                address: data.address,
+                capacity: data.capacity
+            }
+        })
+        revalidateTag('inventory')
+        revalidateTag('warehouses')
+        return { success: true }
+    } catch (e: any) {
+        console.error("Failed to create warehouse", e)
+        return { success: false, error: e.message || "Database Error" }
+    }
+}
+
 export async function receiveGoodsFromPO(data: {
     poId: string,
     itemId: string,
@@ -393,19 +440,18 @@ export async function requestPurchase(data: {
     notes?: string
 }) {
     try {
-        console.log("Requesting Purchase:", data)
+        console.log("Requesting Purchase (PR):", data)
 
-        // 1. Check for Duplicate Pending Requests
-        const existingTask = await prisma.employeeTask.findFirst({
+        // 1. Check for Duplicate Pending Requests (New Schema)
+        const existingItem = await prisma.purchaseRequestItem.findFirst({
             where: {
-                relatedId: data.itemId,
-                type: 'PURCHASE_REQUEST',
+                productId: data.itemId,
                 status: 'PENDING'
             }
         })
 
-        if (existingTask) {
-            console.warn("Duplicate request detected for item:", data.itemId)
+        if (existingItem) {
+            console.warn("Duplicate PR item detected:", data.itemId)
             return {
                 success: false,
                 message: "A pending request for this item already exists.",
@@ -413,50 +459,48 @@ export async function requestPurchase(data: {
             }
         }
 
-        // 2. Parallel Fetching: Product and Assignee
-        const [product, assignee] = await Promise.all([
-            prisma.product.findUnique({
-                where: { id: data.itemId },
-                include: { supplierItems: { include: { supplier: true } } }
-            }),
-            prisma.employee.findFirst({
-                where: { OR: [{ firstName: { contains: 'Richie', mode: 'insensitive' } }, { position: 'CEO' }] }
-            })
-        ])
+        // 2. Get Default Requester (Richie or First Active)
+        // In a real app, we would get this from the session.
+        const requester = await prisma.employee.findFirst({
+            where: { OR: [{ firstName: { contains: 'Richie', mode: 'insensitive' } }, { position: 'CEO' }] }
+        })
+        const activeEmployee = requester || await prisma.employee.findFirst({ where: { status: 'ACTIVE' } })
 
-        if (!product) throw new Error("Product not found")
+        if (!activeEmployee) throw new Error("No active employee found to assign as requester")
 
-        // User Fallback (if Richie not found, get any active)
-        const finalAssignee = assignee || await prisma.employee.findFirst({ where: { status: 'ACTIVE' } })
-        if (!finalAssignee) throw new Error("No active employee found")
+        // 3. Create Purchase Request
+        const date = new Date()
+        const year = date.getFullYear()
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+        const prNumber = `PR-${year}${month}-${random}`
 
-        // 3. Create Employee Task (PENDING)
-        // We do NOT create a PO here anymore. The procurement team will do that.
-        const newTask = await prisma.employeeTask.create({
+        const pr = await prisma.purchaseRequest.create({
             data: {
-                employeeId: finalAssignee.id,
-                title: `Purchase Request: ${product.name}`,
-                type: 'PURCHASE_REQUEST',
-                priority: 'HIGH',
+                number: prNumber,
+                requesterId: activeEmployee.id,
                 status: 'PENDING',
-                relatedId: data.itemId,
-                notes: data.notes || `Requested by System (Gap Analysis)`
+                priority: 'NORMAL',
+                notes: data.notes || "Auto-generated from Inventory Gap",
+                items: {
+                    create: {
+                        productId: data.itemId,
+                        quantity: data.quantity,
+                        status: 'PENDING'
+                    }
+                }
             }
         })
 
-        // Revalidate cache
         revalidateTag('inventory')
         revalidateTag('procurement')
-
-        console.log("Purchase Request Task Created:", newTask)
-
         return {
             success: true,
-            message: "Request sent to Procurement Team",
-            pendingTask: newTask
+            message: "Purchase Request Created",
+            pendingTask: { id: pr.id }
         }
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error requesting purchase:", error)
         return { success: false, error: "Failed to request purchase" }
     }
@@ -598,10 +642,12 @@ export const getProductsForKanban = unstable_cache(
         return products.map(p => {
             const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
 
-            // Determine Status
-            let status = 'IN_STOCK'
-            if (totalStock === 0) status = 'OUT_OF_STOCK'
-            else if (totalStock <= p.minStock) status = 'LOW_STOCK'
+            const status = calculateProductStatus({
+                totalStock,
+                minStock: p.minStock,
+                reorderLevel: p.reorderLevel,
+                manualAlert: p.manualAlert
+            })
 
             return {
                 id: p.id,
@@ -612,6 +658,7 @@ export const getProductsForKanban = unstable_cache(
                 minStock: p.minStock,
                 totalStock: totalStock,
                 status: status,
+                manualAlert: p.manualAlert,
                 image: '/placeholder.png' // Mock if needed
             }
         })
@@ -619,6 +666,20 @@ export const getProductsForKanban = unstable_cache(
     ['inventory-kanban'],
     { revalidate: 60, tags: ['inventory', 'products'] }
 )
+
+export async function setProductManualAlert(productId: string, isAlert: boolean) {
+    try {
+        await prisma.product.update({
+            where: { id: productId },
+            data: { manualAlert: isAlert }
+        })
+        revalidateTag('inventory')
+        return { success: true }
+    } catch (e) {
+        console.error("Failed to set manual alert", e)
+        return { success: false, error: "Database Error" }
+    }
+}
 
 export const getWarehouseDetails = unstable_cache(
     async (id: string) => {
@@ -657,10 +718,184 @@ export const getWarehouseDetails = unstable_cache(
             id: warehouse.id,
             name: warehouse.name,
             code: warehouse.code,
-            address: warehouse.city || warehouse.address || '',
+            address: warehouse.address || '',
+            capacity: warehouse.capacity,
             categories: Array.from(categoryMap.values())
         }
     },
     ['warehouse-details'],
     { revalidate: 60, tags: ['inventory', 'warehouse-details'] }
 )
+
+// ==========================================
+// STOCK MOVEMENT ACTIONS
+// ==========================================
+
+export async function getStockMovements(limit = 50) {
+    const movements = await prisma.inventoryTransaction.findMany({
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+            product: { select: { name: true, code: true, unit: true } },
+            warehouse: { select: { name: true } },
+            // Include relations for context
+            purchaseOrder: { select: { number: true, supplier: { select: { name: true } } } },
+            salesOrder: { select: { number: true, customer: { select: { name: true } } } },
+            workOrder: { select: { number: true } }
+        }
+    })
+
+    return movements.map(mv => ({
+        id: mv.id,
+        type: mv.type,
+        date: mv.createdAt,
+        item: mv.product.name,
+        code: mv.product.code,
+        qty: mv.quantity,
+        unit: mv.product.unit,
+        warehouse: mv.warehouse.name,
+        // Determine "entity" (Supplier, Customer, or Target Warehouse) based on type
+        entity: mv.purchaseOrder?.supplier.name || mv.salesOrder?.customer.name || mv.notes || '-',
+        reference: mv.purchaseOrder?.number || mv.salesOrder?.number || mv.workOrder?.number || '-',
+        user: mv.performedBy || 'System'
+    }))
+}
+
+export async function createManualMovement(data: {
+    type: 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER' | 'SCRAP',
+    productId: string,
+    warehouseId: string,
+    targetWarehouseId?: string, // Only for TRANSFER
+    quantity: number,
+    notes?: string,
+    userId: string
+}) {
+    try {
+        if (data.quantity <= 0) throw new Error("Quantity must be positive")
+
+        await prisma.$transaction(async (tx) => {
+            // Determine DB Type
+            let dbType = 'ADJUSTMENT'
+            let qtyChange = 0
+
+            if (data.type === 'ADJUSTMENT_IN') {
+                dbType = 'ADJUSTMENT' // or INITIAL
+                qtyChange = data.quantity
+            } else if (data.type === 'ADJUSTMENT_OUT') {
+                dbType = 'ADJUSTMENT'
+                qtyChange = -data.quantity
+            } else if (data.type === 'SCRAP') {
+                dbType = 'SCRAP'
+                qtyChange = -data.quantity
+            } else if (data.type === 'TRANSFER') {
+                dbType = 'TRANSFER'
+                qtyChange = -data.quantity
+            }
+
+            // 1. Create Source Transaction
+            await tx.inventoryTransaction.create({
+                data: {
+                    productId: data.productId,
+                    warehouseId: data.warehouseId,
+                    type: dbType as any,
+                    quantity: qtyChange,
+                    notes: data.notes,
+                    performedBy: data.userId
+                }
+            })
+
+            // 2. Update Source Stock Level
+            const sourceLevel = await tx.stockLevel.findFirst({
+                where: { productId: data.productId, warehouseId: data.warehouseId }
+            })
+
+            if (sourceLevel) {
+                await tx.stockLevel.update({
+                    where: { id: sourceLevel.id },
+                    data: {
+                        quantity: { increment: qtyChange },
+                        availableQty: { increment: qtyChange }
+                    }
+                })
+            } else if (qtyChange > 0) {
+                // Create if IN and not exists
+                await tx.stockLevel.create({
+                    data: {
+                        productId: data.productId,
+                        warehouseId: data.warehouseId,
+                        quantity: qtyChange,
+                        availableQty: qtyChange
+                    }
+                })
+            } else {
+                throw new Error("Cannot deduce from empty stock")
+            }
+
+            // 3. Handle TRANSFER (Target Limit)
+            if (data.type === 'TRANSFER' && data.targetWarehouseId) {
+                // Create Incoming Transaction at Target
+                await tx.inventoryTransaction.create({
+                    data: {
+                        productId: data.productId,
+                        warehouseId: data.targetWarehouseId,
+                        type: 'TRANSFER',
+                        quantity: data.quantity, // Positive at target
+                        notes: `Transfer from ${data.warehouseId}`,
+                        performedBy: data.userId
+                    }
+                })
+
+                // Update Target Stock
+                const targetLevel = await tx.stockLevel.findFirst({
+                    where: { productId: data.productId, warehouseId: data.targetWarehouseId }
+                })
+
+                if (targetLevel) {
+                    await tx.stockLevel.update({
+                        where: { id: targetLevel.id },
+                        data: {
+                            quantity: { increment: data.quantity },
+                            availableQty: { increment: data.quantity }
+                        }
+                    })
+                } else {
+                    await tx.stockLevel.create({
+                        data: {
+                            productId: data.productId,
+                            warehouseId: data.targetWarehouseId,
+                            quantity: data.quantity,
+                            availableQty: data.quantity
+                        }
+                    })
+                }
+            }
+        })
+
+        revalidateTag('inventory')
+        return { success: true }
+
+    } catch (e) {
+        console.error("Manual Movement Failed", e)
+        return { success: false, error: "Failed to process movement" }
+    }
+}
+
+export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number }) {
+    try {
+        await prisma.warehouse.update({
+            where: { id },
+            data: {
+                name: data.name,
+                code: data.code,
+                address: data.address,
+                capacity: data.capacity
+            }
+        })
+        revalidateTag('inventory')
+        revalidateTag('warehouse-details')
+        return { success: true }
+    } catch (e: any) {
+        console.error("Failed to update warehouse", e)
+        return { success: false, error: e.message || "Database Error" }
+    }
+}

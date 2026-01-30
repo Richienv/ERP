@@ -167,3 +167,98 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         }
     }
 }
+
+export async function getGLAccounts() {
+    try {
+        const accounts = await prisma.gLAccount.findMany({
+            orderBy: { code: 'asc' }
+        })
+        return { success: true, data: accounts }
+    } catch (error) {
+        console.error("Error fetching GL Accounts:", error)
+        return { success: false, error: "Failed to fetch accounts" }
+    }
+}
+
+// ==========================================
+// JOURNAL ENTRY SYSTEM (CORE)
+// ==========================================
+
+export async function postJournalEntry(data: {
+    description: string
+    date: Date
+    reference: string
+    lines: {
+        accountCode: string
+        debit: number
+        credit: number
+        description?: string
+    }[]
+}) {
+    try {
+        // 1. Validate Balance (Debit must equal Credit)
+        const totalDebit = data.lines.reduce((sum, line) => sum + line.debit, 0)
+        const totalCredit = data.lines.reduce((sum, line) => sum + line.credit, 0)
+
+        if (Math.abs(totalDebit - totalCredit) > 0.01) { // Floating point tolerance
+            throw new Error(`Unbalanced Journal: Debit (${totalDebit}) != Credit (${totalCredit})`)
+        }
+
+        // 2. Fetch Account IDs
+        const codes = data.lines.map(l => l.accountCode)
+        const accounts = await prisma.gLAccount.findMany({
+            where: { code: { in: codes } }
+        })
+
+        const accountMap = new Map(accounts.map(a => [a.code, a]))
+
+        // 3. Create Entry & Lines Transactionally
+        await prisma.$transaction(async (tx) => {
+            // Create Header
+            const entry = await tx.journalEntry.create({
+                data: {
+                    date: data.date,
+                    description: data.description,
+                    reference: data.reference,
+                    status: 'POSTED',
+                    lines: {
+                        create: data.lines.map(line => {
+                            const account = accountMap.get(line.accountCode)
+                            if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
+
+                            return {
+                                accountId: account.id,
+                                debit: line.debit,
+                                credit: line.credit,
+                                description: line.description || data.description
+                            }
+                        })
+                    }
+                }
+            })
+
+            // Update Account Balances
+            for (const line of data.lines) {
+                const account = accountMap.get(line.accountCode)!
+                let balanceChange = 0
+
+                if (['ASSET', 'EXPENSE'].includes(account.type)) {
+                    balanceChange = line.debit - line.credit
+                } else {
+                    balanceChange = line.credit - line.debit
+                }
+
+                await tx.gLAccount.update({
+                    where: { id: account.id },
+                    data: { balance: { increment: balanceChange } }
+                })
+            }
+        })
+
+        return { success: true }
+
+    } catch (error: any) {
+        console.error("Journal Posting Error:", error)
+        return { success: false, error: error.message }
+    }
+}

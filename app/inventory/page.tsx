@@ -10,6 +10,8 @@ import { getMaterialGapAnalysis } from "@/app/actions/inventory"
 import { MaterialInputForm } from "@/components/inventory/material-input-form"
 // Cache Buster: Force Refresh 2
 
+export const dynamic = 'force-dynamic'
+
 export default async function InventoryPage() {
   const materialGapData = await getMaterialGapAnalysis()
   return (

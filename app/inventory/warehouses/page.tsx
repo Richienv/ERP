@@ -4,7 +4,8 @@ import {
   MapPin,
   Users,
   LayoutGrid,
-  MoreVertical
+  MoreVertical,
+  Settings2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import Link from 'next/link'
 import { getWarehouses } from "@/app/actions/inventory";
+import { WarehouseFormDialog } from "@/components/inventory/warehouse-form-dialog";
 
 async function WarehouseGrid() {
   const warehouses = await getWarehouses()
@@ -84,13 +86,28 @@ async function WarehouseGrid() {
             </div>
 
           </CardContent>
-          <CardFooter className="pt-4 border-t border-black/5 bg-zinc-50">
-            <Button asChild variant="outline" className="w-full border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] uppercase font-bold text-xs h-9 cursor-pointer">
+          <CardFooter className="pt-4 border-t border-black/5 bg-zinc-50 flex gap-3">
+            <Button asChild variant="outline" className="flex-1 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] uppercase font-bold text-xs h-9 cursor-pointer">
               <Link href={`/inventory/warehouses/${wh.id}`}>
                 <LayoutGrid className="mr-2 h-3.5 w-3.5" />
-                View Categories & Layout
+                View Details
               </Link>
             </Button>
+            <WarehouseFormDialog
+              mode="edit"
+              warehouse={{
+                id: wh.id,
+                name: wh.name,
+                code: wh.code,
+                address: wh.location,
+                capacity: wh.capacity
+              }}
+              trigger={
+                <Button variant="outline" size="icon" className="h-9 w-9 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] hover:translate-x-[1px] bg-white">
+                  <Settings2 className="h-4 w-4" />
+                </Button>
+              }
+            />
           </CardFooter>
         </Card>
       ))}
@@ -106,9 +123,14 @@ export default function WarehousesPage() {
           <h2 className="text-3xl font-black font-serif tracking-tight">Manajemen Gudang</h2>
           <p className="text-muted-foreground mt-1">Daftar lokasi penyimpanan dan kapasitas.</p>
         </div>
-        <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
-          <Plus className="mr-2 h-4 w-4" /> Tambah Gudang
-        </Button>
+        <WarehouseFormDialog
+          mode="create"
+          trigger={
+            <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+              <Plus className="mr-2 h-4 w-4" /> Tambah Gudang
+            </Button>
+          }
+        />
       </div>
 
       <Suspense fallback={<div className="h-96 w-full animate-pulse bg-slate-100 rounded-xl" />}>

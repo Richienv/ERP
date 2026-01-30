@@ -88,6 +88,7 @@ interface GapData {
         remainingQty: number
         unitPrice: number
     }[]
+    manualAlert?: boolean
 }
 
 export function DetailedMaterialTable({ data }: { data: GapData[] }) {
@@ -102,11 +103,11 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
     const [filter, setFilter] = useState<'alert' | 'requested' | 'approved' | 'rejected' | 'completed'>('alert')
 
     const filteredData = data.filter(item => {
-        if (filter === 'alert') return item.gap > 0 && !item.isPendingRequest && (!item.openPOs || item.openPOs.length === 0)
-        if (filter === 'requested') return item.isPendingRequest || optimisticPendingRequests.has(item.id)
-        if (filter === 'approved') return (item.openPOs && item.openPOs.length > 0) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)
+        if (filter === 'alert') return item.manualAlert || (item.gap > 0 && !item.isPendingRequest && (!item.openPOs || item.openPOs.length === 0))
+        if (filter === 'requested') return !item.manualAlert && (item.isPendingRequest || optimisticPendingRequests.has(item.id))
+        if (filter === 'approved') return !item.manualAlert && ((item.openPOs && item.openPOs.length > 0) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0))
         if (filter === 'rejected') return item.isRejectedRequest
-        if (filter === 'completed') return item.gap <= 0 && !item.isPendingRequest && (!item.openPOs || item.openPOs.length === 0)
+        if (filter === 'completed') return !item.manualAlert && item.gap <= 0 && !item.isPendingRequest && (!item.openPOs || item.openPOs.length === 0)
         return true
     })
 
@@ -167,7 +168,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                         >
                             Alert
                             <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${filter === 'alert' ? 'bg-white text-red-600' : 'bg-red-100 text-red-600'}`}>
-                                {data.filter(i => i.gap > 0 && !i.isPendingRequest && (!i.openPOs || i.openPOs.length === 0)).length}
+                                {data.filter(i => i.manualAlert || (i.gap > 0 && !i.isPendingRequest && (!i.openPOs || i.openPOs.length === 0))).length}
                             </span>
                         </button>
                         <button
@@ -176,7 +177,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                         >
                             Requested
                             <span className="bg-amber-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">
-                                {data.filter(i => i.isPendingRequest || optimisticPendingRequests.has(i.id)).length}
+                                {data.filter(i => !i.manualAlert && (i.isPendingRequest || optimisticPendingRequests.has(i.id))).length}
                             </span>
                         </button>
                         <button
@@ -185,7 +186,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                         >
                             Approved
                             <span className="bg-blue-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">
-                                {data.filter(i => (i.openPOs && i.openPOs.length > 0) || (optimisticPOs[i.id] && optimisticPOs[i.id].length > 0)).length}
+                                {data.filter(i => !i.manualAlert && ((i.openPOs && i.openPOs.length > 0) || (optimisticPOs[i.id] && optimisticPOs[i.id].length > 0))).length}
                             </span>
                         </button>
                         <button
@@ -203,7 +204,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                         >
                             Completed
                             <span className="bg-emerald-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">
-                                {data.filter(i => i.gap <= 0 && !i.isPendingRequest && (!i.openPOs || i.openPOs.length === 0)).length}
+                                {data.filter(i => !i.manualAlert && i.gap <= 0 && !i.isPendingRequest && (!i.openPOs || i.openPOs.length === 0)).length}
                             </span>
                         </button>
                     </div>
@@ -239,11 +240,18 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                 <div className="text-[10px] text-zinc-500 font-mono mt-1">
                                                     {item.category} • {item.sku}
                                                 </div>
-                                                {item.alternative && (
-                                                    <Badge variant="outline" className="mt-1 text-[9px] h-4 border-emerald-500 text-emerald-700 bg-emerald-50">
-                                                        Alt: {item.alternative.code}
-                                                    </Badge>
-                                                )}
+                                                <div className="flex gap-1 mt-1 flex-wrap">
+                                                    {item.manualAlert && (
+                                                        <Badge variant="destructive" className="text-[9px] h-4 uppercase font-black tracking-tighter">
+                                                            Manual Alert
+                                                        </Badge>
+                                                    )}
+                                                    {item.alternative && (
+                                                        <Badge variant="outline" className="text-[9px] h-4 border-emerald-500 text-emerald-700 bg-emerald-50">
+                                                            Alt: {item.alternative.code}
+                                                        </Badge>
+                                                    )}
+                                                </div>
                                             </td>
 
                                             {/* Stock & Demand (Warehouses + Work Orders) */}
@@ -311,7 +319,8 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                     </div>
 
                                                     {/* Incoming PO */}
-                                                    {((item.activePO) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) && !optimisticResolvedItems.has(item.id) ? (
+                                                    {/* Incoming PO - Hide if Manual Alert (User treats it as insufficient/ignored) */}
+                                                    {!item.manualAlert && ((item.activePO) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) && !optimisticResolvedItems.has(item.id) ? (
                                                         <div className="bg-blue-100 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-2 rounded relative mt-1">
                                                             <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[8px] font-black px-1 border border-black rounded shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] rotate-3">
                                                                 INCOMING
@@ -355,53 +364,69 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                     {/* Action Logic */}
                                                     {item.gap > 0 && !optimisticResolvedItems.has(item.id) ? (
                                                         // GAP EXISTS
-                                                        ((item.openPOs && item.openPOs.length > 0) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) ? (
-                                                            // A. Active PO -> Show Receipt Dialog
-                                                            <GoodsReceiptDialog
+                                                        // Priority Case: MANUAL ALERT -> Always Allow Request (Even if PO exists, it might be insufficient)
+                                                        (item.manualAlert) ? (
+                                                            <PurchaseRequestDialog
                                                                 item={{
                                                                     id: item.id,
                                                                     name: item.name,
+                                                                    sku: item.sku,
+                                                                    category: item.category,
                                                                     unit: item.unit,
-                                                                    warehouses: item.warehouses
+                                                                    cost: item.cost,
+                                                                    gap: item.gap,
+                                                                    reorderPoint: item.reorderPoint
                                                                 }}
-                                                                // Combine server POs with optimistic local POs
-                                                                openPOs={[...(item.openPOs || []), ...(optimisticPOs[item.id] || [])]}
-                                                                onSuccess={() => {
-                                                                    handleReceiptSuccess(item.id)
-                                                                    setOptimisticPOs(prev => {
-                                                                        const newState = { ...prev };
-                                                                        delete newState[item.id];
-                                                                        return newState;
-                                                                    })
-                                                                }}
+                                                                onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
                                                             />
-                                                        ) : (
-                                                            // B. No Active PO -> Check if Pending
-                                                            (item.isPendingRequest || optimisticPendingRequests.has(item.id)) ? (
-                                                                // B1. Pending -> Show Badge
-                                                                <div className="flex items-center justify-end gap-2 text-amber-600 font-bold text-xs uppercase">
-                                                                    <span className="bg-amber-100 px-2 py-1 rounded border border-amber-200 flex items-center gap-1">
-                                                                        <Loader2 className="h-3 w-3 animate-spin" />
-                                                                        Pending Request
-                                                                    </span>
-                                                                </div>
-                                                            ) : (
-                                                                // B2. Not Pending -> Show Request Dialog
-                                                                <PurchaseRequestDialog
+                                                        ) :
+                                                            ((item.openPOs && item.openPOs.length > 0) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) ? (
+                                                                // A. Active PO -> Show Receipt Dialog
+                                                                <GoodsReceiptDialog
                                                                     item={{
                                                                         id: item.id,
                                                                         name: item.name,
-                                                                        sku: item.sku,
-                                                                        category: item.category,
                                                                         unit: item.unit,
-                                                                        cost: item.cost,
-                                                                        gap: item.gap,
-                                                                        reorderPoint: item.reorderPoint
+                                                                        warehouses: item.warehouses
                                                                     }}
-                                                                    onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
+                                                                    // Combine server POs with optimistic local POs
+                                                                    openPOs={[...(item.openPOs || []), ...(optimisticPOs[item.id] || [])]}
+                                                                    onSuccess={() => {
+                                                                        handleReceiptSuccess(item.id)
+                                                                        setOptimisticPOs(prev => {
+                                                                            const newState = { ...prev };
+                                                                            delete newState[item.id];
+                                                                            return newState;
+                                                                        })
+                                                                    }}
                                                                 />
+                                                            ) : (
+                                                                // B. No Active PO -> Check if Pending
+                                                                (item.isPendingRequest || optimisticPendingRequests.has(item.id)) ? (
+                                                                    // B1. Pending -> Show Badge
+                                                                    <div className="flex items-center justify-end gap-2 text-amber-600 font-bold text-xs uppercase">
+                                                                        <span className="bg-amber-100 px-2 py-1 rounded border border-amber-200 flex items-center gap-1">
+                                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                                            Pending Request
+                                                                        </span>
+                                                                    </div>
+                                                                ) : (
+                                                                    // B2. Not Pending -> Show Request Dialog
+                                                                    <PurchaseRequestDialog
+                                                                        item={{
+                                                                            id: item.id,
+                                                                            name: item.name,
+                                                                            sku: item.sku,
+                                                                            category: item.category,
+                                                                            unit: item.unit,
+                                                                            cost: item.cost,
+                                                                            gap: item.gap,
+                                                                            reorderPoint: item.reorderPoint
+                                                                        }}
+                                                                        onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
+                                                                    />
+                                                                )
                                                             )
-                                                        )
                                                     ) : (
                                                         // NO GAP (Healthy) -> Show Badge
                                                         <div className="flex items-center justify-end gap-2 text-emerald-600 font-bold text-xs uppercase">
