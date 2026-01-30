@@ -78,3 +78,6 @@ uploads/
 # =========================
 *.bak
 *.swp
+# Ignore Typst binary
+bin/
+*.tar.gz

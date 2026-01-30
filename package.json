@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "rm -rf .next && next dev",
     "build": "next build --turbopack",
-    "postinstall": "prisma generate",
+    "postinstall": "node scripts/install-typst.js && prisma generate",
     "start": "next start",
     "lint": "eslint"
   },
