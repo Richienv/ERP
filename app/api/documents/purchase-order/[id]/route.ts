@@ -51,9 +51,9 @@ export async function GET(
             summary: {
                 subtotal: Number(po.totalAmount),
                 tax_rate: 11, // PPN 11% Standard
-                tax_amount: Number(po.totalAmount) * 0.11, // Simple calc
+                tax_amount: Math.round(Number(po.totalAmount) * 0.11), // Simple calc with rounding
                 discount: 0,
-                total: Number(po.totalAmount) * 1.11,
+                total: Math.round(Number(po.totalAmount) * 1.11),
                 currency: "IDR",
                 notes: "Generated from ERP System"
             }
