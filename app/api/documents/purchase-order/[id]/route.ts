@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { DocumentService } from "@/lib/services/document-service"
+import { formatRupiah } from "@/lib/utils"
 import { PurchaseOrderSchema } from "@/lib/validators/document"
 
 export async function GET(
@@ -46,14 +47,19 @@ export async function GET(
                 description: item.product.name,
                 qty: item.quantity,
                 unit_price: Number(item.unitPrice),
-                total: Number(item.totalPrice)
+                unit_price_formatted: formatRupiah(Number(item.unitPrice), false), // No decimals for unit price
+                total: Number(item.totalPrice),
+                total_formatted: formatRupiah(Number(item.totalPrice), false) // consistent with unit price
             })),
             summary: {
                 subtotal: Number(po.totalAmount),
+                subtotal_formatted: formatRupiah(Number(po.totalAmount)),
                 tax_rate: 11, // PPN 11% Standard
-                tax_amount: Math.round(Number(po.totalAmount) * 0.11), // Simple calc with rounding
+                tax_amount: Math.round(Number(po.totalAmount) * 0.11),
+                tax_formatted: formatRupiah(Math.round(Number(po.totalAmount) * 0.11)),
                 discount: 0,
                 total: Math.round(Number(po.totalAmount) * 1.11),
+                total_formatted: formatRupiah(Math.round(Number(po.totalAmount) * 1.11)),
                 currency: "IDR",
                 notes: "Generated from ERP System"
             }

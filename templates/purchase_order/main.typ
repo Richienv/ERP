@@ -103,10 +103,16 @@
 
 #let summary = get-field(data, "summary", default: (:))
 #let subtotal = get-field(summary, "subtotal", default: 0)
+#let subtotal-formatted = get-field(summary, "subtotal_formatted", default: format-currency(subtotal, currency: currency))
+
 #let tax-rate = get-field(summary, "tax_rate", default: 0)
 #let tax-amount = get-field(summary, "tax_amount", default: 0)
+#let tax-formatted = get-field(summary, "tax_formatted", default: format-currency(tax-amount, currency: currency))
+
 #let discount = get-field(summary, "discount", default: 0)
 #let total = get-field(summary, "total", default: 0)
+#let total-formatted = get-field(summary, "total_formatted", default: format-currency(total, currency: currency))
+
 #let notes = get-field(summary, "notes", default: "No notes")
 
 #let line-items = get-field(data, "line_items", default: ())
@@ -186,14 +192,17 @@
       let desc = get-field(item, "description", default: "No description")
       let qty = get-field(item, "qty", default: 0)
       let price = get-field(item, "unit_price", default: 0)
+      let price-formatted = get-field(item, "unit_price_formatted", default: format-currency(price, currency: currency))
+
       let total-line = get-field(item, "total", default: 0)
+      let total-line-formatted = get-field(item, "total_formatted", default: format-currency(total-line, currency: currency))
       
       (
         text(size: 9pt)[#sku],
         text(size: 9pt)[#desc],
         text(size: 9pt)[#format-num(qty)],
-        text(size: 9pt)[#format-currency(price, currency: currency)],
-        text(size: 9pt, weight: "bold")[#format-currency(total-line, currency: currency)]
+        text(size: 9pt)[#price-formatted],
+        text(size: 9pt, weight: "bold")[#total-line-formatted]
       )
     }
   } else {
@@ -218,19 +227,19 @@
       column-gutter: 24pt,
       row-gutter: 8pt,
       align(right)[#text(fill: brand-colors.text-light)[Subtotal:]],
-      align(right)[#format-currency(subtotal, currency: currency)],
+      align(right)[#subtotal-formatted],
       
       ..if discount != none and discount > 0 {
         (align(right)[#text(fill: brand-colors.text-light)[Discount:]], align(right)[#text(fill: brand-colors.success)[-#format-currency(discount, currency: currency)]])
       } else { () },
       
       align(right)[#text(fill: brand-colors.text-light)[Tax (#tax-rate%):]],
-      align(right)[#format-currency(tax-amount, currency: currency)],
+      align(right)[#tax-formatted],
       
       grid.cell(colspan: 2, line(length: 100%, stroke: 1pt + brand-colors.border)),
       
       align(right)[#text(size: 12pt, weight: "bold", fill: brand-colors.primary)[Total:]],
-      align(right)[#text(size: 14pt, weight: "bold", fill: brand-colors.primary)[#format-currency(total, currency: currency)]]
+      align(right)[#text(size: 14pt, weight: "bold", fill: brand-colors.primary)[#total-formatted]]
     )
   ]
 ]
