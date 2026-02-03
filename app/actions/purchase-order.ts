@@ -1,6 +1,7 @@
 'use server'
 
 import { prisma, safeQuery, withRetry } from "@/lib/db"
+import { supabase } from "@/lib/supabase"
 import { revalidatePath, unstable_cache } from "next/cache"
 import { FALLBACK_PRODUCTS } from "@/lib/db-fallbacks"
 
@@ -9,38 +10,32 @@ import { FALLBACK_PRODUCTS } from "@/lib/db-fallbacks"
 // ==========================================
 export const getProductsForPO = unstable_cache(
     async () => {
-        const { data: products, error } = await safeQuery<any[]>(
-            () => withRetry(() => prisma.product.findMany({
-                where: { isActive: true },
-                select: {
-                    id: true,
-                    name: true,
-                    code: true,
-                    unit: true,
-                    sellingPrice: true,
-                    costPrice: true,
-                    supplierItems: {
-                        include: {
-                            supplier: true
-                        }
-                    }
-                },
-                orderBy: { name: 'asc' }
-            })),
-            FALLBACK_PRODUCTS
-        )
+        try {
+            // Supabase Client
+            const { data: products, error } = await supabase
+                .from('products')
+                .select('*, supplier_products(price, "supplierId")') // Quote supplierId if case sensitive column
+                .eq('isActive', true)
+                .order('name', { ascending: true })
 
-        if (error) {
+            if (error) {
+                console.error("Supabase Error fetching products for PO:", error)
+                return FALLBACK_PRODUCTS
+            }
+
+            if (!products) return []
+
+            return products.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                code: p.code,
+                unit: p.unit,
+                defaultPrice: p.supplier_products?.[0]?.price ? Number(p.supplier_products[0].price) : Number(p.costPrice)
+            }))
+        } catch (error: any) {
             console.error("Error fetching products for PO:", error.message)
+            return FALLBACK_PRODUCTS
         }
-
-        return products.map((p: any) => ({
-            id: p.id,
-            name: p.name,
-            code: p.code,
-            unit: p.unit,
-            defaultPrice: p.supplierItems?.[0]?.price ? Number(p.supplierItems[0].price) : Number(p.costPrice)
-        }))
     },
     ['po-products'],
     { revalidate: 300, tags: ['inventory', 'products', 'procurement'] }
@@ -77,37 +72,37 @@ export async function createPurchaseOrder(data: {
         const taxAmount = subtotal * 0.11 // PPN 11%
         const totalAmount = subtotal + taxAmount
 
-        // Create PO with correct status from ProcurementStatus enum
-        const po = await prisma.purchaseOrder.create({
-            data: {
-                number: poNumber,
-                supplierId: data.supplierId,
-                status: 'PO_DRAFT', // Correct enum value
-                orderDate: new Date(),
-                expectedDate: data.expectedDate,
-                totalAmount: subtotal,
-                taxAmount,
-                netAmount: totalAmount,
-                // Create Items
-                items: {
-                    create: data.items.map(item => ({
-                        productId: item.productId,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        totalPrice: item.quantity * item.unitPrice
-                    }))
-                }
-            },
-            include: {
-                supplier: true,
-                items: {
-                    include: { product: true }
-                }
-            }
-        })
+        // Prepare Payload for RPC
+        const payload = {
+            number: poNumber,
+            supplierId: data.supplierId,
+            expectedDate: data.expectedDate ? data.expectedDate.toISOString() : null,
+            totalAmount,
+            taxAmount,
+            netAmount: totalAmount,
+            notes: data.notes || null,
+            items: data.items.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice
+            }))
+        }
+
+        // Call Supabase RPC
+        const { data: result, error } = await supabase.rpc('create_purchase_order_v2', { payload })
+
+        if (error) {
+            throw new Error(error.message)
+        }
+
+        const typedResult = result as any
+
+        if (!typedResult.success) {
+            throw new Error(typedResult.error || "Failed to create PO via RPC")
+        }
 
         revalidatePath('/procurement/orders')
-        return { success: true, poId: po.id, number: poNumber }
+        return { success: true, poId: typedResult.poId, number: typedResult.number }
 
     } catch (error: any) {
         console.error("Error creating PO:", error)

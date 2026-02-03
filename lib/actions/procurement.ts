@@ -1,12 +1,54 @@
 "use server"
 
-import { prisma, safeQuery, withRetry } from "@/lib/db"
+import { prisma } from "@/lib/db"
+import { supabase } from "@/lib/supabase"
 import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
-import { ProcurementStatus, PRStatus, PRItemStatus } from "@prisma/client"
+import { ProcurementStatus } from "@prisma/client"
 import { recordPendingBillFromPO } from "@/lib/actions/finance"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
 
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
+
+export const getVendors = unstable_cache(
+    async () => {
+        try {
+            const { data: vendors, error } = await supabase
+                .from('suppliers')
+                .select('*, purchase_orders(count)')
+                .eq('isActive', true)
+                .order('name', { ascending: true })
+
+            if (error) {
+                console.error("Supabase Error fetching vendors:", error)
+                return FALLBACK_VENDORS
+            }
+
+            if (!vendors) return []
+
+            return vendors.map((v: any) => ({
+                id: v.id,
+                name: v.name,
+                code: v.code,
+                category: v.code?.startsWith('IMP') ? "Import" : "General",
+                status: v.isActive ? "Active" : "Inactive",
+                rating: v.rating,
+                contact: v.contactName || "-",
+                phone: v.phone || "-",
+                email: v.email || "-",
+                address: v.address || "-",
+                totalSpend: "0",
+                activeOrders: v.purchase_orders?.[0]?.count || 0,
+                color: "bg-zinc-500",
+                logo: v.name?.substring(0, 2).toUpperCase() || "??"
+            }))
+        } catch (error) {
+            console.error("Error fetching vendors:", error)
+            return FALLBACK_VENDORS
+        }
+    },
+    ['vendors-list-procurement'],
+    { revalidate: 300, tags: ['procurement', 'vendors'] }
+)
 
 // ==========================================
 // DASHBOARD STATS
@@ -17,42 +59,61 @@ export const getProcurementStats = unstable_cache(
         try {
             const now = new Date()
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+            const startOfMonthIso = startOfMonth.toISOString()
 
             // Active Statuses for Spend Calculation (Ordered/Received)
             const activeStatuses: ProcurementStatus[] = ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED', 'COMPLETED']
 
-            // Enterprise: Parallel queries for better performance
+            // Parallel queries using Supabase
             const [
-                currentMonthSpend,
-                pendingPOs,
-                pendingPRs,
-                incomingCount,
-                vendors,
-                recentActivity
+                spendResult,
+                pendingPOsResult,
+                pendingPRsResult,
+                incomingResult,
+                vendorsResult,
+                recentActivityResult
             ] = await Promise.all([
-                prisma.purchaseOrder.aggregate({
-                    _sum: { totalAmount: true },
-                    where: {
-                        status: { in: activeStatuses },
-                        createdAt: { gte: startOfMonth }
-                    }
-                }),
-                prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }),
-                prisma.purchaseRequest.count({ where: { status: 'PENDING' } }),
-                prisma.purchaseOrder.count({
-                    where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] } }
-                }),
-                prisma.supplier.findMany({ select: { rating: true, onTimeRate: true } }),
-                prisma.purchaseOrder.findMany({
-                    take: 5,
-                    orderBy: { createdAt: "desc" },
-                    include: { supplier: { select: { name: true } } }
-                })
+                // 1. Current Month Spend (Fetch totalAmount)
+                supabase.from('purchase_orders')
+                    .select('totalAmount')
+                    .in('status', activeStatuses)
+                    .gte('createdAt', startOfMonthIso),
+                
+                // 2. Pending POs Count
+                supabase.from('purchase_orders')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('status', 'PENDING_APPROVAL'),
+
+                // 3. Pending PRs Count
+                supabase.from('purchase_requests')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('status', 'PENDING'),
+
+                // 4. Incoming Count
+                supabase.from('purchase_orders')
+                    .select('id', { count: 'exact', head: true })
+                    .in('status', ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED']),
+
+                // 5. Vendors (for Health stats)
+                supabase.from('suppliers')
+                    .select('rating, onTimeRate'),
+
+                // 6. Recent Activity
+                supabase.from('purchase_orders')
+                    .select('*, supplier:suppliers(name)')
+                    .order('createdAt', { ascending: false })
+                    .limit(5)
             ])
 
-            const currentSpend = Number(currentMonthSpend._sum.totalAmount || 0)
-            const avgRating = vendors.length > 0 ? vendors.reduce((sum, v) => sum + v.rating, 0) / vendors.length : 0
-            const avgOnTime = vendors.length > 0 ? vendors.reduce((sum, v) => sum + v.onTimeRate, 0) / vendors.length : 0
+            // Calculations
+            const currentSpend = spendResult.data?.reduce((sum, po: any) => sum + (Number(po.totalAmount) || 0), 0) || 0
+            const pendingPOs = pendingPOsResult.count || 0
+            const pendingPRs = pendingPRsResult.count || 0
+            const incomingCount = incomingResult.count || 0
+            
+            const vendors = vendorsResult.data || []
+            const avgRating = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.rating || 0), 0) / vendors.length : 0
+            const avgOnTime = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.onTimeRate || 0), 0) / vendors.length : 0
 
             return {
                 spend: { current: currentSpend, growth: 0 },
@@ -60,7 +121,7 @@ export const getProcurementStats = unstable_cache(
                 urgentNeeds: 0,
                 vendorHealth: { rating: avgRating, onTime: avgOnTime },
                 incomingCount,
-                recentActivity
+                recentActivity: recentActivityResult.data || []
             }
 
         } catch (error) {
@@ -79,33 +140,42 @@ export const getProcurementStats = unstable_cache(
 export const getPurchaseRequests = unstable_cache(
     async () => {
         try {
-            const requests = await prisma.purchaseRequest.findMany({
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    requester: true,
-                    items: {
-                        include: { product: true }
-                    }
-                }
-            })
+            const { data: requests, error } = await supabase
+                .from('purchase_requests')
+                .select(`
+                    *,
+                    requester:employees!requesterId(firstName, lastName, department),
+                    items:purchase_request_items(
+                        id, quantity, status,
+                        product:products(name, unit)
+                    )
+                `)
+                .order('createdAt', { ascending: false })
 
-            return requests.map(req => ({
+            if (error) {
+                console.error("Supabase Error fetching requests:", error)
+                return []
+            }
+
+            if (!requests) return []
+
+            return requests.map((req: any) => ({
                 id: req.id,
                 number: req.number,
-                requester: `${req.requester.firstName} ${req.requester.lastName || ''}`.trim(),
-                department: req.department || req.requester.department,
-                status: req.status, // PRStatus
+                requester: `${req.requester?.firstName || ''} ${req.requester?.lastName || ''}`.trim(),
+                department: req.department || req.requester?.department,
+                status: req.status,
                 priority: req.priority,
                 notes: req.notes,
-                date: req.createdAt,
-                itemCount: req.items.length,
-                items: req.items.map(i => ({
+                date: new Date(req.createdAt),
+                itemCount: req.items?.length || 0,
+                items: req.items?.map((i: any) => ({
                     id: i.id,
-                    productName: i.product.name,
+                    productName: i.product?.name,
                     quantity: i.quantity,
-                    unit: i.product.unit,
+                    unit: i.product?.unit,
                     status: i.status
-                }))
+                })) || []
             }))
 
         } catch (error) {
@@ -131,25 +201,36 @@ export async function createPurchaseRequest(data: {
         const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
         const number = `PR-${year}${month}-${random}`
 
-        const pr = await prisma.purchaseRequest.create({
-            data: {
+        const { data: pr, error } = await supabase
+            .from('purchase_requests')
+            .insert({
                 number,
                 requesterId: data.requesterId,
                 department: data.department || "General",
                 priority: data.priority || "NORMAL",
                 notes: data.notes,
                 status: "PENDING",
-                items: {
-                    create: data.items.map(item => ({
-                        productId: item.productId,
-                        quantity: item.quantity,
-                        targetDate: item.targetDate,
-                        notes: item.notes,
-                        status: "PENDING"
-                    }))
-                }
-            }
-        })
+                requestDate: new Date().toISOString()
+            })
+            .select()
+            .single()
+
+        if (error) throw error
+
+        if (data.items.length > 0) {
+            const { error: itemsError } = await supabase
+                .from('purchase_request_items')
+                .insert(data.items.map(item => ({
+                    purchaseRequestId: pr.id,
+                    productId: item.productId,
+                    quantity: item.quantity,
+                    targetDate: item.targetDate ? item.targetDate.toISOString() : null,
+                    notes: item.notes,
+                    status: "PENDING"
+                })))
+            
+            if (itemsError) throw itemsError
+        }
 
         revalidateTagSafe('procurement')
         revalidateTagSafe('requests')
@@ -417,90 +498,42 @@ export async function confirmPurchaseOrder(id: string) {
     }
 }
 
-// ==========================================
-// VENDOR ACTIONS
-// ==========================================
-
-export const getVendors = unstable_cache(
-    async () => {
-        const { data: vendors } = await safeQuery(
-            () => withRetry(() => prisma.supplier.findMany({
-                orderBy: { name: 'asc' },
-                include: {
-                    _count: {
-                        select: { purchaseOrders: true }
-                    }
-                }
-            })),
-            FALLBACK_VENDORS
-        )
-
-        return vendors.map((v: any) => ({
-            id: v.id,
-            name: v.name,
-            code: v.code,
-            category: v.code?.startsWith('IMP') ? "Import" : "General",
-            status: v.isActive ? "Active" : "Inactive",
-            rating: v.rating,
-            contact: v.contactName || "-",
-            phone: v.phone || "-",
-            email: v.email || "-",
-            address: v.address || "-",
-            totalSpend: "0",
-            activeOrders: v._count?.purchaseOrders || 0,
-            color: "bg-zinc-500",
-            logo: v.name?.substring(0, 2).toUpperCase() || "??"
-        }))
-    },
-    ['vendors-list'],
-    { revalidate: 300, tags: ['procurement', 'vendors'] }
-)
-
-export async function createVendor(data: {
-    name: string,
-    code: string,
-    contactName?: string,
-    email?: string,
-    phone?: string,
-    address?: string
-}) {
-    try {
-        await prisma.supplier.create({
-            data: { ...data, rating: 0, onTimeRate: 100 }
-        })
-        revalidateTagSafe('vendors')
-        return { success: true }
-    } catch (e: any) {
-        return { success: false, error: e.message }
-    }
-}
-
 // Alias for backward compatibility
 export const createPOFromPR = convertPRToPO
 
 export const getAllPurchaseOrders = unstable_cache(
     async () => {
-        const { data: orders } = await safeQuery(
-            () => withRetry(() => prisma.purchaseOrder.findMany({
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    supplier: true,
-                    items: true
-                }
-            })),
-            FALLBACK_PURCHASE_ORDERS
-        )
+        try {
+            const { data: orders, error } = await supabase
+                .from('purchase_orders')
+                .select(`
+                    *,
+                    supplier:suppliers(name),
+                    items:purchase_order_items(id)
+                `)
+                .order('createdAt', { ascending: false })
 
-        return orders.map((po: any) => ({
-            id: po.number,
-            dbId: po.id,
-            vendor: po.supplier.name,
-            date: po.orderDate.toLocaleDateString('id-ID'),
-            total: Number(po.totalAmount),
-            status: po.status,
-            items: po.items.length,
-            eta: po.expectedDate ? po.expectedDate.toLocaleDateString('id-ID') : '-'
-        }))
+            if (error) {
+                console.error("Supabase Error fetching purchase orders:", error)
+                return FALLBACK_PURCHASE_ORDERS
+            }
+
+            if (!orders) return []
+
+            return orders.map((po: any) => ({
+                id: po.number,
+                dbId: po.id,
+                vendor: po.supplier?.name || 'Unknown',
+                date: new Date(po.orderDate).toLocaleDateString('id-ID'),
+                total: Number(po.totalAmount),
+                status: po.status,
+                items: po.items?.length || 0,
+                eta: po.expectedDate ? new Date(po.expectedDate).toLocaleDateString('id-ID') : '-'
+            }))
+        } catch (error) {
+            console.error("Error fetching purchase orders:", error)
+            return FALLBACK_PURCHASE_ORDERS
+        }
     },
     ['purchase-orders-list'],
     { revalidate: 300, tags: ['procurement', 'purchase-orders'] }

@@ -1,20 +1,19 @@
 
 import { CreateRequestForm } from "@/components/procurement/create-request-form"
-import { getAllProducts } from "@/app/actions/inventory"
-import { prisma } from "@/lib/prisma"
+import { supabase } from "@/lib/supabase"
 
 export default async function NewRequestPage() {
-    // optimize: fetch minimal product data for select
-    const products = await prisma.product.findMany({
-        select: { id: true, name: true, unit: true, code: true, category: { select: { name: true } } },
-        orderBy: { name: 'asc' }
-    })
+    // 1. Fetch Products with Category
+    const { data: products } = await supabase
+        .from('products')
+        .select('id, name, unit, code, category:categories(name)')
+        .order('name', { ascending: true })
 
-    // Mock employees for requester selection (in real app, use session)
-    const employees = await prisma.employee.findMany({
-        where: { status: 'ACTIVE' },
-        select: { id: true, firstName: true, lastName: true, department: true }
-    })
+    // 2. Fetch Employees (Active)
+    const { data: employees } = await supabase
+        .from('employees')
+        .select('id, firstName, lastName, department')
+        .eq('status', 'ACTIVE')
 
     return (
         <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans">
@@ -28,7 +27,10 @@ export default async function NewRequestPage() {
             </div>
 
             <div className="max-w-3xl">
-                <CreateRequestForm products={products} employees={employees} />
+                <CreateRequestForm 
+                    products={products || []} 
+                    employees={employees || []} 
+                />
             </div>
         </div>
     )

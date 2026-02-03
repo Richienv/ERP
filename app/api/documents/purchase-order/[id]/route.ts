@@ -1,9 +1,8 @@
 
 import { NextRequest, NextResponse } from "next/server"
-import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { DocumentService } from "@/lib/services/document-service"
 import { formatRupiah } from "@/lib/utils"
-import { PurchaseOrderSchema } from "@/lib/validators/document"
 
 export async function GET(
     req: NextRequest,
@@ -17,13 +16,50 @@ export async function GET(
         const contentDisposition = disposition === "inline" ? "inline" : "attachment"
 
         // 1. Fetch Data
-        const po = await prisma.purchaseOrder.findUnique({
-            where: { id: poId },
-            include: {
-                supplier: true,
-                items: { include: { product: true } }
-            }
-        })
+        const supabase = await createClient()
+
+        const {
+            data: { user },
+            error: userError,
+        } = await supabase.auth.getUser()
+
+        if (userError || !user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
+
+        const { data: po, error: poError } = await supabase
+            .from("purchase_orders")
+            .select(
+                `
+                    id,
+                    number,
+                    orderDate,
+                    totalAmount,
+                    supplier:suppliers(
+                        name,
+                        address,
+                        email,
+                        contactName
+                    ),
+                    items:purchase_order_items(
+                        productId,
+                        quantity,
+                        unitPrice,
+                        totalPrice,
+                        product:products(
+                            id,
+                            code,
+                            name
+                        )
+                    )
+                `
+            )
+            .eq("id", poId)
+            .single()
+
+        if (poError) {
+            throw new Error(poError.message)
+        }
 
         if (!po) {
             return NextResponse.json({ error: "Purchase Order not found" }, { status: 404 })
@@ -45,21 +81,21 @@ export async function GET(
                 print_decoration: print_decoration
             },
             po_number: po.number,
-            date: po.orderDate.toISOString().split('T')[0],
+            date: new Date(po.orderDate).toISOString().split('T')[0],
             vendor: {
-                name: po.supplier.name,
-                address: po.supplier.address || "No Address Provided",
+                name: po.supplier?.name || "Unknown Vendor",
+                address: po.supplier?.address || "No Address Provided",
                 tax_id: "00-000-000.0-000.000",
-                contact: po.supplier.contactName || po.supplier.name,
-                email: po.supplier.email || "no-email@vendor.com"
+                contact: po.supplier?.contactName || po.supplier?.name || "Unknown",
+                email: po.supplier?.email || "no-email@vendor.com"
             },
             ship_to: {
                 warehouse: "Main Warehouse",
                 address: "Jl. Industri Raya No. 123\nKawasan Industri Pulo Gadung\nJakarta Timur 13920"
             },
-            line_items: po.items.map(item => ({
-                sku: item.product.code || "SKU-" + item.productId.substring(0, 6).toUpperCase(),
-                description: item.product.name,
+            line_items: (po.items || []).map((item: any) => ({
+                sku: item.product?.code || "SKU-" + String(item.productId).substring(0, 6).toUpperCase(),
+                description: item.product?.name || "Unknown Product",
                 qty: item.quantity,
                 unit_price: Number(item.unitPrice),
                 unit_price_formatted: formatRupiah(Number(item.unitPrice), false),

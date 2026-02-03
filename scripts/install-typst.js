@@ -8,6 +8,8 @@ const { pipeline } = require('stream/promises');
 const PLATFORM = os.platform();
 const ARCH = os.arch();
 
+const STRICT = process.env.TYPST_STRICT === '1';
+
 const platformMap = {
     'darwin': 'apple-darwin',
     'linux': 'unknown-linux-musl',
@@ -92,6 +94,19 @@ async function install() {
 
     console.log(`Installing Typst v${version} for ${target}...`);
 
+    // If Typst already exists and is runnable, skip installation
+    try {
+        if (fs.existsSync(typstBinary)) {
+            const versionOutput = execSync(`${typstBinary} --version`).toString().trim();
+            if (versionOutput) {
+                console.log(`✅ Typst already installed: ${versionOutput}`);
+                process.exit(0);
+            }
+        }
+    } catch (e) {
+        // Ignore and attempt reinstall
+    }
+
     // Create bin directory
     if (!fs.existsSync(binDir)) {
         fs.mkdirSync(binDir, { recursive: true });
@@ -165,7 +180,12 @@ async function install() {
             try { fs.unlinkSync(tarball); } catch (e) { }
         }
 
-        process.exit(1);
+        if (STRICT) {
+            process.exit(1);
+        }
+
+        console.warn('⚠️  Continuing without Typst (set TYPST_STRICT=1 to fail on this error)');
+        process.exit(0);
     }
 }
 
