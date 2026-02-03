@@ -42,7 +42,7 @@ import {
 import Link from "next/link"
 
 // Validation schema dengan Zod dalam bahasa Indonesia
-const customerFormSchema = z.object({
+const customerFormSchemaBase = z.object({
   // Basic Information
   code: z.string().min(1, "Kode pelanggan harus diisi"),
   name: z.string().min(1, "Nama pelanggan harus diisi"),
@@ -65,8 +65,8 @@ const customerFormSchema = z.object({
   website: z.string().url("Format website tidak valid").optional().or(z.literal("")),
 
   // Credit Management
-  creditLimit: z.string().transform((val) => val ? parseFloat(val) : 0),
-  creditTerm: z.string().transform((val) => val ? parseInt(val) : 30),
+  creditLimit: z.coerce.number().min(0).default(0),
+  creditTerm: z.coerce.number().int().min(0).default(30),
   paymentTerm: z.enum(["CASH", "NET_15", "NET_30", "NET_45", "NET_60", "NET_90", "COD"]).default("NET_30"),
 
   // Business Settings
@@ -79,15 +79,17 @@ const customerFormSchema = z.object({
   isProspect: z.boolean().default(false),
 })
 
-type CustomerFormValues = z.infer<typeof customerFormSchema>
+type CustomerFormValues = z.input<typeof customerFormSchemaBase>
 
 // Default values
-const defaultValues: Partial<CustomerFormValues> = {
+const defaultValues: CustomerFormValues = {
+  code: "",
+  name: "",
   customerType: "COMPANY",
   isTaxable: true,
   taxStatus: "PKP",
-  creditLimit: "0",
-  creditTerm: "30",
+  creditLimit: 0,
+  creditTerm: 30,
   paymentTerm: "NET_30",
   currency: "IDR",
   isActive: true,
@@ -106,7 +108,7 @@ export default function NewCustomerPage() {
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerFormSchema),
+    resolver: zodResolver(customerFormSchemaBase),
     defaultValues,
   })
 

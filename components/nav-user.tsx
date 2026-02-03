@@ -57,8 +57,8 @@ export function NavUser({
 
   // Prioritize authUser, fallback to propUser, then default placeholder
   const user = authUser ? {
-    name: authUser.name,
-    email: formatRole(authUser.role), // Show localized role as email/subtitle
+    name: authUser.name ?? "Tamu",
+    email: formatRole(authUser.role ?? "user"), // Show localized role as email/subtitle
     avatar: authUser.avatar || "",
   } : propUser || {
     name: "Tamu",

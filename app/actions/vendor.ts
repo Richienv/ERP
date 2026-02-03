@@ -1,47 +1,55 @@
 'use server'
 
 import { prisma } from "@/lib/prisma"
-import { revalidatePath } from "next/cache"
+import { ProcurementStatus } from "@prisma/client"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
+
+const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 // ==========================================
 // GET ALL VENDORS
 // ==========================================
-export async function getVendors() {
-    try {
-        const vendors = await prisma.supplier.findMany({
-            where: { isActive: true },
-            include: {
-                _count: {
-                    select: { purchaseOrders: true }
+export const getVendors = unstable_cache(
+    async () => {
+        try {
+            const activeStatuses: ProcurementStatus[] = ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED']
+            const vendors = await prisma.supplier.findMany({
+                where: { isActive: true },
+                include: {
+                    _count: {
+                        select: { purchaseOrders: true }
+                    },
+                    purchaseOrders: {
+                        where: { status: { in: activeStatuses } },
+                        select: { id: true }
+                    }
                 },
-                purchaseOrders: {
-                    where: { status: { in: ['OPEN', 'PARTIAL'] } },
-                    select: { id: true }
-                }
-            },
-            orderBy: { createdAt: 'desc' }
-        })
+                orderBy: { createdAt: 'desc' }
+            }) as any
 
-        return vendors.map(v => ({
-            id: v.id,
-            code: v.code,
-            name: v.name,
-            contactName: v.contactName,
-            email: v.email,
-            phone: v.phone,
-            address: v.address,
-            rating: v.rating,
-            onTimeRate: v.onTimeRate,
-            isActive: v.isActive,
-            totalOrders: v._count.purchaseOrders,
-            activeOrders: v.purchaseOrders.length,
-            createdAt: v.createdAt
-        }))
-    } catch (error) {
-        console.error("Error fetching vendors:", error)
-        return []
-    }
-}
+            return vendors.map((v: any) => ({
+                id: v.id,
+                code: v.code,
+                name: v.name,
+                contactName: v.contactName,
+                email: v.email,
+                phone: v.phone,
+                address: v.address,
+                rating: v.rating,
+                onTimeRate: v.onTimeRate,
+                isActive: v.isActive,
+                totalOrders: v._count.purchaseOrders,
+                activeOrders: v.purchaseOrders.length,
+                createdAt: v.createdAt
+            }))
+        } catch (error) {
+            console.error("Error fetching vendors:", error)
+            return []
+        }
+    },
+    ['vendors-list-procurement'],
+    { revalidate: 600, tags: ['procurement', 'vendors'] }
+)
 
 // ==========================================
 // CREATE VENDOR
@@ -84,6 +92,8 @@ export async function createVendor(data: {
             }
         })
 
+        revalidateTagSafe('procurement')
+        revalidateTagSafe('vendors')
         revalidatePath('/procurement/vendors')
 
         return {

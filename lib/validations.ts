@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-// Product validation schema
-export const createProductSchema = z.object({
+// Product validation schema - base object for type inference
+export const createProductSchemaBase = z.object({
   code: z.string().min(1, 'Kode produk wajib diisi').max(50, 'Kode produk maksimal 50 karakter'),
   name: z.string().min(1, 'Nama produk wajib diisi').max(200, 'Nama produk maksimal 200 karakter'),
   description: z.string().optional(),
@@ -13,7 +13,10 @@ export const createProductSchema = z.object({
   maxStock: z.number().int().min(0, 'Stok maksimum tidak boleh negatif').optional().default(0),
   reorderLevel: z.number().int().min(0, 'Level reorder tidak boleh negatif').optional().default(0),
   barcode: z.string().optional(),
-}).refine(
+})
+
+// Product validation schema with refinements
+export const createProductSchema = createProductSchemaBase.refine(
   (data) => !data.maxStock || !data.minStock || data.maxStock >= data.minStock,
   {
     message: 'Stok maksimum harus lebih besar atau sama dengan stok minimum',
@@ -56,7 +59,7 @@ export const createStockMovementSchema = z.object({
   warehouseId: z.string().min(1, 'ID gudang wajib diisi'),
   locationId: z.string().optional(),
   movementType: z.enum(['IN', 'OUT', 'ADJUSTMENT', 'TRANSFER', 'RESERVED', 'RELEASED'], {
-    required_error: 'Tipe pergerakan wajib dipilih',
+    message: 'Tipe pergerakan wajib dipilih',
   }),
   quantity: z.number().int().min(1, 'Jumlah harus lebih dari 0'),
   unitCost: z.number().min(0, 'Harga satuan tidak boleh negatif').optional(),
@@ -99,27 +102,19 @@ export const productFiltersSchema = z.object({
 // Sales & CRM Validation Schemas
 // ================================
 
-// Customer validation schema
-export const createCustomerSchema = z.object({
+// Customer validation schema - base for type inference
+export const createCustomerSchemaBase = z.object({
   code: z.string().min(1, 'Kode pelanggan wajib diisi').max(50, 'Kode pelanggan maksimal 50 karakter'),
   name: z.string().min(1, 'Nama pelanggan wajib diisi').max(200, 'Nama pelanggan maksimal 200 karakter'),
   legalName: z.string().optional(),
   customerType: z.enum(['INDIVIDUAL', 'COMPANY', 'GOVERNMENT'], {
-    required_error: 'Tipe pelanggan wajib dipilih',
+    message: 'Tipe pelanggan wajib dipilih',
   }),
   categoryId: z.string().optional(),
   
   // Indonesian Business Information
-  npwp: z.string()
-    .optional()
-    .refine((val) => !val || /^\d{2}\.\d{3}\.\d{3}\.\d{1}-\d{3}\.\d{3}$/.test(val), {
-      message: 'Format NPWP tidak valid (XX.XXX.XXX.X-XXX.XXX)',
-    }),
-  nik: z.string()
-    .optional()
-    .refine((val) => !val || /^\d{16}$/.test(val), {
-      message: 'NIK harus 16 digit angka',
-    }),
+  npwp: z.string().optional(),
+  nik: z.string().optional(),
   taxAddress: z.string().optional(),
   isTaxable: z.boolean().optional().default(true),
   taxStatus: z.enum(['PKP', 'NON_PKP', 'EXEMPT']).optional().default('PKP'),
@@ -143,6 +138,9 @@ export const createCustomerSchema = z.object({
   isActive: z.boolean().optional().default(true),
   isProspect: z.boolean().optional().default(false),
 })
+
+// Customer validation schema with refinements for server-side validation
+export const createCustomerSchema = createCustomerSchemaBase
 
 // Customer Address validation schema
 export const createCustomerAddressSchema = z.object({
@@ -186,7 +184,7 @@ export const createQuotationSchema = z.object({
   customerId: z.string().min(1, 'Pelanggan wajib dipilih'),
   customerRef: z.string().optional(),
   validUntil: z.date({
-    required_error: 'Tanggal berlaku sampai wajib diisi',
+    message: 'Tanggal berlaku sampai wajib diisi',
   }),
   paymentTerm: z.enum(['CASH', 'NET_15', 'NET_30', 'NET_45', 'NET_60', 'NET_90', 'COD']).optional().default('NET_30'),
   deliveryTerm: z.string().optional(),
@@ -263,7 +261,7 @@ export const salesOrderFiltersSchema = z.object({
 })
 
 // Type exports
-export type CreateProductInput = z.infer<typeof createProductSchema>
+export type CreateProductInput = z.input<typeof createProductSchemaBase>
 export type UpdateProductInput = z.infer<typeof updateProductSchema>
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>
 export type CreateWarehouseInput = z.infer<typeof createWarehouseSchema>
@@ -273,14 +271,14 @@ export type SignUpInput = z.infer<typeof signUpSchema>
 export type ProductFiltersInput = z.infer<typeof productFiltersSchema>
 
 // Sales & CRM Type exports
-export type CreateCustomerInput = z.infer<typeof createCustomerSchema>
+export type CreateCustomerInput = z.input<typeof createCustomerSchemaBase>
 export type CreateCustomerAddressInput = z.infer<typeof createCustomerAddressSchema>
 export type CreateCustomerContactInput = z.infer<typeof createCustomerContactSchema>
 export type CreateQuotationInput = z.infer<typeof createQuotationSchema>
 export type CreateQuotationItemInput = z.infer<typeof createQuotationItemSchema>
 export type CreateCompleteQuotationInput = z.infer<typeof createCompleteQuotationSchema>
 export type CustomerFiltersInput = z.infer<typeof customerFiltersSchema>
-export type CreateSalesOrderInput = z.infer<typeof createSalesOrderSchema>
-export type CreateSalesOrderItemInput = z.infer<typeof createSalesOrderItemSchema>
-export type CreateCompleteSalesOrderInput = z.infer<typeof createCompleteSalesOrderSchema>
+export type CreateSalesOrderInput = z.input<typeof createSalesOrderSchema>
+export type CreateSalesOrderItemInput = z.input<typeof createSalesOrderItemSchema>
+export type CreateCompleteSalesOrderInput = z.input<typeof createCompleteSalesOrderSchema>
 export type SalesOrderFiltersInput = z.infer<typeof salesOrderFiltersSchema>

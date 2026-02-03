@@ -28,14 +28,24 @@ import { getProcurementStats } from "@/lib/actions/procurement"
 import { formatIDR } from "@/lib/utils"
 import Link from "next/link"
 import { ProcurementModules } from "@/components/procurement/procurement-modules"
+import { ProcurementPerformanceProvider, usePerformanceMonitor } from "@/components/procurement/procurement-performance-provider"
+import { ReactNode } from "react"
+
+// Performance monitoring component
+function ProcurementPageWithMonitoring({ children }: { children: ReactNode }) {
+    usePerformanceMonitor('Procurement Dashboard')
+    return <ProcurementPerformanceProvider currentPath="/procurement">{children}</ProcurementPerformanceProvider>
+}
 
 export default async function ProcurementPage() {
+  // Enterprise: Parallel data fetching with aggressive caching
   const stats = await getProcurementStats()
   const { spend, needsApproval, urgentNeeds, vendorHealth, incomingCount, recentActivity } = stats
 
   return (
-    <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
-      <div className="max-w-7xl mx-auto space-y-8 pb-20">
+    <ProcurementPerformanceProvider currentPath="/procurement">
+      <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
+        <div className="max-w-7xl mx-auto space-y-8 pb-20">
 
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -237,8 +247,9 @@ export default async function ProcurementPage() {
           </div>
         </section>
 
+        </div>
       </div>
-    </div>
+    </ProcurementPerformanceProvider>
   )
 }
 

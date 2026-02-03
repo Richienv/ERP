@@ -30,7 +30,7 @@ async function main() {
         data: {
             number: 'PO-2024-001',
             supplierId: supplier1.id,
-            status: 'OPEN',
+            status: 'PO_DRAFT',
             orderDate: new Date(),
             totalAmount: 200000000, // 200 Juta
             taxAmount: 22000000,

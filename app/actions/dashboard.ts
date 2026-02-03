@@ -1,8 +1,20 @@
 'use server'
 
-import { prisma } from "@/lib/prisma"
+import { prisma, safeQuery, withRetry } from "@/lib/db"
 import { unstable_cache } from "next/cache"
 import { getFinancialMetrics } from "@/lib/actions/finance"
+import { 
+    FALLBACK_DASHBOARD_SNAPSHOT,
+    FALLBACK_PROCUREMENT_METRICS,
+    FALLBACK_HR_METRICS,
+    FALLBACK_PRODUCTION_METRICS,
+    FALLBACK_PRODUCTION_STATUS,
+    FALLBACK_MATERIAL_STATUS,
+    FALLBACK_QUALITY_STATUS,
+    FALLBACK_WORKFORCE_STATUS,
+    FALLBACK_ACTIVITY_FEED,
+    FALLBACK_EXECUTIVE_ALERTS
+} from "@/lib/db-fallbacks"
 
 // Cached Financial Snapshot
 export const getLatestSnapshot = unstable_cache(
@@ -36,7 +48,7 @@ export const getProcurementMetrics = unstable_cache(
     async () => {
         try {
             const activePO = await prisma.purchaseOrder.count({
-                where: { status: 'OPEN' }
+                where: { status: { in: ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED'] } }
             })
 
             const delayedPOs = await prisma.purchaseOrder.findMany({

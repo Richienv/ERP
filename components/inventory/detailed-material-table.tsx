@@ -130,6 +130,8 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                 }
             })
         }
+
+
     }
 
     const handleReceiptSuccess = (itemId: string) => {

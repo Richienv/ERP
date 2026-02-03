@@ -30,10 +30,9 @@ async function main() {
         data: {
             number: poNumber,
             supplierId: supplier.id,
-            status: 'OPEN',
+            status: 'PO_DRAFT',
             totalAmount: 50000000, // 50jt
             paymentStatus: 'UNPAID',
-            orderDate: new Date(),
             orderDate: new Date()
         }
     })

@@ -22,6 +22,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import Link from 'next/link'
 import { getWarehouses } from "@/app/actions/inventory";
 import { WarehouseFormDialog } from "@/components/inventory/warehouse-form-dialog";
+import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider";
 
 async function WarehouseGrid() {
   const warehouses = await getWarehouses()
@@ -115,27 +116,29 @@ async function WarehouseGrid() {
   )
 }
 
-export default function WarehousesPage() {
+export default async function WarehousesPage() {
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-black font-serif tracking-tight">Manajemen Gudang</h2>
-          <p className="text-muted-foreground mt-1">Daftar lokasi penyimpanan dan kapasitas.</p>
+    <InventoryPerformanceProvider currentPath="/inventory/warehouses">
+      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-black font-serif tracking-tight">Manajemen Gudang</h2>
+            <p className="text-muted-foreground mt-1">Daftar lokasi penyimpanan dan kapasitas.</p>
+          </div>
+          <WarehouseFormDialog
+            mode="create"
+            trigger={
+              <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                <Plus className="mr-2 h-4 w-4" /> Tambah Gudang
+              </Button>
+            }
+          />
         </div>
-        <WarehouseFormDialog
-          mode="create"
-          trigger={
-            <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
-              <Plus className="mr-2 h-4 w-4" /> Tambah Gudang
-            </Button>
-          }
-        />
-      </div>
 
-      <Suspense fallback={<div className="h-96 w-full animate-pulse bg-slate-100 rounded-xl" />}>
-        <WarehouseGrid />
-      </Suspense>
-    </div>
-  );
+        <Suspense fallback={<div className="h-96 w-full animate-pulse bg-slate-100 rounded-xl" />}>
+          <WarehouseGrid />
+        </Suspense>
+      </div>
+    </InventoryPerformanceProvider>
+  )
 }

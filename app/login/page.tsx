@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,20 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [rememberMe, setRememberMe] = useState(false)
+
+    // Load saved credentials on component mount
+    useEffect(() => {
+        const savedEmail = localStorage.getItem('rememberedEmail')
+        const savedPassword = localStorage.getItem('rememberPassword')
+        const savedRememberMe = localStorage.getItem('rememberMe')
+
+        if (savedEmail && savedPassword && savedRememberMe === 'true') {
+            setEmail(savedEmail)
+            setPassword(savedPassword)
+            setRememberMe(true)
+        }
+    }, [])
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -37,6 +51,18 @@ export default function LoginPage() {
                 setError(error.message)
                 toast.error("Login gagal: " + error.message)
                 return
+            }
+
+            // Save credentials if "Remember Me" is checked
+            if (rememberMe) {
+                localStorage.setItem('rememberedEmail', email)
+                localStorage.setItem('rememberPassword', password)
+                localStorage.setItem('rememberMe', 'true')
+            } else {
+                // Clear saved credentials
+                localStorage.removeItem('rememberedEmail')
+                localStorage.removeItem('rememberPassword')
+                localStorage.removeItem('rememberMe')
             }
 
             // Check role and redirect accordingly
@@ -96,12 +122,13 @@ export default function LoginPage() {
                         </div>
                     )}
 
-                    {/* Email */}
                     <div className="space-y-2">
                         <Label htmlFor="email" className="text-base font-bold">Email</Label>
                         <Input
                             id="email"
+                            name="email"
                             type="email"
+                            autoComplete="email"
                             placeholder="nama@perusahaan.com"
                             className="h-12 border-2 border-black rounded-xl text-base px-4 focus-visible:ring-0 focus-visible:border-black shadow-none"
                             value={email}
@@ -123,7 +150,9 @@ export default function LoginPage() {
                         <div className="relative">
                             <Input
                                 id="password"
+                                name="password"
                                 type={showPassword ? "text" : "password"}
+                                autoComplete="current-password"
                                 placeholder="Masukkan password"
                                 className="h-12 border-2 border-black rounded-xl text-base px-4 pr-10 focus-visible:ring-0 focus-visible:border-black shadow-none"
                                 value={password}
@@ -137,6 +166,23 @@ export default function LoginPage() {
                             >
                                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
+                        </div>
+
+                        {/* Remember Me */}
+                        <div className="flex items-center space-x-2 pt-2">
+                            <input
+                                type="checkbox"
+                                id="remember"
+                                checked={rememberMe}
+                                onChange={(e) => setRememberMe(e.target.checked)}
+                                className="h-4 w-4 rounded border-black text-black focus:ring-black"
+                            />
+                            <label
+                                htmlFor="remember"
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                                Ingat Saya
+                            </label>
                         </div>
                     </div>
 

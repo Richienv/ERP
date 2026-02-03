@@ -257,8 +257,69 @@ export async function postJournalEntry(data: {
 
         return { success: true }
 
+        return { success: true }
+
     } catch (error: any) {
         console.error("Journal Posting Error:", error)
         return { success: false, error: error.message }
+    }
+}
+
+// ==========================================
+// PROCUREMENT INTEGRATION
+// ==========================================
+
+export async function recordPendingBillFromPO(po: any) {
+    try {
+        console.log("Creating/Updating Finance Bill for PO:", po.number)
+
+        // Check if Bill already exists for this PO
+        const existingBill = await prisma.invoice.findFirst({
+            where: { orderId: po.id, type: 'INV_IN' }
+        })
+
+        if (existingBill) {
+            console.log("Bill already exists:", existingBill.number)
+            return { success: true, billId: existingBill.id }
+        }
+
+        // Create new Bill (Invoice Type IN)
+        const bill = await prisma.invoice.create({
+            data: {
+                number: `BILL-${po.number}`, // Simple Bill Number
+                type: 'INV_IN',
+                supplierId: po.supplierId,
+                orderId: po.id,
+                status: 'DRAFT', // Needs explicit confirmation in Finance
+                issueDate: new Date(),
+                dueDate: new Date(new Date().setDate(new Date().getDate() + 30)), // Default 30 days
+
+                // Copy financial connection
+                subtotal: po.netAmount || 0, // Using netAmount as subtotal for now
+                taxAmount: po.taxAmount || 0,
+                totalAmount: po.totalAmount || 0,
+                balanceDue: po.totalAmount || 0,
+
+                // Copy Items
+                items: {
+                    create: po.items.map((item: any) => ({
+                        description: item.product?.name || 'Unknown Item',
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        amount: item.totalPrice,
+                        productId: item.productId
+                    }))
+                }
+            }
+        })
+
+        console.log("Bill Created:", bill.number)
+        return { success: true, billId: bill.id }
+
+    } catch (error) {
+        console.error("Failed to record pending bill:", error)
+        // We do NOT throw here, so we don't block the PO approval flow.
+        // But we should likely log an alert or return error structure.
+        return { success: false, error: "Finance Sync Failed" }
     }
 }

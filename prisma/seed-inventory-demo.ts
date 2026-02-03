@@ -139,7 +139,7 @@ async function main() {
                 data: {
                     number: `PO-DEMO-${Math.floor(Math.random() * 1000)}`,
                     supplierId: supplier.id,
-                    status: 'OPEN',
+                    status: 'PO_DRAFT',
                     orderDate: new Date(),
                     // FIX: Quantity enough to cover MinStock (100)
                     totalAmount: 45000 * 150,

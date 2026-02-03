@@ -134,6 +134,7 @@ model Warehouse {
   stockLevels    StockLevel[]
   transactions     InventoryTransaction[]
   stockAudits    StockAudit[]
+  goodsReceivedNotes GoodsReceivedNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -206,6 +207,7 @@ model Product {
   BOMItem         BOMItem[]
   inspections     QualityInspection[]
   supplierItems   SupplierProduct[]
+  grnItems        GRNItem[]
 
   // Alternative / Substitute Products (Self-relation)
   alternativeProductId String?  @db.Uuid
@@ -909,8 +911,9 @@ model PurchaseOrder {
   supplierId String @db.Uuid
 
   // Dates
-  orderDate    DateTime  @default(now())
-  expectedDate DateTime?
+  orderDate      DateTime  @default(now())
+  expectedDate   DateTime?
+  sentToVendorAt DateTime?
 
   // Financials
   totalAmount Decimal @default(0) @db.Decimal(15, 2)
@@ -918,19 +921,28 @@ model PurchaseOrder {
   netAmount   Decimal @default(0) @db.Decimal(15, 2)
 
   // Status
-  status        POStatus      @default(OPEN)
-  paymentStatus PaymentStatus @default(UNPAID)
+  status         ProcurementStatus @default(PO_DRAFT)
+  previousStatus ProcurementStatus?
+  paymentStatus  PaymentStatus     @default(UNPAID)
+  rejectionReason String?
 
   datePaid DateTime?
+
+  // User Relations
+  requestedBy String? @db.Uuid // Original Requester (Inventory Staff)
+  createdBy   String? @db.Uuid // Purchasing Staff
+  approvedBy  String? @db.Uuid // Director/CEO
 
   // Relations
   supplier Supplier            @relation(fields: [supplierId], references: [id])
   items    PurchaseOrderItem[]
+  purchaseRequests PurchaseRequest[]
   
   // Tracking
   tasks       EmployeeTask[]
   inspections QualityInspection[]
   transactions InventoryTransaction[]
+  goodsReceivedNotes GoodsReceivedNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -950,6 +962,7 @@ model PurchaseOrderItem {
 
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product       Product       @relation(fields: [productId], references: [id])
+  grnItems      GRNItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -957,29 +970,7 @@ model PurchaseOrderItem {
   @@map("purchase_order_items")
 }
 
-model PurchaseRequest {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  number      String   @unique
-  requestDate DateTime @default(now())
-  
-  status      PRStatus @default(PENDING)
-  priority    String   @default("NORMAL")
-  
-  requesterId String   @db.Uuid
-  department  String?
-  notes       String?
-  
-  requester   Employee @relation("PrRequester", fields: [requesterId], references: [id])
-  items       PurchaseRequestItem[]
-  
-  approverId  String?  @db.Uuid
-  approver    Employee? @relation("PrApprover", fields: [approverId], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@map("purchase_requests")
-}
+
 
 model PurchaseRequestItem {
   id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
@@ -999,6 +990,35 @@ model PurchaseRequestItem {
   
   @@map("purchase_request_items")
 }
+
+model PurchaseRequest {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number      String   @unique
+  requestDate DateTime @default(now())
+  
+  status      PRStatus @default(PENDING)
+  priority    String   @default("NORMAL")
+  
+  requesterId String   @db.Uuid
+  department  String?
+  notes       String?
+  
+  requester   Employee @relation("PrRequester", fields: [requesterId], references: [id])
+  items       PurchaseRequestItem[]
+  
+  approverId  String?  @db.Uuid
+  approver    Employee? @relation("PrApprover", fields: [approverId], references: [id])
+
+  // Relations to PO
+  convertedToPOId String? @db.Uuid
+  purchaseOrder   PurchaseOrder? @relation(fields: [convertedToPOId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("purchase_requests")
+}
+
 
 enum PRStatus {
   DRAFT
@@ -1032,6 +1052,86 @@ enum PaymentStatus {
   OVERDUE
 }
 
+enum ProcurementStatus {
+  GAP_DETECTED
+  PR_CREATED
+  PO_DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ORDERED
+  VENDOR_CONFIRMED
+  SHIPPED
+  PARTIAL_RECEIVED
+  RECEIVED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+// ================================
+// Goods Received Note (GRN) Module
+// ================================
+
+model GoodsReceivedNote {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number          String    @unique
+  purchaseOrderId String    @db.Uuid
+  warehouseId     String    @db.Uuid
+  
+  receivedDate    DateTime  @default(now())
+  receivedById    String    @db.Uuid
+  
+  status          GRNStatus @default(DRAFT)
+  notes           String?
+  
+  // Relations
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+  receivedBy      Employee      @relation(fields: [receivedById], references: [id])
+  items           GRNItem[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("goods_received_notes")
+  @@index([purchaseOrderId])
+  @@index([status])
+}
+
+model GRNItem {
+  id                String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grnId             String  @db.Uuid
+  poItemId          String  @db.Uuid
+  productId         String  @db.Uuid
+  
+  quantityOrdered   Int
+  quantityReceived  Int
+  quantityAccepted  Int     @default(0)
+  quantityRejected  Int     @default(0)
+  unitCost          Decimal @db.Decimal(15, 2)
+  
+  inspectionNotes   String?
+  
+  // Relations
+  grn               GoodsReceivedNote  @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  poItem            PurchaseOrderItem  @relation(fields: [poItemId], references: [id])
+  product           Product            @relation(fields: [productId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("grn_items")
+  @@index([grnId])
+}
+
+enum GRNStatus {
+  DRAFT
+  INSPECTING
+  PARTIAL_ACCEPTED
+  ACCEPTED
+  REJECTED
+}
+
 // ================================
 // HR Module (New)
 // ================================
@@ -1060,6 +1160,7 @@ model Employee {
   inspections   QualityInspection[]
   purchaseRequests PurchaseRequest[] @relation("PrRequester")
   reviewedRequests PurchaseRequest[] @relation("PrApprover")
+  goodsReceivedNotes GoodsReceivedNote[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

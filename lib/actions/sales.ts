@@ -12,6 +12,8 @@ export interface SalesStats {
 
 import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
 
+const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
+
 export const getSalesStats = unstable_cache(
     async (): Promise<SalesStats> => {
         try {
@@ -166,7 +168,7 @@ export async function createQuotation(data: any) {
             }
         })
 
-        revalidateTag('dashboard-sales-stats')
+        revalidateTagSafe('dashboard-sales-stats')
         revalidatePath('/sales/quotations')
         return { success: true, message: "Quotation created", id: quote.id }
 
@@ -183,7 +185,7 @@ export async function updateQuotationStatus(id: string, newStatus: string) {
             where: { id },
             data: { status: newStatus as any }
         })
-        revalidateTag('dashboard-sales-stats')
+        revalidateTagSafe('dashboard-sales-stats')
         return { success: true }
     } catch (error) {
         return { success: false, error: "Failed to update status" }
@@ -229,7 +231,7 @@ export async function createInvoice(data: { customerId: string, items: { descrip
         })
 
         try {
-            revalidateTag('dashboard-sales-stats')
+            revalidateTagSafe('dashboard-sales-stats')
         } catch (e) {
             console.log('Skipping revalidation (Script context)')
         }
@@ -292,7 +294,7 @@ export async function approveInvoice(id: string) {
         })
 
         try {
-            revalidateTag('dashboard-sales-stats')
+            revalidateTagSafe('dashboard-sales-stats')
         } catch (e) {
             console.log('Skipping revalidation (Script context)')
         }
@@ -372,7 +374,7 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
         })
 
         try {
-            revalidateTag('dashboard-sales-stats')
+            revalidateTagSafe('dashboard-sales-stats')
         } catch (e) {
             console.log('Skipping revalidation (Script context)')
         }

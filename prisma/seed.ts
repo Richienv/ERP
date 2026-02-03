@@ -69,7 +69,7 @@ async function main() {
         // Active POs
         await prisma.purchaseOrder.create({
             data: {
-                number: 'PO-2024-001', supplierId: supplierA.id, status: 'OPEN', totalAmount: 50000000, expectedDate: new Date(new Date().setDate(new Date().getDate() + 7)),
+                number: 'PO-2024-001', supplierId: supplierA.id, status: 'PO_DRAFT', totalAmount: 50000000, expectedDate: new Date(new Date().setDate(new Date().getDate() + 7)),
                 items: { create: [{ productId: cotton.id, quantity: 10, unitPrice: 5000000, totalPrice: 50000000 }] }
             }
         })
@@ -77,7 +77,7 @@ async function main() {
         // DELAYED POs
         await prisma.purchaseOrder.create({
             data: {
-                number: 'PO-2024-002-LATE', supplierId: supplierA.id, status: 'OPEN', totalAmount: 25000000,
+                number: 'PO-2024-002-LATE', supplierId: supplierA.id, status: 'PO_DRAFT', totalAmount: 25000000,
                 expectedDate: new Date(new Date().setDate(new Date().getDate() - 5)),
                 items: { create: [{ productId: cotton.id, quantity: 5, unitPrice: 5000000, totalPrice: 25000000 }] }
             }
@@ -85,7 +85,7 @@ async function main() {
 
         await prisma.purchaseOrder.create({
             data: {
-                number: 'PO-2024-003-LATE', supplierId: supplierB.id, status: 'OPEN', totalAmount: 5000000,
+                number: 'PO-2024-003-LATE', supplierId: supplierB.id, status: 'PO_DRAFT', totalAmount: 5000000,
                 expectedDate: new Date(new Date().setDate(new Date().getDate() - 2)),
                 items: { create: [{ productId: dyeRed.id, quantity: 10, unitPrice: 500000, totalPrice: 5000000 }] }
             }
@@ -95,7 +95,7 @@ async function main() {
         for (let i = 0; i < 9; i++) {
             await prisma.purchaseOrder.create({
                 data: {
-                    number: `PO-GEN-${i}`, supplierId: supplierA.id, status: 'OPEN', totalAmount: 5000000,
+                    number: `PO-GEN-${i}`, supplierId: supplierA.id, status: 'PO_DRAFT', totalAmount: 5000000,
                     expectedDate: new Date(new Date().setDate(new Date().getDate() + 10)),
                     items: { create: [{ productId: cotton.id, quantity: 1, unitPrice: 5000000, totalPrice: 5000000 }] }
                 }

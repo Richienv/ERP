@@ -1,46 +1,52 @@
-
+import { Suspense } from "react"
 import { InventoryQuickActions } from "@/components/inventory/inventory-quick-actions"
-import { Siren, Settings2, Zap } from "lucide-react"
 import { GlobalKPIs } from "@/components/inventory/global-kpis"
 import { WarehouseCard } from "@/components/inventory/warehouse-card"
-import { Button } from "@/components/ui/button"
-import { DetailedMaterialTable } from "@/components/inventory/detailed-material-table"
 import { ProcurementInsights } from "@/components/inventory/procurement-insights"
-import { getMaterialGapAnalysis } from "@/app/actions/inventory"
 import { MaterialInputForm } from "@/components/inventory/material-input-form"
-// Cache Buster: Force Refresh 2
-
-export const dynamic = 'force-dynamic'
+import { MaterialTableWrapper } from "@/components/inventory/material-table-wrapper"
+import { 
+    KPISkeleton, 
+    MaterialTableSkeleton, 
+    ProcurementInsightsSkeleton 
+} from "@/components/inventory/inventory-skeletons"
+import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider"
 
 export default async function InventoryPage() {
-  const materialGapData = await getMaterialGapAnalysis()
   return (
-    <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
-      <div className="max-w-7xl mx-auto space-y-8 pb-20">
+    <InventoryPerformanceProvider currentPath="/inventory">
+      <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
+        <div className="max-w-7xl mx-auto space-y-8 pb-20">
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase mb-2 flex items-center gap-3">
-              Manajemen Logistik
-            </h1>
-            <p className="text-muted-foreground font-bold text-lg">Command Center operasional gudang & pemantauan real-time.</p>
-          </div>
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase mb-2 flex items-center gap-3">
+                Manajemen Logistik
+              </h1>
+              <p className="text-muted-foreground font-bold text-lg">Command Center operasional gudang & pemantauan real-time.</p>
+            </div>
 
-          <div className="flex gap-2">
-            <MaterialInputForm />
+            <div className="flex gap-2">
+              <MaterialInputForm />
+            </div>
           </div>
-        </div>
 
         {/* 1. Global KPIs (Action Command) */}
         <section>
-          <GlobalKPIs />
-          <DetailedMaterialTable data={materialGapData} />
+          <Suspense fallback={<KPISkeleton />}>
+            <GlobalKPIs />
+          </Suspense>
+          <Suspense fallback={<MaterialTableSkeleton />}>
+            <MaterialTableWrapper />
+          </Suspense>
         </section>
 
         {/* 2. Procurement Insights (Data Driven) */}
         <section>
-          <ProcurementInsights />
+          <Suspense fallback={<ProcurementInsightsSkeleton />}>
+            <ProcurementInsights />
+          </Suspense>
         </section>
 
         {/* 3. Per-Warehouse Activity (Cards) */}
@@ -83,10 +89,10 @@ export default async function InventoryPage() {
           </div>
         </section>
 
-        {/* 4. Quick Actions (Moved to Bottom) */}
-        <InventoryQuickActions />
-
+          {/* 4. Quick Actions (Moved to Bottom) */}
+          <InventoryQuickActions />
+        </div>
       </div>
-    </div>
+    </InventoryPerformanceProvider>
   )
 }

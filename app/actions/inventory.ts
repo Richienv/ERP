@@ -1,9 +1,17 @@
-
 'use server'
 
-import { prisma } from "@/lib/prisma"
+import { prisma, safeQuery, withRetry } from "@/lib/db"
 import { unstable_cache, revalidateTag, revalidatePath } from "next/cache"
 import { calculateProductStatus } from "@/lib/inventory-logic"
+import { approvePurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
+import { 
+    FALLBACK_INVENTORY_KPIS, 
+    FALLBACK_MATERIAL_GAP, 
+    FALLBACK_PROCUREMENT_INSIGHTS,
+    FALLBACK_WAREHOUSES 
+} from "@/lib/db-fallbacks"
+
+const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 export const getWarehouses = unstable_cache(
     async () => {
@@ -56,7 +64,7 @@ export const getWarehouses = unstable_cache(
         })
     },
     ['warehouses-list'],
-    { revalidate: 60, tags: ['inventory', 'warehouses'] }
+    { revalidate: 300, tags: ['inventory', 'warehouses'] }
 )
 
 export const getInventoryKPIs = unstable_cache(
@@ -89,7 +97,7 @@ export const getInventoryKPIs = unstable_cache(
         }
     },
     ['inventory-kpis'],
-    { revalidate: 60, tags: ['inventory', 'kpis'] }
+    { revalidate: 300, tags: ['inventory', 'kpis'] }
 )
 
 export const getMaterialGapAnalysis = unstable_cache(
@@ -104,7 +112,7 @@ export const getMaterialGapAnalysis = unstable_cache(
                     category: true,
                     purchaseOrderItems: {
                         where: {
-                            purchaseOrder: { status: { in: ['OPEN', 'PARTIAL'] } }
+                            purchaseOrder: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] } }
                         },
                         include: {
                             purchaseOrder: {
@@ -286,7 +294,7 @@ export const getMaterialGapAnalysis = unstable_cache(
         })
     },
     ['material-gap-analysis'],
-    { revalidate: 30, tags: ['inventory', 'gap-analysis'] }
+    { revalidate: 120, tags: ['inventory', 'gap-analysis'] }
 )
 
 // ==========================================
@@ -302,8 +310,8 @@ export async function createWarehouse(data: { name: string, code: string, addres
                 capacity: data.capacity
             }
         })
-        revalidateTag('inventory')
-        revalidateTag('warehouses')
+        revalidateTagSafe('inventory')
+        revalidateTagSafe('warehouses')
         return { success: true }
     } catch (e: any) {
         console.error("Failed to create warehouse", e)
@@ -403,7 +411,7 @@ export async function receiveGoodsFromPO(data: {
 
             if (updatedPO) {
                 const allReceived = updatedPO.items.every(i => i.receivedQty >= i.quantity)
-                const newStatus = allReceived ? 'RECEIVED' : 'PARTIAL'
+                const newStatus = allReceived ? 'RECEIVED' : 'SHIPPED'
                 if (updatedPO.status !== newStatus && updatedPO.status !== 'RECEIVED') {
                     await tx.purchaseOrder.update({
                         where: { id: data.poId },
@@ -446,8 +454,12 @@ export async function requestPurchase(data: {
         const existingItem = await prisma.purchaseRequestItem.findFirst({
             where: {
                 productId: data.itemId,
-                status: 'PENDING'
-            }
+                status: 'PENDING',
+                purchaseRequest: {
+                    status: { notIn: ['REJECTED', 'CANCELLED'] }
+                }
+            },
+            include: { purchaseRequest: true }
         })
 
         if (existingItem) {
@@ -467,6 +479,13 @@ export async function requestPurchase(data: {
         const activeEmployee = requester || await prisma.employee.findFirst({ where: { status: 'ACTIVE' } })
 
         if (!activeEmployee) throw new Error("No active employee found to assign as requester")
+
+        // Validate UUID to prevent "found m at 1" errors
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+        if (!uuidRegex.test(activeEmployee.id)) {
+            console.error("Invalid Employee UUID found:", activeEmployee.id)
+            throw new Error(`Active employee has invalid UUID: ${activeEmployee.id}`)
+        }
 
         // 3. Create Purchase Request
         const date = new Date()
@@ -489,14 +508,30 @@ export async function requestPurchase(data: {
                         status: 'PENDING'
                     }
                 }
-            }
+            },
+            include: { items: true } // Include items to get IDs for conversion
         })
 
-        revalidateTag('inventory')
-        revalidateTag('procurement')
+        // === PHASE 1 LIFECYCLE: STOP AT PR ===
+        // The PR is created and goes to Purchasing queue.
+
+        revalidateTagSafe('inventory')
+        revalidateTagSafe('procurement')
+
         return {
             success: true,
-            message: "Purchase Request Created",
+            pendingTask: {
+                id: pr.id,
+                status: 'PR_CREATED',
+                type: 'PURCHASE_REQUEST'
+            }
+        }
+
+
+        // Fallback if conversion fails or no PO created (should rarely happen if flow is correct)
+        return {
+            success: true,
+            message: "Purchase Request Created (Pending Approval)",
             pendingTask: { id: pr.id }
         }
 
@@ -514,7 +549,7 @@ export const getProcurementInsights = unstable_cache(
             // 1. Get Active Purchase Orders (Actual Inbound Data)
             const activePOs = await prisma.purchaseOrder.findMany({
                 where: {
-                    status: { in: ['OPEN', 'PARTIAL'] }
+                    status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] as any }
                 },
                 include: {
                     supplier: true,
@@ -526,13 +561,13 @@ export const getProcurementInsights = unstable_cache(
                 take: 5
             })
 
-            const incomingStock = activePOs.map(po => {
-                const totalItems = po.items.reduce((sum, item) => sum + item.quantity, 0)
+            const incomingStock = activePOs.map((po: any) => {
+                const totalItems = po.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
                 // Mock Progress Logic
                 let progress = 0
                 let trackingStatus = 'Confirmed'
-                if (po.status === 'PARTIAL') { progress = 60; trackingStatus = 'Shipped' }
-                else if (po.status === 'OPEN') { progress = 35; trackingStatus = 'In Production' }
+                if (po.status === 'SHIPPED') { progress = 60; trackingStatus = 'Shipped' }
+                else if (po.status === 'ORDERED') { progress = 35; trackingStatus = 'In Production' }
                 // Mock logic for status if not partial/open specific
                 if (!trackingStatus) trackingStatus = 'Processing'
                 if (progress === 0) progress = 10
@@ -553,7 +588,7 @@ export const getProcurementInsights = unstable_cache(
                     totalValue: Number(po.totalAmount),
                     eta: etaDate,
                     daysUntilarrival,
-                    items: po.items.map(i => ({
+                    items: po.items.map((i: any) => ({
                         name: i.product.name,
                         qty: i.quantity,
                         unit: i.product.unit
@@ -626,7 +661,7 @@ export const getProcurementInsights = unstable_cache(
         }
     },
     ['procurement-insights'],
-    { revalidate: 60, tags: ['inventory', 'procurement'] }
+    { revalidate: 300, tags: ['inventory', 'procurement'] }
 )
 
 export const getProductsForKanban = unstable_cache(
@@ -664,7 +699,7 @@ export const getProductsForKanban = unstable_cache(
         })
     },
     ['inventory-kanban'],
-    { revalidate: 60, tags: ['inventory', 'products'] }
+    { revalidate: 300, tags: ['inventory', 'products'] }
 )
 
 export async function setProductManualAlert(productId: string, isAlert: boolean) {
@@ -673,7 +708,7 @@ export async function setProductManualAlert(productId: string, isAlert: boolean)
             where: { id: productId },
             data: { manualAlert: isAlert }
         })
-        revalidateTag('inventory')
+        revalidateTagSafe('inventory')
         return { success: true }
     } catch (e) {
         console.error("Failed to set manual alert", e)
@@ -724,42 +759,46 @@ export const getWarehouseDetails = unstable_cache(
         }
     },
     ['warehouse-details'],
-    { revalidate: 60, tags: ['inventory', 'warehouse-details'] }
+    { revalidate: 300, tags: ['inventory', 'warehouse-details'] }
 )
 
 // ==========================================
 // STOCK MOVEMENT ACTIONS
 // ==========================================
 
-export async function getStockMovements(limit = 50) {
-    const movements = await prisma.inventoryTransaction.findMany({
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: {
-            product: { select: { name: true, code: true, unit: true } },
-            warehouse: { select: { name: true } },
-            // Include relations for context
-            purchaseOrder: { select: { number: true, supplier: { select: { name: true } } } },
-            salesOrder: { select: { number: true, customer: { select: { name: true } } } },
-            workOrder: { select: { number: true } }
-        }
-    })
+export const getStockMovements = unstable_cache(
+    async (limit = 50) => {
+        const movements = await prisma.inventoryTransaction.findMany({
+            take: limit,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                product: { select: { name: true, code: true, unit: true } },
+                warehouse: { select: { name: true } },
+                // Include relations for context
+                purchaseOrder: { select: { number: true, supplier: { select: { name: true } } } },
+                salesOrder: { select: { number: true, customer: { select: { name: true } } } },
+                workOrder: { select: { number: true } }
+            }
+        })
 
-    return movements.map(mv => ({
-        id: mv.id,
-        type: mv.type,
-        date: mv.createdAt,
-        item: mv.product.name,
-        code: mv.product.code,
-        qty: mv.quantity,
-        unit: mv.product.unit,
-        warehouse: mv.warehouse.name,
-        // Determine "entity" (Supplier, Customer, or Target Warehouse) based on type
-        entity: mv.purchaseOrder?.supplier.name || mv.salesOrder?.customer.name || mv.notes || '-',
-        reference: mv.purchaseOrder?.number || mv.salesOrder?.number || mv.workOrder?.number || '-',
-        user: mv.performedBy || 'System'
-    }))
-}
+        return movements.map(mv => ({
+            id: mv.id,
+            type: mv.type,
+            date: mv.createdAt,
+            item: mv.product.name,
+            code: mv.product.code,
+            qty: mv.quantity,
+            unit: mv.product.unit,
+            warehouse: mv.warehouse.name,
+            // Determine "entity" (Supplier, Customer, or Target Warehouse) based on type
+            entity: mv.purchaseOrder?.supplier.name || mv.salesOrder?.customer.name || mv.notes || '-',
+            reference: mv.purchaseOrder?.number || mv.salesOrder?.number || mv.workOrder?.number || '-',
+            user: mv.performedBy || 'System'
+        }))
+    },
+    ['inventory-movements'],
+    { revalidate: 120, tags: ['inventory', 'movements'] }
+)
 
 export async function createManualMovement(data: {
     type: 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER' | 'SCRAP',
@@ -871,7 +910,7 @@ export async function createManualMovement(data: {
             }
         })
 
-        revalidateTag('inventory')
+        revalidateTagSafe('inventory')
         return { success: true }
 
     } catch (e) {
@@ -891,8 +930,8 @@ export async function updateWarehouse(id: string, data: { name: string, code: st
                 capacity: data.capacity
             }
         })
-        revalidateTag('inventory')
-        revalidateTag('warehouse-details')
+        revalidateTagSafe('inventory')
+        revalidateTagSafe('warehouse-details')
         return { success: true }
     } catch (e: any) {
         console.error("Failed to update warehouse", e)
@@ -948,8 +987,8 @@ export async function submitSpotAudit(data: {
                 }
             });
 
-            revalidateTag('inventory')
-            revalidateTag('warehouse-details')
+            revalidateTagSafe('inventory')
+            revalidateTagSafe('warehouse-details')
             // revalidatePath('/inventory/audit') // Optional: Explicitly refresh the calling page
         }
 

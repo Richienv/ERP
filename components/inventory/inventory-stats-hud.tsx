@@ -1,7 +1,7 @@
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Archive, AlertTriangle, DollarSign, ArrowDownToLine, PackageX } from "lucide-react"
-import { InventoryKPIs } from "@/app/actions/inventory"
+import { InventoryKPIs } from "@/lib/types"
 
 interface InventoryStatsHudProps {
     data: InventoryKPIs

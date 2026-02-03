@@ -38,7 +38,9 @@ export default function SignUpPage() {
                     data: {
                         name: fullName,
                         role: role
-                    }
+                    },
+                    // Redirect to production URL (or localhost in dev) after email confirmation
+                    emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'}/auth/callback`
                 }
             })
 

@@ -143,6 +143,10 @@ const data = {
           title: "Permintaan Pembelian",
           url: "/procurement/requests",
         },
+        {
+          title: "Penerimaan Barang (GRN)",
+          url: "/procurement/receiving",
+        },
       ],
     },
     {

@@ -40,9 +40,11 @@ const priceListFormSchema = z.object({
     validTo: z.string().optional(),
 })
 
-type PriceListFormValues = z.infer<typeof priceListFormSchema>
+type PriceListFormValues = z.input<typeof priceListFormSchema>
 
-const defaultValues: Partial<PriceListFormValues> = {
+const defaultValues: PriceListFormValues = {
+    code: "",
+    name: "",
     currency: "IDR",
     type: "SALES",
     status: "ACTIVE",

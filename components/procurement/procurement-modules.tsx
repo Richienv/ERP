@@ -3,7 +3,8 @@
 import {
     Users,
     ShoppingCart,
-    FileText
+    FileText,
+    ClipboardCheck
 } from "lucide-react"
 import { BentoLauncher, BentoLauncherItem } from "@/components/dashboard/bento-launcher"
 
@@ -29,6 +30,13 @@ const procurementModules: BentoLauncherItem[] = [
         color: "text-amber-600",
         description: "Inbox persetujuan pembelian"
     },
+    {
+        title: "Penerimaan (GRN)",
+        href: "/procurement/receiving",
+        icon: ClipboardCheck,
+        color: "text-purple-600",
+        description: "Terima & verifikasi barang masuk"
+    },
 ]
 
 export function ProcurementModules() {
@@ -39,7 +47,7 @@ export function ProcurementModules() {
                     Module Shortcuts
                 </h2>
             </div>
-            <BentoLauncher items={procurementModules} columns={3} />
+            <BentoLauncher items={procurementModules} columns={4} />
         </section>
     )
 }

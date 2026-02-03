@@ -1,25 +1,45 @@
 // Prisma generated types
-export type {
-  Product,
-  Category,
-  Warehouse,
-  Location,
-  StockLevel,
-  InventoryTransaction,
-  StockAlert,
-  User,
+import type {
+  Product as PrismaProduct,
+  Category as PrismaCategory,
+  Warehouse as PrismaWarehouse,
+  Location as PrismaLocation,
+  StockLevel as PrismaStockLevel,
+  InventoryTransaction as PrismaInventoryTransaction,
+  StockAlert as PrismaStockAlert,
+  User as PrismaUser,
   TransactionType,
   StockAlertType,
 } from '@prisma/client'
 
+// Re-export for convenience
+export type Product = PrismaProduct
+export type Category = PrismaCategory
+export type Warehouse = PrismaWarehouse
+export type Location = PrismaLocation
+export type StockLevel = PrismaStockLevel
+export type InventoryTransaction = PrismaInventoryTransaction
+export type StockAlert = PrismaStockAlert
+export type User = PrismaUser
+export type { TransactionType, StockAlertType }
+
 // Extended types for API responses
-export interface ProductWithRelations extends Product {
-  category?: Category | null
-  stockLevels?: StockLevel[]
+export interface ProductWithRelations extends PrismaProduct {
+  category?: PrismaCategory | null
+  stockLevels?: PrismaStockLevel[]
+  currentStock?: number
   _count?: {
     stockLevels: number
     transactions: number
   }
+}
+
+// Inventory KPIs type (used by inventory-stats-hud and other components)
+export interface InventoryKPIs {
+  totalValue: number
+  totalSKUs: number
+  lowStockCount: number
+  pendingInbound: number
 }
 
 export interface StockLevelWithRelations extends StockLevel {

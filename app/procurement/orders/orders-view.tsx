@@ -31,7 +31,9 @@ import {
 } from "@/components/ui/tabs"
 
 import { formatIDR } from "@/lib/utils"
+import { useAuth } from "@/lib/auth-context"
 import { NewPurchaseOrderDialog } from "@/components/procurement/new-po-dialog"
+import { PODetailsSheet } from "@/components/procurement/po-details-sheet"
 
 interface Order {
     id: string
@@ -52,32 +54,43 @@ interface OrdersViewProps {
 
 export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
+    const { user } = useAuth()
+    const userRole = user?.role || "ROLE_STAFF"
 
     const filteredOrders = initialOrders.filter(order =>
         order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.vendor.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
-    const activeOrders = filteredOrders.filter(o => ['OPEN', 'PARTIAL', 'APPROVED', 'SENT'].includes(o.status))
-    const completedOrders = filteredOrders.filter(o => ['COMPLETED', 'RECEIVED', 'CLOSED'].includes(o.status))
+    const activeOrders = filteredOrders.filter(o => ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'].includes(o.status))
+    const completedOrders = filteredOrders.filter(o => ['RECEIVED', 'COMPLETED', 'CANCELLED', 'REJECTED'].includes(o.status))
 
     const getStatusStyle = (status: string) => {
         switch (status) {
-            case 'Received': case 'COMPLETED': case 'CLOSED':
+            case 'COMPLETED': case 'RECEIVED':
                 return 'bg-zinc-100 text-zinc-600 border-zinc-200'
-            case 'Sent': case 'PARTIAL':
+            case 'ORDERED': case 'VENDOR_CONFIRMED': case 'SHIPPED': case 'SENT':
                 return 'bg-blue-100 text-blue-700 border-blue-200'
-            case 'Approved': case 'OPEN':
+            case 'APPROVED':
                 return 'bg-emerald-100 text-emerald-700 border-emerald-200'
+            case 'PENDING_APPROVAL':
+                return 'bg-amber-100 text-amber-700 border-amber-200'
+            case 'PO_DRAFT':
+                return 'bg-zinc-50 text-zinc-500 border-dashed border-zinc-300'
+            case 'REJECTED': case 'CANCELLED':
+                return 'bg-red-50 text-red-600 border-red-200'
             default:
-                return 'bg-amber-50 text-amber-700 border-amber-200'
+                return 'bg-zinc-50 text-zinc-500 border-zinc-200'
         }
     }
+
+    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
 
     const OrdersTable = ({ data }: { data: Order[] }) => (
         <Card className="border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white">
             <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
+                    {/* ... header ... */}
                     <thead className="bg-zinc-100/50 border-b border-black">
                         <tr>
                             <th className="h-12 px-4 font-black uppercase text-xs w-[180px]">PO Number</th>
@@ -90,7 +103,7 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                     </thead>
                     <tbody>
                         {data.map((po) => (
-                            <tr key={po.dbId} className="group hover:bg-zinc-50 border-b border-black/5 last:border-0 transition-colors cursor-pointer">
+                            <tr key={po.dbId} className="group hover:bg-zinc-50 border-b border-black/5 last:border-0 transition-colors cursor-pointer" onClick={() => setSelectedOrder(po)}>
                                 <td className="p-4 font-mono font-bold text-blue-600 group-hover:underline">{po.id}</td>
                                 <td className="p-4">
                                     <div className="font-bold">{po.vendor}</div>
@@ -115,12 +128,12 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                                 </td>
                                 <td className="p-4 text-right">
                                     <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <a href={`/api/documents/purchase-order/${po.dbId}`} target="_blank" rel="noreferrer">
+                                        <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                                             <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-black hover:text-white rounded-full">
                                                 <Download className="h-4 w-4" />
                                             </Button>
                                         </a>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-black hover:text-white rounded-full">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-black hover:text-white rounded-full" onClick={(e) => { e.stopPropagation(); setSelectedOrder(po) }}>
                                             <ArrowRight className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -197,6 +210,13 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                     <OrdersTable data={completedOrders} />
                 </TabsContent>
             </Tabs>
+
+            <PODetailsSheet
+                order={selectedOrder}
+                isOpen={!!selectedOrder}
+                onClose={() => setSelectedOrder(null)}
+                userRole={userRole || 'STAFF'}
+            />
         </div>
     )
 }

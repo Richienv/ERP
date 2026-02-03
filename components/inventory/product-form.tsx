@@ -90,8 +90,8 @@ export function ProductForm({
     }
   }
 
-  const watchedCostPrice = form.watch("costPrice")
-  const watchedSellingPrice = form.watch("sellingPrice")
+  const watchedCostPrice = form.watch("costPrice") ?? 0
+  const watchedSellingPrice = form.watch("sellingPrice") ?? 0
   const margin = watchedCostPrice > 0 ? ((watchedSellingPrice - watchedCostPrice) / watchedCostPrice) * 100 : 0
 
   return (
