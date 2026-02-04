@@ -950,6 +950,24 @@ model PurchaseOrder {
   @@map("purchase_orders")
 }
 
+model PurchaseOrderEvent {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  purchaseOrderId String            @db.Uuid
+  status          ProcurementStatus
+  changedBy       String            @db.Uuid // User ID (Supabase Auth ID)
+  action          String            // e.g. "SUBMIT_APPROVAL", "APPROVE", "REJECT", "VENDOR_CONFIRM"
+  notes           String?
+  metadata        Json?             // For extra context (source: MANUAL, tracking info, etc.)
+
+  purchaseOrder   PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime          @default(now())
+
+  @@map("purchase_order_events")
+  @@index([purchaseOrderId])
+  @@index([createdAt])
+}
+
 model PurchaseOrderItem {
   id              String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   purchaseOrderId String @db.Uuid

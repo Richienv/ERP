@@ -26,6 +26,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { createGRN } from "@/lib/actions/grn"
 
+import { useAuth } from "@/lib/auth-context"
+
 interface POItem {
     id: string
     productId: string
@@ -78,11 +80,11 @@ interface ReceivingItem {
     notes: string
 }
 
-export function CreateGRNDialog({ purchaseOrder, warehouses, employees }: Props) {
+export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employees }: Props) {
+    const { user } = useAuth()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [warehouseId, setWarehouseId] = useState("")
-    const [receivedById, setReceivedById] = useState("")
     const [notes, setNotes] = useState("")
     const router = useRouter()
 
@@ -130,10 +132,6 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees }: Props)
             toast.error("Pilih gudang tujuan")
             return
         }
-        if (!receivedById) {
-            toast.error("Pilih penerima barang")
-            return
-        }
 
         const validItems = items.filter(i => i.receivingQty > 0)
         if (validItems.length === 0) {
@@ -146,7 +144,6 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees }: Props)
             const result = await createGRN({
                 purchaseOrderId: purchaseOrder.id,
                 warehouseId,
-                receivedById,
                 notes,
                 items: validItems.map(item => ({
                     poItemId: item.poItemId,
@@ -199,6 +196,16 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees }: Props)
                     {/* Receiving Info */}
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
+                            <Label className="font-bold uppercase text-xs">Penerima</Label>
+                            <Input 
+                                value={user?.name || user?.email || "Current User"} 
+                                disabled 
+                                className="bg-zinc-100 font-bold text-zinc-500" 
+                            />
+                            <p className="text-[10px] text-muted-foreground font-medium">Otomatis dari user yang login</p>
+                        </div>
+
+                        <div className="space-y-2">
                             <Label className="font-bold uppercase text-xs">Gudang Tujuan *</Label>
                             <Select value={warehouseId} onValueChange={setWarehouseId}>
                                 <SelectTrigger>
@@ -208,22 +215,6 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees }: Props)
                                     {warehouses.map(wh => (
                                         <SelectItem key={wh.id} value={wh.id}>
                                             {wh.name} ({wh.code})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label className="font-bold uppercase text-xs">Penerima *</Label>
-                            <Select value={receivedById} onValueChange={setReceivedById}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Pilih penerima..." />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {employees.map(emp => (
-                                        <SelectItem key={emp.id} value={emp.id}>
-                                            {emp.name} ({emp.department})
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

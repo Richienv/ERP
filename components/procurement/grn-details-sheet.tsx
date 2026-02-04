@@ -56,6 +56,8 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
     const [loading, setLoading] = useState(false)
     const [rejectMode, setRejectMode] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
+    const [sodMode, setSodMode] = useState(false)
+    const [sodReason, setSodReason] = useState("")
     const router = useRouter()
 
     if (!grn) return null
@@ -76,13 +78,24 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
     }
 
     const handleAccept = async () => {
+        if (sodMode && sodReason.trim().length < 10) {
+            toast.error("Masukkan alasan bypass SoD (min 10 karakter)")
+            return
+        }
+
         setLoading(true)
         try {
-            const result = await acceptGRN(grn.id)
+            const result = await acceptGRN(grn.id, sodMode ? sodReason : undefined)
+            
             if (result.success) {
                 toast.success("GRN berhasil diterima dan stok diperbarui")
+                setSodMode(false)
+                setSodReason("")
                 onClose()
                 router.refresh()
+            } else if ('sodViolation' in result && result.sodViolation) {
+                setSodMode(true)
+                toast.warning(result.error || "Peringatan SoD: Konfirmasi diperlukan")
             } else {
                 toast.error('error' in result ? result.error : "Gagal menerima GRN")
             }
@@ -264,9 +277,45 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                             </div>
                         </div>
                     )}
+
+                    {/* SoD Warning & Override */}
+                    {sodMode && (
+                        <div className="bg-amber-50 p-4 rounded-lg border border-amber-200 animate-in fade-in">
+                            <div className="flex items-start gap-3 mb-3">
+                                <div className="p-2 bg-amber-100 rounded-full">
+                                    <User className="h-4 w-4 text-amber-600" />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-bold text-amber-800">Peringatan Segregation of Duties</h4>
+                                    <p className="text-xs text-amber-700 mt-1">
+                                        Anda adalah approver untuk PO ini. Menerima barang sendiri berpotensi melanggar kebijakan audit.
+                                        Mohon berikan alasan untuk melanjutkan.
+                                    </p>
+                                </div>
+                            </div>
+                            <label className="text-xs font-bold text-amber-700 uppercase mb-2 block">
+                                Alasan Override *
+                            </label>
+                            <Textarea
+                                placeholder="Saya melakukan penerimaan karena..."
+                                value={sodReason}
+                                onChange={(e) => setSodReason(e.target.value)}
+                                className="bg-white border-amber-200 focus:ring-amber-200"
+                            />
+                            <div className="flex gap-2 mt-3 justify-end">
+                                <Button size="sm" variant="ghost" onClick={() => { setSodMode(false); setSodReason(""); }}>
+                                    Batal
+                                </Button>
+                                <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white" onClick={handleAccept} disabled={loading}>
+                                    {loading && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                                    Konfirmasi & Terima
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {canProcess && !rejectMode && (
+                {canProcess && !rejectMode && !sodMode && (
                     <SheetFooter className="flex-col gap-2">
                         <Button
                             onClick={handleAccept}

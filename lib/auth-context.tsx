@@ -8,8 +8,12 @@ import { type User } from "@supabase/supabase-js"
 // Define the User Role (SystemRole)
 export type UserRole =
     | "ROLE_CEO"
+    | "ROLE_DIRECTOR"
     | "ROLE_MANAGER"
     | "ROLE_ACCOUNTANT"
+    | "ROLE_ADMIN"
+    | "ROLE_PURCHASING"
+    | "ROLE_WAREHOUSE"
     | "ROLE_STAFF"
     | "ROLE_SALES"
     | "GUEST"
@@ -112,8 +116,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!user) return "/dashboard"
         switch (user.role) {
             case "ROLE_CEO": return "/dashboard"
+            case "ROLE_DIRECTOR": return "/dashboard"
+            case "ROLE_ADMIN": return "/dashboard"
             case "ROLE_MANAGER": return "/manager"
             case "ROLE_ACCOUNTANT": return "/finance" // or /accountant
+            case "ROLE_PURCHASING": return "/procurement"
+            case "ROLE_WAREHOUSE": return "/procurement/receiving"
             case "ROLE_STAFF": return "/staff"
             case "ROLE_SALES": return "/sales"
             default: return "/dashboard"

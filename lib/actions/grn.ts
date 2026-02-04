@@ -3,6 +3,8 @@
 import { prisma, safeQuery, withRetry } from "@/lib/db"
 import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
 import { ProcurementStatus } from "@prisma/client"
+import { assertRole, getAuthzUser } from "@/lib/authz"
+import { assertPOTransition } from "@/lib/po-state-machine"
 import { 
     FALLBACK_PENDING_POS, 
     FALLBACK_GRNS, 
@@ -12,6 +14,36 @@ import {
 
 const prismaAny = prisma as any
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
+
+const RECEIVING_ROLES = ["ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR", "ROLE_MANAGER", "ROLE_PURCHASING"]
+
+async function createPurchaseOrderEvent(tx: typeof prisma, params: {
+    purchaseOrderId: string
+    status: ProcurementStatus
+    changedBy: string
+    action: string
+    notes?: string
+    metadata?: any
+}) {
+    await (tx as any).purchaseOrderEvent.create({
+        data: {
+            purchaseOrderId: params.purchaseOrderId,
+            status: params.status,
+            changedBy: params.changedBy,
+            action: params.action,
+            notes: params.notes,
+            metadata: params.metadata,
+        }
+    })
+}
+
+async function getEmployeeIdForUserEmail(email?: string | null) {
+    if (!email) return null
+    const employee = await (prisma as any).employee.findFirst({
+        where: { email }
+    })
+    return employee?.id || null
+}
 
 // ==========================================
 // GRN TYPES
@@ -31,7 +63,6 @@ interface GRNItemInput {
 interface CreateGRNInput {
     purchaseOrderId: string
     warehouseId: string
-    receivedById: string
     notes?: string
     items: GRNItemInput[]
 }
@@ -226,6 +257,12 @@ export async function getGRNById(id: string) {
 
 export async function createGRN(data: CreateGRNInput) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, RECEIVING_ROLES)
+
+        const receivedById = await getEmployeeIdForUserEmail(user.email)
+        if (!receivedById) throw new Error("Employee record not found for current user")
+
         // Generate GRN number
         const date = new Date()
         const year = date.getFullYear()
@@ -236,13 +273,19 @@ export async function createGRN(data: CreateGRNInput) {
         // Create GRN with items in a transaction
         const grn = await prisma.$transaction(async (tx) => {
             const txAny = tx as any
+            const po = await txAny.purchaseOrder.findUnique({ where: { id: data.purchaseOrderId } })
+            if (!po) throw new Error("Purchase Order not found")
+            if (!["ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"].includes(po.status)) {
+                throw new Error("Purchase Order is not eligible for receiving")
+            }
+
             // 1. Create GRN
             const newGrn = await txAny.goodsReceivedNote.create({
                 data: {
                     number,
                     purchaseOrderId: data.purchaseOrderId,
                     warehouseId: data.warehouseId,
-                    receivedById: data.receivedById,
+                    receivedById,
                     notes: data.notes,
                     status: 'DRAFT',
                     items: {
@@ -280,8 +323,11 @@ export async function createGRN(data: CreateGRNInput) {
 // ACCEPT GRN (Finalize & Update Inventory)
 // ==========================================
 
-export async function acceptGRN(grnId: string) {
+export async function acceptGRN(grnId: string, overrideReason?: string) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, RECEIVING_ROLES)
+
         const result = await prisma.$transaction(async (tx) => {
             const txAny = tx as any
             // 1. Get GRN with items
@@ -297,6 +343,43 @@ export async function acceptGRN(grnId: string) {
 
             if (!grn) throw new Error("GRN not found")
             if (grn.status === 'ACCEPTED') throw new Error("GRN already accepted")
+            if (grn.status !== 'DRAFT') throw new Error("GRN is not in a processable state")
+
+            // SoD Check: If user approved the PO, they need to provide a reason to receive it
+            // This is a soft enforcement (warning + audit)
+            const approvingEvent = await txAny.purchaseOrderEvent.findFirst({
+                where: {
+                    purchaseOrderId: grn.purchaseOrderId,
+                    action: "APPROVE",
+                    changedBy: user.id,
+                },
+                select: { id: true }
+            })
+
+            if (approvingEvent) {
+                const reason = (overrideReason || "").trim()
+                if (reason.length < 10) {
+                    return {
+                        success: false,
+                        sodViolation: true,
+                        error: "SoD Alert: You approved this PO. Provide reason to override (min 10 chars).",
+                    }
+                }
+
+                await createPurchaseOrderEvent(tx as any, {
+                    purchaseOrderId: grn.purchaseOrderId,
+                    status: grn.purchaseOrder.status as ProcurementStatus,
+                    changedBy: user.id,
+                    action: "SOD_OVERRIDE",
+                    notes: reason,
+                    metadata: {
+                        violationType: "APPROVER_ACCEPTING_GRN",
+                        overrideReason: reason,
+                        source: "GRN_ACCEPT",
+                        grnId,
+                    },
+                })
+            }
 
             // 2. Update GRN status
             await txAny.goodsReceivedNote.update({
@@ -365,18 +448,53 @@ export async function acceptGRN(grnId: string) {
                 const allItemsReceived = po.items.every(item => item.receivedQty >= item.quantity)
                 const someItemsReceived = po.items.some(item => item.receivedQty > 0)
 
-                let newStatus: ProcurementStatus = po.status
-                if (allItemsReceived) {
-                    newStatus = 'RECEIVED'
-                } else if (someItemsReceived) {
-                    newStatus = 'PARTIAL_RECEIVED' as any
-                }
-
-                if (newStatus !== po.status) {
+                const transitionPO = async (
+                    currentStatus: ProcurementStatus,
+                    nextStatus: ProcurementStatus,
+                    action: string,
+                    metadata?: any
+                ) => {
+                    assertPOTransition(currentStatus, nextStatus)
                     await tx.purchaseOrder.update({
                         where: { id: po.id },
-                        data: { status: newStatus }
+                        data: {
+                            previousStatus: currentStatus,
+                            status: nextStatus,
+                        }
                     })
+                    await createPurchaseOrderEvent(tx as any, {
+                        purchaseOrderId: po.id,
+                        status: nextStatus,
+                        changedBy: user.id,
+                        action,
+                        metadata,
+                    })
+                }
+
+                if (allItemsReceived) {
+                    if (po.status !== 'RECEIVED' && po.status !== 'COMPLETED') {
+                        await transitionPO(po.status as any, 'RECEIVED', 'RECEIVE_FULL', { 
+                            source: 'GRN_ACCEPT', 
+                            grnId,
+                            sodOverride: overrideReason 
+                        })
+                        po.status = 'RECEIVED'
+                    }
+                    if (po.status === 'RECEIVED') {
+                        await transitionPO('RECEIVED', 'COMPLETED', 'AUTO_COMPLETE', { 
+                            source: 'GRN_ACCEPT', 
+                            grnId,
+                            sodOverride: overrideReason 
+                        })
+                    }
+                } else if (someItemsReceived) {
+                    if (po.status !== 'PARTIAL_RECEIVED') {
+                        await transitionPO(po.status as any, 'PARTIAL_RECEIVED' as any, 'RECEIVE_PARTIAL', { 
+                            source: 'GRN_ACCEPT', 
+                            grnId,
+                            sodOverride: overrideReason 
+                        })
+                    }
                 }
             }
 
@@ -405,6 +523,14 @@ export async function acceptGRN(grnId: string) {
 
 export async function rejectGRN(grnId: string, reason: string) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, RECEIVING_ROLES)
+
+        const existing = await prismaAny.goodsReceivedNote.findUnique({ where: { id: grnId } })
+        if (!existing) throw new Error("GRN not found")
+        if (existing.status === 'ACCEPTED') throw new Error("GRN already accepted")
+        if (existing.status !== 'DRAFT') throw new Error("GRN is not in a rejectable state")
+
         await prismaAny.goodsReceivedNote.update({
             where: { id: grnId },
             data: {

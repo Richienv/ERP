@@ -7,7 +7,7 @@ import { useAuth } from "@/lib/auth-context"
 // Define accessible routes per role
 const ROLE_PERMISSIONS = {
     "ROLE_CEO": ["*"], // Can access everything
-    "ROLE_MANAGER": ["/manufacturing", "/dashboard", "/inventory", "/sales"], // Example: Manager access
+    "ROLE_MANAGER": ["/dashboard", "/manufacturing", "/inventory", "/sales"], // Example: Manager access
     "ROLE_ACCOUNTANT": ["/accountant", "/finance", "/dashboard"], // Accountant specific + shared dashboard components if needed? Actually user wants STRICT.
     "ROLE_STAFF": ["/staff"] // Strict staff access
 }
@@ -43,6 +43,40 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
             // CEO: Global Access
             if (user.role === "ROLE_CEO") {
                 setIsAuthorized(true)
+                return
+            }
+
+            // ADMIN/DIRECTOR: Global Access (server remains source of truth)
+            if (user.role === "ROLE_ADMIN" || user.role === "ROLE_DIRECTOR") {
+                setIsAuthorized(true)
+                return
+            }
+
+            // PURCHASING: Procurement module
+            if (user.role === "ROLE_PURCHASING") {
+                if (
+                    pathname.startsWith("/procurement") ||
+                    pathname.startsWith("/inventory")
+                ) {
+                    setIsAuthorized(true)
+                } else {
+                    router.replace("/procurement")
+                    setIsAuthorized(false)
+                }
+                return
+            }
+
+            // WAREHOUSE: Receiving module
+            if (user.role === "ROLE_WAREHOUSE") {
+                if (
+                    pathname.startsWith("/procurement/receiving") ||
+                    pathname.startsWith("/inventory")
+                ) {
+                    setIsAuthorized(true)
+                } else {
+                    router.replace("/procurement/receiving")
+                    setIsAuthorized(false)
+                }
                 return
             }
 
@@ -82,7 +116,7 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
                     pathname.startsWith("/accountant") ||
                     pathname.startsWith("/staff")
                 ) {
-                    router.replace("/manager")
+                    router.replace(ROLE_PERMISSIONS["ROLE_MANAGER"][0] || "/dashboard")
                     setIsAuthorized(false)
                 } else {
                     setIsAuthorized(true)

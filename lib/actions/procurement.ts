@@ -6,8 +6,42 @@ import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
 import { ProcurementStatus } from "@prisma/client"
 import { recordPendingBillFromPO } from "@/lib/actions/finance"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
+import { assertRole, getAuthzUser } from "@/lib/authz"
+import { assertPOTransition } from "@/lib/po-state-machine"
 
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
+
+const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
+const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR"]
+const PR_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR"]
+
+async function createPurchaseOrderEvent(tx: typeof prisma, params: {
+    purchaseOrderId: string
+    status: ProcurementStatus
+    changedBy: string
+    action: string
+    notes?: string
+    metadata?: any
+}) {
+    await (tx as any).purchaseOrderEvent.create({
+        data: {
+            purchaseOrderId: params.purchaseOrderId,
+            status: params.status,
+            changedBy: params.changedBy,
+            action: params.action,
+            notes: params.notes,
+            metadata: params.metadata,
+        }
+    })
+}
+
+async function getEmployeeIdForUserEmail(email?: string | null) {
+    if (!email) return null
+    const employee = await (prisma as any).employee.findFirst({
+        where: { email }
+    })
+    return employee?.id || null
+}
 
 export const getVendors = unstable_cache(
     async () => {
@@ -242,13 +276,18 @@ export async function createPurchaseRequest(data: {
     }
 }
 
-export async function approvePurchaseRequest(id: string, approverId: string) {
+export async function approvePurchaseRequest(id: string, _approverId?: string) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, PR_APPROVER_ROLES)
+
+        const employeeId = await getEmployeeIdForUserEmail(user.email)
+
         await prisma.purchaseRequest.update({
             where: { id },
             data: {
                 status: 'APPROVED',
-                approverId,
+                approverId: employeeId,
                 items: {
                     updateMany: {
                         where: { status: 'PENDING' },
@@ -261,12 +300,15 @@ export async function approvePurchaseRequest(id: string, approverId: string) {
         return { success: true }
     } catch (error) {
         console.error("Error approving PR:", error)
-        return { success: false, error: "Failed to approve" }
+        return { success: false, error: (error as any)?.message || "Failed to approve" }
     }
 }
 
 export async function rejectPurchaseRequest(id: string, reason: string) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, PR_APPROVER_ROLES)
+
         await prisma.purchaseRequest.update({
             where: { id },
             data: {
@@ -284,7 +326,7 @@ export async function rejectPurchaseRequest(id: string, reason: string) {
         return { success: true }
     } catch (error) {
         console.error("Error rejecting PR:", error)
-        return { success: false, error: "Failed to reject" }
+        return { success: false, error: (error as any)?.message || "Failed to reject" }
     }
 }
 
@@ -292,8 +334,11 @@ export async function rejectPurchaseRequest(id: string, reason: string) {
 // PO CREATION & LIFECYCLE
 // ==========================================
 
-export async function convertPRToPO(prId: string, itemIds: string[], creatorId: string) {
+export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?: string) {
     try {
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
         // 1. Fetch PR Items
         const pr = await prisma.purchaseRequest.findUnique({
             where: { id: prId },
@@ -347,7 +392,7 @@ export async function convertPRToPO(prId: string, itemIds: string[], creatorId: 
                     number: poNumber,
                     supplierId,
                     status: 'PO_DRAFT',
-                    createdBy: creatorId,
+                    createdBy: user.id,
                     totalAmount,
                     // Link Items
                     items: {
@@ -363,6 +408,14 @@ export async function convertPRToPO(prId: string, itemIds: string[], creatorId: 
                         connect: { id: prId }
                     }
                 }
+            })
+
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: po.id,
+                status: "PO_DRAFT",
+                changedBy: user.id,
+                action: "CREATE_DRAFT",
+                metadata: { source: "SYSTEM" },
             })
 
             // Update PR Items
@@ -400,27 +453,70 @@ export async function convertPRToPO(prId: string, itemIds: string[], creatorId: 
 
 export async function submitPOForApproval(poId: string) {
     try {
-        await prisma.purchaseOrder.update({
-            where: { id: poId },
-            data: { status: 'PENDING_APPROVAL' }
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        await prisma.$transaction(async (tx) => {
+            const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
+
+            assertPOTransition(current.status as any, "PENDING_APPROVAL")
+
+            await tx.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: 'PENDING_APPROVAL',
+                }
+            })
+
+            await createPurchaseOrderEvent(tx as any, {
+                purchaseOrderId: poId,
+                status: "PENDING_APPROVAL",
+                changedBy: user.id,
+                action: "SUBMIT_APPROVAL",
+                metadata: { source: "MANUAL_ENTRY" },
+            })
         })
+
         revalidateTagSafe('purchase-orders')
         revalidatePath('/procurement')
         return { success: true }
     } catch (error) {
-        return { success: false, error: "Submit failed" }
+        return { success: false, error: (error as any)?.message || "Submit failed" }
     }
 }
 
-export async function approvePurchaseOrder(poId: string, approverId: string) {
+export async function approvePurchaseOrder(poId: string, _approverId?: string) {
     try {
-        const po = await prisma.purchaseOrder.update({
-            where: { id: poId },
-            data: {
-                status: 'APPROVED',
-                approvedBy: approverId
-            },
-            include: { supplier: true, items: { include: { product: true } } }
+        const user = await getAuthzUser()
+        assertRole(user, APPROVER_ROLES)
+
+        const po = await prisma.$transaction(async (tx) => {
+            const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
+
+            assertPOTransition(current.status as any, "APPROVED")
+
+            const updated = await tx.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: 'APPROVED',
+                    approvedBy: user.id,
+                },
+                include: { supplier: true, items: { include: { product: true } } }
+            })
+
+            await createPurchaseOrderEvent(tx as any, {
+                purchaseOrderId: poId,
+                status: "APPROVED",
+                changedBy: user.id,
+                action: "APPROVE",
+                metadata: { source: "MANUAL_ENTRY" },
+            })
+
+            return updated
         })
 
         // TRIGGER FINANCE (Bill Creation)
@@ -430,39 +526,153 @@ export async function approvePurchaseOrder(poId: string, approverId: string) {
         return { success: true }
     } catch (error) {
         console.error("Approval Error:", error)
-        return { success: false, error: "Approval failed" }
+        return { success: false, error: (error as any)?.message || "Approval failed" }
     }
 }
 
 export async function rejectPurchaseOrder(poId: string, reason: string) {
     try {
-        await prisma.purchaseOrder.update({
-            where: { id: poId },
-            data: {
-                status: 'REJECTED',
-                rejectionReason: reason
-            }
+        const user = await getAuthzUser()
+        assertRole(user, APPROVER_ROLES)
+
+        await prisma.$transaction(async (tx) => {
+            const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
+
+            assertPOTransition(current.status as any, "REJECTED")
+
+            await tx.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: 'REJECTED',
+                    rejectionReason: reason,
+                }
+            })
+
+            await createPurchaseOrderEvent(tx as any, {
+                purchaseOrderId: poId,
+                status: "REJECTED",
+                changedBy: user.id,
+                action: "REJECT",
+                notes: reason,
+                metadata: { source: "MANUAL_ENTRY" },
+            })
         })
+
         revalidatePath('/procurement')
         return { success: true }
     } catch (error) {
-        return { success: false, error: "Rejection failed" }
+        return { success: false, error: (error as any)?.message || "Rejection failed" }
     }
 }
 
 export async function markAsOrdered(poId: string) {
     try {
-        await prisma.purchaseOrder.update({
-            where: { id: poId },
-            data: {
-                status: 'ORDERED',
-                sentToVendorAt: new Date()
-            }
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        await prisma.$transaction(async (tx) => {
+            const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
+
+            assertPOTransition(current.status as any, "ORDERED")
+
+            await tx.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: 'ORDERED',
+                    sentToVendorAt: new Date()
+                }
+            })
+
+            await createPurchaseOrderEvent(tx as any, {
+                purchaseOrderId: poId,
+                status: "ORDERED",
+                changedBy: user.id,
+                action: "MARK_ORDERED",
+                metadata: { source: "MANUAL_ENTRY" },
+            })
         })
+
         revalidatePath('/procurement')
         return { success: true }
     } catch (error) {
-        return { success: false, error: "Update failed" }
+        return { success: false, error: (error as any)?.message || "Update failed" }
+    }
+}
+
+export async function markAsVendorConfirmed(poId: string, notes?: string) {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        await prisma.$transaction(async (tx) => {
+            const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
+
+            assertPOTransition(current.status as any, "VENDOR_CONFIRMED")
+
+            await tx.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: "VENDOR_CONFIRMED",
+                }
+            })
+
+            await createPurchaseOrderEvent(tx as any, {
+                purchaseOrderId: poId,
+                status: "VENDOR_CONFIRMED",
+                changedBy: user.id,
+                action: "VENDOR_CONFIRM",
+                notes,
+                metadata: { source: "MANUAL_ENTRY" },
+            })
+        })
+
+        revalidateTagSafe('purchase-orders')
+        revalidatePath('/procurement')
+        return { success: true }
+    } catch (error) {
+        return { success: false, error: (error as any)?.message || "Update failed" }
+    }
+}
+
+export async function markAsShipped(poId: string, trackingNumber?: string) {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        await prisma.$transaction(async (tx) => {
+            const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+            if (!current) throw new Error("Purchase Order not found")
+
+            assertPOTransition(current.status as any, "SHIPPED")
+
+            await tx.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    previousStatus: current.status as any,
+                    status: "SHIPPED",
+                }
+            })
+
+            await createPurchaseOrderEvent(tx as any, {
+                purchaseOrderId: poId,
+                status: "SHIPPED",
+                changedBy: user.id,
+                action: "MARK_SHIPPED",
+                metadata: { source: "MANUAL_ENTRY", trackingNumber },
+            })
+        })
+
+        revalidateTagSafe('purchase-orders')
+        revalidatePath('/procurement')
+        return { success: true }
+    } catch (error) {
+        return { success: false, error: (error as any)?.message || "Update failed" }
     }
 }
 
@@ -470,19 +680,35 @@ export async function confirmPurchaseOrder(id: string) {
     // Legacy mapping: COMPLETED means Received & Closed.
     // In new lifecycle, it probably goes ORDERED -> RECEIVED -> COMPLETED
     try {
-        const po = await prisma.purchaseOrder.findUnique({
-            where: { id },
-            include: { supplier: true, items: true }
-        })
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
 
-        if (!po) throw new Error("Purchase Order not found")
+        await prisma.$transaction(async (tx) => {
+            const po = await tx.purchaseOrder.findUnique({
+                where: { id },
+                include: { supplier: true, items: true }
+            })
 
-        await prisma.purchaseOrder.update({
-            where: { id },
-            data: {
-                status: 'COMPLETED', // Or RECEIVED
-                paymentStatus: 'UNPAID' // Ready for payment logic if needed
-            }
+            if (!po) throw new Error("Purchase Order not found")
+
+            assertPOTransition(po.status as any, "COMPLETED")
+
+            await tx.purchaseOrder.update({
+                where: { id },
+                data: {
+                    previousStatus: po.status as any,
+                    status: 'COMPLETED',
+                    paymentStatus: 'UNPAID'
+                }
+            })
+
+            await createPurchaseOrderEvent(tx as any, {
+                purchaseOrderId: id,
+                status: "COMPLETED",
+                changedBy: user.id,
+                action: "COMPLETE",
+                metadata: { source: "SYSTEM" },
+            })
         })
 
         // Note: Finance Bill was likely created on Approval. 
