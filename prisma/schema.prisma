@@ -937,6 +937,7 @@ model PurchaseOrder {
   supplier Supplier            @relation(fields: [supplierId], references: [id])
   items    PurchaseOrderItem[]
   purchaseRequests PurchaseRequest[]
+  events  PurchaseOrderEvent[]
   
   // Tracking
   tasks       EmployeeTask[]
