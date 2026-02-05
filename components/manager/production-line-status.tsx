@@ -12,10 +12,7 @@ interface ProductionLineStatusProps {
 }
 
 export function ProductionLineStatus({ data }: ProductionLineStatusProps) {
-    const lines = data.length > 0 ? data : [
-        // Fallback/Demo data if real data empty
-        { id: "Line 1", name: "Weaving", job: "SO-2026-0256", desc: "No Active Job", progress: 0, status: "Idle", color: "text-zinc-600", supervisor: "-", eta: "-" },
-    ]
+    const lines = data && data.length > 0 ? data : []
 
     return (
         <Link href="/manufacturing" className="block h-full group/card">
@@ -34,7 +31,14 @@ export function ProductionLineStatus({ data }: ProductionLineStatusProps) {
                     </div>
                 </CardHeader>
 
-                <CardContent className="relative z-10 p-6 overflow-y-auto">
+                <CardContent className="relative z-10 p-6 overflow-y-auto flex-1">
+                    {lines.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                            <Factory className="h-12 w-12 text-zinc-300 mb-4" />
+                            <p className="text-sm font-bold text-muted-foreground">No machines configured</p>
+                            <p className="text-xs text-muted-foreground mt-1">Add machines in Manufacturing to see status</p>
+                        </div>
+                    ) : (
                     <div className="space-y-6">
                         {lines.map((line) => (
                             <div key={line.id} className="grid grid-cols-12 gap-4 items-center border-b border-black/10 pb-4 last:border-0 last:pb-0 hover:bg-zinc-50 dark:hover:bg-zinc-900/30 p-2 -mx-2 rounded transition-colors group">
@@ -70,6 +74,7 @@ export function ProductionLineStatus({ data }: ProductionLineStatusProps) {
                             </div>
                         ))}
                     </div>
+                    )}
                 </CardContent>
             </div>
         </Link>

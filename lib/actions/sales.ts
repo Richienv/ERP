@@ -1,6 +1,6 @@
 'use server'
 
-import { prisma } from "@/lib/prisma"
+import { withPrismaAuth } from "@/lib/db"
 import { formatIDR } from "@/lib/utils"
 
 export interface SalesStats {
@@ -10,13 +10,13 @@ export interface SalesStats {
     recentOrders: any[]
 }
 
-import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
+import { revalidateTag, revalidatePath } from "next/cache"
 
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
-export const getSalesStats = unstable_cache(
-    async (): Promise<SalesStats> => {
-        try {
+export async function getSalesStats(): Promise<SalesStats> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
             const startOfMonth = new Date()
             startOfMonth.setDate(1)
             startOfMonth.setHours(0, 0, 0, 0)
@@ -66,20 +66,19 @@ export const getSalesStats = unstable_cache(
                     date: o.orderDate
                 }))
             }
-        } catch (error) {
-            console.error("Failed to fetch sales stats:", error)
-            return { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] }
-        }
-    },
-    ['dashboard-sales-stats'],
-    { revalidate: 60, tags: ['dashboard'] }
-)
+        })
+    } catch (error) {
+        console.error("Failed to fetch sales stats")
+        return { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] }
+    }
+}
 
 export async function getAllCustomers() {
     try {
-        return await prisma.customer.findMany({
-            // where: { status: 'ACTIVE' }, // Status field doesn't exist yet
-            orderBy: { name: 'asc' }
+        return await withPrismaAuth(async (prisma) => {
+            return await prisma.customer.findMany({
+                orderBy: { name: 'asc' }
+            })
         })
     } catch (error) {
         return []
@@ -89,52 +88,53 @@ export async function getAllCustomers() {
 // 1. GET ALL QUOTATIONS
 export async function getQuotations(filters?: { status?: string, search?: string }) {
     try {
-        const whereInput: any = {}
+        return await withPrismaAuth(async (prisma) => {
+            const whereInput: any = {}
 
-        if (filters?.status && filters.status !== 'all') {
-            whereInput.status = filters.status.toUpperCase() // Ensure Upper match Enum
-        }
+            if (filters?.status && filters.status !== 'all') {
+                whereInput.status = filters.status.toUpperCase()
+            }
 
-        if (filters?.search) {
-            whereInput.OR = [
-                { number: { contains: filters.search, mode: 'insensitive' } },
-                { customer: { name: { contains: filters.search, mode: 'insensitive' } } }
-            ]
-        }
+            if (filters?.search) {
+                whereInput.OR = [
+                    { number: { contains: filters.search, mode: 'insensitive' } },
+                    { customer: { name: { contains: filters.search, mode: 'insensitive' } } }
+                ]
+            }
 
-        const quotations = await prisma.quotation.findMany({
-            where: whereInput,
-            include: {
-                customer: {
-                    include: {
-                        salesPerson: true // Fetch via Customer
+            const quotations = await prisma.quotation.findMany({
+                where: whereInput,
+                include: {
+                    customer: {
+                        include: {
+                            salesPerson: true
+                        }
+                    },
+                    _count: {
+                        select: { items: true }
                     }
                 },
-                _count: {
-                    select: { items: true }
-                }
-            },
-            orderBy: { quotationDate: 'desc' }
+                orderBy: { quotationDate: 'desc' }
+            })
+
+            return quotations.map(q => ({
+                id: q.id,
+                number: q.number,
+                customerId: q.customerId,
+                customerName: q.customer?.name || "Unknown Customer",
+                customerRef: null,
+                quotationDate: q.quotationDate.toISOString(),
+                validUntil: q.validUntil.toISOString(),
+                status: q.status,
+                subtotal: Number(q.subtotal),
+                taxAmount: Number(q.taxAmount),
+                discountAmount: 0,
+                total: Number(q.total),
+                itemCount: q._count.items,
+                salesPerson: q.customer?.salesPerson?.name || "Unassigned",
+                notes: q.notes
+            }))
         })
-
-        return quotations.map(q => ({
-            id: q.id,
-            number: q.number,
-            customerId: q.customerId,
-            customerName: q.customer?.name || "Unknown Customer",
-            customerRef: null,
-            quotationDate: q.quotationDate.toISOString(),
-            validUntil: q.validUntil.toISOString(),
-            status: q.status,
-            subtotal: Number(q.subtotal),
-            taxAmount: Number(q.taxAmount),
-            discountAmount: 0,
-            total: Number(q.total), // Correct field: total
-            itemCount: q._count.items,
-            salesPerson: q.customer?.salesPerson?.name || "Unassigned", // Map from Customer
-            notes: q.notes
-        }))
-
     } catch (error) {
         console.error("Error fetching quotations:", error)
         return []
@@ -146,32 +146,35 @@ export async function createQuotation(data: any) {
     try {
         console.log("Creating Quotation:", data)
 
-        // Customer Logic (Mock: Find first or create if not exists - Simplified for now)
-        let customer = await prisma.customer.findFirst()
-        if (!customer) throw new Error("No customers found. Please seed.")
+        const result = await withPrismaAuth(async (prisma) => {
+            // Customer Logic
+            let customer = await prisma.customer.findFirst()
+            if (!customer) throw new Error("No customers found. Please seed.")
 
-        // Generate Number
-        const count = await prisma.quotation.count()
-        const number = `QT-${new Date().getFullYear()}-${String(count + 1).padStart(3, '0')}`
+            // Generate Number
+            const count = await prisma.quotation.count()
+            const number = `QT-${new Date().getFullYear()}-${String(count + 1).padStart(3, '0')}`
 
-        const quote = await prisma.quotation.create({
-            data: {
-                number: number,
-                customerId: customer.id,
-                status: 'DRAFT',
-                quotationDate: new Date(),
-                validUntil: new Date(new Date().setDate(new Date().getDate() + 14)), // 2 weeks validity
-                subtotal: 0,
-                taxAmount: 0,
-                total: 0, // Correct field
-                notes: data.notes || "Draft Quotation"
-            }
+            const quote = await prisma.quotation.create({
+                data: {
+                    number: number,
+                    customerId: customer.id,
+                    status: 'DRAFT',
+                    quotationDate: new Date(),
+                    validUntil: new Date(new Date().setDate(new Date().getDate() + 14)),
+                    subtotal: 0,
+                    taxAmount: 0,
+                    total: 0,
+                    notes: data.notes || "Draft Quotation"
+                }
+            })
+
+            return { success: true, message: "Quotation created", id: quote.id }
         })
 
         revalidateTagSafe('dashboard-sales-stats')
         revalidatePath('/sales/quotations')
-        return { success: true, message: "Quotation created", id: quote.id }
-
+        return result
     } catch (error) {
         console.error("Error creating quotation:", error)
         return { success: false, error: "Failed to create quotation" }
@@ -181,9 +184,11 @@ export async function createQuotation(data: any) {
 // 3. UPDATE STATUS (Kanban Drag & Drop)
 export async function updateQuotationStatus(id: string, newStatus: string) {
     try {
-        await prisma.quotation.update({
-            where: { id },
-            data: { status: newStatus as any }
+        await withPrismaAuth(async (prisma) => {
+            await prisma.quotation.update({
+                where: { id },
+                data: { status: newStatus as any }
+            })
         })
         revalidateTagSafe('dashboard-sales-stats')
         return { success: true }
@@ -198,36 +203,40 @@ import { postJournalEntry } from "@/lib/actions/finance"
 // Create Invoice (Draft)
 export async function createInvoice(data: { customerId: string, items: { description: string, quantity: number, price: number }[], dueDate: Date }) {
     try {
-        const count = await prisma.invoice.count({ where: { type: 'INV_OUT' } })
-        const year = new Date().getFullYear()
-        const number = `INV-${year}-${String(count + 1).padStart(4, '0')}`
+        const result = await withPrismaAuth(async (prisma) => {
+            const count = await prisma.invoice.count({ where: { type: 'INV_OUT' } })
+            const year = new Date().getFullYear()
+            const number = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
-        const subtotal = data.items.reduce((acc, item) => acc + (item.quantity * item.price), 0)
-        const taxAmount = subtotal * 0.11 // PPN 11%
-        const totalAmount = subtotal + taxAmount
+            const subtotal = data.items.reduce((acc, item) => acc + (item.quantity * item.price), 0)
+            const taxAmount = subtotal * 0.11
+            const totalAmount = subtotal + taxAmount
 
-        const invoice = await prisma.invoice.create({
-            data: {
-                number,
-                customerId: data.customerId,
-                type: 'INV_OUT',
-                status: 'DRAFT',
-                issueDate: new Date(),
-                dueDate: data.dueDate,
-                subtotal,
-                taxAmount,
-                discountAmount: 0,
-                totalAmount,
-                balanceDue: totalAmount,
-                items: {
-                    create: data.items.map(item => ({
-                        description: item.description,
-                        quantity: item.quantity,
-                        unitPrice: item.price,
-                        amount: item.quantity * item.price
-                    }))
+            const invoice = await prisma.invoice.create({
+                data: {
+                    number,
+                    customerId: data.customerId,
+                    type: 'INV_OUT',
+                    status: 'DRAFT',
+                    issueDate: new Date(),
+                    dueDate: data.dueDate,
+                    subtotal,
+                    taxAmount,
+                    discountAmount: 0,
+                    totalAmount,
+                    balanceDue: totalAmount,
+                    items: {
+                        create: data.items.map(item => ({
+                            description: item.description,
+                            quantity: item.quantity,
+                            unitPrice: item.price,
+                            amount: item.quantity * item.price
+                        }))
+                    }
                 }
-            }
+            })
+
+            return { success: true, invoiceId: invoice.id }
         })
 
         try {
@@ -235,8 +244,7 @@ export async function createInvoice(data: { customerId: string, items: { descrip
         } catch (e) {
             console.log('Skipping revalidation (Script context)')
         }
-        return { success: true, invoiceId: invoice.id }
-
+        return result
     } catch (error: any) {
         console.error("Create Invoice Error:", error)
         return { success: false, error: error.message }
@@ -246,49 +254,47 @@ export async function createInvoice(data: { customerId: string, items: { descrip
 // Approve Invoice -> Post to GL
 export async function approveInvoice(id: string) {
     try {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id },
-            include: { customer: true }
+        const invoice = await withPrismaAuth(async (prisma) => {
+            const inv = await prisma.invoice.findUnique({
+                where: { id },
+                include: { customer: true, items: true }
+            })
+
+            if (!inv) throw new Error("Invoice not found")
+            if (inv.status !== 'DRAFT') throw new Error("Invoice already processed")
+
+            await prisma.invoice.update({
+                where: { id },
+                data: { status: 'ISSUED' }
+            })
+
+            return inv
         })
 
-        if (!invoice) throw new Error("Invoice not found")
-        if (invoice.status !== 'DRAFT') throw new Error("Invoice already processed")
-
-        // 1. Update Status
-        await prisma.invoice.update({
-            where: { id },
-            data: { status: 'ISSUED' }
-        })
-
-        // 2. Post Journal Entry
-        // Debit: Piutang Usaha (1200)
-        // Credit: Pendapatan Penjualan (4000)
-        // Credit: Utang Pajak PPN (2110) - If we track tax separately
-        // For simplicity, let's just do AR vs Revenue for now, OR split if we have tax account.
-        // We have '2110' Utang Pajak. Let's do it right: 
-        // Debit AR (Total)
-        // Credit Revenue (Subtotal)
-        // Credit Tax Payable (Tax)
+        // Post Journal Entry for AR recognition
+        const subtotal = Number(invoice.subtotal)
+        const taxAmount = Number(invoice.taxAmount)
+        const totalAmount = Number(invoice.totalAmount)
 
         await postJournalEntry({
-            description: `Invoice ${invoice.number} - ${invoice.customer?.name}`,
+            description: `Invoice ${invoice.number} issued to ${invoice.customer?.name || 'Customer'}`,
             date: new Date(),
-            reference: invoice.number,
+            reference: id,
             lines: [
                 {
-                    accountCode: '1200', // Piutang Usaha
-                    debit: Number(invoice.totalAmount),
+                    accountCode: '1200', // Accounts Receivable (AR)
+                    debit: totalAmount,
                     credit: 0
                 },
                 {
-                    accountCode: '4000', // Pendapatan
+                    accountCode: '2200', // Tax Output (PPN Keluaran)
                     debit: 0,
-                    credit: Number(invoice.subtotal)
+                    credit: taxAmount
                 },
                 {
-                    accountCode: '2110', // Utang Pajak
+                    accountCode: '4101', // Revenue / Sales
                     debit: 0,
-                    credit: Number(invoice.taxAmount)
+                    credit: subtotal
                 }
             ]
         })
@@ -299,7 +305,6 @@ export async function approveInvoice(id: string) {
             console.log('Skipping revalidation (Script context)')
         }
         return { success: true }
-
     } catch (error: any) {
         console.error("Approve Invoice Error:", error)
         return { success: false, error: error.message }
@@ -309,56 +314,55 @@ export async function approveInvoice(id: string) {
 // Record Payment -> Post to GL
 export async function recordPayment(invoiceId: string, amount: number, method: string = 'TRANSFER') {
     try {
-        const invoice = await prisma.invoice.findUnique({
-            where: { id: invoiceId },
-            include: { customer: true }
+        const result = await withPrismaAuth(async (prisma) => {
+            const invoice = await prisma.invoice.findUnique({
+                where: { id: invoiceId },
+                include: { customer: true }
+            })
+
+            if (!invoice) throw new Error("Invoice not found")
+
+            // 1. Create Payment Record
+            const count = await prisma.payment.count()
+            const number = `PAY-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`
+
+            const payment = await prisma.payment.create({
+                data: {
+                    number,
+                    amount,
+                    method: method as any,
+                    invoiceId: invoice.id,
+                    customerId: invoice.customerId,
+                    date: new Date(),
+                    reference: `REF-${new Date().getTime()}`,
+                }
+            })
+
+            // 2. Update Invoice Balance
+            const newBalance = Number(invoice.balanceDue) - amount
+            let newStatus = invoice.status
+            if (newBalance <= 0) newStatus = 'PAID'
+            else newStatus = 'PARTIAL'
+
+            await prisma.invoice.update({
+                where: { id: invoiceId },
+                data: {
+                    balanceDue: newBalance,
+                    status: newStatus
+                }
+            })
+
+            return { invoice, payment }
         })
 
-        if (!invoice) throw new Error("Invoice not found")
-
-        // 1. Create Payment Record
-        const count = await prisma.payment.count()
-        const number = `PAY-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`
-
-        const payment = await prisma.payment.create({
-            data: {
-                number,
-                amount,
-                method: method as any,
-                invoiceId: invoice.id,
-                customerId: invoice.customerId,
-                date: new Date(),
-                reference: `REF-${new Date().getTime()}`,
-            }
-        })
-
-        // 2. Update Invoice Balance
-        const newBalance = Number(invoice.balanceDue) - amount
-        let newStatus = invoice.status
-        if (newBalance <= 0) newStatus = 'PAID'
-        else newStatus = 'PARTIAL'
-
-        await prisma.invoice.update({
-            where: { id: invoiceId },
-            data: {
-                balanceDue: newBalance,
-                status: newStatus
-            }
-        })
-
-        // 3. Post Journal Entry
-        // Debit: Bank BCA (1110) - Assuming all transfer to BCA for now
-        // Credit: Piutang Usaha (1200)
-
-        // Find Bank Account based on method?
-        // Let's default to Bank BCA (1110) for TRANSFER, Cash (1101) for CASH
-        let debitAccount = '1110' // BCA
-        if (method === 'CASH') debitAccount = '1101' // Kas Besar
+        // 3. Post Journal Entry (outside transaction)
+        let debitAccount = '1110'
+        if (method === 'CASH') debitAccount = '1101'
 
         await postJournalEntry({
-            description: `Payment for ${invoice.number} (${method})`,
+            description: `Payment for ${result.invoice.number} (${method})`,
             date: new Date(),
-            reference: payment.reference || "PAY",
+            reference: result.payment.reference || "PAY",
             lines: [
                 {
                     accountCode: debitAccount,
@@ -366,7 +370,7 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
                     credit: 0
                 },
                 {
-                    accountCode: '1200', // Piutang Usaha
+                    accountCode: '1200',
                     credit: amount,
                     debit: 0
                 }
@@ -379,7 +383,6 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
             console.log('Skipping revalidation (Script context)')
         }
         return { success: true }
-
     } catch (error: any) {
         console.error("Payment Error:", error)
         return { success: false, error: error.message }

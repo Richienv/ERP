@@ -1,6 +1,6 @@
 'use server'
 
-import { prisma } from "@/lib/prisma"
+import { withPrismaAuth } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { ProcurementStatus } from "@prisma/client"
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
@@ -68,39 +68,41 @@ export async function createVendor(data: {
             return { success: false, error: "Code and Name are required" }
         }
 
-        // Check for duplicate code
-        const existing = await prisma.supplier.findUnique({
-            where: { code: data.code }
-        })
+        return await withPrismaAuth(async (prisma) => {
+            // Check for duplicate code
+            const existing = await prisma.supplier.findUnique({
+                where: { code: data.code }
+            })
 
-        if (existing) {
-            return { success: false, error: `Vendor code "${data.code}" already exists` }
-        }
+            if (existing) {
+                return { success: false, error: `Vendor code "${data.code}" already exists` }
+            }
 
-        // Create vendor
-        const vendor = await prisma.supplier.create({
-            data: {
-                code: data.code.toUpperCase(),
-                name: data.name,
-                contactName: data.contactName || null,
-                email: data.email || null,
-                phone: data.phone || null,
-                address: data.address || null,
-                rating: 0,
-                onTimeRate: 0,
-                isActive: true
+            // Create vendor
+            const vendor = await prisma.supplier.create({
+                data: {
+                    code: data.code.toUpperCase(),
+                    name: data.name,
+                    contactName: data.contactName || null,
+                    email: data.email || null,
+                    phone: data.phone || null,
+                    address: data.address || null,
+                    rating: 0,
+                    onTimeRate: 0,
+                    isActive: true
+                }
+            })
+
+            revalidateTagSafe('procurement')
+            revalidateTagSafe('vendors')
+            revalidatePath('/procurement/vendors')
+
+            return {
+                success: true,
+                message: "Vendor created successfully",
+                vendor: { id: vendor.id, name: vendor.name }
             }
         })
-
-        revalidateTagSafe('procurement')
-        revalidateTagSafe('vendors')
-        revalidatePath('/procurement/vendors')
-
-        return {
-            success: true,
-            message: "Vendor created successfully",
-            vendor: { id: vendor.id, name: vendor.name }
-        }
     } catch (error: any) {
         console.error("Error creating vendor:", error)
         return { success: false, error: error.message || "Failed to create vendor" }
@@ -112,22 +114,24 @@ export async function createVendor(data: {
 // ==========================================
 export async function getVendorHistory(vendorId: string) {
     try {
-        const history = await prisma.purchaseOrder.findMany({
-            where: { supplierId: vendorId },
-            include: {
-                items: true
-            },
-            orderBy: { orderDate: 'desc' }
-        })
+        return await withPrismaAuth(async (prisma) => {
+            const history = await prisma.purchaseOrder.findMany({
+                where: { supplierId: vendorId },
+                include: {
+                    items: true
+                },
+                orderBy: { orderDate: 'desc' }
+            })
 
-        return history.map(po => ({
-            id: po.id,
-            number: po.number,
-            date: po.orderDate,
-            status: po.status,
-            totalAmount: Number(po.totalAmount),
-            itemCount: po.items.length
-        }))
+            return history.map(po => ({
+                id: po.id,
+                number: po.number,
+                date: po.orderDate,
+                status: po.status,
+                totalAmount: Number(po.totalAmount),
+                itemCount: po.items.length
+            }))
+        })
     } catch (error) {
         console.error("Error fetching vendor history:", error)
         return []

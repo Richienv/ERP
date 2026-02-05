@@ -1,6 +1,6 @@
 "use server"
 
-import { prisma, safeQuery, withRetry } from "@/lib/db"
+import { prisma, safeQuery, withRetry, withPrismaAuth } from "@/lib/db"
 import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
 import { ProcurementStatus } from "@prisma/client"
 import { assertRole, getAuthzUser } from "@/lib/authz"
@@ -39,10 +39,12 @@ async function createPurchaseOrderEvent(tx: typeof prisma, params: {
 
 async function getEmployeeIdForUserEmail(email?: string | null) {
     if (!email) return null
-    const employee = await (prisma as any).employee.findFirst({
-        where: { email }
+    return await withPrismaAuth(async (prismaClient) => {
+        const employee = await (prismaClient as any).employee.findFirst({
+            where: { email }
+        })
+        return employee?.id || null
     })
-    return employee?.id || null
 }
 
 // ==========================================
@@ -271,39 +273,41 @@ export async function createGRN(data: CreateGRNInput) {
         const number = `GRN-${year}${month}-${random}`
 
         // Create GRN with items in a transaction
-        const grn = await prisma.$transaction(async (tx) => {
-            const txAny = tx as any
-            const po = await txAny.purchaseOrder.findUnique({ where: { id: data.purchaseOrderId } })
-            if (!po) throw new Error("Purchase Order not found")
-            if (!["ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"].includes(po.status)) {
-                throw new Error("Purchase Order is not eligible for receiving")
-            }
-
-            // 1. Create GRN
-            const newGrn = await txAny.goodsReceivedNote.create({
-                data: {
-                    number,
-                    purchaseOrderId: data.purchaseOrderId,
-                    warehouseId: data.warehouseId,
-                    receivedById,
-                    notes: data.notes,
-                    status: 'DRAFT',
-                    items: {
-                        create: data.items.map((item: any) => ({
-                            poItemId: item.poItemId,
-                            productId: item.productId,
-                            quantityOrdered: item.quantityOrdered,
-                            quantityReceived: item.quantityReceived,
-                            quantityAccepted: item.quantityAccepted || item.quantityReceived,
-                            quantityRejected: item.quantityRejected || 0,
-                            unitCost: item.unitCost,
-                            inspectionNotes: item.inspectionNotes
-                        }))
-                    }
+        const grn = await withPrismaAuth(async (prisma) => {
+            return await prisma.$transaction(async (tx) => {
+                const txAny = tx as any
+                const po = await txAny.purchaseOrder.findUnique({ where: { id: data.purchaseOrderId } })
+                if (!po) throw new Error("Purchase Order not found")
+                if (!["ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"].includes(po.status)) {
+                    throw new Error("Purchase Order is not eligible for receiving")
                 }
-            })
 
-            return newGrn
+                // 1. Create GRN
+                const newGrn = await txAny.goodsReceivedNote.create({
+                    data: {
+                        number,
+                        purchaseOrderId: data.purchaseOrderId,
+                        warehouseId: data.warehouseId,
+                        receivedById,
+                        notes: data.notes,
+                        status: 'DRAFT',
+                        items: {
+                            create: data.items.map((item: any) => ({
+                                poItemId: item.poItemId,
+                                productId: item.productId,
+                                quantityOrdered: item.quantityOrdered,
+                                quantityReceived: item.quantityReceived,
+                                quantityAccepted: item.quantityAccepted || item.quantityReceived,
+                                quantityRejected: item.quantityRejected || 0,
+                                unitCost: item.unitCost,
+                                inspectionNotes: item.inspectionNotes
+                            }))
+                        }
+                    }
+                })
+
+                return newGrn
+            })
         })
 
         revalidateTagSafe('procurement')
@@ -328,177 +332,178 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
         const user = await getAuthzUser()
         assertRole(user, RECEIVING_ROLES)
 
-        const result = await prisma.$transaction(async (tx) => {
-            const txAny = tx as any
-            // 1. Get GRN with items
-            const grn = await txAny.goodsReceivedNote.findUnique({
-                where: { id: grnId },
-                include: {
-                    items: true,
-                    purchaseOrder: {
-                        include: { items: true }
-                    }
-                }
-            })
-
-            if (!grn) throw new Error("GRN not found")
-            if (grn.status === 'ACCEPTED') throw new Error("GRN already accepted")
-            if (grn.status !== 'DRAFT') throw new Error("GRN is not in a processable state")
-
-            // SoD Check: If user approved the PO, they need to provide a reason to receive it
-            // This is a soft enforcement (warning + audit)
-            const approvingEvent = await txAny.purchaseOrderEvent.findFirst({
-                where: {
-                    purchaseOrderId: grn.purchaseOrderId,
-                    action: "APPROVE",
-                    changedBy: user.id,
-                },
-                select: { id: true }
-            })
-
-            if (approvingEvent) {
-                const reason = (overrideReason || "").trim()
-                if (reason.length < 10) {
-                    return {
-                        success: false,
-                        sodViolation: true,
-                        error: "SoD Alert: You approved this PO. Provide reason to override (min 10 chars).",
-                    }
-                }
-
-                await createPurchaseOrderEvent(tx as any, {
-                    purchaseOrderId: grn.purchaseOrderId,
-                    status: grn.purchaseOrder.status as ProcurementStatus,
-                    changedBy: user.id,
-                    action: "SOD_OVERRIDE",
-                    notes: reason,
-                    metadata: {
-                        violationType: "APPROVER_ACCEPTING_GRN",
-                        overrideReason: reason,
-                        source: "GRN_ACCEPT",
-                        grnId,
-                    },
-                })
-            }
-
-            // 2. Update GRN status
-            await txAny.goodsReceivedNote.update({
-                where: { id: grnId },
-                data: { status: 'ACCEPTED' }
-            })
-
-            // 3. Update PO item received quantities
-            for (const grnItem of grn.items) {
-                await tx.purchaseOrderItem.update({
-                    where: { id: grnItem.poItemId },
-                    data: {
-                        receivedQty: {
-                            increment: grnItem.quantityAccepted
+        const result = await withPrismaAuth(async (prisma) => {
+            return await prisma.$transaction(async (tx) => {
+                const txAny = tx as any
+                // 1. Get GRN with items
+                const grn = await txAny.goodsReceivedNote.findUnique({
+                    where: { id: grnId },
+                    include: {
+                        items: true,
+                        purchaseOrder: {
+                            include: { items: true }
                         }
                     }
                 })
 
-                // 4. Create inventory transaction for each accepted item
-                if (grnItem.quantityAccepted > 0) {
-                    await tx.inventoryTransaction.create({
+                if (!grn) throw new Error("GRN not found")
+                if (grn.status === 'ACCEPTED') throw new Error("GRN already accepted")
+                if (grn.status !== 'DRAFT') throw new Error("GRN is not in a processable state")
+
+                // SoD Check: If user approved the PO, they need to provide a reason to receive it
+                const approvingEvent = await txAny.purchaseOrderEvent.findFirst({
+                    where: {
+                        purchaseOrderId: grn.purchaseOrderId,
+                        action: "APPROVE",
+                        changedBy: user.id,
+                    },
+                    select: { id: true }
+                })
+
+                if (approvingEvent) {
+                    const reason = (overrideReason || "").trim()
+                    if (reason.length < 10) {
+                        return {
+                            success: false,
+                            sodViolation: true,
+                            error: "SoD Alert: You approved this PO. Provide reason to override (min 10 chars).",
+                        }
+                    }
+
+                    await createPurchaseOrderEvent(tx as any, {
+                        purchaseOrderId: grn.purchaseOrderId,
+                        status: grn.purchaseOrder.status as ProcurementStatus,
+                        changedBy: user.id,
+                        action: "SOD_OVERRIDE",
+                        notes: reason,
+                        metadata: {
+                            violationType: "APPROVER_ACCEPTING_GRN",
+                            overrideReason: reason,
+                            source: "GRN_ACCEPT",
+                            grnId,
+                        },
+                    })
+                }
+
+                // 2. Update GRN status
+                await txAny.goodsReceivedNote.update({
+                    where: { id: grnId },
+                    data: { status: 'ACCEPTED' }
+                })
+
+                // 3. Update PO item received quantities
+                for (const grnItem of grn.items) {
+                    await tx.purchaseOrderItem.update({
+                        where: { id: grnItem.poItemId },
                         data: {
-                            productId: grnItem.productId,
-                            warehouseId: grn.warehouseId,
-                            type: 'PO_RECEIVE',
-                            quantity: grnItem.quantityAccepted,
-                            unitCost: grnItem.unitCost,
-                            totalValue: Number(grnItem.unitCost) * grnItem.quantityAccepted,
-                            purchaseOrderId: grn.purchaseOrderId,
-                            referenceId: grn.number,
-                            notes: `Received via ${grn.number}`
+                            receivedQty: {
+                                increment: grnItem.quantityAccepted
+                            }
                         }
                     })
 
-                    // 5. Update stock levels
-                    await tx.stockLevel.upsert({
-                        where: {
-                            productId_warehouseId_locationId: {
+                    // 4. Create inventory transaction for each accepted item
+                    if (grnItem.quantityAccepted > 0) {
+                        await tx.inventoryTransaction.create({
+                            data: {
                                 productId: grnItem.productId,
                                 warehouseId: grn.warehouseId,
-                                locationId: null as any
+                                type: 'PO_RECEIVE',
+                                quantity: grnItem.quantityAccepted,
+                                unitCost: grnItem.unitCost,
+                                totalValue: Number(grnItem.unitCost) * grnItem.quantityAccepted,
+                                purchaseOrderId: grn.purchaseOrderId,
+                                referenceId: grn.number,
+                                notes: `Received via ${grn.number}`
                             }
-                        },
-                        create: {
-                            productId: grnItem.productId,
-                            warehouseId: grn.warehouseId,
-                            quantity: grnItem.quantityAccepted,
-                            availableQty: grnItem.quantityAccepted,
-                            reservedQty: 0
-                        },
-                        update: {
-                            quantity: { increment: grnItem.quantityAccepted },
-                            availableQty: { increment: grnItem.quantityAccepted }
-                        }
-                    })
+                        })
+
+                        // 5. Update stock levels
+                        await tx.stockLevel.upsert({
+                            where: {
+                                productId_warehouseId_locationId: {
+                                    productId: grnItem.productId,
+                                    warehouseId: grn.warehouseId,
+                                    locationId: null as any
+                                }
+                            },
+                            create: {
+                                productId: grnItem.productId,
+                                warehouseId: grn.warehouseId,
+                                quantity: grnItem.quantityAccepted,
+                                availableQty: grnItem.quantityAccepted,
+                                reservedQty: 0
+                            },
+                            update: {
+                                quantity: { increment: grnItem.quantityAccepted },
+                                availableQty: { increment: grnItem.quantityAccepted }
+                            }
+                        })
+                    }
                 }
-            }
 
-            // 6. Check if PO is fully received
-            const po = await tx.purchaseOrder.findUnique({
-                where: { id: grn.purchaseOrderId },
-                include: { items: true }
-            })
+                // 6. Check if PO is fully received
+                const po = await tx.purchaseOrder.findUnique({
+                    where: { id: grn.purchaseOrderId },
+                    include: { items: true }
+                })
 
-            if (po) {
-                const allItemsReceived = po.items.every(item => item.receivedQty >= item.quantity)
-                const someItemsReceived = po.items.some(item => item.receivedQty > 0)
+                if (po) {
+                    const allItemsReceived = po.items.every(item => item.receivedQty >= item.quantity)
+                    const someItemsReceived = po.items.some(item => item.receivedQty > 0)
 
-                const transitionPO = async (
-                    currentStatus: ProcurementStatus,
-                    nextStatus: ProcurementStatus,
-                    action: string,
-                    metadata?: any
-                ) => {
-                    assertPOTransition(currentStatus, nextStatus)
-                    await tx.purchaseOrder.update({
-                        where: { id: po.id },
-                        data: {
-                            previousStatus: currentStatus,
+                    const transitionPO = async (
+                        currentStatus: ProcurementStatus,
+                        nextStatus: ProcurementStatus,
+                        action: string,
+                        metadata?: any
+                    ) => {
+                        assertPOTransition(currentStatus, nextStatus)
+                        await tx.purchaseOrder.update({
+                            where: { id: po.id },
+                            data: {
+                                previousStatus: currentStatus,
+                                status: nextStatus,
+                            }
+                        })
+                        await createPurchaseOrderEvent(tx as any, {
+                            purchaseOrderId: po.id,
                             status: nextStatus,
+                            changedBy: user.id,
+                            action,
+                            metadata,
+                        })
+                    }
+
+                    if (allItemsReceived) {
+                        if (po.status !== 'RECEIVED' && po.status !== 'COMPLETED') {
+                            await transitionPO(po.status as any, 'RECEIVED', 'RECEIVE_FULL', { 
+                                source: 'GRN_ACCEPT', 
+                                grnId,
+                                sodOverride: overrideReason 
+                            })
+                            po.status = 'RECEIVED'
                         }
-                    })
-                    await createPurchaseOrderEvent(tx as any, {
-                        purchaseOrderId: po.id,
-                        status: nextStatus,
-                        changedBy: user.id,
-                        action,
-                        metadata,
-                    })
-                }
-
-                if (allItemsReceived) {
-                    if (po.status !== 'RECEIVED' && po.status !== 'COMPLETED') {
-                        await transitionPO(po.status as any, 'RECEIVED', 'RECEIVE_FULL', { 
-                            source: 'GRN_ACCEPT', 
-                            grnId,
-                            sodOverride: overrideReason 
-                        })
-                        po.status = 'RECEIVED'
-                    }
-                    if (po.status === 'RECEIVED') {
-                        await transitionPO('RECEIVED', 'COMPLETED', 'AUTO_COMPLETE', { 
-                            source: 'GRN_ACCEPT', 
-                            grnId,
-                            sodOverride: overrideReason 
-                        })
-                    }
-                } else if (someItemsReceived) {
-                    if (po.status !== 'PARTIAL_RECEIVED') {
-                        await transitionPO(po.status as any, 'PARTIAL_RECEIVED' as any, 'RECEIVE_PARTIAL', { 
-                            source: 'GRN_ACCEPT', 
-                            grnId,
-                            sodOverride: overrideReason 
-                        })
+                        if (po.status === 'RECEIVED') {
+                            await transitionPO('RECEIVED', 'COMPLETED', 'AUTO_COMPLETE', { 
+                                source: 'GRN_ACCEPT', 
+                                grnId,
+                                sodOverride: overrideReason 
+                            })
+                        }
+                    } else if (someItemsReceived) {
+                        if (po.status !== 'PARTIAL_RECEIVED') {
+                            await transitionPO(po.status as any, 'PARTIAL_RECEIVED' as any, 'RECEIVE_PARTIAL', { 
+                                source: 'GRN_ACCEPT', 
+                                grnId,
+                                sodOverride: overrideReason 
+                            })
+                        }
                     }
                 }
-            }
 
-            return { success: true }
+                return { success: true }
+            })
         })
 
         revalidateTagSafe('procurement')
@@ -526,17 +531,19 @@ export async function rejectGRN(grnId: string, reason: string) {
         const user = await getAuthzUser()
         assertRole(user, RECEIVING_ROLES)
 
-        const existing = await prismaAny.goodsReceivedNote.findUnique({ where: { id: grnId } })
-        if (!existing) throw new Error("GRN not found")
-        if (existing.status === 'ACCEPTED') throw new Error("GRN already accepted")
-        if (existing.status !== 'DRAFT') throw new Error("GRN is not in a rejectable state")
+        await withPrismaAuth(async (prisma) => {
+            const existing = await (prisma as any).goodsReceivedNote.findUnique({ where: { id: grnId } })
+            if (!existing) throw new Error("GRN not found")
+            if (existing.status === 'ACCEPTED') throw new Error("GRN already accepted")
+            if (existing.status !== 'DRAFT') throw new Error("GRN is not in a rejectable state")
 
-        await prismaAny.goodsReceivedNote.update({
-            where: { id: grnId },
-            data: {
-                status: 'REJECTED',
-                notes: reason
-            }
+            await (prisma as any).goodsReceivedNote.update({
+                where: { id: grnId },
+                data: {
+                    status: 'REJECTED',
+                    notes: reason
+                }
+            })
         })
 
         revalidateTagSafe('grn')

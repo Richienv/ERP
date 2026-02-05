@@ -1,6 +1,6 @@
 'use server'
 
-import { prisma } from '@/lib/prisma'
+import { withPrismaAuth } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
@@ -14,10 +14,12 @@ const roleSchema = z.object({
 
 export async function getSystemRoles() {
     try {
-        const roles = await prisma.systemRole.findMany({
-            orderBy: { createdAt: 'asc' },
+        return await withPrismaAuth(async (prisma) => {
+            const roles = await prisma.systemRole.findMany({
+                orderBy: { createdAt: 'asc' },
+            })
+            return { success: true, data: roles }
         })
-        return { success: true, data: roles }
     } catch (error) {
         console.error('Failed to fetch roles:', error)
         return { success: false, error: 'Failed to fetch roles' }
@@ -32,20 +34,22 @@ export async function createSystemRole(data: z.infer<typeof roleSchema>) {
     }
 
     try {
-        const existing = await prisma.systemRole.findUnique({
-            where: { code: result.data.code }
+        return await withPrismaAuth(async (prisma) => {
+            const existing = await prisma.systemRole.findUnique({
+                where: { code: result.data.code }
+            })
+
+            if (existing) {
+                return { success: false, error: 'Role code already exists' }
+            }
+
+            const role = await prisma.systemRole.create({
+                data: result.data
+            })
+
+            revalidatePath('/admin/roles')
+            return { success: true, data: role }
         })
-
-        if (existing) {
-            return { success: false, error: 'Role code already exists' }
-        }
-
-        const role = await prisma.systemRole.create({
-            data: result.data
-        })
-
-        revalidatePath('/admin/roles')
-        return { success: true, data: role }
     } catch (error) {
         console.error('Failed to create role:', error)
         return { success: false, error: 'Failed to create role' }
@@ -54,12 +58,14 @@ export async function createSystemRole(data: z.infer<typeof roleSchema>) {
 
 export async function updateSystemRole(id: string, data: Partial<z.infer<typeof roleSchema>>) {
     try {
-        const role = await prisma.systemRole.update({
-            where: { id },
-            data: data
+        return await withPrismaAuth(async (prisma) => {
+            const role = await prisma.systemRole.update({
+                where: { id },
+                data: data
+            })
+            revalidatePath('/admin/roles')
+            return { success: true, data: role }
         })
-        revalidatePath('/admin/roles')
-        return { success: true, data: role }
     } catch (error) {
         console.error('Failed to update role:', error)
         return { success: false, error: 'Failed to update role' }
@@ -68,16 +74,18 @@ export async function updateSystemRole(id: string, data: Partial<z.infer<typeof 
 
 export async function deleteSystemRole(id: string) {
     try {
-        const role = await prisma.systemRole.findUnique({ where: { id } })
-        if (role?.isSystem) {
-            return { success: false, error: 'Cannot delete system role' }
-        }
+        return await withPrismaAuth(async (prisma) => {
+            const role = await prisma.systemRole.findUnique({ where: { id } })
+            if (role?.isSystem) {
+                return { success: false, error: 'Cannot delete system role' }
+            }
 
-        await prisma.systemRole.delete({
-            where: { id }
+            await prisma.systemRole.delete({
+                where: { id }
+            })
+            revalidatePath('/admin/roles')
+            return { success: true, message: 'Role deleted' }
         })
-        revalidatePath('/admin/roles')
-        return { success: true, message: 'Role deleted' }
     } catch (error) {
         console.error('Failed to delete role:', error)
         return { success: false, error: 'Failed to delete role' }

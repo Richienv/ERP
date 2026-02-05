@@ -1,6 +1,6 @@
 'use server'
 
-import { prisma, safeQuery, withRetry } from "@/lib/db"
+import { withPrismaAuth, safeQuery, withRetry } from "@/lib/db"
 import { unstable_cache, revalidateTag, revalidatePath } from "next/cache"
 import { calculateProductStatus } from "@/lib/inventory-logic"
 import { approvePurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
@@ -14,7 +14,7 @@ import {
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 export const getWarehouses = unstable_cache(
-    async () => {
+    async () => withPrismaAuth(async (prisma) => {
         const warehouses = await prisma.warehouse.findMany({
             include: {
                 stockLevels: true,
@@ -62,13 +62,13 @@ export const getWarehouses = unstable_cache(
                 phone: managerPhone
             }
         })
-    },
+    }),
     ['warehouses-list'],
     { revalidate: 300, tags: ['inventory', 'warehouses'] }
 )
 
 export const getInventoryKPIs = unstable_cache(
-    async () => {
+    async () => withPrismaAuth(async (prisma) => {
         const totalProducts = await prisma.product.count({ where: { isActive: true } })
         const lowStock = await prisma.product.count({
             where: {
@@ -95,13 +95,13 @@ export const getInventoryKPIs = unstable_cache(
             totalValue,
             inventoryAccuracy: 98 // Mock
         }
-    },
+    }),
     ['inventory-kpis'],
     { revalidate: 300, tags: ['inventory', 'kpis'] }
 )
 
 export const getMaterialGapAnalysis = unstable_cache(
-    async () => {
+    async () => withPrismaAuth(async (prisma) => {
         const [products, pendingTasks] = await Promise.all([
             prisma.product.findMany({
                 where: { isActive: true },
@@ -292,259 +292,13 @@ export const getMaterialGapAnalysis = unstable_cache(
                 openPOs
             }
         })
-    },
+    }),
     ['material-gap-analysis'],
     { revalidate: 120, tags: ['inventory', 'gap-analysis'] }
 )
 
-// ==========================================
-// GOODS RECEIPT ACTION
-// ==========================================
-export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number }) {
-    try {
-        await prisma.warehouse.create({
-            data: {
-                name: data.name,
-                code: data.code,
-                address: data.address,
-                capacity: data.capacity
-            }
-        })
-        revalidateTagSafe('inventory')
-        revalidateTagSafe('warehouses')
-        return { success: true }
-    } catch (e: any) {
-        console.error("Failed to create warehouse", e)
-        return { success: false, error: e.message || "Database Error" }
-    }
-}
-
-export async function receiveGoodsFromPO(data: {
-    poId: string,
-    itemId: string,
-    warehouseId: string,
-    receivedQty: number
-}) {
-    try {
-        console.log("Receiving Goods:", data)
-
-        // 1. Get PO Item details
-        const po = await prisma.purchaseOrder.findUnique({
-            where: { id: data.poId },
-            include: { items: true }
-        })
-
-        if (!po) throw new Error("PO Not Found")
-
-        const poItem = po.items.find(i => i.productId === data.itemId)
-        if (!poItem) throw new Error("Item not found in this PO")
-
-        // 2. Validate/Fetch Warehouse
-        let targetWarehouseId = data.warehouseId;
-
-        // specific check if ID is reliable, otherwise fallback
-        let warehouseExists = null;
-        if (targetWarehouseId && targetWarehouseId.length > 10) {
-            try {
-                warehouseExists = await prisma.warehouse.findUnique({ where: { id: targetWarehouseId } })
-            } catch (e) {
-                // Ignore invalid UUID error
-            }
-        }
-
-        if (!warehouseExists) {
-            console.warn(`Warehouse ID ${targetWarehouseId} not found or invalid, falling back to default.`)
-            const defaultWarehouse = await prisma.warehouse.findFirst()
-            if (!defaultWarehouse) throw new Error("No warehouses found in system.")
-            targetWarehouseId = defaultWarehouse.id
-        }
-
-        // 2. Perform all updates in a transaction for data integrity & speed
-        await prisma.$transaction(async (tx) => {
-            // A. Create Transaction Record
-            await tx.inventoryTransaction.create({
-                data: {
-                    productId: data.itemId,
-                    warehouseId: targetWarehouseId,
-                    type: 'PO_RECEIVE', // Correct enum value from schema
-                    quantity: data.receivedQty,
-                    notes: `Received from PO ${po.number}`,
-                    performedBy: 'System User'
-                }
-            })
-
-            // B. Update Stock Level (Upsert)
-            const existingLevel = await tx.stockLevel.findFirst({
-                where: { productId: data.itemId, warehouseId: targetWarehouseId }
-            })
-
-            if (existingLevel) {
-                await tx.stockLevel.update({
-                    where: { id: existingLevel.id },
-                    data: {
-                        quantity: { increment: data.receivedQty },
-                        availableQty: { increment: data.receivedQty }
-                    }
-                })
-            } else {
-                await tx.stockLevel.create({
-                    data: {
-                        productId: data.itemId,
-                        warehouseId: targetWarehouseId,
-                        quantity: data.receivedQty,
-                        availableQty: data.receivedQty
-                    }
-                })
-            }
-
-            // C. Update PO Item
-            await tx.purchaseOrderItem.update({
-                where: { id: poItem.id },
-                data: { receivedQty: { increment: data.receivedQty } }
-            })
-
-            // D. Check PO Completion
-            const updatedPO = await tx.purchaseOrder.findUnique({
-                where: { id: data.poId },
-                include: { items: true }
-            })
-
-            if (updatedPO) {
-                const allReceived = updatedPO.items.every(i => i.receivedQty >= i.quantity)
-                const newStatus = allReceived ? 'RECEIVED' : 'SHIPPED'
-                if (updatedPO.status !== newStatus && updatedPO.status !== 'RECEIVED') {
-                    await tx.purchaseOrder.update({
-                        where: { id: data.poId },
-                        data: { status: newStatus }
-                    })
-                }
-            }
-        }, {
-            maxWait: 5000, // 5s max wait to get a connection
-            timeout: 20000 // 20s for the transaction itself (fixes P2028)
-        })
-
-        // Optimized: Removed blocking revalidatePath.
-        // The Client already updates optimistically. 
-        // Background revalidation or next visit will sync data.
-        // revalidatePath('/inventory')
-
-        return { success: true, message: `Successfully received ${data.receivedQty} units.` }
-
-        return { success: true, message: `Successfully received ${data.receivedQty} units.` }
-
-    } catch (error) {
-        console.error("Error receiving goods:", error)
-        return { success: false, error: "Failed to receive goods" }
-    }
-}
-
-// ==========================================
-// PURCHASE REQUEST ACTION
-// ==========================================
-export async function requestPurchase(data: {
-    itemId: string,
-    quantity: number,
-    notes?: string
-}) {
-    try {
-        console.log("Requesting Purchase (PR):", data)
-
-        // 1. Check for Duplicate Pending Requests (New Schema)
-        const existingItem = await prisma.purchaseRequestItem.findFirst({
-            where: {
-                productId: data.itemId,
-                status: 'PENDING',
-                purchaseRequest: {
-                    status: { notIn: ['REJECTED', 'CANCELLED'] }
-                }
-            },
-            include: { purchaseRequest: true }
-        })
-
-        if (existingItem) {
-            console.warn("Duplicate PR item detected:", data.itemId)
-            return {
-                success: false,
-                message: "A pending request for this item already exists.",
-                alreadyPending: true
-            }
-        }
-
-        // 2. Get Default Requester (Richie or First Active)
-        // In a real app, we would get this from the session.
-        const requester = await prisma.employee.findFirst({
-            where: { OR: [{ firstName: { contains: 'Richie', mode: 'insensitive' } }, { position: 'CEO' }] }
-        })
-        const activeEmployee = requester || await prisma.employee.findFirst({ where: { status: 'ACTIVE' } })
-
-        if (!activeEmployee) throw new Error("No active employee found to assign as requester")
-
-        // Validate UUID to prevent "found m at 1" errors
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-        if (!uuidRegex.test(activeEmployee.id)) {
-            console.error("Invalid Employee UUID found:", activeEmployee.id)
-            throw new Error(`Active employee has invalid UUID: ${activeEmployee.id}`)
-        }
-
-        // 3. Create Purchase Request
-        const date = new Date()
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-        const prNumber = `PR-${year}${month}-${random}`
-
-        const pr = await prisma.purchaseRequest.create({
-            data: {
-                number: prNumber,
-                requesterId: activeEmployee.id,
-                status: 'PENDING',
-                priority: 'NORMAL',
-                notes: data.notes || "Auto-generated from Inventory Gap",
-                items: {
-                    create: {
-                        productId: data.itemId,
-                        quantity: data.quantity,
-                        status: 'PENDING'
-                    }
-                }
-            },
-            include: { items: true } // Include items to get IDs for conversion
-        })
-
-        // === PHASE 1 LIFECYCLE: STOP AT PR ===
-        // The PR is created and goes to Purchasing queue.
-
-        revalidateTagSafe('inventory')
-        revalidateTagSafe('procurement')
-
-        return {
-            success: true,
-            pendingTask: {
-                id: pr.id,
-                status: 'PR_CREATED',
-                type: 'PURCHASE_REQUEST'
-            }
-        }
-
-
-        // Fallback if conversion fails or no PO created (should rarely happen if flow is correct)
-        return {
-            success: true,
-            message: "Purchase Request Created (Pending Approval)",
-            pendingTask: { id: pr.id }
-        }
-
-    } catch (error: any) {
-        console.error("Error requesting purchase:", error)
-        return { success: false, error: "Failed to request purchase" }
-    }
-}
-
-
-
 export const getProcurementInsights = unstable_cache(
-    async () => {
+    async () => withPrismaAuth(async (prisma) => {
         try {
             // 1. Get Active Purchase Orders (Actual Inbound Data)
             const activePOs = await prisma.purchaseOrder.findMany({
@@ -645,7 +399,6 @@ export const getProcurementInsights = unstable_cache(
                     itemsCriticalList: restockItems
                 }
             }
-
         } catch (error) {
             console.error("Error fetching procurement insights:", error)
             return {
@@ -659,13 +412,13 @@ export const getProcurementInsights = unstable_cache(
                 }
             }
         }
-    },
+    }),
     ['procurement-insights'],
     { revalidate: 300, tags: ['inventory', 'procurement'] }
 )
 
-export const getProductsForKanban = unstable_cache(
-    async () => {
+export async function getProductsForKanban() {
+    return withPrismaAuth(async (prisma) => {
         const products = await prisma.product.findMany({
             where: { isActive: true },
             include: {
@@ -697,19 +450,19 @@ export const getProductsForKanban = unstable_cache(
                 image: '/placeholder.png' // Mock if needed
             }
         })
-    },
-    ['inventory-kanban'],
-    { revalidate: 300, tags: ['inventory', 'products'] }
-)
+    })
+}
 
 export async function setProductManualAlert(productId: string, isAlert: boolean) {
     try {
-        await prisma.product.update({
-            where: { id: productId },
-            data: { manualAlert: isAlert }
+        return await withPrismaAuth(async (prisma) => {
+            await prisma.product.update({
+                where: { id: productId },
+                data: { manualAlert: isAlert }
+            })
+            revalidateTagSafe('inventory')
+            return { success: true }
         })
-        revalidateTagSafe('inventory')
-        return { success: true }
     } catch (e) {
         console.error("Failed to set manual alert", e)
         return { success: false, error: "Database Error" }
@@ -717,7 +470,7 @@ export async function setProductManualAlert(productId: string, isAlert: boolean)
 }
 
 export const getWarehouseDetails = unstable_cache(
-    async (id: string) => {
+    async (id: string) => withPrismaAuth(async (prisma) => {
         const warehouse = await prisma.warehouse.findUnique({
             where: { id },
             include: {
@@ -757,17 +510,246 @@ export const getWarehouseDetails = unstable_cache(
             capacity: warehouse.capacity,
             categories: Array.from(categoryMap.values())
         }
-    },
+    }),
     ['warehouse-details'],
     { revalidate: 300, tags: ['inventory', 'warehouse-details'] }
 )
+
+// ==========================================
+// GOODS RECEIPT ACTION
+// ==========================================
+export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number }) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            await prisma.warehouse.create({
+                data: {
+                    name: data.name,
+                    code: data.code,
+                    address: data.address,
+                    capacity: data.capacity
+                }
+            })
+            revalidateTagSafe('inventory')
+            revalidateTagSafe('warehouses')
+            return { success: true }
+        })
+    } catch (e: any) {
+        console.error("Failed to create warehouse", e)
+        return { success: false, error: e.message || "Database Error" }
+    }
+}
+
+export async function receiveGoodsFromPO(data: {
+    poId: string,
+    itemId: string,
+    warehouseId: string,
+    receivedQty: number
+}) {
+    try {
+        console.log("Receiving Goods:", data)
+
+        return await withPrismaAuth(async (prisma) => {
+            // 1. Get PO Item details
+            const po = await prisma.purchaseOrder.findUnique({
+                where: { id: data.poId },
+                include: { items: true }
+            })
+
+            if (!po) throw new Error("PO Not Found")
+
+            const poItem = po.items.find(i => i.productId === data.itemId)
+            if (!poItem) throw new Error("Item not found in this PO")
+
+            // 2. Validate/Fetch Warehouse
+            let targetWarehouseId = data.warehouseId
+
+            // specific check if ID is reliable, otherwise fallback
+            let warehouseExists = null
+            if (targetWarehouseId && targetWarehouseId.length > 10) {
+                try {
+                    warehouseExists = await prisma.warehouse.findUnique({ where: { id: targetWarehouseId } })
+                } catch {
+                    // Ignore invalid UUID error
+                }
+            }
+
+            if (!warehouseExists) {
+                console.warn(`Warehouse ID ${targetWarehouseId} not found or invalid, falling back to default.`)
+                const defaultWarehouse = await prisma.warehouse.findFirst()
+                if (!defaultWarehouse) throw new Error("No warehouses found in system.")
+                targetWarehouseId = defaultWarehouse.id
+            }
+
+            // A. Create Transaction Record
+            await prisma.inventoryTransaction.create({
+                data: {
+                    productId: data.itemId,
+                    warehouseId: targetWarehouseId,
+                    type: 'PO_RECEIVE', // Correct enum value from schema
+                    quantity: data.receivedQty,
+                    notes: `Received from PO ${po.number}`,
+                    performedBy: 'System User'
+                }
+            })
+
+            // B. Update Stock Level (Upsert)
+            const existingLevel = await prisma.stockLevel.findFirst({
+                where: { productId: data.itemId, warehouseId: targetWarehouseId }
+            })
+
+            if (existingLevel) {
+                await prisma.stockLevel.update({
+                    where: { id: existingLevel.id },
+                    data: {
+                        quantity: { increment: data.receivedQty },
+                        availableQty: { increment: data.receivedQty }
+                    }
+                })
+            } else {
+                await prisma.stockLevel.create({
+                    data: {
+                        productId: data.itemId,
+                        warehouseId: targetWarehouseId,
+                        quantity: data.receivedQty,
+                        availableQty: data.receivedQty
+                    }
+                })
+            }
+
+            // C. Update PO Item
+            await prisma.purchaseOrderItem.update({
+                where: { id: poItem.id },
+                data: { receivedQty: { increment: data.receivedQty } }
+            })
+
+            // D. Check PO Completion
+            const updatedPO = await prisma.purchaseOrder.findUnique({
+                where: { id: data.poId },
+                include: { items: true }
+            })
+
+            if (updatedPO) {
+                const allReceived = updatedPO.items.every(i => i.receivedQty >= i.quantity)
+                const newStatus = allReceived ? 'RECEIVED' : 'SHIPPED'
+                if (updatedPO.status !== newStatus && updatedPO.status !== 'RECEIVED') {
+                    await prisma.purchaseOrder.update({
+                        where: { id: data.poId },
+                        data: { status: newStatus }
+                    })
+                }
+            }
+
+            revalidateTagSafe('inventory')
+            revalidateTagSafe('procurement')
+
+            return { success: true, message: `Successfully received ${data.receivedQty} units.` }
+        }, { maxWait: 5000, timeout: 20000 })
+
+    } catch (error) {
+        console.error("Error receiving goods:", error)
+        return { success: false, error: "Failed to receive goods" }
+    }
+}
+
+// ==========================================
+// PURCHASE REQUEST ACTION
+// ==========================================
+export async function requestPurchase(data: {
+    itemId: string,
+    quantity: number,
+    notes?: string
+}) {
+    try {
+        console.log("Requesting Purchase (PR):", data)
+
+        return await withPrismaAuth(async (prisma) => {
+            // 1. Check for Duplicate Pending Requests (New Schema)
+            const existingItem = await prisma.purchaseRequestItem.findFirst({
+                where: {
+                    productId: data.itemId,
+                    status: 'PENDING',
+                    purchaseRequest: {
+                        status: { notIn: ['REJECTED', 'CANCELLED'] }
+                    }
+                },
+                include: { purchaseRequest: true }
+            })
+
+            if (existingItem) {
+                console.warn("Duplicate PR item detected:", data.itemId)
+                return {
+                    success: false,
+                    message: "A pending request for this item already exists.",
+                    alreadyPending: true
+                }
+            }
+
+            // 2. Get Default Requester (Richie or First Active)
+            // In a real app, we would get this from the session.
+            const requester = await prisma.employee.findFirst({
+                where: { OR: [{ firstName: { contains: 'Richie', mode: 'insensitive' } }, { position: 'CEO' }] }
+            })
+            const activeEmployee = requester || await prisma.employee.findFirst({ where: { status: 'ACTIVE' } })
+
+            if (!activeEmployee) throw new Error("No active employee found to assign as requester")
+
+            // Validate UUID to prevent "found m at 1" errors
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            if (!uuidRegex.test(activeEmployee.id)) {
+                console.error("Invalid Employee UUID found:", activeEmployee.id)
+                throw new Error(`Active employee has invalid UUID: ${activeEmployee.id}`)
+            }
+
+            // 3. Create Purchase Request
+            const date = new Date()
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+            const prNumber = `PR-${year}${month}-${random}`
+
+            const pr = await prisma.purchaseRequest.create({
+                data: {
+                    number: prNumber,
+                    requesterId: activeEmployee.id,
+                    status: 'PENDING',
+                    priority: 'NORMAL',
+                    notes: data.notes || "Auto-generated from Inventory Gap",
+                    items: {
+                        create: {
+                            productId: data.itemId,
+                            quantity: data.quantity,
+                            status: 'PENDING'
+                        }
+                    }
+                },
+                include: { items: true } // Include items to get IDs for conversion
+            })
+
+            revalidateTagSafe('inventory')
+            revalidateTagSafe('procurement')
+
+            return {
+                success: true,
+                pendingTask: {
+                    id: pr.id,
+                    status: 'PR_CREATED',
+                    type: 'PURCHASE_REQUEST'
+                }
+            }
+        })
+
+    } catch (error: any) {
+        console.error("Error requesting purchase:", error)
+        return { success: false, error: "Failed to request purchase" }
+    }
+}
 
 // ==========================================
 // STOCK MOVEMENT ACTIONS
 // ==========================================
 
 export const getStockMovements = unstable_cache(
-    async (limit = 50) => {
+    async (limit = 50) => withPrismaAuth(async (prisma) => {
         const movements = await prisma.inventoryTransaction.findMany({
             take: limit,
             orderBy: { createdAt: 'desc' },
@@ -795,7 +777,7 @@ export const getStockMovements = unstable_cache(
             reference: mv.purchaseOrder?.number || mv.salesOrder?.number || mv.workOrder?.number || '-',
             user: mv.performedBy || 'System'
         }))
-    },
+    }),
     ['inventory-movements'],
     { revalidate: 120, tags: ['inventory', 'movements'] }
 )
@@ -812,7 +794,7 @@ export async function createManualMovement(data: {
     try {
         if (data.quantity <= 0) throw new Error("Quantity must be positive")
 
-        await prisma.$transaction(async (tx) => {
+        return await withPrismaAuth(async (prisma) => {
             // Determine DB Type
             let dbType = 'ADJUSTMENT'
             let qtyChange = 0
@@ -832,7 +814,7 @@ export async function createManualMovement(data: {
             }
 
             // 1. Create Source Transaction
-            await tx.inventoryTransaction.create({
+            await prisma.inventoryTransaction.create({
                 data: {
                     productId: data.productId,
                     warehouseId: data.warehouseId,
@@ -844,12 +826,12 @@ export async function createManualMovement(data: {
             })
 
             // 2. Update Source Stock Level
-            const sourceLevel = await tx.stockLevel.findFirst({
+            const sourceLevel = await prisma.stockLevel.findFirst({
                 where: { productId: data.productId, warehouseId: data.warehouseId }
             })
 
             if (sourceLevel) {
-                await tx.stockLevel.update({
+                await prisma.stockLevel.update({
                     where: { id: sourceLevel.id },
                     data: {
                         quantity: { increment: qtyChange },
@@ -858,7 +840,7 @@ export async function createManualMovement(data: {
                 })
             } else if (qtyChange > 0) {
                 // Create if IN and not exists
-                await tx.stockLevel.create({
+                await prisma.stockLevel.create({
                     data: {
                         productId: data.productId,
                         warehouseId: data.warehouseId,
@@ -873,7 +855,7 @@ export async function createManualMovement(data: {
             // 3. Handle TRANSFER (Target Limit)
             if (data.type === 'TRANSFER' && data.targetWarehouseId) {
                 // Create Incoming Transaction at Target
-                await tx.inventoryTransaction.create({
+                await prisma.inventoryTransaction.create({
                     data: {
                         productId: data.productId,
                         warehouseId: data.targetWarehouseId,
@@ -885,12 +867,12 @@ export async function createManualMovement(data: {
                 })
 
                 // Update Target Stock
-                const targetLevel = await tx.stockLevel.findFirst({
+                const targetLevel = await prisma.stockLevel.findFirst({
                     where: { productId: data.productId, warehouseId: data.targetWarehouseId }
                 })
 
                 if (targetLevel) {
-                    await tx.stockLevel.update({
+                    await prisma.stockLevel.update({
                         where: { id: targetLevel.id },
                         data: {
                             quantity: { increment: data.quantity },
@@ -898,7 +880,7 @@ export async function createManualMovement(data: {
                         }
                     })
                 } else {
-                    await tx.stockLevel.create({
+                    await prisma.stockLevel.create({
                         data: {
                             productId: data.productId,
                             warehouseId: data.targetWarehouseId,
@@ -908,10 +890,10 @@ export async function createManualMovement(data: {
                     })
                 }
             }
-        })
 
-        revalidateTagSafe('inventory')
-        return { success: true }
+            revalidateTagSafe('inventory')
+            return { success: true }
+        })
 
     } catch (e) {
         console.error("Manual Movement Failed", e)
@@ -921,18 +903,20 @@ export async function createManualMovement(data: {
 
 export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number }) {
     try {
-        await prisma.warehouse.update({
-            where: { id },
-            data: {
-                name: data.name,
-                code: data.code,
-                address: data.address,
-                capacity: data.capacity
-            }
+        return await withPrismaAuth(async (prisma) => {
+            await prisma.warehouse.update({
+                where: { id },
+                data: {
+                    name: data.name,
+                    code: data.code,
+                    address: data.address,
+                    capacity: data.capacity
+                }
+            })
+            revalidateTagSafe('inventory')
+            revalidateTagSafe('warehouse-details')
+            return { success: true }
         })
-        revalidateTagSafe('inventory')
-        revalidateTagSafe('warehouse-details')
-        return { success: true }
     } catch (e: any) {
         console.error("Failed to update warehouse", e)
         return { success: false, error: e.message || "Database Error" }
@@ -950,49 +934,51 @@ export async function submitSpotAudit(data: {
     try {
         const { warehouseId, productId, actualQty, auditorName, notes } = data;
 
-        // 1. Get current system stock (Location-agnostic / Default Location)
-        const existingStock = await prisma.stockLevel.findFirst({
-            where: { productId, warehouseId, locationId: null }
-        });
-
-        const systemQty = existingStock?.quantity || 0;
-        const discrepancy = actualQty - systemQty;
-
-        if (discrepancy !== 0) {
-            if (existingStock) {
-                await prisma.stockLevel.update({
-                    where: { id: existingStock.id },
-                    data: { quantity: actualQty }
-                });
-            } else {
-                await prisma.stockLevel.create({
-                    data: {
-                        productId,
-                        warehouseId,
-                        quantity: actualQty,
-                        locationId: null
-                    }
-                });
-            }
-
-            // 3. Record Transaction
-            await prisma.inventoryTransaction.create({
-                data: {
-                    type: 'ADJUSTMENT', // Fixed Enum
-                    quantity: discrepancy, // Signed value (+ for IN, - for OUT)
-                    productId,
-                    warehouseId,
-                    referenceId: `AUDIT-${Date.now()}`,
-                    notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
-                }
+        return await withPrismaAuth(async (prisma) => {
+            // 1. Get current system stock (Location-agnostic / Default Location)
+            const existingStock = await prisma.stockLevel.findFirst({
+                where: { productId, warehouseId, locationId: null }
             });
 
-            revalidateTagSafe('inventory')
-            revalidateTagSafe('warehouse-details')
-            // revalidatePath('/inventory/audit') // Optional: Explicitly refresh the calling page
-        }
+            const systemQty = existingStock?.quantity || 0;
+            const discrepancy = actualQty - systemQty;
 
-        return { success: true };
+            if (discrepancy !== 0) {
+                if (existingStock) {
+                    await prisma.stockLevel.update({
+                        where: { id: existingStock.id },
+                        data: { quantity: actualQty }
+                    });
+                } else {
+                    await prisma.stockLevel.create({
+                        data: {
+                            productId,
+                            warehouseId,
+                            quantity: actualQty,
+                            locationId: null
+                        }
+                    });
+                }
+
+                // 3. Record Transaction
+                await prisma.inventoryTransaction.create({
+                    data: {
+                        type: 'ADJUSTMENT', // Fixed Enum
+                        quantity: discrepancy, // Signed value (+ for IN, - for OUT)
+                        productId,
+                        warehouseId,
+                        referenceId: `AUDIT-${Date.now()}`,
+                        notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
+                    }
+                });
+
+                revalidateTagSafe('inventory')
+                revalidateTagSafe('warehouse-details')
+                // revalidatePath('/inventory/audit') // Optional: Explicitly refresh the calling page
+            }
+
+            return { success: true };
+        })
 
     } catch (error) {
         console.error("Error submitting spot audit:", error);
@@ -1002,48 +988,50 @@ export async function submitSpotAudit(data: {
 
 export async function getRecentAudits() {
     try {
-        const transactions = await prisma.inventoryTransaction.findMany({
-            where: {
-                referenceId: { startsWith: 'AUDIT-' }
-            },
-            take: 20,
-            orderBy: { createdAt: 'desc' },
-            include: {
-                product: { include: { category: true } },
-                warehouse: true
-            }
-        });
+        return await withPrismaAuth(async (prisma) => {
+            const transactions = await prisma.inventoryTransaction.findMany({
+                where: {
+                    referenceId: { startsWith: 'AUDIT-' }
+                },
+                take: 20,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    product: { include: { category: true } },
+                    warehouse: true
+                }
+            });
 
-        return transactions.map(tx => {
-            // Parse notes for System/Actual qty if available
-            // Format: "Spot Audit by {name}. System: {sys}, Actual: {act}."
-            let auditor = 'System';
-            let systemQty = 0;
-            let actualQty = 0;
+            return transactions.map(tx => {
+                // Parse notes for System/Actual qty if available
+                // Format: "Spot Audit by {name}. System: {sys}, Actual: {act}."
+                let auditor = 'System';
+                let systemQty = 0;
+                let actualQty = 0;
 
-            if (tx.notes) {
-                const auditorMatch = tx.notes.match(/Spot Audit by (.*?)\./);
-                if (auditorMatch) auditor = auditorMatch[1];
+                if (tx.notes) {
+                    const auditorMatch = tx.notes.match(/Spot Audit by (.*?)\./);
+                    if (auditorMatch) auditor = auditorMatch[1];
 
-                const sysMatch = tx.notes.match(/System:\s*(\d+)/);
-                if (sysMatch) systemQty = parseInt(sysMatch[1]);
+                    const sysMatch = tx.notes.match(/System:\s*(\d+)/);
+                    if (sysMatch) systemQty = parseInt(sysMatch[1]);
 
-                const actMatch = tx.notes.match(/Actual:\s*(\d+)/);
-                if (actMatch) actualQty = parseInt(actMatch[1]);
-            }
+                    const actMatch = tx.notes.match(/Actual:\s*(\d+)/);
+                    if (actMatch) actualQty = parseInt(actMatch[1]);
+                }
 
-            return {
-                id: tx.id,
-                productName: tx.product.name,
-                warehouse: tx.warehouse.name,
-                category: tx.product.category?.name || 'Uncategorized',
-                systemQty,
-                actualQty,
-                auditor,
-                date: tx.createdAt,
-                status: (actualQty === systemQty) ? 'MATCH' : 'MISMATCH'
-            };
-        });
+                return {
+                    id: tx.id,
+                    productName: tx.product.name,
+                    warehouse: tx.warehouse.name,
+                    category: tx.product.category?.name || 'Uncategorized',
+                    systemQty,
+                    actualQty,
+                    auditor,
+                    date: tx.createdAt,
+                    status: (actualQty === systemQty) ? 'MATCH' : 'MISMATCH'
+                };
+            });
+        })
 
     } catch (error) {
         console.error("Error fetching audits:", error);

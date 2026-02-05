@@ -1,6 +1,6 @@
 'use server'
 
-import { prisma, safeQuery, withRetry } from "@/lib/db"
+import { withPrismaAuth, safeQuery, withRetry } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { revalidatePath, unstable_cache } from "next/cache"
 import { FALLBACK_PRODUCTS } from "@/lib/db-fallbacks"
@@ -115,42 +115,44 @@ export async function createPurchaseOrder(data: {
 // ==========================================
 export async function getPODetails(poId: string) {
     try {
-        const po = await prisma.purchaseOrder.findUnique({
-            where: { id: poId },
-            include: {
-                supplier: true,
-                items: {
-                    include: { product: true }
+        return await withPrismaAuth(async (prisma) => {
+            const po = await prisma.purchaseOrder.findUnique({
+                where: { id: poId },
+                include: {
+                    supplier: true,
+                    items: {
+                        include: { product: true }
+                    }
                 }
+            })
+
+            if (!po) return null
+
+            return {
+                id: po.id,
+                number: po.number,
+                status: po.status,
+                orderDate: po.orderDate,
+                expectedDate: po.expectedDate,
+                supplier: {
+                    name: po.supplier.name,
+                    address: po.supplier.address,
+                    phone: po.supplier.phone,
+                    email: po.supplier.email
+                },
+                items: po.items.map(item => ({
+                    productName: item.product.name,
+                    productCode: item.product.code,
+                    unit: item.product.unit,
+                    quantity: item.quantity,
+                    unitPrice: Number(item.unitPrice),
+                    totalPrice: Number(item.totalPrice)
+                })),
+                subtotal: Number(po.totalAmount),
+                taxAmount: Number(po.taxAmount),
+                netAmount: Number(po.netAmount)
             }
         })
-
-        if (!po) return null
-
-        return {
-            id: po.id,
-            number: po.number,
-            status: po.status,
-            orderDate: po.orderDate,
-            expectedDate: po.expectedDate,
-            supplier: {
-                name: po.supplier.name,
-                address: po.supplier.address,
-                phone: po.supplier.phone,
-                email: po.supplier.email
-            },
-            items: po.items.map(item => ({
-                productName: item.product.name,
-                productCode: item.product.code,
-                unit: item.product.unit,
-                quantity: item.quantity,
-                unitPrice: Number(item.unitPrice),
-                totalPrice: Number(item.totalPrice)
-            })),
-            subtotal: Number(po.totalAmount),
-            taxAmount: Number(po.taxAmount),
-            netAmount: Number(po.netAmount)
-        }
     } catch (error) {
         console.error("Error fetching PO details:", error)
         return null

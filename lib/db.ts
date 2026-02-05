@@ -1,16 +1,94 @@
 import { PrismaClient } from '@prisma/client'
+import { createClient } from '@/lib/supabase/server'
 
 // Singleton pattern for Prisma Client with optimized settings
 const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined
 }
 
-// Create Prisma Client with connection pool settings optimized for serverless/edge
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({
+function decodeJwtPayload(token: string): Record<string, any> {
+    const parts = token.split('.')
+    if (parts.length < 2) throw new Error('Invalid JWT')
+
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=')
+    const json = Buffer.from(padded, 'base64').toString('utf8')
+    return JSON.parse(json)
+}
+
+// Base Prisma client (without auth context)
+const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
 })
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma
+
+export async function withPrismaAuth<T>(
+    operation: (prisma: PrismaClient) => Promise<T>,
+    txOptions?: { maxWait?: number; timeout?: number }
+): Promise<T> {
+    try {
+        const supabase = await createClient()
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+        const accessToken = session?.access_token
+
+        if (sessionError || !accessToken) {
+            throw new Error('Not authenticated')
+        }
+
+        const claims = decodeJwtPayload(accessToken)
+        const claimsJson = JSON.stringify(claims)
+        const sub = String(claims.sub || '')
+        const role = String(claims.role || 'authenticated')
+
+        if (!sub) throw new Error('Invalid auth claims')
+
+        if (process.env.DEBUG_PRISMA_AUTH === '1') {
+            try {
+                console.log('[Prisma] Auth claims keys:', Object.keys(claims))
+            } catch {
+                // ignore
+            }
+        }
+
+        return await basePrisma.$transaction(async (tx) => {
+            const dbRole = (role === 'anon' || role === 'authenticated') ? role : 'authenticated'
+            try {
+                await tx.$executeRawUnsafe(`SET LOCAL ROLE ${dbRole}`)
+            } catch {
+                // ignore if role switching is not permitted
+            }
+
+            await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${sub}, true)`
+            await tx.$executeRaw`SELECT set_config('request.jwt.claim.role', ${dbRole}, true)`
+            await tx.$executeRaw`SELECT set_config('request.jwt.claims', ${claimsJson}, true)`
+
+            if (process.env.DEBUG_PRISMA_AUTH === '1') {
+                try {
+                    const settings = await tx.$queryRawUnsafe(
+                        "select current_setting('request.jwt.claim.sub', true) as sub, current_setting('request.jwt.claim.role', true) as role, current_setting('request.jwt.claims', true) as claims"
+                    )
+                    console.log('[Prisma] Session GUCs:', settings)
+                } catch {
+                    // ignore
+                }
+            }
+
+            return operation(tx as unknown as PrismaClient)
+        }, txOptions)
+    } catch (err) {
+        console.warn('[Prisma] Failed to apply auth context:', err)
+        throw err
+    }
+}
+
+// Backward compatible helper (does not guarantee same-connection session context)
+export async function getPrismaWithAuth(): Promise<PrismaClient> {
+    return basePrisma
+}
+
+// Export base client for backward compatibility (use with caution - may fail with RLS)
+export const prisma = basePrisma
 
 // Database error types for proper handling
 export type DBErrorCode = 

@@ -7,7 +7,7 @@
     "build": "next build",
     "postinstall": "node scripts/install-typst.js && prisma generate",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint \"{app,lib,components}/**/*.{js,jsx,ts,tsx}\" --ignore-pattern \"**/._*\""
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

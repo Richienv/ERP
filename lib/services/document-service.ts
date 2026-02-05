@@ -5,9 +5,21 @@ import fs from "fs/promises"
 import crypto from "crypto"
 import os from "os"
 
-const TYPST_BINARY = path.join(process.cwd(), "bin", "typst")
+const DEFAULT_TYPST_BINARY = path.join(process.cwd(), "bin", "typst")
 const TEMPLATE_DIR = path.join(process.cwd(), "templates")
 const CACHE_DIR = path.join(os.tmpdir(), "erp-typst-cache")
+
+async function resolveTypstBinary(): Promise<string> {
+    const envBinary = process.env.TYPST_BINARY || process.env.TYPST_PATH
+    if (envBinary) return envBinary
+
+    try {
+        await fs.access(DEFAULT_TYPST_BINARY)
+        return DEFAULT_TYPST_BINARY
+    } catch {
+        return "typst"
+    }
+}
 
 export class DocumentService {
 
@@ -48,12 +60,22 @@ export class DocumentService {
 
             console.log(`[DocumentService] Generating PDF: ${templateName} -> ${outputPath}`)
 
+            const typstBinary = await resolveTypstBinary()
+
             await new Promise<void>((resolve, reject) => {
-                const process = spawn(TYPST_BINARY, args)
+                const process = spawn(typstBinary, args)
 
                 let stderr = ""
 
                 process.stderr.on("data", (d) => stderr += d.toString())
+
+                process.on("error", (err: any) => {
+                    if (err?.code === "ENOENT") {
+                        reject(new Error("Typst binary not found. Install 'typst' or set TYPST_BINARY/TYPST_PATH."))
+                        return
+                    }
+                    reject(err)
+                })
 
                 process.on("close", (code) => {
                     if (code === 0) resolve()

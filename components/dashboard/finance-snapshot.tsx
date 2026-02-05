@@ -13,32 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 
-// Mock Data for Charts - Wireframe Style (No Colors)
-const dataCash7d = [
-    { name: 'Mon', val: 2.1 }, { name: 'Tue', val: 2.2 }, { name: 'Wed', val: 2.3 },
-    { name: 'Thu', val: 2.25 }, { name: 'Fri', val: 2.4 }, { name: 'Sat', val: 2.45 }, { name: 'Sun', val: 2.45 }
-]
-
-const dataReceivables = [
-    { name: 'Current', val: 1.2 },
-    { name: '30-60', val: 0.95 },
-    { name: '60-90', val: 0.85 },
-    { name: '>90', val: 0.8 }
-]
-
-const dataPayables = [
-    { name: 'Not Due', val: 1.1 },
-    { name: 'Due Soon', val: 0.65 },
-    { name: 'Overdue', val: 0.35 }
-]
-
-const dataProfit = [
-    { name: 'Jan', rev: 1.2, exp: 0.9 },
-    { name: 'Feb', rev: 1.4, exp: 1.0 },
-    { name: 'Mar', rev: 1.3, exp: 1.1 },
-    { name: 'Apr', rev: 1.6, exp: 1.2 },
-    { name: 'May', rev: 1.85, exp: 1.28 }
-]
+import { formatCompactNumber, formatIDR } from "@/lib/utils"
 
 // Custom Tooltip for that "Ritchie Minimal" look (Black Border, Sharp Shadow)
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -88,10 +63,6 @@ const ThreeDBarShape = (props: any) => {
     );
 };
 
-import { formatCompactNumber, formatIDR } from "@/lib/utils"
-
-// ... imports
-
 interface FinanceSnapshotProps {
     data?: {
         cashBalance: number
@@ -103,9 +74,15 @@ interface FinanceSnapshotProps {
         overdueInvoices?: any[]
         upcomingPayables?: any[]
     } | null
+    chartData?: {
+        dataCash7d: Array<{ name: string; val: number }>
+        dataReceivables: Array<{ name: string; val: number }>
+        dataPayables: Array<{ name: string; val: number }>
+        dataProfit: Array<{ name: string; rev: number; exp: number }>
+    } | null
 }
 
-export function FinanceSnapshot({ data }: FinanceSnapshotProps) {
+export function FinanceSnapshot({ data, chartData }: FinanceSnapshotProps) {
     const [selectedMetric, setSelectedMetric] = useState<string | null>(null)
 
     // Formatted Values (or defaults if loading/null)
@@ -143,52 +120,76 @@ export function FinanceSnapshot({ data }: FinanceSnapshotProps) {
 
                     <div className="h-[250px] w-full">
                         {selectedMetric === "cash" && (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={dataCash7d}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} domain={[1.5, 3]} />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#000', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                                    <Line type="monotone" dataKey="val" stroke="#000000" strokeWidth={4} dot={false} activeDot={{ r: 6, fill: "#000", stroke: "#fff", strokeWidth: 2 }} />
-                                </LineChart>
-                            </ResponsiveContainer>
+                            chartData?.dataCash7d && chartData.dataCash7d.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={chartData.dataCash7d}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#000', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                                        <Line type="monotone" dataKey="val" stroke="#000000" strokeWidth={4} dot={false} activeDot={{ r: 6, fill: "#000", stroke: "#fff", strokeWidth: 2 }} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <Skeleton className="h-40 w-full" />
+                                </div>
+                            )
                         )}
 
                         {selectedMetric === "receivables" && (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={dataReceivables}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-                                    <Bar dataKey="val" shape={<ThreeDBarShape />} barSize={60} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            chartData?.dataReceivables && chartData.dataReceivables.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartData.dataReceivables}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
+                                        <Bar dataKey="val" shape={<ThreeDBarShape />} barSize={60} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <Skeleton className="h-40 w-full" />
+                                </div>
+                            )
                         )}
 
                         {selectedMetric === "payables" && (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={dataPayables} layout="vertical" barSize={40}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="#e5e5e5" />
-                                    <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" width={80} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} />
-                                    <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-                                    <Bar dataKey="val" shape={<ThreeDBarShape />} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            chartData?.dataPayables && chartData.dataPayables.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <BarChart data={chartData.dataPayables} layout="vertical" barSize={40}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={true} stroke="#e5e5e5" />
+                                        <XAxis type="number" hide />
+                                        <YAxis dataKey="name" type="category" width={80} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} />
+                                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
+                                        <Bar dataKey="val" shape={<ThreeDBarShape />} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <Skeleton className="h-40 w-full" />
+                                </div>
+                            )
                         )}
 
                         {selectedMetric === "profitability" && (
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={dataProfit}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
-                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} dy={10} />
-                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} />
-                                    <Tooltip content={<CustomTooltip />} />
-                                    <Area type="monotone" dataKey="rev" stroke="#000000" strokeWidth={3} fill="transparent" />
-                                    <Area type="monotone" dataKey="exp" stroke="#000" strokeWidth={2} fill="transparent" strokeDasharray="4 4" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            chartData?.dataProfit && chartData.dataProfit.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={chartData.dataProfit}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
+                                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} dy={10} />
+                                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#000', fontWeight: 600 }} />
+                                        <Tooltip content={<CustomTooltip />} />
+                                        <Area type="monotone" dataKey="rev" stroke="#000000" strokeWidth={3} fill="transparent" />
+                                        <Area type="monotone" dataKey="exp" stroke="#000" strokeWidth={2} fill="transparent" strokeDasharray="4 4" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-full">
+                                    <Skeleton className="h-40 w-full" />
+                                </div>
+                            )
                         )}
                     </div>
                 </div>

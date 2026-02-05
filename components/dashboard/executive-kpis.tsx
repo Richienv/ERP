@@ -15,6 +15,7 @@ interface ExecutiveKPIsProps {
     inventory?: {
         auditDate?: Date
         warehouseName?: string
+        deadStockValue?: number
     }
     production?: {
         activeWorkOrders: number
@@ -92,7 +93,9 @@ export function ExecutiveKPIs({ procurement, inventory, production, hr, sales }:
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4">
-                        <div className="text-3xl font-black tracking-tight">{inventory ? 'Rp 250 Jt' : <Skeleton className="h-9 w-24" />}</div>
+                        <div className="text-3xl font-black tracking-tight">
+                            {inventory ? `Rp ${formatCompactNumber(inventory.deadStockValue || 0)}` : <Skeleton className="h-9 w-24" />}
+                        </div>
                         <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Dead Stock Value (&gt;6 Mo)</p>
 
                         <div className="mb-4">
