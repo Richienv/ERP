@@ -1,0 +1,420 @@
+{
+  "erpSystem": {
+    "name": "Modern ERP Dashboard",
+    "description": "Comprehensive Enterprise Resource Planning system built with Next.js and shadcn/ui",
+    "version": "1.0.0",
+    "framework": "Next.js 14",
+    "uiLibrary": "shadcn/ui",
+    "designSystem": {
+      "colorScheme": "Orange-based warm professional palette",
+      "primaryColor": "oklch(0.577 0.245 27.325)",
+      "borderRadius": "0.65rem",
+      "typography": "Geist Sans & Geist Mono",
+      "darkModeSupport": true
+    }
+  },
+  "navigationStructure": {
+    "sidebar": {
+      "type": "collapsible",
+      "position": "left",
+      "brand": "Your Company ERP",
+      "sections": [
+        {
+          "title": "Main Navigation",
+          "items": [
+            {
+              "label": "Dashboard",
+              "icon": "IconDashboard",
+              "url": "/dashboard",
+              "description": "Overview of key metrics and KPIs"
+            },
+            {
+              "label": "Inventory",
+              "icon": "IconDatabase",
+              "url": "/inventory",
+              "description": "Product catalog, stock levels, warehouses"
+            },
+            {
+              "label": "Sales & CRM",
+              "icon": "IconUsers",
+              "url": "/sales",
+              "description": "Customer management, orders, pipeline"
+            },
+            {
+              "label": "Procurement",
+              "icon": "IconShoppingCart",
+              "url": "/procurement",
+              "description": "Vendor management, purchase orders"
+            },
+            {
+              "label": "Finance",
+              "icon": "IconChartBar",
+              "url": "/finance",
+              "description": "Accounts, transactions, reporting"
+            },
+            {
+              "label": "Manufacturing",
+              "icon": "IconSettings",
+              "url": "/manufacturing",
+              "description": "Production planning and control"
+            },
+            {
+              "label": "Human Resources",
+              "icon": "IconUsers",
+              "url": "/hr",
+              "description": "Employee management and payroll"
+            }
+          ]
+        },
+        {
+          "title": "Analytics & Reports",
+          "items": [
+            {
+              "label": "Sales Analytics",
+              "icon": "IconChartLine",
+              "url": "/analytics/sales"
+            },
+            {
+              "label": "Inventory Reports",
+              "icon": "IconReport",
+              "url": "/analytics/inventory"
+            },
+            {
+              "label": "Financial Reports",
+              "icon": "IconFileDescription",
+              "url": "/analytics/finance"
+            }
+          ]
+        },
+        {
+          "title": "Settings",
+          "items": [
+            {
+              "label": "System Settings",
+              "icon": "IconSettings",
+              "url": "/settings"
+            },
+            {
+              "label": "User Management",
+              "icon": "IconUsers",
+              "url": "/settings/users"
+            },
+            {
+              "label": "Help & Support",
+              "icon": "IconHelp",
+              "url": "/help"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "modules": {
+    "inventory": {
+      "name": "Inventory Management",
+      "description": "Comprehensive inventory tracking and management",
+      "features": [
+        "Product catalog management",
+        "Real-time stock tracking",
+        "Multi-warehouse support",
+        "Low stock alerts",
+        "Barcode/QR code scanning",
+        "Inventory valuation",
+        "Stock movements history"
+      ],
+      "dataModels": {
+        "product": {
+          "fields": [
+            {"name": "id", "type": "string", "required": true, "primary": true},
+            {"name": "name", "type": "string", "required": true},
+            {"name": "sku", "type": "string", "required": true, "unique": true},
+            {"name": "description", "type": "text"},
+            {"name": "category", "type": "string", "required": true},
+            {"name": "unitPrice", "type": "number", "required": true},
+            {"name": "costPrice", "type": "number"},
+            {"name": "barcode", "type": "string"},
+            {"name": "reorderLevel", "type": "number", "default": 10},
+            {"name": "status", "type": "enum", "values": ["active", "inactive", "discontinued"]}
+          ]
+        },
+        "stock": {
+          "fields": [
+            {"name": "id", "type": "string", "required": true, "primary": true},
+            {"name": "productId", "type": "string", "required": true, "foreignKey": "product.id"},
+            {"name": "warehouseId", "type": "string", "required": true},
+            {"name": "quantity", "type": "number", "required": true},
+            {"name": "reservedQuantity", "type": "number", "default": 0},
+            {"name": "lastUpdated", "type": "datetime", "default": "now"}
+          ]
+        }
+      },
+      "components": [
+        "ProductDataTable",
+        "StockLevelChart",
+        "InventoryValueWidget",
+        "LowStockAlerts",
+        "ProductForm",
+        "StockAdjustmentForm"
+      ]
+    },
+    "sales": {
+      "name": "Sales & CRM",
+      "description": "Customer relationship management and sales tracking",
+      "features": [
+        "Customer management",
+        "Sales pipeline tracking",
+        "Quote and order management",
+        "Invoice generation",
+        "Payment tracking",
+        "Sales analytics",
+        "Customer communication history"
+      ],
+      "dataModels": {
+        "customer": {
+          "fields": [
+            {"name": "id", "type": "string", "required": true, "primary": true},
+            {"name": "name", "type": "string", "required": true},
+            {"name": "email", "type": "email", "required": true},
+            {"name": "phone", "type": "string"},
+            {"name": "address", "type": "object"},
+            {"name": "type", "type": "enum", "values": ["individual", "business"]},
+            {"name": "status", "type": "enum", "values": ["active", "inactive", "lead"]},
+            {"name": "creditLimit", "type": "number", "default": 0}
+          ]
+        },
+        "salesOrder": {
+          "fields": [
+            {"name": "id", "type": "string", "required": true, "primary": true},
+            {"name": "orderNumber", "type": "string", "required": true, "unique": true},
+            {"name": "customerId", "type": "string", "required": true, "foreignKey": "customer.id"},
+            {"name": "orderDate", "type": "date", "required": true},
+            {"name": "deliveryDate", "type": "date"},
+            {"name": "status", "type": "enum", "values": ["draft", "confirmed", "shipped", "delivered", "cancelled"]},
+            {"name": "totalAmount", "type": "number", "required": true},
+            {"name": "items", "type": "array"}
+          ]
+        }
+      },
+      "components": [
+        "CustomerDataTable",
+        "SalesPipelineChart",
+        "OrderManagementTable",
+        "InvoiceGenerator",
+        "CustomerForm",
+        "OrderForm"
+      ]
+    },
+    "procurement": {
+      "name": "Procurement",
+      "description": "Vendor management and purchase order processing",
+      "features": [
+        "Vendor management",
+        "Purchase order creation",
+        "Quote comparison",
+        "Receiving management",
+        "Bill processing",
+        "Vendor performance tracking"
+      ],
+      "dataModels": {
+        "vendor": {
+          "fields": [
+            {"name": "id", "type": "string", "required": true, "primary": true},
+            {"name": "name", "type": "string", "required": true},
+            {"name": "email", "type": "email"},
+            {"name": "phone", "type": "string"},
+            {"name": "address", "type": "object"},
+            {"name": "paymentTerms", "type": "string"},
+            {"name": "status", "type": "enum", "values": ["active", "inactive", "blocked"]}
+          ]
+        },
+        "purchaseOrder": {
+          "fields": [
+            {"name": "id", "type": "string", "required": true, "primary": true},
+            {"name": "poNumber", "type": "string", "required": true, "unique": true},
+            {"name": "vendorId", "type": "string", "required": true, "foreignKey": "vendor.id"},
+            {"name": "orderDate", "type": "date", "required": true},
+            {"name": "expectedDelivery", "type": "date"},
+            {"name": "status", "type": "enum", "values": ["draft", "sent", "confirmed", "received", "cancelled"]},
+            {"name": "totalAmount", "type": "number", "required": true}
+          ]
+        }
+      }
+    },
+    "finance": {
+      "name": "Financial Management",
+      "description": "Accounting and financial reporting",
+      "features": [
+        "Chart of accounts",
+        "Journal entries",
+        "Accounts receivable/payable",
+        "Financial reporting",
+        "Budget management",
+        "Tax calculation",
+        "Multi-currency support"
+      ],
+      "dataModels": {
+        "account": {
+          "fields": [
+            {"name": "id", "type": "string", "required": true, "primary": true},
+            {"name": "code", "type": "string", "required": true, "unique": true},
+            {"name": "name", "type": "string", "required": true},
+            {"name": "type", "type": "enum", "values": ["asset", "liability", "equity", "revenue", "expense"]},
+            {"name": "parentAccountId", "type": "string", "foreignKey": "account.id"},
+            {"name": "balance", "type": "number", "default": 0}
+          ]
+        },
+        "transaction": {
+          "fields": [
+            {"name": "id", "type": "string", "required": true, "primary": true},
+            {"name": "date", "type": "date", "required": true},
+            {"name": "description", "type": "string", "required": true},
+            {"name": "reference", "type": "string"},
+            {"name": "amount", "type": "number", "required": true},
+            {"name": "debitAccountId", "type": "string", "required": true},
+            {"name": "creditAccountId", "type": "string", "required": true}
+          ]
+        }
+      }
+    }
+  },
+  "dashboardWidgets": [
+    {
+      "name": "Revenue Overview",
+      "type": "chart",
+      "chartType": "area",
+      "dataSource": "sales.revenue",
+      "size": "large"
+    },
+    {
+      "name": "Top Products",
+      "type": "table",
+      "dataSource": "inventory.topSelling",
+      "size": "medium"
+    },
+    {
+      "name": "Low Stock Alerts",
+      "type": "list",
+      "dataSource": "inventory.lowStock",
+      "size": "medium"
+    },
+    {
+      "name": "Recent Orders",
+      "type": "table",
+      "dataSource": "sales.recentOrders",
+      "size": "large"
+    },
+    {
+      "name": "Cash Flow",
+      "type": "chart",
+      "chartType": "line",
+      "dataSource": "finance.cashFlow",
+      "size": "medium"
+    },
+    {
+      "name": "Pending Invoices",
+      "type": "metric",
+      "dataSource": "finance.pendingInvoices",
+      "size": "small"
+    }
+  ],
+  "userRoles": [
+    {
+      "name": "Admin",
+      "description": "Full system access",
+      "permissions": ["*"]
+    },
+    {
+      "name": "Manager",
+      "description": "Department management access",
+      "permissions": ["read:*", "write:own_department", "reports:view"]
+    },
+    {
+      "name": "Sales Rep",
+      "description": "Sales module access",
+      "permissions": ["read:customers", "write:sales", "read:inventory"]
+    },
+    {
+      "name": "Accountant",
+      "description": "Financial module access",
+      "permissions": ["read:finance", "write:finance", "reports:finance"]
+    },
+    {
+      "name": "Warehouse Staff",
+      "description": "Inventory management access",
+      "permissions": ["read:inventory", "write:inventory", "read:orders"]
+    }
+  ],
+  "technicalRequirements": {
+    "frontend": {
+      "framework": "Next.js 14",
+      "uiLibrary": "shadcn/ui with Tailwind CSS",
+      "stateManagement": "React Context + useState/useReducer",
+      "routing": "Next.js App Router",
+      "authentication": "NextAuth.js",
+      "dataFetching": "React Query/TanStack Query"
+    },
+    "backend": {
+      "api": "Next.js API Routes",
+      "database": "PostgreSQL with Prisma ORM",
+      "authentication": "JWT tokens",
+      "fileStorage": "AWS S3 or local storage",
+      "realTimeUpdates": "Server-Sent Events or WebSockets"
+    },
+    "deployment": {
+      "platform": "Vercel or Docker containers",
+      "database": "PostgreSQL (Cloud or self-hosted)",
+      "cdn": "Vercel Edge Network or Cloudflare",
+      "monitoring": "Built-in analytics and error tracking"
+    }
+  },
+  "implementationPhases": [
+    {
+      "phase": 1,
+      "name": "Foundation Setup",
+      "duration": "2-3 weeks",
+      "tasks": [
+        "Project setup and configuration",
+        "Authentication system",
+        "Basic navigation and layout",
+        "User management",
+        "Database schema design"
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Core Modules",
+      "duration": "4-6 weeks",
+      "tasks": [
+        "Inventory management module",
+        "Basic sales module",
+        "Customer management",
+        "Product catalog",
+        "Stock tracking"
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Advanced Features",
+      "duration": "3-4 weeks",
+      "tasks": [
+        "Financial module",
+        "Procurement module",
+        "Advanced reporting",
+        "Dashboard widgets",
+        "Data analytics"
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Polish & Deploy",
+      "duration": "2-3 weeks",
+      "tasks": [
+        "Performance optimization",
+        "Security hardening",
+        "Testing and QA",
+        "Production deployment",
+        "User training and documentation"
+      ]
+    }
+  ]
+}

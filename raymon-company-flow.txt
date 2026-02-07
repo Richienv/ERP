@@ -1,0 +1,144 @@
+Strukturnya bisa dibuat mirip perusahaan garment pertama: 1 file besar yang jelasin **flow, role, dan data** yang dipakai PT Rancáng Indah Sentosa (RISE) berdasarkan jobdesk di PDF. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+
+***
+
+## 1. Gambaran Umum Alur Bisnis RISE
+
+- Bisnis: manufaktur tekstil / bedding / fashion (ada gudang kain, aksesoris, produksi, showroom, online). [uphance](https://www.uphance.com/blog/garment-manufacturing/)
+- Alur besar:  
+  1) R&D + Desainer buat desain & BOM →  
+  2) Purchasing & Gudang bahan baku siapkan kain & aksesoris →  
+  3) Produksi & sewing jalan →  
+  4) Barang masuk Gudang Jadi →  
+  5) Distribusi ke showroom/toko/online via Admin Pengiriman →  
+  6) Penjualan dicatat Finance & tim penjualan →  
+  7) Stok diawasi Inventory Control. [onlineclothingstudy](https://www.onlineclothingstudy.com/2013/05/garment-manufacturing-process-flow-chart.html)
+
+***
+
+## 2. Flow Proses Utama (Ringkas tapi Nyambung)
+
+### A. Desain & Perencanaan Produksi
+
+Peran utama: **R&D** dan **Desainer**.
+
+- R&D:
+  - Membuat pola & desain model (JS Sample) sesuai order kerja. [techpacker](https://techpacker.com/blog/manufacturing/12-types-of-garment-samples-you-should-know-about-for-apparel-production/)
+  - Mencoba produk baru, menganalisa hasil, membuat BOM (Bill of Material), Kartu Produksi (KP), dan rencana produksi. [textilelearner](https://textilelearner.net/flow-chart-of-garment-sampling-process/)
+  - Koordinasi dengan sample, cutting, gudang kain, gudang aksesoris, dan sewing. [shanghaigarment](https://shanghaigarment.com/garment-production-process-2/)
+- Desainer:
+  - Bantu R&D dalam desain produk baru, pilih motif, warna, bahan, bersama marketing & direktur. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+  - Buat dokumen bahan kain baru untuk gudang kain, PPIC, produksi; cek kesesuaian warna, ukuran, bahan, hasil jadi. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+
+**Data yang dibutuhkan tahap ini:**
+
+- Desain/model, pola, ukuran.  
+- BOM (kain, aksesoris, label, packing, dll).  
+- Rencana produksi per bulan & target SKU. [uphance](https://www.uphance.com/blog/garment-manufacturing/)
+
+***
+
+### B. Pengadaan & Gudang Bahan
+
+Peran utama: **Gudang Bahan Baku & Aksesoris**, **Gudang Kain**, **Pembelian (AP)**.
+
+- Gudang Bahan Baku & Aksesoris:
+  - Terima, simpan, dan keluarkan bahan baku/aksesoris sesuai Job Order (JO) & Pick List. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+  - Buat LPB (Laporan Penerimaan Barang), bukti keluar barang, laporan mutasi stock, ajukan PR/PP kalau stok kurang. [onlineclothingstudy](https://www.onlineclothingstudy.com/2023/05/production-progress-report-and-format.html)
+  - Jaga kesesuaian stok fisik vs data (stock opname berkala). [onlineclothingstudy](https://www.onlineclothingstudy.com/2018/05/how-to-make-wip-report-in-garment.html)
+- Gudang Kain:
+  - Terima kain dari supplier, cek dengan surat jalan, buat PO & LPB, dan catat pemakaian kain yang sudah di‑cut. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+  - Keluarkan kain sesuai JO/kepala produksi dan pastikan stok komputer = stok fisik. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+
+**Data yang dibutuhkan:**
+
+- Dokumen SJ supplier, LPB, PO, Job Order, Pick List. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+- Stok per item (kain, aksesoris, handuk, plastik, layer, dacron) dan mutasi per bulan. [onlineclothingstudy](https://www.onlineclothingstudy.com/2018/05/how-to-make-wip-report-in-garment.html)
+
+***
+
+### C. Produksi & Barang Jadi
+
+Peran utama: **Produksi / Sewing**, **Gudang Barang Jadi**, **Admin Pengiriman**.
+
+- Produksi:
+  - Menerima bahan dari gudang via JO, proses cutting & sewing menurut pola dan BOM. [shanghaigarment](https://shanghaigarment.com/garment-production-process-2/)
+- Gudang Barang Jadi:
+  - Terima barang jadi dari produksi/makloon, simpan sebagai stok barang jadi. [onlineclothingstudy](https://www.onlineclothingstudy.com/2013/05/garment-manufacturing-process-flow-chart.html)
+- Admin Pengiriman:
+  - Menjamin pengiriman tepat waktu dan sesuai jenis/qty. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+  - Atur personel distribusi, kendaraan, dan penyusunan barang di mobil. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+  - Buat dan kontrol surat jalan untuk segala jenis pergerakan: sample, makloon, online, retur, ekspedisi, dll. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+
+**Data yang dibutuhkan:**
+
+- Kartu stok barang jadi per artikel.  
+- Surat jalan makloon/sablon/bordir, packing list makloon. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+- Jadwal pengiriman & prioritas DO (delivery order). [onlineclothingstudy](https://www.onlineclothingstudy.com/2023/05/production-progress-report-and-format.html)
+
+***
+
+### D. Distribusi ke Toko / Online & Penjualan
+
+Peran utama: **Marketing Showroom**, **Tim Sales/Koordinator**, **Finance**, **Admin Pengiriman**.
+
+- Marketing Showroom:
+  - Rencanakan dan awasi penjualan showroom, buat sales forecast, alokasi barang ke toko, analisa trend & slow moving. [uphance](https://www.uphance.com/blog/garment-manufacturing/)
+  - Handle klaim customer showroom, retur dari counter, laporan stok bulanan showroom. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+- Tim pemasaran (di bagian lain file):
+  - Cari area bazar/pop‑up, kontrol SPG/SPB, pantau omzet harian/mingguan/bulanan, koordinasi dengan dept store. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+- Finance:
+  - Kelola penerimaan & pengeluaran kas/bank, cashflow, anggaran, serta laporan keuangan. [pearlglobal](https://www.pearlglobal.com/garments-manufacturing-process/)
+  - Rekap penjualan bazar, laporan penjualan toko online, cek barang online sebelum kirim. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+- Admin Pengiriman:
+  - Untuk barang online: setelah packing → konfirmasi ke purchasing untuk minta driver kirim. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+  - Follow up ekspedisi & tagihan ekspedisi (Indah Logistic, Wibowo, dsb). [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+
+**Data yang dibutuhkan:**
+
+- Sales forecast per periode & realisasi per channel (showroom, dept store, bazar, online). [onlineclothingstudy](https://www.onlineclothingstudy.com/2023/05/production-progress-report-and-format.html)
+- DO, surat jalan, resi ekspedisi, tagihan ekspedisi, berita acara kalau ada kerusakan. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+- Laporan penjualan online, bazar, showroom. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+
+***
+
+### E. Kontrol Stok & Rekonsiliasi
+
+Peran utama: **Inventory Control**, **Admin Stok/Finance**.
+
+- Inventory Control:
+  - Stock opname berkala untuk barang jadi di gudang & counter. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+  - Proses, audit, dan koreksi hasil stok opname, buat rincian biaya kehilangan kalau ada selisih. [textilelearner](https://textilelearner.net/how-to-calculate-work-in-progress-wip-in-garment-industry/)
+  - Transfer order antar gudang, koreksi artikel/SKU, rekap surat jalan Direksi & brand khusus (Cacoon), buat invoice dan catatan penjualan brand tersebut. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+- Admin yang terkait stok & penjualan:
+  - Dampingi stok opname kas kecil, buat laporan detail penjualan per counter, rekonsiliasi penjualan vs tagihan accounting, dan rincian penerimaan piutang. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf)
+
+**Data yang dibutuhkan:**
+
+- Hasil stok opname (fisik vs komputer) per gudang/counter. [onlineclothingstudy](https://www.onlineclothingstudy.com/2018/05/how-to-make-wip-report-in-garment.html)
+- Rekap surat jalan, mutasi stok, laporan kehilangan/selisih.  
+- Rekonsiliasi penjualan, piutang, dan kas kecil. [onlineclothingstudy](https://www.onlineclothingstudy.com/2023/05/production-progress-report-and-format.html)
+
+***
+
+## 3. Tabel Ringkas Role & Fokus Datanya
+
+| Role | Fungsi utama | Data kunci |
+| --- | --- | --- |
+| R&D | Desain, pola, BOM, rencana produksi | BOM, KP, rencana produksi, hasil trial produk. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Desainer | Desain produk, visual, packaging, media sosial | File desain, daftar pesanan kain, dokumen bahan baru, katalog, aset visual. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Gudang Bahan & Aksesoris | Terima/simpan/keluar bahan baku & aksesoris | LPB, SJ supplier, JO, Pick List, mutasi stok, PR/PP. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Gudang Kain | Terima & keluarkan kain ke cutting | SJ kain, PO, LPB, laporan pemakaian kain, stok komputer vs fisik. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Produksi/Sewing | Proses cutting & jahit | JO, rencana produksi, laporan output per artikel. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Admin Pengiriman | Semua urusan pengiriman & surat jalan | Surat jalan, packing list, jadwal kirim, daftar ekspedisi & tagihan. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Gudang Barang Jadi | Simpan & kontrol stok barang jadi | Kartu stok barang jadi, laporan mutasi barang jadi. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Marketing Showroom & Tim Sales | Target & realisasi penjualan | Sales forecast, laporan penjualan per channel, data klaim/retur. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Finance | Kas, bank, piutang, hutang, laporan keuangan | BKM/BKK, BBM/BBK, laporan penjualan online/bazar, cashflow. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+| Inventory Control | Cocokkan stok fisik vs komputer | Laporan stok opname, rekap surat jalan, laporan selisih & HPP. [ppl-ai-file-upload.s3.amazonaws](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/80524430/bdc69238-4de4-44a0-86ea-23d4a00c3561/JOBDESK-STAFF-RISE.pdf) |
+
+***
+
+Kalau kamu mau langkah berikutnya, bisa dibuatkan:
+
+- **Satu halaman “Big Flow”** (10–15 step) yang nyambung semua role ini,  
+- Atau **template WIP versi RISE** (bukan cuma produksi tapi juga link ke showroom/online & stok).

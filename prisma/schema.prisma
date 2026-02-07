@@ -1,0 +1,1843 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ================================
+// Authentication & User Management
+// ================================
+
+model Account {
+  id                String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model User {
+  id            String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          String    @default("user") // admin, user, manager
+  accounts      Account[]
+  sessions      Session[]
+
+  // Sales relations
+  customersAsSalesPerson Customer[]
+  assignedLeads          Lead[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// ================================
+// Role & Permission Management
+// ================================
+
+model SystemRole {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String   @unique // e.g., "PRODUCTION_MANAGER"
+  name        String // e.g., "Production Manager"
+  description String?
+  permissions String[] // List of Module Keys authorized for this role
+  isSystem    Boolean  @default(false) // If true, cannot be deleted
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_roles")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+// ================================
+// Product Categories
+// ================================
+
+model Category {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String  @unique
+  name        String
+  description String?
+  parentId    String? @db.Uuid
+  isActive    Boolean @default(true)
+
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryHierarchy")
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+// ================================
+// Warehouses & Locations
+// ================================
+
+model Warehouse {
+  id         String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code       String  @unique
+  name       String
+  address    String?
+  city       String?
+  province   String?
+  postalCode String?
+  capacity   Int?
+  managerId  String? @db.Uuid
+  isActive   Boolean @default(true)
+
+  locations      Location[]
+  stockLevels    StockLevel[]
+  transactions     InventoryTransaction[]
+  stockAudits    StockAudit[]
+  goodsReceivedNotes GoodsReceivedNote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("warehouses")
+}
+
+model Location {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String
+  name        String
+  warehouseId String  @db.Uuid
+  rack        String?
+  bin         String?
+  aisle       String?
+  capacity    Int?
+  isActive    Boolean @default(true)
+
+  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
+  stockLevels    StockLevel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([warehouseId, code])
+  @@map("locations")
+}
+
+// ================================
+// Products
+// ================================
+
+model Product {
+  id           String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code         String  @unique
+  name         String
+  description  String?
+  categoryId   String? @db.Uuid
+  unit         String // pcs, kg, liter, etc
+  costPrice    Decimal @default(0) @db.Decimal(15, 2)
+  sellingPrice Decimal @default(0) @db.Decimal(15, 2)
+  minStock     Int     @default(0)
+  maxStock     Int     @default(0)
+  reorderLevel Int     @default(0)
+  barcode      String?
+  isActive     Boolean @default(true)
+
+  // Planning & Procurement (Advanced)
+  leadTime       Int     @default(7) // Days
+  safetyStock    Int     @default(0)
+  manualBurnRate Decimal @default(0) @db.Decimal(10, 2) // Per Day consumption override
+  manualAlert    Boolean @default(false) // Manually flagged as Critical via Kanban
+
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  stockLevels        StockLevel[]
+  transactions       InventoryTransaction[]
+  stockAlerts        StockAlert[]
+  priceListItems     PriceListItem[]
+  quotationItems     QuotationItem[]
+  salesOrderItems    SalesOrderItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+  purchaseRequestItems PurchaseRequestItem[]
+  stockAuditItems    StockAuditItem[]
+  workOrders         WorkOrder[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  InvoiceItem     InvoiceItem[]
+  BillOfMaterials BillOfMaterials[]
+  BOMItem         BOMItem[]
+  inspections     QualityInspection[]
+  supplierItems   SupplierProduct[]
+  grnItems        GRNItem[]
+  routingSteps    RoutingStep[]
+
+  // Alternative / Substitute Products (Self-relation)
+  alternativeProductId String?  @db.Uuid
+  alternativeProduct   Product? @relation("ProductAlternatives", fields: [alternativeProductId], references: [id])
+  substituteFor        Product[] @relation("ProductAlternatives")
+
+  @@map("products")
+}
+
+// ================================
+// Stock Management
+// ================================
+
+model StockLevel {
+  id           String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId    String  @db.Uuid
+  warehouseId  String  @db.Uuid
+  locationId   String? @db.Uuid
+  quantity     Int     @default(0)
+  reservedQty  Int     @default(0)
+  availableQty Int     @default(0)
+
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  location  Location? @relation(fields: [locationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, warehouseId, locationId])
+  @@map("stock_levels")
+}
+
+// Ledger: The Single Source of Truth for Inventory
+model InventoryTransaction {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId   String   @db.Uuid
+  warehouseId String   @db.Uuid
+  locationId  String?  @db.Uuid // Optional: Specific Bin/Rack location
+  
+  // Transaction Details
+  type        TransactionType
+  quantity    Int             // Positive for IN, Negative for OUT
+  unitCost    Decimal?        @db.Decimal(15, 2) // FIFO/Average Cost Tracking
+  totalValue  Decimal?        @db.Decimal(15, 2)
+  
+  // Strict Audit Links (The "Professional" Connection)
+  referenceId     String? // Fallback
+  purchaseOrderId String? @db.Uuid
+  salesOrderId    String? @db.Uuid
+  workOrderId     String? @db.Uuid
+  adjustmentId    String? @db.Uuid // For Stock Audits
+  
+  // Relations
+  product       Product        @relation(fields: [productId], references: [id])
+  warehouse     Warehouse      @relation(fields: [warehouseId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  salesOrder    SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  workOrder     WorkOrder?     @relation(fields: [workOrderId], references: [id])
+  
+  performedBy String? // User ID
+  notes       String?
+  
+  journalEntries JournalEntry[]
+
+  createdAt DateTime @default(now())
+
+  @@map("inventory_transactions")
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([createdAt])
+  @@index([type])
+}
+
+enum TransactionType {
+  // Inbound
+  PO_RECEIVE      // From Supplier
+  PRODUCTION_IN   // From Manufacturing (Finished Goods)
+  RETURN_IN       // From Customer
+  
+  // Outbound
+  SO_SHIPMENT     // To Customer
+  PRODUCTION_OUT  // Raw Material Consumption
+  RETURN_OUT      // To Supplier
+  SCRAP           // Waste/Damaged
+  
+  // Internal
+  TRANSFER        // Warehouse Transfer
+  ADJUSTMENT      // Cycle Count Correction
+  INITIAL         // Opening Balance
+}
+
+// ================================
+// Stock Alerts & Notifications
+// ================================
+
+model StockAlert {
+  id        String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId String         @db.Uuid
+  alertType StockAlertType
+  threshold Int
+  isActive  Boolean        @default(true)
+
+  product Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("stock_alerts")
+}
+
+enum StockAlertType {
+  LOW_STOCK
+  OUT_OF_STOCK
+  OVERSTOCK
+  EXPIRY_WARNING
+}
+
+// ================================
+// Sales & CRM Module
+// ================================
+
+// Customer Categories
+model CustomerCategory {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String  @unique
+  name        String
+  description String?
+  isActive    Boolean @default(true)
+
+  customers Customer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_categories")
+}
+
+// Customer Master Data
+model Customer {
+  id           String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code         String       @unique
+  name         String
+  legalName    String?
+  customerType CustomerType
+  categoryId   String?      @db.Uuid
+
+  // Indonesian Business Information
+  npwp       String? // Nomor Pokok Wajib Pajak
+  nik        String? // NIK (for individual)
+  taxAddress String?
+  isTaxable  Boolean   @default(true)
+  taxStatus  TaxStatus @default(PKP)
+
+  // E-Faktur Integration
+  eFakturCredentials Json? // Store encrypted e-faktur credentials
+
+  // Contact Information
+  phone   String?
+  email   String?
+  website String?
+
+  // Credit Management
+  creditLimit  Decimal      @default(0) @db.Decimal(15, 2)
+  creditTerm   Int          @default(30) // days
+  paymentTerm  PaymentTerm  @default(NET_30)
+  creditStatus CreditStatus @default(GOOD)
+
+  // Business Settings
+  currency      String  @default("IDR")
+  priceListId   String? @db.Uuid
+  salesPersonId String? @db.Uuid
+
+  // Status & Flags
+  isActive        Boolean   @default(true)
+  isProspect      Boolean   @default(false)
+  lastOrderDate   DateTime?
+  totalOrderValue Decimal   @default(0) @db.Decimal(15, 2)
+
+  // Relations
+  category    CustomerCategory? @relation(fields: [categoryId], references: [id])
+  priceList   PriceList?        @relation(fields: [priceListId], references: [id])
+  salesPerson User?             @relation(fields: [salesPersonId], references: [id])
+
+  // Related entities
+  addresses   CustomerAddress[]
+  contacts    CustomerContact[]
+  quotations  Quotation[]
+  salesOrders SalesOrder[]
+  creditNotes CreditNote[]
+  leads       Lead[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Invoice   Invoice[]
+  Payment   Payment[]
+
+  @@map("customers")
+}
+
+// Customer Addresses (Indonesian format)
+model CustomerAddress {
+  id         String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  customerId String      @db.Uuid
+  type       AddressType @default(BILLING)
+
+  // Address Components
+  address1   String
+  address2   String?
+  kelurahan  String?
+  kecamatan  String?
+  kabupaten  String
+  provinsi   String
+  postalCode String
+  country    String  @default("Indonesia")
+
+  // Flags
+  isPrimary Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_addresses")
+}
+
+// Customer Contacts
+model CustomerContact {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  customerId String @db.Uuid
+
+  // Contact Information
+  name       String
+  title      String?
+  department String?
+  phone      String?
+  mobile     String?
+  email      String?
+
+  // Flags
+  isPrimary Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("customer_contacts")
+}
+
+// Price Lists
+model PriceList {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String  @unique
+  name        String
+  description String?
+  currency    String  @default("IDR")
+  isActive    Boolean @default(true)
+
+  customers  Customer[]
+  priceItems PriceListItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("price_lists")
+}
+
+// Price List Items
+model PriceListItem {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  priceListId String    @db.Uuid
+  productId   String    @db.Uuid
+  price       Decimal   @db.Decimal(15, 2)
+  minQty      Int       @default(1)
+  validFrom   DateTime?
+  validTo     DateTime?
+  isActive    Boolean   @default(true)
+
+  priceList PriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([priceListId, productId])
+  @@map("price_list_items")
+}
+
+// Quotations
+model Quotation {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number      String  @unique
+  customerId  String  @db.Uuid
+  customerRef String?
+
+  // Dates
+  quotationDate DateTime @default(now())
+  validUntil    DateTime
+
+  // Terms
+  paymentTerm  PaymentTerm @default(NET_30)
+  deliveryTerm String?
+
+  // Amounts
+  subtotal       Decimal @default(0) @db.Decimal(15, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(15, 2)
+  discountAmount Decimal @default(0) @db.Decimal(15, 2)
+  total          Decimal @default(0) @db.Decimal(15, 2)
+
+  // Status
+  status QuotationStatus @default(DRAFT)
+
+  // Notes
+  notes         String?
+  internalNotes String?
+
+  // Relations
+  customer    Customer        @relation(fields: [customerId], references: [id])
+  items       QuotationItem[]
+  salesOrders SalesOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("quotations")
+}
+
+// Quotation Items
+model QuotationItem {
+  id          String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  quotationId String @db.Uuid
+  productId   String @db.Uuid
+
+  description String?
+  quantity    Decimal @db.Decimal(10, 3)
+  unitPrice   Decimal @db.Decimal(15, 2)
+  discount    Decimal @default(0) @db.Decimal(5, 2) // percentage
+  taxRate     Decimal @default(11) @db.Decimal(5, 2) // PPN 11%
+  lineTotal   Decimal @db.Decimal(15, 2)
+
+  product   Product   @relation(fields: [productId], references: [id])
+  quotation Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("quotation_items")
+}
+
+// Sales Orders
+model SalesOrder {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number      String  @unique
+  customerId  String  @db.Uuid
+  quotationId String? @db.Uuid
+  customerRef String?
+
+  // Dates
+  orderDate     DateTime  @default(now())
+  requestedDate DateTime?
+  confirmedDate DateTime?
+
+  // Terms
+  paymentTerm  PaymentTerm @default(NET_30)
+  deliveryTerm String?
+
+  // Amounts
+  subtotal       Decimal @default(0) @db.Decimal(15, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(15, 2)
+  discountAmount Decimal @default(0) @db.Decimal(15, 2)
+  total          Decimal @default(0) @db.Decimal(15, 2)
+
+  // Status
+  status SalesOrderStatus @default(DRAFT)
+
+  // Notes
+  notes         String?
+  internalNotes String?
+
+  // Relations
+  customer  Customer         @relation(fields: [customerId], references: [id])
+  quotation Quotation?       @relation(fields: [quotationId], references: [id])
+  items     SalesOrderItem[]
+  transactions InventoryTransaction[]
+  invoices  Invoice[]
+  journalEntries JournalEntry[]
+  workOrders WorkOrder[]
+  
+  tasks     EmployeeTask[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_orders")
+}
+
+// Sales Order Items
+model SalesOrderItem {
+  id           String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  salesOrderId String @db.Uuid
+  productId    String @db.Uuid
+
+  description String?
+  quantity    Decimal @db.Decimal(10, 3)
+  unitPrice   Decimal @db.Decimal(15, 2)
+  discount    Decimal @default(0) @db.Decimal(5, 2) // percentage
+  taxRate     Decimal @default(11) @db.Decimal(5, 2) // PPN 11%
+  lineTotal   Decimal @db.Decimal(15, 2)
+
+  // Delivery tracking
+  qtyDelivered Decimal @default(0) @db.Decimal(10, 3)
+  qtyInvoiced  Decimal @default(0) @db.Decimal(10, 3)
+
+  product    Product    @relation(fields: [productId], references: [id])
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  workOrders WorkOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sales_order_items")
+}
+
+// Leads Management
+model Lead {
+  id         String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  customerId String? @db.Uuid
+
+  // Lead Information
+  title       String
+  description String?
+  source      LeadSource @default(WEBSITE)
+  status      LeadStatus @default(NEW)
+  priority    Priority   @default(MEDIUM)
+
+  // Contact Information
+  contactName  String
+  contactEmail String?
+  contactPhone String?
+  company      String?
+
+  // Sales Information
+  estimatedValue Decimal?  @db.Decimal(15, 2)
+  probability    Int       @default(0) // 0-100%
+  expectedClose  DateTime?
+
+  // Assignment
+  assignedTo String? @db.Uuid
+
+  // Relations
+  customer Customer? @relation(fields: [customerId], references: [id])
+  assignee User?     @relation(fields: [assignedTo], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("leads")
+}
+
+// Credit Notes
+model CreditNote {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number     String @unique
+  customerId String @db.Uuid
+
+  // Reference
+  reference String? // Invoice or SO reference
+  reason    CreditReason
+
+  // Amounts
+  amount    Decimal @db.Decimal(15, 2)
+  taxAmount Decimal @default(0) @db.Decimal(15, 2)
+  total     Decimal @db.Decimal(15, 2)
+
+  // Status
+  status CreditNoteStatus @default(DRAFT)
+
+  // Dates
+  issueDate DateTime @default(now())
+
+  // Notes
+  notes String?
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("credit_notes")
+}
+
+// ================================
+// Sales & CRM Enums
+// ================================
+
+enum CustomerType {
+  INDIVIDUAL // Perorangan
+  COMPANY // Perusahaan
+  GOVERNMENT // Instansi Pemerintah
+}
+
+enum TaxStatus {
+  PKP // Pengusaha Kena Pajak
+  NON_PKP // Non PKP
+  EXEMPT // Bebas Pajak
+}
+
+enum PaymentTerm {
+  CASH // Tunai
+  NET_15 // 15 hari
+  NET_30 // 30 hari
+  NET_45 // 45 hari
+  NET_60 // 60 hari
+  NET_90 // 90 hari
+  COD // Cash on Delivery
+}
+
+enum CreditStatus {
+  GOOD // Baik
+  WATCH // Perlu Perhatian
+  HOLD // Ditahan
+  BLOCKED // Diblokir
+}
+
+enum AddressType {
+  BILLING // Penagihan
+  SHIPPING // Pengiriman
+  OFFICE // Kantor
+  WAREHOUSE // Gudang
+}
+
+enum QuotationStatus {
+  DRAFT // Draft
+  SENT // Terkirim
+  ACCEPTED // Diterima
+  REJECTED // Ditolak
+  EXPIRED // Kedaluwarsa
+  CONVERTED // Dikonversi ke SO
+}
+
+enum SalesOrderStatus {
+  DRAFT // Draft
+  CONFIRMED // Dikonfirmasi
+  IN_PROGRESS // Dalam Proses
+  DELIVERED // Terkirim
+  INVOICED // Ditagih
+  COMPLETED // Selesai
+  CANCELLED // Dibatalkan
+}
+
+enum LeadSource {
+  WEBSITE // Website
+  REFERRAL // Referensi
+  ADVERTISEMENT // Iklan
+  COLD_CALL // Cold Call
+  EXHIBITION // Pameran
+  SOCIAL_MEDIA // Media Sosial
+  EMAIL // Email
+  OTHER // Lainnya
+}
+
+enum LeadStatus {
+  NEW // Baru
+  CONTACTED // Dihubungi
+  QUALIFIED // Terkualifikasi
+  PROPOSAL // Proposal
+  NEGOTIATION // Negosiasi
+  WON // Menang
+  LOST // Kalah
+}
+
+enum Priority {
+  LOW // Rendah
+  MEDIUM // Sedang
+  HIGH // Tinggi
+  URGENT // Mendesak
+}
+
+enum CreditReason {
+  RETURN // Retur Barang
+  DISCOUNT // Diskon Tambahan
+  DAMAGED // Barang Rusak
+  OVERPAYMENT // Kelebihan Bayar
+  ADJUSTMENT // Penyesuaian
+  OTHER // Lainnya
+}
+
+enum CreditNoteStatus {
+  DRAFT // Draft
+  APPROVED // Disetujui
+  APPLIED // Diterapkan
+  CANCELLED // Dibatalkan
+}
+
+// ================================
+// Executive Dashboard (CEO)
+// ================================
+
+model ExecutiveSnapshot {
+  id   String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date DateTime @unique
+
+  // Financials
+  totalRevenue       Decimal @default(0) @db.Decimal(15, 2)
+  totalCost          Decimal @default(0) @db.Decimal(15, 2)
+  netProfit          Decimal @default(0) @db.Decimal(15, 2)
+  cashBalance        Decimal @default(0) @db.Decimal(15, 2)
+  accountsReceivable Decimal @default(0) @db.Decimal(15, 2) // Piutang
+  accountsPayable    Decimal @default(0) @db.Decimal(15, 2) // Hutang
+  burnRate           Decimal @default(0) @db.Decimal(15, 2) // Daily Burn Rate
+
+  // Operations
+  totalProduction Int     @default(0)
+  avgEfficiency   Decimal @default(0) @db.Decimal(5, 2) // OEE
+
+  // HR
+  activeHeadcount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("executive_snapshots")
+}
+
+model StrategicGoal {
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  period      String // e.g. "2024-Q1", "Jan-2024"
+  metric      String // e.g. "Revenue", "CSAT"
+  targetValue Decimal    @db.Decimal(15, 2)
+  actualValue Decimal    @default(0) @db.Decimal(15, 2)
+  status      GoalStatus @default(ON_TRACK)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("strategic_goals")
+}
+
+enum GoalStatus {
+  ON_TRACK
+  AT_RISK
+  BEHIND
+}
+
+// ================================
+// Procurement Module (New)
+// ================================
+
+model Supplier {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String  @unique
+  name        String
+  contactName String?
+  email       String?
+  phone       String?
+  address     String?
+
+  // Performance
+  rating     Int @default(0) // 1-5 stars
+  onTimeRate Int @default(0) // percentage
+
+  // Bank Details (For Payouts)
+  bankName          String?
+  bankAccountNumber String?
+  bankAccountName   String?
+
+  isActive Boolean @default(true)
+
+  purchaseOrders PurchaseOrder[]
+  supplierItems  SupplierProduct[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Invoice   Invoice[]
+  Payment   Payment[]
+
+  @@map("suppliers")
+}
+
+// Multi-Vendor Sourcing
+model SupplierProduct {
+  id          String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  supplierId  String @db.Uuid
+  productId   String @db.Uuid
+  
+  // Terms
+  price       Decimal @db.Decimal(15, 2)
+  currency    String  @default("IDR")
+  leadTime    Int     @default(7) // Days (specific to this vendor)
+  minOrderQty Int     @default(1)
+  
+  skuCode     String? // Vendor's SKU for this item
+  isPreferred Boolean @default(false)
+
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([supplierId, productId])
+  @@map("supplier_products")
+}
+
+model PurchaseOrder {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number     String @unique
+  supplierId String @db.Uuid
+
+  // Dates
+  orderDate      DateTime  @default(now())
+  expectedDate   DateTime?
+  sentToVendorAt DateTime?
+
+  // Financials
+  totalAmount Decimal @default(0) @db.Decimal(15, 2)
+  taxAmount   Decimal @default(0) @db.Decimal(15, 2)
+  netAmount   Decimal @default(0) @db.Decimal(15, 2)
+
+  // Status
+  status         ProcurementStatus @default(PO_DRAFT)
+  previousStatus ProcurementStatus?
+  paymentStatus  PaymentStatus     @default(UNPAID)
+  rejectionReason String?
+
+  datePaid DateTime?
+
+  // User Relations
+  requestedBy String? @db.Uuid // Original Requester (Inventory Staff)
+  createdBy   String? @db.Uuid // Purchasing Staff
+  approvedBy  String? @db.Uuid // Director/CEO
+
+  // Relations
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  items    PurchaseOrderItem[]
+  purchaseRequests PurchaseRequest[]
+  events  PurchaseOrderEvent[]
+  invoices Invoice[]
+  journalEntries JournalEntry[]
+  
+  // Tracking
+  tasks       EmployeeTask[]
+  inspections QualityInspection[]
+  transactions InventoryTransaction[]
+  goodsReceivedNotes GoodsReceivedNote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderEvent {
+  id              String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  purchaseOrderId String            @db.Uuid
+  status          ProcurementStatus
+  changedBy       String            @db.Uuid // User ID (Supabase Auth ID)
+  action          String            // e.g. "SUBMIT_APPROVAL", "APPROVE", "REJECT", "VENDOR_CONFIRM"
+  notes           String?
+  metadata        Json?             // For extra context (source: MANUAL, tracking info, etc.)
+
+  purchaseOrder   PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime          @default(now())
+
+  @@map("purchase_order_events")
+  @@index([purchaseOrderId])
+  @@index([createdAt])
+}
+
+model PurchaseOrderItem {
+  id              String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  purchaseOrderId String @db.Uuid
+  productId       String @db.Uuid
+
+  quantity   Int
+  receivedQty Int @default(0)
+  unitPrice  Decimal @db.Decimal(15, 2)
+  totalPrice Decimal @db.Decimal(15, 2)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id])
+  grnItems      GRNItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("purchase_order_items")
+}
+
+
+
+model PurchaseRequestItem {
+  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  purchaseRequestId String   @db.Uuid
+  productId         String   @db.Uuid
+  
+  quantity          Int
+  status            PRItemStatus @default(PENDING)
+  targetDate        DateTime?
+  notes             String?
+  
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  product           Product         @relation(fields: [productId], references: [id])
+  
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  @@map("purchase_request_items")
+}
+
+model PurchaseRequest {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number      String   @unique
+  requestDate DateTime @default(now())
+  
+  status      PRStatus @default(PENDING)
+  priority    String   @default("NORMAL")
+  
+  requesterId String   @db.Uuid
+  department  String?
+  notes       String?
+  
+  requester   Employee @relation("PrRequester", fields: [requesterId], references: [id])
+  items       PurchaseRequestItem[]
+  
+  approverId  String?  @db.Uuid
+  approver    Employee? @relation("PrApprover", fields: [approverId], references: [id])
+
+  // Relations to PO
+  convertedToPOId String? @db.Uuid
+  purchaseOrder   PurchaseOrder? @relation(fields: [convertedToPOId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("purchase_requests")
+}
+
+
+enum PRStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  PO_CREATED
+}
+
+enum PRItemStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PO_CREATED
+}
+
+enum POStatus {
+  DRAFT
+  OPEN
+  PARTIAL
+  RECEIVED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum ProcurementStatus {
+  GAP_DETECTED
+  PR_CREATED
+  PO_DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ORDERED
+  VENDOR_CONFIRMED
+  SHIPPED
+  PARTIAL_RECEIVED
+  RECEIVED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+// ================================
+// Goods Received Note (GRN) Module
+// ================================
+
+model GoodsReceivedNote {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number          String    @unique
+  purchaseOrderId String    @db.Uuid
+  warehouseId     String    @db.Uuid
+  
+  receivedDate    DateTime  @default(now())
+  receivedById    String    @db.Uuid
+  
+  status          GRNStatus @default(DRAFT)
+  notes           String?
+  
+  // Relations
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
+  receivedBy      Employee      @relation(fields: [receivedById], references: [id])
+  items           GRNItem[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@map("goods_received_notes")
+  @@index([purchaseOrderId])
+  @@index([status])
+}
+
+model GRNItem {
+  id                String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grnId             String  @db.Uuid
+  poItemId          String  @db.Uuid
+  productId         String  @db.Uuid
+  
+  quantityOrdered   Int
+  quantityReceived  Int
+  quantityAccepted  Int     @default(0)
+  quantityRejected  Int     @default(0)
+  unitCost          Decimal @db.Decimal(15, 2)
+  
+  inspectionNotes   String?
+  
+  // Relations
+  grn               GoodsReceivedNote  @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  poItem            PurchaseOrderItem  @relation(fields: [poItemId], references: [id])
+  product           Product            @relation(fields: [productId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@map("grn_items")
+  @@index([grnId])
+}
+
+enum GRNStatus {
+  DRAFT
+  INSPECTING
+  PARTIAL_ACCEPTED
+  ACCEPTED
+  REJECTED
+}
+
+// ================================
+// HR Module (New)
+// ================================
+
+model Employee {
+  id         String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeId String  @unique // NIK
+  firstName  String
+  lastName   String?
+  email      String? @unique
+  phone      String?
+
+  // Job Info
+  department String
+  position   String
+  joinDate   DateTime
+  status     EmployeeStatus @default(ACTIVE)
+
+  // Salary
+  baseSalary Decimal @default(0) @db.Decimal(15, 2)
+
+  // Relations
+  attendance    Attendance[]
+  leaveRequests LeaveRequest[]
+  tasks         EmployeeTask[]
+  inspections   QualityInspection[]
+  purchaseRequests PurchaseRequest[] @relation("PrRequester")
+  reviewedRequests PurchaseRequest[] @relation("PrApprover")
+  goodsReceivedNotes GoodsReceivedNote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("employees")
+}
+
+model Attendance {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeId String   @db.Uuid
+  date       DateTime // Store strictly date part usually
+
+  checkIn  DateTime?
+  checkOut DateTime?
+
+  status AttendanceStatus @default(PRESENT)
+  isLate Boolean          @default(false)
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([employeeId, date])
+  @@map("attendance")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  SICK
+  REMOTE
+}
+
+model LeaveRequest {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeId String @db.Uuid
+
+  startDate DateTime
+  endDate   DateTime
+  type      LeaveType
+  reason    String?
+
+  status LeaveStatus @default(PENDING)
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("leave_requests")
+}
+
+model EmployeeTask {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeId String   @db.Uuid
+  title      String
+  type       TaskType
+  status     TaskStatus @default(PENDING)
+  priority   Priority   @default(MEDIUM)
+  notes      String?    // For rejection reasons or extra details
+  
+  // Polymorphic-ish reference to business docs
+  relatedId  String?  // e.g. PO ID, Batch ID (Legacy/Fallback)
+  
+  // Professional Relations (Hard Links)
+  purchaseOrderId String? @db.Uuid
+  salesOrderId    String? @db.Uuid
+  workOrderId     String? @db.Uuid
+
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  salesOrder      SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  workOrder       WorkOrder?     @relation(fields: [workOrderId], references: [id])
+  
+  deadline   DateTime?
+  completedAt DateTime?
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("employee_tasks")
+}
+
+enum TaskType {
+  PO_REVIEW
+  PURCHASE_REQUEST
+  PRODUCTION
+  LOGISTICS
+  SALES
+  QUALITY_CHECK
+  ADMIN
+  OTHER
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  BLOCKED
+  REJECTED
+}
+
+// ================================
+// Quality Assurance Module
+// ================================
+
+model QualityInspection {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  batchNumber String
+  materialId  String   @db.Uuid
+  inspectorId String   @db.Uuid
+  
+  inspectionDate DateTime @default(now())
+  status         InspectionStatus
+  score          Decimal  @default(100) @db.Decimal(5, 2)
+  notes          String?
+
+  // Professional Relations
+  workOrderId     String? @db.Uuid
+  purchaseOrderId String? @db.Uuid
+
+  material      Product        @relation(fields: [materialId], references: [id])
+  inspector     Employee       @relation(fields: [inspectorId], references: [id])
+  workOrder     WorkOrder?     @relation(fields: [workOrderId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  
+  defects     InspectionDefect[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("quality_inspections")
+}
+
+model InspectionDefect {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  inspectionId String   @db.Uuid
+  type         DefectType
+  description  String
+  actionTaken  DefectAction
+  
+  inspection   QualityInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+
+  @@map("inspection_defects")
+}
+
+enum InspectionStatus {
+  PASS
+  FAIL
+  CONDITIONAL
+}
+
+enum DefectType {
+  CRITICAL
+  MAJOR
+  MINOR
+}
+
+enum DefectAction {
+  SCRAP
+  REWORK
+  ACCEPT_CONCESSION
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  UNPAID
+  MATERNITY
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+// ================================
+// Inventory Operations (Audit)
+// ================================
+
+model StockAudit {
+  id          String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  warehouseId String    @db.Uuid
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  scheduledDate DateTime
+  auditorId     String?     @db.Uuid // Managed by User ID
+  status        AuditStatus @default(SCHEDULED)
+
+  notes String?
+
+  items StockAuditItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("stock_audits")
+}
+
+model StockAuditItem {
+  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  auditId   String @db.Uuid
+  productId String @db.Uuid
+
+  expectedQty Int
+  actualQty   Int?
+
+  audit   StockAudit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+  product Product    @relation(fields: [productId], references: [id])
+
+  @@map("stock_audit_items")
+}
+
+enum AuditStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+// ================================
+// Production Module (Mfg)
+// ================================
+
+model WorkOrder {
+  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number    String @unique
+  productId String @db.Uuid // Finished Good
+
+  // Link to Sales Order (optional - for make-to-order manufacturing)
+  salesOrderId     String? @db.Uuid
+  salesOrderItemId String? @db.Uuid
+  priority         String  @default("NORMAL") // CRITICAL, HIGH, NORMAL, LOW
+
+  plannedQty Int
+  actualQty  Int @default(0)
+
+  startDate DateTime?
+  dueDate   DateTime?
+
+  status WOStatus @default(PLANNED)
+
+  product        Product         @relation(fields: [productId], references: [id])
+  salesOrder     SalesOrder?     @relation(fields: [salesOrderId], references: [id])
+  salesOrderItem SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id])
+  
+  tasks       EmployeeTask[]
+  inspections QualityInspection[]
+  transactions InventoryTransaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Assigned Machine/Work Center
+  machineId String? @db.Uuid
+  machine   Machine? @relation(fields: [machineId], references: [id])
+
+  @@map("work_orders")
+  @@index([salesOrderId])
+  @@index([machineId])
+}
+
+enum WOStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+// ================================
+// Finance Module (AP/AR)
+// ================================
+
+model Invoice {
+  id      String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number  String  @unique
+  quoteId String? @db.Uuid // Optional link to quote
+  orderId String? @db.Uuid // Legacy polymorphic reference (prefer explicit relations below)
+  salesOrderId    String? @db.Uuid
+  purchaseOrderId String? @db.Uuid
+
+  // Polymorphic-ish Relation
+  customerId String? @db.Uuid // For AR (Sales)
+  supplierId String? @db.Uuid // For AP (Purchasing)
+
+  type InvoiceType // INV_OUT (Customer), INV_IN (Supplier)
+
+  // Dates
+  issueDate DateTime @default(now())
+  dueDate   DateTime
+
+  // Amounts
+  subtotal       Decimal @db.Decimal(15, 2)
+  taxAmount      Decimal @db.Decimal(15, 2)
+  discountAmount Decimal @default(0) @db.Decimal(15, 2)
+  totalAmount    Decimal @db.Decimal(15, 2)
+  balanceDue     Decimal @db.Decimal(15, 2) // Sisa tagihan
+
+  status InvoiceStatus @default(DRAFT)
+
+  // Relations
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  supplier      Supplier?     @relation(fields: [supplierId], references: [id])
+  salesOrder    SalesOrder?   @relation(fields: [salesOrderId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  items         InvoiceItem[]
+  payments      Payment[]
+  journalEntries JournalEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("invoices")
+  @@index([type, status])
+  @@index([issueDate])
+  @@index([dueDate])
+  @@index([customerId])
+  @@index([supplierId])
+}
+
+model InvoiceItem {
+  id        String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  invoiceId String  @db.Uuid
+  productId String? @db.Uuid // Optional (could be service/text)
+
+  description String
+  quantity    Decimal @db.Decimal(10, 3)
+  unitPrice   Decimal @db.Decimal(15, 2)
+  amount      Decimal @db.Decimal(15, 2)
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+
+  @@map("invoice_items")
+  @@index([invoiceId])
+  @@index([productId])
+}
+
+model Payment {
+  id         String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number     String  @unique
+  invoiceId  String? @db.Uuid // Optional (could be advance payment/deposit)
+  customerId String? @db.Uuid // Payer
+  supplierId String? @db.Uuid // Payee
+
+  date      DateTime      @default(now())
+  amount    Decimal       @db.Decimal(15, 2)
+  method    PaymentMethod @default(TRANSFER)
+  reference String? // Cheque Num, Transfer Ref
+
+  notes String?
+
+  invoice  Invoice?  @relation(fields: [invoiceId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  journalEntries JournalEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payments")
+}
+
+enum InvoiceType {
+  INV_OUT // Piutang/Tagihan ke Customer
+  INV_IN // Hutang/Tagihan dari Supplier
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIAL
+  PAID
+  OVERDUE
+  CANCELLED
+  VOID
+  DISPUTED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  CHECK
+  CREDIT_CARD
+  OTHER
+}
+
+// ================================
+// Manufacturing Extensions
+// ================================
+
+model Machine {
+  id           String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code         String  @unique
+  name         String
+  brand        String?
+  model        String?
+  serialNumber String?
+  groupId      String? @db.Uuid
+
+  // Status
+  status          MachineStatus @default(IDLE)
+  healthScore     Int           @default(100) // 0-100
+  lastMaintenance DateTime?
+  nextMaintenance DateTime?
+
+  // Capacity
+  capacityPerHour Int? // Output capacity
+  standardHoursPerDay Int @default(8)
+  overheadTimePerHour Decimal @default(0) @db.Decimal(10, 2)
+  overheadMaterialCostPerHour Decimal @default(0) @db.Decimal(15, 2)
+
+  isActive Boolean @default(true)
+
+  logs MaintenanceLog[]
+  group WorkCenterGroup? @relation(fields: [groupId], references: [id])
+  routingSteps RoutingStep[]
+  workOrders WorkOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("machines")
+}
+
+model MaintenanceLog {
+  id        String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  machineId String          @db.Uuid
+  type      MaintenanceType
+
+  description String
+  cost        Decimal? @default(0) @db.Decimal(15, 2)
+
+  startTime DateTime
+  endTime   DateTime?
+
+  performedBy String? // Technician Name
+
+  machine Machine @relation(fields: [machineId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("maintenance_logs")
+}
+
+model BillOfMaterials {
+  id        String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId String  @db.Uuid // The Finished Good
+  version   String  @default("v1")
+  isActive  Boolean @default(true)
+
+  items BOMItem[]
+
+  product Product @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, version])
+  @@map("bill_of_materials")
+}
+
+model BOMItem {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bomId      String @db.Uuid
+  materialId String @db.Uuid // The Raw Material (Product)
+
+  quantity Decimal @db.Decimal(10, 4) // e.g. 1.25 meters
+  unit     String? // Optional override
+  wastePct Decimal @default(0) @db.Decimal(5, 2) // Waste percentage
+
+  bom      BillOfMaterials @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  material Product         @relation(fields: [materialId], references: [id])
+
+  @@map("bom_items")
+}
+
+enum MachineStatus {
+  IDLE
+  RUNNING
+  MAINTENANCE
+  BREAKDOWN
+  OFFLINE
+}
+
+enum MaintenanceType {
+  PREVENTIVE // Rutin
+  CORRECTIVE // Perbaikan
+  BREAKDOWN // Darurat
+}
+
+// ================================
+// Manufacturing Routing & Work Centers
+// ================================
+
+model WorkCenterGroup {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+
+  machines Machine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("work_center_groups")
+}
+
+model Routing {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String   @unique
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+
+  steps RoutingStep[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("routings")
+}
+
+model RoutingStep {
+  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  routingId     String   @db.Uuid
+  machineId     String?  @db.Uuid
+  sequence      Int
+  name          String
+  description   String?
+  durationMinutes Int
+
+  // Optional material link per step (raw material/consumable)
+  materialId    String?  @db.Uuid
+  materialQty   Decimal? @db.Decimal(10, 3)
+  materialUnit  String?
+
+  routing  Routing  @relation(fields: [routingId], references: [id], onDelete: Cascade)
+  machine  Machine? @relation(fields: [machineId], references: [id])
+  material Product? @relation(fields: [materialId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("routing_steps")
+  @@unique([routingId, sequence])
+  @@index([routingId])
+  @@index([machineId])
+  @@index([materialId])
+}
+
+// ================================
+// General Ledger (Accounting)
+// ================================
+
+model GLAccount {
+  id          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String      @unique // e.g. "1010"
+  name        String      // e.g. "Bank BCA"
+  type        AccountType // ASSET, LIABILITY, etc.
+  balance     Decimal     @default(0) @db.Decimal(15, 2)
+  isSystem    Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
+  
+  lines       JournalLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gl_accounts")
+}
+
+// Journal Entry
+model JournalEntry {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date        DateTime @default(now())
+  description String
+  reference   String?  // e.g. "INV-001"
+  status      EntryStatus @default(POSTED)
+  invoiceId   String? @db.Uuid
+  paymentId   String? @db.Uuid
+  salesOrderId String? @db.Uuid
+  purchaseOrderId String? @db.Uuid
+  inventoryTransactionId String? @db.Uuid
+  
+  lines       JournalLine[]
+  invoice     Invoice?     @relation(fields: [invoiceId], references: [id])
+  payment     Payment?     @relation(fields: [paymentId], references: [id])
+  salesOrder  SalesOrder?  @relation(fields: [salesOrderId], references: [id])
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  inventoryTransaction InventoryTransaction? @relation(fields: [inventoryTransactionId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("journal_entries")
+  @@index([date])
+}
+
+model JournalLine {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entryId     String  @db.Uuid
+  accountId   String  @db.Uuid
+  
+  description String?
+  debit       Decimal @default(0) @db.Decimal(15, 2)
+  credit      Decimal @default(0) @db.Decimal(15, 2)
+  
+  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account     GLAccount    @relation(fields: [accountId], references: [id])
+
+  @@map("journal_lines")
+  @@index([entryId])
+  @@index([accountId])
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum EntryStatus {
+  DRAFT
+  POSTED
+  VOID
+}

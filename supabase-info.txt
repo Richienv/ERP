@@ -1,0 +1,10 @@
+
+import { createClient } from '@supabase/supabase-js'
+const supabaseUrl = 'https://faxqdujyazzszsjptdqx.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
+
+anon: public key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZheHFkdWp5YXp6c3pzanB0ZHF4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg0ODUzMjEsImV4cCI6MjA4NDA2MTMyMX0.aQq17CIDY3zFhbDYexDZIqZZTQP1T0nIQ1xqKaY0XlU
+service role key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZheHFkdWp5YXp6c3pzanB0ZHF4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODQ4NTMyMSwiZXhwIjoyMDg0MDYxMzIxfQ.05T0wIctoSZ8seyPtSY_2JZwH1HUgRToOV5eWQ2Nk3A
+publihsed key: sb_publishable_LeyXCjhoPp6F2rmbygmPqQ_XuqMLTGu
+secret key: sb_secret_EtgyXGuaJnmN_elMbhclgg_ah083qFc

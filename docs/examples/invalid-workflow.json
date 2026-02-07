@@ -1,0 +1,16 @@
+{
+    "workflowName": "Broken Workflow",
+    "description": "This should fail validation",
+    "version": "0.1",
+    "steps": [
+        {
+            "id": "step_1",
+            "label": "Do something impossible",
+            "model": "SpaceShip",
+            "action": "FLY",
+            "next": [
+                "step_999"
+            ]
+        }
+    ]
+}

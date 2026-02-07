@@ -1,0 +1,48 @@
+{
+    "dashboard_target": "CEO / Main Dashboard",
+    "objective": "Ensure the CEO Dashboard acts as the ultimate aggregation layer, reflecting real-time high-value data from all sub-modules (Accountant, Manager, Staff).",
+    "missing_functional_features": [
+        {
+            "source_role": "ROLE_ACCOUNTANT",
+            "missing_feature": "Financial Command Center Summary",
+            "current_status": "The current dashboard has generic 'Top Products' and a 'Mini Chart', but lacks specific financial health indicators.",
+            "gap_details": "CEO cannot see Cash Position, Total Receivables (AR), or Total Payables (AP) at a glance. Valid financial oversight requires these identical metrics from the Accountant's view.",
+            "recommendation": "Import and adapt the 'FinancialCommandCenter' widgets (Cash, AR, AP, Profitability) into the CEO dashboard, perhaps replacing the generic 'Mini Chart' or adding a 'Finance Snapshot' row."
+        },
+        {
+            "source_role": "ROLE_MANAGER",
+            "missing_feature": "Critical Operational Alerts",
+            "current_status": "The dashboard has 'Production Planning' and 'Quality Management' charts, but no mechanism for immediate 'Call to Action' alerts.",
+            "gap_details": "Critical issues like 'Machine Breakdown' or 'Major Quality Defect' (visible to Manager) are not escalated to the CEO. The CEO should see a 'Red Alert' section for items requiring high-level approval or awareness.",
+            "recommendation": "Integrate the 'Critical Alerts' section from 'OperationsDashboard' into the CEO view, specifically filtering for high-cost/high-impact items."
+        },
+        {
+            "source_role": "ROLE_MANAGER",
+            "missing_feature": "Live Factory Status (God Mode)",
+            "current_status": "Current 'Production Planning' is likely a static or chart-based view.",
+            "gap_details": "CEO lacks the 'Live Status' of production lines (e.g., 'Line 3 Down'). This real-time pulse is crucial for executive decision-making.",
+            "recommendation": "Add a simplified version of 'ProductionLineStatus' or 'OperationsKPIs' (Efficiency, On-Track Orders) to the CEO dashboard."
+        },
+        {
+            "source_role": "ROLE_STAFF",
+            "missing_feature": "Workforce Pulse",
+            "current_status": "There is a 'Human Resources' component, but it needs to verify if it reflects real-time attendance.",
+            "gap_details": "Alignment needed between 'StaffAttendance' (Clock-ins) and the CEO's HR view. CEO should see 'Today's Attendance Rate' and 'Who is Late' summary derived from the Staff Portal data.",
+            "recommendation": "Ensure the 'HumanResources' widget aggregates real-time data from the Staff Attendance module (StaffTrackingCard data)."
+        }
+    ],
+    "structural_gaps": [
+        {
+            "area": "Navigation & Context",
+            "gap": "Context Switching",
+            "details": "The 'BentoLauncher' provides links, but there is no 'Drill Down' capability. Clicking a metric in CEO dashboard should deep-link to the specific Manager or Accountant view for that metric.",
+            "action": "Implement deep-linking: Clicking 'Cash Position' -> Redirects to '/accountant'. Clicking 'Production Efficiency' -> Redirects to '/manager'."
+        },
+        {
+            "area": "Data Integrity",
+            "gap": "Single Source of Truth",
+            "details": "Potential for divergent data if CEO charts use different API endpoints than Manager/Accountant tables.",
+            "action": "Backend requirement: Ensure CEO 'Aggregate API' fetches from the exact same services/tables as the Role-Specific APIs."
+        }
+    ]
+}

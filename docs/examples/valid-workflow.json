@@ -1,0 +1,42 @@
+{
+    "workflowName": "Standard Sales Fulfillment",
+    "description": "Flow from Order creation to Shipping",
+    "version": "1.0",
+    "steps": [
+        {
+            "id": "start_order",
+            "label": "Receive Customer Order",
+            "model": "SalesOrder",
+            "action": "CREATE",
+            "next": [
+                "check_stock"
+            ]
+        },
+        {
+            "id": "check_stock",
+            "label": "Verify Inventory",
+            "model": "StockLevel",
+            "action": "CHECK_STOCK",
+            "next": [
+                "stock_ok",
+                "stock_low"
+            ]
+        },
+        {
+            "id": "stock_ok",
+            "label": "Confirm & Ship",
+            "model": "StockMovement",
+            "action": "SHIP",
+            "description": "Stock is available, proceed to shipping",
+            "next": []
+        },
+        {
+            "id": "stock_low",
+            "label": "Request Restock",
+            "model": "StockAlert",
+            "action": "CREATE",
+            "description": "Trigger alert for purchasing",
+            "next": []
+        }
+    ]
+}

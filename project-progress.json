@@ -1,0 +1,441 @@
+{
+  "projectInfo": {
+    "nama": "Sistem ERP Modern",
+    "versi": "1.0.0",
+    "framework": "Next.js 15.5.6 dengan Turbopack",
+    "uiLibrary": "shadcn/ui + Tailwind CSS",
+    "tanggalMulai": "2025-11-02",
+    "targetSelesai": "2025-12-31",
+    "status": "Dalam Pengembangan",
+    "progressKeseluruhan": "45%"
+  },
+  "fasePengembangan": {
+    "fase1": {
+      "nama": "Persiapan Foundation",
+      "durasi": "2-3 minggu",
+      "tanggalMulai": "2025-11-02",
+      "tanggalTarget": "2025-11-23",
+      "status": "Sedang Berjalan",
+      "progress": "75%",
+      "tugas": [
+        {
+          "id": "F1-T1",
+          "nama": "Setup proyek Next.js dengan shadcn/ui",
+          "status": "Selesai",
+          "tanggalSelesai": "2025-11-02",
+          "pic": "Developer",
+          "catatan": "Project berhasil disetup dengan semua dependencies"
+        },
+        {
+          "id": "F1-T2", 
+          "nama": "Konfigurasi tema dan color scheme",
+          "status": "Selesai",
+          "tanggalSelesai": "2025-11-02",
+          "pic": "Developer",
+          "catatan": "Color scheme orange professional berhasil diaplikasikan"
+        },
+        {
+          "id": "F1-T3",
+          "nama": "Update navigasi sidebar untuk ERP",
+          "status": "Selesai", 
+          "tanggalSelesai": "2025-11-02",
+          "pic": "Developer",
+          "catatan": "Sidebar navigation sudah disesuaikan dengan modul ERP"
+        },
+        {
+          "id": "F1-T4",
+          "nama": "Setup database schema dengan Prisma",
+          "status": "Belum Dimulai",
+          "tanggalTarget": "2025-11-05",
+          "pic": "Backend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F1-T5",
+          "nama": "Implementasi sistem autentikasi",
+          "status": "Belum Dimulai",
+          "tanggalTarget": "2025-11-08",
+          "pic": "Backend Developer", 
+          "priority": "High"
+        },
+        {
+          "id": "F1-T6",
+          "nama": "Setup middleware dan route protection",
+          "status": "Belum Dimulai",
+          "tanggalTarget": "2025-11-10",
+          "pic": "Backend Developer",
+          "priority": "Medium"
+        }
+      ]
+    },
+    "fase2": {
+      "nama": "Modul Inventory",
+      "durasi": "2 minggu",
+      "tanggalMulai": "2025-11-11",
+      "tanggalTarget": "2025-11-25",
+      "status": "Belum Dimulai",
+      "progress": "0%",
+      "tugas": [
+        {
+          "id": "F2-T1",
+          "nama": "Membuat halaman /inventory",
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F2-T2",
+          "nama": "Implementasi ProductDataTable",
+          "status": "Belum Dimulai", 
+          "pic": "Frontend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F2-T3",
+          "nama": "Form tambah/edit produk",
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F2-T4",
+          "nama": "Sistem kategori produk",
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "Medium"
+        },
+        {
+          "id": "F2-T5",
+          "nama": "Stock tracking dan alerts",
+          "status": "Belum Dimulai",
+          "pic": "Backend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F2-T6",
+          "nama": "Barcode scanning (optional)",
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "Low"
+        }
+      ]
+    },
+    "fase3": {
+      "nama": "Modul Sales & CRM",
+      "durasi": "2 minggu", 
+      "tanggalMulai": "2025-11-26",
+      "tanggalTarget": "2025-12-10",
+      "status": "Belum Dimulai",
+      "progress": "0%",
+      "tugas": [
+        {
+          "id": "F3-T1",
+          "nama": "Membuat halaman /sales",
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F3-T2",
+          "nama": "Customer management system", 
+          "status": "Belum Dimulai",
+          "pic": "Full Stack Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F3-T3",
+          "nama": "Sales order processing",
+          "status": "Belum Dimulai",
+          "pic": "Backend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F3-T4",
+          "nama": "Invoice generation",
+          "status": "Belum Dimulai",
+          "pic": "Backend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F3-T5",
+          "nama": "Sales pipeline tracking",
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "Medium"
+        }
+      ]
+    },
+    "fase4": {
+      "nama": "Modul Finance & Procurement",
+      "durasi": "2 minggu",
+      "tanggalMulai": "2025-12-11",
+      "tanggalTarget": "2025-12-24",
+      "status": "Belum Dimulai", 
+      "progress": "0%",
+      "tugas": [
+        {
+          "id": "F4-T1",
+          "nama": "Chart of accounts",
+          "status": "Belum Dimulai",
+          "pic": "Backend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F4-T2",
+          "nama": "Vendor management system",
+          "status": "Belum Dimulai",
+          "pic": "Full Stack Developer", 
+          "priority": "High"
+        },
+        {
+          "id": "F4-T3",
+          "nama": "Purchase order system",
+          "status": "Belum Dimulai",
+          "pic": "Backend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F4-T4",
+          "nama": "Financial reporting",
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "Medium"
+        }
+      ]
+    },
+    "fase5": {
+      "nama": "Analytics & Dashboard",
+      "durasi": "2 minggu",
+      "tanggalMulai": "2025-12-25",
+      "tanggalTarget": "2026-01-08", 
+      "status": "Belum Dimulai",
+      "progress": "0%",
+      "tugas": [
+        {
+          "id": "F5-T1",
+          "nama": "Dashboard widgets implementation",
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F5-T2",
+          "nama": "Advanced reporting system",
+          "status": "Belum Dimulai",
+          "pic": "Full Stack Developer",
+          "priority": "High"
+        },
+        {
+          "id": "F5-T3",
+          "nama": "Data visualization charts", 
+          "status": "Belum Dimulai",
+          "pic": "Frontend Developer",
+          "priority": "Medium"
+        }
+      ]
+    },
+    "fase6": {
+      "nama": "Testing & Deployment",
+      "durasi": "2 minggu",
+      "tanggalMulai": "2026-01-09",
+      "tanggalTarget": "2026-01-23",
+      "status": "Belum Dimulai",
+      "progress": "0%",
+      "tugas": [
+        {
+          "id": "F6-T1",
+          "nama": "Unit testing semua komponen",
+          "status": "Belum Dimulai",
+          "pic": "QA Engineer",
+          "priority": "High"
+        },
+        {
+          "id": "F6-T2",
+          "nama": "Integration testing",
+          "status": "Belum Dimulai",
+          "pic": "QA Engineer",
+          "priority": "High"
+        },
+        {
+          "id": "F6-T3",
+          "nama": "Performance optimization",
+          "status": "Belum Dimulai",
+          "pic": "Backend Developer",
+          "priority": "Medium"
+        },
+        {
+          "id": "F6-T4",
+          "nama": "Production deployment",
+          "status": "Belum Dimulai", 
+          "pic": "DevOps Engineer",
+          "priority": "High"
+        }
+      ]
+    }
+  },
+  "modulERP": {
+    "inventory": {
+      "nama": "Manajemen Inventori",
+      "status": "Belum Dimulai",
+      "progress": "0%",
+      "komponen": {
+        "ProductDataTable": "Belum Dibuat",
+        "ProductForm": "Belum Dibuat", 
+        "StockLevelChart": "Belum Dibuat",
+        "InventoryValueWidget": "Belum Dibuat",
+        "LowStockAlerts": "Belum Dibuat",
+        "StockAdjustmentForm": "Belum Dibuat"
+      },
+      "fitur": {
+        "productCatalog": "Belum Implementasi",
+        "stockTracking": "Belum Implementasi",
+        "lowStockAlerts": "Belum Implementasi",
+        "barcodeScanning": "Belum Implementasi"
+      }
+    },
+    "sales": {
+      "nama": "Penjualan & CRM",
+      "status": "Belum Dimulai",
+      "progress": "0%",
+      "komponen": {
+        "CustomerDataTable": "Belum Dibuat",
+        "CustomerForm": "Belum Dibuat",
+        "SalesOrderForm": "Belum Dibuat",
+        "InvoiceGenerator": "Belum Dibuat",
+        "SalesPipelineChart": "Belum Dibuat"
+      },
+      "fitur": {
+        "customerManagement": "Belum Implementasi",
+        "orderProcessing": "Belum Implementasi", 
+        "invoiceGeneration": "Belum Implementasi",
+        "salesAnalytics": "Belum Implementasi"
+      }
+    },
+    "finance": {
+      "nama": "Manajemen Keuangan",
+      "status": "Belum Dimulai",
+      "progress": "0%",
+      "komponen": {
+        "ChartOfAccounts": "Belum Dibuat",
+        "JournalEntry": "Belum Dibuat",
+        "FinancialReports": "Belum Dibuat",
+        "BudgetManagement": "Belum Dibuat"
+      },
+      "fitur": {
+        "accountsManagement": "Belum Implementasi",
+        "journalEntries": "Belum Implementasi",
+        "financialReporting": "Belum Implementasi",
+        "budgetTracking": "Belum Implementasi"
+      }
+    },
+    "procurement": {
+      "nama": "Pengadaan",
+      "status": "Belum Dimulai",
+      "progress": "0%",
+      "komponen": {
+        "VendorDataTable": "Belum Dibuat",
+        "PurchaseOrderForm": "Belum Dibuat",
+        "QuoteComparison": "Belum Dibuat",
+        "ReceivingManagement": "Belum Dibuat"
+      },
+      "fitur": {
+        "vendorManagement": "Belum Implementasi",
+        "purchaseOrders": "Belum Implementasi",
+        "quoteComparison": "Belum Implementasi",
+        "receivingTracking": "Belum Implementasi"
+      }
+    }
+  },
+  "teknikalRequirements": {
+    "database": {
+      "system": "PostgreSQL",
+      "orm": "Prisma",
+      "status": "Belum Setup",
+      "migrations": "Belum Dibuat"
+    },
+    "authentication": {
+      "library": "NextAuth.js", 
+      "provider": "Credentials/OAuth",
+      "status": "Belum Implementasi",
+      "roleBasedAccess": "Belum Setup"
+    },
+    "stateManagement": {
+      "library": "React Context + useReducer",
+      "status": "Belum Setup",
+      "globalState": "Belum Dibuat"
+    },
+    "testing": {
+      "unitTesting": "Jest + React Testing Library",
+      "e2eTesting": "Playwright/Cypress", 
+      "status": "Belum Setup",
+      "coverage": "0%"
+    }
+  },
+  "metriks": {
+    "totalTasks": 30,
+    "completedTasks": 3,
+    "inProgressTasks": 3, 
+    "remainingTasks": 24,
+    "totalComponents": 20,
+    "completedComponents": 0,
+    "totalPages": 8,
+    "completedPages": 1,
+    "codeQuality": {
+      "typescript": "100%",
+      "eslint": "Passing",
+      "prettier": "Configured",
+      "testing": "0%"
+    }
+  },
+  "risikoProyek": [
+    {
+      "id": "R001",
+      "kategori": "Teknis",
+      "deskripsi": "Kompleksitas integrasi database dengan multiple modules",
+      "probabilitas": "Medium",
+      "dampak": "High",
+      "mitigasi": "Setup database schema yang robust dan testing menyeluruh",
+      "status": "Identified"
+    },
+    {
+      "id": "R002", 
+      "kategori": "Timeline",
+      "deskripsi": "Keterlambatan pengembangan karena scope yang besar",
+      "probabilitas": "High",
+      "dampak": "Medium", 
+      "mitigasi": "Implementasi fase bertahap dan prioritisasi fitur core",
+      "status": "Identified"
+    },
+    {
+      "id": "R003",
+      "kategori": "Performa",
+      "deskripsi": "Performa lambat dengan data besar",
+      "probabilitas": "Medium",
+      "dampak": "Medium",
+      "mitigasi": "Optimisasi query dan implementasi pagination", 
+      "status": "Identified"
+    }
+  ],
+  "nextActions": [
+    {
+      "prioritas": "High",
+      "aksi": "Setup database PostgreSQL dan Prisma schema",
+      "pic": "Backend Developer",
+      "deadline": "2025-11-05"
+    },
+    {
+      "prioritas": "High", 
+      "aksi": "Implementasi sistem authentication dengan NextAuth.js",
+      "pic": "Backend Developer", 
+      "deadline": "2025-11-08"
+    },
+    {
+      "prioritas": "Medium",
+      "aksi": "Setup testing framework dan CI/CD pipeline",
+      "pic": "DevOps Engineer",
+      "deadline": "2025-11-10"
+    }
+  ],
+  "lastUpdated": "2025-11-02T15:45:00.000Z",
+  "updatedBy": "Claude Assistant"
+}

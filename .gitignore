@@ -1,0 +1,83 @@
+# =========================
+# OS
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Node / Package Manager
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Lock files (keep ONE only)
+# pnpm-lock.yaml
+# yarn.lock
+
+# =========================
+# Next.js
+# =========================
+.next/
+out/
+build/
+.vercel/
+
+# =========================
+# Environment variables (Supabase)
+# =========================
+.env
+.env.*
+!.env.example
+
+# Supabase keys & secrets
+supabase/.env
+supabase/.env.*
+supabase/config.toml
+
+# =========================
+# Logs & temp
+# =========================
+logs/
+*.log
+.cache/
+tmp/
+temp/
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.iml
+
+# =========================
+# Testing & Coverage
+# =========================
+coverage/
+.playwright/
+
+# =========================
+# Database / Local Dev
+# =========================
+*.sqlite
+*.db
+
+# =========================
+# Uploads / Media (if any)
+# =========================
+uploads/
+*.mp4
+*.mov
+*.zip
+
+# =========================
+# Misc
+# =========================
+*.bak
+*.swp
+# Ignore Typst binary
+bin/
+*.tar.gz

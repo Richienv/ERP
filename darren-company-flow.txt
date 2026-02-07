@@ -1,0 +1,246 @@
+1. Gambaran Umum Bisnis
+Jenis bisnis: manufaktur garment dengan sistem makloon jahit.
+​
+
+Pusat kendali: MD (Merchandiser / Manager Produksi) sebagai bridge antara buyer, internal, dan makloon.
+
+Prinsip: begitu sample approve, persiapan produksi + costing + purchasing berjalan paralel untuk ngejar lead time.
+
+2. Flow Proses Dari Awal Sampai Kirim
+A. Tahap Development & Sample
+Buyer kirim request / development (model baru, spec, kadang sudah ada BOM).
+
+MD terima request → buat SPK Sample ke Tim Sample.
+
+Tim Sample membuat sample (mengacu tech pack/BOM kalau ada).
+​
+
+Sample dikirim ke buyer untuk review.
+
+Buyer beri feedback:
+
+Kalau comment / revisi → balik ke Tim Sample → perbaiki → kirim lagi.
+
+Kalau REJECT total → proses berhenti (atau dianggap project baru).
+
+Kalau APPROVE → masuk ke tahap produksi & costing.
+
+B. Tahap Setelah Sample Approve (Pre‑Production Paralel)
+Begitu sample approve, MD trigger beberapa proses sekaligus:
+
+Teknis produksi:
+
+SPK ke Tukang Pola: bikin pola, marker, grading size.
+
+SPK ke Cutting: koordinasi kain (cek stok, rencana cutting, tracking sisa).
+​
+
+SPK ke Washing: planning jenis washing, ACC warna.
+​
+
+Planning jahit: MD tentukan makloon mana yang akan jahit, sesuai kapasitas & kualitas vendor.
+​
+
+Purchasing material (COGS):
+
+SPK ke Purchasing COGS: beli aksesoris (kancing, resleting, label, benang) sesuai BOM, kecuali kain.
+
+Purchasing non‑COGS (ATK, cleaner, dll) hanya kalau low stock atau ada perintah boss.
+
+Costing & harga:
+
+MD kumpulkan data: jenis bahan, consumption, model, jenis washing, biaya makloon, dll.
+
+MD bawa ke Boss → Boss hitung costing / COGS per pcs.
+
+Harga dikirim ke Buyer untuk approval / negotiation.
+
+Buyer setuju → keluarkan PO (Purchase Order) sebagai bukti kontrak.
+​
+
+Catatan: proses teknis (pola, cutting, washing, purchasing aksesoris) bisa sudah berjalan sebelum PO turun, supaya lead time kejar target.
+
+C. Tahap Produksi & QC
+Kain & aksesoris siap:
+
+Kain sudah dicek stok + dipotong di Cutting.
+​
+
+Aksesoris sudah datang & dicatat di gudang (lihat bagian Inventory).
+
+Distribusi ke makloon:
+
+Kain potongan + aksesoris dikirim ke makloon dengan surat jalan.
+
+MD assign artikel ke makloon (per vendor ada kapasitas & kualitas berbeda).
+
+Proses jahit di makloon:
+
+Makloon jahit sesuai instruksi pola & spec.
+
+Proses washing dilakukan (kalau produk denim/washed).
+
+QC & finishing:
+
+Barang jadi dikembalikan ke pabrik untuk QC.
+​
+
+Finishing: trimming benang, setrika, packing, dsb.
+​
+
+Pengiriman:
+
+Barang yang sudah lolos QC dan siap dikirim → dibuat jadwal kirim ke buyer.
+
+D. Tahap Dokumen Keuangan
+PO dari buyer:
+
+Disimpan sebagai kontrak pesanan, belum masuk ke penagihan.
+
+Saat barang dikirim:
+
+Barang sudah lolos QC dan dikirim ke buyer.
+
+Baru dibuat Sales Invoice (faktur penjualan) dan dikirim ke buyer bersama/menyusul barang.
+​
+
+3. Role / Peran Tiap Departemen
+Role / Departemen	Tanggung jawab utama
+Buyer	Kirim request, BOM, approve sample & harga, keluarkan PO.
+MD (Merchandiser)	Kontak utama buyer, bikin SPK sample & produksi, koordinasi pola/cutting/washing/purchasing, pilih makloon, monitoring WIP, ajukan costing ke boss.
+Tim Sample	Buat prototype/sample sesuai request, revisi sampai approve.
+Tukang Pola	Buat pola, marker, grading size.
+Cutting	Cek stok kain, cutting kain, tracking stok kain.
+Purchasing COGS	Order aksesoris/label/benang sesuai BOM, follow up kedatangan barang.
+Purchasing non‑COGS	Order ATK, cleaner, dll jika perlu.
+Gudang / Inventory	Terima barang, catat di kartu stok, cek fisik, keluarkan barang + surat jalan, update stok.
+Washing	Planning washing, ACC warna, koordinasi dengan makloon / internal.
+Makloon (Vendor Jahit)	Jahit sesuai spec, kadang termasuk proses washing jika di‑outsource.
+QC	Cek kualitas barang jadi sebelum finishing/kirim.
+Boss / Manajemen	Approve costing, kontrol margin, instruksi khusus (pembelian non‑COGS, prioritas order).
+Finance / Admin	Arsip PO, buat Sales Invoice, handle dokumen pengiriman & penagihan.
+4. Data yang Dibutuhkan per Tahap
+A. Data Development & Sample
+Kode artikel / style.
+
+Nama artikel / buyer style code.
+
+Tanggal terima request / tech pack.
+
+BOM (kalau sudah ada): jenis kain, GSM, aksesoris, label, benang, washing.
+
+Status sample:
+
+Proto OK / revisi.
+
+Size set OK / belum.
+
+Tanggal approve sample dari buyer.
+
+B. Data Produksi (Yang Masuk ke WIP)
+Dari WIP sheet yang kamu kirim, kolom pentingnya:
+
+Periode / bulan (NOV, DEC, JAN, after lebaran).
+
+Nama & kode artikel.
+
+Qty order.
+
+Jenis kain.
+
+Status kain (OK, partial, dsb).
+​
+​
+
+Harga per pcs (FOB / unit price).
+
+Tanggal terima BOM.
+
+Status prototype (PROTO OK).
+
+Status size set (OK + tanggal).
+
+Nama makloon (vendor jahit).
+
+Kedatangan aksesoris (OK / tanggal).
+
+Cutting: qty yang sudah di‑cut.
+
+Status jahit (jalan, partial, AM, dsb).
+
+Washing: status / tanggal washing.
+
+Finishing: status jika sudah.
+
+Kirim: qty sudah dikirim.
+
+BLC / balance atau catatan lain.
+
+Keterangan: info tambahan (contoh: kirim tgl sekian, washing tgl sekian, after lebaran, size tidak lengkap).
+​
+​
+
+C. Data Purchasing & Inventory
+Supplier / vendor barang.
+
+Nomor PO pembelian internal.
+
+Tanggal barang datang.
+
+Qty datang per item.
+
+Pencatatan di kartu stok fisik (stok awal, masuk, keluar, stok akhir).
+
+Nomor & tanggal surat jalan saat barang keluar gudang ke produksi/makloon.
+
+D. Data Makloon & QC
+Kapasitas makloon per bulan/minggu.
+
+Artikel apa dikerjakan di makloon mana.
+
+Tanggal kirim bahan ke makloon (dengan surat jalan).
+
+Qty diterima kembali dari makloon.
+
+Hasil QC: OK / reject (qty & alasan).
+​
+
+E. Data PO & Invoice
+Nomor PO buyer, tanggal PO, qty, harga.
+
+Tanggal barang dikirim (per shipment).
+
+Nomor Sales Invoice, nilai invoice, jatuh tempo.
+
+5. Struktur File Besar (Kalau Mau Dijadikan Dokumen)
+Kalau mau disusun sebagai 1 file besar, struktur babnya bisa seperti ini:
+
+Pendahuluan bisnis & sistem makloon
+
+Flow Proses Utama:
+
+2.1 Development & Sample
+
+2.2 Pre‑Production (paralel)
+
+2.3 Produksi & QC
+
+2.4 Pengiriman & Invoice
+
+Role & Tanggung Jawab Departemen (tabel seperti di atas).
+
+Kebutuhan Data per Tahap:
+
+4.1 Data Development
+
+4.2 Data Produksi / WIP
+
+4.3 Data Purchasing & Inventory
+
+4.4 Data Makloon & QC
+
+4.5 Data Keuangan (PO & Invoice)
+
+Contoh Format WIP Report & Kartu Stok (bisa pakai foto/rekonstruksi dari sheet kamu).
+
+Kalau kamu mau, langkah berikutnya bisa dibuatkan template Excel/Notion dari struktur ini (tab: Master Artikel, WIP, Purchasing, Makloon, Finance) supaya pelan‑pelan bisa pindah dari sistem full manual ke semi‑digital.

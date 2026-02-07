@@ -1,0 +1,142 @@
+{
+    "role": "ROLE_ACCOUNTANT",
+    "dashboard_title": "Pusat Kendali Keuangan (Financial Command Center)",
+    "description": "Centralized dashboard for monitoring cash flow, invoicing, and reconciliation.",
+    "features": [
+        {
+            "id": "financial_command_center",
+            "name": "Financial Overview",
+            "ui_component": "FinancialCommandCenter",
+            "description": "Key financial metrics and cash position monitoring.",
+            "data_requirements": [
+                {
+                    "category": "Cash Position",
+                    "fields": [
+                        "total_cash",
+                        "target_variance_percentage",
+                        "monthly_trend"
+                    ]
+                },
+                {
+                    "category": "Receivables (AR)",
+                    "fields": [
+                        "total_ar",
+                        "current_amount",
+                        "overdue_amount",
+                        "collection_forecast"
+                    ]
+                },
+                {
+                    "category": "Payables (AP)",
+                    "fields": [
+                        "total_ap",
+                        "upcoming_due",
+                        "overdue_amount"
+                    ]
+                },
+                {
+                    "category": "Profitability",
+                    "fields": [
+                        "revenue_mtd",
+                        "cogs_mtd",
+                        "gross_profit",
+                        "net_margin_percentage"
+                    ]
+                }
+            ]
+        },
+        {
+            "id": "invoice_aging",
+            "name": "Invoice Aging & AI Collections",
+            "ui_component": "InvoiceAging",
+            "description": "List of unpaid invoices with AI-suggested collection actions.",
+            "data_requirements": [
+                {
+                    "model": "Invoice",
+                    "fields": [
+                        "invoice_number",
+                        "customer_name",
+                        "amount",
+                        "due_date",
+                        "days_overdue",
+                        "status"
+                    ]
+                },
+                {
+                    "model": "CollectionStrategy",
+                    "fields": [
+                        "suggested_action",
+                        "email_draft_subject",
+                        "email_draft_body",
+                        "urgency_level"
+                    ]
+                }
+            ],
+            "actions": [
+                {
+                    "name": "send_reminder",
+                    "method": "POST",
+                    "endpoint": "/api/invoices/{id}/remind"
+                },
+                {
+                    "name": "schedule_reminder",
+                    "method": "POST",
+                    "endpoint": "/api/invoices/{id}/schedule-reminder"
+                }
+            ]
+        },
+        {
+            "id": "bank_reconciliation",
+            "name": "Smart Bank Reconciliation",
+            "ui_component": "BankReconciliation",
+            "description": "Matching bank statement lines with ERP transaction records.",
+            "data_requirements": [
+                {
+                    "model": "BankTransaction",
+                    "fields": [
+                        "date",
+                        "description",
+                        "amount",
+                        "reference_id"
+                    ]
+                },
+                {
+                    "model": "ERPTransaction",
+                    "fields": [
+                        "invoice_id",
+                        "vendor_bill_id",
+                        "amount",
+                        "date"
+                    ]
+                },
+                {
+                    "model": "MatchSuggestion",
+                    "fields": [
+                        "confidence_score",
+                        "reasoning",
+                        "is_auto_match"
+                    ]
+                }
+            ],
+            "actions": [
+                {
+                    "name": "approve_match",
+                    "method": "POST",
+                    "endpoint": "/api/reconciliation/match"
+                },
+                {
+                    "name": "reject_match",
+                    "method": "POST",
+                    "endpoint": "/api/reconciliation/reject"
+                }
+            ]
+        }
+    ],
+    "api_endpoints_summary": [
+        "GET /api/finance/overview",
+        "GET /api/invoices/aging",
+        "GET /api/reconciliation/suggestions",
+        "POST /api/invoices/action",
+        "POST /api/reconciliation/confirm"
+    ]
+}

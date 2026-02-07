@@ -1,0 +1,538 @@
+
+
+# Open-Source ERP Component Integration Strategy for Indonesian CMT/MEP Manufacturing
+
+## 1. Executive Summary: Integration Architecture & Constraints
+
+### 1.1 Core Technical Constraints
+
+#### 1.1.1 Stack Alignment Requirements
+
+The existing ERP foundation—**Next.js 15, Prisma ORM, PostgreSQL with 42 tables at 95% schema completion**—creates non-negotiable boundaries for component selection. The **Node.js/TypeScript runtime with Prisma database access** must remain primary for all core ERP logic. This constraint immediately eliminates the majority of mature open-source ERP components, which historically developed in Python (Odoo, ERPNext, Tryton), Java (iDempiere, Apache OFBiz), or PHP (Dolibarr, ERPNext early versions). The manufacturing and accounting domains show particularly sparse Node.js ecosystem coverage, necessitating strategic trade-offs between stack purity and feature acceleration.
+
+**Python microservices are acceptable solely for AI/CV tasks** invoked via HTTP from Node.js Server Actions. This exception is narrowly scoped to peripheral intelligence services—document OCR, voice transcription, natural language query parsing—where Python's ML ecosystem provides insurmountable advantages. Core ERP logic including inventory costing, accounting double-entry, tax calculation, and workflow orchestration must remain TypeScript-native to preserve debugging traceability, type safety, and developer productivity.
+
+**PostgreSQL as immutable single source of truth** eliminates components requiring MongoDB, MySQL, or proprietary databases unless they offer robust CDC (Change Data Capture) to PostgreSQL. The preference hierarchy is clear: **database-level integration via Prisma > HTTP API headless consumption > containerized microservice with sync**. This prioritization minimizes network latency, maximizes transactional integrity, and simplifies operational monitoring for the target deployment environment of **self-hosted VPS on AWS Jakarta with Docker Compose orchestration**.
+
+#### 1.1.2 Licensing & Commercial Safeguards
+
+License selection carries existential implications for commercial ERP viability. The **permissive license triad—MIT, Apache 2.0, BSD**—provides maximum flexibility for proprietary distribution, modification, and white-labeling without source code disclosure obligations. These licenses are explicitly preferred for any component integrated into the core codebase.
+
+**GPL v3 is strictly excluded from tight integration** due to viral copyleft provisions that could, under certain interpretations, force disclosure of the entire ERP system if components are statically linked or deeply embedded. This risk is acute given the 75% backend implementation gap—extensive GPL integration could create legal uncertainty about derivative work boundaries. **AGPL is acceptable solely as external service boundary**: containerized deployment with HTTP API as the sole interaction mechanism, ensuring that "remote network interaction" clauses do not infect the primary application. This architectural pattern must be rigorously enforced with network isolation and documented integration contracts.
+
+#### 1.1.3 Industry-Specific Compliance Mandates
+
+Indonesian regulatory compliance creates requirements absent from generic global ERP platforms. **e-Faktur Pajak**—the electronic VAT invoicing system—mandates CoreTax XML format compliance with 11% PPN rate, digital signature integration, and real-time DJP (Directorate General of Taxes) service interaction. **BPJS Ketenagakerjaan** social security encompasses four programs with complex contribution calculations: JKK (work accident insurance, 0.24%-1.74% employer rate by industry risk class), JKM (death insurance, 0.30% employer), JHT (old age savings, 3.7% employer + 2% employee), and JP (pension, 2% employer + 1% employee capped at salary ceiling). **UMK (Upah Minimum Kota/Kabupaten)** minimum wage validation varies across 34 provinces and numerous regencies with annual adjustments.
+
+The **CMT textile manufacturing context** introduces operational patterns rarely addressed by generic manufacturing systems: **piece-rate labor compensation** where workers earn per completed garment piece rather than hourly wages; **nested BOMs with color/size variations** for style-based production; and **operation-based routing** through cutting, sewing, and finishing stages with yield tracking for fabric waste. **MEP construction subcontractors** need project-based inventory allocation, progress billing tied to milestone completion, and material consumption against estimates. Both segments operate as **"digital laggards"** with heavy Excel and WhatsApp dependency, demanding intuitive interfaces and **offline-first architecture** for intermittent factory floor connectivity.
+
+### 1.2 Strategic Integration Philosophy
+
+The overarching architecture treats open-source components as **"engines" or "microservices" feeding into PostgreSQL** rather than replacing it. This inverts typical ERP adoption where organizations surrender data models to monolithic platforms. Three integration patterns emerge:
+
+| Pattern | Description | Use Case | Performance | Complexity |
+|---------|-------------|----------|-------------|------------|
+| **Database-level** | Direct Prisma ORM access to component tables | Stack-aligned components (Node/Prisma/PostgreSQL) | Optimal (zero network overhead) | Low (schema coordination) |
+| **HTTP API** | REST/GraphQL consumption from Server Actions | Headless services with incompatible stacks | Moderate (serialization cost) | Medium (client generation, error handling) |
+| **Microservice isolation** | Containerized component with CDC sync | AGPL-licensed or stack-divergent components | Moderate (sync latency) | High (operational overhead) |
+
+The **Docker Compose deployment constraint**—explicitly excluding Kubernetes and serverless functions—further filters for components with straightforward containerization, environment variable configuration, and volume-mounted persistence. This operational simplicity aligns with the target market's limited technical sophistication and self-hosted preference for data sovereignty.
+
+---
+
+## 2. Inventory Management: FIFO/Average Costing & Multi-Warehouse
+
+### 2.1 Primary Candidate: HazemSarhan Inventory Management System API
+
+#### 2.1.1 Technical Specifications
+
+The **HazemSarhan inventory-management-system-api** repository (`github.com/HazemSarhan/inventory-management-system-api`) represents the closest architectural match identified through extensive search. This system implements **Node.js 14+ with Express.js, Prisma ORM, and PostgreSQL**—precisely mirroring the existing ERP stack. The **MIT license** provides unambiguous commercial freedom, and **November 2024 commit activity** indicates responsive maintenance.
+
+| Attribute | Specification |
+|-----------|-------------|
+| **Repository** | `HazemSarhan/inventory-management-system-api` |
+| **Stack** | Node.js, Express.js, Prisma ORM, PostgreSQL |
+| **License** | MIT (permissive, commercial-safe) |
+| **Last Activity** | November 2024 (actively maintained) |
+| **Authentication** | JWT-based with role-based access control |
+| **Features** | Stock receipts/issues, adjustments, warehouse management, audit logging |
+
+The schema design demonstrates thoughtful normalization with `products`, `suppliers`, `customers`, `orders`, and `inventory_transactions` tables. The **multi-warehouse support** includes `warehouses` and `warehouse_locations` entities with hierarchical organization suitable for CMT factory layouts (raw material storage, cutting floor, sewing lines, finished goods dispatch). The **audit logging capability** captures user actions with timestamps, providing foundation for compliance requirements.
+
+#### 2.1.2 Integration Pathways
+
+Three integration pathways present distinct trade-offs:
+
+**Database-Level Sync (Preferred):** Direct Prisma schema incorporation enables unified ORM access with minimal latency. The `inventory_transactions` table—critical to existing schema—requires careful alignment with HazemSarhan's transaction modeling, potentially through view-based abstraction or schema migration with `@@map` decorators. This approach maintains **single-source-of-truth integrity**, enables complex cross-module queries, and eliminates network serialization overhead for high-frequency stock operations.
+
+**API/HTTP Headless Mode:** Operating as standalone microservice with REST consumption from Next.js Server Actions provides cleaner versioning and independent scaling. The repository's **Postman collection** suggests comprehensive endpoint coverage. However, this introduces **network latency** (typically 5-20ms for localhost Docker networking), complicates transactions spanning inventory and other modules, and requires robust circuit-breaker patterns for failure handling.
+
+**Hybrid Adaptation:** Extracting core Prisma schema and business logic while discarding Express server layer enables direct integration into Next.js Server Actions. This "code integration" sacrifices easy upstream updates for maximum flexibility, allowing FIFO/Average costing implementations tailored to Indonesian regulatory requirements.
+
+#### 2.1.3 Gap Analysis & Custom Development Needs
+
+The **critical gap is native FIFO costing methodology**. HazemSarhan implements simple average costing at warehouse level, insufficient for textile manufacturers requiring precise cost layer tracking as fabric prices fluctuate. This gap necessitates **custom SQL-based valuation layer** implementation.
+
+The **FIFO implementation strategy** leverages PostgreSQL window functions for running balance calculations. The core algorithm tracks inventory receipts as cost layers (quantity, unit cost, timestamp), then matches consumption against oldest available layers. PostgreSQL's `SUM() OVER (PARTITION BY sku ORDER BY created_at)` enables efficient computation without application-layer iteration.
+
+```sql
+-- Core FIFO layer matching pattern
+WITH cost_layers AS (
+  SELECT 
+    sku,
+    quantity AS layer_qty,
+    unit_cost AS layer_cost,
+    created_at,
+    SUM(quantity) OVER (PARTITION BY sku ORDER BY created_at) AS cumulative_qty
+  FROM inventory_receipts
+  WHERE sku = 'target_sku'
+),
+consumption_match AS (
+  SELECT 
+    c.sku,
+    c.quantity AS consume_qty,
+    -- Identify applicable layers for this consumption
+    ...
+  FROM inventory_consumptions c
+  JOIN cost_layers l ON ...
+)
+-- Calculate weighted average cost for consumption
+```
+
+This pattern, adapted from production-tested implementations, provides **O(n) complexity for layer identification** with appropriate indexing. **Materialized views** precompute closing stock valuations for reporting, refreshed on transaction batch completion or scheduled intervals depending on consistency requirements.
+
+**Multi-warehouse costing** extends the pattern with `(warehouse_id, sku)` partitioning, maintaining independent cost queues per location. Cross-warehouse transfers preserve original acquisition cost while updating location attribution—critical for accurate project-based costing in MEP operations.
+
+### 2.2 Alternative: Custom PostgreSQL FIFO Implementation
+
+For scenarios where HazemSarhan integration introduces unacceptable schema complexity, a **pure PostgreSQL implementation** maximizes performance and control. This approach eliminates external dependencies entirely, implementing all inventory logic through database-native mechanisms invoked via Prisma raw queries.
+
+| Aspect | Implementation |
+|--------|---------------|
+| **Cost layer tracking** | `inventory_receipts` table with `remaining_quantity`, `unit_cost`, `receipt_date` |
+| **Consumption matching** | PostgreSQL function iterating layers in chronological order |
+| **Real-time valuation** | Materialized view with `REFRESH CONCURRENTLY` for non-blocking updates |
+| **Prisma integration** | `$queryRaw` for performance paths, standard Client for CRUD |
+
+The **Average costing alternative**—often operationally preferable for CMT factories with moderate price volatility—maintains running `total_quantity` and `total_value` per SKU, updating with each receipt: `new_average = (old_value + receipt_value) / (old_qty + receipt_qty)`. This requires **significantly less schema complexity** than FIFO while providing acceptable accuracy for many manufacturing scenarios.
+
+### 2.3 Secondary Evaluation: OpenBoxes (Python/Django)
+
+**OpenBoxes** presents feature-rich alternative with **native FEFO/FIFO support, lot tracking, expiry management, and barcode scanning**. Originally developed for healthcare supply chains, its logistics capabilities translate reasonably to manufacturing inventory.
+
+| Attribute | Specification |
+|-----------|-------------|
+| **Stack** | Grails (Groovy/Java), GORM ORM, PostgreSQL/MySQL |
+| **License** | EPL-1.0 (Eclipse Public License, business-friendly) |
+| **Features** | Multi-warehouse, lot tracking, FEFO/FIFO, replenishment, demand forecasting |
+
+However, **architectural misalignment is substantial**. The Java/Groovy stack and GORM ORM create hard boundary against Prisma integration. The application assumes interactive web usage with server-rendered pages; **API endpoints are secondary and incomplete**. Containerized deployment as isolated microservice is technically viable but introduces **dual database management, CDC synchronization complexity, and operational overhead** that conflicts with Docker Compose simplicity mandate.
+
+**Recommendation:** OpenBoxes serves as **feature reference architecture** rather than direct integration candidate. Its lot-based FIFO algorithms and warehouse visualization patterns inform custom implementation requirements.
+
+---
+
+## 3. Manufacturing: BOM, Work Orders & CMT-Specific Labor Tracking
+
+### 3.1 Gap Identification: No Ideal Node.js/PostgreSQL Solution Found
+
+Comprehensive search across GitHub Topics, npm registry, and specialized ERP repositories reveals **striking absence of production-ready manufacturing execution components in Node.js with PostgreSQL**. The manufacturing domain remains dominated by Python, Java, and PHP ecosystems with decades of feature accumulation. This gap reflects historical development patterns rather than technical infeasibility—Node.js's enterprise maturation is recent relative to manufacturing system evolution.
+
+| Search Strategy | Result |
+|---------------|--------|
+| `node.js postgresql BOM library` | No viable candidates |
+| `open source manufacturing API Node.js` | Greenfield projects, no production usage |
+| `textile manufacturing ERP open source` | Python/Java solutions only |
+
+The **practical implication is mandatory custom implementation** for manufacturing modules, informed by feature benchmarking against established platforms rather than direct component reuse.
+
+### 3.2 Practical Implementation Path
+
+#### 3.2.1 Custom BOM Engine on Existing Schema
+
+The **Bill of Materials implementation** requires recursive data structures for hierarchical product compositions. Core schema design:
+
+| Table | Purpose | Key Fields |
+|-------|---------|-----------|
+| `bill_of_materials` | Header with version control | `product_id`, `version`, `effective_date`, `unit_of_measure` |
+| `bom_components` | Line items with nesting | `parent_bom_id`, `component_product_id`, `quantity_required`, `scrap_factor`, `operation_sequence` |
+| `bom_operations` | Manufacturing steps | `operation_code`, `work_center`, `setup_time`, `run_time`, `labor_rate` |
+
+**Recursive BOM explosion** leverages PostgreSQL CTEs for efficient traversal:
+
+```sql
+WITH RECURSIVE bom_explosion AS (
+  -- Anchor: top-level components
+  SELECT bom_id, component_id, quantity_required, 1 AS level, ARRAY[bom_id] AS path
+  FROM bom_components WHERE parent_bom_id IS NULL
+  
+  UNION ALL
+  
+  -- Recursive: nested BOMs
+  SELECT bc.bom_id, bc.component_id, 
+         be.quantity_required * bc.quantity_required,
+         be.level + 1, be.path || bc.bom_id
+  FROM bom_components bc
+  JOIN bom_explosion be ON bc.parent_bom_id = be.component_id
+  WHERE NOT bc.bom_id = ANY(be.path) -- Cycle prevention
+)
+SELECT * FROM bom_explosion;
+```
+
+For **CMT textile operations**, this enables conversion from finished garment quantities to fabric requirements in linear meters, with **cutting waste percentages** varying by fabric type (woven vs. knit) and pattern complexity. Color/size variations are handled through **product variants** with shared base BOM and color-specific component substitutions.
+
+#### 3.2.2 Piece-Rate Labor Tracking for CMT Textiles
+
+The **piece-rate compensation model**—fundamental to Indonesian CMT manufacturing—demands specialized tracking absent from generic manufacturing systems:
+
+| Entity | Description | Integration |
+|--------|-------------|-------------|
+| `worker_operations` | Individual production records | `worker_id`, `work_order_id`, `operation_code`, `pieces_completed`, `timestamp`, `quality_grade` |
+| `operation_rates` | Payment rates by style/operation | `style_id`, `operation_code`, `base_rate`, `skill_multiplier`, `effective_date` |
+| `piece_rate_payments` | Payroll aggregation | Period summary with BPJS contribution calculation |
+
+**Real-time production tracking** feeds floor supervisor dashboards with shift-based output comparison against targets. Workers scan QR codes on bundle tickets or use **WhatsApp voice messages** (processed through local AI) for operation completion logging. **Offline queue synchronization** ensures continuity during connectivity gaps, with background sync and conflict resolution using last-write-wins with audit logging.
+
+**Payroll integration** aggregates piece-rate earnings with attendance-based components (if any), calculates **BPJS contributions** with JKK risk classification for textiles (typically 0.54%-0.89%), and generates bank transfer files. UMK validation ensures no worker receives below applicable regional minimum wage, with warnings for rate configuration errors.
+
+### 3.3 Reference Architecture: Odoo Community Edition Manufacturing
+
+While direct integration is **constrained by Python/Django stack and LGPL-3.0 licensing**, **Odoo CE serves as invaluable feature benchmark**. Its `mrp` module provides proven patterns:
+
+| Feature | Odoo Implementation | Adaptation Strategy |
+|---------|---------------------|---------------------|
+| Multi-level BOMs | Recursive structure with phantom components | Emulate in PostgreSQL CTEs |
+| Routing with operation dependencies | Sequential and parallel workstation options | Simplified for CMT linear routing |
+| Work center capacity planning | Calendar-based availability with efficiency factors | Phase 2 enhancement |
+| Material consumption validation | Standard vs. actual comparison with variance analysis | Core implementation |
+
+**Headless extraction feasibility** is limited but non-zero. Odoo's **XML-RPC/JSON-RPC APIs** enable work order creation and status queries from external systems. **Database-level read integration** via PostgreSQL foreign data wrappers supports cross-system reporting without write path complexity. However, the **operational overhead of Python runtime maintenance, version synchronization, and failure mode multiplication** suggests against this path for the target SME segment.
+
+---
+
+## 4. Accounting: Double-Entry GL with Indonesian Chart of Accounts
+
+### 4.1 Primary Candidate: A.L.E. (Assets = Liabilities + Equity)
+
+#### 4.1.1 Technical Profile
+
+The **A.L.E. project** (`CjS77/ale` with active fork `akinwale-habibullah/ale-1`) represents the most technically aligned open-source accounting engine for the target stack.
+
+| Attribute | Specification |
+|-----------|-------------|
+| **Stack** | Node.js, Express.js, Sequelize ORM, PostgreSQL |
+| **License** | Apache-2.0 (permissive, patent grant) |
+| **Original Status** | Archived January 2021 (functionally complete) |
+| **Fork Activity** | PostgreSQL-specific enhancements, maintenance mode |
+| **Core Features** | Multi-book accounting, double-entry enforcement, multi-currency, transaction history |
+
+The **double-entry enforcement** combines database constraints (SQL-level balance verification) with application-layer validation, providing defense-in-depth against data corruption. The **"book" abstraction** enables multiple accounting entities within single database—useful for multi-company deployments or consolidated reporting.
+
+#### 4.1.2 Integration Architecture
+
+**ORM adaptation is the primary complexity**. Sequelize and Prisma model definitions differ substantially in relationship declaration, query patterns, and migration handling. Two pathways emerge:
+
+| Pathway | Effort | Long-term Maintainability |
+|---------|--------|--------------------------|
+| **Sequelize coexistence** | Low (2-3 weeks) | Poor (dual ORM expertise required) |
+| **Prisma port** | Medium (4-6 weeks) | Excellent (unified ORM) |
+
+The **Prisma port recommendation** involves translating Sequelize model definitions to Prisma schema, preserving database-level constraints through `@@map` decorators and PostgreSQL trigger functions. The double-entry balance check:
+
+```sql
+-- PostgreSQL trigger for transaction balance
+CREATE OR REPLACE FUNCTION enforce_double_entry()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF (SELECT SUM(amount) FROM journal_entry_lines WHERE transaction_id = NEW.transaction_id) != 0 THEN
+    RAISE EXCEPTION 'Journal entry debits do not equal credits';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+#### 4.1.3 Indonesian Localization Requirements
+
+| Requirement | Implementation |
+|-------------|---------------|
+| **Chart of Accounts ("Akun Perkiraan")** | Seed data with PSAK-standard structure: 1xx Assets, 2xx Liabilities, 3xx Equity, 4xx Revenue, 5xx COGS, 6xx Expenses, 7xx Other Income, 8xx Other Expenses |
+| **Currency formatting** | IDR with Indonesian conventions: Rp 1.000.000,00 (period thousands separator, comma decimal) |
+| **Fiscal calendar** | January-December with monthly and annual closing procedures |
+| **Tax integration** | PPN 11% automatic calculation on applicable transactions |
+
+### 4.2 Alternative: HMB-Research Open-Accounting (Go/SvelteKit)
+
+**HMB-Research/open-accounting** presents modern alternative with **Go backend, SvelteKit frontend, PostgreSQL 16+**, and comprehensive feature set including double-entry, invoicing, multi-tenancy, bank reconciliation, and planned inventory integration.
+
+| Aspect | Assessment |
+|--------|-----------|
+| **Stack divergence** | Go backend acceptable as HTTP microservice per constraints |
+| **Integration pattern** | HTTP API consumption with database CDC sync |
+| **Operational complexity** | Medium (dual database topology, Go runtime maintenance) |
+| **Feature advantage** | Built-in invoicing, bank reconciliation (A.L.E. lacks) |
+
+The **microservice isolation pattern** positions Open-Accounting in separate container with PostgreSQL database, synchronized to primary via Debezium or trigger-based CDC. HTTP API from Next.js backend handles real-time operations; CDC maintains eventual consistency for unified reporting.
+
+### 4.3 Reference: PostgreSQL-Native Accounting Patterns
+
+The **Beanpost** project demonstrates sophisticated SQL-first accounting with FIFO/LIFO/Average cost basis calculations through window functions. Its **GPL-3.0 license excludes direct use**, but architectural patterns inform clean-room implementation:
+
+- **Pure PostgreSQL functions** for debit/credit balance enforcement
+- **Materialized views** for trial balance, income statement, balance sheet with incremental refresh
+- **Immutable transaction logs** with append-only design for audit compliance
+
+---
+
+## 5. Indonesian Tax Compliance: e-Faktur Pajak & BPJS Integration
+
+### 5.1 Critical Finding: Limited Open-Source Tax Libraries
+
+Extensive search reveals **no production-ready, permissively-licensed open-source libraries for Indonesian tax compliance**. This scarcity reflects: rapid DJP system evolution (CoreTax migration 2024-2025), specialized regulatory knowledge requirements, and commercial vendor dominance (OnlinePajak, Klikpajak, Pajak.io).
+
+| Search Target | Result |
+|-------------|--------|
+| `open source e-Faktur Pajak Node.js` | No viable candidates |
+| `Perpustakaan pajak Indonesia open source` | None identified |
+| `BPJS calculation library` | None identified |
+
+The **ERPNext Indonesia Localization Module** provides feature benchmark—tax invoice importer/exporter, CoreTax XML, Bahasa Indonesia workspace—but **GPL-3.0 license excludes direct integration**.
+
+### 5.2 e-Faktur Pajak Implementation Strategy
+
+#### 5.2.1 DJP CoreTax XML Generation
+
+**Custom TypeScript implementation** is required, with architecture:
+
+| Component | Responsibility |
+|-----------|--------------|
+| `EfakturXmlGenerator` | Schema-compliant XML construction with `fast-xml-parser` |
+| `DjpApiClient` | HTTP client for CoreTax endpoints with certificate-based auth, retry logic |
+| `NsfpManager` | Nomor Seri Faktur Pajak allocation tracking with sequential validation |
+| `TaxReportEngine` | Monthly SPT Masa compilation with reconciliation |
+
+**XML structure compliance** encompasses: seller/buyer NPWP (16-digit with checksum validation), transaction details (date, item descriptions, quantities, prices), tax calculation (PPN 11%, DPP base), and digital signature integration. **Offline queue** persists invoices during connectivity gaps with automatic retry.
+
+#### 5.2.2 Integration Patterns
+
+| Direction | Flow | Validation |
+|-----------|------|------------|
+| **Outbound** | ERP sales invoice → XML generation → DJP upload → response parsing → tax invoice number storage | Format validation against OnlinePajak documentation; checksum verification |
+| **Inbound** | DJP portal download → XML parsing → supplier invoice reconciliation → input VAT credit tracking | Matching against purchase records; discrepancy flagging |
+
+### 5.3 BPJS Ketenagakerjaan & Payroll Compliance
+
+**Custom implementation required**—no open-source library identified. Calculation engine specifications:
+
+| Program | Rate Structure | Implementation |
+|---------|---------------|----------------|
+| **JKK** | 0.24%-1.74% employer, by risk class | Textile: 0.54%-0.89%; Construction: 1.27% |
+| **JKM** | 0.30% employer | Fixed rate |
+| **JHT** | 3.7% employer + 2% employee | Ceiling: Rp 10,042,300/month |
+| **JP** | 2% employer + 1% employee | Ceiling: Rp 10,042,300/month |
+
+**UMK validation** requires annual data updates for 34+ provincial and regency jurisdictions, with 2024 Jakarta UMK at Rp 5,067,381. Payroll calculation warns or blocks below-minimum wage configurations.
+
+### 5.4 Reference: ERPNext Isolation Strategy
+
+Despite licensing constraints, **ERPNext as "tax compliance service"** provides validation reference:
+
+| Aspect | Implementation |
+|--------|---------------|
+| Deployment | Containerized with network isolation, HTTP API only |
+| Functions | Tax invoice number reservation, NPWP validation, XML format verification |
+| Sync | CDC to primary PostgreSQL for master data and summaries |
+| Risk | Operational complexity; version synchronization burden |
+
+---
+
+## 6. Workflow Automation: Approval Routing & WhatsApp Integration
+
+### 6.1 Workflow Engine: Temporal.io
+
+**Temporal.io** emerges as leading candidate for **durable workflow orchestration** with Node.js SDK and MIT licensing.
+
+| Attribute | Specification |
+|-----------|-------------|
+| **Core capability** | Durable execution with automatic state persistence and failure recovery |
+| **Language SDK** | Native TypeScript with workflow-as-code pattern |
+| **Persistence** | PostgreSQL (separate schema acceptable) |
+| **Use case fit** | Long-running approvals spanning hours/days; complex conditional routing |
+
+**Approval workflow implementation**:
+
+```typescript
+// Purchase Request → Purchase Order workflow
+async function purchaseRequestWorkflow(prId: string): Promise<void> {
+  const pr = await getPurchaseRequest(prId);
+  
+  // Amount-based routing with escalation
+  const approvers = resolveApprovers(pr.totalAmount, pr.department);
+  
+  for (const approver of approvers) {
+    await sendNotification(approver, pr);
+    const decision = await workflow.waitForSignal('approvalDecision', { timeout: '24h' });
+    
+    if (decision.action === 'REJECT') {
+      await updatePRStatus(prId, 'REJECTED', decision.reason);
+      return;
+    }
+    if (decision.action === 'DELEGATE') {
+      approvers.push(decision.delegatee); // Extend chain
+    }
+  }
+  
+  await generatePurchaseOrder(pr);
+  await notifyStakeholders(pr);
+}
+```
+
+### 6.2 WhatsApp Business API Bridges
+
+#### 6.2.1 Primary: Baileys (TypeScript/Node.js)
+
+| Attribute | Specification |
+|-----------|-------------|
+| **Repository** | `WhiskeySockets/Baileys` |
+| **License** | MIT |
+| **Implementation** | Pure TypeScript, no Puppeteer/Chrome dependency |
+| **Features** | Multi-device support, message history sync, media handling, group management |
+| **Resource efficiency** | ~50MB memory vs. ~300MB+ for Puppeteer-based alternatives |
+
+**Baileys eliminates headless Chrome overhead**, critical for VPS resource constraints. WebSocket-based WhatsApp protocol implementation provides **real-time message reception** for inbound approval responses.
+
+#### 6.2.2 Alternative: whatsapp-web.js
+
+| Attribute | Specification |
+|-----------|-------------|
+| **Repository** | `pedroslopez/whatsapp-web.js` |
+| **License** | Apache-2.0 |
+| **Implementation** | Puppeteer/Chrome automation |
+| **Trade-off** | Mature ecosystem, extensive documentation vs. resource overhead and stability concerns |
+
+**Selection favors Baileys** for deployment simplicity; whatsapp-web.js as fallback if specific enterprise features required.
+
+### 6.3 Approval Matrix Engine
+
+| Entity | Purpose |
+|--------|---------|
+| `approval_rules` | Condition predicates (amount, department, category), approver roles, escalation timeouts |
+| `approval_instances` | Per-document state tracking with full audit trail |
+| `approval_actions` | Individual decision logging with timestamp and rationale |
+
+**Role-based hierarchy**: operator → supervisor (department) → manager (division) → director (company), with **skip-level escalation** for absence and **delegation** for temporary unavailability.
+
+---
+
+## 7. AI/CV Microservices: Local Inference Stack
+
+### 7.1 Infrastructure: Ollama/vLLM on RTX 4090/3090
+
+| Specification | Implementation |
+|-------------|---------------|
+| **Runtime** | Ollama container with NVIDIA Container Toolkit GPU passthrough |
+| **Model range** | 14-20B parameters (Q4_K_M quantization for VRAM efficiency) |
+| **Indonesian capability** | Qwen2.5-14B-Instruct (strong multilingual), SeaLLM-7B-v2 (Southeast Asian optimized) |
+| **Inference latency** | 20-30 tokens/second typical for Qwen2.5-14B on RTX 4090 |
+
+### 7.2 FastAPI Service Integration
+
+| Endpoint | Function |
+|----------|----------|
+| `/document/extract` | Invoice/receipt OCR + structured field extraction |
+| `/transcribe/voice` | Whisper-based audio transcription (Indonesian-tuned) |
+| `/query/nl` | Natural language to SQL translation with safety validation |
+| `/summarize/document` | Long-form condensation for executive reporting |
+
+### 7.3 WhatsApp Voice Control Pipeline
+
+| Stage | Component | Output |
+|-------|-----------|--------|
+| 1. Reception | Baileys media download | OGG Opus audio file |
+| 2. Conversion | FFmpeg to WAV | Standardized audio |
+| 3. Transcription | Whisper local (base or small) | Indonesian text |
+| 4. Intent parsing | Qwen2.5 classification | Structured command |
+| 5. Execution | Next.js Server Action | Database operation |
+| 6. Response | LLM-generated confirmation | WhatsApp reply (text or TTS) |
+
+---
+
+## 8. Deployment & Integration Architecture
+
+### 8.1 Docker Compose Topology
+
+| Service | Image/Build | Function | Dependencies |
+|---------|-------------|----------|--------------|
+| `app` | Next.js 15 + Prisma | Core ERP frontend/backend | postgres, temporal, ollama |
+| `postgres` | PostgreSQL 16 | Single source of truth | — |
+| `temporal` | temporalio/auto-setup | Workflow engine | postgres (separate schema) |
+| `temporal-worker` | Custom TypeScript | Workflow definitions | temporal |
+| `ollama` | ollama/ollama | LLM inference | — (GPU-enabled) |
+| `ai-api` | FastAPI + Ollama client | AI service wrapper | ollama |
+| `whatsapp-bridge` | Baileys Node.js | WhatsApp connectivity | app |
+
+### 8.2 Database Schema Strategy
+
+| Schema | Contents | Access |
+|--------|----------|--------|
+| `public` | Existing 42 tables, core ERP | Full Prisma CRUD |
+| `inventory_ext` | HazemSarhan-derived or custom inventory | Prisma with table prefix |
+| `accounting_ext` | A.L.E.-derived or custom GL | Prisma with table prefix |
+| `temporal` | Workflow execution state | Temporal service only |
+
+**Prisma multi-schema configuration** (preview feature) enables unified ORM access. **Foreign data wrappers** support read-only cross-database queries for optional external services.
+
+---
+
+## 9. Implementation Roadmap & Risk Mitigation
+
+### 9.1 Phase 1: Foundation (Weeks 1-4)
+
+| Week | Deliverable | Success Criteria |
+|------|-------------|----------------|
+| 1-2 | PostgreSQL FIFO implementation | Unit test: 100% cost accuracy vs. manual calculation; query <100ms |
+| 2-3 | HazemSarhan integration evaluation | API response <200ms; schema compatibility confirmed |
+| 3-4 | A.L.E. Prisma port or custom GL | Trial balance matches manual spreadsheet; COA seeded |
+
+### 9.2 Phase 2: Compliance & Workflow (Weeks 5-8)
+
+| Week | Deliverable | Success Criteria |
+|------|-------------|----------------|
+| 5-6 | e-Faktur XML generation | Format validation pass vs. OnlinePajak reference |
+| 6-7 | DJP API integration | Successful sandbox submission; error handling verified |
+| 7-8 | Temporal + Baileys deployment | 99.9% workflow completion without manual recovery |
+
+### 9.3 Phase 3: Manufacturing & AI (Weeks 9-12)
+
+| Week | Deliverable | Success Criteria |
+|------|-------------|----------------|
+| 9-10 | BOM engine, work orders | 5-level BOM explosion <100ms; material consumption validation |
+| 10-11 | Piece-rate labor tracking | Payroll accuracy vs. manual calculation; worker usability test |
+| 11-12 | Ollama deployment, voice pipeline | Indonesian voice command recognition >90% accuracy |
+
+### 9.4 Critical Risks & Contingencies
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| A.L.E. fork unmaintained | Medium | High (accounting delay) | 4-week evaluation gate; custom fallback ready |
+| DJP API/schema changes | High | Medium (compliance gap) | Abstraction layer; rapid response process; commercial fallback |
+| Baileys protocol breakage | Medium | Medium (WhatsApp down) | SMS gateway fallback; multi-number rotation |
+| FIFO performance degradation | Low | Medium (UX impact) | Materialized view optimization; read replicas |
+
+---
+
+## 10. Component Summary Matrix
+
+| Module | Primary Option | License | Stack | Integration | Indonesian Support | Custom Dev % |
+|--------|---------------|---------|-------|-------------|-------------------|------------|
+| **Inventory** | HazemSarhan API + Custom FIFO | MIT | Node/Prisma/PostgreSQL | Database + API | Custom costing layer | 40% |
+| **Manufacturing** | Custom implementation | N/A | Node/Prisma/PostgreSQL | Database | CMT-specific (piece-rate, BOM) | 100% |
+| **Accounting** | A.L.E. (Prisma port) | Apache-2.0 | Node/Sequelize→Prisma/PostgreSQL | Database | Custom COA seeding | 60% |
+| **Tax (e-Faktur)** | Custom TypeScript + DJP API | N/A | TypeScript/Node.js | HTTP | Native requirement | 100% |
+| **Tax (BPJS)** | Custom calculation engine | N/A | TypeScript/Node.js | Database | Native requirement | 100% |
+| **Workflow** | Temporal.io | MIT | Node.js/TypeScript | HTTP API | Custom rules engine | 30% |
+| **WhatsApp** | Baileys | MIT | TypeScript/Node.js | HTTP API | Native (Bahasa) | 20% |
+| **AI/LLM** | Ollama + FastAPI | MIT | Python/FastAPI | HTTP microservice | Indonesian model tuning | 40% |
+
+This architecture **maximizes open-source leverage while respecting all constraints**, accepting that **manufacturing depth and Indonesian regulatory specificity require substantial custom development**. The resulting system achieves differentiation through **WhatsApp voice control, local AI, and CMT-optimized workflows** unavailable in generic global ERP platforms.
+
