@@ -14,6 +14,9 @@ export function formatIDR(amount: number) {
   }).format(amount)
 }
 
+// Key alias for compatibility
+export const formatCurrency = formatIDR;
+
 export function formatCompactNumber(number: number) {
   return Intl.NumberFormat("id-ID", {
     notation: "compact",
