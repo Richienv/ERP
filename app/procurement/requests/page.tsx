@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getPurchaseRequests } from "@/lib/actions/procurement"
 import { RequestList } from "@/components/procurement/request-list"
 

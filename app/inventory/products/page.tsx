@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 
 import { getProductsForKanban, getCategories, getWarehouses } from '@/app/actions/inventory'
 import { getVendors } from '@/app/actions/vendor'

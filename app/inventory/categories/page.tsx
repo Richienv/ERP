@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getAllCategories, getCategories } from "@/app/actions/inventory"
 import { CategoriesClient } from "./client"
 

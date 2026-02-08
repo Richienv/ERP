@@ -1,0 +1,21 @@
+The column `suppliers.bankName` does not exist in the current database.
+    at async iO.revalidate (.next/server/chunks/ssr/app_actions_inventory_ts_8aef3182._.js:20:156777)
+    at async w (.next/server/chunks/ssr/_e4ed8cef._.js:1:14441) {
+  code: 'P2022',
+  meta: [Object],
+  clientVersion: '6.18.0'
+}
+Error occurred prerendering page "/inventory". Read more: https://nextjs.org/docs/messages/prerender-error
+Error [PrismaClientKnownRequestError]: 
+Invalid `prisma.product.findMany()` invocation:
+The column `work_orders.salesOrderId` does not exist in the current database.
+    at async iN.revalidate (.next/server/chunks/ssr/app_actions_inventory_ts_8aef3182._.js:20:153309)
+    at async z (.next/server/chunks/ssr/_e4ed8cef._.js:1:21334) {
+  code: 'P2022',
+  meta: [Object],
+  clientVersion: '6.18.0',
+  digest: '2292581894'
+}
+Export encountered an error on /inventory/page: /inventory, exiting the build.
+⨯ Next.js build worker exited with code: 1 and signal: null
+Error: Command "npm run build" exited with 1

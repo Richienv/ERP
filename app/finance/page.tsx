@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { FinanceMetricCard } from "@/components/finance/finance-metric-card"
 import { ActionItemsWidget } from "@/components/finance/action-items-widget"
 import { CashFlowChart } from "@/components/finance/cash-flow-chart"
