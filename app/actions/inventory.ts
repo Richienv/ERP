@@ -172,30 +172,44 @@ export const getWarehouses = unstable_cache(
 export const getInventoryKPIs = unstable_cache(
     async () => {
         const totalProducts = await prisma.product.count({ where: { isActive: true } })
-        const lowStock = await prisma.product.count({
-            where: {
-                isActive: true,
-                stockLevels: {
-                    some: {
-                        quantity: {
-                            lte: 10 // Assuming 10 is global threshold or needs refinement
-                        }
-                    }
-                }
-            }
-        })
+        const [products, allStock, recentAdjustments] = await Promise.all([
+            prisma.product.findMany({
+                where: { isActive: true },
+                select: {
+                    id: true,
+                    minStock: true,
+                    stockLevels: { select: { quantity: true } },
+                },
+            }),
+            prisma.stockLevel.findMany({
+                include: { product: true }
+            }),
+            prisma.inventoryTransaction.findMany({
+                where: {
+                    type: 'ADJUSTMENT',
+                    createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+                },
+                select: { quantity: true },
+                take: 2000,
+            }),
+        ])
 
-        // Calculate Inventory Value
-        const allStock = await prisma.stockLevel.findMany({
-            include: { product: true }
-        })
+        const lowStock = products.filter((product) => {
+            const totalQty = product.stockLevels.reduce((sum, level) => sum + level.quantity, 0)
+            return totalQty <= (product.minStock || 0)
+        }).length
+
         const totalValue = allStock.reduce((sum, item) => sum + (item.quantity * Number(item.product.costPrice)), 0)
+        const totalQty = allStock.reduce((sum, item) => sum + item.quantity, 0)
+        const adjustmentQty = recentAdjustments.reduce((sum, tx) => sum + Math.abs(Number(tx.quantity || 0)), 0)
+        const varianceRate = totalQty > 0 ? Math.min(1, adjustmentQty / totalQty) : 0
+        const inventoryAccuracy = Number((100 - varianceRate * 100).toFixed(1))
 
         return {
             totalProducts,
             lowStock,
             totalValue,
-            inventoryAccuracy: 98 // Mock
+            inventoryAccuracy
         }
     },
     ['inventory-kpis'],
