@@ -11,6 +11,16 @@ interface WorkflowConfigContextType {
 
 const WorkflowConfigContext = createContext<WorkflowConfigContextType | undefined>(undefined);
 
+const normalizeModules = (modules: string[]) =>
+    Array.from(
+        new Set(
+            modules
+                .filter((value): value is string => typeof value === "string")
+                .map((value) => value.trim().toUpperCase())
+                .filter(Boolean)
+        )
+    )
+
 export function WorkflowConfigProvider({ children }: { children: React.ReactNode }) {
     const [activeModules, setActiveModulesState] = useState<string[] | null>(null);
     const [hasLocalOverride, setHasLocalOverride] = useState(false);
@@ -28,20 +38,23 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
             const permissionsRaw = payload?.data?.permissions
             if (!Array.isArray(permissionsRaw)) return
 
-            const permissions = Array.from(
-                new Set(
-                    permissionsRaw
-                        .filter((value: unknown) => typeof value === "string")
-                        .map((value: string) => value.trim().toUpperCase())
-                        .filter(Boolean)
-                )
-            )
+            const permissions = normalizeModules(permissionsRaw as string[])
+            const systemRoleCode = typeof payload?.data?.systemRoleCode === "string"
+                ? payload.data.systemRoleCode.trim().toUpperCase()
+                : null
 
             if (permissions.includes("ALL")) {
                 setActiveModulesState(null)
                 return
             }
-            setActiveModulesState(permissions.length > 0 ? permissions : null)
+
+            // If no mapped system role exists yet, default to "show all" to preserve legacy behavior.
+            // If mapped role exists but has no permissions, lock navigation to dashboard-only.
+            if (!systemRoleCode) {
+                setActiveModulesState(null)
+                return
+            }
+            setActiveModulesState(permissions.length > 0 ? permissions : [])
         } catch (error) {
             console.error("Failed to refresh module permissions from server", error)
         }
@@ -54,7 +67,7 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
             try {
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed)) {
-                    setActiveModulesState(parsed);
+                    setActiveModulesState(normalizeModules(parsed));
                     setHasLocalOverride(true);
                 } else {
                     console.warn("Invalid config format in localStorage, resetting.");
@@ -70,9 +83,10 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
     }, []);
 
     const setActiveModules = (modules: string[] | null) => {
-        setActiveModulesState(modules);
+        const normalized = modules ? normalizeModules(modules) : null
+        setActiveModulesState(normalized);
         if (modules) {
-            localStorage.setItem("erp_active_modules", JSON.stringify(modules));
+            localStorage.setItem("erp_active_modules", JSON.stringify(normalized));
             setHasLocalOverride(true);
         } else {
             localStorage.removeItem("erp_active_modules");
@@ -92,11 +106,12 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
     const isModuleActive = (moduleName: string) => {
         if (!activeModules) return true; // Show all if no config
         if (!Array.isArray(activeModules)) return true; // Safety fallback
+        const normalizedModuleName = moduleName.trim().toUpperCase()
         // Check if any active module string contains the moduleName (fuzzy match for simplicity)
         // e.g. "MOD_SALES" enables "Penjualan & CRM" if we map it correctly.
         // Better: We define a mapping in the Sidebar. 
         // For now, let's assume we pass a key like "SALES" and check if it exists in the active set.
-        return activeModules.some(m => typeof m === 'string' && (m.includes(moduleName) || moduleName.includes(m)));
+        return activeModules.some((m) => m.includes(normalizedModuleName) || normalizedModuleName.includes(m));
     };
 
     return (

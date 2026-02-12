@@ -421,21 +421,27 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const isSectionActive = (title: string, _items: any[]) => {
     if (!activeModules) return true; // Show all if no config
 
-    // Default: Show Dashboard
+    // Always-visible command centers and landing pages.
     if (title === "Dasbor") return true;
+    if (title === "Portal Staf") return true;
+    if (title === "Financial Command Center") return true;
+    if (title === "Factory Command Center") return true;
 
     // Mapping Logic
     let relevantKeys: string[] = [];
     if (title.includes("Penjualan")) relevantKeys = ["SALES", "CRM", "QUOTATION", "LEAD", "ORDER"];
     if (title.includes("Inventori")) relevantKeys = ["INVENTORY", "STOCK", "WAREHOUSE", "PRODUCT", "STOCK_OPNAME"];
     if (title.includes("Keuangan")) relevantKeys = ["FINANCE", "ACCOUNTING", "INVOICE", "PAYMENT", "BILL"];
+    if (title.includes("Financial Command Center")) relevantKeys = ["FINANCE", "ACCOUNTING", "INVOICE", "PAYMENT", "BILL"];
     if (title.includes("Pengadaan")) relevantKeys = ["PURCHASING", "PURCHASE", "VENDOR", "PO", "PR", "RECEIVING"];
     if (title.includes("Manufaktur")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "MO", "SPK", "BOM", "ROUTING", "WORK_ORDER"];
+    if (title.includes("Factory Command Center")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "INVENTORY", "PURCHASING", "WORK_ORDER"];
     if (title.includes("SDM")) relevantKeys = ["HR", "SDM", "PAYROLL", "EMPLOYEE", "ATTENDANCE"];
     if (title.includes("Dokumen")) relevantKeys = ["DOCUMENTS", "SYSTEM", "REPORT"];
 
     // Check if any relevant key is in activeModules
-    return activeModules.some(m => relevantKeys.some(k => m.includes(k)));
+    if (relevantKeys.length === 0) return true
+    return activeModules.some((m) => relevantKeys.some((k) => m.includes(k) || k.includes(m)));
   };
 
 
