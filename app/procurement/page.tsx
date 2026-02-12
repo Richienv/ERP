@@ -24,6 +24,20 @@ import { formatIDR } from "@/lib/utils"
 import Link from "next/link"
 import { ProcurementPerformanceProvider } from "@/components/procurement/procurement-performance-provider"
 
+type SearchParamsValue = string | string[] | undefined
+
+const readSearchParam = (params: Record<string, SearchParamsValue>, key: string) => {
+  const value = params[key]
+  if (Array.isArray(value)) return value[0]
+  return value
+}
+
+const readSearchParamInt = (params: Record<string, SearchParamsValue>, key: string) => {
+  const value = Number(readSearchParam(params, key))
+  if (!Number.isFinite(value)) return undefined
+  return Math.trunc(value)
+}
+
 function statusBadgeClass(status: string) {
   if (["APPROVED", "ACCEPTED", "COMPLETED", "RECEIVED", "PO_CREATED"].includes(status)) {
     return "bg-emerald-100 text-emerald-800 border-emerald-300"
@@ -40,9 +54,56 @@ function statusBadgeClass(status: string) {
   return "bg-blue-100 text-blue-800 border-blue-300"
 }
 
-export default async function ProcurementPage() {
+export default async function ProcurementPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, SearchParamsValue>> | Record<string, SearchParamsValue>
+}) {
+  const resolvedSearchParams = searchParams
+    ? (typeof (searchParams as Promise<Record<string, SearchParamsValue>>).then === "function"
+      ? await (searchParams as Promise<Record<string, SearchParamsValue>>)
+      : (searchParams as Record<string, SearchParamsValue>))
+    : {}
+
+  const currentParams = new URLSearchParams()
+  for (const [key, raw] of Object.entries(resolvedSearchParams)) {
+    if (Array.isArray(raw)) {
+      if (raw[0]) currentParams.set(key, raw[0])
+    } else if (raw) {
+      currentParams.set(key, raw)
+    }
+  }
+
+  const buildHref = (overrides: Record<string, string | null>) => {
+    const next = new URLSearchParams(currentParams.toString())
+    Object.entries(overrides).forEach(([key, value]) => {
+      if (!value) next.delete(key)
+      else next.set(key, value)
+    })
+    const qs = next.toString()
+    return qs ? `/procurement?${qs}` : "/procurement"
+  }
+
   // Enterprise: Parallel data fetching with aggressive caching
-  const stats = await getProcurementStats()
+  const stats = await getProcurementStats({
+    registryQuery: {
+      purchaseOrders: {
+        status: readSearchParam(resolvedSearchParams, "po_status"),
+        page: readSearchParamInt(resolvedSearchParams, "po_page"),
+        pageSize: readSearchParamInt(resolvedSearchParams, "po_size"),
+      },
+      purchaseRequests: {
+        status: readSearchParam(resolvedSearchParams, "pr_status"),
+        page: readSearchParamInt(resolvedSearchParams, "pr_page"),
+        pageSize: readSearchParamInt(resolvedSearchParams, "pr_size"),
+      },
+      receiving: {
+        status: readSearchParam(resolvedSearchParams, "grn_status"),
+        page: readSearchParamInt(resolvedSearchParams, "grn_page"),
+        pageSize: readSearchParamInt(resolvedSearchParams, "grn_size"),
+      },
+    },
+  })
   const { spend, needsApproval, urgentNeeds, vendorHealth, incomingCount, recentActivity, purchaseOrders, purchaseRequests, receiving } = stats
 
   return (
@@ -161,12 +222,19 @@ export default async function ProcurementPage() {
                   <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Approved: {purchaseOrders.summary.approved}</div>
                   <div className="rounded border p-2 bg-blue-50 text-blue-800">Active: {purchaseOrders.summary.inProgress}</div>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link href={buildHref({ po_status: null, po_page: "1" })}><Badge variant="outline" className="cursor-pointer">All</Badge></Link>
+                  <Link href={buildHref({ po_status: "PENDING_APPROVAL", po_page: "1" })}><Badge variant="outline" className="cursor-pointer">Pending</Badge></Link>
+                  <Link href={buildHref({ po_status: "APPROVED", po_page: "1" })}><Badge variant="outline" className="cursor-pointer">Approved</Badge></Link>
+                  <Link href={buildHref({ po_status: "ORDERED", po_page: "1" })}><Badge variant="outline" className="cursor-pointer">Ordered</Badge></Link>
+                  <Link href={buildHref({ po_status: "RECEIVED", po_page: "1" })}><Badge variant="outline" className="cursor-pointer">Received</Badge></Link>
+                </div>
                 <div className="space-y-2">
                   <p className="text-[10px] font-black uppercase text-zinc-500">Recent PO</p>
                   {purchaseOrders.recent.length === 0 ? (
                     <p className="text-xs text-zinc-400 italic">No PO records.</p>
                   ) : (
-                    purchaseOrders.recent.slice(0, 4).map((po: any) => (
+                    purchaseOrders.recent.map((po: any) => (
                       <div key={po.id} className="flex justify-between items-start gap-2 border rounded p-2">
                         <div>
                           <p className="text-xs font-bold font-mono">{po.number}</p>
@@ -176,6 +244,18 @@ export default async function ProcurementPage() {
                       </div>
                     ))
                   )}
+                </div>
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span>Page {stats.registryMeta.purchaseOrders.page} / {stats.registryMeta.purchaseOrders.totalPages}</span>
+                  <span>Total {stats.registryMeta.purchaseOrders.total}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Link href={buildHref({ po_page: String(Math.max(1, stats.registryMeta.purchaseOrders.page - 1)) })} className={stats.registryMeta.purchaseOrders.page <= 1 ? "pointer-events-none opacity-40" : ""}>
+                    <Button size="sm" variant="outline">Prev</Button>
+                  </Link>
+                  <Link href={buildHref({ po_page: String(Math.min(stats.registryMeta.purchaseOrders.totalPages, stats.registryMeta.purchaseOrders.page + 1)) })} className={stats.registryMeta.purchaseOrders.page >= stats.registryMeta.purchaseOrders.totalPages ? "pointer-events-none opacity-40" : ""}>
+                    <Button size="sm" variant="outline">Next</Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -194,12 +274,19 @@ export default async function ProcurementPage() {
                   <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Approved: {purchaseRequests.summary.approved}</div>
                   <div className="rounded border p-2 bg-blue-50 text-blue-800">PO Created: {purchaseRequests.summary.poCreated}</div>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link href={buildHref({ pr_status: null, pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">All</Badge></Link>
+                  <Link href={buildHref({ pr_status: "PENDING", pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">Pending</Badge></Link>
+                  <Link href={buildHref({ pr_status: "APPROVED", pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">Approved</Badge></Link>
+                  <Link href={buildHref({ pr_status: "PO_CREATED", pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">PO Created</Badge></Link>
+                  <Link href={buildHref({ pr_status: "DRAFT", pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">Draft</Badge></Link>
+                </div>
                 <div className="space-y-2">
                   <p className="text-[10px] font-black uppercase text-zinc-500">Recent PR</p>
                   {purchaseRequests.recent.length === 0 ? (
                     <p className="text-xs text-zinc-400 italic">No PR records.</p>
                   ) : (
-                    purchaseRequests.recent.slice(0, 4).map((pr: any) => (
+                    purchaseRequests.recent.map((pr: any) => (
                       <div key={pr.id} className="flex justify-between items-start gap-2 border rounded p-2">
                         <div>
                           <p className="text-xs font-bold font-mono">{pr.number}</p>
@@ -209,6 +296,18 @@ export default async function ProcurementPage() {
                       </div>
                     ))
                   )}
+                </div>
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span>Page {stats.registryMeta.purchaseRequests.page} / {stats.registryMeta.purchaseRequests.totalPages}</span>
+                  <span>Total {stats.registryMeta.purchaseRequests.total}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Link href={buildHref({ pr_page: String(Math.max(1, stats.registryMeta.purchaseRequests.page - 1)) })} className={stats.registryMeta.purchaseRequests.page <= 1 ? "pointer-events-none opacity-40" : ""}>
+                    <Button size="sm" variant="outline">Prev</Button>
+                  </Link>
+                  <Link href={buildHref({ pr_page: String(Math.min(stats.registryMeta.purchaseRequests.totalPages, stats.registryMeta.purchaseRequests.page + 1)) })} className={stats.registryMeta.purchaseRequests.page >= stats.registryMeta.purchaseRequests.totalPages ? "pointer-events-none opacity-40" : ""}>
+                    <Button size="sm" variant="outline">Next</Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -227,12 +326,19 @@ export default async function ProcurementPage() {
                   <div className="rounded border p-2 bg-blue-50 text-blue-800">Partial: {receiving.summary.partialAccepted}</div>
                   <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Accepted: {receiving.summary.accepted}</div>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  <Link href={buildHref({ grn_status: null, grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">All</Badge></Link>
+                  <Link href={buildHref({ grn_status: "DRAFT", grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">Draft</Badge></Link>
+                  <Link href={buildHref({ grn_status: "INSPECTING", grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">Inspecting</Badge></Link>
+                  <Link href={buildHref({ grn_status: "PARTIAL_ACCEPTED", grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">Partial</Badge></Link>
+                  <Link href={buildHref({ grn_status: "ACCEPTED", grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">Accepted</Badge></Link>
+                </div>
                 <div className="space-y-2">
                   <p className="text-[10px] font-black uppercase text-zinc-500">Recent Receiving</p>
                   {receiving.recent.length === 0 ? (
                     <p className="text-xs text-zinc-400 italic">No receiving records.</p>
                   ) : (
-                    receiving.recent.slice(0, 4).map((grn: any) => (
+                    receiving.recent.map((grn: any) => (
                       <div key={grn.id} className="flex justify-between items-start gap-2 border rounded p-2">
                         <div>
                           <p className="text-xs font-bold font-mono">{grn.number}</p>
@@ -242,6 +348,18 @@ export default async function ProcurementPage() {
                       </div>
                     ))
                   )}
+                </div>
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span>Page {stats.registryMeta.receiving.page} / {stats.registryMeta.receiving.totalPages}</span>
+                  <span>Total {stats.registryMeta.receiving.total}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Link href={buildHref({ grn_page: String(Math.max(1, stats.registryMeta.receiving.page - 1)) })} className={stats.registryMeta.receiving.page <= 1 ? "pointer-events-none opacity-40" : ""}>
+                    <Button size="sm" variant="outline">Prev</Button>
+                  </Link>
+                  <Link href={buildHref({ grn_page: String(Math.min(stats.registryMeta.receiving.totalPages, stats.registryMeta.receiving.page + 1)) })} className={stats.registryMeta.receiving.page >= stats.registryMeta.receiving.totalPages ? "pointer-events-none opacity-40" : ""}>
+                    <Button size="sm" variant="outline">Next</Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

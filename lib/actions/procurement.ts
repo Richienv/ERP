@@ -16,6 +16,37 @@ const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR"]
 const PR_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR"]
 const REQUESTER_OVERRIDE_ROLES = ["ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 
+type ProcurementRegistryQueryInput = {
+    status?: string | null
+    page?: number | null
+    pageSize?: number | null
+}
+
+type ProcurementStatsInput = {
+    registryQuery?: {
+        purchaseOrders?: ProcurementRegistryQueryInput
+        purchaseRequests?: ProcurementRegistryQueryInput
+        receiving?: ProcurementRegistryQueryInput
+    }
+}
+
+const normalizeProcurementText = (value?: string | null) => {
+    const trimmed = (value || "").trim()
+    return trimmed.length > 0 ? trimmed : null
+}
+
+const clampInt = (value: number | null | undefined, defaults: { min: number; max: number; fallback: number }) => {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed)) return defaults.fallback
+    return Math.min(defaults.max, Math.max(defaults.min, Math.trunc(parsed)))
+}
+
+const normalizeRegistryQuery = (input?: ProcurementRegistryQueryInput) => ({
+    status: normalizeProcurementText(input?.status),
+    page: clampInt(input?.page, { min: 1, max: 100000, fallback: 1 }),
+    pageSize: clampInt(input?.pageSize, { min: 4, max: 50, fallback: 6 }),
+})
+
 async function requireActiveProcurementActor(prismaClient: any, user: { role: string; email?: string | null; employeeId?: string | null }) {
     const actor = await resolveEmployeeContext(prismaClient, user as any)
     if (!actor) {
@@ -89,7 +120,7 @@ export const getVendors = unstable_cache(
 // ==========================================
 
 export const getProcurementStats = unstable_cache(
-    async () => {
+    async (input?: ProcurementStatsInput) => {
         try {
             const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> => {
                 try {
@@ -104,8 +135,14 @@ export const getProcurementStats = unstable_cache(
             const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
             const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
             const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+            const poQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseOrders)
+            const prQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseRequests)
+            const receivingQuery = normalizeRegistryQuery(input?.registryQuery?.receiving)
 
             const activeSpendStatuses: ProcurementStatus[] = ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED', 'COMPLETED']
+            const poWhere = poQuery.status ? { status: poQuery.status as ProcurementStatus } : {}
+            const prWhere = prQuery.status ? { status: prQuery.status as any } : {}
+            const receivingWhere = receivingQuery.status ? { status: receivingQuery.status as any } : {}
 
             const [
                 currentMonthPOs,
@@ -121,6 +158,9 @@ export const getProcurementStats = unstable_cache(
                 poStatusRows,
                 prStatusRows,
                 grnStatusRows,
+                poFilteredTotal,
+                prFilteredTotal,
+                receivingFilteredTotal,
             ] = await Promise.all([
                 safe("current-month-pos", prisma.purchaseOrder.findMany({
                     where: {
@@ -147,15 +187,19 @@ export const getProcurementStats = unstable_cache(
                 safe("incoming-po-count", prisma.purchaseOrder.count({ where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] } } }), 0),
                 safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
                 safe("recent-po", prisma.purchaseOrder.findMany({
+                    where: poWhere,
                     orderBy: { createdAt: 'desc' },
-                    take: 5,
+                    skip: (poQuery.page - 1) * poQuery.pageSize,
+                    take: poQuery.pageSize,
                     include: {
                         supplier: { select: { name: true } }
                     }
                 }), [] as Array<any>),
                 safe("recent-pr", prisma.purchaseRequest.findMany({
+                    where: prWhere,
                     orderBy: { createdAt: 'desc' },
-                    take: 5,
+                    skip: (prQuery.page - 1) * prQuery.pageSize,
+                    take: prQuery.pageSize,
                     select: {
                         id: true,
                         number: true,
@@ -166,8 +210,10 @@ export const getProcurementStats = unstable_cache(
                     }
                 }), [] as Array<any>),
                 safe("recent-grn", prisma.goodsReceivedNote.findMany({
+                    where: receivingWhere,
                     orderBy: { receivedDate: 'desc' },
-                    take: 5,
+                    skip: (receivingQuery.page - 1) * receivingQuery.pageSize,
+                    take: receivingQuery.pageSize,
                     select: {
                         id: true,
                         number: true,
@@ -197,6 +243,9 @@ export const getProcurementStats = unstable_cache(
                     by: ['status'],
                     _count: { _all: true }
                 }), [] as Array<{ status: string; _count: { _all: number } }>),
+                safe("po-filtered-total", prisma.purchaseOrder.count({ where: poWhere }), 0),
+                safe("pr-filtered-total", prisma.purchaseRequest.count({ where: prWhere }), 0),
+                safe("receiving-filtered-total", prisma.goodsReceivedNote.count({ where: receivingWhere }), 0),
             ])
 
             const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
@@ -327,6 +376,31 @@ export const getProcurementStats = unstable_cache(
                         warehouse: grn.warehouse?.name || '-',
                         date: grn.receivedDate
                     }))
+                },
+                registryMeta: {
+                    purchaseOrders: {
+                        page: poQuery.page,
+                        pageSize: poQuery.pageSize,
+                        total: poFilteredTotal,
+                        totalPages: Math.max(1, Math.ceil(poFilteredTotal / poQuery.pageSize)),
+                    },
+                    purchaseRequests: {
+                        page: prQuery.page,
+                        pageSize: prQuery.pageSize,
+                        total: prFilteredTotal,
+                        totalPages: Math.max(1, Math.ceil(prFilteredTotal / prQuery.pageSize)),
+                    },
+                    receiving: {
+                        page: receivingQuery.page,
+                        pageSize: receivingQuery.pageSize,
+                        total: receivingFilteredTotal,
+                        totalPages: Math.max(1, Math.ceil(receivingFilteredTotal / receivingQuery.pageSize)),
+                    }
+                },
+                registryQuery: {
+                    purchaseOrders: poQuery,
+                    purchaseRequests: prQuery,
+                    receiving: receivingQuery,
                 }
             }
 
@@ -350,6 +424,16 @@ export const getProcurementStats = unstable_cache(
                 receiving: {
                     summary: { draft: 0, inspecting: 0, partialAccepted: 0, accepted: 0, rejected: 0 },
                     recent: []
+                },
+                registryMeta: {
+                    purchaseOrders: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
+                    purchaseRequests: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
+                    receiving: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
+                },
+                registryQuery: {
+                    purchaseOrders: { status: null, page: 1, pageSize: 6 },
+                    purchaseRequests: { status: null, page: 1, pageSize: 6 },
+                    receiving: { status: null, page: 1, pageSize: 6 },
                 }
             }
         }
