@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
     Plus,
-    Stamp,
     XCircle,
     Receipt,
     Building2,
@@ -11,7 +11,8 @@ import {
     Loader2,
     CheckCircle2,
     AlertCircle,
-    Wallet
+    Wallet,
+    Search
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -38,7 +39,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getVendorBills, disputeBill, type VendorBill } from "@/lib/actions/finance"
+import { getVendorBillsRegistry, disputeBill, type VendorBill } from "@/lib/actions/finance"
 import { processXenditPayout, getAvailableBanks } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
@@ -52,6 +53,8 @@ interface BankOption {
 
 export default function APBillsStackPage() {
     const [bills, setBills] = useState<VendorBill[]>([])
+    const [billMeta, setBillMeta] = useState({ page: 1, pageSize: 12, total: 0, totalPages: 1 })
+    const [queryState, setQueryState] = useState({ q: "", status: "__all__" })
     const [activeBill, setActiveBill] = useState<VendorBill | null>(null)
     const [stamped, setStamped] = useState(false)
     const [loading, setLoading] = useState(true)
@@ -73,9 +76,15 @@ export default function APBillsStackPage() {
         accountHolderName: "",
         description: ""
     })
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
 
     useEffect(() => {
         loadBills()
+    }, [searchParams.toString()])
+
+    useEffect(() => {
         loadBanks()
     }, [])
 
@@ -94,10 +103,23 @@ export default function APBillsStackPage() {
     async function loadBills() {
         setLoading(true)
         try {
-            const data = await getVendorBills()
-            setBills(data)
-            if (data.length > 0 && !activeBill) {
-                setActiveBill(data[0])
+            const query = {
+                q: searchParams.get("q"),
+                status: searchParams.get("status"),
+                page: Number(searchParams.get("page") || "1"),
+                pageSize: Number(searchParams.get("size") || "12"),
+            }
+            const data = await getVendorBillsRegistry(query)
+            setBills(data.rows)
+            setBillMeta(data.meta)
+            setQueryState({
+                q: data.query.q || "",
+                status: data.query.status || "__all__",
+            })
+            if (data.rows.length > 0 && (!activeBill || !data.rows.some((row) => row.id === activeBill.id))) {
+                setActiveBill(data.rows[0])
+            } else if (data.rows.length === 0) {
+                setActiveBill(null)
             }
         } catch (error) {
             console.error("Failed to load bills:", error)
@@ -105,6 +127,32 @@ export default function APBillsStackPage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
+        const next = new URLSearchParams(searchParams.toString())
+        mutator(next)
+        const qs = next.toString()
+        router.replace(qs ? `${pathname}?${qs}` : pathname)
+    }
+
+    const applyFilters = () => {
+        pushSearchParams((params) => {
+            const normalizedQ = queryState.q.trim()
+            if (normalizedQ) params.set("q", normalizedQ)
+            else params.delete("q")
+
+            if (queryState.status === "__all__") params.delete("status")
+            else params.set("status", queryState.status)
+
+            params.set("page", "1")
+        })
+    }
+
+    const setPage = (page: number) => {
+        pushSearchParams((params) => {
+            params.set("page", String(Math.max(1, page)))
+        })
     }
 
     async function loadBanks() {
@@ -134,7 +182,7 @@ export default function APBillsStackPage() {
             } else {
                 toast.error("Failed to dispute bill")
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred")
         } finally {
             setProcessing(false)
@@ -216,7 +264,38 @@ export default function APBillsStackPage() {
 
                 {/* Left: Bill List */}
                 <div className="lg:col-span-4 space-y-4 overflow-y-auto h-full pr-2">
-                    <h3 className="font-black uppercase text-sm text-zinc-500 mb-2">Pending ({bills.length})</h3>
+                    <div className="rounded-lg border bg-white p-3 space-y-3">
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                            <Input
+                                className="pl-9"
+                                placeholder="Cari nomor bill / vendor..."
+                                value={queryState.q}
+                                onChange={(e) => setQueryState((prev) => ({ ...prev, q: e.target.value }))}
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Select value={queryState.status} onValueChange={(value) => setQueryState((prev) => ({ ...prev, status: value }))}>
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="Semua status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__all__">Semua Status</SelectItem>
+                                    <SelectItem value="DRAFT">Draft</SelectItem>
+                                    <SelectItem value="ISSUED">Issued</SelectItem>
+                                    <SelectItem value="PARTIAL">Partial</SelectItem>
+                                    <SelectItem value="OVERDUE">Overdue</SelectItem>
+                                    <SelectItem value="DISPUTED">Disputed</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <Button size="sm" variant="secondary" onClick={applyFilters}>Terapkan</Button>
+                        </div>
+                        <div className="text-xs text-zinc-500 flex justify-between">
+                            <span>Total {billMeta.total}</span>
+                            <span>Page {billMeta.page}/{billMeta.totalPages}</span>
+                        </div>
+                    </div>
+                    <h3 className="font-black uppercase text-sm text-zinc-500 mb-2">Pending ({billMeta.total})</h3>
                     {bills.length === 0 ? (
                         <div className="p-4 border-2 border-dashed border-zinc-200 rounded-lg text-center text-zinc-400 font-medium">
                             <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-emerald-500" />
@@ -252,6 +331,24 @@ export default function APBillsStackPage() {
                             </div>
                         ))
                     )}
+                    <div className="flex items-center justify-between gap-2 pt-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(billMeta.page - 1)}
+                            disabled={billMeta.page <= 1}
+                        >
+                            Prev
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setPage(billMeta.page + 1)}
+                            disabled={billMeta.page >= billMeta.totalPages}
+                        >
+                            Next
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Right: Active Bill Detail */}
