@@ -5,13 +5,13 @@ import { useRouter } from "next/navigation"
 import { CheckCircle2, XCircle, Package, Loader2, Calendar, User, Warehouse } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetFooter,
-    SheetHeader,
-    SheetTitle,
-} from "@/components/ui/sheet"
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
@@ -99,7 +99,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
             } else {
                 toast.error('error' in result ? result.error : "Gagal menerima GRN")
             }
-        } catch (error) {
+        } catch {
             toast.error("Terjadi kesalahan")
         } finally {
             setLoading(false)
@@ -123,7 +123,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
             } else {
                 toast.error(result.error || "Gagal menolak GRN")
             }
-        } catch (error) {
+        } catch {
             toast.error("Terjadi kesalahan")
         } finally {
             setLoading(false)
@@ -133,17 +133,17 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
     const canProcess = grn.status === 'DRAFT'
 
     return (
-        <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent className="sm:max-w-lg overflow-y-auto">
-                <SheetHeader>
-                    <SheetTitle className="font-black uppercase flex items-center gap-2">
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="sm:max-w-3xl border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-h-[85vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="font-black uppercase flex items-center gap-2">
                         <Package className="h-5 w-5 text-emerald-600" />
                         {grn.number}
-                    </SheetTitle>
-                    <SheetDescription>
+                    </DialogTitle>
+                    <DialogDescription>
                         PO: <span className="font-bold text-blue-600">{grn.poNumber}</span>
-                    </SheetDescription>
-                </SheetHeader>
+                    </DialogDescription>
+                </DialogHeader>
 
                 <div className="py-6 space-y-6">
                     {/* Status Badge */}
@@ -316,7 +316,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 </div>
 
                 {canProcess && !rejectMode && !sodMode && (
-                    <SheetFooter className="flex-col gap-2">
+                    <DialogFooter className="flex-col gap-2">
                         <Button
                             onClick={handleAccept}
                             disabled={loading}
@@ -338,17 +338,17 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                             <XCircle className="h-4 w-4 mr-2" />
                             Tolak GRN
                         </Button>
-                    </SheetFooter>
+                    </DialogFooter>
                 )}
 
                 {!canProcess && (
-                    <SheetFooter>
+                    <DialogFooter>
                         <Button variant="secondary" onClick={onClose} className="w-full">
                             Tutup
                         </Button>
-                    </SheetFooter>
+                    </DialogFooter>
                 )}
-            </SheetContent>
-        </Sheet>
+            </DialogContent>
+        </Dialog>
     )
 }
