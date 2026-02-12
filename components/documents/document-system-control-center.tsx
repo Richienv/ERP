@@ -223,6 +223,10 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
     const [auditRoleFilter, setAuditRoleFilter] = useState("__all__")
     const [auditEventFilter, setAuditEventFilter] = useState("__all__")
     const [auditActorFilter, setAuditActorFilter] = useState("__all__")
+    const [auditStartDate, setAuditStartDate] = useState("")
+    const [auditEndDate, setAuditEndDate] = useState("")
+    const [auditPage, setAuditPage] = useState(1)
+    const [auditPageSize, setAuditPageSize] = useState("20")
 
     const [categoryModalOpen, setCategoryModalOpen] = useState(false)
     const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null)
@@ -295,10 +299,17 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
 
     const filteredRoleAuditEvents = useMemo(() => {
         const query = auditSearch.trim().toLowerCase()
+        const hasStartDate = Boolean(auditStartDate)
+        const hasEndDate = Boolean(auditEndDate)
+        const startDate = hasStartDate ? new Date(`${auditStartDate}T00:00:00`) : null
+        const endDate = hasEndDate ? new Date(`${auditEndDate}T23:59:59.999`) : null
         return data.roleAuditEvents.filter((event) => {
             if (auditRoleFilter !== "__all__" && event.roleCode !== auditRoleFilter) return false
             if (auditEventFilter !== "__all__" && event.eventType !== auditEventFilter) return false
             if (auditActorFilter !== "__all__" && (event.actorLabel || "System") !== auditActorFilter) return false
+            const eventDate = new Date(event.createdAt)
+            if (hasStartDate && startDate && eventDate < startDate) return false
+            if (hasEndDate && endDate && eventDate > endDate) return false
             if (!query) return true
             const haystack = [
                 event.roleCode,
@@ -309,7 +320,36 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
             ].join(" ").toLowerCase()
             return haystack.includes(query)
         })
-    }, [data.roleAuditEvents, auditSearch, auditRoleFilter, auditEventFilter, auditActorFilter])
+    }, [data.roleAuditEvents, auditSearch, auditRoleFilter, auditEventFilter, auditActorFilter, auditStartDate, auditEndDate])
+
+    useEffect(() => {
+        setAuditPage(1)
+    }, [auditSearch, auditRoleFilter, auditEventFilter, auditActorFilter, auditStartDate, auditEndDate, auditPageSize])
+
+    const totalAuditPages = useMemo(() => {
+        const pageSize = Number(auditPageSize) || 20
+        return Math.max(1, Math.ceil(filteredRoleAuditEvents.length / pageSize))
+    }, [filteredRoleAuditEvents.length, auditPageSize])
+
+    useEffect(() => {
+        setAuditPage((prev) => Math.min(Math.max(1, prev), totalAuditPages))
+    }, [totalAuditPages])
+
+    const paginatedRoleAuditEvents = useMemo(() => {
+        const pageSize = Number(auditPageSize) || 20
+        const safePage = Math.min(Math.max(1, auditPage), totalAuditPages)
+        const start = (safePage - 1) * pageSize
+        return filteredRoleAuditEvents.slice(start, start + pageSize)
+    }, [filteredRoleAuditEvents, auditPage, auditPageSize, totalAuditPages])
+
+    const auditRangeLabel = useMemo(() => {
+        if (filteredRoleAuditEvents.length === 0) return "0-0"
+        const pageSize = Number(auditPageSize) || 20
+        const safePage = Math.min(Math.max(1, auditPage), totalAuditPages)
+        const start = (safePage - 1) * pageSize + 1
+        const end = Math.min(filteredRoleAuditEvents.length, start + pageSize - 1)
+        return `${start}-${end}`
+    }, [filteredRoleAuditEvents.length, auditPage, auditPageSize, totalAuditPages])
 
     const exportRoleAuditCsv = () => {
         if (filteredRoleAuditEvents.length === 0) {
@@ -827,7 +867,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                         Export CSV
                                     </Button>
                                 </div>
-                                <div className="grid gap-2 md:grid-cols-4">
+                                <div className="grid gap-2 md:grid-cols-6">
                                     <Input
                                         placeholder="Cari role/event/permission..."
                                         value={auditSearch}
@@ -866,6 +906,16 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    <Input
+                                        type="date"
+                                        value={auditStartDate}
+                                        onChange={(event) => setAuditStartDate(event.target.value)}
+                                    />
+                                    <Input
+                                        type="date"
+                                        value={auditEndDate}
+                                        onChange={(event) => setAuditEndDate(event.target.value)}
+                                    />
                                 </div>
                             </div>
                         </CardHeader>
@@ -881,7 +931,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredRoleAuditEvents.length > 0 ? filteredRoleAuditEvents.slice(0, 100).map((event) => (
+                                    {paginatedRoleAuditEvents.length > 0 ? paginatedRoleAuditEvents.map((event) => (
                                         <TableRow key={event.id}>
                                             <TableCell>{formatDateTime(event.createdAt)}</TableCell>
                                             <TableCell>
@@ -918,6 +968,43 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     )}
                                 </TableBody>
                             </Table>
+                            <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                    Menampilkan {auditRangeLabel} dari {filteredRoleAuditEvents.length} event
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Select value={auditPageSize} onValueChange={setAuditPageSize}>
+                                        <SelectTrigger className="w-[130px]">
+                                            <SelectValue placeholder="Rows/page" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10 / halaman</SelectItem>
+                                            <SelectItem value="20">20 / halaman</SelectItem>
+                                            <SelectItem value="50">50 / halaman</SelectItem>
+                                            <SelectItem value="100">100 / halaman</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setAuditPage((prev) => Math.max(1, prev - 1))}
+                                        disabled={auditPage <= 1}
+                                    >
+                                        Sebelumnya
+                                    </Button>
+                                    <div className="min-w-[84px] text-center text-sm font-medium">
+                                        Hal {Math.min(auditPage, totalAuditPages)} / {totalAuditPages}
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => setAuditPage((prev) => Math.min(totalAuditPages, prev + 1))}
+                                        disabled={auditPage >= totalAuditPages}
+                                    >
+                                        Selanjutnya
+                                    </Button>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
