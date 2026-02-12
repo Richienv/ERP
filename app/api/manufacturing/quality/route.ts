@@ -1,9 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
+import { getAuthzUser } from '@/lib/authz'
+import { isSuperRole, resolveEmployeeContext } from '@/lib/employee-context'
+
+const QUALITY_KEYWORDS = ['quality', 'qc', 'qa', 'inspector', 'mutu']
+const hasQualityKeyword = (value?: string | null) => {
+    const normalized = (value || '').toLowerCase()
+    return QUALITY_KEYWORDS.some((keyword) => normalized.includes(keyword))
+}
+
+const isQualityEmployee = (employee: { department?: string | null; position?: string | null }) =>
+    hasQualityKeyword(employee.department) || hasQualityKeyword(employee.position)
+
+async function assertAuthenticatedRequest() {
+    const supabase = await createClient()
+    const {
+        data: { user },
+        error,
+    } = await supabase.auth.getUser()
+
+    if (error || !user) throw new Error('Unauthorized')
+}
 
 // GET /api/manufacturing/quality - Fetch all quality inspections
 export async function GET(request: NextRequest) {
     try {
+        await assertAuthenticatedRequest()
         const { searchParams } = new URL(request.url)
         const search = searchParams.get('search') || undefined
         const status = searchParams.get('status') || undefined
@@ -68,11 +91,23 @@ export async function GET(request: NextRequest) {
             }),
             prisma.qualityInspection.count({ where: whereClause }),
             prisma.employee.findMany({
-                where: { status: 'ACTIVE' },
+                where: {
+                    status: 'ACTIVE',
+                    OR: [
+                        { department: { contains: 'quality', mode: 'insensitive' } },
+                        { department: { contains: 'qc', mode: 'insensitive' } },
+                        { department: { contains: 'qa', mode: 'insensitive' } },
+                        { position: { contains: 'quality', mode: 'insensitive' } },
+                        { position: { contains: 'inspector', mode: 'insensitive' } },
+                        { position: { contains: 'qc', mode: 'insensitive' } },
+                    ],
+                },
                 select: {
                     id: true,
                     firstName: true,
                     lastName: true,
+                    department: true,
+                    position: true,
                 },
                 orderBy: [
                     { firstName: 'asc' },
@@ -164,6 +199,8 @@ export async function GET(request: NextRequest) {
 // POST /api/manufacturing/quality - Create new quality inspection
 export async function POST(request: NextRequest) {
     try {
+        await assertAuthenticatedRequest()
+        const actorUser = await getAuthzUser()
         const body = await request.json()
 
         const { batchNumber, materialId, inspectorId, workOrderId, status, score, notes, defects } = body
@@ -172,6 +209,28 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { success: false, error: 'Missing required fields: batchNumber, materialId, inspectorId' },
                 { status: 400 }
+            )
+        }
+
+        const [inspector, actorContext] = await Promise.all([
+            prisma.employee.findUnique({
+                where: { id: inspectorId },
+                select: { id: true, status: true, department: true, position: true },
+            }),
+            resolveEmployeeContext(prisma as any, actorUser),
+        ])
+
+        if (!inspector || inspector.status !== 'ACTIVE' || !isQualityEmployee(inspector)) {
+            return NextResponse.json(
+                { success: false, error: 'Inspector tidak valid. Pilih employee QC/Quality yang aktif.' },
+                { status: 400 }
+            )
+        }
+
+        if (!actorContext && !isSuperRole(actorUser.role)) {
+            return NextResponse.json(
+                { success: false, error: 'Akun belum terhubung ke employee aktif.' },
+                { status: 403 }
             )
         }
 

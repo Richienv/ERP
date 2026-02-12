@@ -1,19 +1,28 @@
 "use server"
 
 import { withPrismaAuth, prisma } from "@/lib/db"
-import { supabase } from "@/lib/supabase"
 import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
 import { ProcurementStatus } from "@prisma/client"
 import { recordPendingBillFromPO } from "@/lib/actions/finance"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
 import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition } from "@/lib/po-state-machine"
+import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
 
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR"]
 const PR_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR"]
+const REQUESTER_OVERRIDE_ROLES = ["ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
+
+async function requireActiveProcurementActor(prismaClient: any, user: { role: string; email?: string | null; employeeId?: string | null }) {
+    const actor = await resolveEmployeeContext(prismaClient, user as any)
+    if (!actor) {
+        throw new Error("Akun belum terhubung ke employee aktif. Hubungi admin SDM.")
+    }
+    return actor
+}
 
 async function createPurchaseOrderEvent(tx: typeof prisma, params: {
     purchaseOrderId: string
@@ -32,16 +41,6 @@ async function createPurchaseOrderEvent(tx: typeof prisma, params: {
             notes: params.notes,
             metadata: params.metadata,
         }
-    })
-}
-
-async function getEmployeeIdForUserEmail(email?: string | null) {
-    if (!email) return null
-    return await withPrismaAuth(async (prismaClient) => {
-        const employee = await (prismaClient as any).employee.findFirst({
-            where: { email }
-        })
-        return employee?.id || null
     })
 }
 
@@ -406,47 +405,64 @@ export async function createPurchaseRequest(data: {
     items: { productId: string, quantity: number, targetDate?: Date, notes?: string }[]
 }) {
     try {
-        const date = new Date()
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-        const number = `PR-${year}${month}-${random}`
-
-        const { data: pr, error } = await supabase
-            .from('purchase_requests')
-            .insert({
-                number,
-                requesterId: data.requesterId,
-                department: data.department || "General",
-                priority: data.priority || "NORMAL",
-                notes: data.notes,
-                status: "PENDING",
-                requestDate: new Date().toISOString()
-            })
-            .select()
-            .single()
-
-        if (error) throw error
-
-        if (data.items.length > 0) {
-            const { error: itemsError } = await supabase
-                .from('purchase_request_items')
-                .insert(data.items.map(item => ({
-                    purchaseRequestId: pr.id,
-                    productId: item.productId,
-                    quantity: item.quantity,
-                    targetDate: item.targetDate ? item.targetDate.toISOString() : null,
-                    notes: item.notes,
-                    status: "PENDING"
-                })))
-
-            if (itemsError) throw itemsError
+        const user = await getAuthzUser()
+        const hasItems = Array.isArray(data.items) && data.items.length > 0
+        if (!hasItems) {
+            return { success: false, error: "PR minimal harus memiliki 1 item." }
         }
+
+        const created = await withPrismaAuth(async (prisma) => {
+            const actor = await resolveEmployeeContext(prisma, user)
+            if (!actor) {
+                throw new Error("Akun belum terhubung ke employee aktif. Hubungi admin SDM.")
+            }
+
+            let requesterId = actor.id
+            if (data.requesterId && data.requesterId !== actor.id && REQUESTER_OVERRIDE_ROLES.includes(user.role)) {
+                const requestedEmployee = await prisma.employee.findUnique({
+                    where: { id: data.requesterId },
+                    select: { id: true, status: true },
+                })
+                if (requestedEmployee?.status === "ACTIVE") {
+                    requesterId = requestedEmployee.id
+                }
+            }
+
+            const date = new Date()
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, "0")
+            const random = Math.floor(Math.random() * 10000).toString().padStart(4, "0")
+            const number = `PR-${year}${month}-${random}`
+
+            const pr = await prisma.purchaseRequest.create({
+                data: {
+                    number,
+                    requesterId,
+                    department: data.department?.trim() || actor.department || "General",
+                    priority: data.priority || "NORMAL",
+                    notes: data.notes || null,
+                    status: "PENDING",
+                    requestDate: new Date(),
+                    items: {
+                        create: data.items.map((item) => ({
+                            productId: item.productId,
+                            quantity: Number(item.quantity || 0),
+                            targetDate: item.targetDate || null,
+                            notes: item.notes || null,
+                            status: "PENDING",
+                        })),
+                    },
+                },
+                select: { id: true },
+            })
+
+            return pr
+        })
 
         revalidateTagSafe('procurement')
         revalidateTagSafe('requests')
         revalidatePath('/procurement')
-        return { success: true, prId: pr.id }
+        return { success: true, prId: created.id }
     } catch (e: any) {
         console.error("Failed to create PR", e)
         return { success: false, error: e.message }
@@ -458,14 +474,36 @@ export async function approvePurchaseRequest(id: string, _approverId?: string) {
         const user = await getAuthzUser()
         assertRole(user, PR_APPROVER_ROLES)
 
-        const employeeId = await getEmployeeIdForUserEmail(user.email)
-
         await withPrismaAuth(async (prisma) => {
+            const actor = await resolveEmployeeContext(prisma, user)
+            if (!actor) throw new Error("Akun approver belum terhubung ke employee aktif.")
+
+            const pr = await prisma.purchaseRequest.findUnique({
+                where: { id },
+                include: {
+                    requester: {
+                        select: { id: true, department: true },
+                    },
+                },
+            })
+
+            if (!pr) throw new Error("Purchase request not found")
+
+            const allowed = canApproveForDepartment({
+                role: user.role,
+                actorDepartment: actor.department,
+                actorPosition: actor.position,
+                targetDepartment: pr.department || pr.requester?.department || "",
+            })
+            if (!allowed) {
+                throw new Error("Anda hanya dapat meng-approve PR untuk departemen Anda.")
+            }
+
             await prisma.purchaseRequest.update({
                 where: { id },
                 data: {
                     status: 'APPROVED',
-                    approverId: employeeId,
+                    approverId: actor.id,
                     items: {
                         updateMany: {
                             where: { status: 'PENDING' },
@@ -489,6 +527,29 @@ export async function rejectPurchaseRequest(id: string, reason: string) {
         assertRole(user, PR_APPROVER_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            const actor = await resolveEmployeeContext(prisma, user)
+            if (!actor) throw new Error("Akun approver belum terhubung ke employee aktif.")
+
+            const pr = await prisma.purchaseRequest.findUnique({
+                where: { id },
+                include: {
+                    requester: {
+                        select: { id: true, department: true },
+                    },
+                },
+            })
+            if (!pr) throw new Error("Purchase request not found")
+
+            const allowed = canApproveForDepartment({
+                role: user.role,
+                actorDepartment: actor.department,
+                actorPosition: actor.position,
+                targetDepartment: pr.department || pr.requester?.department || "",
+            })
+            if (!allowed) {
+                throw new Error("Anda hanya dapat menolak PR untuk departemen Anda.")
+            }
+
             await prisma.purchaseRequest.update({
                 where: { id },
                 data: {
@@ -521,6 +582,7 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
         assertRole(user, PURCHASING_ROLES)
 
         return await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             // 1. Fetch PR Items
             const pr = await prisma.purchaseRequest.findUnique({
                 where: { id: prId },
@@ -664,6 +726,7 @@ export async function submitPOForApproval(poId: string) {
         assertRole(user, PURCHASING_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
             if (!current) throw new Error("Purchase Order not found")
 
@@ -700,6 +763,7 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
         assertRole(user, APPROVER_ROLES)
 
         const po = await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
             if (!current) throw new Error("Purchase Order not found")
 
@@ -744,6 +808,7 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
         assertRole(user, APPROVER_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
             if (!current) throw new Error("Purchase Order not found")
 
@@ -782,6 +847,7 @@ export async function markAsOrdered(poId: string) {
         assertRole(user, PURCHASING_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             await prisma.$transaction(async (tx) => {
                 const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
                 if (!current) throw new Error("Purchase Order not found")
@@ -820,6 +886,7 @@ export async function markAsVendorConfirmed(poId: string, notes?: string) {
         assertRole(user, PURCHASING_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             await prisma.$transaction(async (tx) => {
                 const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
                 if (!current) throw new Error("Purchase Order not found")
@@ -859,6 +926,7 @@ export async function markAsShipped(poId: string, trackingNumber?: string) {
         assertRole(user, PURCHASING_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             await prisma.$transaction(async (tx) => {
                 const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
                 if (!current) throw new Error("Purchase Order not found")
@@ -897,6 +965,7 @@ export async function confirmPurchaseOrder(id: string) {
         assertRole(user, PURCHASING_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             await prisma.$transaction(async (tx) => {
                 const po = await tx.purchaseOrder.findUnique({
                     where: { id },
@@ -997,6 +1066,7 @@ export async function updatePurchaseOrderVendor(poId: string, supplierId: string
         assertRole(user, PURCHASING_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             const supplier = await prisma.supplier.findUnique({ where: { id: supplierId } })
             if (!supplier) throw new Error("Supplier not found")
 
@@ -1023,6 +1093,7 @@ export async function updatePurchaseOrderTaxMode(poId: string, taxMode: "PPN" | 
         assertRole(user, PURCHASING_ROLES)
 
         await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
             const po = await prisma.purchaseOrder.findUnique({
                 where: { id: poId },
                 include: {

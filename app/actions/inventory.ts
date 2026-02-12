@@ -7,11 +7,18 @@ import { calculateProductStatus } from "@/lib/inventory-logic"
 import { createProductSchema, createCategorySchema, type CreateProductInput, type CreateCategoryInput } from "@/lib/validations"
 import { z } from "zod"
 import { assertRole, getAuthzUser } from "@/lib/authz"
+import { isSuperRole, resolveEmployeeContext } from "@/lib/employee-context"
 
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 const STOCK_OPNAME_PREFIX = "STOCK_OPNAME_REQUEST::"
 const STOCK_OPNAME_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN"]
 const MANAGE_WAREHOUSE_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN"]
+
+async function requireActiveInventoryActor(prismaClient: any, user: { role: string; email?: string | null; employeeId?: string | null }) {
+    const actor = await resolveEmployeeContext(prismaClient, user as any)
+    if (!actor) throw new Error("Akun belum terhubung ke employee aktif. Hubungi admin SDM.")
+    return actor
+}
 
 export async function createCategory(input: CreateCategoryInput) {
     try {
@@ -1146,8 +1153,12 @@ export async function submitSpotAudit(data: {
     try {
         const user = await getAuthzUser()
         const { warehouseId, productId, actualQty, auditorName, notes } = data;
+        if (!Number.isFinite(actualQty) || actualQty < 0) {
+            return { success: false, error: "Actual qty tidak valid" }
+        }
 
         return await withPrismaAuth(async (prisma) => {
+            const actor = await requireActiveInventoryActor(prisma, user)
             // 1. Get current system stock (Location-agnostic / Default Location)
             const existingStock = await prisma.stockLevel.findFirst({
                 where: { productId, warehouseId, locationId: null }
@@ -1205,6 +1216,9 @@ export async function submitSpotAudit(data: {
                 auditorName: auditorName || 'System',
                 notes: notes || '',
                 requestedBy: user.id,
+                requestedByEmployeeId: actor.id,
+                requestedByEmployeeCode: actor.employeeCode,
+                requestedByName: actor.fullName,
                 requestedAt: new Date().toISOString()
             }
 
@@ -1225,9 +1239,9 @@ export async function submitSpotAudit(data: {
             return { success: true, requiresApproval: true, taskId: task.id };
         })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error submitting spot audit:", error);
-        return { success: false, error: "Failed to submit audit" };
+        return { success: false, error: error?.message || "Failed to submit audit" };
     }
 }
 
@@ -1360,68 +1374,76 @@ export async function approveStockOpnameAdjustment(taskId: string) {
         assertRole(user, STOCK_OPNAME_APPROVER_ROLES)
 
         return await withPrismaAuth(async (prisma) => {
-            return await prisma.$transaction(async (tx) => {
-                const task = await tx.employeeTask.findUnique({ where: { id: taskId } })
-                if (!task) throw new Error("Approval task not found")
-                if (task.status !== 'PENDING') throw new Error("Task already processed")
-                if (!task.notes?.startsWith(STOCK_OPNAME_PREFIX)) throw new Error("Invalid stock opname task payload")
+            const actor = await requireActiveInventoryActor(prisma, user)
 
-                const payload = JSON.parse(task.notes.replace(STOCK_OPNAME_PREFIX, ''))
-                const warehouseId = payload.warehouseId as string
-                const productId = payload.productId as string
-                const actualQty = Number(payload.actualQty || 0)
-                const systemQty = Number(payload.systemQty || 0)
-                const discrepancy = actualQty - systemQty
+            const task = await prisma.employeeTask.findUnique({ where: { id: taskId } })
+            if (!task) throw new Error("Approval task not found")
+            if (task.status !== 'PENDING') throw new Error("Task already processed")
+            if (!task.notes?.startsWith(STOCK_OPNAME_PREFIX)) throw new Error("Invalid stock opname task payload")
 
-                const existingStock = await tx.stockLevel.findFirst({
-                    where: { productId, warehouseId, locationId: null }
-                })
+            if (task.employeeId !== actor.id && !isSuperRole(user.role)) {
+                throw new Error("Task approval ini ditugaskan ke approver lain.")
+            }
 
-                if (existingStock) {
-                    await tx.stockLevel.update({
-                        where: { id: existingStock.id },
-                        data: {
-                            quantity: actualQty,
-                            availableQty: Math.max(0, actualQty - existingStock.reservedQty)
-                        }
-                    })
-                } else {
-                    await tx.stockLevel.create({
-                        data: {
-                            productId,
-                            warehouseId,
-                            quantity: actualQty,
-                            reservedQty: 0,
-                            availableQty: actualQty,
-                            locationId: null
-                        }
-                    })
-                }
+            const payload = JSON.parse(task.notes.replace(STOCK_OPNAME_PREFIX, ''))
+            const warehouseId = payload.warehouseId as string
+            const productId = payload.productId as string
+            const actualQty = Number(payload.actualQty || 0)
+            const systemQty = Number(payload.systemQty || 0)
+            const discrepancy = actualQty - systemQty
 
-                await tx.inventoryTransaction.create({
+            if (actualQty < 0) {
+                throw new Error("Actual qty tidak boleh negatif")
+            }
+
+            const existingStock = await prisma.stockLevel.findFirst({
+                where: { productId, warehouseId, locationId: null }
+            })
+
+            if (existingStock) {
+                await prisma.stockLevel.update({
+                    where: { id: existingStock.id },
                     data: {
-                        type: 'ADJUSTMENT',
-                        quantity: discrepancy,
+                        quantity: actualQty,
+                        availableQty: Math.max(0, actualQty - existingStock.reservedQty)
+                    }
+                })
+            } else {
+                await prisma.stockLevel.create({
+                    data: {
                         productId,
                         warehouseId,
-                        referenceId: `AUDIT-${Date.now()}`,
-                        adjustmentId: task.id,
-                        performedBy: user.id,
-                        notes: `Stock opname approved by ${user.role}. Auditor: ${payload.auditorName || 'System'}. System: ${systemQty}, Actual: ${actualQty}. ${payload.notes || ''}`
+                        quantity: actualQty,
+                        reservedQty: 0,
+                        availableQty: actualQty,
+                        locationId: null
                     }
                 })
+            }
 
-                await tx.employeeTask.update({
-                    where: { id: task.id },
-                    data: {
-                        status: 'COMPLETED',
-                        completedAt: new Date(),
-                        notes: `${task.notes}\nAPPROVED_BY::${user.id}::${new Date().toISOString()}`
-                    }
-                })
-
-                return { success: true }
+            await prisma.inventoryTransaction.create({
+                data: {
+                    type: 'ADJUSTMENT',
+                    quantity: discrepancy,
+                    productId,
+                    warehouseId,
+                    referenceId: `AUDIT-${Date.now()}`,
+                    adjustmentId: task.id,
+                    performedBy: user.id,
+                    notes: `Stock opname approved by ${actor.fullName}. Auditor: ${payload.auditorName || 'System'}. System: ${systemQty}, Actual: ${actualQty}. ${payload.notes || ''}`
+                }
             })
+
+            await prisma.employeeTask.update({
+                where: { id: task.id },
+                data: {
+                    status: 'COMPLETED',
+                    completedAt: new Date(),
+                    notes: `${task.notes}\nAPPROVED_BY::${actor.id}::${new Date().toISOString()}`
+                }
+            })
+
+            return { success: true }
         })
     } catch (error: any) {
         console.error("Approve stock opname adjustment failed:", error)
@@ -1441,16 +1463,20 @@ export async function rejectStockOpnameAdjustment(taskId: string, reason?: strin
         assertRole(user, STOCK_OPNAME_APPROVER_ROLES)
 
         return await withPrismaAuth(async (prisma) => {
+            const actor = await requireActiveInventoryActor(prisma, user)
             const task = await prisma.employeeTask.findUnique({ where: { id: taskId } })
             if (!task) throw new Error("Approval task not found")
             if (task.status !== 'PENDING') throw new Error("Task already processed")
             if (!task.notes?.startsWith(STOCK_OPNAME_PREFIX)) throw new Error("Invalid stock opname task payload")
+            if (task.employeeId !== actor.id && !isSuperRole(user.role)) {
+                throw new Error("Task approval ini ditugaskan ke approver lain.")
+            }
 
             await prisma.employeeTask.update({
                 where: { id: task.id },
                 data: {
                     status: 'REJECTED',
-                    notes: `${task.notes}\nREJECTED_BY::${user.id}::${new Date().toISOString()}::${reason || 'No reason'}`
+                    notes: `${task.notes}\nREJECTED_BY::${actor.id}::${new Date().toISOString()}::${reason || 'No reason'}`
                 }
             })
 
@@ -1562,6 +1588,7 @@ export async function assignWarehouseManager(warehouseId: string, managerEmploye
         assertRole(user, MANAGE_WAREHOUSE_ROLES)
 
         return await withPrismaAuth(async (prisma) => {
+            await requireActiveInventoryActor(prisma, user)
             const [warehouse, manager] = await Promise.all([
                 prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { id: true, name: true } }),
                 prisma.employee.findUnique({ where: { id: managerEmployeeId }, select: { id: true, status: true, firstName: true, lastName: true } })

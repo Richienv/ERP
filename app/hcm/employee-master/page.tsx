@@ -1,120 +1,191 @@
 "use client"
 
 import * as React from "react"
-import { IconPlus, IconSearch, IconFilter, IconDownload, IconEdit, IconTrash } from "@tabler/icons-react"
+import { IconPlus, IconSearch, IconDownload, IconEdit, IconTrash } from "@tabler/icons-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { createEmployee, deactivateEmployee, getEmployees, updateEmployee } from "@/app/actions/hcm"
+import { toast } from "sonner"
 
-// Mock employee data
-const employees = [
-  {
-    id: "EMP-001",
-    nik: "3201012345678901",
-    name: "Andi Sutrisno",
-    position: "Manager IT",
-    department: "Teknologi Informasi",
-    status: "Aktif",
-    joinDate: "2022-01-15",
-    email: "andi.sutrisno@company.com",
-    phone: "081234567890",
-    npwp: "12.345.678.9-123.000",
-    bpjsKesehatan: "0001234567890",
-    bpjsKetenagakerjaan: "12345678901234",
-    salary: "Rp 15.000.000"
-  },
-  {
-    id: "EMP-002",
-    nik: "3201012345678902",
-    name: "Sari Wijaya",
-    position: "Finance Manager",
-    department: "Keuangan",
-    status: "Aktif",
-    joinDate: "2021-03-10",
-    email: "sari.wijaya@company.com",
-    phone: "081234567891",
-    npwp: "12.345.678.9-123.001",
-    bpjsKesehatan: "0001234567891",
-    bpjsKetenagakerjaan: "12345678901235",
-    salary: "Rp 18.000.000"
-  },
-  {
-    id: "EMP-003",
-    nik: "3201012345678903",
-    name: "Budi Santoso",
-    position: "Sales Executive",
-    department: "Penjualan",
-    status: "Aktif",
-    joinDate: "2023-06-01",
-    email: "budi.santoso@company.com",
-    phone: "081234567892",
-    npwp: "12.345.678.9-123.002",
-    bpjsKesehatan: "0001234567892",
-    bpjsKetenagakerjaan: "12345678901236",
-    salary: "Rp 12.000.000"
-  },
-  {
-    id: "EMP-004",
-    nik: "3201012345678904",
-    name: "Maya Sari",
-    position: "HR Specialist",
-    department: "SDM",
-    status: "Cuti",
-    joinDate: "2022-09-15",
-    email: "maya.sari@company.com",
-    phone: "081234567893",
-    npwp: "12.345.678.9-123.003",
-    bpjsKesehatan: "0001234567893",
-    bpjsKetenagakerjaan: "12345678901237",
-    salary: "Rp 10.000.000"
-  },
-  {
-    id: "EMP-005",
-    nik: "3201012345678905",
-    name: "Dewi Lestari",
-    position: "Marketing Manager",
-    department: "Pemasaran",
-    status: "Aktif",
-    joinDate: "2020-11-20",
-    email: "dewi.lestari@company.com",
-    phone: "081234567894",
-    npwp: "12.345.678.9-123.004",
-    bpjsKesehatan: "0001234567894",
-    bpjsKetenagakerjaan: "12345678901238",
-    salary: "Rp 16.000.000"
-  }
-]
+interface EmployeeRow {
+  id: string
+  employeeCode: string
+  name: string
+  firstName: string
+  lastName?: string | null
+  email?: string | null
+  phone?: string | null
+  department: string
+  position: string
+  status: "ACTIVE" | "INACTIVE" | "ON_LEAVE" | "TERMINATED"
+  joinDate: string
+  baseSalary: number
+}
+
+const EMPTY_FORM = {
+  employeeCode: "",
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+  department: "",
+  position: "",
+  joinDate: "",
+  status: "ACTIVE" as EmployeeRow["status"],
+  baseSalary: "",
+}
 
 export default function EmployeeMasterPage() {
+  const [employees, setEmployees] = React.useState<EmployeeRow[]>([])
+  const [loading, setLoading] = React.useState(true)
+  const [submitting, setSubmitting] = React.useState(false)
+
   const [searchTerm, setSearchTerm] = React.useState("")
   const [departmentFilter, setDepartmentFilter] = React.useState("all")
   const [statusFilter, setStatusFilter] = React.useState("all")
 
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.nik.includes(searchTerm)
-    const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter
-    const matchesStatus = statusFilter === "all" || employee.status === statusFilter
-    return matchesSearch && matchesDepartment && matchesStatus
-  })
+  const [dialogOpen, setDialogOpen] = React.useState(false)
+  const [editing, setEditing] = React.useState<EmployeeRow | null>(null)
+  const [form, setForm] = React.useState(EMPTY_FORM)
+
+  const loadEmployees = React.useCallback(async () => {
+    setLoading(true)
+    try {
+      const rows = await getEmployees({ includeInactive: true })
+      setEmployees(rows as EmployeeRow[])
+    } catch {
+      toast.error("Gagal memuat data karyawan")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    loadEmployees()
+  }, [loadEmployees])
+
+  const departments = React.useMemo(
+    () => Array.from(new Set(employees.map((employee) => employee.department))).sort((a, b) => a.localeCompare(b)),
+    [employees]
+  )
+
+  const filteredEmployees = React.useMemo(() => {
+    return employees.filter((employee) => {
+      const keyword = searchTerm.toLowerCase()
+      const matchesSearch =
+        employee.name.toLowerCase().includes(keyword) ||
+        employee.employeeCode.toLowerCase().includes(keyword) ||
+        (employee.email || "").toLowerCase().includes(keyword)
+
+      const matchesDepartment = departmentFilter === "all" || employee.department === departmentFilter
+      const matchesStatus = statusFilter === "all" || employee.status === statusFilter
+
+      return matchesSearch && matchesDepartment && matchesStatus
+    })
+  }, [employees, searchTerm, departmentFilter, statusFilter])
+
+  const openCreateDialog = () => {
+    setEditing(null)
+    setForm({ ...EMPTY_FORM, joinDate: new Date().toISOString().slice(0, 10) })
+    setDialogOpen(true)
+  }
+
+  const openEditDialog = (employee: EmployeeRow) => {
+    setEditing(employee)
+    setForm({
+      employeeCode: employee.employeeCode,
+      firstName: employee.firstName,
+      lastName: employee.lastName || "",
+      email: employee.email || "",
+      phone: employee.phone || "",
+      department: employee.department,
+      position: employee.position,
+      joinDate: employee.joinDate,
+      status: employee.status,
+      baseSalary: employee.baseSalary ? String(employee.baseSalary) : "",
+    })
+    setDialogOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    if (!form.firstName.trim() || !form.department.trim() || !form.position.trim() || !form.joinDate) {
+      toast.error("Nama, departemen, posisi, dan tanggal masuk wajib diisi")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const payload = {
+        employeeCode: editing ? undefined : form.employeeCode,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        department: form.department,
+        position: form.position,
+        joinDate: form.joinDate,
+        status: form.status,
+        baseSalary: form.baseSalary ? Number(form.baseSalary) : 0,
+      }
+
+      const result = editing
+        ? await updateEmployee(editing.id, payload)
+        : await createEmployee(payload)
+
+      if (!result.success) {
+        toast.error("error" in result ? String(result.error) : "Gagal menyimpan karyawan")
+        return
+      }
+
+      toast.success(editing ? "Data karyawan berhasil diperbarui" : "Karyawan berhasil ditambahkan")
+      setDialogOpen(false)
+      await loadEmployees()
+    } catch {
+      toast.error("Terjadi kesalahan saat menyimpan data")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeactivate = async (employee: EmployeeRow) => {
+    const confirmDeactivate = window.confirm(`Nonaktifkan ${employee.name}?`)
+    if (!confirmDeactivate) return
+
+    const result = await deactivateEmployee(employee.id)
+    if (!result.success) {
+      toast.error("error" in result ? String(result.error) : "Gagal menonaktifkan karyawan")
+      return
+    }
+
+    toast.success("Karyawan berhasil dinonaktifkan")
+    await loadEmployees()
+  }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold md:text-2xl">Data Master Karyawan</h1>
           <p className="text-sm text-muted-foreground">
-            Kelola data karyawan, informasi pribadi, dan detail kepegawaian
+            Kelola data karyawan, informasi pribadi, dan detail kepegawaian.
           </p>
         </div>
-        <Button>
+        <Button onClick={openCreateDialog}>
           <IconPlus className="mr-2 h-4 w-4" />
           Tambah Karyawan
         </Button>
@@ -128,7 +199,6 @@ export default function EmployeeMasterPage() {
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
-          {/* Filters and Search */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Filter & Pencarian</CardTitle>
@@ -141,14 +211,14 @@ export default function EmployeeMasterPage() {
                     <IconSearch className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
                       id="search"
-                      placeholder="Nama, NIK, atau ID karyawan..."
+                      placeholder="Nama, kode karyawan, email..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(event) => setSearchTerm(event.target.value)}
                       className="pl-10"
                     />
                   </div>
                 </div>
-                <div className="min-w-[150px]">
+                <div className="min-w-[180px]">
                   <Label>Departemen</Label>
                   <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
                     <SelectTrigger>
@@ -156,15 +226,15 @@ export default function EmployeeMasterPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Semua Departemen</SelectItem>
-                      <SelectItem value="Teknologi Informasi">Teknologi Informasi</SelectItem>
-                      <SelectItem value="Keuangan">Keuangan</SelectItem>
-                      <SelectItem value="Penjualan">Penjualan</SelectItem>
-                      <SelectItem value="SDM">SDM</SelectItem>
-                      <SelectItem value="Pemasaran">Pemasaran</SelectItem>
+                      {departments.map((department) => (
+                        <SelectItem key={department} value={department}>
+                          {department}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="min-w-[120px]">
+                <div className="min-w-[160px]">
                   <Label>Status</Label>
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
                     <SelectTrigger>
@@ -172,68 +242,99 @@ export default function EmployeeMasterPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Semua Status</SelectItem>
-                      <SelectItem value="Aktif">Aktif</SelectItem>
-                      <SelectItem value="Cuti">Cuti</SelectItem>
-                      <SelectItem value="Non-Aktif">Non-Aktif</SelectItem>
+                      <SelectItem value="ACTIVE">Aktif</SelectItem>
+                      <SelectItem value="ON_LEAVE">Sedang Cuti</SelectItem>
+                      <SelectItem value="INACTIVE">Non-Aktif</SelectItem>
+                      <SelectItem value="TERMINATED">Terminasi</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <Button variant="outline">
+                <Button variant="outline" onClick={loadEmployees}>
                   <IconDownload className="mr-2 h-4 w-4" />
-                  Export
+                  Muat Ulang
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Employee Table */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">
-                Daftar Karyawan ({filteredEmployees.length})
-              </CardTitle>
+              <CardTitle className="text-base">Daftar Karyawan ({filteredEmployees.length})</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>NIK</TableHead>
+                      <TableHead>Kode</TableHead>
                       <TableHead>Nama</TableHead>
                       <TableHead>Posisi</TableHead>
                       <TableHead>Departemen</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Tanggal Masuk</TableHead>
+                      <TableHead>Gaji Pokok</TableHead>
+                      <TableHead>Email</TableHead>
                       <TableHead>Aksi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEmployees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell className="font-medium">{employee.id}</TableCell>
-                        <TableCell className="font-mono text-xs">{employee.nik}</TableCell>
-                        <TableCell>{employee.name}</TableCell>
-                        <TableCell>{employee.position}</TableCell>
-                        <TableCell>{employee.department}</TableCell>
-                        <TableCell>
-                          <Badge variant={employee.status === "Aktif" ? "default" : "secondary"}>
-                            {employee.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{employee.joinDate}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button variant="ghost" size="sm">
-                              <IconEdit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <IconTrash className="h-4 w-4" />
-                            </Button>
-                          </div>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground">
+                          Memuat data karyawan...
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : filteredEmployees.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center text-muted-foreground">
+                          Data karyawan tidak ditemukan.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredEmployees.map((employee) => (
+                        <TableRow key={employee.id}>
+                          <TableCell className="font-medium">{employee.employeeCode}</TableCell>
+                          <TableCell>{employee.name}</TableCell>
+                          <TableCell>{employee.position}</TableCell>
+                          <TableCell>{employee.department}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={employee.status === "ACTIVE" ? "default" : "secondary"}
+                              className={employee.status === "ON_LEAVE" ? "bg-amber-100 text-amber-800" : ""}
+                            >
+                              {employee.status === "ACTIVE"
+                                ? "Aktif"
+                                : employee.status === "ON_LEAVE"
+                                  ? "Cuti"
+                                  : employee.status === "INACTIVE"
+                                    ? "Non-Aktif"
+                                    : "Terminasi"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(employee.joinDate).toLocaleDateString("id-ID")}</TableCell>
+                          <TableCell>
+                            {new Intl.NumberFormat("id-ID", {
+                              style: "currency",
+                              currency: "IDR",
+                              maximumFractionDigits: 0,
+                            }).format(employee.baseSalary || 0)}
+                          </TableCell>
+                          <TableCell>{employee.email || "-"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => openEditDialog(employee)}>
+                                <IconEdit className="h-4 w-4" />
+                              </Button>
+                              {employee.status !== "INACTIVE" && employee.status !== "TERMINATED" ? (
+                                <Button variant="ghost" size="sm" onClick={() => handleDeactivate(employee)}>
+                                  <IconTrash className="h-4 w-4 text-red-600" />
+                                </Button>
+                              ) : null}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -244,49 +345,35 @@ export default function EmployeeMasterPage() {
         <TabsContent value="analytics" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader>
                 <CardTitle className="text-sm font-medium">Total Karyawan</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{employees.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  +2 dari bulan lalu
-                </p>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardHeader>
                 <CardTitle className="text-sm font-medium">Karyawan Aktif</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {employees.filter(e => e.status === "Aktif").length}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  96% dari total karyawan
-                </p>
+                <div className="text-2xl font-bold">{employees.filter((employee) => employee.status === "ACTIVE").length}</div>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Departemen</CardTitle>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Sedang Cuti</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">5</div>
-                <p className="text-xs text-muted-foreground">
-                  Departemen aktif
-                </p>
+                <div className="text-2xl font-bold">{employees.filter((employee) => employee.status === "ON_LEAVE").length}</div>
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Rata-rata Gaji</CardTitle>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">Departemen Aktif</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">Rp 14.2M</div>
-                <p className="text-xs text-muted-foreground">
-                  Per bulan
-                </p>
+                <div className="text-2xl font-bold">{departments.length}</div>
               </CardContent>
             </Card>
           </div>
@@ -296,33 +383,100 @@ export default function EmployeeMasterPage() {
           <Card>
             <CardHeader>
               <CardTitle>Laporan Kepegawaian</CardTitle>
-              <CardDescription>
-                Generate laporan data karyawan untuk keperluan administrasi
-              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Laporan BPJS</span>
-                  <span className="text-sm text-muted-foreground">Data kepesertaan BPJS</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Laporan Pajak</span>
-                  <span className="text-sm text-muted-foreground">Data NPWP dan PPh21</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Daftar Karyawan</span>
-                  <span className="text-sm text-muted-foreground">Data lengkap karyawan</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Organisasi</span>
-                  <span className="text-sm text-muted-foreground">Struktur organisasi</span>
-                </Button>
-              </div>
+            <CardContent className="space-y-2 text-sm text-muted-foreground">
+              <p>Data SDM kini bersumber dari database Employee, Attendance, dan LeaveRequest.</p>
+              <p>Gunakan filter daftar karyawan untuk mengekspor segmen data sesuai kebutuhan.</p>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Karyawan" : "Tambah Karyawan"}</DialogTitle>
+            <DialogDescription>
+              Lengkapi informasi master karyawan. Data ini dipakai oleh SDM, Pengadaan, Gudang, dan modul approval.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2 md:grid-cols-2">
+            {!editing ? (
+              <div className="grid gap-2">
+                <Label>Kode Karyawan (Opsional)</Label>
+                <Input
+                  value={form.employeeCode}
+                  onChange={(event) => setForm((prev) => ({ ...prev, employeeCode: event.target.value }))}
+                  placeholder="Contoh: EMP-2026-001"
+                />
+              </div>
+            ) : null}
+
+            <div className="grid gap-2">
+              <Label>Nama Depan</Label>
+              <Input value={form.firstName} onChange={(event) => setForm((prev) => ({ ...prev, firstName: event.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Nama Belakang</Label>
+              <Input value={form.lastName} onChange={(event) => setForm((prev) => ({ ...prev, lastName: event.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Email</Label>
+              <Input type="email" value={form.email} onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Telepon</Label>
+              <Input value={form.phone} onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Departemen</Label>
+              <Input value={form.department} onChange={(event) => setForm((prev) => ({ ...prev, department: event.target.value }))} placeholder="Contoh: Produksi" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Posisi</Label>
+              <Input value={form.position} onChange={(event) => setForm((prev) => ({ ...prev, position: event.target.value }))} placeholder="Contoh: Supervisor Produksi" />
+            </div>
+            <div className="grid gap-2">
+              <Label>Tanggal Masuk</Label>
+              <Input type="date" value={form.joinDate} onChange={(event) => setForm((prev) => ({ ...prev, joinDate: event.target.value }))} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(value) => setForm((prev) => ({ ...prev, status: value as EmployeeRow["status"] }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Aktif</SelectItem>
+                  <SelectItem value="ON_LEAVE">Sedang Cuti</SelectItem>
+                  <SelectItem value="INACTIVE">Non-Aktif</SelectItem>
+                  <SelectItem value="TERMINATED">Terminasi</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2 md:col-span-2">
+              <Label>Gaji Pokok</Label>
+              <Input
+                type="number"
+                min={0}
+                value={form.baseSalary}
+                onChange={(event) => setForm((prev) => ({ ...prev, baseSalary: event.target.value }))}
+                placeholder="Contoh: 7500000"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting ? "Menyimpan..." : editing ? "Simpan Perubahan" : "Tambah Karyawan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

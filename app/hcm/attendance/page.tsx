@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { IconClock, IconCalendar, IconUser, IconTrendingUp, IconAlertTriangle } from "@tabler/icons-react"
+import { IconClock, IconCalendar, IconUser, IconTrendingUp, IconAlertTriangle, IconRefresh } from "@tabler/icons-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,120 +11,257 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  approveLeaveRequest,
+  getAttendanceSnapshot,
+  getEmployees,
+  getLeaveRequests,
+  recordAttendanceEvent,
+  rejectLeaveRequest,
+  submitLeaveRequest,
+} from "@/app/actions/hcm"
+import { toast } from "sonner"
 
-// Mock attendance data
-const attendanceToday = [
-  {
-    employeeId: "EMP-001",
-    name: "Andi Sutrisno",
-    department: "IT",
-    clockIn: "08:15",
-    clockOut: "17:30",
-    breakTime: "60",
-    workingHours: "8.75",
-    overtime: "0.5",
-    status: "Present",
-    location: "Kantor Pusat"
-  },
-  {
-    employeeId: "EMP-002",
-    name: "Sari Wijaya",
-    department: "Finance",
-    clockIn: "08:00",
-    clockOut: "17:00",
-    breakTime: "60",
-    workingHours: "8.0",
-    overtime: "0",
-    status: "Present",
-    location: "Kantor Pusat"
-  },
-  {
-    employeeId: "EMP-003",
-    name: "Budi Santoso",
-    department: "Sales",
-    clockIn: "09:30",
-    clockOut: "-",
-    breakTime: "-",
-    workingHours: "-",
-    overtime: "-",
-    status: "Late",
-    location: "Field Visit"
-  },
-  {
-    employeeId: "EMP-004",
-    name: "Maya Sari",
-    department: "HR",
-    clockIn: "-",
-    clockOut: "-",
-    breakTime: "-",
-    workingHours: "-",
-    overtime: "-",
-    status: "Leave",
-    location: "-"
-  },
-  {
-    employeeId: "EMP-005",
-    name: "Dewi Lestari",
-    department: "Marketing",
-    clockIn: "08:45",
-    clockOut: "18:15",
-    breakTime: "90",
-    workingHours: "8.0",
-    overtime: "1.25",
-    status: "Present",
-    location: "WFH"
-  }
-]
-
-const monthlyStats = {
-  totalEmployees: 25,
-  presentToday: 20,
-  lateToday: 3,
-  absentToday: 2,
-  averageWorkingHours: 8.2,
-  totalOvertimeHours: 45.5,
-  onTimePercentage: 85,
-  attendanceRate: 92
+interface AttendanceRow {
+  id: string
+  employeeCode: string
+  name: string
+  department: string
+  position: string
+  clockIn: string
+  clockOut: string
+  workingHours: number
+  overtimeHours: number
+  status: "PRESENT" | "ABSENT" | "LEAVE" | "SICK" | "REMOTE"
+  isLate: boolean
 }
 
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "Present":
-      return <Badge variant="default">Hadir</Badge>
-    case "Late":
-      return <Badge variant="destructive">Terlambat</Badge>
-    case "Leave":
-      return <Badge variant="secondary">Cuti</Badge>
-    case "Absent":
-      return <Badge variant="outline">Absen</Badge>
-    default:
-      return <Badge variant="outline">{status}</Badge>
-  }
+interface LeaveRow {
+  id: string
+  employeeId: string
+  employeeName: string
+  department: string
+  startDate: string
+  endDate: string
+  type: string
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED"
+  reason?: string | null
+  approverName?: string
 }
+
+interface EmployeeOption {
+  id: string
+  employeeCode: string
+  name: string
+  department: string
+}
+
+const getStatusBadge = (status: AttendanceRow["status"], isLate: boolean) => {
+  if (status === "LEAVE") return <Badge variant="secondary">Cuti</Badge>
+  if (status === "SICK") return <Badge variant="secondary">Sakit</Badge>
+  if (status === "REMOTE") return <Badge variant="outline">Remote</Badge>
+  if (status === "PRESENT" && isLate) return <Badge variant="destructive">Terlambat</Badge>
+  if (status === "PRESENT") return <Badge variant="default">Hadir</Badge>
+  return <Badge variant="outline">Absen</Badge>
+}
+
+const todayInput = () => new Date().toISOString().slice(0, 10)
 
 export default function AttendancePage() {
-  const [selectedDate, setSelectedDate] = React.useState("2024-11-03")
+  const [selectedDate, setSelectedDate] = React.useState(todayInput())
   const [selectedDepartment, setSelectedDepartment] = React.useState("all")
 
-  const filteredAttendance = attendanceToday.filter(att =>
-    selectedDepartment === "all" || att.department === selectedDepartment
-  )
+  const [rows, setRows] = React.useState<AttendanceRow[]>([])
+  const [departments, setDepartments] = React.useState<string[]>([])
+  const [stats, setStats] = React.useState({
+    totalEmployees: 0,
+    presentCount: 0,
+    lateCount: 0,
+    leaveCount: 0,
+    absentCount: 0,
+    attendanceRate: 0,
+  })
+
+  const [employees, setEmployees] = React.useState<EmployeeOption[]>([])
+  const [leaveRequests, setLeaveRequests] = React.useState<LeaveRow[]>([])
+
+  const [loadingToday, setLoadingToday] = React.useState(true)
+  const [loadingLeaves, setLoadingLeaves] = React.useState(false)
+
+  const [clockDialogOpen, setClockDialogOpen] = React.useState(false)
+  const [clockForm, setClockForm] = React.useState({ employeeId: "", mode: "CLOCK_IN" as "CLOCK_IN" | "CLOCK_OUT" })
+  const [clockSubmitting, setClockSubmitting] = React.useState(false)
+
+  const [leaveSubmitting, setLeaveSubmitting] = React.useState(false)
+  const [leaveForm, setLeaveForm] = React.useState({
+    employeeId: "",
+    type: "ANNUAL",
+    startDate: todayInput(),
+    endDate: todayInput(),
+    reason: "",
+  })
+
+  const loadToday = React.useCallback(async () => {
+    setLoadingToday(true)
+    try {
+      const snapshot = await getAttendanceSnapshot({
+        date: selectedDate,
+        department: selectedDepartment,
+      })
+
+      setRows(snapshot.rows as AttendanceRow[])
+      setDepartments(snapshot.departments || [])
+      setStats(snapshot.stats)
+    } catch {
+      toast.error("Gagal memuat data absensi")
+    } finally {
+      setLoadingToday(false)
+    }
+  }, [selectedDate, selectedDepartment])
+
+  const loadEmployees = React.useCallback(async () => {
+    const list = await getEmployees({ includeInactive: false })
+    setEmployees((list as EmployeeOption[]).filter((employee) => employee.id))
+  }, [])
+
+  const loadLeaves = React.useCallback(async () => {
+    setLoadingLeaves(true)
+    try {
+      const list = await getLeaveRequests({ status: "ALL", limit: 30 })
+      setLeaveRequests(list as LeaveRow[])
+    } catch {
+      toast.error("Gagal memuat daftar cuti")
+    } finally {
+      setLoadingLeaves(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    loadToday()
+  }, [loadToday])
+
+  React.useEffect(() => {
+    loadEmployees()
+    loadLeaves()
+  }, [loadEmployees, loadLeaves])
+
+  const overtimeRows = React.useMemo(() => {
+    return rows.filter((row) => row.overtimeHours > 0).sort((a, b) => b.overtimeHours - a.overtimeHours)
+  }, [rows])
+
+  const pendingLeaveRows = React.useMemo(() => leaveRequests.filter((item) => item.status === "PENDING"), [leaveRequests])
+
+  const handleClockSubmit = async () => {
+    if (!clockForm.employeeId) {
+      toast.error("Pilih karyawan terlebih dahulu")
+      return
+    }
+
+    setClockSubmitting(true)
+    try {
+      const result = await recordAttendanceEvent({
+        employeeId: clockForm.employeeId,
+        mode: clockForm.mode,
+      })
+
+      if (!result.success) {
+        toast.error("error" in result ? String(result.error) : "Gagal mencatat absensi")
+        return
+      }
+
+      toast.success("message" in result ? result.message : "Absensi berhasil dicatat")
+      setClockDialogOpen(false)
+      setClockForm({ employeeId: "", mode: "CLOCK_IN" })
+      await loadToday()
+    } catch {
+      toast.error("Terjadi kesalahan saat mencatat absensi")
+    } finally {
+      setClockSubmitting(false)
+    }
+  }
+
+  const handleSubmitLeave = async () => {
+    if (!leaveForm.employeeId || !leaveForm.startDate || !leaveForm.endDate) {
+      toast.error("Lengkapi karyawan, tanggal mulai, dan tanggal selesai")
+      return
+    }
+
+    setLeaveSubmitting(true)
+    try {
+      const result = await submitLeaveRequest({
+        employeeId: leaveForm.employeeId,
+        type: leaveForm.type,
+        startDate: leaveForm.startDate,
+        endDate: leaveForm.endDate,
+        reason: leaveForm.reason,
+      })
+
+      if (!result.success) {
+        toast.error("error" in result ? String(result.error) : "Gagal membuat pengajuan cuti")
+        return
+      }
+
+      toast.success("Pengajuan cuti berhasil dibuat")
+      setLeaveForm({
+        employeeId: "",
+        type: "ANNUAL",
+        startDate: todayInput(),
+        endDate: todayInput(),
+        reason: "",
+      })
+      await loadLeaves()
+    } catch {
+      toast.error("Terjadi kesalahan saat membuat pengajuan cuti")
+    } finally {
+      setLeaveSubmitting(false)
+    }
+  }
+
+  const handleApproveLeave = async (leaveId: string) => {
+    const result = await approveLeaveRequest(leaveId)
+    if (!result.success) {
+      toast.error("error" in result ? String(result.error) : "Gagal menyetujui cuti")
+      return
+    }
+    toast.success("message" in result ? result.message : "Pengajuan cuti disetujui")
+    await Promise.all([loadLeaves(), loadToday()])
+  }
+
+  const handleRejectLeave = async (leaveId: string) => {
+    const result = await rejectLeaveRequest(leaveId, "Ditolak dari modul Absensi")
+    if (!result.success) {
+      toast.error("error" in result ? String(result.error) : "Gagal menolak cuti")
+      return
+    }
+    toast.success("message" in result ? result.message : "Pengajuan cuti ditolak")
+    await Promise.all([loadLeaves(), loadToday()])
+  }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+    <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-semibold md:text-2xl">Pelacakan Absensi</h1>
-          <p className="text-sm text-muted-foreground">
-            Monitor kehadiran karyawan, jam kerja, dan lembur
-          </p>
+          <p className="text-sm text-muted-foreground">Monitor kehadiran karyawan, jam kerja, lembur, dan cuti.</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => loadToday()} disabled={loadingToday}>
+            <IconRefresh className="mr-2 h-4 w-4" />
+            Muat Ulang
+          </Button>
           <Button variant="outline">
             <IconCalendar className="mr-2 h-4 w-4" />
             Atur Jadwal
           </Button>
-          <Button>
+          <Button onClick={() => setClockDialogOpen(true)}>
             <IconClock className="mr-2 h-4 w-4" />
             Clock In/Out
           </Button>
@@ -140,21 +277,15 @@ export default function AttendancePage() {
         </TabsList>
 
         <TabsContent value="today" className="space-y-4">
-          {/* Date and Filter */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Filter Absensi</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col items-start gap-4 md:flex-row md:items-end">
                 <div>
                   <Label>Tanggal</Label>
-                  <Input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="w-[200px]"
-                  />
+                  <Input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} className="w-[200px]" />
                 </div>
                 <div>
                   <Label>Departemen</Label>
@@ -164,19 +295,21 @@ export default function AttendancePage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Semua Departemen</SelectItem>
-                      <SelectItem value="IT">IT</SelectItem>
-                      <SelectItem value="Finance">Finance</SelectItem>
-                      <SelectItem value="Sales">Sales</SelectItem>
-                      <SelectItem value="HR">HR</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      {departments.map((department) => (
+                        <SelectItem key={department} value={department}>
+                          {department}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+                <Button variant="outline" onClick={() => loadToday()}>
+                  Terapkan Filter
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Daily Stats */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -184,12 +317,8 @@ export default function AttendancePage() {
                 <IconUser className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {monthlyStats.presentToday}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  dari {monthlyStats.totalEmployees} karyawan
-                </p>
+                <div className="text-2xl font-bold text-green-600">{stats.presentCount}</div>
+                <p className="text-xs text-muted-foreground">dari {stats.totalEmployees} karyawan</p>
               </CardContent>
             </Card>
             <Card>
@@ -198,12 +327,8 @@ export default function AttendancePage() {
                 <IconAlertTriangle className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-orange-600">
-                  {monthlyStats.lateToday}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Karyawan terlambat
-                </p>
+                <div className="text-2xl font-bold text-orange-600">{stats.lateCount}</div>
+                <p className="text-xs text-muted-foreground">Karyawan telat clock-in</p>
               </CardContent>
             </Card>
             <Card>
@@ -212,12 +337,8 @@ export default function AttendancePage() {
                 <IconUser className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">
-                  {monthlyStats.absentToday}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Absen/Sakit/Izin
-                </p>
+                <div className="text-2xl font-bold text-red-600">{stats.absentCount}</div>
+                <p className="text-xs text-muted-foreground">Absen tanpa catatan</p>
               </CardContent>
             </Card>
             <Card>
@@ -226,21 +347,16 @@ export default function AttendancePage() {
                 <IconTrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {monthlyStats.attendanceRate}%
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Bulan ini
-                </p>
+                <div className="text-2xl font-bold">{stats.attendanceRate}%</div>
+                <p className="text-xs text-muted-foreground">Termasuk status cuti</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Attendance Table */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
-                Absensi Hari Ini - {new Date(selectedDate).toLocaleDateString('id-ID')}
+                Absensi - {new Date(selectedDate).toLocaleDateString("id-ID")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -251,37 +367,43 @@ export default function AttendancePage() {
                       <TableHead>Karyawan</TableHead>
                       <TableHead>Masuk</TableHead>
                       <TableHead>Keluar</TableHead>
-                      <TableHead>Istirahat</TableHead>
                       <TableHead>Jam Kerja</TableHead>
                       <TableHead>Lembur</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Lokasi</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAttendance.map((attendance) => (
-                      <TableRow key={attendance.employeeId}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{attendance.name}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {attendance.employeeId} • {attendance.department}
-                            </div>
-                          </div>
+                    {loadingToday ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          Memuat data absensi...
                         </TableCell>
-                        <TableCell className="font-mono">
-                          {attendance.clockIn}
-                        </TableCell>
-                        <TableCell className="font-mono">
-                          {attendance.clockOut}
-                        </TableCell>
-                        <TableCell>{attendance.breakTime} min</TableCell>
-                        <TableCell>{attendance.workingHours} jam</TableCell>
-                        <TableCell>{attendance.overtime} jam</TableCell>
-                        <TableCell>{getStatusBadge(attendance.status)}</TableCell>
-                        <TableCell>{attendance.location}</TableCell>
                       </TableRow>
-                    ))}
+                    ) : rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          Tidak ada data absensi pada filter ini.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((attendance) => (
+                        <TableRow key={attendance.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{attendance.name}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {attendance.employeeCode} • {attendance.department}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-mono">{attendance.clockIn}</TableCell>
+                          <TableCell className="font-mono">{attendance.clockOut}</TableCell>
+                          <TableCell>{attendance.workingHours.toFixed(2)} jam</TableCell>
+                          <TableCell>{attendance.overtimeHours.toFixed(2)} jam</TableCell>
+                          <TableCell>{getStatusBadge(attendance.status, attendance.isLate)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>
@@ -293,46 +415,43 @@ export default function AttendancePage() {
           <Card>
             <CardHeader>
               <CardTitle>Laporan Bulanan</CardTitle>
-              <CardDescription>
-                Ringkasan kehadiran karyawan bulan ini
-              </CardDescription>
+              <CardDescription>Ringkasan metrik kehadiran berdasarkan filter tanggal aktif.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Rata-rata Jam Kerja</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {monthlyStats.averageWorkingHours} jam
-                    </div>
-                    <p className="text-sm text-muted-foreground">Per hari</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Total Lembur</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {monthlyStats.totalOvertimeHours} jam
-                    </div>
-                    <p className="text-sm text-muted-foreground">Bulan ini</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Ketepatan Waktu</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {monthlyStats.onTimePercentage}%
-                    </div>
-                    <p className="text-sm text-muted-foreground">Tepat waktu</p>
-                  </CardContent>
-                </Card>
-              </div>
+            <CardContent className="grid gap-4 md:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Rata-rata Jam Kerja</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {rows.length > 0
+                      ? (rows.reduce((sum, row) => sum + row.workingHours, 0) / rows.length).toFixed(2)
+                      : "0.00"}{" "}
+                    jam
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Total Lembur</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{rows.reduce((sum, row) => sum + row.overtimeHours, 0).toFixed(2)} jam</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Ketepatan Waktu</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {stats.totalEmployees > 0
+                      ? Math.round(((stats.presentCount - stats.lateCount) / stats.totalEmployees) * 100)
+                      : 0}
+                    %
+                  </div>
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
         </TabsContent>
@@ -341,28 +460,38 @@ export default function AttendancePage() {
           <Card>
             <CardHeader>
               <CardTitle>Manajemen Lembur</CardTitle>
-              <CardDescription>
-                Pengaturan dan approval lembur karyawan
-              </CardDescription>
+              <CardDescription>Daftar lembur dari data absensi tanggal terpilih.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Request Lembur</span>
-                  <span className="text-sm text-muted-foreground">Ajukan permohonan lembur</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Approval Lembur</span>
-                  <span className="text-sm text-muted-foreground">Setujui permintaan lembur</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Laporan Lembur</span>
-                  <span className="text-sm text-muted-foreground">Rekapitulasi jam lembur</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Kalkulasi Upah</span>
-                  <span className="text-sm text-muted-foreground">Hitung upah lembur</span>
-                </Button>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Karyawan</TableHead>
+                      <TableHead>Departemen</TableHead>
+                      <TableHead>Jam Kerja</TableHead>
+                      <TableHead>Lembur</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {overtimeRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          Belum ada data lembur pada tanggal ini.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      overtimeRows.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell>{row.department}</TableCell>
+                          <TableCell>{row.workingHours.toFixed(2)} jam</TableCell>
+                          <TableCell className="font-semibold">{row.overtimeHours.toFixed(2)} jam</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
@@ -371,34 +500,174 @@ export default function AttendancePage() {
         <TabsContent value="leave" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Manajemen Cuti & Izin</CardTitle>
-              <CardDescription>
-                Kelola permohonan cuti dan izin karyawan
-              </CardDescription>
+              <CardTitle>Pengajuan Cuti & Izin</CardTitle>
+              <CardDescription>Buat pengajuan cuti dan proses approval manager/boss.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Pengajuan Cuti</span>
-                  <span className="text-sm text-muted-foreground">Form cuti karyawan</span>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-2">
+                <Label>Karyawan</Label>
+                <Select value={leaveForm.employeeId} onValueChange={(value) => setLeaveForm((prev) => ({ ...prev, employeeId: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih karyawan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        {employee.name} ({employee.employeeCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Jenis Cuti</Label>
+                <Select value={leaveForm.type} onValueChange={(value) => setLeaveForm((prev) => ({ ...prev, type: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ANNUAL">Tahunan</SelectItem>
+                    <SelectItem value="SICK">Sakit</SelectItem>
+                    <SelectItem value="UNPAID">Tidak Dibayar</SelectItem>
+                    <SelectItem value="MATERNITY">Melahirkan</SelectItem>
+                    <SelectItem value="OTHER">Lainnya</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label>Tanggal Mulai</Label>
+                <Input type="date" value={leaveForm.startDate} onChange={(event) => setLeaveForm((prev) => ({ ...prev, startDate: event.target.value }))} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Tanggal Selesai</Label>
+                <Input type="date" value={leaveForm.endDate} onChange={(event) => setLeaveForm((prev) => ({ ...prev, endDate: event.target.value }))} />
+              </div>
+              <div className="grid gap-2 md:col-span-2">
+                <Label>Alasan</Label>
+                <Input value={leaveForm.reason} onChange={(event) => setLeaveForm((prev) => ({ ...prev, reason: event.target.value }))} placeholder="Alasan pengajuan" />
+              </div>
+              <div className="md:col-span-2">
+                <Button onClick={handleSubmitLeave} disabled={leaveSubmitting}>
+                  {leaveSubmitting ? "Mengajukan..." : "Ajukan Cuti"}
                 </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Approval Cuti</span>
-                  <span className="text-sm text-muted-foreground">Setujui permohonan cuti</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Saldo Cuti</span>
-                  <span className="text-sm text-muted-foreground">Cek sisa cuti karyawan</span>
-                </Button>
-                <Button variant="outline" className="h-20 flex-col">
-                  <span className="font-medium">Kalender Cuti</span>
-                  <span className="text-sm text-muted-foreground">Jadwal cuti tim</span>
-                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Approval Cuti Pending ({pendingLeaveRows.length})</CardTitle>
+              <CardDescription>Disetujui atau ditolak oleh manager/boss.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Karyawan</TableHead>
+                      <TableHead>Jenis</TableHead>
+                      <TableHead>Periode</TableHead>
+                      <TableHead>Approver</TableHead>
+                      <TableHead>Aksi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingLeaves ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          Memuat data cuti...
+                        </TableCell>
+                      </TableRow>
+                    ) : pendingLeaveRows.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          Tidak ada pengajuan cuti pending.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pendingLeaveRows.map((leave) => (
+                        <TableRow key={leave.id}>
+                          <TableCell>
+                            <div className="font-medium">{leave.employeeName}</div>
+                            <div className="text-xs text-muted-foreground">{leave.department}</div>
+                          </TableCell>
+                          <TableCell>{leave.type}</TableCell>
+                          <TableCell>
+                            {new Date(leave.startDate).toLocaleDateString("id-ID")} -{" "}
+                            {new Date(leave.endDate).toLocaleDateString("id-ID")}
+                          </TableCell>
+                          <TableCell>{leave.approverName || "-"}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button size="sm" onClick={() => handleApproveLeave(leave.id)}>
+                                Setujui
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => handleRejectLeave(leave.id)}>
+                                Tolak
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={clockDialogOpen} onOpenChange={setClockDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Clock In / Clock Out</DialogTitle>
+            <DialogDescription>Pilih karyawan dan jenis aksi absensi.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div className="grid gap-2">
+              <Label>Karyawan</Label>
+              <Select value={clockForm.employeeId} onValueChange={(value) => setClockForm((prev) => ({ ...prev, employeeId: value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih karyawan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map((employee) => (
+                    <SelectItem key={employee.id} value={employee.id}>
+                      {employee.name} ({employee.employeeCode})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Mode</Label>
+              <Select
+                value={clockForm.mode}
+                onValueChange={(value) => setClockForm((prev) => ({ ...prev, mode: value as "CLOCK_IN" | "CLOCK_OUT" }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CLOCK_IN">Clock In</SelectItem>
+                  <SelectItem value="CLOCK_OUT">Clock Out</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setClockDialogOpen(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleClockSubmit} disabled={clockSubmitting}>
+              {clockSubmitting ? "Menyimpan..." : "Simpan Absensi"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

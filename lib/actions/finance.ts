@@ -2470,7 +2470,10 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
         return await withPrismaAuth(async (prisma) => {
             const payments = await prisma.payment.findMany({
                 where: {
-                    supplierId: { not: null }
+                    OR: [
+                        { supplierId: { not: null } },
+                        { notes: { contains: '"source":"PAYROLL_DISBURSEMENT"' } }
+                    ]
                 },
                 include: {
                     supplier: { select: { id: true, name: true } },
@@ -2483,7 +2486,11 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
             return payments.map((p) => ({
                 id: p.id,
                 number: p.number,
-                vendor: p.supplier ? { id: p.supplier.id, name: p.supplier.name } : null,
+                vendor: p.supplier
+                    ? { id: p.supplier.id, name: p.supplier.name }
+                    : (p.notes?.includes('"source":"PAYROLL_DISBURSEMENT"')
+                        ? { id: "PAYROLL", name: "Payroll Disbursement Batch" }
+                        : null),
                 date: p.date,
                 amount: Number(p.amount),
                 method: p.method,

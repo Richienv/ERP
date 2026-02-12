@@ -4,6 +4,9 @@ import { withPrismaAuth } from "@/lib/db"
 import { getFinancialMetrics } from "@/lib/actions/finance"
 import { PRStatus, PrismaClient } from "@prisma/client"
 
+const STOCK_OPNAME_PREFIX = "STOCK_OPNAME_REQUEST::"
+const PAYROLL_RUN_PREFIX = "PAYROLL_RUN::"
+
 // ==============================================================================
 // INTERNAL FETCHERS (Accepts Prisma Client / Transaction)
 // ==============================================================================
@@ -681,6 +684,22 @@ async function fetchExecutiveAlerts(prisma: PrismaClient) {
         }
     })
 
+    const [pendingStockOpnameTasks, pendingPayrollTasks] = await Promise.all([
+        prisma.employeeTask.count({
+            where: {
+                status: "PENDING",
+                notes: { startsWith: STOCK_OPNAME_PREFIX },
+            },
+        }),
+        prisma.employeeTask.count({
+            where: {
+                status: "PENDING",
+                notes: { startsWith: PAYROLL_RUN_PREFIX },
+                relatedId: { startsWith: "PAYROLL-" },
+            },
+        }),
+    ])
+
     const alerts = [
         ...breakdowns.map(m => ({
             id: m.id,
@@ -701,10 +720,56 @@ async function fetchExecutiveAlerts(prisma: PrismaClient) {
             details: q.defects?.[0]?.description || q.notes || "Inspection failed",
             severity: "critical",
             machine: q.batchNumber
-        }))
+        })),
+        ...(pendingStockOpnameTasks > 0 ? [{
+            id: "stock-opname-pending",
+            type: "Stock Opname Approval",
+            title: `${pendingStockOpnameTasks} adjustment menunggu approval`,
+            message: "Permintaan stock opname membutuhkan approval manager/boss.",
+            impact: "High",
+            details: "Cek modul Gudang > Stock Opname Adjustment.",
+            severity: "warning",
+            machine: "WAREHOUSE"
+        }] : []),
+        ...(pendingPayrollTasks > 0 ? [{
+            id: "payroll-pending",
+            type: "Payroll Approval",
+            title: `${pendingPayrollTasks} payroll run pending`,
+            message: "Payroll period belum disetujui/disburse.",
+            impact: "High",
+            details: "Cek SDM > Payroll untuk approval dan batch disbursement.",
+            severity: "warning",
+            machine: "HR"
+        }] : []),
     ]
 
-    return alerts.slice(0, 2)
+    return alerts.slice(0, 4)
+}
+
+async function fetchSDMApprovalQueue(prisma: PrismaClient) {
+    const [pendingLeaves, pendingStockOpname, pendingPayroll] = await Promise.all([
+        prisma.leaveRequest.count({ where: { status: "PENDING" } }),
+        prisma.employeeTask.count({
+            where: {
+                status: "PENDING",
+                notes: { startsWith: STOCK_OPNAME_PREFIX },
+            },
+        }),
+        prisma.employeeTask.count({
+            where: {
+                status: "PENDING",
+                notes: { startsWith: PAYROLL_RUN_PREFIX },
+                relatedId: { startsWith: "PAYROLL-" },
+            },
+        }),
+    ])
+
+    return {
+        pendingLeaves,
+        pendingStockOpname,
+        pendingPayroll,
+        totalPending: pendingLeaves + pendingStockOpname + pendingPayroll,
+    }
 }
 
 
@@ -728,7 +793,8 @@ export async function getDashboardData() {
                 qualityStatus,
                 workforceStatus,
                 activityFeed,
-                executiveAlerts
+                executiveAlerts,
+                sdmApprovals
             ] = await Promise.all([
                 fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
                 fetchDeadStockValue(prisma).catch(() => 0),
@@ -752,7 +818,8 @@ export async function getDashboardData() {
                 fetchQualityStatus(prisma).catch(() => ({ passRate: 0, recentInspections: [] })),
                 fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
                 fetchActivityFeed(prisma).catch(() => []),
-                fetchExecutiveAlerts(prisma).catch(() => [])
+                fetchExecutiveAlerts(prisma).catch(() => []),
+                fetchSDMApprovalQueue(prisma).catch(() => ({ pendingLeaves: 0, pendingStockOpname: 0, pendingPayroll: 0, totalPending: 0 }))
             ])
 
             return {
@@ -768,7 +835,8 @@ export async function getDashboardData() {
                 qualityStatus,
                 workforceStatus,
                 activityFeed,
-                executiveAlerts
+                executiveAlerts,
+                sdmApprovals
             }
         }, { maxWait: 15000, timeout: 20000 })
     } catch (error) {
@@ -797,7 +865,8 @@ export async function getDashboardData() {
             qualityStatus: { passRate: 0, recentInspections: [] },
             workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
             activityFeed: [],
-            executiveAlerts: []
+            executiveAlerts: [],
+            sdmApprovals: { pendingLeaves: 0, pendingStockOpname: 0, pendingPayroll: 0, totalPending: 0 }
         }
     }
 }

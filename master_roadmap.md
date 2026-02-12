@@ -224,3 +224,73 @@ Roadmap ini mencakup **SEMUA** fungsi dari `erp_system_benchmark.md` yang dipeta
     - [ ] Receiving, Picking, Stock Take `[Bench 4]`
     - [ ] Online Signature for Delivery `[Bench 4]`
     - [ ] Hybrid Connection `[Bench 4]`
+
+---
+
+## Phase 7: SDM / HCM (Cross-Module Backbone)
+
+> Catatan Audit: UI SDM (`/hcm`) sudah ada, tetapi mayoritas masih mock data. Fase ini menjadi prioritas agar SDM benar-benar terhubung ke Pengadaan, Manufaktur, Inventori, Finance, dan Dashboard CEO.
+
+### 7.1 Data Foundation & Identity
+- [/] **Core HR Master Data (DB)**:
+    - [/] Employee, Attendance, LeaveRequest, EmployeeTask model sudah tersedia di schema.
+    - [ ] Employee lifecycle fields lengkap: contract type, grade, shift group, supervisor, branch.
+- [ ] **User ↔ Employee Identity Link**:
+    - [ ] Relasi tegas antara auth user dengan employee (tanpa fallback "any employee").
+    - [ ] Guard role + scope akses per department/warehouse/work center.
+- [ ] **Reference Data SDM**:
+    - [ ] Master Department, Position, Shift, Employment Status.
+    - [ ] BPJS/PTKP profile per karyawan.
+
+### 7.2 Employee Master (Operational)
+- [ ] **Employee CRUD Full Backend**:
+    - [ ] Create/Edit/Deactivate employee dari page SDM.
+    - [ ] Import/export karyawan (CSV/XLSX) dengan validasi.
+    - [ ] Dokumen karyawan (KTP/NPWP/BPJS/Kontrak) terhubung ke "Dokumen & Sistem".
+- [ ] **Org & Assignment**:
+    - [ ] Struktur organisasi, reporting line, manager assignment.
+    - [ ] Assignment ke warehouse/work center untuk operasional lintas modul.
+
+### 7.3 Attendance, Shift, Leave, Overtime
+- [ ] **Attendance Engine**:
+    - [ ] Clock-in/clock-out API + UI (manual + kiosk/work center mode).
+    - [ ] Late, absent, remote, leave status otomatis per shift.
+- [ ] **Shift Scheduling**:
+    - [ ] Roster per minggu/bulan, termasuk lembur terencana.
+    - [ ] Dependency ke kapasitas Work Center (Manufaktur).
+- [ ] **Leave & Overtime Workflow**:
+    - [ ] Request -> approval manager -> approval HR (opsional).
+    - [ ] Task approval via EmployeeTask + notifikasi dashboard CEO/manager.
+
+### 7.4 Payroll Engine & Finance Integration
+- [ ] **Payroll Data Model**:
+    - [ ] PayrollPeriod, PayrollRun, PayrollItem, Payslip, PayrollComponent.
+    - [ ] Versioned formula (gaji pokok, tunjangan, lembur, potongan, BPJS, PPh21).
+- [ ] **Payroll Processing**:
+    - [ ] Generate draft payroll dari attendance + leave + overtime.
+    - [ ] Approval berjenjang + lock period.
+    - [ ] Slip gaji per karyawan.
+- [ ] **Finance Posting**:
+    - [ ] Auto jurnal payroll ke COA (gaji, kewajiban BPJS/PPh, kas/bank).
+    - [ ] Integrasi ke Pembayaran AP/checkbook untuk disbursement batch.
+
+### 7.5 Cross-Module Dependency Enforcement
+- [ ] **Procurement**:
+    - [ ] PR requester/approver harus valid employee aktif.
+    - [ ] Approval matrix berdasarkan jabatan/department.
+- [ ] **Inventory/Warehouse**:
+    - [ ] Warehouse manager assignment dari employee aktif.
+    - [ ] Stock opname/adjustment approval masuk ke task approver SDM.
+- [ ] **Manufacturing/Quality**:
+    - [ ] Attendance operator mempengaruhi kapasitas produksi harian.
+    - [ ] QC inspector wajib employee aktif dengan role sesuai.
+- [ ] **Executive Dashboard**:
+    - [ ] KPI SDM real-time: headcount, attendance, leave pending, payroll exposure.
+
+### 7.6 Reporting & Compliance
+- [ ] **HR Analytics**:
+    - [ ] Absensi bulanan, lembur, turnover, produktivitas per department.
+- [ ] **Compliance Reports**:
+    - [ ] BPJS, PPh21, dan laporan ketenagakerjaan periodik.
+- [ ] **Auditability**:
+    - [ ] Approval log end-to-end + siapa, kapan, alasan.

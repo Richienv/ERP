@@ -5,6 +5,7 @@ import { RitchieSDMCard } from "@/components/dashboard/ritchie-sdm-card"
 import { RitchieActivityFeed } from "@/components/dashboard/ritchie-activity-feed"
 import { ExecutiveAlerts } from "@/components/dashboard/executive-alerts"
 import { MetricsAnimator } from "@/components/dashboard/metrics-animator"
+import { SDMApprovalQueueCard } from "@/components/dashboard/sdm-approval-queue-card"
 
 interface OperationsWrapperProps {
     data: {
@@ -14,6 +15,7 @@ interface OperationsWrapperProps {
         workforceStatus: any
         activityFeed: any
         executiveAlerts: any
+        sdmApprovals: any
     }
 }
 
@@ -27,6 +29,7 @@ export async function OperationsWrapper({ data }: OperationsWrapperProps) {
     const workforce = data.workforceStatus
     const activities = data.activityFeed
     const alerts = data.executiveAlerts
+    const sdmApprovals = data.sdmApprovals
 
     return (
         <MetricsAnimator>
@@ -39,7 +42,7 @@ export async function OperationsWrapper({ data }: OperationsWrapperProps) {
             </div>
 
             {/* Row 3: Tracking & HR - Nested Grid wrapper to span 6 cols */}
-            <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+            <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
                 <div className="min-h-[400px]">
                     <RitchieActivityFeed data={activities} />
                 </div>
@@ -51,6 +54,9 @@ export async function OperationsWrapper({ data }: OperationsWrapperProps) {
                 </div>
                 <div className="min-h-[400px]">
                     <RitchieSDMCard data={workforce} />
+                </div>
+                <div className="min-h-[400px]">
+                    <SDMApprovalQueueCard data={sdmApprovals} />
                 </div>
             </div>
         </MetricsAnimator>
