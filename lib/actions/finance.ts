@@ -8,6 +8,9 @@ export interface FinancialMetrics {
     cashBalance: number
     receivables: number // Piutang
     payables: number    // Hutang
+    receivablesCount: number
+    payablesCount: number
+    unallocatedReceiptsCount: number
     netMargin: number   // %
     revenue: number
     burnRate: number
@@ -372,6 +375,9 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         let revVal = calculateSum(revenueRows, 'totalAmount')
         let expVal = calculateSum(expenseRows, 'totalAmount')
         let margin = revVal > 0 ? ((revVal - expVal) / revVal) * 100 : 0
+        let receivablesCount = 0
+        let payablesCount = 0
+        let unallocatedReceiptsCount = 0
 
         // Prisma fallback keeps dashboard populated even if any Supabase query is blocked/fails.
         const requiresPrismaFallback =
@@ -383,7 +389,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
 
         if (requiresPrismaFallback) {
             const prismaMetrics = await withPrismaAuth(async (prisma) => {
-                const [arInvoices, apInvoices, cashAccounts, outInvoicesMonth, inInvoicesMonth] = await Promise.all([
+                const [arInvoices, apInvoices, cashAccounts, outInvoicesMonth, inInvoicesMonth, unallocatedPayments] = await Promise.all([
                     prisma.invoice.findMany({
                         where: { type: 'INV_OUT', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
                         select: { balanceDue: true },
@@ -404,11 +410,18 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                         where: { type: 'INV_IN', status: { not: 'CANCELLED' }, issueDate: { gte: startOfMonth } },
                         select: { totalAmount: true },
                     }),
+                    prisma.payment.findMany({
+                        where: { invoiceId: null, customerId: { not: null } },
+                        select: { id: true },
+                    }),
                 ])
 
                 return {
                     receivables: arInvoices.reduce((sum, row) => sum + Number(row.balanceDue || 0), 0),
                     payables: apInvoices.reduce((sum, row) => sum + Number(row.balanceDue || 0), 0),
+                    receivablesCount: arInvoices.length,
+                    payablesCount: apInvoices.length,
+                    unallocatedReceiptsCount: unallocatedPayments.length,
                     cashBalance: cashAccounts.reduce((sum, row) => sum + Number(row.balance || 0), 0),
                     revenue: outInvoicesMonth.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0),
                     expense: inInvoicesMonth.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0),
@@ -417,10 +430,37 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
 
             receivables = prismaMetrics.receivables
             payables = prismaMetrics.payables
+            receivablesCount = prismaMetrics.receivablesCount
+            payablesCount = prismaMetrics.payablesCount
+            unallocatedReceiptsCount = prismaMetrics.unallocatedReceiptsCount
             cashBal = prismaMetrics.cashBalance
             revVal = prismaMetrics.revenue
             expVal = prismaMetrics.expense
             margin = revVal > 0 ? ((revVal - expVal) / revVal) * 100 : 0
+        }
+
+        if (!requiresPrismaFallback) {
+            try {
+                const summaryCounts = await withPrismaAuth(async (prisma) => {
+                    const [arCount, apCount, unallocatedCount] = await Promise.all([
+                        prisma.invoice.count({
+                            where: { type: 'INV_OUT', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] }, balanceDue: { gt: 0 } }
+                        }),
+                        prisma.invoice.count({
+                            where: { type: 'INV_IN', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] }, balanceDue: { gt: 0 } }
+                        }),
+                        prisma.payment.count({
+                            where: { invoiceId: null, customerId: { not: null } }
+                        }),
+                    ])
+                    return { arCount, apCount, unallocatedCount }
+                })
+                receivablesCount = summaryCounts.arCount
+                payablesCount = summaryCounts.apCount
+                unallocatedReceiptsCount = summaryCounts.unallocatedCount
+            } catch (error) {
+                console.error("Failed to fetch finance summary counts:", error)
+            }
         }
 
         // Mapping Lists
@@ -439,6 +479,9 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             cashBalance: cashBal,
             receivables,
             payables,
+            receivablesCount,
+            payablesCount,
+            unallocatedReceiptsCount,
             netMargin: Number(margin.toFixed(1)),
             revenue: revVal,
             burnRate,
@@ -456,6 +499,9 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             cashBalance: 0,
             receivables: 0,
             payables: 0,
+            receivablesCount: 0,
+            payablesCount: 0,
+            unallocatedReceiptsCount: 0,
             netMargin: 0,
             revenue: 0,
             burnRate: 0,

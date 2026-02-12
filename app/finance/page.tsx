@@ -51,7 +51,7 @@ export default async function FinanceDashboardPage() {
                     value={`Rp ${formatCompactNumber(metrics.receivables)}`}
                     trend="+5% vs bln lalu"
                     trendUp={false} // increasing AR might be bad or neutral, keeping consistent
-                    description="From Unpaid Invoices"
+                    description={`${metrics.receivablesCount} invoice terbuka`}
                     icon={FileText}
                     color="blue"
                 />
@@ -60,7 +60,7 @@ export default async function FinanceDashboardPage() {
                     value={`Rp ${formatCompactNumber(metrics.payables)}`}
                     trend="-2% vs bln lalu"
                     trendUp={true} // decreasing AP is good
-                    description="From Unpaid Bills"
+                    description={`${metrics.payablesCount} bill belum lunas`}
                     icon={CreditCard}
                     color="rose"
                 />
