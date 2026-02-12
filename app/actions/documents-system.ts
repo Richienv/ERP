@@ -288,6 +288,8 @@ export async function getDocumentSystemOverview(input?: DocumentsOverviewInput) 
     try {
         const authUser = await getAuthzUser()
         return await withPrismaAuth(async (prisma) => {
+            const roleEventTableReady = await ensureRoleEventTable(prisma)
+
             const poQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseOrders)
             const invoiceQuery = normalizeRegistryQuery(input?.registryQuery?.invoices)
             const grnQuery = normalizeRegistryQuery(input?.registryQuery?.goodsReceipts)
@@ -364,22 +366,24 @@ export async function getDocumentSystemOverview(input?: DocumentsOverviewInput) 
                 ]
             }
 
-            const roleEventsPromise = prisma.$queryRaw<RoleAuditEventRecord[]>`
-                SELECT
-                    sre.id::text AS id,
-                    sre.role_id::text AS "roleId",
-                    sre.role_code AS "roleCode",
-                    sre.role_name AS "roleName",
-                    sre.event_type AS "eventType",
-                    sre.actor_label AS "actorLabel",
-                    COALESCE(sre.before_permissions, ARRAY[]::text[]) AS "beforePermissions",
-                    COALESCE(sre.after_permissions, ARRAY[]::text[]) AS "afterPermissions",
-                    COALESCE(sre.changed_permissions, ARRAY[]::text[]) AS "changedPermissions",
-                    sre.created_at AS "createdAt"
-                FROM system_role_events sre
-                ORDER BY sre.created_at DESC
-                    LIMIT 60
-            `.catch(() => [] as RoleAuditEventRecord[])
+            const roleEventsPromise = roleEventTableReady
+                ? prisma.$queryRaw<RoleAuditEventRecord[]>`
+                      SELECT
+                          sre.id::text AS id,
+                          sre.role_id::text AS "roleId",
+                          sre.role_code AS "roleCode",
+                          sre.role_name AS "roleName",
+                          sre.event_type AS "eventType",
+                          sre.actor_label AS "actorLabel",
+                          COALESCE(sre.before_permissions, ARRAY[]::text[]) AS "beforePermissions",
+                          COALESCE(sre.after_permissions, ARRAY[]::text[]) AS "afterPermissions",
+                          COALESCE(sre.changed_permissions, ARRAY[]::text[]) AS "changedPermissions",
+                          sre.created_at AS "createdAt"
+                      FROM system_role_events sre
+                      ORDER BY sre.created_at DESC
+                      LIMIT 60
+                  `.catch(() => [] as RoleAuditEventRecord[])
+                : Promise.resolve([] as RoleAuditEventRecord[])
 
             const [categories, warehouses, roles, purchaseOrders, invoices, grns, payrollRuns, managerDirectory, roleEvents, poTotal, invoiceTotal, grnTotal, payrollTotal] = await Promise.all([
                 prisma.category.findMany({
