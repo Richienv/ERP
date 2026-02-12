@@ -2,7 +2,7 @@
 
 import { withPrismaAuth, safeQuery, withRetry } from "@/lib/db"
 import { getFinancialMetrics } from "@/lib/actions/finance"
-import { PrismaClient } from "@prisma/client"
+import { PRStatus, PrismaClient } from "@prisma/client"
 import {
     FALLBACK_DASHBOARD_SNAPSHOT,
     FALLBACK_PROCUREMENT_METRICS,
@@ -256,8 +256,71 @@ async function fetchProcurementMetrics(prisma: PrismaClient) {
         take: 5
     })
 
+    const [
+        poDraftCount,
+        poPendingApprovalCount,
+        poApprovedCount,
+        poActiveExecutionCount,
+        poCompletedCount,
+        poRejectedCancelledCount,
+        prDraftCount,
+        prRequestedCount,
+        prApprovedCount,
+        prConvertedCount,
+        prRejectedCancelledCount,
+    ] = await Promise.all([
+        prisma.purchaseOrder.count({ where: { status: 'PO_DRAFT' } }),
+        prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }),
+        prisma.purchaseOrder.count({ where: { status: 'APPROVED' } }),
+        prisma.purchaseOrder.count({ where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] } } }),
+        prisma.purchaseOrder.count({ where: { status: { in: ['RECEIVED', 'COMPLETED'] } } }),
+        prisma.purchaseOrder.count({ where: { status: { in: ['REJECTED', 'CANCELLED'] } } }),
+        prisma.purchaseRequest.count({ where: { status: PRStatus.DRAFT } }),
+        prisma.purchaseRequest.count({ where: { status: PRStatus.PENDING } }),
+        prisma.purchaseRequest.count({ where: { status: PRStatus.APPROVED } }),
+        prisma.purchaseRequest.count({ where: { status: PRStatus.PO_CREATED } }),
+        prisma.purchaseRequest.count({ where: { status: { in: [PRStatus.REJECTED, PRStatus.CANCELLED] } } }),
+    ])
+
+    const recentPOs = await prisma.purchaseOrder.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+            supplier: { select: { name: true } },
+            items: { select: { quantity: true } },
+        },
+        take: 10,
+    })
+
+    const recentPRs = await prisma.purchaseRequest.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+            requester: { select: { firstName: true, lastName: true } },
+            items: { select: { id: true } },
+        },
+        take: 10,
+    })
+
+    const pendingRequestsCount = prRequestedCount
+    const pendingRequests = recentPRs.filter((pr) => pr.status === PRStatus.PENDING).slice(0, 5)
+
     return {
         activeCount: activePO,
+        pendingRequestsCount,
+        poStatusSummary: {
+            draft: poDraftCount,
+            requested: poPendingApprovalCount,
+            approved: poApprovedCount,
+            active: poActiveExecutionCount,
+            completed: poCompletedCount,
+            blocked: poRejectedCancelledCount,
+        },
+        prStatusSummary: {
+            draft: prDraftCount,
+            requested: prRequestedCount,
+            approved: prApprovedCount,
+            converted: prConvertedCount,
+            blocked: prRejectedCancelledCount,
+        },
         delays: delayedPOs.map(po => ({
             id: po.id,
             number: po.number,
@@ -281,7 +344,31 @@ async function fetchProcurementMetrics(prisma: PrismaClient) {
                 productCode: item.product.code,
                 quantity: item.quantity
             }))
-        }))
+        })),
+        pendingRequests: pendingRequests.map((pr) => ({
+            id: pr.id,
+            number: pr.number,
+            requesterName: `${pr.requester.firstName} ${pr.requester.lastName || ''}`.trim() || '-',
+            itemCount: pr.items.length,
+            status: pr.status
+        })),
+        recentPOs: recentPOs.map((po) => ({
+            id: po.id,
+            number: po.number,
+            status: po.status,
+            supplierName: po.supplier?.name || 'Unknown',
+            itemQty: po.items.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
+            totalAmount: Number(po.netAmount || po.totalAmount || 0),
+            date: po.createdAt.toISOString(),
+        })),
+        recentPRs: recentPRs.map((pr) => ({
+            id: pr.id,
+            number: pr.number,
+            status: pr.status,
+            requesterName: `${pr.requester.firstName} ${pr.requester.lastName || ''}`.trim() || '-',
+            itemCount: pr.items.length,
+            date: pr.createdAt.toISOString(),
+        })),
     }
 }
 
@@ -614,7 +701,17 @@ export async function getDashboardData() {
             ] = await Promise.all([
                 fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
                 fetchDeadStockValue(prisma).catch(() => 0),
-                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [], pendingApproval: [] })),
+                fetchProcurementMetrics(prisma).catch(() => ({
+                    activeCount: 0,
+                    pendingRequestsCount: 0,
+                    poStatusSummary: { draft: 0, requested: 0, approved: 0, active: 0, completed: 0, blocked: 0 },
+                    prStatusSummary: { draft: 0, requested: 0, approved: 0, converted: 0, blocked: 0 },
+                    delays: [],
+                    pendingApproval: [],
+                    pendingRequests: [],
+                    recentPOs: [],
+                    recentPRs: []
+                })),
                 fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
                 fetchPendingLeaves(prisma).catch(() => 0),
                 fetchAuditStatus(prisma).catch(() => null),
@@ -649,7 +746,17 @@ export async function getDashboardData() {
         return {
             financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
             deadStock: 0,
-            procurement: { activeCount: 0, delays: [], pendingApproval: [] },
+            procurement: {
+                activeCount: 0,
+                pendingRequestsCount: 0,
+                poStatusSummary: { draft: 0, requested: 0, approved: 0, active: 0, completed: 0, blocked: 0 },
+                prStatusSummary: { draft: 0, requested: 0, approved: 0, converted: 0, blocked: 0 },
+                delays: [],
+                pendingApproval: [],
+                pendingRequests: [],
+                recentPOs: [],
+                recentPRs: []
+            },
             hr: { totalSalary: 0, lateEmployees: [] },
             leaves: 0,
             audit: null,
@@ -696,7 +803,17 @@ export async function getProcurementMetrics() {
         return await withPrismaAuth(async (prisma) => fetchProcurementMetrics(prisma))
     } catch (error) {
         console.error("Failed to fetch procurement metrics:", error)
-        return { activeCount: 0, delays: [] }
+        return {
+            activeCount: 0,
+            pendingRequestsCount: 0,
+            poStatusSummary: { draft: 0, requested: 0, approved: 0, active: 0, completed: 0, blocked: 0 },
+            prStatusSummary: { draft: 0, requested: 0, approved: 0, converted: 0, blocked: 0 },
+            delays: [],
+            pendingApproval: [],
+            pendingRequests: [],
+            recentPOs: [],
+            recentPRs: []
+        }
     }
 }
 

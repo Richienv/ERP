@@ -34,9 +34,66 @@ interface PendingPO {
 interface PengadaanCardProps {
     pendingApproval: PendingPO[]
     activeCount: number
+    pendingRequestsCount: number
+    poStatusSummary?: {
+        draft: number
+        requested: number
+        approved: number
+        active: number
+        completed: number
+        blocked: number
+    }
+    prStatusSummary?: {
+        draft: number
+        requested: number
+        approved: number
+        converted: number
+        blocked: number
+    }
+    pendingRequests: Array<{
+        id: string
+        number: string
+        requesterName: string
+        itemCount: number
+        status: string
+    }>
+    recentPOs: Array<{
+        id: string
+        number: string
+        status: string
+        supplierName: string
+        itemQty: number
+        totalAmount: number
+        date: string
+    }>
+    recentPRs: Array<{
+        id: string
+        number: string
+        status: string
+        requesterName: string
+        itemCount: number
+        date: string
+    }>
 }
 
-export function PengadaanCard({ pendingApproval, activeCount }: PengadaanCardProps) {
+const statusBadgeClass = (status: string) => {
+    if (['PENDING_APPROVAL', 'PENDING'].includes(status)) return 'bg-amber-100 text-amber-800 border-amber-200'
+    if (['APPROVED', 'PO_CREATED', 'COMPLETED', 'RECEIVED'].includes(status)) return 'bg-emerald-100 text-emerald-800 border-emerald-200'
+    if (['PO_DRAFT', 'DRAFT'].includes(status)) return 'bg-zinc-100 text-zinc-700 border-zinc-200'
+    if (['REJECTED', 'CANCELLED'].includes(status)) return 'bg-red-100 text-red-700 border-red-200'
+    return 'bg-blue-100 text-blue-700 border-blue-200'
+}
+
+export function PengadaanCard({
+    pendingApproval,
+    activeCount,
+    pendingRequestsCount,
+    pendingRequests,
+    poStatusSummary,
+    prStatusSummary,
+    recentPOs,
+    recentPRs
+}: PengadaanCardProps) {
     const [selectedPO, setSelectedPO] = useState<PendingPO | null>(null)
     const [rejectMode, setRejectMode] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
@@ -54,7 +111,7 @@ export function PengadaanCard({ pendingApproval, activeCount }: PengadaanCardPro
             } else {
                 toast.error(result.error || "Failed to approve")
             }
-        } catch (error) {
+        } catch {
             toast.error("Error approving PO")
         } finally {
             setProcessing(false)
@@ -79,7 +136,7 @@ export function PengadaanCard({ pendingApproval, activeCount }: PengadaanCardPro
             } else {
                 toast.error(result.error || "Failed to reject")
             }
-        } catch (error) {
+        } catch {
             toast.error("Error rejecting PO")
         } finally {
             setProcessing(false)
@@ -104,6 +161,133 @@ export function PengadaanCard({ pendingApproval, activeCount }: PengadaanCardPro
                 <CardContent className="pt-4">
                     <div className="text-3xl font-black tracking-tight">{activeCount} PO</div>
                     <p className="text-xs font-bold text-zinc-400 mt-1 mb-4">Active Orders</p>
+
+                    <div className="mb-4 space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">PO Status Snapshot</p>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="rounded border border-zinc-200 bg-zinc-50 p-2">
+                                <p className="text-[9px] uppercase text-zinc-500">Draft</p>
+                                <p className="text-sm font-black">{poStatusSummary?.draft || 0}</p>
+                            </div>
+                            <div className="rounded border border-amber-200 bg-amber-50 p-2">
+                                <p className="text-[9px] uppercase text-amber-700">Requested</p>
+                                <p className="text-sm font-black text-amber-900">{poStatusSummary?.requested || 0}</p>
+                            </div>
+                            <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
+                                <p className="text-[9px] uppercase text-emerald-700">Approved</p>
+                                <p className="text-sm font-black text-emerald-900">{poStatusSummary?.approved || 0}</p>
+                            </div>
+                            <div className="rounded border border-blue-200 bg-blue-50 p-2">
+                                <p className="text-[9px] uppercase text-blue-700">Active</p>
+                                <p className="text-sm font-black text-blue-900">{poStatusSummary?.active || 0}</p>
+                            </div>
+                            <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
+                                <p className="text-[9px] uppercase text-emerald-700">Completed</p>
+                                <p className="text-sm font-black text-emerald-900">{poStatusSummary?.completed || 0}</p>
+                            </div>
+                            <div className="rounded border border-red-200 bg-red-50 p-2">
+                                <p className="text-[9px] uppercase text-red-700">Blocked</p>
+                                <p className="text-sm font-black text-red-900">{poStatusSummary?.blocked || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-2.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 mb-1">Permintaan Pembelian (PR)</p>
+                        <div className="text-sm font-black text-blue-900">{pendingRequestsCount} pending request(s)</div>
+                        {pendingRequests.length > 0 && (
+                            <div className="mt-2 space-y-1">
+                                {pendingRequests.slice(0, 2).map((pr) => (
+                                    <div key={pr.id} className="flex items-center justify-between text-[10px] font-medium text-blue-800">
+                                        <span className="font-mono">{pr.number}</span>
+                                        <span>{pr.itemCount} item</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="mb-4 space-y-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">PR Status Snapshot</p>
+                        <div className="grid grid-cols-5 gap-2">
+                            <div className="rounded border border-zinc-200 bg-zinc-50 p-2">
+                                <p className="text-[9px] uppercase text-zinc-500">Draft</p>
+                                <p className="text-sm font-black">{prStatusSummary?.draft || 0}</p>
+                            </div>
+                            <div className="rounded border border-amber-200 bg-amber-50 p-2">
+                                <p className="text-[9px] uppercase text-amber-700">Requested</p>
+                                <p className="text-sm font-black text-amber-900">{prStatusSummary?.requested || 0}</p>
+                            </div>
+                            <div className="rounded border border-emerald-200 bg-emerald-50 p-2">
+                                <p className="text-[9px] uppercase text-emerald-700">Approved</p>
+                                <p className="text-sm font-black text-emerald-900">{prStatusSummary?.approved || 0}</p>
+                            </div>
+                            <div className="rounded border border-blue-200 bg-blue-50 p-2">
+                                <p className="text-[9px] uppercase text-blue-700">Converted</p>
+                                <p className="text-sm font-black text-blue-900">{prStatusSummary?.converted || 0}</p>
+                            </div>
+                            <div className="rounded border border-red-200 bg-red-50 p-2">
+                                <p className="text-[9px] uppercase text-red-700">Blocked</p>
+                                <p className="text-sm font-black text-red-900">{prStatusSummary?.blocked || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <p className="text-[10px] font-bold text-zinc-500 mb-2 uppercase tracking-wider">PO Overview Table</p>
+                        <div className="rounded-lg border border-zinc-200 overflow-hidden">
+                            <table className="w-full text-[10px]">
+                                <thead className="bg-zinc-100">
+                                    <tr>
+                                        <th className="px-2 py-1 text-left font-bold uppercase">PO</th>
+                                        <th className="px-2 py-1 text-left font-bold uppercase">Vendor</th>
+                                        <th className="px-2 py-1 text-left font-bold uppercase">Status</th>
+                                        <th className="px-2 py-1 text-right font-bold uppercase">Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {recentPOs.slice(0, 5).map((po) => (
+                                        <tr key={po.id} className="border-t border-zinc-100">
+                                            <td className="px-2 py-1.5 font-mono">{po.number}</td>
+                                            <td className="px-2 py-1.5">{po.supplierName}</td>
+                                            <td className="px-2 py-1.5">
+                                                <span className={`inline-flex rounded border px-1.5 py-0.5 text-[9px] font-bold ${statusBadgeClass(po.status)}`}>{po.status}</span>
+                                            </td>
+                                            <td className="px-2 py-1.5 text-right font-bold">{po.itemQty}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="mb-4">
+                        <p className="text-[10px] font-bold text-zinc-500 mb-2 uppercase tracking-wider">PR Overview Table</p>
+                        <div className="rounded-lg border border-zinc-200 overflow-hidden">
+                            <table className="w-full text-[10px]">
+                                <thead className="bg-zinc-100">
+                                    <tr>
+                                        <th className="px-2 py-1 text-left font-bold uppercase">PR</th>
+                                        <th className="px-2 py-1 text-left font-bold uppercase">Requester</th>
+                                        <th className="px-2 py-1 text-left font-bold uppercase">Status</th>
+                                        <th className="px-2 py-1 text-right font-bold uppercase">Items</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {recentPRs.slice(0, 5).map((pr) => (
+                                        <tr key={pr.id} className="border-t border-zinc-100">
+                                            <td className="px-2 py-1.5 font-mono">{pr.number}</td>
+                                            <td className="px-2 py-1.5">{pr.requesterName}</td>
+                                            <td className="px-2 py-1.5">
+                                                <span className={`inline-flex rounded border px-1.5 py-0.5 text-[9px] font-bold ${statusBadgeClass(pr.status)}`}>{pr.status}</span>
+                                            </td>
+                                            <td className="px-2 py-1.5 text-right font-bold">{pr.itemCount}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
                     <div className="mb-4">
                         <p className="text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-wider">Pending Your Approval</p>

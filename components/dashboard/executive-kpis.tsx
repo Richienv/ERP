@@ -2,15 +2,31 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Truck, Package, ShoppingCart, Users, Factory } from "lucide-react"
+import { Truck, Package, ShoppingCart, Users } from "lucide-react"
 import Link from "next/link"
 import { PengadaanCard } from "@/components/dashboard/pengadaan-card"
 
-import { formatCompactNumber, formatIDR } from "@/lib/utils"
+import { formatCompactNumber } from "@/lib/utils"
 
 interface ExecutiveKPIsProps {
     procurement?: {
         activeCount: number
+        pendingRequestsCount?: number
+        poStatusSummary?: {
+            draft: number
+            requested: number
+            approved: number
+            active: number
+            completed: number
+            blocked: number
+        }
+        prStatusSummary?: {
+            draft: number
+            requested: number
+            approved: number
+            converted: number
+            blocked: number
+        }
         delays: Array<{ id: string, number: string, supplierName: string, productName: string, daysLate: number }>
         pendingApproval: Array<{
             id: string
@@ -20,6 +36,30 @@ interface ExecutiveKPIsProps {
             netAmount: number
             itemCount: number
             items: Array<{ productName: string, productCode: string, quantity: number }>
+        }>
+        pendingRequests?: Array<{
+            id: string
+            number: string
+            requesterName: string
+            itemCount: number
+            status: string
+        }>
+        recentPOs?: Array<{
+            id: string
+            number: string
+            status: string
+            supplierName: string
+            itemQty: number
+            totalAmount: number
+            date: string
+        }>
+        recentPRs?: Array<{
+            id: string
+            number: string
+            status: string
+            requesterName: string
+            itemCount: number
+            date: string
         }>
     }
     inventory?: {
@@ -45,7 +85,7 @@ interface ExecutiveKPIsProps {
     }
 }
 
-export function ExecutiveKPIs({ procurement, inventory, production, hr, sales }: ExecutiveKPIsProps) {
+export function ExecutiveKPIs({ procurement, inventory, hr, sales }: ExecutiveKPIsProps) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
 
@@ -54,6 +94,12 @@ export function ExecutiveKPIs({ procurement, inventory, production, hr, sales }:
                 <PengadaanCard
                     pendingApproval={procurement.pendingApproval}
                     activeCount={procurement.activeCount}
+                    pendingRequestsCount={procurement.pendingRequestsCount || 0}
+                    pendingRequests={procurement.pendingRequests || []}
+                    poStatusSummary={procurement.poStatusSummary}
+                    prStatusSummary={procurement.prStatusSummary}
+                    recentPOs={procurement.recentPOs || []}
+                    recentPRs={procurement.recentPRs || []}
                 />
             ) : (
                 <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] bg-white h-full">

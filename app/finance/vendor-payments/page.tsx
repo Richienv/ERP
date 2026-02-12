@@ -389,22 +389,31 @@ export default function APCheckbookPage() {
                             )}
 
                             <div className="flex justify-end pt-8">
-                                <div className="w-64 border-b-2 border-black relative">
+                                <div className="w-64 relative">
                                     {isSigned ? (
-                                        <div className="absolute -bottom-2 left-0 right-0 text-center">
+                                        <div className="text-center border-b-2 border-black pb-1">
                                             <Image src={signatureDataUrl} alt="signature" width={220} height={56} className="mx-auto h-14 w-auto object-contain" />
                                             <p className="text-[10px] font-bold uppercase tracking-wide text-blue-900">Signed: {signedBy}</p>
                                         </div>
                                     ) : (
-                                        <button
-                                            onClick={handleSign}
-                                            className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 bg-black/5 transition-opacity text-xs font-bold uppercase cursor-pointer"
-                                        >
-                                            Click to Sign
-                                        </button>
+                                        <div className="border-b-2 border-black pb-4 text-center">
+                                            <button
+                                                type="button"
+                                                onClick={handleSign}
+                                                className="inline-flex items-center justify-center rounded-md border border-black/30 bg-white px-3 py-1.5 text-xs font-bold uppercase hover:bg-zinc-100"
+                                            >
+                                                Click to Sign
+                                            </button>
+                                        </div>
                                     )}
-                                    <Label className="absolute -bottom-6 right-0 text-xs font-bold uppercase text-muted-foreground w-full text-center">Authorized Signature</Label>
+                                    <Label className="mt-2 block text-xs font-bold uppercase text-muted-foreground w-full text-center">Authorized Signature</Label>
                                 </div>
+                            </div>
+
+                            <div className="flex justify-end">
+                                <Button type="button" variant="outline" className="h-9 border-black/30 text-xs font-bold uppercase" onClick={handleSign}>
+                                    {isSigned ? "Re-sign Check" : "Sign Check"}
+                                </Button>
                             </div>
                         </CardContent>
                     </Card>

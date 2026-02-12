@@ -766,7 +766,7 @@ export async function getAllPurchaseOrders() {
                     select: { name: true, email: true, phone: true }
                 },
                 items: {
-                    select: { id: true }
+                    select: { id: true, quantity: true }
                 },
                 purchaseRequests: {
                     take: 1, // Get the primary PR
@@ -798,7 +798,7 @@ export async function getAllPurchaseOrders() {
                 date: new Date(po.orderDate).toLocaleDateString('id-ID'),
                 total: Number(po.totalAmount),
                 status: po.status,
-                items: po.items?.length || 0,
+                items: po.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || 0,
                 eta: po.expectedDate ? new Date(po.expectedDate).toLocaleDateString('id-ID') : '-',
                 requester: requesterName,
                 approver: approverName
