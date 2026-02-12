@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/select"
 import { createManualMovement } from "@/app/actions/inventory"
 import { toast } from "sonner"
-import { Loader2, ArrowRightLeft, Plus, Minus, Package, Box, CheckCircle2 } from "lucide-react"
+import { Loader2, ArrowRightLeft, Plus, Minus, Box, CheckCircle2 } from "lucide-react"
 
 interface AdjustmentFormProps {
     products: { id: string, name: string, code: string, unit: string }[]
@@ -82,9 +82,9 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
                 router.refresh()
             } else {
-                toast.error("Failed to save adjustment", { description: result.error })
+                toast.error("Failed to save adjustment", { description: ("error" in result && result.error) ? String(result.error) : "Unknown error" })
             }
-        } catch (error) {
+        } catch {
             toast.error("An unexpected error occurred")
         } finally {
             setLoading(false)

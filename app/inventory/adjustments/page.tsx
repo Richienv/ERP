@@ -2,7 +2,7 @@
 import { AdjustmentForm } from "@/components/inventory/adjustment-form"
 import { getStockMovements, getProductsForKanban, getWarehouses } from "@/app/actions/inventory"
 import { Badge } from "@/components/ui/badge"
-import { ArrowRightLeft, CheckCircle2, RotateCcw } from "lucide-react"
+import { ArrowRightLeft, CheckCircle2 } from "lucide-react"
 
 export const dynamic = 'force-dynamic';
 
@@ -14,8 +14,8 @@ export default async function StockAdjustmentsPage() {
   ])
 
   // Filter for display if desired, or show all relevant Manual types
-  const filteredMovements = movements.filter(m =>
-    ['ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER', 'SCRAP'].some(t => m.type.includes(t))
+  const filteredMovements = movements.filter((m) =>
+    ['ADJUSTMENT', 'TRANSFER', 'SCRAP'].includes(m.type)
   )
 
   return (

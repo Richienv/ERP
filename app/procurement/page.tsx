@@ -5,43 +5,45 @@ import {
   AlertCircle,
   ArrowDownRight,
   ArrowUpRight,
-  Building2,
   CheckSquare,
   Clock,
-  CreditCard,
   DollarSign,
   FileText,
-  MoreVertical,
   Package,
   Plus,
-  ShoppingCart,
   Star,
   TrendingUp,
   Truck,
   Users
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Progress } from "@/components/ui/progress"
 import { getProcurementStats } from "@/lib/actions/procurement"
 import { formatIDR } from "@/lib/utils"
 import Link from "next/link"
-import { ProcurementModules } from "@/components/procurement/procurement-modules"
-import { ProcurementPerformanceProvider, usePerformanceMonitor } from "@/components/procurement/procurement-performance-provider"
-import { ReactNode } from "react"
+import { ProcurementPerformanceProvider } from "@/components/procurement/procurement-performance-provider"
 
-// Performance monitoring component
-function ProcurementPageWithMonitoring({ children }: { children: ReactNode }) {
-  usePerformanceMonitor('Procurement Dashboard')
-  return <ProcurementPerformanceProvider currentPath="/procurement">{children}</ProcurementPerformanceProvider>
+function statusBadgeClass(status: string) {
+  if (["APPROVED", "ACCEPTED", "COMPLETED", "RECEIVED", "PO_CREATED"].includes(status)) {
+    return "bg-emerald-100 text-emerald-800 border-emerald-300"
+  }
+  if (["PENDING", "PENDING_APPROVAL", "INSPECTING", "PARTIAL_ACCEPTED"].includes(status)) {
+    return "bg-amber-100 text-amber-800 border-amber-300"
+  }
+  if (["REJECTED", "CANCELLED"].includes(status)) {
+    return "bg-red-100 text-red-700 border-red-300"
+  }
+  if (["PO_DRAFT", "DRAFT"].includes(status)) {
+    return "bg-zinc-100 text-zinc-700 border-zinc-300"
+  }
+  return "bg-blue-100 text-blue-800 border-blue-300"
 }
 
 export default async function ProcurementPage() {
   // Enterprise: Parallel data fetching with aggressive caching
   const stats = await getProcurementStats()
-  const { spend, needsApproval, urgentNeeds, vendorHealth, incomingCount, recentActivity } = stats
+  const { spend, needsApproval, urgentNeeds, vendorHealth, incomingCount, recentActivity, purchaseOrders, purchaseRequests, receiving } = stats
 
   return (
     <ProcurementPerformanceProvider currentPath="/procurement">
@@ -139,6 +141,108 @@ export default async function ProcurementPage() {
                 <p className="text-xs font-bold text-muted-foreground mt-1">
                   Open or Partial delivery
                 </p>
+              </CardContent>
+            </Card>
+          </section>
+
+          {/* 2. Operational Status Cards */}
+          <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl overflow-hidden">
+              <CardHeader className="border-b border-black/10 bg-zinc-50">
+                <CardTitle className="text-base font-black uppercase flex items-center gap-2">
+                  <FileText className="h-4 w-4" /> Pesanan Pembelian (PO)
+                </CardTitle>
+                <CardDescription className="text-xs font-medium">Draft, approval, execution, completed</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                  <div className="rounded border p-2 bg-zinc-50">Draft: {purchaseOrders.summary.draft}</div>
+                  <div className="rounded border p-2 bg-amber-50 text-amber-800">Pending: {purchaseOrders.summary.pendingApproval}</div>
+                  <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Approved: {purchaseOrders.summary.approved}</div>
+                  <div className="rounded border p-2 bg-blue-50 text-blue-800">Active: {purchaseOrders.summary.inProgress}</div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase text-zinc-500">Recent PO</p>
+                  {purchaseOrders.recent.length === 0 ? (
+                    <p className="text-xs text-zinc-400 italic">No PO records.</p>
+                  ) : (
+                    purchaseOrders.recent.slice(0, 4).map((po: any) => (
+                      <div key={po.id} className="flex justify-between items-start gap-2 border rounded p-2">
+                        <div>
+                          <p className="text-xs font-bold font-mono">{po.number}</p>
+                          <p className="text-[11px] text-zinc-500">{po.supplier}</p>
+                        </div>
+                        <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(po.status)}`}>{po.status}</Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl overflow-hidden">
+              <CardHeader className="border-b border-black/10 bg-zinc-50">
+                <CardTitle className="text-base font-black uppercase flex items-center gap-2">
+                  <CheckSquare className="h-4 w-4" /> Permintaan Pembelian (PR)
+                </CardTitle>
+                <CardDescription className="text-xs font-medium">Purchase requests & approval pipeline</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                  <div className="rounded border p-2 bg-zinc-50">Draft: {purchaseRequests.summary.draft}</div>
+                  <div className="rounded border p-2 bg-amber-50 text-amber-800">Pending: {purchaseRequests.summary.pending}</div>
+                  <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Approved: {purchaseRequests.summary.approved}</div>
+                  <div className="rounded border p-2 bg-blue-50 text-blue-800">PO Created: {purchaseRequests.summary.poCreated}</div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase text-zinc-500">Recent PR</p>
+                  {purchaseRequests.recent.length === 0 ? (
+                    <p className="text-xs text-zinc-400 italic">No PR records.</p>
+                  ) : (
+                    purchaseRequests.recent.slice(0, 4).map((pr: any) => (
+                      <div key={pr.id} className="flex justify-between items-start gap-2 border rounded p-2">
+                        <div>
+                          <p className="text-xs font-bold font-mono">{pr.number}</p>
+                          <p className="text-[11px] text-zinc-500">{pr.requester}</p>
+                        </div>
+                        <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(pr.status)}`}>{pr.status}</Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl overflow-hidden">
+              <CardHeader className="border-b border-black/10 bg-zinc-50">
+                <CardTitle className="text-base font-black uppercase flex items-center gap-2">
+                  <Truck className="h-4 w-4" /> Penerimaan (Receiving)
+                </CardTitle>
+                <CardDescription className="text-xs font-medium">Status GRN & goods receipt validation</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                  <div className="rounded border p-2 bg-zinc-50">Draft: {receiving.summary.draft}</div>
+                  <div className="rounded border p-2 bg-amber-50 text-amber-800">Inspecting: {receiving.summary.inspecting}</div>
+                  <div className="rounded border p-2 bg-blue-50 text-blue-800">Partial: {receiving.summary.partialAccepted}</div>
+                  <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Accepted: {receiving.summary.accepted}</div>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black uppercase text-zinc-500">Recent Receiving</p>
+                  {receiving.recent.length === 0 ? (
+                    <p className="text-xs text-zinc-400 italic">No receiving records.</p>
+                  ) : (
+                    receiving.recent.slice(0, 4).map((grn: any) => (
+                      <div key={grn.id} className="flex justify-between items-start gap-2 border rounded p-2">
+                        <div>
+                          <p className="text-xs font-bold font-mono">{grn.number}</p>
+                          <p className="text-[11px] text-zinc-500">{grn.poNumber} • {grn.warehouse}</p>
+                        </div>
+                        <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(grn.status)}`}>{grn.status}</Badge>
+                      </div>
+                    ))
+                  )}
+                </div>
               </CardContent>
             </Card>
           </section>

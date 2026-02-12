@@ -80,9 +80,9 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
                 setNotes("")
                 router.refresh()
             } else {
-                toast.error(result.error || "Failed to record movement")
+                toast.error(("error" in result && result.error) ? String(result.error) : "Failed to record movement")
             }
-        } catch (error) {
+        } catch {
             toast.error("An unexpected error occurred")
         } finally {
             setLoading(false)

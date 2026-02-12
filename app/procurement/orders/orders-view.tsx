@@ -34,9 +34,7 @@ import {
 } from "@/components/ui/tabs"
 
 import { formatIDR } from "@/lib/utils"
-import { useAuth } from "@/lib/auth-context"
 import { NewPurchaseOrderDialog } from "@/components/procurement/new-po-dialog"
-import { PODetailsSheet } from "@/components/procurement/po-details-sheet"
 import { POFinalizeDialog } from "@/components/procurement/po-finalize-dialog"
 
 interface Order {
@@ -58,8 +56,6 @@ interface OrdersViewProps {
 
 export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
-    const { user } = useAuth()
-    const userRole = user?.role || "ROLE_STAFF"
 
     const filteredOrders = initialOrders.filter(order =>
         order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -88,7 +84,6 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
         }
     }
 
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
     const [finalizePO, setFinalizePO] = useState<Order | null>(null)
 
     const OrdersTable = ({ data }: { data: Order[] }) => (
@@ -139,14 +134,11 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                                 </td>
                                 <td className="p-4 text-right">
                                     <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-7 w-7 hover:bg-black hover:text-white rounded-full"
-                                            onClick={(e) => { e.stopPropagation(); setSelectedOrder(po) }}
-                                        >
-                                            <Eye className="h-3.5 w-3.5" />
-                                        </Button>
+                                        <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                            <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white rounded-full" title="View PDF">
+                                                <Eye className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </a>
                                         <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                                             <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white rounded-full">
                                                 <Download className="h-3.5 w-3.5" />
@@ -276,13 +268,6 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                     <OrdersTable data={approvedOrders} />
                 </TabsContent>
             </Tabs>
-
-            <PODetailsSheet
-                order={selectedOrder}
-                isOpen={!!selectedOrder}
-                onClose={() => setSelectedOrder(null)}
-                userRole={userRole || 'STAFF'}
-            />
 
             <POFinalizeDialog
                 poId={finalizePO?.dbId || null}

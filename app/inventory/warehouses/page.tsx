@@ -6,8 +6,7 @@ import {
   MapPin,
   Users,
   LayoutGrid,
-  MoreVertical,
-  Settings2
+  MoreVertical
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +24,7 @@ import Link from 'next/link'
 import { getWarehouses } from "@/app/actions/inventory";
 import { WarehouseFormDialog } from "@/components/inventory/warehouse-form-dialog";
 import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider";
+import { WarehouseStaffDialog } from "@/components/inventory/warehouse-staff-dialog";
 
 async function WarehouseGrid() {
   const warehouses = await getWarehouses()
@@ -97,8 +97,7 @@ async function WarehouseGrid() {
                 </div>
               </div>
               <div className="p-3 border border-black/10 rounded-lg bg-zinc-50/50 flex flex-col justify-center items-center text-center">
-                <p className="text-xs font-bold uppercase text-muted-foreground mb-1">Active Staff</p>
-                <p className="text-2xl font-black">{wh.staff}</p>
+                <WarehouseStaffDialog warehouseId={wh.id} warehouseName={wh.name} triggerMode="staff" />
               </div>
             </div>
 
@@ -110,21 +109,7 @@ async function WarehouseGrid() {
                 View Details
               </Link>
             </Button>
-            <WarehouseFormDialog
-              mode="edit"
-              warehouse={{
-                id: wh.id,
-                name: wh.name,
-                code: wh.code,
-                address: wh.location,
-                capacity: wh.capacity
-              }}
-              trigger={
-                <Button variant="outline" size="icon" className="h-9 w-9 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] hover:translate-x-[1px] bg-white">
-                  <Settings2 className="h-4 w-4" />
-                </Button>
-              }
-            />
+            <WarehouseStaffDialog warehouseId={wh.id} warehouseName={wh.name} triggerMode="manager" />
           </CardFooter>
         </Card>
       ))}

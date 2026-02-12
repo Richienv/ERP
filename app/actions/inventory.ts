@@ -1,20 +1,17 @@
 'use server'
 
-import { withPrismaAuth, safeQuery, withRetry, prisma } from "@/lib/db"
+import { withPrismaAuth, withRetry, prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { unstable_cache, revalidateTag, revalidatePath } from "next/cache"
 import { calculateProductStatus } from "@/lib/inventory-logic"
-import { approvePurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
-import {
-    FALLBACK_INVENTORY_KPIS,
-    FALLBACK_MATERIAL_GAP,
-    FALLBACK_PROCUREMENT_INSIGHTS,
-    FALLBACK_WAREHOUSES
-} from "@/lib/db-fallbacks"
 import { createProductSchema, createCategorySchema, type CreateProductInput, type CreateCategoryInput } from "@/lib/validations"
 import { z } from "zod"
+import { assertRole, getAuthzUser } from "@/lib/authz"
 
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
+const STOCK_OPNAME_PREFIX = "STOCK_OPNAME_REQUEST::"
+const STOCK_OPNAME_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN"]
+const MANAGE_WAREHOUSE_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN"]
 
 export async function createCategory(input: CreateCategoryInput) {
     try {
@@ -92,6 +89,22 @@ export const getWarehouses = unstable_cache(
             where: { id: { in: managerIds } },
             select: { id: true, firstName: true, lastName: true, phone: true }
         })
+        const activeWarehouseStaff = await prisma.employee.findMany({
+            where: {
+                status: 'ACTIVE',
+                OR: [
+                    { department: { contains: 'warehouse', mode: 'insensitive' } },
+                    { department: { contains: 'gudang', mode: 'insensitive' } },
+                    { department: { contains: 'logistik', mode: 'insensitive' } },
+                    { department: { contains: 'logistics', mode: 'insensitive' } },
+                    { position: { contains: 'warehouse', mode: 'insensitive' } },
+                    { position: { contains: 'gudang', mode: 'insensitive' } },
+                    { position: { contains: 'logistik', mode: 'insensitive' } },
+                    { position: { contains: 'logistics', mode: 'insensitive' } }
+                ]
+            },
+            select: { id: true }
+        })
 
         // In a real app, you'd relate employees to warehouses. 
         // For now, we assume a static staff count per warehouse or fetch generally.
@@ -120,7 +133,7 @@ export const getWarehouses = unstable_cache(
                 activePOs: 0,
                 pendingTasks: 0,
                 items: totalItems,
-                staff: Math.floor(Math.random() * (15 - 5 + 1) + 5), // Mock for UI aesthetics until relation exists
+                staff: activeWarehouseStaff.length,
                 phone: managerPhone
             }
         })
@@ -972,131 +985,127 @@ export async function createManualMovement(data: {
     userId: string
 }) {
     try {
-        if (data.quantity <= 0) throw new Error("Quantity must be positive")
+        const user = await getAuthzUser()
+        if (!Number.isFinite(data.quantity) || data.quantity <= 0) throw new Error("Quantity must be positive")
+        if (!Number.isInteger(data.quantity)) throw new Error("Quantity must be a whole number")
         if (data.type === 'TRANSFER' && !data.targetWarehouseId) throw new Error("Target warehouse required for transfer")
         if (data.type === 'TRANSFER' && data.warehouseId === data.targetWarehouseId) throw new Error("Cannot transfer to same warehouse")
 
-        return await withPrismaAuth(async (prisma) => {
-            return await prisma.$transaction(async (tx) => {
-                // Determine DB Type & Sign
-                let dbType = 'ADJUSTMENT'
-                let qtyChange = 0
+        const transactionResult = await withPrismaAuth(async (tx) => {
+            // Determine DB Type & Sign
+            let dbType = 'ADJUSTMENT'
+            let qtyChange = 0
 
-                if (data.type === 'ADJUSTMENT_IN') {
-                    dbType = 'ADJUSTMENT'
-                    qtyChange = data.quantity
-                } else if (data.type === 'ADJUSTMENT_OUT') {
-                    dbType = 'ADJUSTMENT'
-                    qtyChange = -data.quantity
-                } else if (data.type === 'SCRAP') {
-                    dbType = 'SCRAP'
-                    qtyChange = -data.quantity
-                } else if (data.type === 'TRANSFER') {
-                    dbType = 'TRANSFER'
-                    qtyChange = -data.quantity // Source decreases
-                }
+            if (data.type === 'ADJUSTMENT_IN') {
+                dbType = 'ADJUSTMENT'
+                qtyChange = data.quantity
+            } else if (data.type === 'ADJUSTMENT_OUT') {
+                dbType = 'ADJUSTMENT'
+                qtyChange = -data.quantity
+            } else if (data.type === 'SCRAP') {
+                dbType = 'SCRAP'
+                qtyChange = -data.quantity
+            } else if (data.type === 'TRANSFER') {
+                dbType = 'TRANSFER'
+                qtyChange = -data.quantity // Source decreases
+            }
 
-                // 0. Validate Source Stock for Outbound/Transfer
-                if (qtyChange < 0) {
-                    // Use findFirst to avoid unique constraint validaton issues with null locations for now
-                    const strictSource = await tx.stockLevel.findFirst({
-                        where: { productId: data.productId, warehouseId: data.warehouseId }
-                    })
-
-                    if (!strictSource || strictSource.quantity < Math.abs(qtyChange)) {
-                        throw new Error(`Insufficient stock in source warehouse. Available: ${strictSource?.quantity || 0}`)
-                    }
-                }
-
-                // 1. Create Source Transaction
-                await tx.inventoryTransaction.create({
-                    data: {
-                        productId: data.productId,
-                        warehouseId: data.warehouseId,
-                        type: dbType as any,
-                        quantity: qtyChange,
-                        notes: data.notes,
-                        performedBy: data.userId
-                    }
-                })
-
-                // 2. Update Source Stock Level
-                const sourceLevel = await tx.stockLevel.findFirst({
+            // Validate source availability for outbound flows
+            if (qtyChange < 0) {
+                const strictSource = await tx.stockLevel.findFirst({
                     where: { productId: data.productId, warehouseId: data.warehouseId }
                 })
 
-                if (sourceLevel) {
+                const availableQty = strictSource?.availableQty ?? 0
+                if (!strictSource || availableQty < Math.abs(qtyChange)) {
+                    throw new Error(`Insufficient available stock. Requested: ${Math.abs(qtyChange)}, Available: ${availableQty}`)
+                }
+            }
+
+            // 1. Create Source Transaction
+            await tx.inventoryTransaction.create({
+                data: {
+                    productId: data.productId,
+                    warehouseId: data.warehouseId,
+                    type: dbType as any,
+                    quantity: qtyChange,
+                    notes: data.notes,
+                    performedBy: user.id
+                }
+            })
+
+            // 2. Update Source Stock Level
+            const sourceLevel = await tx.stockLevel.findFirst({
+                where: { productId: data.productId, warehouseId: data.warehouseId }
+            })
+
+            if (sourceLevel) {
+                await tx.stockLevel.update({
+                    where: { id: sourceLevel.id },
+                    data: {
+                        quantity: { increment: qtyChange },
+                        availableQty: { increment: qtyChange }
+                    }
+                })
+            } else if (qtyChange > 0) {
+                await tx.stockLevel.create({
+                    data: {
+                        productId: data.productId,
+                        warehouseId: data.warehouseId,
+                        quantity: qtyChange,
+                        availableQty: qtyChange
+                    }
+                })
+            } else {
+                throw new Error("Cannot deduct from empty stock")
+            }
+
+            // 3. Handle TRANSFER (Target Side)
+            if (data.type === 'TRANSFER' && data.targetWarehouseId) {
+                await tx.inventoryTransaction.create({
+                    data: {
+                        productId: data.productId,
+                        warehouseId: data.targetWarehouseId,
+                        type: 'TRANSFER',
+                        quantity: data.quantity, // Positive at target
+                        notes: `Transfer from ${data.warehouseId} | ${data.notes || ''}`,
+                        performedBy: user.id
+                    }
+                })
+
+                const targetLevel = await tx.stockLevel.findFirst({
+                    where: { productId: data.productId, warehouseId: data.targetWarehouseId }
+                })
+
+                if (targetLevel) {
                     await tx.stockLevel.update({
-                        where: { id: sourceLevel.id },
+                        where: { id: targetLevel.id },
                         data: {
-                            quantity: { increment: qtyChange },
-                            availableQty: { increment: qtyChange }
-                        }
-                    })
-                } else if (qtyChange > 0) {
-                    // Create if IN and not exists
-                    await tx.stockLevel.create({
-                        data: {
-                            productId: data.productId,
-                            warehouseId: data.warehouseId,
-                            quantity: qtyChange,
-                            availableQty: qtyChange
+                            quantity: { increment: data.quantity },
+                            availableQty: { increment: data.quantity }
                         }
                     })
                 } else {
-                    throw new Error("Cannot deduce from empty stock")
-                }
-
-                // 3. Handle TRANSFER (Target Side)
-                if (data.type === 'TRANSFER' && data.targetWarehouseId) {
-                    // Create Incoming Transaction at Target
-                    await tx.inventoryTransaction.create({
+                    await tx.stockLevel.create({
                         data: {
                             productId: data.productId,
                             warehouseId: data.targetWarehouseId,
-                            type: 'TRANSFER',
-                            quantity: data.quantity, // Positive at target
-                            notes: `Transfer from ${data.warehouseId} | ${data.notes || ''}`,
-                            performedBy: data.userId
+                            quantity: data.quantity,
+                            availableQty: data.quantity
                         }
                     })
-
-                    // Update Target Stock
-                    const targetLevel = await tx.stockLevel.findFirst({
-                        where: { productId: data.productId, warehouseId: data.targetWarehouseId }
-                    })
-
-                    if (targetLevel) {
-                        await tx.stockLevel.update({
-                            where: { id: targetLevel.id },
-                            data: {
-                                quantity: { increment: data.quantity },
-                                availableQty: { increment: data.quantity }
-                            }
-                        })
-                    } else {
-                        await tx.stockLevel.create({
-                            data: {
-                                productId: data.productId,
-                                warehouseId: data.targetWarehouseId,
-                                quantity: data.quantity,
-                                availableQty: data.quantity
-                            }
-                        })
-                    }
                 }
-
-                return { success: true }
-            })
-
-                // Revalidate outside transaction
-                ; (revalidateTag as any)('inventory')
-            revalidatePath('/inventory/movements')
-            revalidatePath('/inventory/products')
-            revalidatePath('/inventory/warehouses')
+            }
 
             return { success: true }
         })
+        revalidateTagSafe('inventory')
+        revalidateTagSafe('movements')
+        revalidatePath('/inventory/movements')
+        revalidatePath('/inventory/products')
+        revalidatePath('/inventory/warehouses')
+
+        return transactionResult
 
     } catch (e: any) {
         console.error("Manual Movement Failed", e)
@@ -1135,6 +1144,7 @@ export async function submitSpotAudit(data: {
     notes?: string;
 }) {
     try {
+        const user = await getAuthzUser()
         const { warehouseId, productId, actualQty, auditorName, notes } = data;
 
         return await withPrismaAuth(async (prisma) => {
@@ -1146,41 +1156,73 @@ export async function submitSpotAudit(data: {
             const systemQty = existingStock?.quantity || 0;
             const discrepancy = actualQty - systemQty;
 
-            if (discrepancy !== 0) {
-                if (existingStock) {
-                    await prisma.stockLevel.update({
-                        where: { id: existingStock.id },
-                        data: { quantity: actualQty }
-                    });
-                } else {
-                    await prisma.stockLevel.create({
-                        data: {
-                            productId,
-                            warehouseId,
-                            quantity: actualQty,
-                            locationId: null
-                        }
-                    });
-                }
-
-                // 3. Record Transaction
-                await prisma.inventoryTransaction.create({
-                    data: {
-                        type: 'ADJUSTMENT', // Fixed Enum
-                        quantity: discrepancy, // Signed value (+ for IN, - for OUT)
-                        productId,
-                        warehouseId,
-                        referenceId: `AUDIT-${Date.now()}`,
-                        notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
-                    }
-                });
-
-                revalidateTagSafe('inventory')
-                revalidateTagSafe('warehouse-details')
-                // revalidatePath('/inventory/audit') // Optional: Explicitly refresh the calling page
+            if (discrepancy === 0) {
+                return { success: true, requiresApproval: false, message: "No discrepancy detected." }
             }
 
-            return { success: true };
+            const warehouse = await prisma.warehouse.findUnique({
+                where: { id: warehouseId },
+                select: { id: true, name: true, managerId: true }
+            })
+            if (!warehouse) throw new Error("Warehouse not found")
+
+            let approverId = warehouse.managerId || null
+            if (approverId) {
+                const manager = await prisma.employee.findUnique({
+                    where: { id: approverId },
+                    select: { id: true, status: true }
+                })
+                if (!manager || manager.status !== 'ACTIVE') {
+                    approverId = null
+                }
+            }
+
+            if (!approverId) {
+                const fallbackApprover = await prisma.employee.findFirst({
+                    where: {
+                        status: 'ACTIVE',
+                        OR: [
+                            { position: { contains: 'manager', mode: 'insensitive' } },
+                            { position: { contains: 'head', mode: 'insensitive' } },
+                            { position: { contains: 'director', mode: 'insensitive' } },
+                            { position: { contains: 'ceo', mode: 'insensitive' } },
+                            { department: { contains: 'management', mode: 'insensitive' } }
+                        ]
+                    },
+                    select: { id: true }
+                })
+                approverId = fallbackApprover?.id || null
+            }
+
+            if (!approverId) throw new Error("No approver (manager/boss) is configured")
+
+            const payload = {
+                warehouseId,
+                productId,
+                systemQty,
+                actualQty,
+                discrepancy,
+                auditorName: auditorName || 'System',
+                notes: notes || '',
+                requestedBy: user.id,
+                requestedAt: new Date().toISOString()
+            }
+
+            const task = await prisma.employeeTask.create({
+                data: {
+                    employeeId: approverId,
+                    title: `Stock Opname Adjustment - ${warehouse.name}`,
+                    type: 'LOGISTICS',
+                    status: 'PENDING',
+                    priority: Math.abs(discrepancy) >= 10 ? 'HIGH' : 'MEDIUM',
+                    notes: `${STOCK_OPNAME_PREFIX}${JSON.stringify(payload)}`,
+                    relatedId: warehouseId,
+                }
+            })
+
+            revalidateTagSafe('inventory')
+            revalidatePath('/inventory/audit')
+            return { success: true, requiresApproval: true, taskId: task.id };
         })
 
     } catch (error) {
@@ -1242,6 +1284,309 @@ export async function getRecentAudits() {
     }
 }
 
+export async function getPendingStockOpnameAdjustments() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const tasks = await prisma.employeeTask.findMany({
+                where: {
+                    type: 'LOGISTICS',
+                    status: 'PENDING',
+                    notes: { startsWith: STOCK_OPNAME_PREFIX }
+                },
+                include: {
+                    employee: {
+                        select: { id: true, firstName: true, lastName: true, position: true }
+                    }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            })
+
+            const parsed = tasks.map((task) => {
+                const raw = (task.notes || '').replace(STOCK_OPNAME_PREFIX, '')
+                let payload: any = null
+                try {
+                    payload = JSON.parse(raw)
+                } catch {
+                    payload = null
+                }
+                return { task, payload }
+            }).filter((t) => t.payload)
+
+            if (parsed.length === 0) return []
+
+            const warehouseIds = [...new Set(parsed.map((p) => p.payload.warehouseId))]
+            const productIds = [...new Set(parsed.map((p) => p.payload.productId))]
+
+            const [warehouses, products] = await Promise.all([
+                prisma.warehouse.findMany({ where: { id: { in: warehouseIds } }, select: { id: true, name: true, code: true } }),
+                prisma.product.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true, code: true, unit: true } })
+            ])
+
+            const warehouseMap = new Map(warehouses.map((w) => [w.id, w]))
+            const productMap = new Map(products.map((p) => [p.id, p]))
+
+            return parsed.map(({ task, payload }) => ({
+                taskId: task.id,
+                title: task.title,
+                createdAt: task.createdAt,
+                approverName: `${task.employee.firstName} ${task.employee.lastName || ''}`.trim(),
+                approverPosition: task.employee.position,
+                warehouseId: payload.warehouseId,
+                warehouseName: warehouseMap.get(payload.warehouseId)?.name || payload.warehouseId,
+                warehouseCode: warehouseMap.get(payload.warehouseId)?.code || '-',
+                productId: payload.productId,
+                productName: productMap.get(payload.productId)?.name || payload.productId,
+                productCode: productMap.get(payload.productId)?.code || '-',
+                unit: productMap.get(payload.productId)?.unit || '-',
+                systemQty: Number(payload.systemQty || 0),
+                actualQty: Number(payload.actualQty || 0),
+                discrepancy: Number(payload.discrepancy || 0),
+                auditorName: payload.auditorName || 'System',
+                notes: payload.notes || '',
+                requestedBy: payload.requestedBy || '-',
+                requestedAt: payload.requestedAt || task.createdAt.toISOString()
+            }))
+        })
+    } catch (error) {
+        console.error("Error fetching pending stock opname adjustments:", error)
+        return []
+    }
+}
+
+export async function approveStockOpnameAdjustment(taskId: string) {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, STOCK_OPNAME_APPROVER_ROLES)
+
+        return await withPrismaAuth(async (prisma) => {
+            return await prisma.$transaction(async (tx) => {
+                const task = await tx.employeeTask.findUnique({ where: { id: taskId } })
+                if (!task) throw new Error("Approval task not found")
+                if (task.status !== 'PENDING') throw new Error("Task already processed")
+                if (!task.notes?.startsWith(STOCK_OPNAME_PREFIX)) throw new Error("Invalid stock opname task payload")
+
+                const payload = JSON.parse(task.notes.replace(STOCK_OPNAME_PREFIX, ''))
+                const warehouseId = payload.warehouseId as string
+                const productId = payload.productId as string
+                const actualQty = Number(payload.actualQty || 0)
+                const systemQty = Number(payload.systemQty || 0)
+                const discrepancy = actualQty - systemQty
+
+                const existingStock = await tx.stockLevel.findFirst({
+                    where: { productId, warehouseId, locationId: null }
+                })
+
+                if (existingStock) {
+                    await tx.stockLevel.update({
+                        where: { id: existingStock.id },
+                        data: {
+                            quantity: actualQty,
+                            availableQty: Math.max(0, actualQty - existingStock.reservedQty)
+                        }
+                    })
+                } else {
+                    await tx.stockLevel.create({
+                        data: {
+                            productId,
+                            warehouseId,
+                            quantity: actualQty,
+                            reservedQty: 0,
+                            availableQty: actualQty,
+                            locationId: null
+                        }
+                    })
+                }
+
+                await tx.inventoryTransaction.create({
+                    data: {
+                        type: 'ADJUSTMENT',
+                        quantity: discrepancy,
+                        productId,
+                        warehouseId,
+                        referenceId: `AUDIT-${Date.now()}`,
+                        adjustmentId: task.id,
+                        performedBy: user.id,
+                        notes: `Stock opname approved by ${user.role}. Auditor: ${payload.auditorName || 'System'}. System: ${systemQty}, Actual: ${actualQty}. ${payload.notes || ''}`
+                    }
+                })
+
+                await tx.employeeTask.update({
+                    where: { id: task.id },
+                    data: {
+                        status: 'COMPLETED',
+                        completedAt: new Date(),
+                        notes: `${task.notes}\nAPPROVED_BY::${user.id}::${new Date().toISOString()}`
+                    }
+                })
+
+                return { success: true }
+            })
+        })
+    } catch (error: any) {
+        console.error("Approve stock opname adjustment failed:", error)
+        return { success: false, error: error?.message || "Failed to approve stock opname adjustment" }
+    } finally {
+        revalidateTagSafe('inventory')
+        revalidateTagSafe('warehouse-details')
+        revalidatePath('/inventory/audit')
+        revalidatePath('/inventory/movements')
+        revalidatePath('/inventory/warehouses')
+    }
+}
+
+export async function rejectStockOpnameAdjustment(taskId: string, reason?: string) {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, STOCK_OPNAME_APPROVER_ROLES)
+
+        return await withPrismaAuth(async (prisma) => {
+            const task = await prisma.employeeTask.findUnique({ where: { id: taskId } })
+            if (!task) throw new Error("Approval task not found")
+            if (task.status !== 'PENDING') throw new Error("Task already processed")
+            if (!task.notes?.startsWith(STOCK_OPNAME_PREFIX)) throw new Error("Invalid stock opname task payload")
+
+            await prisma.employeeTask.update({
+                where: { id: task.id },
+                data: {
+                    status: 'REJECTED',
+                    notes: `${task.notes}\nREJECTED_BY::${user.id}::${new Date().toISOString()}::${reason || 'No reason'}`
+                }
+            })
+
+            revalidatePath('/inventory/audit')
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("Reject stock opname adjustment failed:", error)
+        return { success: false, error: error?.message || "Failed to reject stock opname adjustment" }
+    }
+}
+
+export async function getWarehouseStaffing(warehouseId: string) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const warehouse = await prisma.warehouse.findUnique({
+                where: { id: warehouseId },
+                select: { id: true, name: true, code: true, managerId: true }
+            })
+            if (!warehouse) throw new Error("Warehouse not found")
+
+            const currentManager = warehouse.managerId
+                ? await prisma.employee.findUnique({
+                    where: { id: warehouse.managerId },
+                    select: { id: true, firstName: true, lastName: true, position: true, department: true, status: true, phone: true, email: true }
+                })
+                : null
+
+            const activeStaff = await prisma.employee.findMany({
+                where: {
+                    status: 'ACTIVE',
+                    OR: [
+                        { department: { contains: 'warehouse', mode: 'insensitive' } },
+                        { department: { contains: 'gudang', mode: 'insensitive' } },
+                        { department: { contains: 'logistik', mode: 'insensitive' } },
+                        { department: { contains: 'logistics', mode: 'insensitive' } },
+                        { department: { contains: 'operations', mode: 'insensitive' } },
+                        { position: { contains: 'warehouse', mode: 'insensitive' } },
+                        { position: { contains: 'gudang', mode: 'insensitive' } },
+                        { position: { contains: 'logistik', mode: 'insensitive' } },
+                        { position: { contains: 'logistics', mode: 'insensitive' } }
+                    ]
+                },
+                orderBy: [{ department: 'asc' }, { firstName: 'asc' }],
+                select: { id: true, firstName: true, lastName: true, position: true, department: true, phone: true, email: true, status: true }
+            })
+
+            const managerCandidates = await prisma.employee.findMany({
+                where: {
+                    status: 'ACTIVE',
+                    OR: [
+                        { position: { contains: 'manager', mode: 'insensitive' } },
+                        { position: { contains: 'head', mode: 'insensitive' } },
+                        { position: { contains: 'supervisor', mode: 'insensitive' } },
+                        { department: { contains: 'operations', mode: 'insensitive' } },
+                        { department: { contains: 'warehouse', mode: 'insensitive' } },
+                        { department: { contains: 'logistics', mode: 'insensitive' } },
+                        { department: { contains: 'logistik', mode: 'insensitive' } }
+                    ]
+                },
+                orderBy: [{ firstName: 'asc' }],
+                select: { id: true, firstName: true, lastName: true, position: true, department: true, phone: true, email: true, status: true }
+            })
+
+            return {
+                warehouse: { id: warehouse.id, name: warehouse.name, code: warehouse.code },
+                currentManager: currentManager ? {
+                    id: currentManager.id,
+                    name: `${currentManager.firstName} ${currentManager.lastName || ''}`.trim(),
+                    position: currentManager.position,
+                    department: currentManager.department,
+                    phone: currentManager.phone || '-',
+                    email: currentManager.email || '-'
+                } : null,
+                activeStaff: activeStaff.map((emp) => ({
+                    id: emp.id,
+                    name: `${emp.firstName} ${emp.lastName || ''}`.trim(),
+                    position: emp.position,
+                    department: emp.department,
+                    phone: emp.phone || '-',
+                    email: emp.email || '-',
+                    status: emp.status
+                })),
+                managerCandidates: managerCandidates.map((emp) => ({
+                    id: emp.id,
+                    name: `${emp.firstName} ${emp.lastName || ''}`.trim(),
+                    position: emp.position,
+                    department: emp.department,
+                    phone: emp.phone || '-',
+                    email: emp.email || '-',
+                    status: emp.status
+                }))
+            }
+        })
+    } catch (error) {
+        console.error("Failed to fetch warehouse staffing:", error)
+        return {
+            warehouse: null,
+            currentManager: null,
+            activeStaff: [],
+            managerCandidates: []
+        }
+    }
+}
+
+export async function assignWarehouseManager(warehouseId: string, managerEmployeeId: string) {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, MANAGE_WAREHOUSE_ROLES)
+
+        return await withPrismaAuth(async (prisma) => {
+            const [warehouse, manager] = await Promise.all([
+                prisma.warehouse.findUnique({ where: { id: warehouseId }, select: { id: true, name: true } }),
+                prisma.employee.findUnique({ where: { id: managerEmployeeId }, select: { id: true, status: true, firstName: true, lastName: true } })
+            ])
+
+            if (!warehouse) throw new Error("Warehouse not found")
+            if (!manager || manager.status !== 'ACTIVE') throw new Error("Selected manager is invalid or inactive")
+
+            await prisma.warehouse.update({
+                where: { id: warehouseId },
+                data: { managerId: managerEmployeeId }
+            })
+
+            revalidateTagSafe('warehouses')
+            revalidateTagSafe('inventory')
+            revalidatePath('/inventory/warehouses')
+            revalidatePath(`/inventory/warehouses/${warehouseId}`)
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("Failed to assign warehouse manager:", error)
+        return { success: false, error: error?.message || "Failed to assign manager" }
+    }
+}
+
 export async function createProduct(input: CreateProductInput) {
     try {
         console.log("createProduct input:", input)
@@ -1270,7 +1615,7 @@ export async function createProduct(input: CreateProductInput) {
     } catch (error) {
         console.error("Failed to create product:", error)
         if (error instanceof z.ZodError) {
-            return { success: false, error: (error as z.ZodError).errors[0].message }
+            return { success: false, error: error.issues[0]?.message || "Validation failed" }
         }
         // Prisma Unique Constraint Error
         if ((error as any).code === 'P2002') {
