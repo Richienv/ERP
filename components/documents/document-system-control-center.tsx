@@ -26,6 +26,7 @@ import {
 } from "@/app/actions/documents-system"
 import { useWorkflowConfig } from "@/components/workflow/workflow-config-context"
 import {
+    Download,
     FileText,
     FolderKanban,
     Layers,
@@ -218,6 +219,10 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
     const [categorySearch, setCategorySearch] = useState("")
     const [warehouseSearch, setWarehouseSearch] = useState("")
     const [roleSearch, setRoleSearch] = useState("")
+    const [auditSearch, setAuditSearch] = useState("")
+    const [auditRoleFilter, setAuditRoleFilter] = useState("__all__")
+    const [auditEventFilter, setAuditEventFilter] = useState("__all__")
+    const [auditActorFilter, setAuditActorFilter] = useState("__all__")
 
     const [categoryModalOpen, setCategoryModalOpen] = useState(false)
     const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null)
@@ -275,6 +280,80 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
         if (!editingCategory) return data.categories
         return data.categories.filter((category) => category.id !== editingCategory.id)
     }, [data.categories, editingCategory])
+
+    const auditRoleOptions = useMemo(() => (
+        Array.from(new Set(data.roleAuditEvents.map((event) => event.roleCode).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    ), [data.roleAuditEvents])
+
+    const auditEventOptions = useMemo(() => (
+        Array.from(new Set(data.roleAuditEvents.map((event) => event.eventType).filter(Boolean))).sort((a, b) => a.localeCompare(b))
+    ), [data.roleAuditEvents])
+
+    const auditActorOptions = useMemo(() => (
+        Array.from(new Set(data.roleAuditEvents.map((event) => event.actorLabel || "System"))).sort((a, b) => a.localeCompare(b))
+    ), [data.roleAuditEvents])
+
+    const filteredRoleAuditEvents = useMemo(() => {
+        const query = auditSearch.trim().toLowerCase()
+        return data.roleAuditEvents.filter((event) => {
+            if (auditRoleFilter !== "__all__" && event.roleCode !== auditRoleFilter) return false
+            if (auditEventFilter !== "__all__" && event.eventType !== auditEventFilter) return false
+            if (auditActorFilter !== "__all__" && (event.actorLabel || "System") !== auditActorFilter) return false
+            if (!query) return true
+            const haystack = [
+                event.roleCode,
+                event.roleName || "",
+                event.eventType,
+                event.actorLabel || "System",
+                ...(event.changedPermissions || []),
+            ].join(" ").toLowerCase()
+            return haystack.includes(query)
+        })
+    }, [data.roleAuditEvents, auditSearch, auditRoleFilter, auditEventFilter, auditActorFilter])
+
+    const exportRoleAuditCsv = () => {
+        if (filteredRoleAuditEvents.length === 0) {
+            toast.error("Tidak ada data audit untuk diexport")
+            return
+        }
+
+        const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`
+        const header = [
+            "Timestamp",
+            "Role Code",
+            "Role Name",
+            "Event",
+            "Actor",
+            "Changed Permissions",
+            "Before Permissions",
+            "After Permissions",
+        ]
+        const rows = filteredRoleAuditEvents.map((event) => [
+            new Date(event.createdAt).toISOString(),
+            event.roleCode,
+            event.roleName || "",
+            event.eventType,
+            event.actorLabel || "System",
+            (event.changedPermissions || []).join(" | "),
+            (event.beforePermissions || []).join(" | "),
+            (event.afterPermissions || []).join(" | "),
+        ])
+        const csvContent = [header, ...rows]
+            .map((row) => row.map((cell) => escapeCell(String(cell ?? ""))).join(","))
+            .join("\n")
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement("a")
+        const dateStamp = new Date().toISOString().slice(0, 10)
+        link.href = url
+        link.download = `role-permission-audit-${dateStamp}.csv`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+        toast.success("Audit CSV berhasil diunduh")
+    }
 
     const openCreateCategory = () => {
         setEditingCategory(null)
@@ -735,10 +814,60 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Riwayat Perubahan Hak Akses</CardTitle>
-                            <CardDescription>
-                                Audit trail perubahan role dan permission modul agar governance tetap terpantau.
-                            </CardDescription>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <div>
+                                        <CardTitle>Riwayat Perubahan Hak Akses</CardTitle>
+                                        <CardDescription>
+                                            Audit trail perubahan role dan permission modul agar governance tetap terpantau.
+                                        </CardDescription>
+                                    </div>
+                                    <Button variant="outline" onClick={exportRoleAuditCsv}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export CSV
+                                    </Button>
+                                </div>
+                                <div className="grid gap-2 md:grid-cols-4">
+                                    <Input
+                                        placeholder="Cari role/event/permission..."
+                                        value={auditSearch}
+                                        onChange={(event) => setAuditSearch(event.target.value)}
+                                    />
+                                    <Select value={auditRoleFilter} onValueChange={setAuditRoleFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Filter role" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__all__">Semua Role</SelectItem>
+                                            {auditRoleOptions.map((roleCode) => (
+                                                <SelectItem key={roleCode} value={roleCode}>{roleCode}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={auditEventFilter} onValueChange={setAuditEventFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Filter event" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__all__">Semua Event</SelectItem>
+                                            {auditEventOptions.map((eventType) => (
+                                                <SelectItem key={eventType} value={eventType}>{eventType}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={auditActorFilter} onValueChange={setAuditActorFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Filter actor" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__all__">Semua Aktor</SelectItem>
+                                            {auditActorOptions.map((actor) => (
+                                                <SelectItem key={actor} value={actor}>{actor}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -752,7 +881,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {data.roleAuditEvents.length > 0 ? data.roleAuditEvents.slice(0, 25).map((event) => (
+                                    {filteredRoleAuditEvents.length > 0 ? filteredRoleAuditEvents.slice(0, 100).map((event) => (
                                         <TableRow key={event.id}>
                                             <TableCell>{formatDateTime(event.createdAt)}</TableCell>
                                             <TableCell>
@@ -783,7 +912,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     )) : (
                                         <TableRow>
                                             <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
-                                                Belum ada event audit role. Perubahan berikutnya akan tercatat otomatis.
+                                                Tidak ada event audit sesuai filter.
                                             </TableCell>
                                         </TableRow>
                                     )}
