@@ -6,10 +6,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
 import { Loader2, FileText, CheckCircle2, User, Building2 } from "lucide-react"
 import { getPODetails } from "@/app/actions/purchase-order"
-import { updatePurchaseOrderVendor, submitPOForApproval } from "@/lib/actions/procurement"
+import { updatePurchaseOrderVendor, submitPOForApproval, updatePurchaseOrderTaxMode } from "@/lib/actions/procurement"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -25,6 +24,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
     const [processing, setProcessing] = useState(false)
     const [poData, setPoData] = useState<any>(null)
     const [selectedVendor, setSelectedVendor] = useState<string>("")
+    const [taxMode, setTaxMode] = useState<"PPN" | "NON_PPN">("PPN")
     const router = useRouter()
 
     useEffect(() => {
@@ -33,6 +33,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
         } else {
             setPoData(null)
             setSelectedVendor("")
+            setTaxMode("PPN")
         }
     }, [isOpen, poId])
 
@@ -45,8 +46,9 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                 // If vendor is assigned, use it. If it's a temp vendor (likely no ID in basic list), it might need attention
                 // The data.supplierId comes from the DB.
                 setSelectedVendor(data.supplierId || "")
+                setTaxMode(Number(data.taxAmount || 0) > 0 ? "PPN" : "NON_PPN")
             }
-        } catch (error) {
+        } catch {
             toast.error("Failed to load PO details")
             onClose()
         } finally {
@@ -69,17 +71,21 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                 toast.success("Vendor updated")
             }
 
-            // 2. Submit PO for Approval (advances status from DRAFT)
+            // 2. Persist tax mode/amount before submit
+            const taxRes = await updatePurchaseOrderTaxMode(poId, taxMode)
+            if (!taxRes.success) throw new Error(taxRes.error)
+
+            // 3. Submit PO for Approval (advances status from DRAFT)
             const submitRes = await submitPOForApproval(poId)
             if (!submitRes.success) throw new Error(submitRes.error || "Failed to finalize PO")
 
-            // 3. Generate PDF (Open in new tab)
+            // 4. Generate PDF (Open in new tab)
             window.open(`/api/documents/purchase-order/${poData.id}?disposition=inline`, '_blank')
 
             toast.success("PO Finalized & PDF Generated")
             onClose()
 
-            // 4. Refresh data without full page reload
+            // 5. Refresh data without full page reload
             router.refresh()
         } catch (error: any) {
             toast.error(error.message || "Failed to finalize PO")
@@ -155,6 +161,20 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                             )}
                         </div>
 
+                        {/* Tax Mode */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-black uppercase">Tax</label>
+                            <Select value={taxMode} onValueChange={(value) => setTaxMode(value as "PPN" | "NON_PPN")} disabled={processing}>
+                                <SelectTrigger className="w-full font-medium h-12 border-black">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="PPN" className="font-medium">PPN 11%</SelectItem>
+                                    <SelectItem value="NON_PPN" className="font-medium">Non-PPN</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         {/* Items Table */}
                         <div className="border border-zinc-200 rounded-lg overflow-hidden">
                             <table className="w-full text-sm">
@@ -190,10 +210,9 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
 
                         {/* Totals */}
                         {(() => {
-                            // Calculate dynamically if values are missing (legacy data support)
                             const subtotal = poData.subtotal || poData.items.reduce((acc: number, item: any) => acc + item.totalPrice, 0)
-                            const tax = poData.taxAmount || (subtotal * 0.11)
-                            const total = poData.netAmount || (subtotal + tax)
+                            const tax = taxMode === "PPN" ? (subtotal * 0.11) : 0
+                            const total = subtotal + tax
 
                             return (
                                 <div className="flex justify-end">
@@ -203,7 +222,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                                             <span>{formatIDR(subtotal)}</span>
                                         </div>
                                         <div className="flex justify-between text-sm text-zinc-500">
-                                            <span>Tax (11%)</span>
+                                            <span>{taxMode === "PPN" ? "Tax (11%)" : "Tax (0%)"}</span>
                                             <span>{formatIDR(tax)}</span>
                                         </div>
                                         <Separator />

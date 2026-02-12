@@ -1,6 +1,6 @@
 'use server'
 
-import { withPrismaAuth, safeQuery, withRetry, prisma } from "@/lib/db"
+import { withPrismaAuth, prisma } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { revalidatePath, unstable_cache } from "next/cache"
 import { FALLBACK_PRODUCTS } from "@/lib/db-fallbacks"
@@ -52,6 +52,7 @@ export async function createPurchaseOrder(data: {
     notes?: string
     paymentTerms?: string
     shippingAddress?: string
+    includeTax?: boolean
     items: {
         productId: string
         quantity: number
@@ -71,7 +72,7 @@ export async function createPurchaseOrder(data: {
 
         // Calculate Totals
         const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
-        const taxAmount = subtotal * 0.11 // PPN 11%
+        const taxAmount = (data.includeTax ?? true) ? (subtotal * 0.11) : 0
         const totalAmount = subtotal + taxAmount
 
         // Prepare Payload for RPC

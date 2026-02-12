@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Plus, Loader2, Trash2, CalendarIcon, Check, ChevronsUpDown, FileText, Send, Download, Eye, ArrowLeft, Share2 } from "lucide-react"
+import { Plus, Loader2, Trash2, CalendarIcon, Check, ChevronsUpDown, FileText, Download, Eye, Share2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { format } from "date-fns"
@@ -60,6 +60,7 @@ const formSchema = z.object({
     paymentTerms: z.string().optional(),
     shippingAddress: z.string().optional(),
     notes: z.string().optional(),
+    includeTax: z.boolean().default(true),
     items: z.array(z.object({
         productId: z.string().min(1, "Produk wajib dipilih"),
         quantity: z.coerce.number().min(1, "Minimal 1"),
@@ -89,6 +90,7 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
             paymentTerms: "NET30",
             shippingAddress: "",
             notes: "",
+            includeTax: true,
             items: [{ productId: "", quantity: 1, unitPrice: 0 }]
         },
     })
@@ -100,11 +102,10 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
 
     const { isSubmitting } = form.formState
     const watchedItems = form.watch("items")
-    const watchedVendorId = form.watch("supplierId")
-    const selectedVendor = vendors.find(v => v.id === watchedVendorId)
     
+    const includeTax = form.watch("includeTax")
     const subtotal = watchedItems.reduce((acc, item) => acc + (item.quantity * item.unitPrice), 0)
-    const taxAmount = subtotal * 0.11 // PPN 11%
+    const taxAmount = includeTax ? (subtotal * 0.11) : 0
     const totalAmount = subtotal + taxAmount
 
     async function onSubmit(values: FormValues) {
@@ -114,6 +115,7 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
             notes: values.notes,
             paymentTerms: values.paymentTerms,
             shippingAddress: values.shippingAddress,
+            includeTax: values.includeTax,
             items: values.items
         })
 
@@ -153,7 +155,7 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
                     text: `Silakan review Purchase Order ${createdPO.number}`,
                     url: pdfUrl
                 })
-            } catch (err) {
+            } catch {
                 // User cancelled or error
                 await navigator.clipboard.writeText(pdfUrl)
                 toast.success("Link PDF disalin ke clipboard!")
@@ -204,7 +206,7 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
                         src={`/api/documents/purchase-order/${createdPO?.id}?disposition=inline`}
                         className="w-full h-full peer"
                         title="PO Preview"
-                        onLoad={(e) => {
+                        onLoad={(_e) => {
                             const loadingEl = document.getElementById('pdf-loading')
                             if (loadingEl) loadingEl.style.display = 'none'
                         }}
@@ -264,7 +266,7 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
                         {/* Vendor & Date Row */}
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <FormField
                                 control={form.control}
                                 name="supplierId"
@@ -387,6 +389,31 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
                                     </FormItem>
                                 )}
                             />
+
+                            <FormField
+                                control={form.control}
+                                name="includeTax"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="font-bold">Pajak</FormLabel>
+                                        <Select
+                                            value={field.value ? "PPN" : "NON_PPN"}
+                                            onValueChange={(value) => field.onChange(value === "PPN")}
+                                        >
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="PPN">PPN 11%</SelectItem>
+                                                <SelectItem value="NON_PPN">Non-PPN</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                         </div>
 
                         {/* Items Section */}
@@ -494,7 +521,7 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
                                 <span className="font-mono">{formatIDR(subtotal)}</span>
                             </div>
                             <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">PPN 11%</span>
+                                <span className="text-muted-foreground">{includeTax ? "PPN 11%" : "Non-PPN"}</span>
                                 <span className="font-mono">{formatIDR(taxAmount)}</span>
                             </div>
                             <Separator />

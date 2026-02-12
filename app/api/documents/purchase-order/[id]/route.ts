@@ -61,10 +61,12 @@ export async function GET(
         const format = req.nextUrl.searchParams.get("format") || "standard"
         const print_decoration = format !== "cop"
 
-        // Calculate values with fallback for legacy data
-        const subtotal = Number(po.totalAmount) || 0
-        const taxAmount = Number(po.taxAmount) || (subtotal * 0.11)
-        const netAmount = Number(po.netAmount) || (subtotal + taxAmount)
+        // Calculate values with fallback for legacy data.
+        // Keep explicit zero tax/net as valid values (for Non-PPN PO).
+        const subtotal = Number(po.totalAmount || 0)
+        const taxAmount = po.taxAmount == null ? (subtotal * 0.11) : Number(po.taxAmount)
+        const netAmount = po.netAmount == null ? (subtotal + taxAmount) : Number(po.netAmount)
+        const taxRate = subtotal > 0 ? Math.round((taxAmount / subtotal) * 10000) / 100 : 0
 
         const templateData = {
             config: {
@@ -95,7 +97,7 @@ export async function GET(
             summary: {
                 subtotal: subtotal,
                 subtotal_formatted: formatRupiah(subtotal),
-                tax_rate: 11,
+                tax_rate: taxRate,
                 tax_amount: taxAmount,
                 tax_formatted: formatRupiah(taxAmount),
                 discount: 0,

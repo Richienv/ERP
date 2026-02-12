@@ -1017,6 +1017,61 @@ export async function updatePurchaseOrderVendor(poId: string, supplierId: string
     }
 }
 
+export async function updatePurchaseOrderTaxMode(poId: string, taxMode: "PPN" | "NON_PPN") {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        await withPrismaAuth(async (prisma) => {
+            const po = await prisma.purchaseOrder.findUnique({
+                where: { id: poId },
+                include: {
+                    items: {
+                        select: { totalPrice: true }
+                    }
+                }
+            })
+
+            if (!po) throw new Error("Purchase Order not found")
+            if (po.status !== "PO_DRAFT") throw new Error("Tax can only be changed while PO is draft")
+
+            const subtotal = po.items.reduce((sum, item) => sum + Number(item.totalPrice || 0), 0)
+            const taxAmount = taxMode === "PPN" ? subtotal * 0.11 : 0
+            const netAmount = subtotal + taxAmount
+
+            await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: {
+                    totalAmount: subtotal,
+                    taxAmount,
+                    netAmount,
+                    updatedAt: new Date()
+                }
+            })
+
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: poId,
+                status: po.status as ProcurementStatus,
+                changedBy: user.id,
+                action: "UPDATE_TAX_MODE",
+                metadata: {
+                    source: "MANUAL_ENTRY",
+                    taxMode,
+                    taxRate: taxMode === "PPN" ? 11 : 0,
+                },
+            })
+        })
+
+        revalidateTagSafe('purchase-orders')
+        revalidateTagSafe('procurement')
+        revalidatePath('/procurement/orders')
+        revalidatePath('/procurement')
+        return { success: true }
+    } catch (error) {
+        return { success: false, error: (error as any)?.message || "Update failed" }
+    }
+}
+
 export async function getPendingApprovalPOs() {
     try {
         const pos = await prisma.purchaseOrder.findMany({
