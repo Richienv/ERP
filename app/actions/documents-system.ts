@@ -8,6 +8,7 @@ import { assertRole, getAuthzUser } from "@/lib/authz"
 
 const DOCUMENTS_ADMIN_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN"]
 const PAYROLL_RUN_PREFIX = "PAYROLL_RUN::"
+const SYSTEM_ROLE_EVENT_TABLE = "system_role_events"
 
 const ROLE_PERMISSION_ALIASES: Record<string, string[]> = {
     ROLE_ADMIN: ["ADMIN", "ALL"],
@@ -67,9 +68,96 @@ const rolePermissionSchema = z.object({
     permissions: z.array(z.string().trim().min(1)).default([]),
 })
 
+type RoleAuditEventRecord = {
+    id: string
+    roleId: string
+    roleCode: string
+    roleName: string | null
+    eventType: string
+    actorLabel: string | null
+    beforePermissions: string[]
+    afterPermissions: string[]
+    changedPermissions: string[]
+    createdAt: Date
+}
+
 const normalizeToken = (token: string) => token.trim().toUpperCase()
 
 const dedupeTokens = (tokens: string[]) => Array.from(new Set(tokens.map(normalizeToken).filter(Boolean)))
+
+const arraysEqual = (a: string[], b: string[]) => {
+    if (a.length !== b.length) return false
+    const sortedA = [...a].sort()
+    const sortedB = [...b].sort()
+    return sortedA.every((value, index) => value === sortedB[index])
+}
+
+const buildActorLabel = (user: Awaited<ReturnType<typeof getAuthzUser>>) =>
+    `${user.email || "unknown"} (${user.role})`
+
+const ensureRoleEventTable = async (prisma: any) => {
+    try {
+        await prisma.$executeRawUnsafe(`
+            CREATE TABLE IF NOT EXISTS ${SYSTEM_ROLE_EVENT_TABLE} (
+                id BIGSERIAL PRIMARY KEY,
+                role_id UUID NOT NULL,
+                role_code TEXT NOT NULL,
+                role_name TEXT,
+                event_type TEXT NOT NULL,
+                actor_label TEXT,
+                before_permissions TEXT[] DEFAULT '{}',
+                after_permissions TEXT[] DEFAULT '{}',
+                changed_permissions TEXT[] DEFAULT '{}',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        `)
+        await prisma.$executeRawUnsafe(`
+            CREATE INDEX IF NOT EXISTS idx_${SYSTEM_ROLE_EVENT_TABLE}_created_at
+            ON ${SYSTEM_ROLE_EVENT_TABLE} (created_at DESC);
+        `)
+        await prisma.$executeRawUnsafe(`
+            CREATE INDEX IF NOT EXISTS idx_${SYSTEM_ROLE_EVENT_TABLE}_role_id
+            ON ${SYSTEM_ROLE_EVENT_TABLE} (role_id);
+        `)
+        return true
+    } catch (error) {
+        console.warn("Role event table unavailable:", error)
+        return false
+    }
+}
+
+const insertRoleAuditEvent = async (
+    prisma: any,
+    payload: {
+        roleId: string
+        roleCode: string
+        roleName?: string | null
+        eventType: string
+        actorLabel?: string | null
+        beforePermissions?: string[]
+        afterPermissions?: string[]
+    }
+) => {
+    const ready = await ensureRoleEventTable(prisma)
+    if (!ready) return
+
+    const beforePermissions = dedupeTokens(payload.beforePermissions || [])
+    const afterPermissions = dedupeTokens(payload.afterPermissions || [])
+    const changedPermissions = dedupeTokens(
+        [...beforePermissions, ...afterPermissions].filter((token) => !beforePermissions.includes(token) || !afterPermissions.includes(token))
+    )
+
+    try {
+        await prisma.$executeRaw`
+            INSERT INTO system_role_events
+            (role_id, role_code, role_name, event_type, actor_label, before_permissions, after_permissions, changed_permissions)
+            VALUES
+            (${payload.roleId}::uuid, ${payload.roleCode}, ${payload.roleName || null}, ${payload.eventType}, ${payload.actorLabel || null}, ${beforePermissions}::text[], ${afterPermissions}::text[], ${changedPermissions}::text[])
+        `
+    } catch (error) {
+        console.warn("Failed to insert role audit event:", error)
+    }
+}
 
 const derivePermissionOptions = () => {
     const dynamic = Object.entries(MODULES_CONFIG).map(([key, value]) => ({
@@ -136,7 +224,24 @@ export async function getDocumentSystemOverview() {
     try {
         const authUser = await getAuthzUser()
         return await withPrismaAuth(async (prisma) => {
-            const [categories, warehouses, roles, purchaseOrders, invoices, grns, payrollRuns, managerDirectory] = await Promise.all([
+            const roleEventsPromise = prisma.$queryRaw<RoleAuditEventRecord[]>`
+                SELECT
+                    sre.id::text AS id,
+                    sre.role_id::text AS "roleId",
+                    sre.role_code AS "roleCode",
+                    sre.role_name AS "roleName",
+                    sre.event_type AS "eventType",
+                    sre.actor_label AS "actorLabel",
+                    COALESCE(sre.before_permissions, ARRAY[]::text[]) AS "beforePermissions",
+                    COALESCE(sre.after_permissions, ARRAY[]::text[]) AS "afterPermissions",
+                    COALESCE(sre.changed_permissions, ARRAY[]::text[]) AS "changedPermissions",
+                    sre.created_at AS "createdAt"
+                FROM system_role_events sre
+                ORDER BY sre.created_at DESC
+                LIMIT 60
+            `.catch(() => [] as RoleAuditEventRecord[])
+
+            const [categories, warehouses, roles, purchaseOrders, invoices, grns, payrollRuns, managerDirectory, roleEvents] = await Promise.all([
                 prisma.category.findMany({
                     include: {
                         _count: { select: { products: true } },
@@ -219,6 +324,7 @@ export async function getDocumentSystemOverview() {
                     orderBy: [{ department: "asc" }, { firstName: "asc" }],
                     take: 300,
                 }),
+                roleEventsPromise,
             ])
 
             const managerIds = dedupeTokens(warehouses.map((warehouse) => warehouse.managerId || "").filter(Boolean))
@@ -288,6 +394,18 @@ export async function getDocumentSystemOverview() {
                         isSystem: role.isSystem,
                         permissions: role.permissions,
                         updatedAt: role.updatedAt,
+                    })),
+                    roleAuditEvents: roleEvents.map((event) => ({
+                        id: event.id,
+                        roleId: event.roleId,
+                        roleCode: event.roleCode,
+                        roleName: event.roleName || null,
+                        eventType: event.eventType,
+                        actorLabel: event.actorLabel || null,
+                        beforePermissions: dedupeTokens(event.beforePermissions || []),
+                        afterPermissions: dedupeTokens(event.afterPermissions || []),
+                        changedPermissions: dedupeTokens(event.changedPermissions || []),
+                        createdAt: event.createdAt,
                     })),
                     documents: {
                         purchaseOrders: purchaseOrders.map((po) => ({
@@ -530,6 +648,15 @@ export async function createDocumentSystemRole(input: z.input<typeof roleSchema>
                     isSystem: false,
                 },
             })
+            await insertRoleAuditEvent(prisma, {
+                roleId: role.id,
+                roleCode: role.code,
+                roleName: role.name,
+                eventType: "ROLE_CREATED",
+                actorLabel: buildActorLabel(user),
+                beforePermissions: [],
+                afterPermissions: permissions,
+            })
             revalidateDocumentSystemPages()
             return { success: true, data: role }
         })
@@ -547,6 +674,12 @@ export async function updateDocumentSystemRole(roleId: string, input: z.input<ty
         const permissions = dedupeTokens(data.permissions)
 
         return await withPrismaAuth(async (prisma) => {
+            const previous = await prisma.systemRole.findUnique({
+                where: { id: roleId },
+                select: { id: true, code: true, name: true, permissions: true },
+            })
+            if (!previous) return { success: false, error: "Role tidak ditemukan" }
+
             const duplicate = await prisma.systemRole.findFirst({
                 where: {
                     code: data.code,
@@ -565,6 +698,15 @@ export async function updateDocumentSystemRole(roleId: string, input: z.input<ty
                     permissions,
                 },
             })
+            await insertRoleAuditEvent(prisma, {
+                roleId: role.id,
+                roleCode: role.code,
+                roleName: role.name,
+                eventType: arraysEqual(dedupeTokens(previous.permissions || []), permissions) ? "ROLE_UPDATED" : "ROLE_UPDATED_WITH_PERMISSION_CHANGE",
+                actorLabel: buildActorLabel(user),
+                beforePermissions: dedupeTokens(previous.permissions || []),
+                afterPermissions: permissions,
+            })
             revalidateDocumentSystemPages()
             return { success: true, data: role }
         })
@@ -582,9 +724,24 @@ export async function updateRolePermissionsFromDocuments(roleId: string, input: 
         const permissions = dedupeTokens(payload.permissions)
 
         return await withPrismaAuth(async (prisma) => {
+            const previous = await prisma.systemRole.findUnique({
+                where: { id: roleId },
+                select: { id: true, code: true, name: true, permissions: true },
+            })
+            if (!previous) return { success: false, error: "Role tidak ditemukan" }
+
             const role = await prisma.systemRole.update({
                 where: { id: roleId },
                 data: { permissions },
+            })
+            await insertRoleAuditEvent(prisma, {
+                roleId: role.id,
+                roleCode: role.code,
+                roleName: role.name,
+                eventType: "PERMISSIONS_UPDATED",
+                actorLabel: buildActorLabel(user),
+                beforePermissions: dedupeTokens(previous.permissions || []),
+                afterPermissions: permissions,
             })
             revalidateDocumentSystemPages()
             return { success: true, data: role }

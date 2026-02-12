@@ -107,6 +107,18 @@ type DocumentsSystemData = {
     categories: CategoryItem[]
     warehouses: WarehouseItem[]
     roles: SystemRoleItem[]
+    roleAuditEvents: {
+        id: string
+        roleId: string
+        roleCode: string
+        roleName: string | null
+        eventType: string
+        actorLabel: string | null
+        beforePermissions: string[]
+        afterPermissions: string[]
+        changedPermissions: string[]
+        createdAt: string | Date
+    }[]
     documents: {
         purchaseOrders: DocumentRow[]
         invoices: DocumentRow[]
@@ -716,6 +728,65 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             </TableCell>
                                         </TableRow>
                                     ))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Riwayat Perubahan Hak Akses</CardTitle>
+                            <CardDescription>
+                                Audit trail perubahan role dan permission modul agar governance tetap terpantau.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>Waktu</TableHead>
+                                        <TableHead>Role</TableHead>
+                                        <TableHead>Event</TableHead>
+                                        <TableHead>Aktor</TableHead>
+                                        <TableHead>Perubahan</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {data.roleAuditEvents.length > 0 ? data.roleAuditEvents.slice(0, 25).map((event) => (
+                                        <TableRow key={event.id}>
+                                            <TableCell>{formatDateTime(event.createdAt)}</TableCell>
+                                            <TableCell>
+                                                <div className="font-mono text-xs">{event.roleCode}</div>
+                                                <div className="text-xs text-muted-foreground">{event.roleName || "-"}</div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary">{event.eventType}</Badge>
+                                            </TableCell>
+                                            <TableCell>{event.actorLabel || "System"}</TableCell>
+                                            <TableCell>
+                                                {event.changedPermissions.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {event.changedPermissions.slice(0, 6).map((permission) => (
+                                                            <Badge key={`${event.id}-${permission}`} variant="outline" className="font-mono text-[10px]">
+                                                                {permission}
+                                                            </Badge>
+                                                        ))}
+                                                        {event.changedPermissions.length > 6 && (
+                                                            <Badge variant="secondary">+{event.changedPermissions.length - 6}</Badge>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted-foreground">Tidak ada perubahan permission</span>
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    )) : (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="py-8 text-center text-muted-foreground">
+                                                Belum ada event audit role. Perubahan berikutnya akan tercatat otomatis.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
                                 </TableBody>
                             </Table>
                         </CardContent>
