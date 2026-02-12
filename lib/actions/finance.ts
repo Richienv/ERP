@@ -252,6 +252,9 @@ export async function getFinanceDashboardData(): Promise<FinanceDashboardData> {
 
 export async function getFinancialMetrics(): Promise<FinancialMetrics> {
     try {
+        const hasQueryError = (result: any) => Boolean(result?.error)
+        const extractRows = <T,>(result: any): T[] => (hasQueryError(result) ? [] : (result?.data || []))
+
         const startOfMonth = new Date()
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
@@ -343,17 +346,76 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         // Aggregations (JS Side)
         const calculateSum = (data: any[], field: string) => data?.reduce((sum, item) => sum + (Number(item[field]) || 0), 0) || 0
 
-        const receivables = calculateSum(arResult.data || [], 'balanceDue')
-        const payables = calculateSum(apResult.data || [], 'balanceDue')
-        const cashBal = calculateSum(cashResult.data || [], 'balance')
+        const arRows = extractRows<any>(arResult)
+        const apRows = extractRows<any>(apResult)
+        const cashRows = extractRows<any>(cashResult)
+        const revenueRows = extractRows<any>(revenueResult)
+        const expenseRows = extractRows<any>(expenseResult)
+        const overdueRows = extractRows<any>(overdueResult)
+        const upcomingRows = extractRows<any>(upcomingResult)
+
+        let receivables = calculateSum(arRows, 'balanceDue')
+        let payables = calculateSum(apRows, 'balanceDue')
+        let cashBal = calculateSum(cashRows, 'balance')
 
         // Burn Rate
-        const burnTotal = (burnResult as any).data?.reduce((sum: number, item: any) => sum + (Number(item.debit) || 0), 0) || 0
+        const burnRows = extractRows<any>(burnResult)
+        const burnTotal = burnRows.reduce((sum: number, item: any) => sum + (Number(item.debit) || 0), 0)
         const burnRate = burnTotal / 30
 
-        const revVal = calculateSum(revenueResult.data || [], 'totalAmount')
-        const expVal = calculateSum(expenseResult.data || [], 'totalAmount')
-        const margin = revVal > 0 ? ((revVal - expVal) / revVal) * 100 : 0
+        let revVal = calculateSum(revenueRows, 'totalAmount')
+        let expVal = calculateSum(expenseRows, 'totalAmount')
+        let margin = revVal > 0 ? ((revVal - expVal) / revVal) * 100 : 0
+
+        // Prisma fallback keeps dashboard populated even if any Supabase query is blocked/fails.
+        const requiresPrismaFallback =
+            hasQueryError(arResult) ||
+            hasQueryError(apResult) ||
+            hasQueryError(cashResult) ||
+            hasQueryError(revenueResult) ||
+            hasQueryError(expenseResult)
+
+        if (requiresPrismaFallback) {
+            const prismaMetrics = await withPrismaAuth(async (prisma) => {
+                const [arInvoices, apInvoices, cashAccounts, outInvoicesMonth, inInvoicesMonth] = await Promise.all([
+                    prisma.invoice.findMany({
+                        where: { type: 'INV_OUT', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
+                        select: { balanceDue: true },
+                    }),
+                    prisma.invoice.findMany({
+                        where: { type: 'INV_IN', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
+                        select: { balanceDue: true },
+                    }),
+                    prisma.gLAccount.findMany({
+                        where: { type: 'ASSET', code: { in: ['1000', '1010', '1020'] } },
+                        select: { balance: true },
+                    }),
+                    prisma.invoice.findMany({
+                        where: { type: 'INV_OUT', status: { not: 'CANCELLED' }, issueDate: { gte: startOfMonth } },
+                        select: { totalAmount: true },
+                    }),
+                    prisma.invoice.findMany({
+                        where: { type: 'INV_IN', status: { not: 'CANCELLED' }, issueDate: { gte: startOfMonth } },
+                        select: { totalAmount: true },
+                    }),
+                ])
+
+                return {
+                    receivables: arInvoices.reduce((sum, row) => sum + Number(row.balanceDue || 0), 0),
+                    payables: apInvoices.reduce((sum, row) => sum + Number(row.balanceDue || 0), 0),
+                    cashBalance: cashAccounts.reduce((sum, row) => sum + Number(row.balance || 0), 0),
+                    revenue: outInvoicesMonth.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0),
+                    expense: inInvoicesMonth.reduce((sum, row) => sum + Number(row.totalAmount || 0), 0),
+                }
+            })
+
+            receivables = prismaMetrics.receivables
+            payables = prismaMetrics.payables
+            cashBal = prismaMetrics.cashBalance
+            revVal = prismaMetrics.revenue
+            expVal = prismaMetrics.expense
+            margin = revVal > 0 ? ((revVal - expVal) / revVal) * 100 : 0
+        }
 
         // Mapping Lists
         const mapInvoice = (inv: any) => ({
@@ -374,8 +436,8 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             netMargin: Number(margin.toFixed(1)),
             revenue: revVal,
             burnRate,
-            overdueInvoices: overdueResult.data?.map(mapInvoice) || [],
-            upcomingPayables: upcomingResult.data?.map(mapInvoice) || [],
+            overdueInvoices: overdueRows.map(mapInvoice),
+            upcomingPayables: upcomingRows.map(mapInvoice),
             status: {
                 cash: cashBal > 100000000 ? 'Healthy' : 'Low',
                 margin: margin > 10 ? 'Healthy' : 'Low'

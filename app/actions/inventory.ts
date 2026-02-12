@@ -547,6 +547,90 @@ export async function getProductsForKanban() {
     })
 }
 
+type InventoryProductQueryInput = {
+    q?: string | null
+    status?: string | null
+}
+
+const normalizeInventoryQueryText = (value?: string | null) => {
+    const trimmed = (value || "").trim()
+    return trimmed.length > 0 ? trimmed : null
+}
+
+const normalizeInventoryStatus = (value?: string | null) => {
+    const normalized = normalizeInventoryQueryText(value)?.toUpperCase() || null
+    if (!normalized) return null
+    if (["HEALTHY", "LOW_STOCK", "CRITICAL", "NEW"].includes(normalized)) return normalized
+    return null
+}
+
+export async function getInventoryCommandCenterProducts(input?: InventoryProductQueryInput) {
+    const normalizedQuery = {
+        q: normalizeInventoryQueryText(input?.q),
+        status: normalizeInventoryStatus(input?.status),
+    }
+
+    return withPrismaAuth(async (prisma) => {
+        const products = await prisma.product.findMany({
+            where: { isActive: true },
+            include: {
+                category: true,
+                stockLevels: true,
+            },
+            orderBy: [{ updatedAt: "desc" }, { code: "asc" }],
+        })
+
+        const rows = products.map((p) => {
+            const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            const status = calculateProductStatus({
+                totalStock,
+                minStock: p.minStock,
+                reorderLevel: p.reorderLevel,
+                manualAlert: p.manualAlert,
+                createdAt: p.createdAt,
+            })
+
+            return JSON.parse(
+                JSON.stringify({
+                    ...p,
+                    costPrice: Number(p.costPrice),
+                    sellingPrice: Number(p.sellingPrice),
+                    category: p.category,
+                    totalStock,
+                    currentStock: totalStock,
+                    status,
+                    image: "/placeholder.png",
+                })
+            )
+        })
+
+        const summary = rows.reduce(
+            (acc, item) => {
+                acc.total += 1
+                if (item.status === "HEALTHY") acc.healthy += 1
+                if (item.status === "LOW_STOCK") acc.lowStock += 1
+                if (item.status === "CRITICAL") acc.critical += 1
+                if (item.status === "NEW") acc.newItems += 1
+                return acc
+            },
+            { total: 0, healthy: 0, lowStock: 0, critical: 0, newItems: 0 }
+        )
+
+        const filteredRows = rows.filter((item) => {
+            if (normalizedQuery.status && item.status !== normalizedQuery.status) return false
+            if (!normalizedQuery.q) return true
+            const haystack = `${item.code || ""} ${item.name || ""} ${item.category?.name || ""}`.toLowerCase()
+            return haystack.includes(normalizedQuery.q.toLowerCase())
+        })
+
+        return {
+            products: filteredRows,
+            summary,
+            query: normalizedQuery,
+        }
+    })
+}
+
 export async function setProductManualAlert(productId: string, isAlert: boolean) {
     try {
         return await withPrismaAuth(async (prisma) => {

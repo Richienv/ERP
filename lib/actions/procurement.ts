@@ -91,6 +91,15 @@ export const getVendors = unstable_cache(
 export const getProcurementStats = unstable_cache(
     async () => {
         try {
+            const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> => {
+                try {
+                    return await promise
+                } catch (error) {
+                    console.error(`Procurement stats segment failed: ${label}`, error)
+                    return fallback
+                }
+            }
+
             const now = new Date()
             const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
             const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
@@ -113,7 +122,7 @@ export const getProcurementStats = unstable_cache(
                 prStatusRows,
                 grnStatusRows,
             ] = await Promise.all([
-                prisma.purchaseOrder.findMany({
+                safe("current-month-pos", prisma.purchaseOrder.findMany({
                     where: {
                         status: { in: activeSpendStatuses },
                         createdAt: {
@@ -122,8 +131,8 @@ export const getProcurementStats = unstable_cache(
                         }
                     },
                     select: { totalAmount: true }
-                }),
-                prisma.purchaseOrder.findMany({
+                }), [] as Array<{ totalAmount: any }>),
+                safe("previous-month-pos", prisma.purchaseOrder.findMany({
                     where: {
                         status: { in: activeSpendStatuses },
                         createdAt: {
@@ -132,19 +141,19 @@ export const getProcurementStats = unstable_cache(
                         }
                     },
                     select: { totalAmount: true }
-                }),
-                prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }),
-                prisma.purchaseRequest.count({ where: { status: 'PENDING' } }),
-                prisma.purchaseOrder.count({ where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] } } }),
-                prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }),
-                prisma.purchaseOrder.findMany({
+                }), [] as Array<{ totalAmount: any }>),
+                safe("pending-po-count", prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }), 0),
+                safe("pending-pr-count", prisma.purchaseRequest.count({ where: { status: 'PENDING' } }), 0),
+                safe("incoming-po-count", prisma.purchaseOrder.count({ where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] } } }), 0),
+                safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
+                safe("recent-po", prisma.purchaseOrder.findMany({
                     orderBy: { createdAt: 'desc' },
                     take: 5,
                     include: {
                         supplier: { select: { name: true } }
                     }
-                }),
-                prisma.purchaseRequest.findMany({
+                }), [] as Array<any>),
+                safe("recent-pr", prisma.purchaseRequest.findMany({
                     orderBy: { createdAt: 'desc' },
                     take: 5,
                     select: {
@@ -155,8 +164,8 @@ export const getProcurementStats = unstable_cache(
                         createdAt: true,
                         priority: true
                     }
-                }),
-                prisma.goodsReceivedNote.findMany({
+                }), [] as Array<any>),
+                safe("recent-grn", prisma.goodsReceivedNote.findMany({
                     orderBy: { receivedDate: 'desc' },
                     take: 5,
                     select: {
@@ -167,27 +176,27 @@ export const getProcurementStats = unstable_cache(
                         purchaseOrder: { select: { number: true } },
                         warehouse: { select: { name: true } }
                     }
-                }),
-                prisma.product.findMany({
+                }), [] as Array<any>),
+                safe("products-stock", prisma.product.findMany({
                     where: { isActive: true },
                     select: {
                         id: true,
                         minStock: true,
                         stockLevels: { select: { quantity: true } }
                     }
-                }),
-                prisma.purchaseOrder.groupBy({
+                }), [] as Array<{ id: string; minStock: number; stockLevels: Array<{ quantity: number }> }>),
+                safe("po-status-group", prisma.purchaseOrder.groupBy({
                     by: ['status'],
                     _count: { _all: true }
-                }),
-                prisma.purchaseRequest.groupBy({
+                }), [] as Array<{ status: string; _count: { _all: number } }>),
+                safe("pr-status-group", prisma.purchaseRequest.groupBy({
                     by: ['status'],
                     _count: { _all: true }
-                }),
-                prisma.goodsReceivedNote.groupBy({
+                }), [] as Array<{ status: string; _count: { _all: number } }>),
+                safe("grn-status-group", prisma.goodsReceivedNote.groupBy({
                     by: ['status'],
                     _count: { _all: true }
-                })
+                }), [] as Array<{ status: string; _count: { _all: number } }>),
             ])
 
             const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)

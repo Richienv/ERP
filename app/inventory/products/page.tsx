@@ -1,15 +1,36 @@
 export const dynamic = 'force-dynamic'
 
-import { getProductsForKanban, getCategories, getWarehouses } from '@/app/actions/inventory'
+import { getInventoryCommandCenterProducts, getCategories, getWarehouses } from '@/app/actions/inventory'
 import { Button } from '@/components/ui/button'
 import { SlidersHorizontal } from 'lucide-react'
 import { ProductCreateDialog } from '@/components/inventory/product-create-dialog'
 import { InventoryPerformanceProvider } from '@/components/inventory/inventory-performance-provider'
 import { InventoryProductsTabs } from '@/components/inventory/inventory-products-tabs'
 
-export default async function InventoryProductsPage() {
-  const [products, categories, warehouses] = await Promise.all([
-    getProductsForKanban(),
+type SearchParamsValue = string | string[] | undefined
+
+const readSearchParam = (params: Record<string, SearchParamsValue>, key: string) => {
+  const value = params[key]
+  if (Array.isArray(value)) return value[0]
+  return value
+}
+
+export default async function InventoryProductsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, SearchParamsValue>> | Record<string, SearchParamsValue>
+}) {
+  const resolvedSearchParams = searchParams
+    ? (typeof (searchParams as Promise<Record<string, SearchParamsValue>>).then === "function"
+      ? await (searchParams as Promise<Record<string, SearchParamsValue>>)
+      : (searchParams as Record<string, SearchParamsValue>))
+    : {}
+
+  const [commandCenter, categories, warehouses] = await Promise.all([
+    getInventoryCommandCenterProducts({
+      q: readSearchParam(resolvedSearchParams, "q"),
+      status: readSearchParam(resolvedSearchParams, "status"),
+    }),
     getCategories(),
     getWarehouses()
   ])
@@ -30,9 +51,12 @@ export default async function InventoryProductsPage() {
           </div>
         </div>
 
-
-
-        <InventoryProductsTabs initialProducts={products} warehouses={warehouses} />
+        <InventoryProductsTabs
+          initialProducts={commandCenter.products}
+          warehouses={warehouses}
+          initialQuery={commandCenter.query}
+          initialSummary={commandCenter.summary}
+        />
       </div>
     </InventoryPerformanceProvider>
   )
