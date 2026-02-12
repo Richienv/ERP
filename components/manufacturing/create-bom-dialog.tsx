@@ -107,6 +107,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
   }, [open, mode, initialBOM]);
 
   const materialOptions = useMemo(() => products.filter((p) => p.id !== productId), [products, productId]);
+  const selectedProduct = useMemo(() => products.find((p) => p.id === productId) || null, [products, productId]);
 
   const updateLine = (index: number, patch: Partial<BOMLine>) => {
     setLines((prev) => prev.map((line, i) => (i === index ? { ...line, ...patch } : line)));
@@ -195,38 +196,48 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
         <DialogHeader className="px-6 py-5 border-b bg-white">
-          <DialogTitle className="text-3xl font-black uppercase tracking-tight">
+          <DialogTitle className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-tight">
             {mode === "edit" ? "Edit Bill Of Materials" : "Create Bill Of Materials"}
           </DialogTitle>
           <DialogDescription className="text-sm">Use options-driven input to avoid manual unit mismatch and data inconsistencies.</DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-[72vh] overflow-y-auto px-6 py-5 space-y-4">
+        <div className="max-h-[72vh] overflow-y-auto px-6 py-5 space-y-5 bg-zinc-50/40">
           <div className="rounded-xl border border-black/15 bg-zinc-50/50 p-4 space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              <div className="space-y-1.5 min-w-0 md:col-span-7">
                 <Label>Finished Good Product</Label>
                 <Select value={productId} onValueChange={setProductId} disabled={loadingOptions || mode === "edit"}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12 bg-white min-w-0 [&>span]:truncate">
                     <SelectValue placeholder="Select product" />
                   </SelectTrigger>
                   <SelectContent>
                     {products.map((product) => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.code} - {product.name}
+                        <span className="block truncate">{product.code} - {product.name}</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {selectedProduct ? (
+                  <p className="text-[11px] text-zinc-500 truncate">
+                    {selectedProduct.code} - {selectedProduct.name}
+                  </p>
+                ) : null}
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-0 md:col-span-2">
                 <Label>Version</Label>
-                <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="v1" />
+                <Input
+                  className="h-12 bg-white"
+                  value={version}
+                  onChange={(e) => setVersion(e.target.value)}
+                  placeholder="v1"
+                />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 min-w-0 md:col-span-3">
                 <Label>Status</Label>
                 <Select value={isActive ? "ACTIVE" : "INACTIVE"} onValueChange={(value) => setIsActive(value === "ACTIVE")}>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-12 bg-white min-w-0 [&>span]:truncate">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -247,36 +258,50 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
             </div>
 
             {lines.map((line, index) => (
-              <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                <div className="col-span-5 space-y-1.5">
+              <div key={index} className="rounded-lg border border-zinc-200 p-3 grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-zinc-50/50">
+                <div className="sm:col-span-5 space-y-1.5 min-w-0">
                   <Label>Material</Label>
                   <Select value={line.materialId} onValueChange={(value) => updateMaterial(index, value)}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11 bg-white min-w-0 [&>span]:truncate">
                       <SelectValue placeholder="Select material" />
                     </SelectTrigger>
                     <SelectContent>
                       {materialOptions.map((material) => (
                         <SelectItem key={material.id} value={material.id}>
-                          {material.code} - {material.name}
+                          <span className="block truncate">{material.code} - {material.name}</span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-2 space-y-1.5">
+                <div className="sm:col-span-2 space-y-1.5 min-w-0">
                   <Label>Qty</Label>
-                  <Input type="number" min={0.0001} step="0.0001" value={line.quantity} onChange={(e) => updateLine(index, { quantity: e.target.value })} />
+                  <Input
+                    className="h-11 bg-white"
+                    type="number"
+                    min={0.0001}
+                    step="0.0001"
+                    value={line.quantity}
+                    onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                  />
                 </div>
-                <div className="col-span-2 space-y-1.5">
+                <div className="sm:col-span-2 space-y-1.5 min-w-0">
                   <Label>Unit</Label>
-                  <Input value={line.unit || "-"} readOnly className="bg-zinc-100" />
+                  <Input value={line.unit || "-"} readOnly className="h-11 bg-zinc-100" />
                 </div>
-                <div className="col-span-2 space-y-1.5">
+                <div className="sm:col-span-2 space-y-1.5 min-w-0">
                   <Label>Waste %</Label>
-                  <Input type="number" min={0} step="0.01" value={line.wastePct} onChange={(e) => updateLine(index, { wastePct: e.target.value })} />
+                  <Input
+                    className="h-11 bg-white"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={line.wastePct}
+                    onChange={(e) => updateLine(index, { wastePct: e.target.value })}
+                  />
                 </div>
-                <div className="col-span-1">
-                  <Button type="button" variant="outline" size="icon" className="border-red-300 text-red-600" onClick={() => removeLine(index)}>
+                <div className="sm:col-span-1">
+                  <Button type="button" variant="outline" size="icon" className="h-11 w-11 border-red-300 text-red-600" onClick={() => removeLine(index)}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>

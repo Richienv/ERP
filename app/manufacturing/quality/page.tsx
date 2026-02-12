@@ -60,8 +60,30 @@ interface Summary {
     todayCount: number;
 }
 
+interface PendingInspection {
+    id: string;
+    number: string;
+    status: string;
+    priority: string;
+    plannedQty: number;
+    startDate?: string | null;
+    dueDate?: string | null;
+    createdAt: string;
+    product: {
+        id: string;
+        code: string;
+        name: string;
+    };
+    machine?: {
+        id: string;
+        code: string;
+        name: string;
+    } | null;
+}
+
 export default function QualityControlPage() {
     const [inspections, setInspections] = useState<Inspection[]>([]);
+    const [pendingQueue, setPendingQueue] = useState<PendingInspection[]>([]);
     const [summary, setSummary] = useState<Summary>({ passRate: 100, defectCount: 0, pendingCount: 0, todayCount: 0 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -82,6 +104,7 @@ export default function QualityControlPage() {
 
             if (data.success) {
                 setInspections(data.data);
+                setPendingQueue(data.pendingQueue || []);
                 setSummary(data.summary);
             } else {
                 setError(data.error || 'Failed to fetch inspections');
@@ -241,7 +264,7 @@ export default function QualityControlPage() {
             )}
 
             {/* Empty State */}
-            {!loading && !error && inspections.length === 0 && (
+            {!loading && !error && inspections.length === 0 && pendingQueue.length === 0 && (
                 <Card className="border-dashed border-2 border-zinc-300">
                     <CardContent className="p-12 flex flex-col items-center justify-center text-center">
                         <ClipboardCheck className="h-12 w-12 text-zinc-300 mb-4" />
@@ -255,6 +278,68 @@ export default function QualityControlPage() {
                             <Plus className="mr-2 h-4 w-4" /> New Inspection
                         </Button>
                     </CardContent>
+                </Card>
+            )}
+
+            {/* Pending Inspection Queue */}
+            {!loading && !error && pendingQueue.length > 0 && (
+                <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="px-4 py-3 border-b border-black bg-amber-50">
+                        <p className="text-sm font-black uppercase tracking-wide text-amber-900">
+                            Pending Inspection Queue ({pendingQueue.length})
+                        </p>
+                        <p className="text-xs text-amber-800">Work orders yang belum memiliki hasil inspeksi QC.</p>
+                    </div>
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="border-b-2 border-black bg-zinc-50">
+                                <TableHead className="font-black uppercase text-[11px] tracking-wide">Work Order</TableHead>
+                                <TableHead className="font-black uppercase text-[11px] tracking-wide">Product</TableHead>
+                                <TableHead className="font-black uppercase text-[11px] tracking-wide">Status</TableHead>
+                                <TableHead className="font-black uppercase text-[11px] tracking-wide">Priority</TableHead>
+                                <TableHead className="font-black uppercase text-[11px] tracking-wide text-center">Planned Qty</TableHead>
+                                <TableHead className="font-black uppercase text-[11px] tracking-wide">Machine</TableHead>
+                                <TableHead className="font-black uppercase text-[11px] tracking-wide">Due Date</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {pendingQueue.map((wo) => (
+                                <TableRow key={wo.id} className="border-b border-black/10">
+                                    <TableCell className="font-mono font-bold">{wo.number}</TableCell>
+                                    <TableCell>
+                                        <div>
+                                            <div className="font-bold text-sm">{wo.product.name}</div>
+                                            <div className="text-xs text-muted-foreground font-mono">{wo.product.code}</div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant="outline" className="border-black">
+                                            {wo.status.replace('_', ' ')}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge className="bg-zinc-100 text-zinc-900 border-black">
+                                            {wo.priority}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-center font-mono">{wo.plannedQty}</TableCell>
+                                    <TableCell className="text-sm">
+                                        {wo.machine?.name ? (
+                                            <div>
+                                                <div className="font-medium">{wo.machine.name}</div>
+                                                <div className="text-xs text-muted-foreground font-mono">{wo.machine.code}</div>
+                                            </div>
+                                        ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                        )}
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {wo.dueDate ? formatDate(wo.dueDate) : '-'}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </Card>
             )}
 

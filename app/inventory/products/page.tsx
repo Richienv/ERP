@@ -1,14 +1,11 @@
 export const dynamic = 'force-dynamic'
 
 import { getProductsForKanban, getCategories, getWarehouses } from '@/app/actions/inventory'
-import { getVendors } from '@/app/actions/vendor'
-import { InventoryKanbanBoard } from '@/components/inventory/inventory-kanban-board'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Plus, SlidersHorizontal } from 'lucide-react'
-import { ProductDataTable } from '@/components/inventory/product-data-table'
+import { SlidersHorizontal } from 'lucide-react'
 import { ProductCreateDialog } from '@/components/inventory/product-create-dialog'
 import { InventoryPerformanceProvider } from '@/components/inventory/inventory-performance-provider'
+import { InventoryProductsTabs } from '@/components/inventory/inventory-products-tabs'
 
 export default async function InventoryProductsPage() {
   const [products, categories, warehouses] = await Promise.all([
@@ -35,22 +32,7 @@ export default async function InventoryProductsPage() {
 
 
 
-        <Tabs defaultValue="kanban" className="w-full">
-          <TabsList className="mb-4 bg-white border">
-            <TabsTrigger value="kanban">Kanban View</TabsTrigger>
-            <TabsTrigger value="list">Detailed List</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="kanban" className="mt-0">
-            <InventoryKanbanBoard products={products} warehouses={warehouses} />
-          </TabsContent>
-
-          <TabsContent value="list" className="mt-0">
-            <div className="bg-white rounded-lg border p-4">
-              <ProductDataTable data={products} />
-            </div>
-          </TabsContent>
-        </Tabs>
+        <InventoryProductsTabs initialProducts={products} warehouses={warehouses} />
       </div>
     </InventoryPerformanceProvider>
   )

@@ -20,12 +20,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetDescription,
-} from "@/components/ui/sheet";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
     Table,
     TableBody,
@@ -78,7 +78,7 @@ export default function BOMPage() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedBOM, setSelectedBOM] = useState<BOM | null>(null);
-    const [sheetOpen, setSheetOpen] = useState(false);
+    const [detailOpen, setDetailOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
@@ -120,7 +120,7 @@ export default function BOMPage() {
 
     const handleCardClick = (bom: BOM) => {
         setSelectedBOM(bom);
-        setSheetOpen(true);
+        setDetailOpen(true);
     };
 
     const buildNextVersion = (bom: BOM) => {
@@ -172,7 +172,7 @@ export default function BOMPage() {
                 return;
             }
             toast.success('BOM duplicated successfully');
-            setSheetOpen(false);
+            setDetailOpen(false);
             await fetchBOMs();
         } catch (error) {
             console.error(error);
@@ -198,7 +198,7 @@ export default function BOMPage() {
                 return;
             }
             toast.success('BOM deleted successfully');
-            setSheetOpen(false);
+            setDetailOpen(false);
             setSelectedBOM(null);
             await fetchBOMs();
         } catch (error) {
@@ -362,96 +362,97 @@ export default function BOMPage() {
                 </div>
             )}
 
-            {/* Detail Sheet */}
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetContent className="sm:max-w-2xl overflow-y-auto">
-                    <SheetHeader>
-                        <SheetTitle className="font-black text-2xl">{selectedBOM?.product.name}</SheetTitle>
-                        <SheetDescription>
+            {/* Detail Dialog */}
+            <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+                <DialogContent className="max-w-5xl p-0 border-2 border-black shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <DialogHeader className="px-6 py-5 border-b bg-white">
+                        <DialogTitle className="font-black text-2xl leading-tight">{selectedBOM?.product.name}</DialogTitle>
+                        <DialogDescription className="text-sm">
                             {selectedBOM?.product.code} • {selectedBOM?.version}
-                        </SheetDescription>
-                    </SheetHeader>
+                        </DialogDescription>
+                    </DialogHeader>
 
                     {selectedBOM && (
-                        <div className="mt-6 space-y-6">
-                            {/* Summary */}
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="border border-black/10 rounded-lg p-3 text-center">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase">Components</p>
-                                    <p className="text-2xl font-black">{selectedBOM.itemCount}</p>
+                        <>
+                            <div className="max-h-[72vh] overflow-y-auto p-6 space-y-6 bg-zinc-50/40">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    <div className="border border-black/10 rounded-lg p-4 bg-white">
+                                        <p className="text-xs font-bold text-muted-foreground uppercase">Components</p>
+                                        <p className="text-3xl font-black mt-1">{selectedBOM.itemCount}</p>
+                                    </div>
+                                    <div className="border border-black/10 rounded-lg p-4 bg-white">
+                                        <p className="text-xs font-bold text-muted-foreground uppercase">Material Cost</p>
+                                        <p className="text-3xl font-black mt-1">{formatCurrency(selectedBOM.totalMaterialCost)}</p>
+                                    </div>
+                                    <div className="border border-black/10 rounded-lg p-4 bg-white">
+                                        <p className="text-xs font-bold text-muted-foreground uppercase">Status</p>
+                                        <p className="text-3xl font-black mt-1">{selectedBOM.isActive ? 'Active' : 'Inactive'}</p>
+                                    </div>
                                 </div>
-                                <div className="border border-black/10 rounded-lg p-3 text-center">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase">Material Cost</p>
-                                    <p className="text-xl font-black">{formatCurrency(selectedBOM.totalMaterialCost)}</p>
-                                </div>
-                                <div className="border border-black/10 rounded-lg p-3 text-center">
-                                    <p className="text-xs font-bold text-muted-foreground uppercase">Status</p>
-                                    <p className="text-xl font-black">{selectedBOM.isActive ? 'Active' : 'Inactive'}</p>
-                                </div>
-                            </div>
 
-                            {/* Components Table */}
-                            <div>
-                                <h4 className="font-black text-sm uppercase mb-3">Components / Materials</h4>
-                                <Card className="border border-black">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow className="border-b-2 border-black bg-zinc-50">
-                                                <TableHead className="font-black uppercase text-[11px]">Material</TableHead>
-                                                <TableHead className="font-black uppercase text-[11px] text-right">Qty</TableHead>
-                                                <TableHead className="font-black uppercase text-[11px] text-right">Unit Cost</TableHead>
-                                                <TableHead className="font-black uppercase text-[11px] text-right">Waste %</TableHead>
-                                                <TableHead className="font-black uppercase text-[11px] text-right">Line Total</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {selectedBOM.items.length === 0 ? (
-                                                <TableRow>
-                                                    <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                                                        No components defined yet
-                                                    </TableCell>
-                                                </TableRow>
-                                            ) : (
-                                                selectedBOM.items.map((item) => {
-                                                    const wasteFactor = 1 + (Number(item.wastePct) / 100);
-                                                    const lineTotal = Number(item.quantity) * Number(item.material.costPrice) * wasteFactor;
-                                                    return (
-                                                        <TableRow key={item.id} className="border-b border-black/10">
-                                                            <TableCell>
-                                                                <div>
-                                                                    <div className="font-bold text-sm">{item.material.name}</div>
-                                                                    <div className="text-xs text-muted-foreground font-mono">{item.material.code}</div>
-                                                                </div>
-                                                            </TableCell>
-                                                            <TableCell className="text-right font-mono">
-                                                                {Number(item.quantity).toFixed(2)} <span className="text-xs text-muted-foreground">{item.unit || item.material.unit}</span>
-                                                            </TableCell>
-                                                            <TableCell className="text-right font-mono">
-                                                                {formatCurrency(Number(item.material.costPrice))}
-                                                            </TableCell>
-                                                            <TableCell className="text-right">
-                                                                {Number(item.wastePct) > 0 ? (
-                                                                    <span className="text-amber-600 font-bold">{Number(item.wastePct)}%</span>
-                                                                ) : (
-                                                                    <span className="text-muted-foreground">0%</span>
-                                                                )}
-                                                            </TableCell>
-                                                            <TableCell className="text-right font-mono font-bold">
-                                                                {formatCurrency(lineTotal)}
+                                <div className="space-y-3">
+                                    <h4 className="font-black text-sm uppercase">Components / Materials</h4>
+                                    <Card className="border border-black bg-white overflow-hidden">
+                                        <div className="overflow-x-auto">
+                                            <Table className="min-w-[760px]">
+                                                <TableHeader>
+                                                    <TableRow className="border-b-2 border-black bg-zinc-50">
+                                                        <TableHead className="font-black uppercase text-[11px]">Material</TableHead>
+                                                        <TableHead className="font-black uppercase text-[11px] text-right">Qty</TableHead>
+                                                        <TableHead className="font-black uppercase text-[11px] text-right">Unit Cost</TableHead>
+                                                        <TableHead className="font-black uppercase text-[11px] text-right">Waste %</TableHead>
+                                                        <TableHead className="font-black uppercase text-[11px] text-right">Line Total</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {selectedBOM.items.length === 0 ? (
+                                                        <TableRow>
+                                                            <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                                                                No components defined yet
                                                             </TableCell>
                                                         </TableRow>
-                                                    );
-                                                })
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </Card>
+                                                    ) : (
+                                                        selectedBOM.items.map((item) => {
+                                                            const wasteFactor = 1 + (Number(item.wastePct) / 100);
+                                                            const lineTotal = Number(item.quantity) * Number(item.material.costPrice) * wasteFactor;
+                                                            return (
+                                                                <TableRow key={item.id} className="border-b border-black/10">
+                                                                    <TableCell>
+                                                                        <div>
+                                                                            <div className="font-bold text-sm">{item.material.name}</div>
+                                                                            <div className="text-xs text-muted-foreground font-mono">{item.material.code}</div>
+                                                                        </div>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono whitespace-nowrap">
+                                                                        {Number(item.quantity).toFixed(2)} <span className="text-xs text-muted-foreground">{item.unit || item.material.unit}</span>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono whitespace-nowrap">
+                                                                        {formatCurrency(Number(item.material.costPrice))}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right whitespace-nowrap">
+                                                                        {Number(item.wastePct) > 0 ? (
+                                                                            <span className="text-amber-600 font-bold">{Number(item.wastePct)}%</span>
+                                                                        ) : (
+                                                                            <span className="text-muted-foreground">0%</span>
+                                                                        )}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono font-bold whitespace-nowrap">
+                                                                        {formatCurrency(lineTotal)}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            );
+                                                        })
+                                                    )}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    </Card>
+                                </div>
                             </div>
 
-                            {/* Actions */}
-                            <div className="pt-4 border-t flex gap-2">
+                            <div className="px-6 py-4 border-t bg-white flex flex-col sm:flex-row gap-2">
                                 <Button
-                                    className="flex-1 bg-black text-white hover:bg-zinc-800"
+                                    className="sm:flex-1 bg-black text-white hover:bg-zinc-800"
                                     onClick={() => setEditOpen(true)}
                                     disabled={actionLoading}
                                 >
@@ -459,7 +460,7 @@ export default function BOMPage() {
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="border-black"
+                                    className="sm:flex-1 border-black"
                                     onClick={handleDuplicate}
                                     disabled={actionLoading}
                                 >
@@ -467,17 +468,17 @@ export default function BOMPage() {
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                    className="border-red-300 text-red-600 hover:bg-red-50 sm:w-12"
                                     onClick={handleDelete}
                                     disabled={actionLoading}
                                 >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
-                        </div>
+                        </>
                     )}
-                </SheetContent>
-            </Sheet>
+                </DialogContent>
+            </Dialog>
 
             <CreateBOMDialog
                 open={createOpen}
@@ -489,7 +490,7 @@ export default function BOMPage() {
                 onOpenChange={setEditOpen}
                 onCreated={async () => {
                     await fetchBOMs();
-                    setSheetOpen(false);
+                    setDetailOpen(false);
                 }}
                 mode="edit"
                 initialBOM={selectedBOM ? {

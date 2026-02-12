@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
         const offset = (page - 1) * limit
 
-        const [inspections, totalCount, inspectors, materials, workOrders, pendingInspectionCount] = await Promise.all([
+        const [inspections, totalCount, inspectors, materials, workOrders, pendingInspectionCount, pendingInspectionQueue] = await Promise.all([
             prisma.qualityInspection.findMany({
                 where: whereClause,
                 include: {
@@ -142,6 +142,41 @@ export async function GET(request: NextRequest) {
                     inspections: { none: {} },
                 },
             }),
+            prisma.workOrder.findMany({
+                where: {
+                    status: { in: ['PLANNED', 'IN_PROGRESS', 'ON_HOLD'] },
+                    inspections: { none: {} },
+                },
+                select: {
+                    id: true,
+                    number: true,
+                    status: true,
+                    priority: true,
+                    plannedQty: true,
+                    startDate: true,
+                    dueDate: true,
+                    createdAt: true,
+                    product: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                        },
+                    },
+                    machine: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                        },
+                    },
+                },
+                orderBy: [
+                    { dueDate: 'asc' },
+                    { createdAt: 'desc' },
+                ],
+                take: 100,
+            }),
         ])
 
         // Enhance with formatted data
@@ -175,6 +210,7 @@ export async function GET(request: NextRequest) {
                 pendingCount: pendingInspectionCount,
                 todayCount: todayInspections.length,
             },
+            pendingQueue: pendingInspectionQueue,
             options: {
                 inspectors,
                 materials,

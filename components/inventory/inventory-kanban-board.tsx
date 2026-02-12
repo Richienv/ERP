@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { setProductManualAlert, createRestockRequest } from '@/app/actions/inventory'
@@ -185,9 +185,10 @@ function KanbanColumn({ title, status, products, onDrop, onCardClick }: KanbanCo
 interface InventoryKanbanProps {
     products: Product[]
     warehouses: { id: string, name: string }[]
+    onProductsChange?: (nextProducts: Product[]) => void
 }
 
-export function InventoryKanbanBoard({ products: initialProducts, warehouses }: InventoryKanbanProps) {
+export function InventoryKanbanBoard({ products: initialProducts, warehouses, onProductsChange }: InventoryKanbanProps) {
     const [products, setProducts] = useState(initialProducts)
     const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, productId: string | null, toStatus: string | null }>({
         isOpen: false,
@@ -206,6 +207,14 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
     const [selectedDetail, setSelectedDetail] = useState<ProductDetailPayload | null>(null)
 
     const router = useRouter()
+
+    useEffect(() => {
+        setProducts(initialProducts)
+    }, [initialProducts])
+
+    useEffect(() => {
+        onProductsChange?.(products)
+    }, [products, onProductsChange])
 
     const openProductDetail = async (productId: string) => {
         setDetailOpen(true)
