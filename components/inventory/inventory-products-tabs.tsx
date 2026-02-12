@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { InventoryKanbanBoard } from "@/components/inventory/inventory-kanban-board"
 import { ProductDataTable } from "@/components/inventory/product-data-table"
@@ -12,10 +13,29 @@ interface InventoryProductsTabsProps {
 
 export function InventoryProductsTabs({ initialProducts, warehouses }: InventoryProductsTabsProps) {
   const [products, setProducts] = useState<any[]>(initialProducts)
+  const router = useRouter()
 
   useEffect(() => {
     setProducts(initialProducts)
   }, [initialProducts])
+
+  useEffect(() => {
+    const refreshFromServer = () => {
+      if (document.visibilityState === "visible") {
+        router.refresh()
+      }
+    }
+
+    const intervalId = window.setInterval(refreshFromServer, 30000)
+    window.addEventListener("focus", refreshFromServer)
+    document.addEventListener("visibilitychange", refreshFromServer)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener("focus", refreshFromServer)
+      document.removeEventListener("visibilitychange", refreshFromServer)
+    }
+  }, [router])
 
   return (
     <Tabs defaultValue="kanban" className="w-full">

@@ -1252,6 +1252,8 @@ export async function submitSpotAudit(data: {
 
             revalidateTagSafe('inventory')
             revalidatePath('/inventory/audit')
+            revalidatePath('/dashboard')
+            revalidatePath('/dashboard/approvals')
             return { success: true, requiresApproval: true, taskId: task.id };
         })
 
@@ -1470,6 +1472,8 @@ export async function approveStockOpnameAdjustment(taskId: string) {
         revalidatePath('/inventory/audit')
         revalidatePath('/inventory/movements')
         revalidatePath('/inventory/warehouses')
+        revalidatePath('/dashboard')
+        revalidatePath('/dashboard/approvals')
     }
 }
 
@@ -1497,6 +1501,8 @@ export async function rejectStockOpnameAdjustment(taskId: string, reason?: strin
             })
 
             revalidatePath('/inventory/audit')
+            revalidatePath('/dashboard')
+            revalidatePath('/dashboard/approvals')
             return { success: true }
         })
     } catch (error: any) {

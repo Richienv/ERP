@@ -52,7 +52,7 @@ export function NavDocuments({
                 isActive={isActive}
                 className={isActive ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear" : ""}
               >
-                <Link href={item.url}>
+                <Link href={item.url} prefetch>
                   <item.icon />
                   <span>{item.name}</span>
                 </Link>

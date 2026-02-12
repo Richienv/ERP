@@ -45,7 +45,7 @@ import {
 import Link from "next/link"
 import { StockStatusBadge, CurrencyDisplay } from "@/components/inventory"
 import { formatNumber, getStockStatus } from "@/lib/inventory-utils"
-import { type ProductWithRelations } from "@/lib/types"
+import { type ProductWithRelations, type StockStatus } from "@/lib/types"
 
 // Add current stock to products (would come from stock levels in real app)
 // Also override Decimal types to number for client usage
@@ -53,6 +53,7 @@ export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'selling
   costPrice: number
   sellingPrice: number
   currentStock: number
+  status?: string | null
 }
 
 // Mock data - same as before but typed properly
@@ -143,6 +144,28 @@ const productsWithStock: ProductWithStock[] = mockProducts.map(product => ({
       Math.floor(Math.random() * 50),
 }))
 
+function getDisplayStockStatus(product: ProductWithStock): StockStatus {
+  if (product.manualAlert) {
+    return "critical"
+  }
+
+  const normalizedStatus = (product.status || "").toUpperCase()
+  if (normalizedStatus === "CRITICAL" || normalizedStatus === "CRITICAL_WO_SHORTAGE") {
+    return product.currentStock <= 0 ? "out" : "critical"
+  }
+  if (normalizedStatus === "LOW_STOCK" || normalizedStatus === "RESTOCK_NEEDED") {
+    return "low"
+  }
+  if (normalizedStatus === "OUT_OF_STOCK") {
+    return "out"
+  }
+  if (normalizedStatus === "HEALTHY" || normalizedStatus === "OK" || normalizedStatus === "NEW") {
+    return product.currentStock <= 0 ? "out" : "normal"
+  }
+
+  return getStockStatus(product.currentStock, product.minStock, product.maxStock)
+}
+
 export const columns: ColumnDef<ProductWithStock>[] = [
   {
     accessorKey: "code",
@@ -205,7 +228,6 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     header: "Stok",
     cell: ({ row }) => {
       const product = row.original
-      const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
 
       return (
         <div className="text-center">
@@ -222,7 +244,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     header: "Status Stok",
     cell: ({ row }) => {
       const product = row.original
-      const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
+      const stockStatus = getDisplayStockStatus(product)
 
       return (
         <div className="text-center">

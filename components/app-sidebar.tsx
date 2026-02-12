@@ -22,6 +22,7 @@ import {
   IconWorld,
   IconReceipt,
 } from "@tabler/icons-react"
+import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useWorkflowConfig } from "@/components/workflow/workflow-config-context"
 
@@ -38,6 +39,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+
+type SidebarNavItem = {
+  title: string
+  url: string
+  icon?: React.ComponentType<any>
+  locked?: boolean
+  items?: { title: string; url: string }[]
+}
 
 const data = {
   navMain: [
@@ -354,6 +363,7 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth()
+  const router = useRouter()
 
   // Filter navigation for Staff Role
   const isStaff = user?.role === "ROLE_STAFF"
@@ -460,6 +470,45 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   const filteredNavSecondary = (isStaff || isAccountant || user?.role === "ROLE_MANAGER") ? [] : data.navSecondary
+
+  const prefetchUrls = React.useMemo(() => {
+    const urls = new Set<string>()
+    const addUrl = (url?: string) => {
+      if (!url || url === "#" || url.startsWith("http")) return
+      urls.add(url)
+    }
+
+    const collectFromMain = (items: SidebarNavItem[]) => {
+      items.forEach((item) => {
+        addUrl(item.url)
+        item.items?.forEach((subItem) => addUrl(subItem.url))
+      })
+    }
+
+    collectFromMain(filteredNavMain as SidebarNavItem[])
+    filteredNavSecondary.forEach((item) => addUrl(item.url))
+    return Array.from(urls)
+  }, [filteredNavMain, filteredNavSecondary])
+
+  React.useEffect(() => {
+    if (prefetchUrls.length === 0) return
+
+    let cancelled = false
+    const timers: number[] = []
+    prefetchUrls.forEach((url, index) => {
+      const timer = window.setTimeout(() => {
+        if (!cancelled) {
+          router.prefetch(url)
+        }
+      }, 120 + index * 90)
+      timers.push(timer)
+    })
+
+    return () => {
+      cancelled = true
+      timers.forEach((timer) => window.clearTimeout(timer))
+    }
+  }, [router, prefetchUrls])
 
   return (
     <Sidebar collapsible="icon" {...props}>

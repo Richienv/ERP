@@ -28,6 +28,8 @@ import { AlertCircle, CheckCircle2, Package, Calculator, Truck } from 'lucide-re
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
+const PRODUCT_DETAIL_CACHE_TTL_MS = 30_000
+
 interface Product {
     id: string
     code: string
@@ -205,11 +207,13 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
     const [detailOpen, setDetailOpen] = useState(false)
     const [detailLoading, setDetailLoading] = useState(false)
     const [selectedDetail, setSelectedDetail] = useState<ProductDetailPayload | null>(null)
+    const [detailCache, setDetailCache] = useState<Record<string, { cachedAt: number, data: ProductDetailPayload }>>({})
 
     const router = useRouter()
 
     useEffect(() => {
         setProducts(initialProducts)
+        setDetailCache({})
     }, [initialProducts])
 
     useEffect(() => {
@@ -219,6 +223,12 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
     const openProductDetail = async (productId: string) => {
         setDetailOpen(true)
         setDetailLoading(true)
+        const cachedDetail = detailCache[productId]
+        if (cachedDetail && Date.now() - cachedDetail.cachedAt < PRODUCT_DETAIL_CACHE_TTL_MS) {
+            setSelectedDetail(cachedDetail.data)
+            setDetailLoading(false)
+            return
+        }
         setSelectedDetail(null)
         try {
             const response = await fetch(`/api/products/${productId}`)
@@ -228,7 +238,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
                 return
             }
             const data = payload.data
-            setSelectedDetail({
+            const nextDetail = {
                 id: data.id,
                 code: data.code,
                 name: data.name,
@@ -243,7 +253,12 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
                     notes: tx.notes,
                     warehouse: tx.warehouse || null
                 }))
-            })
+            }
+            setSelectedDetail(nextDetail)
+            setDetailCache((prev) => ({
+                ...prev,
+                [productId]: { cachedAt: Date.now(), data: nextDetail }
+            }))
         } catch (error) {
             console.error(error)
             toast.error("Failed to load stock movement history")
@@ -334,6 +349,11 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
                 })
 
                 if (result.success) {
+                    setDetailCache((prev) => {
+                        const next = { ...prev }
+                        delete next[productId]
+                        return next
+                    })
                     const prNum = (result as any).prNumber
                     toast.dismiss()
                     toast.success(`Restock Request Created! PR #${prNum}`, {
@@ -370,6 +390,11 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
             const result = await setProductManualAlert(productId, false)
 
             if (result.success) {
+                setDetailCache((prev) => {
+                    const next = { ...prev }
+                    delete next[productId]
+                    return next
+                })
                 toast.dismiss()
                 toast.success("Manual Alert removed")
                 router.refresh()
