@@ -55,6 +55,34 @@ export async function GET(request: NextRequest) {
             },
         })
 
+        const productIds = Array.from(new Set(workOrders.map((wo) => wo.productId)))
+        const activeBoms = productIds.length > 0
+            ? await prisma.billOfMaterials.findMany({
+                where: {
+                    isActive: true,
+                    productId: { in: productIds },
+                },
+                include: {
+                    items: {
+                        include: {
+                            material: {
+                                select: {
+                                    id: true,
+                                    stockLevels: {
+                                        select: { quantity: true }
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                orderBy: [
+                    { productId: 'asc' },
+                    { updatedAt: 'desc' },
+                ],
+            })
+            : []
+
         // Calculate weekly schedule
         const weeklySchedule: any[] = []
         for (let w = 0; w < weeks; w++) {
@@ -103,11 +131,42 @@ export async function GET(request: NextRequest) {
             ? Math.round(weeklySchedule.reduce((sum, w) => sum + w.utilizationPct, 0) / weeklySchedule.length)
             : 0
 
-        // Material readiness check (simplified - would need BOM integration for full check)
+        const bomByProduct = new Map<string, typeof activeBoms[number]>()
+        for (const bom of activeBoms) {
+            if (!bomByProduct.has(bom.productId)) {
+                bomByProduct.set(bom.productId, bom)
+            }
+        }
+
         const materialStatus = {
-            ready: Math.floor(workOrders.length * 0.7), // Placeholder
-            partial: Math.floor(workOrders.length * 0.2),
-            notReady: Math.floor(workOrders.length * 0.1),
+            ready: 0,
+            partial: 0,
+            notReady: 0,
+        }
+
+        for (const workOrder of workOrders) {
+            const bom = bomByProduct.get(workOrder.productId)
+            if (!bom || bom.items.length === 0) {
+                materialStatus.notReady += 1
+                continue
+            }
+
+            let allEnough = true
+            let anyStockAvailable = false
+
+            for (const item of bom.items) {
+                const perUnitQty = Number(item.quantity || 0)
+                const wasteFactor = 1 + (Number(item.wastePct || 0) / 100)
+                const requiredQty = Math.ceil(perUnitQty * workOrder.plannedQty * wasteFactor)
+                const availableQty = item.material.stockLevels.reduce((sum, level) => sum + Number(level.quantity || 0), 0)
+
+                if (availableQty > 0) anyStockAvailable = true
+                if (availableQty < requiredQty) allEnough = false
+            }
+
+            if (allEnough) materialStatus.ready += 1
+            else if (anyStockAvailable) materialStatus.partial += 1
+            else materialStatus.notReady += 1
         }
 
         return NextResponse.json({

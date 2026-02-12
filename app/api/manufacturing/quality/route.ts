@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
         const offset = (page - 1) * limit
 
-        const [inspections, totalCount, inspectors, materials, workOrders] = await Promise.all([
+        const [inspections, totalCount, inspectors, materials, workOrders, pendingInspectionCount] = await Promise.all([
             prisma.qualityInspection.findMany({
                 where: whereClause,
                 include: {
@@ -101,6 +101,12 @@ export async function GET(request: NextRequest) {
                 orderBy: { createdAt: 'desc' },
                 take: 200,
             }),
+            prisma.workOrder.count({
+                where: {
+                    status: { in: ['PLANNED', 'IN_PROGRESS', 'ON_HOLD'] },
+                    inspections: { none: {} },
+                },
+            }),
         ])
 
         // Enhance with formatted data
@@ -131,7 +137,7 @@ export async function GET(request: NextRequest) {
             summary: {
                 passRate,
                 defectCount: totalDefects,
-                pendingCount: 0, // Would need separate query for pending batches
+                pendingCount: pendingInspectionCount,
                 todayCount: todayInspections.length,
             },
             options: {

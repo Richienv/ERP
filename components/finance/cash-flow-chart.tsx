@@ -1,19 +1,16 @@
 "use client"
 
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, Area, AreaChart, CartesianGrid, YAxis } from "recharts"
+import { ResponsiveContainer, Tooltip, XAxis, Area, AreaChart, CartesianGrid, YAxis } from "recharts"
 import { cn } from "@/lib/utils"
 
-const data = [
-    { day: "Sen", incoming: 45, outgoing: 30 },
-    { day: "Sel", incoming: 52, outgoing: 45 },
-    { day: "Rab", incoming: 38, outgoing: 55 },
-    { day: "Kam", incoming: 65, outgoing: 40 },
-    { day: "Jum", incoming: 48, outgoing: 35 },
-    { day: "Sab", incoming: 25, outgoing: 20 },
-    { day: "Min", incoming: 30, outgoing: 15 },
-]
+interface CashFlowPoint {
+    date: string
+    day: string
+    incoming: number
+    outgoing: number
+}
 
-export function CashFlowChart({ className }: { className?: string }) {
+export function CashFlowChart({ className, data }: { className?: string; data: CashFlowPoint[] }) {
     return (
         <div className={cn("bg-card border border-border/50 rounded-2xl p-6 shadow-sm", className)}>
             <div className="flex justify-between items-center mb-6">

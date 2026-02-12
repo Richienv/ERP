@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
     Select,
     SelectContent,
@@ -25,18 +24,15 @@ import { ArrowLeft, Save, Plus, Trash2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { toast } from "sonner";
+import { getGLAccountsList, postJournalEntry } from "@/lib/actions/finance";
 
-// Mock Accounts
-const accounts = [
-    { id: "ACC-1101", code: "1-1101", name: "Kas Kecil" },
-    { id: "ACC-1102", code: "1-1102", name: "Bank BCA" },
-    { id: "ACC-1105", code: "1-1105", name: "Persediaan Barang Dagang" },
-    { id: "ACC-2101", code: "2-1101", name: "Hutang Usaha" },
-    { id: "ACC-4101", code: "4-1101", name: "Penjualan Barang" },
-    { id: "ACC-5101", code: "5-1101", name: "Harga Pokok Penjualan" },
-    { id: "ACC-6101", code: "6-1101", name: "Beban Sewa" },
-    { id: "ACC-6105", code: "6-1105", name: "Beban Perlengkapan Kantor" },
-];
+type GLAccountOption = {
+    id: string
+    code: string
+    name: string
+    type: string
+}
 
 type JournalLine = {
     id: number;
@@ -48,7 +44,12 @@ type JournalLine = {
 
 export default function NewJournalEntryPage() {
     const router = useRouter();
+    const [accounts, setAccounts] = useState<GLAccountOption[]>([]);
+    const [loadingAccounts, setLoadingAccounts] = useState(true);
     const [isLoading, setIsLoading] = useState(false);
+    const [transactionDate, setTransactionDate] = useState(new Date().toISOString().slice(0, 10));
+    const [reference, setReference] = useState("");
+    const [description, setDescription] = useState("");
     const [lines, setLines] = useState<JournalLine[]>([
         { id: 1, accountId: "", description: "", debit: 0, credit: 0 },
         { id: 2, accountId: "", description: "", debit: 0, credit: 0 },
@@ -56,7 +57,23 @@ export default function NewJournalEntryPage() {
 
     const totalDebit = lines.reduce((sum, line) => sum + (line.debit || 0), 0);
     const totalCredit = lines.reduce((sum, line) => sum + (line.credit || 0), 0);
-    const isBalanced = totalDebit === totalCredit && totalDebit > 0;
+    const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
+
+    useEffect(() => {
+        const loadAccounts = async () => {
+            setLoadingAccounts(true);
+            try {
+                const accountData = await getGLAccountsList();
+                setAccounts(accountData);
+            } catch {
+                toast.error("Gagal memuat daftar akun");
+            } finally {
+                setLoadingAccounts(false);
+            }
+        };
+
+        loadAccounts();
+    }, []);
 
     const addLine = () => {
         setLines([
@@ -81,12 +98,66 @@ export default function NewJournalEntryPage() {
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!isBalanced) return;
+        if (!isBalanced) {
+            toast.error("Jurnal harus balance sebelum disimpan");
+            return;
+        }
+
+        if (!description.trim()) {
+            toast.error("Deskripsi jurnal wajib diisi");
+            return;
+        }
+
+        const validLines = lines.filter((line) => (line.debit > 0 || line.credit > 0));
+        if (validLines.length < 2) {
+            toast.error("Minimal dua baris akun dengan nominal");
+            return;
+        }
+
+        const hasInvalidLine = validLines.some((line) => {
+            const debit = Number(line.debit || 0);
+            const credit = Number(line.credit || 0);
+            return !line.accountId || (debit > 0 && credit > 0) || (debit <= 0 && credit <= 0);
+        });
+
+        if (hasInvalidLine) {
+            toast.error("Setiap baris harus memiliki akun serta nilai debit/kredit yang valid");
+            return;
+        }
 
         setIsLoading(true);
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        router.push("/finance/journal");
+        try {
+            const accountById = new Map(accounts.map((acc) => [acc.id, acc]));
+            const journalLines = validLines.map((line) => {
+                const account = accountById.get(line.accountId);
+                if (!account) throw new Error("Akun jurnal tidak ditemukan");
+                return {
+                    accountCode: account.code,
+                    debit: Number(line.debit || 0),
+                    credit: Number(line.credit || 0),
+                    description: line.description || description.trim(),
+                };
+            });
+
+            const postResult = await postJournalEntry({
+                date: new Date(transactionDate),
+                reference: reference.trim(),
+                description: description.trim(),
+                lines: journalLines,
+            });
+
+            if (!postResult.success) {
+                toast.error(("error" in postResult ? postResult.error : null) || "Gagal menyimpan jurnal");
+                return;
+            }
+
+            toast.success("Jurnal berhasil diposting");
+            router.push("/finance/journal");
+        } catch (error: any) {
+            toast.error(error?.message || "Terjadi kesalahan saat menyimpan jurnal");
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -118,15 +189,33 @@ export default function NewJournalEntryPage() {
                         <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="date">Tanggal Transaksi</Label>
-                                <Input id="date" type="date" required />
+                                <Input
+                                    id="date"
+                                    type="date"
+                                    required
+                                    value={transactionDate}
+                                    onChange={(e) => setTransactionDate(e.target.value)}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="ref">No. Referensi</Label>
-                                <Input id="ref" placeholder="Contoh: ADJ-2024-001" required />
+                                <Input
+                                    id="ref"
+                                    placeholder="Contoh: ADJ-2024-001"
+                                    required
+                                    value={reference}
+                                    onChange={(e) => setReference(e.target.value)}
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="desc">Deskripsi</Label>
-                                <Input id="desc" placeholder="Keterangan jurnal..." required />
+                                <Input
+                                    id="desc"
+                                    placeholder="Keterangan jurnal..."
+                                    required
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                />
                             </div>
                         </div>
                     </CardContent>
@@ -162,9 +251,10 @@ export default function NewJournalEntryPage() {
                                             <Select
                                                 value={line.accountId}
                                                 onValueChange={(val) => updateLine(line.id, "accountId", val)}
+                                                disabled={loadingAccounts}
                                             >
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="Pilih Akun" />
+                                                    <SelectValue placeholder={loadingAccounts ? "Loading akun..." : "Pilih Akun"} />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {accounts.map((acc) => (
@@ -265,7 +355,7 @@ export default function NewJournalEntryPage() {
                             Batal
                         </Link>
                     </Button>
-                    <Button type="submit" disabled={isLoading || !isBalanced}>
+                    <Button type="submit" disabled={isLoading || !isBalanced || loadingAccounts || accounts.length === 0}>
                         {isLoading ? (
                             <>Menyimpan...</>
                         ) : (

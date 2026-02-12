@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
         const offset = (page - 1) * limit
 
-        const [workOrders, totalCount] = await Promise.all([
+        const [workOrders, totalCount, statusRows] = await Promise.all([
             prisma.workOrder.findMany({
                 where: whereClause,
                 include: {
@@ -65,6 +65,11 @@ export async function GET(request: NextRequest) {
                 take: limit,
             }),
             prisma.workOrder.count({ where: whereClause }),
+            prisma.workOrder.groupBy({
+                by: ['status'],
+                where: whereClause,
+                _count: { _all: true },
+            }),
         ])
 
         // Enhance with progress calculation
@@ -85,10 +90,17 @@ export async function GET(request: NextRequest) {
 
         // Calculate summary stats
         const statusCounts = {
-            planned: workOrders.filter(wo => wo.status === 'PLANNED').length,
-            inProgress: workOrders.filter(wo => wo.status === 'IN_PROGRESS').length,
-            completed: workOrders.filter(wo => wo.status === 'COMPLETED').length,
-            onHold: workOrders.filter(wo => wo.status === 'ON_HOLD').length,
+            planned: 0,
+            inProgress: 0,
+            completed: 0,
+            onHold: 0,
+        }
+        for (const row of statusRows) {
+            const count = row._count._all || 0
+            if (row.status === 'PLANNED') statusCounts.planned = count
+            if (row.status === 'IN_PROGRESS') statusCounts.inProgress = count
+            if (row.status === 'COMPLETED') statusCounts.completed = count
+            if (row.status === 'ON_HOLD') statusCounts.onHold = count
         }
 
         return NextResponse.json({

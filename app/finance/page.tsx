@@ -6,11 +6,14 @@ import { ActionItemsWidget } from "@/components/finance/action-items-widget"
 import { CashFlowChart } from "@/components/finance/cash-flow-chart"
 import { AccountingModuleActions } from "@/components/finance/accounting-module-actions"
 import { DollarSign, Wallet, CreditCard, Activity, ArrowUpRight, FileText, PiggyBank, Scale } from "lucide-react"
-import { getFinancialMetrics } from "@/lib/actions/finance"
-import { formatCompactNumber } from "@/lib/utils"
+import { getFinancialMetrics, getFinanceDashboardData } from "@/lib/actions/finance"
+import { formatCompactNumber, formatIDR } from "@/lib/utils"
 
 export default async function FinanceDashboardPage() {
-    const metrics = await getFinancialMetrics()
+    const [metrics, dashboardData] = await Promise.all([
+        getFinancialMetrics(),
+        getFinanceDashboardData(),
+    ])
 
     return (
         <div className="p-6 md:p-8 space-y-8 bg-zinc-50/50 dark:bg-black min-h-screen">
@@ -76,7 +79,7 @@ export default async function FinanceDashboardPage() {
 
                 {/* Left Column: Cash Flow & Analysis (2/3 width) */}
                 <div className="lg:col-span-2 space-y-8">
-                    <CashFlowChart />
+                    <CashFlowChart data={dashboardData.cashFlow} />
 
                     {/* Recent Transactions / Quick Ledger View could go here */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
@@ -85,19 +88,27 @@ export default async function FinanceDashboardPage() {
                             <Link href="/finance/journal" className="text-sm text-primary hover:underline">Lihat Jurnal Umum</Link>
                         </div>
                         <div className="space-y-4">
-                            {[1, 2, 3].map((i) => (
-                                <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-transparent hover:border-border/50 transition-colors">
+                            {dashboardData.recentTransactions.length === 0 ? (
+                                <div className="p-4 rounded-xl bg-muted/30 border border-dashed border-border/60 text-sm text-muted-foreground">
+                                    Belum ada transaksi terbaru.
+                                </div>
+                            ) : dashboardData.recentTransactions.map((item) => (
+                                <Link key={item.id} href={item.href} className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-transparent hover:border-border/50 transition-colors">
                                     <div className="flex items-center gap-4">
                                         <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                                             <DollarSign size={18} />
                                         </div>
                                         <div>
-                                            <p className="font-medium text-foreground">Pembayaran Invoice #INV-2024-001</p>
-                                            <p className="text-xs text-muted-foreground">PT. Maju Mundur • BCA Corporate</p>
+                                            <p className="font-medium text-foreground">{item.title}</p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {item.subtitle} • {new Date(item.date).toLocaleDateString('id-ID')}
+                                            </p>
                                         </div>
                                     </div>
-                                    <span className="font-mono font-medium text-emerald-600">+ Rp 145.000.000</span>
-                                </div>
+                                    <span className={`font-mono font-medium ${item.direction === 'in' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        {item.direction === 'in' ? '+' : '-'} {formatIDR(item.amount)}
+                                    </span>
+                                </Link>
                             ))}
                         </div>
                     </div>
@@ -105,7 +116,7 @@ export default async function FinanceDashboardPage() {
 
                 {/* Right Column: Action Items & Shortcuts (1/3 width) */}
                 <div className="space-y-8">
-                    <ActionItemsWidget />
+                    <ActionItemsWidget actions={dashboardData.actionItems} />
 
                     {/* Quick Shortcuts */}
                     <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">

@@ -38,6 +38,218 @@ export interface InvoiceKanbanData {
     paid: InvoiceKanbanItem[]
 }
 
+export interface FinanceDashboardCashPoint {
+    date: string
+    day: string
+    incoming: number
+    outgoing: number
+}
+
+export interface FinanceDashboardActionItem {
+    id: string
+    title: string
+    type: 'urgent' | 'pending' | 'warning' | 'info'
+    due: string
+    href: string
+}
+
+export interface FinanceDashboardRecentTransaction {
+    id: string
+    title: string
+    subtitle: string
+    amount: number
+    direction: 'in' | 'out'
+    date: string
+    href: string
+}
+
+export interface FinanceDashboardData {
+    cashFlow: FinanceDashboardCashPoint[]
+    actionItems: FinanceDashboardActionItem[]
+    recentTransactions: FinanceDashboardRecentTransaction[]
+}
+
+export async function getFinanceDashboardData(): Promise<FinanceDashboardData> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const now = new Date()
+            const today = new Date(now)
+            today.setHours(0, 0, 0, 0)
+
+            const sevenDaysAgo = new Date(today)
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
+
+            const [
+                payments,
+                journals,
+                invoices,
+                overdueBillsCount,
+                overdueCustomerInvoicesCount,
+                pendingPOApprovalCount,
+                draftJournalCount,
+            ] = await Promise.all([
+                prisma.payment.findMany({
+                    where: { date: { gte: sevenDaysAgo } },
+                    include: {
+                        customer: { select: { name: true } },
+                        supplier: { select: { name: true } },
+                        invoice: { select: { number: true, type: true } },
+                    },
+                    orderBy: { date: 'desc' },
+                    take: 100,
+                }),
+                prisma.journalEntry.findMany({
+                    include: {
+                        lines: {
+                            select: { debit: true, credit: true }
+                        }
+                    },
+                    orderBy: { date: 'desc' },
+                    take: 8,
+                }),
+                prisma.invoice.findMany({
+                    where: {
+                        issueDate: { gte: sevenDaysAgo },
+                    },
+                    include: {
+                        customer: { select: { name: true } },
+                        supplier: { select: { name: true } },
+                    },
+                    orderBy: { issueDate: 'desc' },
+                    take: 8,
+                }),
+                prisma.invoice.count({
+                    where: {
+                        type: 'INV_IN',
+                        status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
+                        dueDate: { lt: now },
+                        balanceDue: { gt: 0 },
+                    }
+                }),
+                prisma.invoice.count({
+                    where: {
+                        type: 'INV_OUT',
+                        status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
+                        dueDate: { lt: now },
+                        balanceDue: { gt: 0 },
+                    }
+                }),
+                prisma.purchaseOrder.count({
+                    where: { status: 'PENDING_APPROVAL' }
+                }),
+                prisma.journalEntry.count({
+                    where: { status: 'DRAFT' }
+                }),
+            ])
+
+            const dayBuckets = new Map<string, FinanceDashboardCashPoint>()
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(sevenDaysAgo)
+                date.setDate(sevenDaysAgo.getDate() + i)
+                const iso = date.toISOString().split('T')[0]
+                dayBuckets.set(iso, {
+                    date: iso,
+                    day: new Intl.DateTimeFormat('id-ID', { weekday: 'short' }).format(date),
+                    incoming: 0,
+                    outgoing: 0,
+                })
+            }
+
+            for (const payment of payments) {
+                const key = payment.date.toISOString().split('T')[0]
+                const bucket = dayBuckets.get(key)
+                if (!bucket) continue
+
+                if (payment.customerId) bucket.incoming += Number(payment.amount || 0)
+                else if (payment.supplierId) bucket.outgoing += Number(payment.amount || 0)
+            }
+
+            const recentPaymentTx: FinanceDashboardRecentTransaction[] = payments.slice(0, 6).map((payment) => ({
+                id: `payment-${payment.id}`,
+                title: payment.customerId
+                    ? `Penerimaan ${payment.invoice?.number || payment.number}`
+                    : `Pembayaran ${payment.invoice?.number || payment.number}`,
+                subtitle: payment.customer?.name || payment.supplier?.name || 'Unknown party',
+                amount: Number(payment.amount || 0),
+                direction: payment.customerId ? 'in' : 'out',
+                date: payment.date.toISOString(),
+                href: payment.customerId ? '/finance/payments' : '/finance/vendor-payments',
+            }))
+
+            const recentJournalTx: FinanceDashboardRecentTransaction[] = journals.slice(0, 4).map((entry) => {
+                const totalDebit = entry.lines.reduce((sum, line) => sum + Number(line.debit || 0), 0)
+                return {
+                    id: `journal-${entry.id}`,
+                    title: entry.description || `Jurnal ${entry.reference || entry.id}`,
+                    subtitle: entry.reference || 'General Journal',
+                    amount: totalDebit,
+                    direction: 'in',
+                    date: entry.date.toISOString(),
+                    href: '/finance/journal',
+                }
+            })
+
+            const recentInvoiceTx: FinanceDashboardRecentTransaction[] = invoices.slice(0, 4).map((invoice) => ({
+                id: `invoice-${invoice.id}`,
+                title: `${invoice.type === 'INV_OUT' ? 'Invoice' : 'Bill'} ${invoice.number}`,
+                subtitle: invoice.customer?.name || invoice.supplier?.name || 'Unknown party',
+                amount: Number(invoice.totalAmount || 0),
+                direction: invoice.type === 'INV_OUT' ? 'in' : 'out',
+                date: invoice.issueDate.toISOString(),
+                href: invoice.type === 'INV_OUT' ? '/finance/invoices' : '/finance/bills',
+            }))
+
+            const recentTransactions = [...recentPaymentTx, ...recentJournalTx, ...recentInvoiceTx]
+                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                .slice(0, 6)
+
+            const actionItems: FinanceDashboardActionItem[] = [
+                {
+                    id: 'overdue-bills',
+                    title: `${overdueBillsCount} Bill Vendor Melewati Jatuh Tempo`,
+                    type: overdueBillsCount > 0 ? 'urgent' : 'info',
+                    due: overdueBillsCount > 0 ? 'Butuh tindakan' : 'Tidak ada overdue',
+                    href: '/finance/bills',
+                },
+                {
+                    id: 'overdue-ar',
+                    title: `${overdueCustomerInvoicesCount} Invoice Pelanggan Overdue`,
+                    type: overdueCustomerInvoicesCount > 0 ? 'pending' : 'info',
+                    due: overdueCustomerInvoicesCount > 0 ? 'Follow up collection' : 'Semua lancar',
+                    href: '/finance/invoices',
+                },
+                {
+                    id: 'po-approval',
+                    title: `${pendingPOApprovalCount} PO Menunggu Approval`,
+                    type: pendingPOApprovalCount > 0 ? 'warning' : 'info',
+                    due: pendingPOApprovalCount > 0 ? 'Review procurement' : 'Tidak ada antrian',
+                    href: '/procurement/orders',
+                },
+                {
+                    id: 'draft-journal',
+                    title: `${draftJournalCount} Draft Jurnal Belum Diposting`,
+                    type: draftJournalCount > 0 ? 'warning' : 'info',
+                    due: draftJournalCount > 0 ? 'Posting diperlukan' : 'Ledger clean',
+                    href: '/finance/journal',
+                },
+            ]
+
+            return {
+                cashFlow: Array.from(dayBuckets.values()),
+                actionItems,
+                recentTransactions,
+            }
+        })
+    } catch (error) {
+        console.error("Failed to fetch finance dashboard data:", error)
+        return {
+            cashFlow: [],
+            actionItems: [],
+            recentTransactions: [],
+        }
+    }
+}
+
 export async function getFinancialMetrics(): Promise<FinancialMetrics> {
     try {
         const startOfMonth = new Date()

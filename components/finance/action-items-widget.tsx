@@ -4,38 +4,15 @@ import { CheckCircle2, Clock, AlertCircle, FileText, ArrowRight } from "lucide-r
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 
-const actions = [
-    {
-        id: 1,
-        title: "5 Bill Vendor Menunggu Pembayaran",
-        type: "urgent",
-        due: "Hari ini",
-        href: "/procurement/bills"
-    },
-    {
-        id: 2,
-        title: "Validasi 3 Invoice Pelanggan Baru",
-        type: "pending",
-        due: "Besok",
-        href: "/sales/invoices"
-    },
-    {
-        id: 3,
-        title: "Rekonsiliasi Bank BCA - Periode Okt",
-        type: "warning",
-        due: "2 hari lagi",
-        href: "/finance/reconciliation"
-    },
-    {
-        id: 4,
-        title: "Review Setoran Pajak PPN",
-        type: "info",
-        due: "Minggu depan",
-        href: "/finance/tax"
-    }
-]
+interface FinanceActionItem {
+    id: string
+    title: string
+    type: "urgent" | "pending" | "warning" | "info"
+    due: string
+    href: string
+}
 
-export function ActionItemsWidget() {
+export function ActionItemsWidget({ actions }: { actions: FinanceActionItem[] }) {
     return (
         <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm h-full flex flex-col">
             <div className="flex justify-between items-center mb-6">
@@ -44,7 +21,11 @@ export function ActionItemsWidget() {
             </div>
 
             <div className="space-y-4 flex-1">
-                {actions.map((action) => (
+                {actions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                        Tidak ada action item saat ini.
+                    </div>
+                ) : actions.map((action) => (
                     <Link
                         key={action.id}
                         href={action.href}
@@ -71,9 +52,9 @@ export function ActionItemsWidget() {
                 ))}
             </div>
 
-            <button className="w-full mt-4 py-2 text-sm text-muted-foreground hover:text-foreground font-medium border-t border-dashed border-border pt-4 transition-colors">
+            <Link href="/finance/reports" className="w-full mt-4 py-2 text-sm text-muted-foreground hover:text-foreground font-medium border-t border-dashed border-border pt-4 transition-colors text-center">
                 Lihat Semua Tugas
-            </button>
+            </Link>
         </div>
     )
 }
