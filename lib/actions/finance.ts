@@ -2174,6 +2174,164 @@ export interface OpenInvoice {
     isOverdue: boolean
 }
 
+type ARRegistryQueryInput = {
+    paymentsQ?: string | null
+    invoicesQ?: string | null
+    customerId?: string | null
+    paymentPage?: number | null
+    invoicePage?: number | null
+    pageSize?: number | null
+}
+
+export interface ARPaymentRegistryResult {
+    unallocated: UnallocatedPayment[]
+    openInvoices: OpenInvoice[]
+    meta: {
+        payments: { page: number; pageSize: number; total: number; totalPages: number }
+        invoices: { page: number; pageSize: number; total: number; totalPages: number }
+    }
+    query: {
+        paymentsQ: string | null
+        invoicesQ: string | null
+        customerId: string | null
+    }
+}
+
+const normalizeARRegistryQuery = (input?: ARRegistryQueryInput) => {
+    const normalizeText = (value?: string | null) => {
+        const trimmed = (value || "").trim()
+        return trimmed.length > 0 ? trimmed : null
+    }
+    const clamp = (value: number | null | undefined, min: number, max: number, fallback: number) => {
+        const parsed = Number(value)
+        if (!Number.isFinite(parsed)) return fallback
+        return Math.min(max, Math.max(min, Math.trunc(parsed)))
+    }
+
+    return {
+        paymentsQ: normalizeText(input?.paymentsQ),
+        invoicesQ: normalizeText(input?.invoicesQ),
+        customerId: normalizeText(input?.customerId),
+        paymentPage: clamp(input?.paymentPage, 1, 100000, 1),
+        invoicePage: clamp(input?.invoicePage, 1, 100000, 1),
+        pageSize: clamp(input?.pageSize, 8, 100, 20),
+    }
+}
+
+export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promise<ARPaymentRegistryResult> {
+    const query = normalizeARRegistryQuery(input)
+
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const paymentWhere: any = {
+                invoiceId: null,
+                customerId: { not: null },
+            }
+            const invoiceWhere: any = {
+                type: 'INV_OUT',
+                status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
+                balanceDue: { gt: 0 },
+            }
+
+            if (query.customerId) {
+                paymentWhere.customerId = query.customerId
+                invoiceWhere.customerId = query.customerId
+            }
+
+            if (query.paymentsQ) {
+                paymentWhere.OR = [
+                    { number: { contains: query.paymentsQ, mode: 'insensitive' } },
+                    { reference: { contains: query.paymentsQ, mode: 'insensitive' } },
+                    { customer: { name: { contains: query.paymentsQ, mode: 'insensitive' } } },
+                ]
+            }
+
+            if (query.invoicesQ) {
+                invoiceWhere.OR = [
+                    { number: { contains: query.invoicesQ, mode: 'insensitive' } },
+                    { customer: { name: { contains: query.invoicesQ, mode: 'insensitive' } } },
+                ]
+            }
+
+            const [payments, invoices, paymentsTotal, invoicesTotal] = await Promise.all([
+                prisma.payment.findMany({
+                    where: paymentWhere,
+                    include: { customer: { select: { id: true, name: true } } },
+                    orderBy: { date: 'desc' },
+                    skip: (query.paymentPage - 1) * query.pageSize,
+                    take: query.pageSize,
+                }),
+                prisma.invoice.findMany({
+                    where: invoiceWhere,
+                    include: { customer: { select: { id: true, name: true } } },
+                    orderBy: { dueDate: 'asc' },
+                    skip: (query.invoicePage - 1) * query.pageSize,
+                    take: query.pageSize,
+                }),
+                prisma.payment.count({ where: paymentWhere }),
+                prisma.invoice.count({ where: invoiceWhere }),
+            ])
+
+            const now = new Date()
+            return {
+                unallocated: payments.map((p) => ({
+                    id: p.id,
+                    number: p.number,
+                    from: p.customer?.name || 'Unknown Customer',
+                    customerId: p.customerId,
+                    amount: Number(p.amount),
+                    date: p.date,
+                    method: p.method,
+                    reference: p.reference
+                })),
+                openInvoices: invoices.map((inv) => ({
+                    id: inv.id,
+                    number: inv.number,
+                    customer: inv.customer ? { id: inv.customer.id, name: inv.customer.name } : null,
+                    amount: Number(inv.totalAmount),
+                    balanceDue: Number(inv.balanceDue),
+                    dueDate: inv.dueDate,
+                    isOverdue: inv.dueDate < now
+                })),
+                meta: {
+                    payments: {
+                        page: query.paymentPage,
+                        pageSize: query.pageSize,
+                        total: paymentsTotal,
+                        totalPages: Math.max(1, Math.ceil(paymentsTotal / query.pageSize)),
+                    },
+                    invoices: {
+                        page: query.invoicePage,
+                        pageSize: query.pageSize,
+                        total: invoicesTotal,
+                        totalPages: Math.max(1, Math.ceil(invoicesTotal / query.pageSize)),
+                    },
+                },
+                query: {
+                    paymentsQ: query.paymentsQ,
+                    invoicesQ: query.invoicesQ,
+                    customerId: query.customerId,
+                },
+            }
+        })
+    } catch (error) {
+        console.error("Failed to fetch AR payment registry:", error)
+        return {
+            unallocated: [],
+            openInvoices: [],
+            meta: {
+                payments: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
+                invoices: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
+            },
+            query: {
+                paymentsQ: query.paymentsQ,
+                invoicesQ: query.invoicesQ,
+                customerId: query.customerId,
+            },
+        }
+    }
+}
+
 /**
  * Get all unallocated (unmatched) customer payments
  * These are payments received but not yet linked to specific invoices

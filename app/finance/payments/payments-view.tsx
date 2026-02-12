@@ -1,7 +1,7 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { formatIDR } from "@/lib/utils"
 import {
     ArrowRightLeft,
@@ -76,6 +76,15 @@ interface ARPaymentsViewProps {
         outstandingAmount: number
         todayPayments: number
     }
+    registryMeta: {
+        payments: { page: number; pageSize: number; total: number; totalPages: number }
+        invoices: { page: number; pageSize: number; total: number; totalPages: number }
+    }
+    registryQuery: {
+        paymentsQ: string | null
+        invoicesQ: string | null
+        customerId: string | null
+    }
 }
 
 const METHOD_LABEL: Record<PaymentMethod, string> = {
@@ -89,13 +98,15 @@ const EMPTY_INVOICE_VALUE = "__NO_INVOICE__"
 
 const todayAsInput = () => new Date().toISOString().slice(0, 10)
 
-export function ARPaymentsView({ unallocated, openInvoices, stats }: ARPaymentsViewProps) {
+export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta, registryQuery }: ARPaymentsViewProps) {
     const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
     const [processing, setProcessing] = useState<string | null>(null)
     const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
     const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
-    const [paymentQuery, setPaymentQuery] = useState("")
-    const [invoiceQuery, setInvoiceQuery] = useState("")
+    const [paymentQuery, setPaymentQuery] = useState(registryQuery.paymentsQ || "")
+    const [invoiceQuery, setInvoiceQuery] = useState(registryQuery.invoicesQ || "")
     const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
     const [submittingPayment, setSubmittingPayment] = useState(false)
     const [createForm, setCreateForm] = useState({
@@ -107,6 +118,13 @@ export function ARPaymentsView({ unallocated, openInvoices, stats }: ARPaymentsV
         notes: "",
         invoiceId: ""
     })
+
+    const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
+        const next = new URLSearchParams(searchParams.toString())
+        mutator(next)
+        const qs = next.toString()
+        router.replace(qs ? `${pathname}?${qs}` : pathname)
+    }
 
     const customerOptions = useMemo(() => {
         const map = new Map<string, string>()
@@ -144,27 +162,16 @@ export function ARPaymentsView({ unallocated, openInvoices, stats }: ARPaymentsV
             selectedPayment.customerId !== selectedInvoice.customer.id
     )
 
-    const filteredPayments = useMemo(() => {
-        const keyword = paymentQuery.trim().toLowerCase()
-        if (!keyword) return unallocated
-        return unallocated.filter((item) =>
-            [item.number, item.from, item.method, item.reference ?? ""]
-                .join(" ")
-                .toLowerCase()
-                .includes(keyword)
-        )
-    }, [paymentQuery, unallocated])
-
+    const filteredPayments = unallocated
     const filteredInvoices = useMemo(() => {
-        const keyword = invoiceQuery.trim().toLowerCase()
-        return openInvoices.filter((invoice) => {
-            if (selectedPayment?.customerId && invoice.customer?.id !== selectedPayment.customerId) {
-                return false
-            }
-            if (!keyword) return true
-            return [invoice.number, invoice.customer?.name ?? ""].join(" ").toLowerCase().includes(keyword)
-        })
-    }, [invoiceQuery, openInvoices, selectedPayment])
+        if (!selectedPayment?.customerId) return openInvoices
+        return openInvoices.filter((invoice) => invoice.customer?.id === selectedPayment.customerId)
+    }, [openInvoices, selectedPayment])
+
+    useEffect(() => {
+        setPaymentQuery(registryQuery.paymentsQ || "")
+        setInvoiceQuery(registryQuery.invoicesQ || "")
+    }, [registryQuery.paymentsQ, registryQuery.invoicesQ])
 
     const handleMatch = async (paymentId: string, invoiceId: string) => {
         setProcessing(paymentId)
@@ -233,6 +240,30 @@ export function ARPaymentsView({ unallocated, openInvoices, stats }: ARPaymentsV
     }
 
     const canMatch = Boolean(selectedPayment && selectedInvoice && !paymentInvoiceMismatch && !processing)
+
+    const applyRegistryFilters = () => {
+        pushSearchParams((params) => {
+            const payQ = paymentQuery.trim()
+            const invQ = invoiceQuery.trim()
+            if (payQ) params.set("pay_q", payQ)
+            else params.delete("pay_q")
+            if (invQ) params.set("inv_q", invQ)
+            else params.delete("inv_q")
+            params.set("pay_page", "1")
+            params.set("inv_page", "1")
+        })
+    }
+
+    const resetRegistryFilters = () => {
+        setPaymentQuery("")
+        setInvoiceQuery("")
+        pushSearchParams((params) => {
+            params.delete("pay_q")
+            params.delete("inv_q")
+            params.delete("pay_page")
+            params.delete("inv_page")
+        })
+    }
 
     return (
         <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
@@ -410,6 +441,23 @@ export function ARPaymentsView({ unallocated, openInvoices, stats }: ARPaymentsV
                 </div>
             </div>
 
+            <div className="rounded-lg border bg-white p-3">
+                <div className="grid gap-2 md:grid-cols-4">
+                    <Input
+                        value={paymentQuery}
+                        onChange={(event) => setPaymentQuery(event.target.value)}
+                        placeholder="Cari pembayaran..."
+                    />
+                    <Input
+                        value={invoiceQuery}
+                        onChange={(event) => setInvoiceQuery(event.target.value)}
+                        placeholder="Cari invoice..."
+                    />
+                    <Button variant="secondary" onClick={applyRegistryFilters}>Terapkan</Button>
+                    <Button variant="outline" onClick={resetRegistryFilters}>Reset</Button>
+                </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <Card className="border-zinc-200 shadow-sm">
                     <CardContent className="p-5">
@@ -507,6 +555,36 @@ export function ARPaymentsView({ unallocated, openInvoices, stats }: ARPaymentsV
                                 )
                             })
                         )}
+                        <div className="flex items-center justify-between border-t pt-3 text-xs text-zinc-500">
+                            <span>Page {registryMeta.payments.page}/{registryMeta.payments.totalPages}</span>
+                            <span>Total {registryMeta.payments.total}</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={registryMeta.payments.page <= 1}
+                                onClick={() =>
+                                    pushSearchParams((params) => {
+                                        params.set("pay_page", String(Math.max(1, registryMeta.payments.page - 1)))
+                                    })
+                                }
+                            >
+                                Prev
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={registryMeta.payments.page >= registryMeta.payments.totalPages}
+                                onClick={() =>
+                                    pushSearchParams((params) => {
+                                        params.set("pay_page", String(Math.min(registryMeta.payments.totalPages, registryMeta.payments.page + 1)))
+                                    })
+                                }
+                            >
+                                Next
+                            </Button>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -570,6 +648,36 @@ export function ARPaymentsView({ unallocated, openInvoices, stats }: ARPaymentsV
                                     )
                                 })
                             )}
+                            <div className="flex items-center justify-between border-t pt-3 text-xs text-zinc-500">
+                                <span>Page {registryMeta.invoices.page}/{registryMeta.invoices.totalPages}</span>
+                                <span>Total {registryMeta.invoices.total}</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={registryMeta.invoices.page <= 1}
+                                    onClick={() =>
+                                        pushSearchParams((params) => {
+                                            params.set("inv_page", String(Math.max(1, registryMeta.invoices.page - 1)))
+                                        })
+                                    }
+                                >
+                                    Prev
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={registryMeta.invoices.page >= registryMeta.invoices.totalPages}
+                                    onClick={() =>
+                                        pushSearchParams((params) => {
+                                            params.set("inv_page", String(Math.min(registryMeta.invoices.totalPages, registryMeta.invoices.page + 1)))
+                                        })
+                                    }
+                                >
+                                    Next
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
 
