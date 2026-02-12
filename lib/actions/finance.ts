@@ -38,6 +38,12 @@ export interface InvoiceKanbanData {
     paid: InvoiceKanbanItem[]
 }
 
+type InvoiceKanbanQueryInput = {
+    q?: string | null
+    type?: InvoiceType | 'ALL' | null
+    limit?: number | null
+}
+
 export interface FinanceDashboardCashPoint {
     date: string
     day: string
@@ -460,16 +466,31 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
     }
 }
 
-export async function getInvoiceKanbanData(): Promise<InvoiceKanbanData> {
+export async function getInvoiceKanbanData(input?: InvoiceKanbanQueryInput): Promise<InvoiceKanbanData> {
     return withPrismaAuth(async (prisma) => {
+        const normalizedQ = (input?.q || "").trim()
+        const normalizedType = (input?.type || "ALL") as InvoiceType | 'ALL'
+        const normalizedLimitRaw = Number(input?.limit)
+        const normalizedLimit = Number.isFinite(normalizedLimitRaw) ? Math.min(500, Math.max(50, Math.trunc(normalizedLimitRaw))) : 300
+
+        const where: any = { type: { in: ['INV_OUT', 'INV_IN'] } }
+        if (normalizedType !== 'ALL') where.type = normalizedType
+        if (normalizedQ) {
+            where.OR = [
+                { number: { contains: normalizedQ, mode: 'insensitive' } },
+                { customer: { name: { contains: normalizedQ, mode: 'insensitive' } } },
+                { supplier: { name: { contains: normalizedQ, mode: 'insensitive' } } },
+            ]
+        }
+
         const invoices = await prisma.invoice.findMany({
-            where: { type: { in: ['INV_OUT', 'INV_IN'] } }, // Customer Invoices + Vendor Bills
+            where,
             include: {
                 customer: { select: { name: true } },
                 supplier: { select: { name: true } },
             },
             orderBy: { issueDate: 'desc' },
-            take: 200,
+            take: normalizedLimit,
         })
 
         const now = new Date()

@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
     AlertTriangle,
     ChevronLeft,
@@ -10,7 +10,8 @@ import {
     CheckCircle2,
     FileText,
     Clock,
-    Mail
+    Mail,
+    Search
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -132,7 +133,32 @@ export default function InvoicesKanbanPage() {
         existingInvoiceNumber: "",
         existingInvoiceStatus: "",
     })
+    const [searchText, setSearchText] = useState("")
+    const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'ALL' | 'INV_OUT' | 'INV_IN'>('ALL')
     const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+
+    const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
+        const next = new URLSearchParams(searchParams.toString())
+        mutator(next)
+        const qs = next.toString()
+        router.replace(qs ? `${pathname}?${qs}` : pathname)
+    }
+
+    const loadInvoiceKanban = useCallback(async () => {
+        const q = (searchParams.get("q") || "").trim()
+        const type = (searchParams.get("type") as 'ALL' | 'INV_OUT' | 'INV_IN' | null) || "ALL"
+        setSearchText(q)
+        setInvoiceTypeFilter(type)
+
+        const [kanban, customerList] = await Promise.all([
+            getInvoiceKanbanData({ q: q || null, type }),
+            getInvoiceCustomers(),
+        ])
+        setInvoices(kanban)
+        setCustomers(customerList)
+    }, [searchParams])
 
     // Drag Handler
     const handleDragEnd = (event: DragEndEvent) => {
@@ -181,8 +207,7 @@ export default function InvoicesKanbanPage() {
             }
             toast.success(result.status === 'OVERDUE' ? "Invoice moved to Overdue (past due date)." : "Invoice sent and countdown started!")
             setIsSendDialogOpen(false)
-            const kanban = await getInvoiceKanbanData()
-            setInvoices(kanban)
+            await loadInvoiceKanban()
         } catch {
             toast.error("Failed to process send")
         } finally {
@@ -209,8 +234,7 @@ export default function InvoicesKanbanPage() {
             toast.success("Payment recorded successfully")
             setIsPayDialogOpen(false)
             // Reload
-            const kanban = await getInvoiceKanbanData()
-            setInvoices(kanban)
+            await loadInvoiceKanban()
         } catch {
             toast.error("Failed to record payment")
         } finally {
@@ -303,8 +327,7 @@ export default function InvoicesKanbanPage() {
                     await loadOrders(sourceType as 'SO' | 'PO')
                 }
                 // Reload data
-                const kanban = await getInvoiceKanbanData()
-                setInvoices(kanban)
+                await loadInvoiceKanban()
                 router.refresh()
             } else {
                 toast.error(('error' in result ? result.error : "Failed to create invoice") || "Failed to create invoice")
@@ -323,13 +346,8 @@ export default function InvoicesKanbanPage() {
             setLoading(true)
             setLoadError(null)
             try {
-                const [kanban, customerList] = await Promise.all([
-                    getInvoiceKanbanData(),
-                    getInvoiceCustomers(),
-                ])
                 if (!active) return
-                setInvoices(kanban)
-                setCustomers(customerList)
+                await loadInvoiceKanban()
             } catch (error) {
                 if (!active) return
                 setLoadError(error instanceof Error ? error.message : "Failed to load invoices")
@@ -341,7 +359,25 @@ export default function InvoicesKanbanPage() {
         return () => {
             active = false
         }
-    }, [])
+    }, [loadInvoiceKanban])
+
+    useEffect(() => {
+        const refreshFromServer = () => {
+            if (document.visibilityState === "visible") {
+                void loadInvoiceKanban()
+            }
+        }
+
+        const intervalId = window.setInterval(refreshFromServer, 15000)
+        window.addEventListener("focus", refreshFromServer)
+        document.addEventListener("visibilitychange", refreshFromServer)
+
+        return () => {
+            window.clearInterval(intervalId)
+            window.removeEventListener("focus", refreshFromServer)
+            document.removeEventListener("visibilitychange", refreshFromServer)
+        }
+    }, [loadInvoiceKanban])
 
     const laneItems = useMemo<Record<LaneKey, InvoiceKanbanItem[]>>(() => ({
         draft: invoices.draft,
@@ -395,6 +431,26 @@ export default function InvoicesKanbanPage() {
         today.setHours(0, 0, 0, 0)
         return selectedDate < today
     }, [dueDate])
+
+    const applyKanbanFilters = () => {
+        pushSearchParams((params) => {
+            const normalizedQ = searchText.trim()
+            if (normalizedQ) params.set("q", normalizedQ)
+            else params.delete("q")
+
+            if (invoiceTypeFilter === "ALL") params.delete("type")
+            else params.set("type", invoiceTypeFilter)
+        })
+    }
+
+    const resetKanbanFilters = () => {
+        setSearchText("")
+        setInvoiceTypeFilter("ALL")
+        pushSearchParams((params) => {
+            params.delete("q")
+            params.delete("type")
+        })
+    }
 
     return (
         <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans h-[calc(100vh-theme(spacing.16))] flex flex-col">
@@ -584,6 +640,32 @@ export default function InvoicesKanbanPage() {
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
+            </div>
+
+            <div className="rounded-lg border bg-white p-3">
+                <div className="grid gap-2 md:grid-cols-[1.6fr_220px_auto_auto]">
+                    <div className="relative">
+                        <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
+                        <Input
+                            className="pl-9"
+                            placeholder="Cari nomor invoice / customer / supplier..."
+                            value={searchText}
+                            onChange={(event) => setSearchText(event.target.value)}
+                        />
+                    </div>
+                    <Select value={invoiceTypeFilter} onValueChange={(value: 'ALL' | 'INV_OUT' | 'INV_IN') => setInvoiceTypeFilter(value)}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Semua tipe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="ALL">Semua Tipe</SelectItem>
+                            <SelectItem value="INV_OUT">Customer Invoice</SelectItem>
+                            <SelectItem value="INV_IN">Vendor Bill</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button variant="secondary" onClick={applyKanbanFilters}>Terapkan</Button>
+                    <Button variant="outline" onClick={resetKanbanFilters}>Reset</Button>
+                </div>
             </div>
 
             <Dialog
