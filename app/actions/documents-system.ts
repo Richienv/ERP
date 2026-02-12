@@ -68,6 +68,35 @@ const rolePermissionSchema = z.object({
     permissions: z.array(z.string().trim().min(1)).default([]),
 })
 
+type RegistryQueryInput = {
+    q?: string | null
+    status?: string | null
+    type?: string | null
+    from?: string | null
+    to?: string | null
+    page?: number | null
+    pageSize?: number | null
+}
+
+type RegistryQueryNormalized = {
+    q: string | null
+    status: string | null
+    type: string | null
+    from: string | null
+    to: string | null
+    page: number
+    pageSize: number
+}
+
+type DocumentsOverviewInput = {
+    registryQuery?: {
+        purchaseOrders?: RegistryQueryInput
+        invoices?: RegistryQueryInput
+        goodsReceipts?: RegistryQueryInput
+        payrollRuns?: RegistryQueryInput
+    }
+}
+
 type RoleAuditEventRecord = {
     id: string
     roleId: string
@@ -94,6 +123,41 @@ const arraysEqual = (a: string[], b: string[]) => {
 
 const buildActorLabel = (user: Awaited<ReturnType<typeof getAuthzUser>>) =>
     `${user.email || "unknown"} (${user.role})`
+
+const normalizeText = (value?: string | null) => {
+    const trimmed = (value || "").trim()
+    return trimmed.length > 0 ? trimmed : null
+}
+
+const clampInt = (value: number | null | undefined, defaults: { min: number; max: number; fallback: number }) => {
+    const parsed = Number(value)
+    if (!Number.isFinite(parsed)) return defaults.fallback
+    return Math.min(defaults.max, Math.max(defaults.min, Math.trunc(parsed)))
+}
+
+const normalizeRegistryQuery = (input?: RegistryQueryInput): RegistryQueryNormalized => ({
+    q: normalizeText(input?.q),
+    status: normalizeText(input?.status),
+    type: normalizeText(input?.type),
+    from: normalizeText(input?.from),
+    to: normalizeText(input?.to),
+    page: clampInt(input?.page, { min: 1, max: 100000, fallback: 1 }),
+    pageSize: clampInt(input?.pageSize, { min: 10, max: 100, fallback: 20 }),
+})
+
+const parseDateStart = (value?: string | null) => {
+    if (!value) return null
+    const parsed = new Date(`${value}T00:00:00`)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed
+}
+
+const parseDateEnd = (value?: string | null) => {
+    if (!value) return null
+    const parsed = new Date(`${value}T23:59:59.999`)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed
+}
 
 const ensureRoleEventTable = async (prisma: any) => {
     try {
@@ -220,10 +284,86 @@ const revalidateDocumentSystemPages = () => {
     revalidatePath("/inventory/warehouses")
 }
 
-export async function getDocumentSystemOverview() {
+export async function getDocumentSystemOverview(input?: DocumentsOverviewInput) {
     try {
         const authUser = await getAuthzUser()
         return await withPrismaAuth(async (prisma) => {
+            const poQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseOrders)
+            const invoiceQuery = normalizeRegistryQuery(input?.registryQuery?.invoices)
+            const grnQuery = normalizeRegistryQuery(input?.registryQuery?.goodsReceipts)
+            const payrollQuery = normalizeRegistryQuery(input?.registryQuery?.payrollRuns)
+
+            const poWhere: any = {}
+            if (poQuery.status) poWhere.status = poQuery.status
+            const poDateFrom = parseDateStart(poQuery.from)
+            const poDateTo = parseDateEnd(poQuery.to)
+            if (poDateFrom || poDateTo) {
+                poWhere.updatedAt = {}
+                if (poDateFrom) poWhere.updatedAt.gte = poDateFrom
+                if (poDateTo) poWhere.updatedAt.lte = poDateTo
+            }
+            if (poQuery.q) {
+                poWhere.OR = [
+                    { number: { contains: poQuery.q, mode: "insensitive" } },
+                    { supplier: { name: { contains: poQuery.q, mode: "insensitive" } } },
+                ]
+            }
+
+            const invoiceWhere: any = {}
+            if (invoiceQuery.status) invoiceWhere.status = invoiceQuery.status
+            if (invoiceQuery.type) invoiceWhere.type = invoiceQuery.type
+            const invoiceDateFrom = parseDateStart(invoiceQuery.from)
+            const invoiceDateTo = parseDateEnd(invoiceQuery.to)
+            if (invoiceDateFrom || invoiceDateTo) {
+                invoiceWhere.updatedAt = {}
+                if (invoiceDateFrom) invoiceWhere.updatedAt.gte = invoiceDateFrom
+                if (invoiceDateTo) invoiceWhere.updatedAt.lte = invoiceDateTo
+            }
+            if (invoiceQuery.q) {
+                invoiceWhere.OR = [
+                    { number: { contains: invoiceQuery.q, mode: "insensitive" } },
+                    { customer: { name: { contains: invoiceQuery.q, mode: "insensitive" } } },
+                    { supplier: { name: { contains: invoiceQuery.q, mode: "insensitive" } } },
+                ]
+            }
+
+            const grnWhere: any = {}
+            if (grnQuery.status) grnWhere.status = grnQuery.status
+            const grnDateFrom = parseDateStart(grnQuery.from)
+            const grnDateTo = parseDateEnd(grnQuery.to)
+            if (grnDateFrom || grnDateTo) {
+                grnWhere.updatedAt = {}
+                if (grnDateFrom) grnWhere.updatedAt.gte = grnDateFrom
+                if (grnDateTo) grnWhere.updatedAt.lte = grnDateTo
+            }
+            if (grnQuery.q) {
+                grnWhere.OR = [
+                    { number: { contains: grnQuery.q, mode: "insensitive" } },
+                    { purchaseOrder: { number: { contains: grnQuery.q, mode: "insensitive" } } },
+                    { warehouse: { name: { contains: grnQuery.q, mode: "insensitive" } } },
+                    { warehouse: { code: { contains: grnQuery.q, mode: "insensitive" } } },
+                ]
+            }
+
+            const payrollWhere: any = {
+                relatedId: { startsWith: "PAYROLL-" },
+                notes: { startsWith: PAYROLL_RUN_PREFIX },
+            }
+            if (payrollQuery.status) payrollWhere.status = payrollQuery.status
+            const payrollDateFrom = parseDateStart(payrollQuery.from)
+            const payrollDateTo = parseDateEnd(payrollQuery.to)
+            if (payrollDateFrom || payrollDateTo) {
+                payrollWhere.updatedAt = {}
+                if (payrollDateFrom) payrollWhere.updatedAt.gte = payrollDateFrom
+                if (payrollDateTo) payrollWhere.updatedAt.lte = payrollDateTo
+            }
+            if (payrollQuery.q) {
+                payrollWhere.OR = [
+                    { relatedId: { contains: payrollQuery.q, mode: "insensitive" } },
+                    { notes: { contains: payrollQuery.q, mode: "insensitive" } },
+                ]
+            }
+
             const roleEventsPromise = prisma.$queryRaw<RoleAuditEventRecord[]>`
                 SELECT
                     sre.id::text AS id,
@@ -238,10 +378,10 @@ export async function getDocumentSystemOverview() {
                     sre.created_at AS "createdAt"
                 FROM system_role_events sre
                 ORDER BY sre.created_at DESC
-                LIMIT 60
+                    LIMIT 60
             `.catch(() => [] as RoleAuditEventRecord[])
 
-            const [categories, warehouses, roles, purchaseOrders, invoices, grns, payrollRuns, managerDirectory, roleEvents] = await Promise.all([
+            const [categories, warehouses, roles, purchaseOrders, invoices, grns, payrollRuns, managerDirectory, roleEvents, poTotal, invoiceTotal, grnTotal, payrollTotal] = await Promise.all([
                 prisma.category.findMany({
                     include: {
                         _count: { select: { products: true } },
@@ -256,6 +396,7 @@ export async function getDocumentSystemOverview() {
                     orderBy: [{ code: "asc" }],
                 }),
                 prisma.purchaseOrder.findMany({
+                    where: poWhere,
                     select: {
                         id: true,
                         number: true,
@@ -266,9 +407,11 @@ export async function getDocumentSystemOverview() {
                         supplier: { select: { name: true } },
                     },
                     orderBy: { updatedAt: "desc" },
-                    take: 20,
+                    skip: (poQuery.page - 1) * poQuery.pageSize,
+                    take: poQuery.pageSize,
                 }),
                 prisma.invoice.findMany({
+                    where: invoiceWhere,
                     select: {
                         id: true,
                         number: true,
@@ -281,9 +424,11 @@ export async function getDocumentSystemOverview() {
                         supplier: { select: { name: true } },
                     },
                     orderBy: { updatedAt: "desc" },
-                    take: 20,
+                    skip: (invoiceQuery.page - 1) * invoiceQuery.pageSize,
+                    take: invoiceQuery.pageSize,
                 }),
                 prisma.goodsReceivedNote.findMany({
+                    where: grnWhere,
                     select: {
                         id: true,
                         number: true,
@@ -294,13 +439,11 @@ export async function getDocumentSystemOverview() {
                         purchaseOrder: { select: { number: true } },
                     },
                     orderBy: { updatedAt: "desc" },
-                    take: 20,
+                    skip: (grnQuery.page - 1) * grnQuery.pageSize,
+                    take: grnQuery.pageSize,
                 }),
                 prisma.employeeTask.findMany({
-                    where: {
-                        relatedId: { startsWith: "PAYROLL-" },
-                        notes: { startsWith: PAYROLL_RUN_PREFIX },
-                    },
+                    where: payrollWhere,
                     select: {
                         id: true,
                         relatedId: true,
@@ -309,7 +452,8 @@ export async function getDocumentSystemOverview() {
                         notes: true,
                     },
                     orderBy: { updatedAt: "desc" },
-                    take: 50,
+                    skip: (payrollQuery.page - 1) * payrollQuery.pageSize,
+                    take: payrollQuery.pageSize,
                 }),
                 prisma.employee.findMany({
                     where: { status: "ACTIVE" },
@@ -325,6 +469,10 @@ export async function getDocumentSystemOverview() {
                     take: 300,
                 }),
                 roleEventsPromise,
+                prisma.purchaseOrder.count({ where: poWhere }),
+                prisma.invoice.count({ where: invoiceWhere }),
+                prisma.goodsReceivedNote.count({ where: grnWhere }),
+                prisma.employeeTask.count({ where: payrollWhere }),
             ])
 
             const managerIds = dedupeTokens(warehouses.map((warehouse) => warehouse.managerId || "").filter(Boolean))
@@ -443,6 +591,38 @@ export async function getDocumentSystemOverview() {
                             ...payroll,
                             viewUrl: `/api/documents/payroll/${encodeURIComponent(payroll.period)}?disposition=inline`,
                         })),
+                    },
+                    documentsMeta: {
+                        purchaseOrders: {
+                            page: poQuery.page,
+                            pageSize: poQuery.pageSize,
+                            total: poTotal,
+                            totalPages: Math.max(1, Math.ceil(poTotal / poQuery.pageSize)),
+                        },
+                        invoices: {
+                            page: invoiceQuery.page,
+                            pageSize: invoiceQuery.pageSize,
+                            total: invoiceTotal,
+                            totalPages: Math.max(1, Math.ceil(invoiceTotal / invoiceQuery.pageSize)),
+                        },
+                        goodsReceipts: {
+                            page: grnQuery.page,
+                            pageSize: grnQuery.pageSize,
+                            total: grnTotal,
+                            totalPages: Math.max(1, Math.ceil(grnTotal / grnQuery.pageSize)),
+                        },
+                        payrollRuns: {
+                            page: payrollQuery.page,
+                            pageSize: payrollQuery.pageSize,
+                            total: payrollTotal,
+                            totalPages: Math.max(1, Math.ceil(payrollTotal / payrollQuery.pageSize)),
+                        },
+                    },
+                    documentsQuery: {
+                        purchaseOrders: poQuery,
+                        invoices: invoiceQuery,
+                        goodsReceipts: grnQuery,
+                        payrollRuns: payrollQuery,
                     },
                     permissionOptions: derivePermissionOptions(),
                     moduleCatalog: Object.entries(MODULES_CONFIG).map(([key, value]) => ({

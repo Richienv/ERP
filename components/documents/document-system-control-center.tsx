@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -126,6 +126,18 @@ type DocumentsSystemData = {
         goodsReceipts: DocumentRow[]
         payrollRuns: DocumentRow[]
     }
+    documentsMeta: {
+        purchaseOrders: { page: number; pageSize: number; total: number; totalPages: number }
+        invoices: { page: number; pageSize: number; total: number; totalPages: number }
+        goodsReceipts: { page: number; pageSize: number; total: number; totalPages: number }
+        payrollRuns: { page: number; pageSize: number; total: number; totalPages: number }
+    }
+    documentsQuery: {
+        purchaseOrders: { q: string | null; status: string | null; type: string | null; from: string | null; to: string | null; page: number; pageSize: number }
+        invoices: { q: string | null; status: string | null; type: string | null; from: string | null; to: string | null; page: number; pageSize: number }
+        goodsReceipts: { q: string | null; status: string | null; type: string | null; from: string | null; to: string | null; page: number; pageSize: number }
+        payrollRuns: { q: string | null; status: string | null; type: string | null; from: string | null; to: string | null; page: number; pageSize: number }
+    }
     permissionOptions: PermissionOption[]
     moduleCatalog: ModuleCatalogItem[]
     managerOptions: {
@@ -210,20 +222,6 @@ const formatCurrency = (amount?: number) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(safeAmount)
 }
 
-const isInDateRange = (value: string | Date | undefined, startDate: string, endDate: string) => {
-    const date = value ? new Date(value) : null
-    if (!date || Number.isNaN(date.getTime())) return false
-    if (startDate) {
-        const start = new Date(`${startDate}T00:00:00`)
-        if (date < start) return false
-    }
-    if (endDate) {
-        const end = new Date(`${endDate}T23:59:59.999`)
-        if (date > end) return false
-    }
-    return true
-}
-
 const downloadCsv = (filename: string, headers: string[], rows: Array<Array<string | number>>) => {
     const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`
     const csvContent = [headers, ...rows]
@@ -243,6 +241,8 @@ const downloadCsv = (filename: string, headers: string[], rows: Array<Array<stri
 
 export function DocumentSystemControlCenter({ initialData }: { initialData: DocumentsSystemData }) {
     const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
     const { refreshFromServer } = useWorkflowConfig()
     const [isPending, startTransition] = useTransition()
 
@@ -259,34 +259,34 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
     const [auditPage, setAuditPage] = useState(1)
     const [auditPageSize, setAuditPageSize] = useState("20")
 
-    const [poSearch, setPoSearch] = useState("")
-    const [poStatusFilter, setPoStatusFilter] = useState("__all__")
-    const [poStartDate, setPoStartDate] = useState("")
-    const [poEndDate, setPoEndDate] = useState("")
-    const [poPage, setPoPage] = useState(1)
-    const [poPageSize, setPoPageSize] = useState("20")
+    const [poSearch, setPoSearch] = useState(initialData.documentsQuery.purchaseOrders.q || "")
+    const [poStatusFilter, setPoStatusFilter] = useState(initialData.documentsQuery.purchaseOrders.status || "__all__")
+    const [poStartDate, setPoStartDate] = useState(initialData.documentsQuery.purchaseOrders.from || "")
+    const [poEndDate, setPoEndDate] = useState(initialData.documentsQuery.purchaseOrders.to || "")
+    const [poPage, setPoPage] = useState(initialData.documentsMeta.purchaseOrders.page)
+    const [poPageSize, setPoPageSize] = useState(String(initialData.documentsMeta.purchaseOrders.pageSize))
 
-    const [invoiceSearch, setInvoiceSearch] = useState("")
-    const [invoiceStatusFilter, setInvoiceStatusFilter] = useState("__all__")
-    const [invoiceTypeFilter, setInvoiceTypeFilter] = useState("__all__")
-    const [invoiceStartDate, setInvoiceStartDate] = useState("")
-    const [invoiceEndDate, setInvoiceEndDate] = useState("")
-    const [invoicePage, setInvoicePage] = useState(1)
-    const [invoicePageSize, setInvoicePageSize] = useState("20")
+    const [invoiceSearch, setInvoiceSearch] = useState(initialData.documentsQuery.invoices.q || "")
+    const [invoiceStatusFilter, setInvoiceStatusFilter] = useState(initialData.documentsQuery.invoices.status || "__all__")
+    const [invoiceTypeFilter, setInvoiceTypeFilter] = useState(initialData.documentsQuery.invoices.type || "__all__")
+    const [invoiceStartDate, setInvoiceStartDate] = useState(initialData.documentsQuery.invoices.from || "")
+    const [invoiceEndDate, setInvoiceEndDate] = useState(initialData.documentsQuery.invoices.to || "")
+    const [invoicePage, setInvoicePage] = useState(initialData.documentsMeta.invoices.page)
+    const [invoicePageSize, setInvoicePageSize] = useState(String(initialData.documentsMeta.invoices.pageSize))
 
-    const [grnSearch, setGrnSearch] = useState("")
-    const [grnStatusFilter, setGrnStatusFilter] = useState("__all__")
-    const [grnStartDate, setGrnStartDate] = useState("")
-    const [grnEndDate, setGrnEndDate] = useState("")
-    const [grnPage, setGrnPage] = useState(1)
-    const [grnPageSize, setGrnPageSize] = useState("20")
+    const [grnSearch, setGrnSearch] = useState(initialData.documentsQuery.goodsReceipts.q || "")
+    const [grnStatusFilter, setGrnStatusFilter] = useState(initialData.documentsQuery.goodsReceipts.status || "__all__")
+    const [grnStartDate, setGrnStartDate] = useState(initialData.documentsQuery.goodsReceipts.from || "")
+    const [grnEndDate, setGrnEndDate] = useState(initialData.documentsQuery.goodsReceipts.to || "")
+    const [grnPage, setGrnPage] = useState(initialData.documentsMeta.goodsReceipts.page)
+    const [grnPageSize, setGrnPageSize] = useState(String(initialData.documentsMeta.goodsReceipts.pageSize))
 
-    const [payrollSearch, setPayrollSearch] = useState("")
-    const [payrollStatusFilter, setPayrollStatusFilter] = useState("__all__")
-    const [payrollStartDate, setPayrollStartDate] = useState("")
-    const [payrollEndDate, setPayrollEndDate] = useState("")
-    const [payrollPage, setPayrollPage] = useState(1)
-    const [payrollPageSize, setPayrollPageSize] = useState("20")
+    const [payrollSearch, setPayrollSearch] = useState(initialData.documentsQuery.payrollRuns.q || "")
+    const [payrollStatusFilter, setPayrollStatusFilter] = useState(initialData.documentsQuery.payrollRuns.status || "__all__")
+    const [payrollStartDate, setPayrollStartDate] = useState(initialData.documentsQuery.payrollRuns.from || "")
+    const [payrollEndDate, setPayrollEndDate] = useState(initialData.documentsQuery.payrollRuns.to || "")
+    const [payrollPage, setPayrollPage] = useState(initialData.documentsMeta.payrollRuns.page)
+    const [payrollPageSize, setPayrollPageSize] = useState(String(initialData.documentsMeta.payrollRuns.pageSize))
 
     const [categoryModalOpen, setCategoryModalOpen] = useState(false)
     const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null)
@@ -306,6 +306,34 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
 
     useEffect(() => {
         setData(initialData)
+        setPoSearch(initialData.documentsQuery.purchaseOrders.q || "")
+        setPoStatusFilter(initialData.documentsQuery.purchaseOrders.status || "__all__")
+        setPoStartDate(initialData.documentsQuery.purchaseOrders.from || "")
+        setPoEndDate(initialData.documentsQuery.purchaseOrders.to || "")
+        setPoPage(initialData.documentsMeta.purchaseOrders.page)
+        setPoPageSize(String(initialData.documentsMeta.purchaseOrders.pageSize))
+
+        setInvoiceSearch(initialData.documentsQuery.invoices.q || "")
+        setInvoiceStatusFilter(initialData.documentsQuery.invoices.status || "__all__")
+        setInvoiceTypeFilter(initialData.documentsQuery.invoices.type || "__all__")
+        setInvoiceStartDate(initialData.documentsQuery.invoices.from || "")
+        setInvoiceEndDate(initialData.documentsQuery.invoices.to || "")
+        setInvoicePage(initialData.documentsMeta.invoices.page)
+        setInvoicePageSize(String(initialData.documentsMeta.invoices.pageSize))
+
+        setGrnSearch(initialData.documentsQuery.goodsReceipts.q || "")
+        setGrnStatusFilter(initialData.documentsQuery.goodsReceipts.status || "__all__")
+        setGrnStartDate(initialData.documentsQuery.goodsReceipts.from || "")
+        setGrnEndDate(initialData.documentsQuery.goodsReceipts.to || "")
+        setGrnPage(initialData.documentsMeta.goodsReceipts.page)
+        setGrnPageSize(String(initialData.documentsMeta.goodsReceipts.pageSize))
+
+        setPayrollSearch(initialData.documentsQuery.payrollRuns.q || "")
+        setPayrollStatusFilter(initialData.documentsQuery.payrollRuns.status || "__all__")
+        setPayrollStartDate(initialData.documentsQuery.payrollRuns.from || "")
+        setPayrollEndDate(initialData.documentsQuery.payrollRuns.to || "")
+        setPayrollPage(initialData.documentsMeta.payrollRuns.page)
+        setPayrollPageSize(String(initialData.documentsMeta.payrollRuns.pageSize))
     }, [initialData])
 
     const permissionOptionsByGroup = useMemo(() => {
@@ -419,6 +447,21 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
         return `${start}-${end}`
     }
 
+    const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
+        const params = new URLSearchParams(searchParams.toString())
+        mutator(params)
+        const queryString = params.toString()
+        router.replace(queryString ? `${pathname}?${queryString}` : pathname)
+    }
+
+    const setOrDeleteParam = (params: URLSearchParams, key: string, value: string | null, defaultValue?: string) => {
+        if (!value || (defaultValue && value === defaultValue)) {
+            params.delete(key)
+            return
+        }
+        params.set(key, value)
+    }
+
     const exportRoleAuditCsv = () => {
         if (filteredRoleAuditEvents.length === 0) {
             toast.error("Tidak ada data audit untuk diexport")
@@ -463,90 +506,108 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
         [data.documents.payrollRuns]
     )
 
-    const filteredPoRows = useMemo(() => {
-        const query = poSearch.trim().toLowerCase()
-        return data.documents.purchaseOrders.filter((row) => {
-            if (poStatusFilter !== "__all__" && row.status !== poStatusFilter) return false
-            if (!isInDateRange(row.updatedAt, poStartDate, poEndDate)) return false
-            if (!query) return true
-            return `${row.number || ""} ${row.partnerName || ""} ${row.status}`.toLowerCase().includes(query)
+    const filteredPoRows = data.documents.purchaseOrders
+    const filteredInvoiceRows = data.documents.invoices
+    const filteredGrnRows = data.documents.goodsReceipts
+    const filteredPayrollRows = data.documents.payrollRuns
+    const paginatedPoRows = filteredPoRows
+    const paginatedInvoiceRows = filteredInvoiceRows
+    const paginatedGrnRows = filteredGrnRows
+    const paginatedPayrollRows = filteredPayrollRows
+    const poTotalPages = data.documentsMeta.purchaseOrders.totalPages || 1
+    const invoiceTotalPages = data.documentsMeta.invoices.totalPages || 1
+    const grnTotalPages = data.documentsMeta.goodsReceipts.totalPages || 1
+    const payrollTotalPages = data.documentsMeta.payrollRuns.totalPages || 1
+
+    const applyPoQuery = (overrides?: Partial<{ q: string; status: string; from: string; to: string; page: number; pageSize: string }>) => {
+        const next = {
+            q: poSearch,
+            status: poStatusFilter,
+            from: poStartDate,
+            to: poEndDate,
+            page: poPage,
+            pageSize: poPageSize,
+            ...overrides,
+        }
+        setPoPage(next.page)
+        setPoPageSize(next.pageSize)
+        pushSearchParams((params) => {
+            setOrDeleteParam(params, "po_q", next.q || null)
+            setOrDeleteParam(params, "po_status", next.status || null, "__all__")
+            setOrDeleteParam(params, "po_from", next.from || null)
+            setOrDeleteParam(params, "po_to", next.to || null)
+            params.set("po_page", String(next.page))
+            params.set("po_size", String(next.pageSize))
         })
-    }, [data.documents.purchaseOrders, poSearch, poStatusFilter, poStartDate, poEndDate])
+    }
 
-    const filteredInvoiceRows = useMemo(() => {
-        const query = invoiceSearch.trim().toLowerCase()
-        return data.documents.invoices.filter((row) => {
-            if (invoiceStatusFilter !== "__all__" && row.status !== invoiceStatusFilter) return false
-            if (invoiceTypeFilter !== "__all__" && (row.type || "-") !== invoiceTypeFilter) return false
-            if (!isInDateRange(row.updatedAt, invoiceStartDate, invoiceEndDate)) return false
-            if (!query) return true
-            return `${row.number || ""} ${row.partnerName || ""} ${row.status} ${row.type || "-"}`.toLowerCase().includes(query)
+    const applyInvoiceQuery = (overrides?: Partial<{ q: string; status: string; type: string; from: string; to: string; page: number; pageSize: string }>) => {
+        const next = {
+            q: invoiceSearch,
+            status: invoiceStatusFilter,
+            type: invoiceTypeFilter,
+            from: invoiceStartDate,
+            to: invoiceEndDate,
+            page: invoicePage,
+            pageSize: invoicePageSize,
+            ...overrides,
+        }
+        setInvoicePage(next.page)
+        setInvoicePageSize(next.pageSize)
+        pushSearchParams((params) => {
+            setOrDeleteParam(params, "inv_q", next.q || null)
+            setOrDeleteParam(params, "inv_status", next.status || null, "__all__")
+            setOrDeleteParam(params, "inv_type", next.type || null, "__all__")
+            setOrDeleteParam(params, "inv_from", next.from || null)
+            setOrDeleteParam(params, "inv_to", next.to || null)
+            params.set("inv_page", String(next.page))
+            params.set("inv_size", String(next.pageSize))
         })
-    }, [data.documents.invoices, invoiceSearch, invoiceStatusFilter, invoiceTypeFilter, invoiceStartDate, invoiceEndDate])
+    }
 
-    const filteredGrnRows = useMemo(() => {
-        const query = grnSearch.trim().toLowerCase()
-        return data.documents.goodsReceipts.filter((row) => {
-            if (grnStatusFilter !== "__all__" && row.status !== grnStatusFilter) return false
-            if (!isInDateRange(row.updatedAt, grnStartDate, grnEndDate)) return false
-            if (!query) return true
-            return `${row.number || ""} ${row.purchaseOrderNumber || ""} ${row.warehouse || ""} ${row.status}`.toLowerCase().includes(query)
+    const applyGrnQuery = (overrides?: Partial<{ q: string; status: string; from: string; to: string; page: number; pageSize: string }>) => {
+        const next = {
+            q: grnSearch,
+            status: grnStatusFilter,
+            from: grnStartDate,
+            to: grnEndDate,
+            page: grnPage,
+            pageSize: grnPageSize,
+            ...overrides,
+        }
+        setGrnPage(next.page)
+        setGrnPageSize(next.pageSize)
+        pushSearchParams((params) => {
+            setOrDeleteParam(params, "grn_q", next.q || null)
+            setOrDeleteParam(params, "grn_status", next.status || null, "__all__")
+            setOrDeleteParam(params, "grn_from", next.from || null)
+            setOrDeleteParam(params, "grn_to", next.to || null)
+            params.set("grn_page", String(next.page))
+            params.set("grn_size", String(next.pageSize))
         })
-    }, [data.documents.goodsReceipts, grnSearch, grnStatusFilter, grnStartDate, grnEndDate])
+    }
 
-    const filteredPayrollRows = useMemo(() => {
-        const query = payrollSearch.trim().toLowerCase()
-        return data.documents.payrollRuns.filter((row) => {
-            if (payrollStatusFilter !== "__all__" && row.status !== payrollStatusFilter) return false
-            if (!isInDateRange(row.updatedAt, payrollStartDate, payrollEndDate)) return false
-            if (!query) return true
-            return `${row.periodLabel || ""} ${row.period || ""} ${row.status}`.toLowerCase().includes(query)
+    const applyPayrollQuery = (overrides?: Partial<{ q: string; status: string; from: string; to: string; page: number; pageSize: string }>) => {
+        const next = {
+            q: payrollSearch,
+            status: payrollStatusFilter,
+            from: payrollStartDate,
+            to: payrollEndDate,
+            page: payrollPage,
+            pageSize: payrollPageSize,
+            ...overrides,
+        }
+        setPayrollPage(next.page)
+        setPayrollPageSize(next.pageSize)
+        pushSearchParams((params) => {
+            setOrDeleteParam(params, "pay_q", next.q || null)
+            setOrDeleteParam(params, "pay_status", next.status || null, "__all__")
+            setOrDeleteParam(params, "pay_from", next.from || null)
+            setOrDeleteParam(params, "pay_to", next.to || null)
+            params.set("pay_page", String(next.page))
+            params.set("pay_size", String(next.pageSize))
         })
-    }, [data.documents.payrollRuns, payrollSearch, payrollStatusFilter, payrollStartDate, payrollEndDate])
-
-    useEffect(() => {
-        setPoPage(1)
-    }, [poSearch, poStatusFilter, poStartDate, poEndDate, poPageSize])
-    useEffect(() => {
-        setInvoicePage(1)
-    }, [invoiceSearch, invoiceStatusFilter, invoiceTypeFilter, invoiceStartDate, invoiceEndDate, invoicePageSize])
-    useEffect(() => {
-        setGrnPage(1)
-    }, [grnSearch, grnStatusFilter, grnStartDate, grnEndDate, grnPageSize])
-    useEffect(() => {
-        setPayrollPage(1)
-    }, [payrollSearch, payrollStatusFilter, payrollStartDate, payrollEndDate, payrollPageSize])
-
-    const poTotalPages = useMemo(() => Math.max(1, Math.ceil(filteredPoRows.length / (Number(poPageSize) || 20))), [filteredPoRows.length, poPageSize])
-    const invoiceTotalPages = useMemo(() => Math.max(1, Math.ceil(filteredInvoiceRows.length / (Number(invoicePageSize) || 20))), [filteredInvoiceRows.length, invoicePageSize])
-    const grnTotalPages = useMemo(() => Math.max(1, Math.ceil(filteredGrnRows.length / (Number(grnPageSize) || 20))), [filteredGrnRows.length, grnPageSize])
-    const payrollTotalPages = useMemo(() => Math.max(1, Math.ceil(filteredPayrollRows.length / (Number(payrollPageSize) || 20))), [filteredPayrollRows.length, payrollPageSize])
-
-    useEffect(() => setPoPage((prev) => Math.min(Math.max(1, prev), poTotalPages)), [poTotalPages])
-    useEffect(() => setInvoicePage((prev) => Math.min(Math.max(1, prev), invoiceTotalPages)), [invoiceTotalPages])
-    useEffect(() => setGrnPage((prev) => Math.min(Math.max(1, prev), grnTotalPages)), [grnTotalPages])
-    useEffect(() => setPayrollPage((prev) => Math.min(Math.max(1, prev), payrollTotalPages)), [payrollTotalPages])
-
-    const paginatedPoRows = useMemo(() => {
-        const size = Number(poPageSize) || 20
-        const start = (poPage - 1) * size
-        return filteredPoRows.slice(start, start + size)
-    }, [filteredPoRows, poPage, poPageSize])
-    const paginatedInvoiceRows = useMemo(() => {
-        const size = Number(invoicePageSize) || 20
-        const start = (invoicePage - 1) * size
-        return filteredInvoiceRows.slice(start, start + size)
-    }, [filteredInvoiceRows, invoicePage, invoicePageSize])
-    const paginatedGrnRows = useMemo(() => {
-        const size = Number(grnPageSize) || 20
-        const start = (grnPage - 1) * size
-        return filteredGrnRows.slice(start, start + size)
-    }, [filteredGrnRows, grnPage, grnPageSize])
-    const paginatedPayrollRows = useMemo(() => {
-        const size = Number(payrollPageSize) || 20
-        const start = (payrollPage - 1) * size
-        return filteredPayrollRows.slice(start, start + size)
-    }, [filteredPayrollRows, payrollPage, payrollPageSize])
+    }
 
     const exportPoCsv = () => {
         if (filteredPoRows.length === 0) return toast.error("Tidak ada dokumen PO untuk diexport")
@@ -745,10 +806,10 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
     }
 
     const totalDocumentCount =
-        data.documents.purchaseOrders.length +
-        data.documents.invoices.length +
-        data.documents.goodsReceipts.length +
-        data.documents.payrollRuns.length
+        data.documentsMeta.purchaseOrders.total +
+        data.documentsMeta.invoices.total +
+        data.documentsMeta.goodsReceipts.total +
+        data.documentsMeta.payrollRuns.total
 
     return (
         <div className="space-y-6 p-4 md:p-8">
@@ -1208,25 +1269,25 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm">Purchase Order PDF</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-2xl font-black">{data.documents.purchaseOrders.length}</CardContent>
+                            <CardContent className="text-2xl font-black">{data.documentsMeta.purchaseOrders.total}</CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm">Invoice Documents</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-2xl font-black">{data.documents.invoices.length}</CardContent>
+                            <CardContent className="text-2xl font-black">{data.documentsMeta.invoices.total}</CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm">GRN Records</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-2xl font-black">{data.documents.goodsReceipts.length}</CardContent>
+                            <CardContent className="text-2xl font-black">{data.documentsMeta.goodsReceipts.total}</CardContent>
                         </Card>
                         <Card>
                             <CardHeader className="pb-2">
                                 <CardTitle className="text-sm">Payroll PDFs</CardTitle>
                             </CardHeader>
-                            <CardContent className="text-2xl font-black">{data.documents.payrollRuns.length}</CardContent>
+                            <CardContent className="text-2xl font-black">{data.documentsMeta.payrollRuns.total}</CardContent>
                         </Card>
                     </div>
 
@@ -1240,7 +1301,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                         Export CSV
                                     </Button>
                                 </div>
-                                <div className="grid gap-2 md:grid-cols-4">
+                                <div className="grid gap-2 md:grid-cols-5">
                                     <Input
                                         placeholder="Cari PO / vendor..."
                                         value={poSearch}
@@ -1259,6 +1320,9 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </Select>
                                     <Input type="date" value={poStartDate} onChange={(event) => setPoStartDate(event.target.value)} />
                                     <Input type="date" value={poEndDate} onChange={(event) => setPoEndDate(event.target.value)} />
+                                    <Button variant="secondary" onClick={() => applyPoQuery({ page: 1 })}>
+                                        Terapkan
+                                    </Button>
                                 </div>
                             </div>
                         </CardHeader>
@@ -1300,10 +1364,10 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                             </Table>
                             <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div className="text-sm text-muted-foreground">
-                                    Menampilkan {getRangeLabel(filteredPoRows.length, poPage, poPageSize)} dari {filteredPoRows.length} dokumen
+                                    Menampilkan {getRangeLabel(data.documentsMeta.purchaseOrders.total, poPage, poPageSize)} dari {data.documentsMeta.purchaseOrders.total} dokumen
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Select value={poPageSize} onValueChange={setPoPageSize}>
+                                    <Select value={poPageSize} onValueChange={(value) => applyPoQuery({ pageSize: value, page: 1 })}>
                                         <SelectTrigger className="w-[130px]">
                                             <SelectValue placeholder="Rows/page" />
                                         </SelectTrigger>
@@ -1314,13 +1378,13 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             <SelectItem value="100">100 / halaman</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Button variant="outline" size="sm" onClick={() => setPoPage((prev) => Math.max(1, prev - 1))} disabled={poPage <= 1}>
+                                    <Button variant="outline" size="sm" onClick={() => applyPoQuery({ page: Math.max(1, poPage - 1) })} disabled={poPage <= 1}>
                                         Sebelumnya
                                     </Button>
                                     <div className="min-w-[84px] text-center text-sm font-medium">
                                         Hal {poPage} / {poTotalPages}
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={() => setPoPage((prev) => Math.min(poTotalPages, prev + 1))} disabled={poPage >= poTotalPages}>
+                                    <Button variant="outline" size="sm" onClick={() => applyPoQuery({ page: Math.min(poTotalPages, poPage + 1) })} disabled={poPage >= poTotalPages}>
                                         Selanjutnya
                                     </Button>
                                 </div>
@@ -1338,7 +1402,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                         Export CSV
                                     </Button>
                                 </div>
-                                <div className="grid gap-2 md:grid-cols-5">
+                                <div className="grid gap-2 md:grid-cols-6">
                                     <Input
                                         placeholder="Cari invoice / partner..."
                                         value={invoiceSearch}
@@ -1368,6 +1432,9 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </Select>
                                     <Input type="date" value={invoiceStartDate} onChange={(event) => setInvoiceStartDate(event.target.value)} />
                                     <Input type="date" value={invoiceEndDate} onChange={(event) => setInvoiceEndDate(event.target.value)} />
+                                    <Button variant="secondary" onClick={() => applyInvoiceQuery({ page: 1 })}>
+                                        Terapkan
+                                    </Button>
                                 </div>
                             </div>
                         </CardHeader>
@@ -1411,10 +1478,10 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                             </Table>
                             <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div className="text-sm text-muted-foreground">
-                                    Menampilkan {getRangeLabel(filteredInvoiceRows.length, invoicePage, invoicePageSize)} dari {filteredInvoiceRows.length} dokumen
+                                    Menampilkan {getRangeLabel(data.documentsMeta.invoices.total, invoicePage, invoicePageSize)} dari {data.documentsMeta.invoices.total} dokumen
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Select value={invoicePageSize} onValueChange={setInvoicePageSize}>
+                                    <Select value={invoicePageSize} onValueChange={(value) => applyInvoiceQuery({ pageSize: value, page: 1 })}>
                                         <SelectTrigger className="w-[130px]">
                                             <SelectValue placeholder="Rows/page" />
                                         </SelectTrigger>
@@ -1425,13 +1492,13 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             <SelectItem value="100">100 / halaman</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Button variant="outline" size="sm" onClick={() => setInvoicePage((prev) => Math.max(1, prev - 1))} disabled={invoicePage <= 1}>
+                                    <Button variant="outline" size="sm" onClick={() => applyInvoiceQuery({ page: Math.max(1, invoicePage - 1) })} disabled={invoicePage <= 1}>
                                         Sebelumnya
                                     </Button>
                                     <div className="min-w-[84px] text-center text-sm font-medium">
                                         Hal {invoicePage} / {invoiceTotalPages}
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={() => setInvoicePage((prev) => Math.min(invoiceTotalPages, prev + 1))} disabled={invoicePage >= invoiceTotalPages}>
+                                    <Button variant="outline" size="sm" onClick={() => applyInvoiceQuery({ page: Math.min(invoiceTotalPages, invoicePage + 1) })} disabled={invoicePage >= invoiceTotalPages}>
                                         Selanjutnya
                                     </Button>
                                 </div>
@@ -1449,7 +1516,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                         Export CSV
                                     </Button>
                                 </div>
-                                <div className="grid gap-2 md:grid-cols-4">
+                                <div className="grid gap-2 md:grid-cols-5">
                                     <Input
                                         placeholder="Cari GRN / PO / warehouse..."
                                         value={grnSearch}
@@ -1468,6 +1535,9 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </Select>
                                     <Input type="date" value={grnStartDate} onChange={(event) => setGrnStartDate(event.target.value)} />
                                     <Input type="date" value={grnEndDate} onChange={(event) => setGrnEndDate(event.target.value)} />
+                                    <Button variant="secondary" onClick={() => applyGrnQuery({ page: 1 })}>
+                                        Terapkan
+                                    </Button>
                                 </div>
                             </div>
                         </CardHeader>
@@ -1509,10 +1579,10 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                             </Table>
                             <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div className="text-sm text-muted-foreground">
-                                    Menampilkan {getRangeLabel(filteredGrnRows.length, grnPage, grnPageSize)} dari {filteredGrnRows.length} dokumen
+                                    Menampilkan {getRangeLabel(data.documentsMeta.goodsReceipts.total, grnPage, grnPageSize)} dari {data.documentsMeta.goodsReceipts.total} dokumen
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Select value={grnPageSize} onValueChange={setGrnPageSize}>
+                                    <Select value={grnPageSize} onValueChange={(value) => applyGrnQuery({ pageSize: value, page: 1 })}>
                                         <SelectTrigger className="w-[130px]">
                                             <SelectValue placeholder="Rows/page" />
                                         </SelectTrigger>
@@ -1523,13 +1593,13 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             <SelectItem value="100">100 / halaman</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Button variant="outline" size="sm" onClick={() => setGrnPage((prev) => Math.max(1, prev - 1))} disabled={grnPage <= 1}>
+                                    <Button variant="outline" size="sm" onClick={() => applyGrnQuery({ page: Math.max(1, grnPage - 1) })} disabled={grnPage <= 1}>
                                         Sebelumnya
                                     </Button>
                                     <div className="min-w-[84px] text-center text-sm font-medium">
                                         Hal {grnPage} / {grnTotalPages}
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={() => setGrnPage((prev) => Math.min(grnTotalPages, prev + 1))} disabled={grnPage >= grnTotalPages}>
+                                    <Button variant="outline" size="sm" onClick={() => applyGrnQuery({ page: Math.min(grnTotalPages, grnPage + 1) })} disabled={grnPage >= grnTotalPages}>
                                         Selanjutnya
                                     </Button>
                                 </div>
@@ -1547,7 +1617,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                         Export CSV
                                     </Button>
                                 </div>
-                                <div className="grid gap-2 md:grid-cols-4">
+                                <div className="grid gap-2 md:grid-cols-5">
                                     <Input
                                         placeholder="Cari periode payroll..."
                                         value={payrollSearch}
@@ -1566,6 +1636,9 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </Select>
                                     <Input type="date" value={payrollStartDate} onChange={(event) => setPayrollStartDate(event.target.value)} />
                                     <Input type="date" value={payrollEndDate} onChange={(event) => setPayrollEndDate(event.target.value)} />
+                                    <Button variant="secondary" onClick={() => applyPayrollQuery({ page: 1 })}>
+                                        Terapkan
+                                    </Button>
                                 </div>
                             </div>
                         </CardHeader>
@@ -1603,10 +1676,10 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                             </Table>
                             <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div className="text-sm text-muted-foreground">
-                                    Menampilkan {getRangeLabel(filteredPayrollRows.length, payrollPage, payrollPageSize)} dari {filteredPayrollRows.length} dokumen
+                                    Menampilkan {getRangeLabel(data.documentsMeta.payrollRuns.total, payrollPage, payrollPageSize)} dari {data.documentsMeta.payrollRuns.total} dokumen
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <Select value={payrollPageSize} onValueChange={setPayrollPageSize}>
+                                    <Select value={payrollPageSize} onValueChange={(value) => applyPayrollQuery({ pageSize: value, page: 1 })}>
                                         <SelectTrigger className="w-[130px]">
                                             <SelectValue placeholder="Rows/page" />
                                         </SelectTrigger>
@@ -1617,13 +1690,13 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             <SelectItem value="100">100 / halaman</SelectItem>
                                         </SelectContent>
                                     </Select>
-                                    <Button variant="outline" size="sm" onClick={() => setPayrollPage((prev) => Math.max(1, prev - 1))} disabled={payrollPage <= 1}>
+                                    <Button variant="outline" size="sm" onClick={() => applyPayrollQuery({ page: Math.max(1, payrollPage - 1) })} disabled={payrollPage <= 1}>
                                         Sebelumnya
                                     </Button>
                                     <div className="min-w-[84px] text-center text-sm font-medium">
                                         Hal {payrollPage} / {payrollTotalPages}
                                     </div>
-                                    <Button variant="outline" size="sm" onClick={() => setPayrollPage((prev) => Math.min(payrollTotalPages, prev + 1))} disabled={payrollPage >= payrollTotalPages}>
+                                    <Button variant="outline" size="sm" onClick={() => applyPayrollQuery({ page: Math.min(payrollTotalPages, payrollPage + 1) })} disabled={payrollPage >= payrollTotalPages}>
                                         Selanjutnya
                                     </Button>
                                 </div>
