@@ -1,18 +1,13 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import {
-    ShoppingBag,
-    MoreHorizontal,
     Truck,
     FileText,
     AlertCircle,
     CheckCircle2,
-    Clock,
     Factory,
     Loader2,
 } from "lucide-react"
@@ -31,11 +26,11 @@ interface SalesOrder {
         code: string
     }
     orderDate: string
-    requestedDate: string
+    requestedDate: string | null
     status: string
     total: number
     itemCount: number
-    notes: string
+    notes?: string
 }
 
 interface OrderExecutionCardProps {
@@ -48,14 +43,17 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
     const [woCreated, setWoCreated] = useState(false)
     const [woError, setWoError] = useState<string | null>(null)
 
-    // Mock Production Progress based on status
+    // Production progress estimation based on sales order status
     const getProgress = (status: string) => {
         switch (status) {
             case 'DRAFT': return 0
             case 'CONFIRMED': return 10
-            case 'PROCESSING': return 45 // Weaving/Dyeing
+            case 'IN_PROGRESS': return 45 // Weaving/Dyeing
+            case 'PROCESSING': return 45 // Legacy backward compatibility
             case 'SHIPPED': return 90
             case 'DELIVERED': return 100
+            case 'INVOICED': return 100
+            case 'COMPLETED': return 100
             default: return 0
         }
     }
@@ -66,7 +64,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
     const margin = Math.floor(Math.random() * (25 - 10) + 10)
 
     // Check if we can create work orders
-    const canCreateWorkOrders = order.status === 'CONFIRMED' || order.status === 'PROCESSING'
+    const canCreateWorkOrders = ['CONFIRMED', 'IN_PROGRESS', 'PROCESSING'].includes(order.status)
 
     const handleCreateWorkOrders = async () => {
         setIsCreatingWO(true)
@@ -91,7 +89,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
             } else {
                 setWoError(data.error || 'Failed to create work orders')
             }
-        } catch (err) {
+        } catch {
             setWoError('Network error. Please try again.')
         } finally {
             setIsCreatingWO(false)
@@ -111,7 +109,7 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                         <span className="text-[10px] text-muted-foreground">{order.orderDate}</span>
                     </div>
                     <h3 className="font-black text-sm uppercase truncate">{order.customer.name}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{order.notes}</p>
+                    <p className="text-xs text-muted-foreground truncate">{order.notes || '-'}</p>
                 </div>
 
                 {/* 2. Value & Margin (Col 2) */}
@@ -205,4 +203,3 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
         </div>
     )
 }
-

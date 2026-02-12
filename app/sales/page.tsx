@@ -1,162 +1,304 @@
-"use client"
-
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter, CardAction } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import {
-  FileText,
-  PlusCircle,
-  TrendingUp,
-  TrendingDown,
-  DollarSign,
-  AlertTriangle,
-  Factory,
-  ArrowRight
-} from "lucide-react"
 import Link from "next/link"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ArrowRight, CircleDollarSign, FileText, Package, Users } from "lucide-react"
 
-import { SalesActionCenter } from "@/components/sales-dashboard/sales-action-center"
-import { SalesPipelineWidget } from "@/components/sales-dashboard/sales-pipeline"
-import { OrderBookWidget } from "@/components/sales-dashboard/order-book"
-import { ProductVariantWidget } from "@/components/sales-dashboard/product-variants"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { prisma } from "@/lib/prisma"
 
-export default function SalesDashboard() {
+const formatIDR = (value: number) => {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(value)
+}
+
+const toNumber = (value: unknown, fallback = 0) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+export default async function SalesDashboardPage() {
+  const [
+    monthlyRevenue,
+    orderStats,
+    quotationStats,
+    leadStats,
+    openAR,
+    recentOrders,
+    recentQuotations,
+  ] = await Promise.all([
+    prisma.invoice.aggregate({
+      _sum: {
+        totalAmount: true,
+      },
+      where: {
+        type: "INV_OUT",
+        status: {
+          notIn: ["CANCELLED", "VOID"],
+        },
+        issueDate: {
+          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+        },
+      },
+    }),
+    prisma.salesOrder.groupBy({
+      by: ["status"],
+      _count: {
+        _all: true,
+      },
+      _sum: {
+        total: true,
+      },
+    }),
+    prisma.quotation.groupBy({
+      by: ["status"],
+      _count: {
+        _all: true,
+      },
+      _sum: {
+        total: true,
+      },
+    }),
+    prisma.lead.groupBy({
+      by: ["status"],
+      _count: {
+        _all: true,
+      },
+      _sum: {
+        estimatedValue: true,
+      },
+    }),
+    prisma.invoice.aggregate({
+      _sum: {
+        balanceDue: true,
+      },
+      where: {
+        type: "INV_OUT",
+        status: {
+          in: ["ISSUED", "PARTIAL", "OVERDUE"],
+        },
+      },
+    }),
+    prisma.salesOrder.findMany({
+      take: 8,
+      orderBy: {
+        orderDate: "desc",
+      },
+      include: {
+        customer: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
+    prisma.quotation.findMany({
+      take: 8,
+      orderBy: {
+        quotationDate: "desc",
+      },
+      include: {
+        customer: {
+          select: {
+            name: true,
+          },
+        },
+      },
+    }),
+  ])
+
+  const totalOrders = orderStats.reduce((sum, row) => sum + (row._count._all || 0), 0)
+  const totalOrderValue = orderStats.reduce((sum, row) => sum + toNumber(row._sum.total), 0)
+  const activeOrders = orderStats
+    .filter((row) => ["CONFIRMED", "IN_PROGRESS", "DELIVERED", "INVOICED"].includes(row.status))
+    .reduce((sum, row) => sum + (row._count._all || 0), 0)
+
+  const activeQuotes = quotationStats
+    .filter((row) => ["DRAFT", "SENT", "ACCEPTED"].includes(row.status))
+    .reduce((sum, row) => sum + (row._count._all || 0), 0)
+
+  const quotePipelineValue = quotationStats
+    .filter((row) => ["DRAFT", "SENT", "ACCEPTED"].includes(row.status))
+    .reduce((sum, row) => sum + toNumber(row._sum.total), 0)
+
+  const totalLeads = leadStats.reduce((sum, row) => sum + (row._count._all || 0), 0)
+  const openLeadValue = leadStats
+    .filter((row) => !["WON", "LOST"].includes(row.status))
+    .reduce((sum, row) => sum + toNumber(row._sum.estimatedValue), 0)
+
   return (
-    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-zinc-50/50 dark:bg-black min-h-screen">
-      {/* Header */}
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 bg-zinc-50/50 min-h-screen">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Command Center Penjualan</h2>
-          <p className="text-muted-foreground">
-            Monitor penjualan tekstil, kapasitas produksi, dan backlog order.
-          </p>
+          <p className="text-muted-foreground">Monitor performa Sales, CRM pipeline, dan status eksekusi order.</p>
         </div>
+
         <div className="flex items-center gap-2">
           <Button variant="outline" asChild>
             <Link href="/sales/quotations/new">
-              <FileText className="mr-2 h-4 w-4" /> Buat Penawaran
+              <FileText className="mr-2 h-4 w-4" />
+              Buat Quotation
             </Link>
           </Button>
           <Button asChild>
             <Link href="/sales/orders/new">
-              <PlusCircle className="mr-2 h-4 w-4" /> Order Baru
+              <Package className="mr-2 h-4 w-4" />
+              Buat Sales Order
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Top Row: Textile Specific KPIs - Ritchie Minimal */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden">
-          <CardHeader className="pb-3 border-b border-black bg-zinc-50 dark:bg-zinc-900">
-            <CardDescription className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Total Penjualan</CardDescription>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl font-black">Rp 2.45 M</CardTitle>
-              <Badge variant="outline" className="bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                <TrendingUp className="mr-1 h-3 w-3" /> +12.5%
-              </Badge>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader className="pb-2">
+            <CardDescription className="font-bold uppercase tracking-wide text-xs">Revenue Bulan Ini</CardDescription>
+            <CardTitle className="text-2xl font-black text-emerald-700">{formatIDR(toNumber(monthlyRevenue._sum.totalAmount))}</CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
-            <div className="text-xs text-muted-foreground flex gap-1 items-center">
-              <span className="font-black text-foreground">GROSS MARGIN:</span> <span className="text-emerald-600 font-bold">18.2%</span> (Target: 15%)
-            </div>
-          </CardContent>
         </Card>
 
-        <Card className="border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden">
-          <CardHeader className="pb-3 border-b border-black bg-zinc-50 dark:bg-zinc-900">
-            <CardDescription className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Order Book</CardDescription>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl font-black">Rp 3.8 M</CardTitle>
-              <div className="h-8 w-8 rounded border border-black bg-white flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                <Factory className="h-4 w-4 text-black" />
-              </div>
-            </div>
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader className="pb-2">
+            <CardDescription className="font-bold uppercase tracking-wide text-xs">Sales Orders</CardDescription>
+            <CardTitle className="text-2xl font-black">{totalOrders}</CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
-            <div className="text-xs text-muted-foreground">
-              <span className="font-black text-orange-600 uppercase">High Production Load</span>. Batches delayed.
-            </div>
-          </CardContent>
+          <CardContent className="text-xs text-muted-foreground">Value {formatIDR(totalOrderValue)}</CardContent>
         </Card>
 
-        <Card className="border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden">
-          <CardHeader className="pb-3 border-b border-black bg-zinc-50 dark:bg-zinc-900">
-            <CardDescription className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Active Quotes</CardDescription>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-2xl font-black">45 Quotes</CardTitle>
-              <span className="text-xs font-black border border-black px-2 py-1 rounded bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">Rp 5.2 M</span>
-            </div>
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader className="pb-2">
+            <CardDescription className="font-bold uppercase tracking-wide text-xs">Order Aktif</CardDescription>
+            <CardTitle className="text-2xl font-black text-blue-700">{activeOrders}</CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
-            <div className="h-2 w-full bg-zinc-100 border border-black rounded-full overflow-hidden mt-1">
-              <div className="h-full bg-black" style={{ width: '45%' }} />
-            </div>
-            <p className="text-[10px] uppercase font-bold text-muted-foreground mt-2">45% Hot Leads Probability</p>
-          </CardContent>
         </Card>
 
-        <Card className="border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden">
-          <CardHeader className="pb-3 border-b border-black bg-zinc-50 dark:bg-zinc-900">
-            <CardDescription className="font-bold text-xs uppercase tracking-wider text-muted-foreground">Piutang (AR)</CardDescription>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-black text-red-600">Rp 850 Jt</CardTitle>
-              <Badge variant="destructive" className="h-5 text-[10px] border-black rounded-sm shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">HIGH RISK</Badge>
-            </div>
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader className="pb-2">
+            <CardDescription className="font-bold uppercase tracking-wide text-xs">Quotation Aktif</CardDescription>
+            <CardTitle className="text-2xl font-black">{activeQuotes}</CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
-            <div className="text-xs text-muted-foreground flex justify-between items-center border border-black/10 p-2 rounded bg-red-50">
-              <span className="font-bold text-red-900 uppercase">Avg DSO Limit</span>
-              <span className="font-black text-red-600">42 Days</span>
-            </div>
-          </CardContent>
+          <CardContent className="text-xs text-muted-foreground">Pipeline {formatIDR(quotePipelineValue)}</CardContent>
+        </Card>
+
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader className="pb-2">
+            <CardDescription className="font-bold uppercase tracking-wide text-xs">AR Outstanding</CardDescription>
+            <CardTitle className="text-2xl font-black text-orange-700">{formatIDR(toNumber(openAR._sum.balanceDue))}</CardTitle>
+          </CardHeader>
         </Card>
       </div>
 
-      {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
-        {/* Visual Pipeline */}
-        <SalesPipelineWidget />
-        {/* Action Center - To Do List */}
-        <SalesActionCenter />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-6">
-        {/* Order Book vs Capacity */}
-        <OrderBookWidget />
-        {/* Product Variants Analysis */}
-        <ProductVariantWidget />
-      </div>
-
-      {/* Tabs for Detailed Tables */}
-      <Tabs defaultValue="orders" className="w-full">
-        <TabsList>
-          <TabsTrigger value="orders">Sales Orders Terkini</TabsTrigger>
-          <TabsTrigger value="discounts">Diskon & Margin</TabsTrigger>
-          <TabsTrigger value="risk">Resiko Pembayaran</TabsTrigger>
-        </TabsList>
-        <TabsContent value="orders">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader>
+            <CardTitle className="text-xl font-black flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Sales Order Terbaru
+            </CardTitle>
+            <CardDescription>Order terbaru untuk koordinasi produksi dan pengiriman.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Belum ada sales order.</p>
+            ) : recentOrders.map((order) => (
+              <div key={order.id} className="rounded-lg border p-3 flex items-center justify-between gap-3">
                 <div>
-                  <CardTitle>Sales Orders Terbaru</CardTitle>
-                  <CardDescription>Monitoring status order dan jadwal kirim.</CardDescription>
+                  <p className="font-semibold">{order.number}</p>
+                  <p className="text-sm text-muted-foreground">{order.customer.name} • {new Date(order.orderDate).toLocaleDateString("id-ID")}</p>
                 </div>
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href="/sales/orders">Lihat Semua <ArrowRight className="ml-2 h-4 w-4" /></Link>
-                </Button>
+                <div className="text-right">
+                  <p className="font-bold">{formatIDR(toNumber(order.total))}</p>
+                  <p className="text-xs text-muted-foreground">{order.status}</p>
+                </div>
               </div>
-            </CardHeader>
-            {/* Placeholder for table, preserving clean layout */}
-            <div className="p-6 text-center text-sm text-muted-foreground border-t bg-zinc-50/50">
-              Widget tabel lengkap akan dimuat di sini...
+            ))}
+
+            <Button variant="outline" className="w-full" asChild>
+              <Link href="/sales/orders">
+                Lihat Semua Sales Order
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader>
+            <CardTitle className="text-xl font-black flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              CRM Snapshot
+            </CardTitle>
+            <CardDescription>Ringkasan pipeline lead dan quotation.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs uppercase text-muted-foreground">Total Leads</p>
+              <p className="text-2xl font-black">{totalLeads}</p>
+              <p className="text-xs text-muted-foreground">Open value: {formatIDR(openLeadValue)}</p>
             </div>
-          </Card>
-        </TabsContent>
-      </Tabs>
+
+            <div className="rounded-lg border p-3">
+              <p className="text-xs uppercase text-muted-foreground">Recent Quotations</p>
+              <div className="space-y-2 mt-2">
+                {recentQuotations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Belum ada quotation.</p>
+                ) : recentQuotations.slice(0, 4).map((quote) => (
+                  <div key={quote.id} className="text-sm">
+                    <p className="font-semibold">{quote.number}</p>
+                    <p className="text-muted-foreground">{quote.customer.name} • {quote.status}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="outline" asChild>
+                <Link href="/sales/leads">CRM Leads</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/sales/quotations">Quotations</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader>
+            <CardTitle className="text-base font-black flex items-center gap-2">
+              <CircleDollarSign className="h-4 w-4" />
+              Link Cepat Keuangan
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Link href="/finance/invoices" className="block hover:underline">Penerimaan (AR)</Link>
+            <Link href="/finance/journal" className="block hover:underline">Jurnal Umum</Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader>
+            <CardTitle className="text-base font-black">Eksekusi Order</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Link href="/sales/orders" className="block hover:underline">Sales Order Queue</Link>
+            <Link href="/manufacturing" className="block hover:underline">Manufacturing Work Orders</Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+          <CardHeader>
+            <CardTitle className="text-base font-black">Master Data</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <Link href="/sales/customers" className="block hover:underline">Customer Master</Link>
+            <Link href="/inventory" className="block hover:underline">Product & Stock Master</Link>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

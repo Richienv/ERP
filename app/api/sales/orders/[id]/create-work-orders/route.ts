@@ -43,10 +43,12 @@ export async function POST(
             )
         }
 
-        // Only allow work order creation for confirmed sales orders
-        if (salesOrder.status !== 'CONFIRMED' && salesOrder.status !== 'PROCESSING') {
+        // Only allow work order creation for confirmed or in-progress sales orders.
+        // Keep PROCESSING for backward compatibility with legacy records.
+        const canCreateForStatuses = ['CONFIRMED', 'IN_PROGRESS', 'PROCESSING']
+        if (!canCreateForStatuses.includes(String(salesOrder.status))) {
             return NextResponse.json(
-                { success: false, error: `Cannot create work orders for ${salesOrder.status} orders. Order must be CONFIRMED or PROCESSING.` },
+                { success: false, error: `Cannot create work orders for ${salesOrder.status} orders. Order must be CONFIRMED or IN_PROGRESS.` },
                 { status: 400 }
             )
         }
@@ -111,11 +113,11 @@ export async function POST(
             sequence++
         }
 
-        // Update sales order status to PROCESSING if it was CONFIRMED
+        // Update sales order status to IN_PROGRESS if it was CONFIRMED
         if (salesOrder.status === 'CONFIRMED') {
             await prisma.salesOrder.update({
                 where: { id },
-                data: { status: 'PROCESSING' },
+                data: { status: 'IN_PROGRESS' },
             })
         }
 
@@ -192,7 +194,7 @@ export async function GET(
             data: {
                 salesOrderNumber: salesOrder.number,
                 status: salesOrder.status,
-                canCreateWorkOrders: salesOrder.status === 'CONFIRMED' || salesOrder.status === 'PROCESSING',
+                canCreateWorkOrders: ['CONFIRMED', 'IN_PROGRESS', 'PROCESSING'].includes(String(salesOrder.status)),
                 itemsNeedingWorkOrders: itemsWithoutWorkOrders.map(item => ({
                     id: item.id,
                     product: item.product,

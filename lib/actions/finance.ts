@@ -1128,28 +1128,68 @@ export async function createCustomerInvoice(data: {
 // PROCUREMENT INTEGRATION
 // ==========================================
 
-export async function recordPendingBillFromPO(po: any) {
+export async function recordPendingBillFromPO(
+    po: any,
+    options?: { forceCreate?: boolean; requireConfirmationOnDuplicate?: boolean }
+) {
     try {
         console.log("Creating/Updating Finance Bill for PO:", po.number)
 
         return await withPrismaAuth(async (prisma) => {
             // Check if Bill already exists for this PO
             const existingBill = await prisma.invoice.findFirst({
-                where: { orderId: po.id, type: 'INV_IN' }
+                where: {
+                    type: 'INV_IN',
+                    OR: [{ orderId: po.id }, { purchaseOrderId: po.id }],
+                    status: { notIn: ['CANCELLED', 'VOID'] }
+                },
+                orderBy: { createdAt: 'desc' }
             })
 
             if (existingBill) {
                 console.log("Bill already exists:", existingBill.number)
-                return { success: true, billId: existingBill.id }
+                if (!options?.forceCreate) {
+                    if (options?.requireConfirmationOnDuplicate) {
+                        return {
+                            success: false,
+                            code: 'INVOICE_ALREADY_EXISTS',
+                            requiresConfirmation: true,
+                            existingInvoiceId: existingBill.id,
+                            existingInvoiceNumber: existingBill.number,
+                            existingInvoiceStatus: existingBill.status,
+                            error: `Bill ${existingBill.number} already exists for this PO`
+                        } as const
+                    }
+
+                    return {
+                        success: true,
+                        billId: existingBill.id,
+                        billNumber: existingBill.number,
+                        alreadyExists: true,
+                        existingStatus: existingBill.status
+                    } as const
+                }
             }
+
+            const billBaseNumber = `BILL-${po.number}`
+            const duplicateCount = await prisma.invoice.count({
+                where: {
+                    type: 'INV_IN',
+                    number: { startsWith: billBaseNumber }
+                }
+            })
+            const billNumber = duplicateCount > 0
+                ? `${billBaseNumber}-${String(duplicateCount + 1).padStart(2, '0')}`
+                : billBaseNumber
 
             // Create new Bill (Invoice Type IN)
             const bill = await prisma.invoice.create({
                 data: {
-                    number: `BILL-${po.number}`,
+                    number: billNumber,
                     type: 'INV_IN',
                     supplierId: po.supplierId,
                     orderId: po.id,
+                    purchaseOrderId: po.id,
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
@@ -1170,7 +1210,7 @@ export async function recordPendingBillFromPO(po: any) {
             })
 
             console.log("Bill Created:", bill.number)
-            return { success: true, billId: bill.id }
+            return { success: true, billId: bill.id, billNumber: bill.number, alreadyExists: false } as const
         })
     } catch (error) {
         console.error("Failed to record pending bill:", error)
@@ -1182,7 +1222,10 @@ export async function recordPendingBillFromPO(po: any) {
 // SALES INTEGRATION
 // ==========================================
 
-export async function createInvoiceFromSalesOrder(salesOrderId: string) {
+export async function createInvoiceFromSalesOrder(
+    salesOrderId: string,
+    options?: { forceCreate?: boolean }
+) {
     try {
         console.log("Creating Customer Invoice for Sales Order:", salesOrderId)
 
@@ -1212,13 +1255,23 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
             const existingInvoice = await prisma.invoice.findFirst({
                 where: {
                     salesOrderId: salesOrder.id,
-                    type: 'INV_OUT'
-                }
+                    type: 'INV_OUT',
+                    status: { notIn: ['CANCELLED', 'VOID'] }
+                },
+                orderBy: { createdAt: 'desc' }
             })
 
-            if (existingInvoice) {
+            if (existingInvoice && !options?.forceCreate) {
                 console.log("Invoice already exists:", existingInvoice.number)
-                return { success: true as const, invoiceId: existingInvoice.id, invoiceNumber: existingInvoice.number }
+                return {
+                    success: false as const,
+                    code: 'INVOICE_ALREADY_EXISTS',
+                    requiresConfirmation: true as const,
+                    existingInvoiceId: existingInvoice.id,
+                    existingInvoiceNumber: existingInvoice.number,
+                    existingInvoiceStatus: existingInvoice.status,
+                    error: `Invoice ${existingInvoice.number} already exists for this Sales Order`
+                }
             }
 
             // Generate Invoice Number
@@ -1329,7 +1382,12 @@ export async function getPendingSalesOrders() {
         const orders = await prisma.salesOrder.findMany({
             where: {
                 status: 'CONFIRMED',
-                invoices: { none: {} } // Only those without an invoice yet
+                invoices: {
+                    none: {
+                        type: 'INV_OUT',
+                        status: { notIn: ['CANCELLED', 'VOID'] }
+                    }
+                }
             },
             include: {
                 customer: { select: { id: true, name: true } }
@@ -1353,19 +1411,36 @@ export async function getPendingSalesOrders() {
  */
 export async function getPendingPurchaseOrders() {
     return withPrismaAuth(async (prisma) => {
-        const orders = await prisma.purchaseOrder.findMany({
-            where: {
-                status: { in: ['RECEIVED', 'ORDERED', 'APPROVED'] }, // Allow APPROVED for early billing
-                invoices: { none: {} } // Only those without a bill yet
-            },
-            include: {
-                supplier: { select: { id: true, name: true } }
-            },
-            orderBy: { orderDate: 'desc' },
-            take: 100
-        })
+        const [orders, existingBills] = await Promise.all([
+            prisma.purchaseOrder.findMany({
+                where: {
+                    status: { in: ['RECEIVED', 'ORDERED', 'APPROVED'] }, // Allow APPROVED for early billing
+                },
+                include: {
+                    supplier: { select: { id: true, name: true } }
+                },
+                orderBy: { orderDate: 'desc' },
+                take: 100
+            }),
+            prisma.invoice.findMany({
+                where: {
+                    type: 'INV_IN',
+                    status: { notIn: ['CANCELLED', 'VOID'] },
+                    OR: [{ purchaseOrderId: { not: null } }, { orderId: { not: null } }]
+                },
+                select: { purchaseOrderId: true, orderId: true }
+            })
+        ])
 
-        return orders.map(o => ({
+        const poIdsWithBill = new Set<string>()
+        for (const bill of existingBills) {
+            if (bill.purchaseOrderId) poIdsWithBill.add(bill.purchaseOrderId)
+            if (bill.orderId) poIdsWithBill.add(bill.orderId)
+        }
+
+        const pendingOrders = orders.filter((order) => !poIdsWithBill.has(order.id))
+
+        return pendingOrders.map(o => ({
             id: o.id,
             number: o.number,
             vendorName: (o as any).supplier?.name || 'Unknown',
@@ -1378,7 +1453,10 @@ export async function getPendingPurchaseOrders() {
 /**
  * Create a Bill (INV_IN) from a Purchase Order ID
  */
-export async function createBillFromPOId(poId: string) {
+export async function createBillFromPOId(
+    poId: string,
+    options?: { forceCreate?: boolean }
+) {
     try {
         return await withPrismaAuth(async (prisma) => {
             const po = await prisma.purchaseOrder.findUnique({
@@ -1393,7 +1471,10 @@ export async function createBillFromPOId(poId: string) {
             })
 
             if (!po) throw new Error("Purchase Order not found")
-            return await recordPendingBillFromPO(po)
+            return await recordPendingBillFromPO(po, {
+                forceCreate: options?.forceCreate,
+                requireConfirmationOnDuplicate: true
+            })
         })
     } catch (error: any) {
         console.error("Failed to create bill from PO:", error)
@@ -1685,22 +1766,33 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
     try {
         return await withPrismaAuth(async (prisma) => {
             const now = new Date()
-            const dueDate = new Date(now)
-            dueDate.setDate(dueDate.getDate() + 30) // 30-day countdown
+            const existing = await prisma.invoice.findUnique({
+                where: { id: invoiceId },
+                select: { id: true, dueDate: true }
+            })
+
+            if (!existing) {
+                throw new Error("Invoice not found")
+            }
+
+            const fallbackDueDate = new Date(now)
+            fallbackDueDate.setDate(fallbackDueDate.getDate() + 30)
+            const dueDate = existing.dueDate || fallbackDueDate
+            const nextStatus = dueDate < now ? 'OVERDUE' : 'ISSUED'
 
             const invoice = await prisma.invoice.update({
                 where: { id: invoiceId },
                 data: {
-                    status: 'ISSUED', // Sent Column
+                    status: nextStatus,
                     issueDate: now,
-                    dueDate: dueDate, // Start Countdown
+                    dueDate, // Preserve user-selected due date when available.
                 }
             })
 
             // Log activity or "send" message (mock for now)
             console.log(`Sending Invoice ${invoice.number} via ${method}: ${message}`)
 
-            return { success: true, dueDate }
+            return { success: true, dueDate, status: nextStatus }
         })
     } catch (error) {
         console.error("Failed to move invoice to sent:", error)

@@ -1,510 +1,486 @@
 "use client"
 
-import { useState } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Plus,
-  Trash2,
-  Search,
-  Calculator,
-  Building2,
-  Package,
-  Calendar,
-  User,
-  FileText
-} from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { Building2, Calendar, FileText, Package, Plus, Trash2, User } from "lucide-react"
 import { toast } from "sonner"
 
-// Quotation schema validation
-const quotationSchema = z.object({
-  customerId: z.string().min(1, "Customer harus dipilih"),
-  customerRef: z.string().optional(),
-  quotationDate: z.string().min(1, "Tanggal quotation harus diisi"),
-  validUntil: z.string().min(1, "Valid until harus diisi"),
-  salesPersonId: z.string().min(1, "Sales person harus dipilih"),
-  notes: z.string().optional(),
-  terms: z.string().optional(),
-  items: z.array(z.object({
-    productId: z.string().min(1, "Produk harus dipilih"),
-    productName: z.string(),
-    description: z.string().optional(),
-    quantity: z.number().min(1, "Quantity minimal 1"),
-    unit: z.string(),
-    unitPrice: z.number().min(0, "Harga unit tidak valid"),
-    discount: z.number().min(0).max(100, "Discount maksimal 100%"),
-    total: z.number()
-  })).min(1, "Minimal harus ada 1 item")
-})
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
 
-type QuotationFormData = z.infer<typeof quotationSchema>
-
-// Mock data untuk dropdown
-const mockCustomers = [
-  { id: "1", name: "PT. Maju Bersama", type: "Perusahaan" },
-  { id: "2", name: "CV. Sukses Mandiri", type: "Perusahaan" },
-  { id: "3", name: "PT. Berkah Jaya", type: "Perusahaan" },
-  { id: "4", name: "UD. Sumber Rejeki", type: "Usaha Dagang" },
-  { id: "5", name: "PT. Cahaya Terang", type: "Perusahaan" }
-]
-
-const mockSalesPersons = [
-  { id: "1", name: "Ahmad Setiawan" },
-  { id: "2", name: "Siti Rahmawati" },
-  { id: "3", name: "Budi Prasetyo" },
-  { id: "4", name: "Rina Wulandari" }
-]
-
-const mockProducts = [
-  { id: "1", name: "Laptop Dell Inspiron 15", sku: "LAPTOP-001", price: 8500000, unit: "pcs" },
-  { id: "2", name: "Mouse Wireless Logitech", sku: "MOUSE-001", price: 250000, unit: "pcs" },
-  { id: "3", name: "Printer Canon Pixma", sku: "PRINTER-001", price: 1200000, unit: "pcs" },
-  { id: "4", name: "Monitor Samsung 24 inch", sku: "MONITOR-001", price: 2800000, unit: "pcs" },
-  { id: "5", name: "Keyboard Mechanical", sku: "KEYBOARD-001", price: 850000, unit: "pcs" }
-]
-
-interface QuotationItem {
-  productId: string
-  productName: string
-  description?: string
-  quantity: number
-  unit: string
-  unitPrice: number
-  discount: number
-  total: number
+interface CustomerOption {
+  id: string
+  code: string
+  name: string
 }
 
-// Format currency
+interface ProductOption {
+  id: string
+  code: string
+  name: string
+  unit: string
+  sellingPrice: number
+}
+
+interface UserOption {
+  id: string
+  name: string | null
+  email: string | null
+}
+
+interface QuotationLine {
+  productId: string
+  description: string
+  quantity: number
+  unitPrice: number
+  discount: number
+  taxRate: number
+}
+
+interface SalesOptionsResponse {
+  success: boolean
+  data?: {
+    customers?: CustomerOption[]
+    products?: ProductOption[]
+    users?: UserOption[]
+  }
+  error?: string
+}
+
 const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    maximumFractionDigits: 0,
   }).format(amount)
 }
 
 export function QuotationForm() {
-  const [quotationItems, setQuotationItems] = useState<QuotationItem[]>([])
-  const [showProductSearch, setShowProductSearch] = useState(false)
+  const router = useRouter()
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-    reset
-  } = useForm<QuotationFormData>({
-    resolver: zodResolver(quotationSchema),
-    defaultValues: {
-      quotationDate: new Date().toISOString().split('T')[0],
-      validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 weeks from now
-      items: []
-    }
+  const [customers, setCustomers] = useState<CustomerOption[]>([])
+  const [products, setProducts] = useState<ProductOption[]>([])
+  const [salesPersons, setSalesPersons] = useState<UserOption[]>([])
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+
+  const [form, setForm] = useState({
+    customerId: "",
+    customerRef: "",
+    quotationDate: new Date().toISOString().slice(0, 10),
+    validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    salesPersonId: "",
+    paymentTerm: "NET_30",
+    deliveryTerm: "",
+    notes: "",
   })
 
-  // Add product to quotation
-  const addProduct = (product: typeof mockProducts[0]) => {
-    const newItem: QuotationItem = {
-      productId: product.id,
-      productName: product.name,
+  const [lines, setLines] = useState<QuotationLine[]>([
+    {
+      productId: "",
       description: "",
       quantity: 1,
-      unit: product.unit,
-      unitPrice: product.price,
+      unitPrice: 0,
       discount: 0,
-      total: product.price
+      taxRate: 11,
+    },
+  ])
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      setLoadingOptions(true)
+      try {
+        const response = await fetch("/api/sales/options", { cache: "no-store" })
+        const payload: SalesOptionsResponse = await response.json()
+
+        if (!payload.success || !payload.data) {
+          throw new Error(payload.error || "Gagal memuat data referensi")
+        }
+
+        setCustomers(payload.data.customers || [])
+        setProducts(payload.data.products || [])
+        setSalesPersons(payload.data.users || [])
+      } catch (error: any) {
+        toast.error(error?.message || "Gagal memuat data referensi")
+      } finally {
+        setLoadingOptions(false)
+      }
     }
 
-    setQuotationItems([...quotationItems, newItem])
-    setShowProductSearch(false)
+    loadOptions()
+  }, [])
+
+  const updateForm = (key: keyof typeof form, value: string) => {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }))
   }
 
-  // Remove product from quotation
-  const removeProduct = (index: number) => {
-    const updatedItems = quotationItems.filter((_, i) => i !== index)
-    setQuotationItems(updatedItems)
+  const updateLine = (index: number, patch: Partial<QuotationLine>) => {
+    setLines((current) => current.map((line, lineIndex) => (
+      lineIndex === index
+        ? {
+            ...line,
+            ...patch,
+          }
+        : line
+    )))
   }
 
-  // Update quotation item
-  const updateQuotationItem = (index: number, field: keyof QuotationItem, value: string | number) => {
-    const updatedItems = [...quotationItems]
-    updatedItems[index] = { ...updatedItems[index], [field]: value }
+  const onProductSelect = (index: number, productId: string) => {
+    const product = products.find((item) => item.id === productId)
+    if (!product) return
 
-    // Recalculate total when quantity, unit price, or discount changes
-    if (field === 'quantity' || field === 'unitPrice' || field === 'discount') {
-      const item = updatedItems[index]
-      const subtotal = item.quantity * item.unitPrice
-      const discountAmount = (subtotal * item.discount) / 100
-      updatedItems[index].total = subtotal - discountAmount
-    }
-
-    setQuotationItems(updatedItems)
-  }
-
-  // Calculate totals
-  const calculateTotals = () => {
-    const subtotal = quotationItems.reduce((sum, item) => sum + item.total, 0)
-    const totalDiscount = quotationItems.reduce((sum, item) => {
-      const itemSubtotal = item.quantity * item.unitPrice
-      return sum + ((itemSubtotal * item.discount) / 100)
-    }, 0)
-    const taxAmount = subtotal * 0.11 // PPN 11%
-    const grandTotal = subtotal + taxAmount
-
-    return {
-      subtotal,
-      totalDiscount,
-      taxAmount,
-      grandTotal
-    }
-  }
-
-  const totals = calculateTotals()
-
-  const onSubmit = (data: QuotationFormData) => {
-    const quotationData = {
-      ...data,
-      items: quotationItems,
-      totals
-    }
-
-    console.log("Quotation Data:", quotationData)
-    toast.success("Quotation berhasil dibuat!", {
-      description: "Data quotation akan diproses dan disimpan ke database."
+    updateLine(index, {
+      productId,
+      description: product.name,
+      unitPrice: product.sellingPrice,
     })
+  }
 
-    // Reset form
-    reset()
-    setQuotationItems([])
+  const addLine = () => {
+    setLines((current) => [
+      ...current,
+      {
+        productId: "",
+        description: "",
+        quantity: 1,
+        unitPrice: 0,
+        discount: 0,
+        taxRate: 11,
+      },
+    ])
+  }
+
+  const removeLine = (index: number) => {
+    setLines((current) => (current.length === 1 ? current : current.filter((_, lineIndex) => lineIndex !== index)))
+  }
+
+  const totals = useMemo(() => {
+    return lines.reduce((acc, line) => {
+      const quantity = Number(line.quantity || 0)
+      const unitPrice = Number(line.unitPrice || 0)
+      const discount = Number(line.discount || 0)
+      const taxRate = Number(line.taxRate || 0)
+
+      const lineSubtotal = quantity * unitPrice
+      const lineDiscount = lineSubtotal * (discount / 100)
+      const afterDiscount = lineSubtotal - lineDiscount
+      const lineTax = afterDiscount * (taxRate / 100)
+      const lineTotal = afterDiscount + lineTax
+
+      return {
+        subtotal: acc.subtotal + lineSubtotal,
+        discount: acc.discount + lineDiscount,
+        tax: acc.tax + lineTax,
+        grandTotal: acc.grandTotal + lineTotal,
+      }
+    }, {
+      subtotal: 0,
+      discount: 0,
+      tax: 0,
+      grandTotal: 0,
+    })
+  }, [lines])
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+
+    if (!form.customerId) {
+      toast.error("Customer wajib dipilih")
+      return
+    }
+
+    const validLines = lines.filter((line) => line.productId && Number(line.quantity) > 0)
+    if (validLines.length === 0) {
+      toast.error("Minimal satu item quotation wajib diisi")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const response = await fetch("/api/sales/quotations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          customerId: form.customerId,
+          customerRef: form.customerRef || undefined,
+          quotationDate: form.quotationDate,
+          validUntil: form.validUntil,
+          paymentTerm: form.paymentTerm,
+          deliveryTerm: form.deliveryTerm || undefined,
+          notes: form.notes || undefined,
+          salesPersonId: form.salesPersonId || undefined,
+          items: validLines,
+        }),
+      })
+
+      const payload = await response.json()
+      if (!payload.success) {
+        throw new Error(payload.error || "Gagal membuat quotation")
+      }
+
+      toast.success(`Quotation ${payload.data?.number || "baru"} berhasil dibuat`)
+      router.push("/sales/quotations")
+    } catch (error: any) {
+      toast.error(error?.message || "Gagal membuat quotation")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      {/* Header Information */}
+    <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
+          <CardTitle className="flex items-center gap-2">
             <FileText className="h-5 w-5" />
-            <span>Informasi Quotation</span>
+            Informasi Quotation
           </CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          {/* Customer */}
           <div className="space-y-2">
-            <Label htmlFor="customerId" className="flex items-center space-x-2">
-              <Building2 className="h-4 w-4" />
-              <span>Customer *</span>
-            </Label>
-            <Select onValueChange={(value) => setValue("customerId", value)}>
+            <Label className="flex items-center gap-2"><Building2 className="h-4 w-4" /> Customer *</Label>
+            <Select value={form.customerId} onValueChange={(value) => updateForm("customerId", value)} disabled={loadingOptions}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih customer..." />
+                <SelectValue placeholder="Pilih customer" />
               </SelectTrigger>
               <SelectContent>
-                {mockCustomers.map((customer) => (
+                {customers.map((customer) => (
                   <SelectItem key={customer.id} value={customer.id}>
-                    <div className="flex flex-col">
-                      <span>{customer.name}</span>
-                      <span className="text-xs text-muted-foreground">{customer.type}</span>
-                    </div>
+                    {customer.code} - {customer.name}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.customerId && (
-              <p className="text-sm text-red-500">{errors.customerId.message}</p>
-            )}
           </div>
 
-          {/* Customer Reference */}
           <div className="space-y-2">
-            <Label htmlFor="customerRef">Referensi Customer</Label>
+            <Label>Ref Customer</Label>
             <Input
-              id="customerRef"
-              placeholder="Nomor PO/Request customer..."
-              {...register("customerRef")}
+              value={form.customerRef}
+              onChange={(event) => updateForm("customerRef", event.target.value)}
+              placeholder="Nomor referensi customer"
             />
           </div>
 
-          {/* Quotation Date */}
           <div className="space-y-2">
-            <Label htmlFor="quotationDate" className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4" />
-              <span>Tanggal Quotation *</span>
-            </Label>
+            <Label className="flex items-center gap-2"><Calendar className="h-4 w-4" /> Tanggal Quotation</Label>
             <Input
-              id="quotationDate"
               type="date"
-              {...register("quotationDate")}
+              value={form.quotationDate}
+              onChange={(event) => updateForm("quotationDate", event.target.value)}
             />
-            {errors.quotationDate && (
-              <p className="text-sm text-red-500">{errors.quotationDate.message}</p>
-            )}
           </div>
 
-          {/* Valid Until */}
           <div className="space-y-2">
-            <Label htmlFor="validUntil">Valid Sampai *</Label>
+            <Label>Valid Sampai</Label>
             <Input
-              id="validUntil"
               type="date"
-              {...register("validUntil")}
+              value={form.validUntil}
+              onChange={(event) => updateForm("validUntil", event.target.value)}
             />
-            {errors.validUntil && (
-              <p className="text-sm text-red-500">{errors.validUntil.message}</p>
-            )}
           </div>
 
-          {/* Sales Person */}
           <div className="space-y-2">
-            <Label htmlFor="salesPersonId" className="flex items-center space-x-2">
-              <User className="h-4 w-4" />
-              <span>Sales Person *</span>
-            </Label>
-            <Select onValueChange={(value) => setValue("salesPersonId", value)}>
+            <Label className="flex items-center gap-2"><User className="h-4 w-4" /> Sales Person</Label>
+            <Select value={form.salesPersonId || "none"} onValueChange={(value) => updateForm("salesPersonId", value === "none" ? "" : value)}>
               <SelectTrigger>
-                <SelectValue placeholder="Pilih sales person..." />
+                <SelectValue placeholder="Pilih sales person" />
               </SelectTrigger>
               <SelectContent>
-                {mockSalesPersons.map((sales) => (
-                  <SelectItem key={sales.id} value={sales.id}>
-                    {sales.name}
+                <SelectItem value="none">Tanpa sales person</SelectItem>
+                {salesPersons.map((person) => (
+                  <SelectItem key={person.id} value={person.id}>
+                    {person.name || person.email || person.id}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            {errors.salesPersonId && (
-              <p className="text-sm text-red-500">{errors.salesPersonId.message}</p>
-            )}
           </div>
 
-          {/* Notes */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Catatan</Label>
+            <Label>Term Pembayaran</Label>
+            <Select value={form.paymentTerm} onValueChange={(value) => updateForm("paymentTerm", value)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="CASH">Cash</SelectItem>
+                <SelectItem value="NET_15">NET 15</SelectItem>
+                <SelectItem value="NET_30">NET 30</SelectItem>
+                <SelectItem value="NET_45">NET 45</SelectItem>
+                <SelectItem value="NET_60">NET 60</SelectItem>
+                <SelectItem value="NET_90">NET 90</SelectItem>
+                <SelectItem value="COD">COD</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Delivery Term</Label>
+            <Input
+              value={form.deliveryTerm}
+              onChange={(event) => updateForm("deliveryTerm", event.target.value)}
+              placeholder="Contoh: Ex-warehouse / FOB"
+            />
+          </div>
+
+          <div className="space-y-2 md:col-span-2">
+            <Label>Catatan</Label>
             <Textarea
-              id="notes"
-              placeholder="Catatan internal untuk quotation..."
-              {...register("notes")}
+              value={form.notes}
+              onChange={(event) => updateForm("notes", event.target.value)}
+              placeholder="Catatan untuk quotation"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Products Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Package className="h-5 w-5" />
-              <span>Produk Quotation</span>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowProductSearch(!showProductSearch)}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Tambah Produk
+            <span className="flex items-center gap-2"><Package className="h-5 w-5" /> Item Quotation</span>
+            <Button type="button" variant="outline" size="sm" onClick={addLine}>
+              <Plus className="mr-2 h-4 w-4" /> Tambah Item
             </Button>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Product Search */}
-          {showProductSearch && (
-            <Card className="mb-4">
-              <CardHeader>
-                <CardTitle className="text-sm">Pilih Produk</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-2">
-                  {mockProducts.map((product) => (
-                    <div
-                      key={product.id}
-                      className="flex items-center justify-between p-2 border rounded-lg hover:bg-gray-50 cursor-pointer"
-                      onClick={() => addProduct(product)}
-                    >
-                      <div>
-                        <div className="font-medium">{product.name}</div>
-                        <div className="text-sm text-muted-foreground">SKU: {product.sku}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="font-medium">{formatCurrency(product.price)}</div>
-                        <div className="text-sm text-muted-foreground">per {product.unit}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[260px]">Produk</TableHead>
+                  <TableHead className="w-24">Qty</TableHead>
+                  <TableHead className="w-44">Harga</TableHead>
+                  <TableHead className="w-24">Disc %</TableHead>
+                  <TableHead className="w-24">Tax %</TableHead>
+                  <TableHead className="w-40 text-right">Total</TableHead>
+                  <TableHead className="w-16" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {lines.map((line, index) => {
+                  const lineSubtotal = line.quantity * line.unitPrice
+                  const lineDiscount = lineSubtotal * (line.discount / 100)
+                  const afterDiscount = lineSubtotal - lineDiscount
+                  const lineTax = afterDiscount * (line.taxRate / 100)
+                  const lineTotal = afterDiscount + lineTax
 
-          {/* Quotation Items Table */}
-          {quotationItems.length > 0 ? (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produk</TableHead>
-                    <TableHead className="text-center w-20">Qty</TableHead>
-                    <TableHead className="text-center w-32">Harga Unit</TableHead>
-                    <TableHead className="text-center w-20">Disc %</TableHead>
-                    <TableHead className="text-center w-32">Total</TableHead>
-                    <TableHead className="text-center w-16">Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {quotationItems.map((item, index) => (
+                  return (
                     <TableRow key={index}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{item.productName}</div>
-                          <Input
-                            placeholder="Deskripsi tambahan..."
-                            value={item.description || ""}
-                            onChange={(e) => updateQuotationItem(index, "description", e.target.value)}
-                            className="mt-1 text-xs"
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell>
+                      <TableCell className="space-y-2">
+                        <Select
+                          value={line.productId || "none"}
+                          onValueChange={(value) => onProductSelect(index, value === "none" ? "" : value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih produk" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Pilih produk</SelectItem>
+                            {products.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.code} - {product.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) => updateQuotationItem(index, "quantity", parseInt(e.target.value) || 0)}
-                          className="text-center"
-                          min="1"
+                          value={line.description}
+                          onChange={(event) => updateLine(index, { description: event.target.value })}
+                          placeholder="Deskripsi item"
                         />
                       </TableCell>
                       <TableCell>
                         <Input
                           type="number"
-                          value={item.unitPrice}
-                          onChange={(e) => updateQuotationItem(index, "unitPrice", parseInt(e.target.value) || 0)}
-                          className="text-right"
+                          min="0.001"
+                          step="0.001"
+                          value={line.quantity}
+                          onChange={(event) => updateLine(index, { quantity: Number(event.target.value || 0) })}
                         />
                       </TableCell>
                       <TableCell>
                         <Input
                           type="number"
-                          value={item.discount}
-                          onChange={(e) => updateQuotationItem(index, "discount", parseInt(e.target.value) || 0)}
-                          className="text-center"
+                          min="0"
+                          value={line.unitPrice}
+                          onChange={(event) => updateLine(index, { unitPrice: Number(event.target.value || 0) })}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
                           min="0"
                           max="100"
+                          value={line.discount}
+                          onChange={(event) => updateLine(index, { discount: Number(event.target.value || 0) })}
                         />
                       </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(item.total)}
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={line.taxRate}
+                          onChange={(event) => updateLine(index, { taxRate: Number(event.target.value || 0) })}
+                        />
                       </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeProduct(index)}
-                        >
+                      <TableCell className="text-right font-bold">{formatCurrency(lineTotal)}</TableCell>
+                      <TableCell>
+                        <Button type="button" variant="ghost" size="icon" onClick={() => removeLine(index)}>
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              Belum ada produk dipilih. Klik &quot;Tambah Produk&quot; untuk memulai.
-            </div>
-          )}
-
-          {errors.items && (
-            <p className="text-sm text-red-500 mt-2">{errors.items.message}</p>
-          )}
+                  )
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Summary */}
-      {quotationItems.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Calculator className="h-5 w-5" />
-              <span>Ringkasan</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span className="font-medium">{formatCurrency(totals.subtotal)}</span>
-              </div>
-              {totals.totalDiscount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Total Diskon:</span>
-                  <span>-{formatCurrency(totals.totalDiscount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span>PPN (11%):</span>
-                <span className="font-medium">{formatCurrency(totals.taxAmount)}</span>
-              </div>
-              <hr />
-              <div className="flex justify-between text-lg font-bold">
-                <span>Grand Total:</span>
-                <span>{formatCurrency(totals.grandTotal)}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Terms & Conditions */}
       <Card>
-        <CardHeader>
-          <CardTitle>Syarat & Ketentuan</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            placeholder="Masukkan syarat dan ketentuan quotation..."
-            {...register("terms")}
-            rows={4}
-          />
+        <CardContent className="pt-6">
+          <div className="max-w-sm ml-auto space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span>Subtotal</span>
+              <span>{formatCurrency(totals.subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Diskon</span>
+              <span>- {formatCurrency(totals.discount)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Pajak</span>
+              <span>{formatCurrency(totals.tax)}</span>
+            </div>
+            <div className="flex items-center justify-between border-t pt-2 text-lg font-black">
+              <span>Total</span>
+              <span>{formatCurrency(totals.grandTotal)}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 mt-6">
+            <Button type="button" variant="outline" onClick={() => router.push("/sales/quotations")}>Batal</Button>
+            <Button type="submit" disabled={submitting || loadingOptions}>
+              {submitting ? "Menyimpan..." : "Simpan Quotation"}
+            </Button>
+          </div>
         </CardContent>
       </Card>
-
-      {/* Submit Buttons */}
-      <div className="flex justify-end space-x-4">
-        <Button type="button" variant="outline">
-          Simpan sebagai Draft
-        </Button>
-        <Button type="submit" disabled={quotationItems.length === 0}>
-          Buat Quotation
-        </Button>
-      </div>
     </form>
   )
 }

@@ -409,6 +409,14 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
         const result = await createInvoiceFromSalesOrder(salesOrderId)
 
         if (!result.success) {
+            if ((result as any).code === 'INVOICE_ALREADY_EXISTS') {
+                return {
+                    success: true,
+                    invoiceId: (result as any).existingInvoiceId,
+                    invoiceNumber: (result as any).existingInvoiceNumber,
+                    message: `Invoice ${(result as any).existingInvoiceNumber} already exists`
+                }
+            }
             return { success: false, error: result.error }
         }
 
