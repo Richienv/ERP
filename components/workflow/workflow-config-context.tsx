@@ -6,12 +6,46 @@ interface WorkflowConfigContextType {
     activeModules: string[] | null; // null = Show All
     setActiveModules: (modules: string[] | null) => void;
     isModuleActive: (moduleName: string) => boolean;
+    refreshFromServer: () => Promise<void>;
 }
 
 const WorkflowConfigContext = createContext<WorkflowConfigContextType | undefined>(undefined);
 
 export function WorkflowConfigProvider({ children }: { children: React.ReactNode }) {
     const [activeModules, setActiveModulesState] = useState<string[] | null>(null);
+    const [hasLocalOverride, setHasLocalOverride] = useState(false);
+
+    const refreshFromServer = async () => {
+        try {
+            const response = await fetch("/api/system/module-access", {
+                method: "GET",
+                cache: "no-store",
+            })
+            if (!response.ok) return
+            const payload = await response.json()
+            if (!payload?.success) return
+
+            const permissionsRaw = payload?.data?.permissions
+            if (!Array.isArray(permissionsRaw)) return
+
+            const permissions = Array.from(
+                new Set(
+                    permissionsRaw
+                        .filter((value: unknown) => typeof value === "string")
+                        .map((value: string) => value.trim().toUpperCase())
+                        .filter(Boolean)
+                )
+            )
+
+            if (permissions.includes("ALL")) {
+                setActiveModulesState(null)
+                return
+            }
+            setActiveModulesState(permissions.length > 0 ? permissions : null)
+        } catch (error) {
+            console.error("Failed to refresh module permissions from server", error)
+        }
+    }
 
     // Load from localStorage on mount
     useEffect(() => {
@@ -21,6 +55,7 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
                 const parsed = JSON.parse(saved);
                 if (Array.isArray(parsed)) {
                     setActiveModulesState(parsed);
+                    setHasLocalOverride(true);
                 } else {
                     console.warn("Invalid config format in localStorage, resetting.");
                     localStorage.removeItem("erp_active_modules");
@@ -29,6 +64,8 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
                 console.error("Failed to parse active modules", e);
                 localStorage.removeItem("erp_active_modules");
             }
+        } else {
+            void refreshFromServer()
         }
     }, []);
 
@@ -36,10 +73,21 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
         setActiveModulesState(modules);
         if (modules) {
             localStorage.setItem("erp_active_modules", JSON.stringify(modules));
+            setHasLocalOverride(true);
         } else {
             localStorage.removeItem("erp_active_modules");
+            setHasLocalOverride(false);
+            void refreshFromServer()
         }
     };
+
+    useEffect(() => {
+        if (hasLocalOverride) return
+        const intervalId = window.setInterval(() => {
+            void refreshFromServer()
+        }, 60000)
+        return () => window.clearInterval(intervalId)
+    }, [hasLocalOverride])
 
     const isModuleActive = (moduleName: string) => {
         if (!activeModules) return true; // Show all if no config
@@ -52,7 +100,7 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
     };
 
     return (
-        <WorkflowConfigContext.Provider value={{ activeModules, setActiveModules, isModuleActive }}>
+        <WorkflowConfigContext.Provider value={{ activeModules, setActiveModules, isModuleActive, refreshFromServer }}>
             {children}
         </WorkflowConfigContext.Provider>
     );
