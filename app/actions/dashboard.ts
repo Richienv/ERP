@@ -2,6 +2,7 @@
 
 import { withPrismaAuth } from "@/lib/db"
 import { getFinancialMetrics } from "@/lib/actions/finance"
+import { getProcurementStats } from "@/lib/actions/procurement"
 import { PRStatus, PrismaClient } from "@prisma/client"
 
 const STOCK_OPNAME_PREFIX = "STOCK_OPNAME_REQUEST::"
@@ -220,188 +221,93 @@ async function fetchDeadStockValue(prisma: PrismaClient) {
     return total
 }
 
-async function fetchProcurementMetrics(prisma: PrismaClient) {
-    const [
-        activePO,
-        poDraftCount,
-        poPendingApprovalCount,
-        poApprovedCount,
-        poActiveExecutionCount,
-        poCompletedCount,
-        poRejectedCancelledCount,
-        prDraftCount,
-        prRequestedCount,
-        prApprovedCount,
-        prConvertedCount,
-        prRejectedCancelledCount,
-        delayedPOsRaw,
-        pendingApprovalPOsRaw,
-        recentPOsRaw,
-        recentPRsRaw
-    ] = await Promise.all([
-        prisma.purchaseOrder.count({
-            where: { status: { in: ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED'] } }
-        }),
-        prisma.purchaseOrder.count({ where: { status: 'PO_DRAFT' } }),
-        prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }),
-        prisma.purchaseOrder.count({ where: { status: 'APPROVED' } }),
-        prisma.purchaseOrder.count({ where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] } } }),
-        prisma.purchaseOrder.count({ where: { status: { in: ['RECEIVED', 'COMPLETED'] } } }),
-        prisma.purchaseOrder.count({ where: { status: { in: ['REJECTED', 'CANCELLED'] } } }),
-        prisma.purchaseRequest.count({ where: { status: PRStatus.DRAFT } }),
-        prisma.purchaseRequest.count({ where: { status: PRStatus.PENDING } }),
-        prisma.purchaseRequest.count({ where: { status: PRStatus.APPROVED } }),
-        prisma.purchaseRequest.count({ where: { status: PRStatus.PO_CREATED } }),
-        prisma.purchaseRequest.count({ where: { status: { in: [PRStatus.REJECTED, PRStatus.CANCELLED] } } }),
-        prisma.purchaseOrder.findMany({
-            where: {
-                status: { notIn: ['RECEIVED', 'COMPLETED', 'CANCELLED'] },
-                expectedDate: { lt: new Date() }
-            },
-            select: { id: true, number: true, expectedDate: true, supplierId: true },
-            take: 5
-        }),
-        prisma.purchaseOrder.findMany({
-            where: { status: 'PENDING_APPROVAL' },
-            orderBy: { createdAt: 'desc' },
-            select: { id: true, number: true, supplierId: true, totalAmount: true, netAmount: true },
-            take: 5
-        }),
-        prisma.purchaseOrder.findMany({
-            orderBy: { createdAt: 'desc' },
-            select: { id: true, number: true, status: true, supplierId: true, totalAmount: true, netAmount: true, createdAt: true },
-            take: 10,
-        }),
-        prisma.purchaseRequest.findMany({
-            orderBy: { createdAt: 'desc' },
-            select: { id: true, number: true, status: true, requesterId: true, createdAt: true },
-            take: 10,
-        })
-    ])
+async function fetchProcurementMetrics(_prisma: PrismaClient) {
+    const stats = await getProcurementStats({
+        registryQuery: {
+            purchaseOrders: { page: 1, pageSize: 10 },
+            purchaseRequests: { page: 1, pageSize: 10 },
+            receiving: { page: 1, pageSize: 10 },
+        },
+    })
 
-    const poIds = [...new Set([...pendingApprovalPOsRaw.map((po) => po.id), ...recentPOsRaw.map((po) => po.id)])]
-    const supplierIds = [...new Set([...delayedPOsRaw.map((po) => po.supplierId), ...pendingApprovalPOsRaw.map((po) => po.supplierId), ...recentPOsRaw.map((po) => po.supplierId)])]
-    const requesterIds = [...new Set(recentPRsRaw.map((pr) => pr.requesterId))]
-    const prIds = [...new Set(recentPRsRaw.map((pr) => pr.id))]
-
-    const [poItems, suppliers, requesters, prItemCounts] = await Promise.all([
-        poIds.length > 0
-            ? prisma.purchaseOrderItem.findMany({
-                where: { purchaseOrderId: { in: poIds } },
-                select: { purchaseOrderId: true, productId: true, quantity: true }
-            })
-            : Promise.resolve([]),
-        supplierIds.length > 0
-            ? prisma.supplier.findMany({
-                where: { id: { in: supplierIds } },
-                select: { id: true, name: true, email: true, phone: true }
-            })
-            : Promise.resolve([]),
-        requesterIds.length > 0
-            ? prisma.employee.findMany({
-                where: { id: { in: requesterIds } },
-                select: { id: true, firstName: true, lastName: true }
-            })
-            : Promise.resolve([]),
-        prIds.length > 0
-            ? prisma.purchaseRequestItem.groupBy({
-                by: ['purchaseRequestId'],
-                _count: { _all: true },
-                where: { purchaseRequestId: { in: prIds } }
-            })
-            : Promise.resolve([])
-    ])
-
-    const productIds = [...new Set(poItems.map((item) => item.productId))]
-    const products = productIds.length > 0
-        ? await prisma.product.findMany({
-            where: { id: { in: productIds } },
-            select: { id: true, name: true, code: true }
-        })
-        : []
-
-    const supplierMap = new Map(suppliers.map((s) => [s.id, s]))
-    const requesterMap = new Map(requesters.map((e) => [e.id, e]))
-    const productMap = new Map(products.map((p) => [p.id, p]))
-    const prItemCountMap = new Map(prItemCounts.map((r) => [r.purchaseRequestId, r._count._all || 0]))
-    const itemsByPO = new Map<string, Array<{ productName: string; productCode: string; quantity: number }>>()
-    const qtyByPO = new Map<string, number>()
-
-    for (const item of poItems) {
-        const product = productMap.get(item.productId)
-        const line = {
-            productName: product?.name || item.productId,
-            productCode: product?.code || "-",
-            quantity: Number(item.quantity || 0)
-        }
-        itemsByPO.set(item.purchaseOrderId, [...(itemsByPO.get(item.purchaseOrderId) || []), line])
-        qtyByPO.set(item.purchaseOrderId, (qtyByPO.get(item.purchaseOrderId) || 0) + Number(item.quantity || 0))
+    const poSummary = stats.purchaseOrders?.summary || {
+        draft: 0,
+        pendingApproval: 0,
+        approved: 0,
+        inProgress: 0,
+        received: 0,
+        completed: 0,
+        rejected: 0,
+        cancelled: 0,
+    }
+    const prSummary = stats.purchaseRequests?.summary || {
+        draft: 0,
+        pending: 0,
+        approved: 0,
+        poCreated: 0,
+        rejected: 0,
+        cancelled: 0,
     }
 
-    const pendingRequestsCount = prRequestedCount
-    const pendingRequests = recentPRsRaw.filter((pr) => pr.status === PRStatus.PENDING).slice(0, 5)
-
     return {
-        activeCount: activePO,
-        pendingRequestsCount,
+        activeCount: poSummary.pendingApproval + poSummary.approved + poSummary.inProgress + poSummary.received,
+        pendingRequestsCount: prSummary.pending,
         poStatusSummary: {
-            draft: poDraftCount,
-            requested: poPendingApprovalCount,
-            approved: poApprovedCount,
-            active: poActiveExecutionCount,
-            completed: poCompletedCount,
-            blocked: poRejectedCancelledCount,
+            draft: poSummary.draft,
+            requested: poSummary.pendingApproval,
+            approved: poSummary.approved,
+            active: poSummary.inProgress,
+            completed: poSummary.received + poSummary.completed,
+            blocked: poSummary.rejected + poSummary.cancelled,
         },
         prStatusSummary: {
-            draft: prDraftCount,
-            requested: prRequestedCount,
-            approved: prApprovedCount,
-            converted: prConvertedCount,
-            blocked: prRejectedCancelledCount,
+            draft: prSummary.draft,
+            requested: prSummary.pending,
+            approved: prSummary.approved,
+            converted: prSummary.poCreated,
+            blocked: prSummary.rejected + prSummary.cancelled,
         },
-        delays: delayedPOsRaw.map(po => ({
-            id: po.id,
-            number: po.number,
-            supplierName: supplierMap.get(po.supplierId)?.name || 'Unknown',
-            productName: 'Materials',
-            daysLate: Math.floor((new Date().getTime() - (po.expectedDate?.getTime() || 0)) / (1000 * 3600 * 24))
-        })),
-        pendingApproval: pendingApprovalPOsRaw.map(po => ({
-            id: po.id,
-            number: po.number,
-            supplier: {
-                name: supplierMap.get(po.supplierId)?.name || 'Unknown',
-                email: supplierMap.get(po.supplierId)?.email || null,
-                phone: supplierMap.get(po.supplierId)?.phone || null
-            },
-            totalAmount: Number(po.totalAmount || 0),
-            netAmount: Number(po.netAmount || 0),
-            itemCount: (itemsByPO.get(po.id) || []).length,
-            items: itemsByPO.get(po.id) || []
-        })),
-        pendingRequests: pendingRequests.map((pr) => ({
-            id: pr.id,
-            number: pr.number,
-            requesterName: `${requesterMap.get(pr.requesterId)?.firstName || ''} ${requesterMap.get(pr.requesterId)?.lastName || ''}`.trim() || '-',
-            itemCount: prItemCountMap.get(pr.id) || 0,
-            status: pr.status
-        })),
-        recentPOs: recentPOsRaw.map((po) => ({
+        delays: [],
+        pendingApproval: (stats.purchaseOrders?.recent || [])
+            .filter((po: any) => po.status === "PENDING_APPROVAL")
+            .map((po: any) => ({
+                id: po.id,
+                number: po.number,
+                supplier: {
+                    name: po.supplier || "Unknown",
+                    email: null,
+                    phone: null,
+                },
+                totalAmount: Number(po.total || 0),
+                netAmount: Number(po.total || 0),
+                itemCount: 0,
+                items: [],
+            })),
+        pendingRequests: (stats.purchaseRequests?.recent || [])
+            .filter((pr: any) => pr.status === PRStatus.PENDING)
+            .map((pr: any) => ({
+                id: pr.id,
+                number: pr.number,
+                requesterName: pr.requester || "-",
+                itemCount: pr.itemCount || 0,
+                status: pr.status,
+            })),
+        recentPOs: (stats.purchaseOrders?.recent || []).map((po: any) => ({
             id: po.id,
             number: po.number,
             status: po.status,
-            supplierName: supplierMap.get(po.supplierId)?.name || 'Unknown',
-            itemQty: qtyByPO.get(po.id) || 0,
-            totalAmount: Number(po.netAmount || po.totalAmount || 0),
-            date: po.createdAt.toISOString(),
+            supplierName: po.supplier || "Unknown",
+            itemQty: 0,
+            totalAmount: Number(po.total || 0),
+            date: po.date ? new Date(po.date).toISOString() : new Date().toISOString(),
         })),
-        recentPRs: recentPRsRaw.map((pr) => ({
+        recentPRs: (stats.purchaseRequests?.recent || []).map((pr: any) => ({
             id: pr.id,
             number: pr.number,
             status: pr.status,
-            requesterName: `${requesterMap.get(pr.requesterId)?.firstName || ''} ${requesterMap.get(pr.requesterId)?.lastName || ''}`.trim() || '-',
-            itemCount: prItemCountMap.get(pr.id) || 0,
-            date: pr.createdAt.toISOString(),
+            requesterName: pr.requester || "-",
+            itemCount: pr.itemCount || 0,
+            date: pr.date ? new Date(pr.date).toISOString() : new Date().toISOString(),
         })),
     }
 }

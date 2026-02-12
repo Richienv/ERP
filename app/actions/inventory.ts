@@ -96,7 +96,13 @@ export const getWarehouses = unstable_cache(
     async () => {
         const warehouses = await prisma.warehouse.findMany({
             include: {
-                stockLevels: true,
+                stockLevels: {
+                    include: {
+                        product: {
+                            select: { costPrice: true }
+                        }
+                    }
+                },
                 _count: {
                     select: { stockLevels: true }
                 }
@@ -138,6 +144,7 @@ export const getWarehouses = unstable_cache(
             const totalItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
             const capacity = w.capacity || 50000 // Default if missing
             const utilization = capacity > 0 ? Math.min(Math.round((totalItems / capacity) * 100), 100) : 0
+            const totalValue = w.stockLevels.reduce((sum, sl) => sum + (sl.quantity * Number(sl.product?.costPrice || 0)), 0)
 
             return {
                 id: w.id,
@@ -149,7 +156,7 @@ export const getWarehouses = unstable_cache(
                 utilization: utilization,
                 manager: managerName,
                 status: w.isActive ? 'Active' : 'Inactive',
-                totalValue: 0,
+                totalValue,
                 activePOs: 0,
                 pendingTasks: 0,
                 items: totalItems,

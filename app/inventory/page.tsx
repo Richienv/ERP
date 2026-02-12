@@ -13,8 +13,12 @@ import {
   ProcurementInsightsSkeleton
 } from "@/components/inventory/inventory-skeletons"
 import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider"
+import { getWarehouses } from "@/app/actions/inventory"
 
 export default async function InventoryPage() {
+  const warehouses = await getWarehouses()
+  const liveWarehouses = warehouses.slice(0, 3)
+
   return (
     <InventoryPerformanceProvider currentPath="/inventory">
       <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
@@ -55,39 +59,29 @@ export default async function InventoryPage() {
           <section>
             <h2 className="text-xl font-black mb-6 text-foreground uppercase tracking-tight">Status Operasional Gudang (Real-time)</h2>
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <WarehouseCard
-                id="17748eec-45a0-4512-951b-c59113bc5c26"
-                name="Gudang A - Bahan Baku"
-                manager="Budi Santoso"
-                staffActive={24}
-                dockStatus="BUSY"
-                inventoryValue={4500000000} // 4.5 Miliar
-                depreciationValue={125000000} // 125 Juta
-                activePOs={8}
-                activeTasks={142}
-              />
-              <WarehouseCard
-                id="17748eec-45a0-4512-951b-c59113bc5c26" // Reusing ID for demo/mock as not fetched dynamically here yet
-                name="Gudang B - Barang Jadi"
-                manager="Siti Aminah"
-                staffActive={32}
-                dockStatus="CONGESTED"
-                inventoryValue={8200000000} // 8.2 Miliar
-                depreciationValue={45000000} // 45 Juta
-                activePOs={3}
-                activeTasks={85}
-              />
-              <WarehouseCard
-                id="17748eec-45a0-4512-951b-c59113bc5c26"
-                name="Gudang C - Distribusi"
-                manager="Rudi Hartono"
-                staffActive={18}
-                dockStatus="IDLE"
-                inventoryValue={1200000000} // 1.2 Miliar
-                depreciationValue={12000000} // 12 Juta
-                activePOs={12}
-                activeTasks={210}
-              />
+              {liveWarehouses.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-500">
+                  Belum ada data gudang aktif.
+                </div>
+              ) : (
+                liveWarehouses.map((warehouse) => {
+                  const dockStatus = warehouse.utilization >= 90 ? "CONGESTED" : warehouse.utilization >= 60 ? "BUSY" : "IDLE"
+                  return (
+                    <WarehouseCard
+                      key={warehouse.id}
+                      id={warehouse.id}
+                      name={`${warehouse.code} - ${warehouse.name}`}
+                      manager={warehouse.manager || "Unassigned"}
+                      staffActive={warehouse.staff || 0}
+                      dockStatus={dockStatus}
+                      inventoryValue={warehouse.totalValue || 0}
+                      depreciationValue={Math.round((warehouse.totalValue || 0) * 0.03)}
+                      activePOs={warehouse.activePOs || 0}
+                      activeTasks={warehouse.pendingTasks || 0}
+                    />
+                  )
+                })
+              )}
             </div>
           </section>
 
