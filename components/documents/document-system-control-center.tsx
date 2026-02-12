@@ -210,6 +210,37 @@ const formatCurrency = (amount?: number) => {
     return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(safeAmount)
 }
 
+const isInDateRange = (value: string | Date | undefined, startDate: string, endDate: string) => {
+    const date = value ? new Date(value) : null
+    if (!date || Number.isNaN(date.getTime())) return false
+    if (startDate) {
+        const start = new Date(`${startDate}T00:00:00`)
+        if (date < start) return false
+    }
+    if (endDate) {
+        const end = new Date(`${endDate}T23:59:59.999`)
+        if (date > end) return false
+    }
+    return true
+}
+
+const downloadCsv = (filename: string, headers: string[], rows: Array<Array<string | number>>) => {
+    const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`
+    const csvContent = [headers, ...rows]
+        .map((row) => row.map((cell) => escapeCell(String(cell ?? ""))).join(","))
+        .join("\n")
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+}
+
 export function DocumentSystemControlCenter({ initialData }: { initialData: DocumentsSystemData }) {
     const router = useRouter()
     const { refreshFromServer } = useWorkflowConfig()
@@ -227,6 +258,35 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
     const [auditEndDate, setAuditEndDate] = useState("")
     const [auditPage, setAuditPage] = useState(1)
     const [auditPageSize, setAuditPageSize] = useState("20")
+
+    const [poSearch, setPoSearch] = useState("")
+    const [poStatusFilter, setPoStatusFilter] = useState("__all__")
+    const [poStartDate, setPoStartDate] = useState("")
+    const [poEndDate, setPoEndDate] = useState("")
+    const [poPage, setPoPage] = useState(1)
+    const [poPageSize, setPoPageSize] = useState("20")
+
+    const [invoiceSearch, setInvoiceSearch] = useState("")
+    const [invoiceStatusFilter, setInvoiceStatusFilter] = useState("__all__")
+    const [invoiceTypeFilter, setInvoiceTypeFilter] = useState("__all__")
+    const [invoiceStartDate, setInvoiceStartDate] = useState("")
+    const [invoiceEndDate, setInvoiceEndDate] = useState("")
+    const [invoicePage, setInvoicePage] = useState(1)
+    const [invoicePageSize, setInvoicePageSize] = useState("20")
+
+    const [grnSearch, setGrnSearch] = useState("")
+    const [grnStatusFilter, setGrnStatusFilter] = useState("__all__")
+    const [grnStartDate, setGrnStartDate] = useState("")
+    const [grnEndDate, setGrnEndDate] = useState("")
+    const [grnPage, setGrnPage] = useState(1)
+    const [grnPageSize, setGrnPageSize] = useState("20")
+
+    const [payrollSearch, setPayrollSearch] = useState("")
+    const [payrollStatusFilter, setPayrollStatusFilter] = useState("__all__")
+    const [payrollStartDate, setPayrollStartDate] = useState("")
+    const [payrollEndDate, setPayrollEndDate] = useState("")
+    const [payrollPage, setPayrollPage] = useState(1)
+    const [payrollPageSize, setPayrollPageSize] = useState("20")
 
     const [categoryModalOpen, setCategoryModalOpen] = useState(false)
     const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null)
@@ -351,48 +411,181 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
         return `${start}-${end}`
     }, [filteredRoleAuditEvents.length, auditPage, auditPageSize, totalAuditPages])
 
+    const getRangeLabel = (total: number, page: number, pageSize: string) => {
+        if (total === 0) return "0-0"
+        const size = Number(pageSize) || 20
+        const start = (page - 1) * size + 1
+        const end = Math.min(total, start + size - 1)
+        return `${start}-${end}`
+    }
+
     const exportRoleAuditCsv = () => {
         if (filteredRoleAuditEvents.length === 0) {
             toast.error("Tidak ada data audit untuk diexport")
             return
         }
 
-        const escapeCell = (value: string) => `"${value.replace(/"/g, '""')}"`
-        const header = [
-            "Timestamp",
-            "Role Code",
-            "Role Name",
-            "Event",
-            "Actor",
-            "Changed Permissions",
-            "Before Permissions",
-            "After Permissions",
-        ]
-        const rows = filteredRoleAuditEvents.map((event) => [
-            new Date(event.createdAt).toISOString(),
-            event.roleCode,
-            event.roleName || "",
-            event.eventType,
-            event.actorLabel || "System",
-            (event.changedPermissions || []).join(" | "),
-            (event.beforePermissions || []).join(" | "),
-            (event.afterPermissions || []).join(" | "),
-        ])
-        const csvContent = [header, ...rows]
-            .map((row) => row.map((cell) => escapeCell(String(cell ?? ""))).join(","))
-            .join("\n")
-
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement("a")
-        const dateStamp = new Date().toISOString().slice(0, 10)
-        link.href = url
-        link.download = `role-permission-audit-${dateStamp}.csv`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
+        downloadCsv(
+            `role-permission-audit-${new Date().toISOString().slice(0, 10)}.csv`,
+            ["Timestamp", "Role Code", "Role Name", "Event", "Actor", "Changed Permissions", "Before Permissions", "After Permissions"],
+            filteredRoleAuditEvents.map((event) => [
+                new Date(event.createdAt).toISOString(),
+                event.roleCode,
+                event.roleName || "",
+                event.eventType,
+                event.actorLabel || "System",
+                (event.changedPermissions || []).join(" | "),
+                (event.beforePermissions || []).join(" | "),
+                (event.afterPermissions || []).join(" | "),
+            ])
+        )
         toast.success("Audit CSV berhasil diunduh")
+    }
+
+    const poStatusOptions = useMemo(
+        () => Array.from(new Set(data.documents.purchaseOrders.map((row) => row.status).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [data.documents.purchaseOrders]
+    )
+    const invoiceStatusOptions = useMemo(
+        () => Array.from(new Set(data.documents.invoices.map((row) => row.status).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [data.documents.invoices]
+    )
+    const invoiceTypeOptions = useMemo(
+        () => Array.from(new Set(data.documents.invoices.map((row) => row.type || "-").filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [data.documents.invoices]
+    )
+    const grnStatusOptions = useMemo(
+        () => Array.from(new Set(data.documents.goodsReceipts.map((row) => row.status).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [data.documents.goodsReceipts]
+    )
+    const payrollStatusOptions = useMemo(
+        () => Array.from(new Set(data.documents.payrollRuns.map((row) => row.status).filter(Boolean))).sort((a, b) => a.localeCompare(b)),
+        [data.documents.payrollRuns]
+    )
+
+    const filteredPoRows = useMemo(() => {
+        const query = poSearch.trim().toLowerCase()
+        return data.documents.purchaseOrders.filter((row) => {
+            if (poStatusFilter !== "__all__" && row.status !== poStatusFilter) return false
+            if (!isInDateRange(row.updatedAt, poStartDate, poEndDate)) return false
+            if (!query) return true
+            return `${row.number || ""} ${row.partnerName || ""} ${row.status}`.toLowerCase().includes(query)
+        })
+    }, [data.documents.purchaseOrders, poSearch, poStatusFilter, poStartDate, poEndDate])
+
+    const filteredInvoiceRows = useMemo(() => {
+        const query = invoiceSearch.trim().toLowerCase()
+        return data.documents.invoices.filter((row) => {
+            if (invoiceStatusFilter !== "__all__" && row.status !== invoiceStatusFilter) return false
+            if (invoiceTypeFilter !== "__all__" && (row.type || "-") !== invoiceTypeFilter) return false
+            if (!isInDateRange(row.updatedAt, invoiceStartDate, invoiceEndDate)) return false
+            if (!query) return true
+            return `${row.number || ""} ${row.partnerName || ""} ${row.status} ${row.type || "-"}`.toLowerCase().includes(query)
+        })
+    }, [data.documents.invoices, invoiceSearch, invoiceStatusFilter, invoiceTypeFilter, invoiceStartDate, invoiceEndDate])
+
+    const filteredGrnRows = useMemo(() => {
+        const query = grnSearch.trim().toLowerCase()
+        return data.documents.goodsReceipts.filter((row) => {
+            if (grnStatusFilter !== "__all__" && row.status !== grnStatusFilter) return false
+            if (!isInDateRange(row.updatedAt, grnStartDate, grnEndDate)) return false
+            if (!query) return true
+            return `${row.number || ""} ${row.purchaseOrderNumber || ""} ${row.warehouse || ""} ${row.status}`.toLowerCase().includes(query)
+        })
+    }, [data.documents.goodsReceipts, grnSearch, grnStatusFilter, grnStartDate, grnEndDate])
+
+    const filteredPayrollRows = useMemo(() => {
+        const query = payrollSearch.trim().toLowerCase()
+        return data.documents.payrollRuns.filter((row) => {
+            if (payrollStatusFilter !== "__all__" && row.status !== payrollStatusFilter) return false
+            if (!isInDateRange(row.updatedAt, payrollStartDate, payrollEndDate)) return false
+            if (!query) return true
+            return `${row.periodLabel || ""} ${row.period || ""} ${row.status}`.toLowerCase().includes(query)
+        })
+    }, [data.documents.payrollRuns, payrollSearch, payrollStatusFilter, payrollStartDate, payrollEndDate])
+
+    useEffect(() => {
+        setPoPage(1)
+    }, [poSearch, poStatusFilter, poStartDate, poEndDate, poPageSize])
+    useEffect(() => {
+        setInvoicePage(1)
+    }, [invoiceSearch, invoiceStatusFilter, invoiceTypeFilter, invoiceStartDate, invoiceEndDate, invoicePageSize])
+    useEffect(() => {
+        setGrnPage(1)
+    }, [grnSearch, grnStatusFilter, grnStartDate, grnEndDate, grnPageSize])
+    useEffect(() => {
+        setPayrollPage(1)
+    }, [payrollSearch, payrollStatusFilter, payrollStartDate, payrollEndDate, payrollPageSize])
+
+    const poTotalPages = useMemo(() => Math.max(1, Math.ceil(filteredPoRows.length / (Number(poPageSize) || 20))), [filteredPoRows.length, poPageSize])
+    const invoiceTotalPages = useMemo(() => Math.max(1, Math.ceil(filteredInvoiceRows.length / (Number(invoicePageSize) || 20))), [filteredInvoiceRows.length, invoicePageSize])
+    const grnTotalPages = useMemo(() => Math.max(1, Math.ceil(filteredGrnRows.length / (Number(grnPageSize) || 20))), [filteredGrnRows.length, grnPageSize])
+    const payrollTotalPages = useMemo(() => Math.max(1, Math.ceil(filteredPayrollRows.length / (Number(payrollPageSize) || 20))), [filteredPayrollRows.length, payrollPageSize])
+
+    useEffect(() => setPoPage((prev) => Math.min(Math.max(1, prev), poTotalPages)), [poTotalPages])
+    useEffect(() => setInvoicePage((prev) => Math.min(Math.max(1, prev), invoiceTotalPages)), [invoiceTotalPages])
+    useEffect(() => setGrnPage((prev) => Math.min(Math.max(1, prev), grnTotalPages)), [grnTotalPages])
+    useEffect(() => setPayrollPage((prev) => Math.min(Math.max(1, prev), payrollTotalPages)), [payrollTotalPages])
+
+    const paginatedPoRows = useMemo(() => {
+        const size = Number(poPageSize) || 20
+        const start = (poPage - 1) * size
+        return filteredPoRows.slice(start, start + size)
+    }, [filteredPoRows, poPage, poPageSize])
+    const paginatedInvoiceRows = useMemo(() => {
+        const size = Number(invoicePageSize) || 20
+        const start = (invoicePage - 1) * size
+        return filteredInvoiceRows.slice(start, start + size)
+    }, [filteredInvoiceRows, invoicePage, invoicePageSize])
+    const paginatedGrnRows = useMemo(() => {
+        const size = Number(grnPageSize) || 20
+        const start = (grnPage - 1) * size
+        return filteredGrnRows.slice(start, start + size)
+    }, [filteredGrnRows, grnPage, grnPageSize])
+    const paginatedPayrollRows = useMemo(() => {
+        const size = Number(payrollPageSize) || 20
+        const start = (payrollPage - 1) * size
+        return filteredPayrollRows.slice(start, start + size)
+    }, [filteredPayrollRows, payrollPage, payrollPageSize])
+
+    const exportPoCsv = () => {
+        if (filteredPoRows.length === 0) return toast.error("Tidak ada dokumen PO untuk diexport")
+        downloadCsv(
+            `po-registry-${new Date().toISOString().slice(0, 10)}.csv`,
+            ["PO Number", "Vendor", "Status", "Total", "Updated At"],
+            filteredPoRows.map((row) => [row.number || "", row.partnerName || "", row.status, row.totalAmount || 0, new Date(row.updatedAt).toISOString()])
+        )
+        toast.success("PO registry CSV berhasil diunduh")
+    }
+
+    const exportInvoiceCsv = () => {
+        if (filteredInvoiceRows.length === 0) return toast.error("Tidak ada dokumen invoice untuk diexport")
+        downloadCsv(
+            `invoice-registry-${new Date().toISOString().slice(0, 10)}.csv`,
+            ["Invoice Number", "Partner", "Type", "Status", "Total", "Updated At"],
+            filteredInvoiceRows.map((row) => [row.number || "", row.partnerName || "", row.type || "-", row.status, row.totalAmount || 0, new Date(row.updatedAt).toISOString()])
+        )
+        toast.success("Invoice registry CSV berhasil diunduh")
+    }
+
+    const exportGrnCsv = () => {
+        if (filteredGrnRows.length === 0) return toast.error("Tidak ada dokumen GRN untuk diexport")
+        downloadCsv(
+            `grn-registry-${new Date().toISOString().slice(0, 10)}.csv`,
+            ["GRN Number", "PO Number", "Warehouse", "Status", "Updated At"],
+            filteredGrnRows.map((row) => [row.number || "", row.purchaseOrderNumber || "", row.warehouse || "", row.status, new Date(row.updatedAt).toISOString()])
+        )
+        toast.success("GRN registry CSV berhasil diunduh")
+    }
+
+    const exportPayrollCsv = () => {
+        if (filteredPayrollRows.length === 0) return toast.error("Tidak ada dokumen payroll untuk diexport")
+        downloadCsv(
+            `payroll-registry-${new Date().toISOString().slice(0, 10)}.csv`,
+            ["Period", "Status", "Updated At"],
+            filteredPayrollRows.map((row) => [row.periodLabel || row.period || "", row.status, new Date(row.updatedAt).toISOString()])
+        )
+        toast.success("Payroll registry CSV berhasil diunduh")
     }
 
     const openCreateCategory = () => {
@@ -1039,7 +1232,35 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Dokumen Purchase Order</CardTitle>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <CardTitle>Dokumen Purchase Order</CardTitle>
+                                    <Button variant="outline" onClick={exportPoCsv}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export CSV
+                                    </Button>
+                                </div>
+                                <div className="grid gap-2 md:grid-cols-4">
+                                    <Input
+                                        placeholder="Cari PO / vendor..."
+                                        value={poSearch}
+                                        onChange={(event) => setPoSearch(event.target.value)}
+                                    />
+                                    <Select value={poStatusFilter} onValueChange={setPoStatusFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Filter status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__all__">Semua Status</SelectItem>
+                                            {poStatusOptions.map((status) => (
+                                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Input type="date" value={poStartDate} onChange={(event) => setPoStartDate(event.target.value)} />
+                                    <Input type="date" value={poEndDate} onChange={(event) => setPoEndDate(event.target.value)} />
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -1054,7 +1275,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {data.documents.purchaseOrders.slice(0, 15).map((row) => (
+                                    {paginatedPoRows.map((row) => (
                                         <TableRow key={row.id}>
                                             <TableCell className="font-mono">{row.number}</TableCell>
                                             <TableCell>{row.partnerName || "-"}</TableCell>
@@ -1068,7 +1289,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {data.documents.purchaseOrders.length === 0 && (
+                                    {filteredPoRows.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
                                                 Belum ada dokumen PO.
@@ -1077,12 +1298,78 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     )}
                                 </TableBody>
                             </Table>
+                            <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                    Menampilkan {getRangeLabel(filteredPoRows.length, poPage, poPageSize)} dari {filteredPoRows.length} dokumen
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Select value={poPageSize} onValueChange={setPoPageSize}>
+                                        <SelectTrigger className="w-[130px]">
+                                            <SelectValue placeholder="Rows/page" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10 / halaman</SelectItem>
+                                            <SelectItem value="20">20 / halaman</SelectItem>
+                                            <SelectItem value="50">50 / halaman</SelectItem>
+                                            <SelectItem value="100">100 / halaman</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button variant="outline" size="sm" onClick={() => setPoPage((prev) => Math.max(1, prev - 1))} disabled={poPage <= 1}>
+                                        Sebelumnya
+                                    </Button>
+                                    <div className="min-w-[84px] text-center text-sm font-medium">
+                                        Hal {poPage} / {poTotalPages}
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => setPoPage((prev) => Math.min(poTotalPages, prev + 1))} disabled={poPage >= poTotalPages}>
+                                        Selanjutnya
+                                    </Button>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Dokumen Invoice</CardTitle>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <CardTitle>Dokumen Invoice</CardTitle>
+                                    <Button variant="outline" onClick={exportInvoiceCsv}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export CSV
+                                    </Button>
+                                </div>
+                                <div className="grid gap-2 md:grid-cols-5">
+                                    <Input
+                                        placeholder="Cari invoice / partner..."
+                                        value={invoiceSearch}
+                                        onChange={(event) => setInvoiceSearch(event.target.value)}
+                                    />
+                                    <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Filter status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__all__">Semua Status</SelectItem>
+                                            {invoiceStatusOptions.map((status) => (
+                                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select value={invoiceTypeFilter} onValueChange={setInvoiceTypeFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Filter tipe" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__all__">Semua Tipe</SelectItem>
+                                            {invoiceTypeOptions.map((type) => (
+                                                <SelectItem key={type} value={type}>{type}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Input type="date" value={invoiceStartDate} onChange={(event) => setInvoiceStartDate(event.target.value)} />
+                                    <Input type="date" value={invoiceEndDate} onChange={(event) => setInvoiceEndDate(event.target.value)} />
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -1098,7 +1385,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {data.documents.invoices.slice(0, 15).map((row) => (
+                                    {paginatedInvoiceRows.map((row) => (
                                         <TableRow key={row.id}>
                                             <TableCell className="font-mono">{row.number}</TableCell>
                                             <TableCell>{row.partnerName || "-"}</TableCell>
@@ -1113,7 +1400,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {data.documents.invoices.length === 0 && (
+                                    {filteredInvoiceRows.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
                                                 Belum ada dokumen invoice.
@@ -1122,12 +1409,67 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     )}
                                 </TableBody>
                             </Table>
+                            <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                    Menampilkan {getRangeLabel(filteredInvoiceRows.length, invoicePage, invoicePageSize)} dari {filteredInvoiceRows.length} dokumen
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Select value={invoicePageSize} onValueChange={setInvoicePageSize}>
+                                        <SelectTrigger className="w-[130px]">
+                                            <SelectValue placeholder="Rows/page" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10 / halaman</SelectItem>
+                                            <SelectItem value="20">20 / halaman</SelectItem>
+                                            <SelectItem value="50">50 / halaman</SelectItem>
+                                            <SelectItem value="100">100 / halaman</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button variant="outline" size="sm" onClick={() => setInvoicePage((prev) => Math.max(1, prev - 1))} disabled={invoicePage <= 1}>
+                                        Sebelumnya
+                                    </Button>
+                                    <div className="min-w-[84px] text-center text-sm font-medium">
+                                        Hal {invoicePage} / {invoiceTotalPages}
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => setInvoicePage((prev) => Math.min(invoiceTotalPages, prev + 1))} disabled={invoicePage >= invoiceTotalPages}>
+                                        Selanjutnya
+                                    </Button>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Dokumen Penerimaan Barang (GRN)</CardTitle>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <CardTitle>Dokumen Penerimaan Barang (GRN)</CardTitle>
+                                    <Button variant="outline" onClick={exportGrnCsv}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export CSV
+                                    </Button>
+                                </div>
+                                <div className="grid gap-2 md:grid-cols-4">
+                                    <Input
+                                        placeholder="Cari GRN / PO / warehouse..."
+                                        value={grnSearch}
+                                        onChange={(event) => setGrnSearch(event.target.value)}
+                                    />
+                                    <Select value={grnStatusFilter} onValueChange={setGrnStatusFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Filter status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__all__">Semua Status</SelectItem>
+                                            {grnStatusOptions.map((status) => (
+                                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Input type="date" value={grnStartDate} onChange={(event) => setGrnStartDate(event.target.value)} />
+                                    <Input type="date" value={grnEndDate} onChange={(event) => setGrnEndDate(event.target.value)} />
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -1142,7 +1484,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {data.documents.goodsReceipts.slice(0, 15).map((row) => (
+                                    {paginatedGrnRows.map((row) => (
                                         <TableRow key={row.id}>
                                             <TableCell className="font-mono">{row.number}</TableCell>
                                             <TableCell className="font-mono">{row.purchaseOrderNumber || "-"}</TableCell>
@@ -1156,7 +1498,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {data.documents.goodsReceipts.length === 0 && (
+                                    {filteredGrnRows.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={6} className="py-6 text-center text-muted-foreground">
                                                 Belum ada dokumen GRN.
@@ -1165,12 +1507,67 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     )}
                                 </TableBody>
                             </Table>
+                            <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                    Menampilkan {getRangeLabel(filteredGrnRows.length, grnPage, grnPageSize)} dari {filteredGrnRows.length} dokumen
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Select value={grnPageSize} onValueChange={setGrnPageSize}>
+                                        <SelectTrigger className="w-[130px]">
+                                            <SelectValue placeholder="Rows/page" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10 / halaman</SelectItem>
+                                            <SelectItem value="20">20 / halaman</SelectItem>
+                                            <SelectItem value="50">50 / halaman</SelectItem>
+                                            <SelectItem value="100">100 / halaman</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button variant="outline" size="sm" onClick={() => setGrnPage((prev) => Math.max(1, prev - 1))} disabled={grnPage <= 1}>
+                                        Sebelumnya
+                                    </Button>
+                                    <div className="min-w-[84px] text-center text-sm font-medium">
+                                        Hal {grnPage} / {grnTotalPages}
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => setGrnPage((prev) => Math.min(grnTotalPages, prev + 1))} disabled={grnPage >= grnTotalPages}>
+                                        Selanjutnya
+                                    </Button>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Dokumen Payroll Period</CardTitle>
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                    <CardTitle>Dokumen Payroll Period</CardTitle>
+                                    <Button variant="outline" onClick={exportPayrollCsv}>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Export CSV
+                                    </Button>
+                                </div>
+                                <div className="grid gap-2 md:grid-cols-4">
+                                    <Input
+                                        placeholder="Cari periode payroll..."
+                                        value={payrollSearch}
+                                        onChange={(event) => setPayrollSearch(event.target.value)}
+                                    />
+                                    <Select value={payrollStatusFilter} onValueChange={setPayrollStatusFilter}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Filter status" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__all__">Semua Status</SelectItem>
+                                            {payrollStatusOptions.map((status) => (
+                                                <SelectItem key={status} value={status}>{status}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Input type="date" value={payrollStartDate} onChange={(event) => setPayrollStartDate(event.target.value)} />
+                                    <Input type="date" value={payrollEndDate} onChange={(event) => setPayrollEndDate(event.target.value)} />
+                                </div>
+                            </div>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -1183,7 +1580,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {data.documents.payrollRuns.slice(0, 12).map((row) => (
+                                    {paginatedPayrollRows.map((row) => (
                                         <TableRow key={row.id}>
                                             <TableCell className="font-semibold">{row.periodLabel || row.period}</TableCell>
                                             <TableCell><Badge variant="outline">{row.status}</Badge></TableCell>
@@ -1195,7 +1592,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                             </TableCell>
                                         </TableRow>
                                     ))}
-                                    {data.documents.payrollRuns.length === 0 && (
+                                    {filteredPayrollRows.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={4} className="py-6 text-center text-muted-foreground">
                                                 Belum ada dokumen payroll.
@@ -1204,6 +1601,33 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
                                     )}
                                 </TableBody>
                             </Table>
+                            <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div className="text-sm text-muted-foreground">
+                                    Menampilkan {getRangeLabel(filteredPayrollRows.length, payrollPage, payrollPageSize)} dari {filteredPayrollRows.length} dokumen
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Select value={payrollPageSize} onValueChange={setPayrollPageSize}>
+                                        <SelectTrigger className="w-[130px]">
+                                            <SelectValue placeholder="Rows/page" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="10">10 / halaman</SelectItem>
+                                            <SelectItem value="20">20 / halaman</SelectItem>
+                                            <SelectItem value="50">50 / halaman</SelectItem>
+                                            <SelectItem value="100">100 / halaman</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <Button variant="outline" size="sm" onClick={() => setPayrollPage((prev) => Math.max(1, prev - 1))} disabled={payrollPage <= 1}>
+                                        Sebelumnya
+                                    </Button>
+                                    <div className="min-w-[84px] text-center text-sm font-medium">
+                                        Hal {payrollPage} / {payrollTotalPages}
+                                    </div>
+                                    <Button variant="outline" size="sm" onClick={() => setPayrollPage((prev) => Math.min(payrollTotalPages, prev + 1))} disabled={payrollPage >= payrollTotalPages}>
+                                        Selanjutnya
+                                    </Button>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
