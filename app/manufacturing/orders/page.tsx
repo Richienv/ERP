@@ -6,13 +6,11 @@ import {
     Search,
     ChevronRight,
     Factory,
-    DollarSign,
     User,
     Calendar,
     Package,
     RefreshCw,
     AlertCircle,
-    Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +26,21 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     Table,
     TableBody,
     TableCell,
@@ -35,6 +48,8 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { toast } from "sonner";
+import { CreateWorkOrderDialog } from "@/components/manufacturing/create-work-order-dialog";
 
 interface WorkOrder {
     id: string;
@@ -69,6 +84,12 @@ interface Summary {
     onHold: number;
 }
 
+interface WarehouseOption {
+    id: string;
+    code: string;
+    name: string;
+}
+
 export default function ProductionOrdersPage() {
     const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
     const [summary, setSummary] = useState<Summary>({ planned: 0, inProgress: 0, completed: 0, onHold: 0 });
@@ -78,6 +99,13 @@ export default function ProductionOrdersPage() {
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+    const [reportQty, setReportQty] = useState("");
+    const [warehouseId, setWarehouseId] = useState("");
+    const [performedBy, setPerformedBy] = useState("");
+    const [warehouseOptions, setWarehouseOptions] = useState<WarehouseOption[]>([]);
+    const [updating, setUpdating] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
 
     const fetchWorkOrders = async () => {
         setLoading(true);
@@ -116,9 +144,107 @@ export default function ProductionOrdersPage() {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    const handleRowClick = (order: WorkOrder) => {
+    const handleRowClick = async (order: WorkOrder) => {
         setSelectedOrder(order);
         setSheetOpen(true);
+        try {
+            const response = await fetch(`/api/manufacturing/work-orders/${order.id}`);
+            const payload = await response.json();
+            if (payload.success) {
+                const options: WarehouseOption[] = payload.data.warehouseOptions || [];
+                setWarehouseOptions(options);
+                if (options.length > 0) setWarehouseId(options[0].id);
+            }
+        } catch (err) {
+            console.error('Failed to load work order detail', err);
+        }
+    };
+
+    const refreshSelectedOrder = async () => {
+        if (!selectedOrder) return;
+        const response = await fetch(`/api/manufacturing/work-orders/${selectedOrder.id}`);
+        const payload = await response.json();
+        if (payload.success) {
+            const latest = payload.data;
+            setSelectedOrder((prev) => prev ? {
+                ...prev,
+                status: latest.status,
+                actualQty: latest.actualQty,
+                plannedQty: latest.plannedQty,
+                progress: latest.progress,
+            } : prev);
+        }
+        await fetchWorkOrders();
+    };
+
+    const runTransition = async (toStatus: 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED') => {
+        if (!selectedOrder) return;
+        setUpdating(true);
+        try {
+            const response = await fetch(`/api/manufacturing/work-orders/${selectedOrder.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'TRANSITION',
+                    toStatus,
+                    warehouseId: warehouseId || undefined,
+                    performedBy: performedBy || undefined,
+                }),
+            });
+            const payload = await response.json();
+            if (!payload.success) {
+                toast.error(payload.error || `Failed to transition to ${toStatus}`);
+                return;
+            }
+            toast.success(`Work order moved to ${toStatus}`);
+            await refreshSelectedOrder();
+        } catch (err) {
+            console.error(err);
+            toast.error('Network error while updating order');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const reportProduction = async () => {
+        if (!selectedOrder) return;
+        const qty = Number(reportQty);
+        if (!qty || qty <= 0) {
+            toast.error('Quantity produced must be greater than 0');
+            return;
+        }
+        if (!warehouseId) {
+            toast.error('Please select a warehouse');
+            return;
+        }
+
+        setUpdating(true);
+        try {
+            const response = await fetch(`/api/manufacturing/work-orders/${selectedOrder.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'REPORT_PRODUCTION',
+                    quantityProduced: qty,
+                    warehouseId,
+                    performedBy: performedBy || undefined,
+                }),
+            });
+            const payload = await response.json();
+            if (!payload.success) {
+                toast.error(payload.error || 'Failed to report production');
+                return;
+            }
+            toast.success('Production reported. Inventory and finance entries posted.')
+            setProgressDialogOpen(false);
+            setReportQty("");
+            await refreshSelectedOrder();
+        } catch (err) {
+            console.error(err);
+            toast.error('Network error while posting production');
+        } finally {
+            setUpdating(false);
+        }
     };
 
     const formatDate = (dateStr: string | null | undefined) => {
@@ -148,10 +274,10 @@ export default function ProductionOrdersPage() {
     };
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+        <div className="mf-page">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight">Production Orders</h2>
+                    <h2 className="mf-title">Production Orders</h2>
                     <p className="text-muted-foreground">Kelola dan lacak semua order produksi.</p>
                 </div>
                 <div className="flex gap-2">
@@ -164,7 +290,10 @@ export default function ProductionOrdersPage() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+                    <Button
+                        className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide"
+                        onClick={() => setCreateOpen(true)}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> New Order
                     </Button>
                 </div>
@@ -261,7 +390,7 @@ export default function ProductionOrdersPage() {
                                 ? 'Try adjusting your search or filter criteria.'
                                 : 'Create your first production order to get started.'}
                         </p>
-                        <Button className="mt-4 bg-black text-white">
+                        <Button className="mt-4 bg-black text-white" onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" /> New Order
                         </Button>
                     </CardContent>
@@ -373,20 +502,90 @@ export default function ProductionOrdersPage() {
 
                             {/* Actions */}
                             <div className="pt-4 border-t flex gap-2">
+                                <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            className="flex-1 bg-black text-white hover:bg-zinc-800"
+                                            disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
+                                        >
+                                            Update Progress
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Report Production</DialogTitle>
+                                            <DialogDescription>Post produksi aktual untuk order ini dan sinkronkan inventory + finance.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-sm font-medium">Quantity Produced</label>
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={Math.max(1, selectedOrder.plannedQty - selectedOrder.actualQty)}
+                                                    value={reportQty}
+                                                    onChange={(e) => setReportQty(e.target.value)}
+                                                    placeholder="Masukkan qty produksi"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-sm font-medium">Warehouse</label>
+                                                <Select value={warehouseId} onValueChange={setWarehouseId}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select warehouse" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {warehouseOptions.map((wh) => (
+                                                            <SelectItem key={wh.id} value={wh.id}>{wh.code} - {wh.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-sm font-medium">Performed By (optional)</label>
+                                                <Input value={performedBy} onChange={(e) => setPerformedBy(e.target.value)} placeholder="Operator name / user id" />
+                                            </div>
+                                            <Button onClick={reportProduction} disabled={updating} className="w-full">
+                                                {updating ? 'Posting...' : 'Post Production'}
+                                            </Button>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
                                 <Button
-                                    className="flex-1 bg-black text-white hover:bg-zinc-800"
-                                    disabled={selectedOrder.status === 'COMPLETED'}
+                                    variant="outline"
+                                    className="border-black"
+                                    disabled={selectedOrder.status !== 'PLANNED' || updating}
+                                    onClick={() => runTransition('IN_PROGRESS')}
                                 >
-                                    Update Progress
+                                    Start
                                 </Button>
-                                <Button variant="outline" className="border-black">
-                                    Edit
+                                <Button
+                                    variant="outline"
+                                    className="border-black"
+                                    disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
+                                    onClick={() => runTransition('ON_HOLD')}
+                                >
+                                    Hold
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="border-black"
+                                    disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
+                                    onClick={() => runTransition('COMPLETED')}
+                                >
+                                    Complete
                                 </Button>
                             </div>
                         </div>
                     )}
                 </SheetContent>
             </Sheet>
+
+            <CreateWorkOrderDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                onCreated={fetchWorkOrders}
+            />
         </div>
     );
 }

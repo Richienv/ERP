@@ -41,7 +41,9 @@ async function WarehouseGrid() {
             <div className="flex justify-between items-start">
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className="border-black font-mono text-xs bg-white text-black line-clamp-1 max-w-[100px]">{wh.id.split('-')[0]}</Badge>
+                  <Badge variant="outline" className="border-black font-mono text-xs bg-white text-black line-clamp-1 max-w-[120px]">
+                    {wh.code}
+                  </Badge>
                   <Badge className="bg-black text-white hover:bg-zinc-800">{wh.type}</Badge>
                 </div>
                 <CardTitle className="text-xl font-black uppercase leading-tight line-clamp-1" title={wh.name}>{wh.name}</CardTitle>
@@ -49,9 +51,21 @@ async function WarehouseGrid() {
                   <MapPin className="h-3 w-3" /> {wh.location}
                 </CardDescription>
               </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-black hover:text-white rounded-full">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
+              <WarehouseFormDialog
+                mode="edit"
+                warehouse={{
+                  id: wh.id,
+                  name: wh.name,
+                  code: wh.code,
+                  address: wh.location,
+                  capacity: wh.capacity
+                }}
+                trigger={
+                  <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-black hover:text-white rounded-full">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                }
+              />
             </div>
           </CardHeader>
           <CardContent className="pt-6 flex-1 space-y-6">

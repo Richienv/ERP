@@ -102,6 +102,41 @@ export async function PATCH(
     try {
         const { id } = await params
         const body = await request.json()
+        const action = body.action
+
+        if (action === 'ADD_STEP') {
+            if (!body.name || !body.durationMinutes) {
+                return NextResponse.json(
+                    { success: false, error: 'Missing required fields: name, durationMinutes' },
+                    { status: 400 }
+                )
+            }
+
+            const maxSequence = await prisma.routingStep.aggregate({
+                where: { routingId: id },
+                _max: { sequence: true },
+            })
+
+            const step = await prisma.routingStep.create({
+                data: {
+                    routingId: id,
+                    sequence: body.sequence ? Number(body.sequence) : (maxSequence._max.sequence || 0) + 1,
+                    name: body.name,
+                    description: body.description || null,
+                    durationMinutes: Number(body.durationMinutes),
+                    machineId: body.machineId || null,
+                    materialId: body.materialId || null,
+                    materialQty: body.materialQty !== undefined && body.materialQty !== null ? Number(body.materialQty) : null,
+                    materialUnit: body.materialUnit || null,
+                },
+            })
+
+            return NextResponse.json({
+                success: true,
+                data: step,
+                message: 'Routing step added successfully',
+            })
+        }
 
         const updateData: any = {}
 

@@ -92,7 +92,7 @@ export function PengadaanCard({ pendingApproval, activeCount }: PengadaanCardPro
                 <CardHeader className="pb-2 border-b-2 border-dashed border-zinc-200">
                     <CardTitle className="text-xs font-black uppercase tracking-widest text-zinc-500 flex items-center justify-between">
                         <span className="flex items-center gap-2"><Truck className="h-4 w-4 text-blue-600" /> Pengadaan</span>
-                        {pendingApproval.length > 0 ? (
+                        {pendingApproval?.length > 0 ? (
                             <span className="text-[10px] bg-amber-100 text-amber-900 px-1 py-0.5 rounded font-black">
                                 {pendingApproval.length} NEEDS APPROVAL
                             </span>
@@ -107,7 +107,7 @@ export function PengadaanCard({ pendingApproval, activeCount }: PengadaanCardPro
 
                     <div className="mb-4">
                         <p className="text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-wider">Pending Your Approval</p>
-                        {pendingApproval.length > 0 ? (
+                        {pendingApproval?.length > 0 ? (
                             <div className="space-y-2">
                                 {pendingApproval.slice(0, 2).map((po) => (
                                     <div

@@ -25,6 +25,8 @@ import {
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet";
+import { RoutingFormDialog } from "@/components/manufacturing/routing-form-dialog";
+import { AddRoutingStepDialog } from "@/components/manufacturing/add-routing-step-dialog";
 
 interface RoutingStep {
     id: string;
@@ -70,6 +72,9 @@ export default function RoutingPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedRouting, setSelectedRouting] = useState<Routing | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [routingFormOpen, setRoutingFormOpen] = useState(false);
+    const [editingRouting, setEditingRouting] = useState<Routing | null>(null);
+    const [addStepOpen, setAddStepOpen] = useState(false);
 
     const fetchRoutings = async () => {
         setLoading(true);
@@ -122,11 +127,37 @@ export default function RoutingPage() {
         setSheetOpen(true);
     };
 
+    const handleCreateRouting = () => {
+        setEditingRouting(null);
+        setRoutingFormOpen(true);
+    };
+
+    const handleEditRouting = () => {
+        if (!selectedRouting) return;
+        setEditingRouting(selectedRouting);
+        setRoutingFormOpen(true);
+    };
+
+    const refreshRoutingsAndSelection = async () => {
+        await fetchRoutings();
+        if (selectedRouting?.id) {
+            try {
+                const response = await fetch(`/api/manufacturing/routing/${selectedRouting.id}`);
+                const payload = await response.json();
+                if (payload.success) {
+                    setSelectedRouting(payload.data);
+                }
+            } catch (error) {
+                console.error("Error refreshing selected routing:", error);
+            }
+        }
+    };
+
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+        <div className="mf-page">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight">Routing Definitions</h2>
+                    <h2 className="mf-title">Routing Definitions</h2>
                     <p className="text-muted-foreground">Define proses produksi dan langkah-langkah manufacturing.</p>
                 </div>
                 <div className="flex gap-2">
@@ -139,7 +170,10 @@ export default function RoutingPage() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+                    <Button
+                        className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide"
+                        onClick={handleCreateRouting}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> New Routing
                     </Button>
                 </div>
@@ -197,7 +231,7 @@ export default function RoutingPage() {
                         <p className="text-sm text-muted-foreground mt-1">
                             {searchQuery ? 'Try adjusting your search.' : 'Create your first routing to define manufacturing processes.'}
                         </p>
-                        <Button className="mt-4 bg-black text-white">
+                        <Button className="mt-4 bg-black text-white" onClick={handleCreateRouting}>
                             <Plus className="mr-2 h-4 w-4" /> New Routing
                         </Button>
                     </CardContent>
@@ -382,10 +416,10 @@ export default function RoutingPage() {
 
                             {/* Actions */}
                             <div className="pt-4 border-t flex gap-2">
-                                <Button className="flex-1 bg-black text-white hover:bg-zinc-800">
+                                <Button className="flex-1 bg-black text-white hover:bg-zinc-800" onClick={handleEditRouting}>
                                     Edit Routing
                                 </Button>
-                                <Button variant="outline" className="border-black">
+                                <Button variant="outline" className="border-black" onClick={() => setAddStepOpen(true)}>
                                     Add Step
                                 </Button>
                             </div>
@@ -393,6 +427,24 @@ export default function RoutingPage() {
                     )}
                 </SheetContent>
             </Sheet>
+
+            <RoutingFormDialog
+                open={routingFormOpen}
+                onOpenChange={setRoutingFormOpen}
+                initialData={editingRouting}
+                onSaved={refreshRoutingsAndSelection}
+            />
+
+            {selectedRouting && (
+                <AddRoutingStepDialog
+                    open={addStepOpen}
+                    onOpenChange={setAddStepOpen}
+                    routingId={selectedRouting.id}
+                    routingName={selectedRouting.name}
+                    nextSequence={selectedRouting.steps.length + 1}
+                    onSaved={refreshRoutingsAndSelection}
+                />
+            )}
         </div>
     );
 }

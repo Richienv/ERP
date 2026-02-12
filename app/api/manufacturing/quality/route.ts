@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
         const offset = (page - 1) * limit
 
-        const [inspections, totalCount] = await Promise.all([
+        const [inspections, totalCount, inspectors, materials, workOrders] = await Promise.all([
             prisma.qualityInspection.findMany({
                 where: whereClause,
                 include: {
@@ -67,6 +67,40 @@ export async function GET(request: NextRequest) {
                 take: limit,
             }),
             prisma.qualityInspection.count({ where: whereClause }),
+            prisma.employee.findMany({
+                where: { status: 'ACTIVE' },
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                },
+                orderBy: [
+                    { firstName: 'asc' },
+                    { lastName: 'asc' },
+                ],
+                take: 200,
+            }),
+            prisma.product.findMany({
+                where: { isActive: true },
+                select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                },
+                orderBy: { name: 'asc' },
+                take: 500,
+            }),
+            prisma.workOrder.findMany({
+                where: {
+                    status: { in: ['PLANNED', 'IN_PROGRESS', 'ON_HOLD'] },
+                },
+                select: {
+                    id: true,
+                    number: true,
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 200,
+            }),
         ])
 
         // Enhance with formatted data
@@ -99,6 +133,11 @@ export async function GET(request: NextRequest) {
                 defectCount: totalDefects,
                 pendingCount: 0, // Would need separate query for pending batches
                 todayCount: todayInspections.length,
+            },
+            options: {
+                inspectors,
+                materials,
+                workOrders,
             },
             pagination: {
                 page,

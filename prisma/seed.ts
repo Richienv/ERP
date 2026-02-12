@@ -17,12 +17,15 @@ async function main() {
         await prisma.purchaseOrder.deleteMany({})
         await prisma.inventoryTransaction.deleteMany({})
         await prisma.stockLevel.deleteMany({})
+        await prisma.purchaseRequestItem.deleteMany({})
+        await prisma.billOfMaterials.deleteMany({}) // Clean BOM dependent on Product
         await prisma.product.deleteMany({})
         await prisma.category.deleteMany({})
         await prisma.supplier.deleteMany({})
         await prisma.leaveRequest.deleteMany({})
         await prisma.attendance.deleteMany({})
         await prisma.executiveSnapshot.deleteMany({})
+        await prisma.purchaseRequest.deleteMany({}) // Clean PR dependent on Employee
         await prisma.employee.deleteMany({})
         await prisma.user.deleteMany({}) // Clean users
         await prisma.warehouse.deleteMany({})

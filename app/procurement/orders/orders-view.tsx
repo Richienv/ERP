@@ -23,14 +23,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import { Card } from "@/components/ui/card"
+    Card
+} from "@/components/ui/card"
 
 import {
     Tabs,
@@ -74,7 +68,6 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
 
     const activeOrders = filteredOrders.filter(o => ['PO_DRAFT', 'PENDING_APPROVAL', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'].includes(o.status))
     const approvedOrders = filteredOrders.filter(o => o.status === 'APPROVED')
-    const completedOrders = filteredOrders.filter(o => ['RECEIVED', 'COMPLETED', 'CANCELLED', 'REJECTED'].includes(o.status))
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -115,7 +108,7 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                     </thead>
                     <tbody>
                         {data.map((po) => (
-                            <tr key={po.dbId} className="group hover:bg-zinc-50 border-b border-black/5 last:border-0 transition-colors cursor-pointer" onClick={() => setSelectedOrder(po)}>
+                            <tr key={po.dbId} className="group hover:bg-zinc-50 border-b border-black/5 last:border-0 transition-colors">
                                 <td className="p-4 font-bold text-xs text-blue-600 group-hover:underline">{po.id}</td>
                                 <td className="p-4">
                                     <div className="font-bold text-xs">{po.vendor}</div>
@@ -146,6 +139,14 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                                 </td>
                                 <td className="p-4 text-right">
                                     <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-7 w-7 hover:bg-black hover:text-white rounded-full"
+                                            onClick={(e) => { e.stopPropagation(); setSelectedOrder(po) }}
+                                        >
+                                            <Eye className="h-3.5 w-3.5" />
+                                        </Button>
                                         <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                                             <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white rounded-full">
                                                 <Download className="h-3.5 w-3.5" />
@@ -196,7 +197,7 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                                             </DropdownMenu>
                                         ) : (
                                             <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-600 hover:text-white rounded-full">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-600 hover:text-white rounded-full" title="View PDF">
                                                     <Eye className="h-3.5 w-3.5" />
                                                 </Button>
                                             </a>

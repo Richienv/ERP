@@ -374,10 +374,10 @@ async function fetchProductionStatus(prisma: PrismaClient) {
             name: m.name,
             job: wo?.number || '-',
             desc: wo?.product?.name || 'No Active Job',
-            progress: wo ? Math.min(100, Math.round((wo.completedQty / wo.quantity) * 100)) : 0,
+            progress: wo ? Math.min(100, Math.round((wo.actualQty / wo.plannedQty) * 100)) : 0,
             status: statusLabel,
             supervisor: '-',
-            eta: wo?.endDate ? wo.endDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '-'
+            eta: wo?.dueDate ? wo.dueDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '-'
         }
     })
 }
@@ -614,7 +614,7 @@ export async function getDashboardData() {
             ] = await Promise.all([
                 fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
                 fetchDeadStockValue(prisma).catch(() => 0),
-                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] })),
+                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [], pendingApproval: [] })),
                 fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
                 fetchPendingLeaves(prisma).catch(() => 0),
                 fetchAuditStatus(prisma).catch(() => null),
@@ -649,7 +649,7 @@ export async function getDashboardData() {
         return {
             financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
             deadStock: 0,
-            procurement: { activeCount: 0, delays: [] },
+            procurement: { activeCount: 0, delays: [], pendingApproval: [] },
             hr: { totalSalary: 0, lateEmployees: [] },
             leaves: 0,
             audit: null,

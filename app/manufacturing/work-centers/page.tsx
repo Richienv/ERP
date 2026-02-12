@@ -4,11 +4,9 @@ import { useEffect, useState } from "react";
 import {
     Plus,
     Search,
-    Filter,
     Settings,
     Activity,
     AlertCircle,
-    Power,
     Clock,
     BarChart3,
     RefreshCw,
@@ -25,6 +23,7 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MachineFormDialog } from "@/components/manufacturing/machine-form-dialog";
 
 interface Machine {
     id: string;
@@ -37,6 +36,11 @@ interface Machine {
     lastMaintenance?: string | null;
     nextMaintenance?: string | null;
     capacityPerHour?: number | null;
+    standardHoursPerDay?: number;
+    overheadTimePerHour?: number;
+    overheadMaterialCostPerHour?: number;
+    serialNumber?: string | null;
+    groupId?: string | null;
     isActive: boolean;
 }
 
@@ -54,6 +58,8 @@ export default function WorkCentersPage() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
+    const [machineDialogOpen, setMachineDialogOpen] = useState(false);
+    const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
 
     const fetchMachines = async () => {
         setLoading(true);
@@ -106,11 +112,21 @@ export default function WorkCentersPage() {
         return 'Idle';
     };
 
+    const handleCreateMachine = () => {
+        setSelectedMachine(null);
+        setMachineDialogOpen(true);
+    };
+
+    const handleEditMachine = (machine: Machine) => {
+        setSelectedMachine(machine);
+        setMachineDialogOpen(true);
+    };
+
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+        <div className="mf-page">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight">Pusat Kerja & Routing</h2>
+                    <h2 className="mf-title">Pusat Kerja & Routing</h2>
                     <p className="text-muted-foreground">Monitor status mesin dan kapasitas produksi.</p>
                 </div>
                 <div className="flex gap-2">
@@ -123,7 +139,10 @@ export default function WorkCentersPage() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+                    <Button
+                        className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide"
+                        onClick={handleCreateMachine}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> Tambah Mesin
                     </Button>
                 </div>
@@ -211,7 +230,7 @@ export default function WorkCentersPage() {
                                 ? 'Try adjusting your search or filter criteria.'
                                 : 'Add your first machine to get started.'}
                         </p>
-                        <Button className="mt-4 bg-black text-white">
+                        <Button className="mt-4 bg-black text-white" onClick={handleCreateMachine}>
                             <Plus className="mr-2 h-4 w-4" /> Add Machine
                         </Button>
                     </CardContent>
@@ -284,13 +303,27 @@ export default function WorkCentersPage() {
                                     <div className="flex items-center gap-1">
                                         <Clock className="h-3 w-3" /> Next Maint: <span className={nextMaint === 'OVERDUE' ? 'text-red-600 font-bold underline' : 'font-bold'}>{nextMaint}</span>
                                     </div>
-                                    <Button variant="ghost" size="sm" className="h-6 text-[10px] uppercase font-bold hover:bg-black hover:text-white transition-colors">Details <Settings className="ml-1 h-3 w-3" /></Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-[10px] uppercase font-bold hover:bg-black hover:text-white transition-colors"
+                                        onClick={() => handleEditMachine(mc)}
+                                    >
+                                        Details <Settings className="ml-1 h-3 w-3" />
+                                    </Button>
                                 </CardFooter>
                             </Card>
                         );
                     })}
                 </div>
             )}
+
+            <MachineFormDialog
+                open={machineDialogOpen}
+                onOpenChange={setMachineDialogOpen}
+                initialData={selectedMachine}
+                onSaved={fetchMachines}
+            />
         </div>
     );
 }

@@ -1,21 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// Types
-interface MachineResponse {
-    id: string
-    code: string
-    name: string
-    brand?: string | null
-    model?: string | null
-    status: string
-    healthScore: number
-    lastMaintenance?: Date | null
-    nextMaintenance?: Date | null
-    capacityPerHour?: number | null
-    isActive: boolean
-}
-
 // GET /api/manufacturing/machines - Fetch all machines/work centers
 export async function GET(request: NextRequest) {
     try {
@@ -80,7 +65,23 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
 
-        const { code, name, brand, model, serialNumber, capacityPerHour } = body
+        const {
+            code,
+            name,
+            brand,
+            model,
+            serialNumber,
+            groupId,
+            status,
+            healthScore,
+            capacityPerHour,
+            standardHoursPerDay,
+            overheadTimePerHour,
+            overheadMaterialCostPerHour,
+            lastMaintenance,
+            nextMaintenance,
+            isActive,
+        } = body
 
         if (!code || !name) {
             return NextResponse.json(
@@ -108,10 +109,16 @@ export async function POST(request: NextRequest) {
                 brand: brand || null,
                 model: model || null,
                 serialNumber: serialNumber || null,
+                groupId: groupId || null,
                 capacityPerHour: capacityPerHour ? parseInt(capacityPerHour) : null,
-                status: 'IDLE',
-                healthScore: 100,
-                isActive: true,
+                standardHoursPerDay: standardHoursPerDay ? parseInt(standardHoursPerDay) : undefined,
+                overheadTimePerHour: overheadTimePerHour !== undefined ? Number(overheadTimePerHour) : undefined,
+                overheadMaterialCostPerHour: overheadMaterialCostPerHour !== undefined ? Number(overheadMaterialCostPerHour) : undefined,
+                status: status || 'IDLE',
+                healthScore: healthScore !== undefined ? Number(healthScore) : 100,
+                lastMaintenance: lastMaintenance ? new Date(lastMaintenance) : null,
+                nextMaintenance: nextMaintenance ? new Date(nextMaintenance) : null,
+                isActive: isActive !== undefined ? Boolean(isActive) : true,
             },
         })
 

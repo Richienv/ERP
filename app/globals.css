@@ -502,3 +502,22 @@
     text-shadow: 0 0 20px rgb(var(--primary) / 0.5);
   }
 }
+@layer utilities {
+  .mf-page {
+    @apply flex-1 space-y-5 p-4 md:p-8 pt-6 font-sans;
+    background-image: radial-gradient(circle at 88% 0%, rgba(0, 0, 0, 0.06), transparent 30%);
+  }
+
+  .mf-title {
+    @apply text-3xl font-black font-serif tracking-tight;
+    letter-spacing: -0.02em;
+  }
+
+  .mf-subtitle {
+    @apply text-sm md:text-base text-muted-foreground;
+  }
+
+  .mf-panel {
+    @apply border border-black/15 bg-zinc-50/40;
+  }
+}

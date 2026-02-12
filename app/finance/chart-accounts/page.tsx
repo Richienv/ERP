@@ -6,8 +6,6 @@ import {
   Plus,
   ChevronRight,
   ChevronDown,
-  Tag,
-  FolderOpen
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,14 +14,12 @@ import {
   Card,
   CardHeader,
 } from "@/components/ui/card"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { getChartOfAccountsTree, type GLAccountNode } from "@/lib/actions/finance"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { getChartOfAccountsTree, createGLAccount, type GLAccountNode } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
+import { toast } from "sonner"
 
 // Recursive Tree Node Component
 const AccountNode = ({ node, level }: { node: GLAccountNode, level: number }) => {
@@ -81,6 +77,12 @@ export default function CoALedgerPage() {
   const [accounts, setAccounts] = useState<GLAccountNode[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [filterType, setFilterType] = useState<"ALL" | "ASSET" | "LIABILITY" | "EQUITY" | "AUDIT_READY">("ALL")
+  const [createOpen, setCreateOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [newCode, setNewCode] = useState("")
+  const [newName, setNewName] = useState("")
+  const [newType, setNewType] = useState<"ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE">("ASSET")
 
   useEffect(() => {
     loadAccounts()
@@ -93,10 +95,42 @@ export default function CoALedgerPage() {
     setLoading(false)
   }
 
-  const filteredAccounts = accounts.filter(acc =>
-    acc.name.toLowerCase().includes(search.toLowerCase()) ||
-    acc.code.includes(search)
-  )
+  const filteredAccounts = accounts.filter((acc) => {
+    const matchesSearch = acc.name.toLowerCase().includes(search.toLowerCase()) || acc.code.includes(search)
+    if (!matchesSearch) return false
+    if (filterType === "ALL") return true
+    if (filterType === "AUDIT_READY") return Math.abs(acc.balance) > 0
+    return acc.type === filterType
+  })
+
+  async function handleCreateAccount() {
+    if (!newCode.trim() || !newName.trim()) {
+      toast.error("Code dan name akun wajib diisi")
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const result = await createGLAccount({
+        code: newCode.trim(),
+        name: newName.trim(),
+        type: newType,
+      })
+      if (!result.success) {
+        toast.error(("error" in result ? result.error : null) || "Gagal membuat account")
+        return
+      }
+
+      toast.success("Account berhasil dibuat")
+      setNewCode("")
+      setNewName("")
+      setNewType("ASSET")
+      setCreateOpen(false)
+      await loadAccounts()
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans h-[calc(100vh-theme(spacing.16))] flex flex-col">
@@ -119,28 +153,66 @@ export default function CoALedgerPage() {
               className="pl-8 bg-white border-black shadow-sm font-medium"
             />
           </div>
-          <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide active:shadow-none active:translate-y-[2px] transition-all">
-            <Plus className="mr-2 h-4 w-4" /> Add Account
-          </Button>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide active:shadow-none active:translate-y-[2px] transition-all">
+                <Plus className="mr-2 h-4 w-4" /> Add Account
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add COA Account</DialogTitle>
+                <DialogDescription>Buat akun baru agar langsung masuk ke chart of accounts.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Account Code</Label>
+                    <Input value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="Contoh: 6100" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Account Type</Label>
+                    <Select value={newType} onValueChange={(v) => setNewType(v as "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE")}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ASSET">ASSET</SelectItem>
+                        <SelectItem value="LIABILITY">LIABILITY</SelectItem>
+                        <SelectItem value="EQUITY">EQUITY</SelectItem>
+                        <SelectItem value="REVENUE">REVENUE</SelectItem>
+                        <SelectItem value="EXPENSE">EXPENSE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Account Name</Label>
+                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Contoh: Biaya Listrik" />
+                </div>
+                <Button onClick={handleCreateAccount} disabled={submitting} className="w-full">
+                  {submitting ? "Saving..." : "Save Account"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
       {/* Filter Bar */}
       <div className="flex items-center gap-2 pb-2 overflow-x-auto">
-        <Badge variant="outline" className="bg-white hover:bg-zinc-100 cursor-pointer border-black text-black px-3 py-1 font-bold shadow-sm">
+        <Badge onClick={() => setFilterType("ALL")} variant="outline" className={`cursor-pointer px-3 py-1 font-bold shadow-sm ${filterType === "ALL" ? "bg-white border-black text-black" : "bg-transparent border-zinc-300 text-zinc-500"}`}>
           All Accounts
         </Badge>
-        <Badge variant="outline" className="bg-transparent hover:bg-zinc-100 cursor-pointer border-zinc-300 text-zinc-500 px-3 py-1 font-bold">
+        <Badge onClick={() => setFilterType("ASSET")} variant="outline" className={`cursor-pointer px-3 py-1 font-bold ${filterType === "ASSET" ? "bg-emerald-50 border-emerald-400 text-emerald-700" : "bg-transparent border-zinc-300 text-zinc-500 hover:bg-zinc-100"}`}>
           Assets
         </Badge>
-        <Badge variant="outline" className="bg-transparent hover:bg-zinc-100 cursor-pointer border-zinc-300 text-zinc-500 px-3 py-1 font-bold">
+        <Badge onClick={() => setFilterType("LIABILITY")} variant="outline" className={`cursor-pointer px-3 py-1 font-bold ${filterType === "LIABILITY" ? "bg-red-50 border-red-400 text-red-700" : "bg-transparent border-zinc-300 text-zinc-500 hover:bg-zinc-100"}`}>
           Liabilities
         </Badge>
-        <Badge variant="outline" className="bg-transparent hover:bg-zinc-100 cursor-pointer border-zinc-300 text-zinc-500 px-3 py-1 font-bold">
+        <Badge onClick={() => setFilterType("EQUITY")} variant="outline" className={`cursor-pointer px-3 py-1 font-bold ${filterType === "EQUITY" ? "bg-blue-50 border-blue-400 text-blue-700" : "bg-transparent border-zinc-300 text-zinc-500 hover:bg-zinc-100"}`}>
           Equity
         </Badge>
         <div className="w-px h-6 bg-zinc-200 mx-2" />
-        <Badge variant="outline" className="bg-amber-50 hover:bg-amber-100 cursor-pointer border-amber-200 text-amber-700 px-3 py-1 font-bold border-dashed">
+        <Badge onClick={() => setFilterType("AUDIT_READY")} variant="outline" className={`cursor-pointer px-3 py-1 font-bold border-dashed ${filterType === "AUDIT_READY" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-transparent border-zinc-300 text-zinc-500 hover:bg-zinc-100"}`}>
           #AuditReady
         </Badge>
       </div>

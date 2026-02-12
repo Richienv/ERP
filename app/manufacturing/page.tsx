@@ -5,13 +5,10 @@ import {
   Factory,
   AlertTriangle,
   CheckCircle,
-  Activity,
   Settings,
   Package,
-  TrendingUp,
   AlertCircle,
   RefreshCw,
-  Gauge,
   ClipboardCheck,
   Users,
 } from "lucide-react";
@@ -108,17 +105,11 @@ export default function ManufacturingDashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const getOEEColor = (oee: number) => {
-    if (oee >= 85) return 'text-emerald-600';
-    if (oee >= 60) return 'text-amber-600';
-    return 'text-red-600';
-  };
-
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+    <div className="mf-page">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black font-serif tracking-tight">Manufacturing Dashboard</h2>
+          <h2 className="mf-title">Manufacturing Dashboard</h2>
           <p className="text-muted-foreground">Overview produksi dan status pabrik real-time.</p>
         </div>
         <Button
@@ -225,7 +216,6 @@ export default function ManufacturingDashboard() {
             <OEEMetricCard
               label="Availability"
               value={data?.productionHealth.availability || 0}
-              icon={Activity}
               description="Machine uptime"
             />
 
@@ -233,7 +223,6 @@ export default function ManufacturingDashboard() {
             <OEEMetricCard
               label="Performance"
               value={data?.productionHealth.performance || 0}
-              icon={TrendingUp}
               description="Production speed"
             />
 
@@ -241,7 +230,6 @@ export default function ManufacturingDashboard() {
             <OEEMetricCard
               label="Quality"
               value={data?.productionHealth.quality || 0}
-              icon={CheckCircle}
               description="First pass yield"
             />
           </>
@@ -431,7 +419,7 @@ export default function ManufacturingDashboard() {
   );
 }
 
-function OEEMetricCard({ label, value, icon: Icon, description }: { label: string; value: number; icon: any; description: string }) {
+function OEEMetricCard({ label, value, description }: { label: string; value: number; description: string }) {
   const getColor = (v: number) => {
     if (v >= 85) return 'text-emerald-600';
     if (v >= 60) return 'text-amber-600';

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import {
     Plus,
     Search,
-    MoreVertical,
     ClipboardList,
     User,
     Calendar,
@@ -34,6 +33,23 @@ import {
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { CreateWorkOrderDialog } from "@/components/manufacturing/create-work-order-dialog";
 
 interface WorkOrderTask {
     id: string;
@@ -65,6 +81,12 @@ interface WorkOrder {
     workers: string[];
 }
 
+interface WarehouseOption {
+    id: string;
+    code: string;
+    name: string;
+}
+
 export default function WorkOrdersPage() {
     const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
     const [loading, setLoading] = useState(true);
@@ -73,6 +95,13 @@ export default function WorkOrdersPage() {
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
     const [selectedSPK, setSelectedSPK] = useState<WorkOrder | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+    const [reportQty, setReportQty] = useState("");
+    const [warehouseId, setWarehouseId] = useState("");
+    const [performedBy, setPerformedBy] = useState("");
+    const [warehouseOptions, setWarehouseOptions] = useState<WarehouseOption[]>([]);
+    const [updating, setUpdating] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
 
     const fetchWorkOrders = async () => {
         setLoading(true);
@@ -110,9 +139,107 @@ export default function WorkOrdersPage() {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    const handleCardClick = (spk: WorkOrder) => {
+    const handleCardClick = async (spk: WorkOrder) => {
         setSelectedSPK(spk);
         setSheetOpen(true);
+        try {
+            const response = await fetch(`/api/manufacturing/work-orders/${spk.id}`);
+            const payload = await response.json();
+            if (payload.success) {
+                const options: WarehouseOption[] = payload.data.warehouseOptions || [];
+                setWarehouseOptions(options);
+                if (options.length > 0) setWarehouseId(options[0].id);
+            }
+        } catch (err) {
+            console.error('Failed to load work order detail', err);
+        }
+    };
+
+    const refreshSelectedWorkOrder = async () => {
+        if (!selectedSPK) return;
+        const response = await fetch(`/api/manufacturing/work-orders/${selectedSPK.id}`);
+        const payload = await response.json();
+        if (payload.success) {
+            const latest = payload.data;
+            setSelectedSPK((prev) => prev ? {
+                ...prev,
+                status: latest.status,
+                actualQty: latest.actualQty,
+                plannedQty: latest.plannedQty,
+                progress: latest.progress,
+            } : prev);
+        }
+        await fetchWorkOrders();
+    };
+
+    const runTransition = async (toStatus: 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED') => {
+        if (!selectedSPK) return;
+        setUpdating(true);
+        try {
+            const response = await fetch(`/api/manufacturing/work-orders/${selectedSPK.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'TRANSITION',
+                    toStatus,
+                    warehouseId: warehouseId || undefined,
+                    performedBy: performedBy || undefined,
+                }),
+            });
+            const payload = await response.json();
+            if (!payload.success) {
+                toast.error(payload.error || `Failed to transition to ${toStatus}`);
+                return;
+            }
+            toast.success(`Work order moved to ${toStatus}`);
+            await refreshSelectedWorkOrder();
+        } catch (err) {
+            console.error(err);
+            toast.error('Network error while updating work order');
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    const reportProduction = async () => {
+        if (!selectedSPK) return;
+        const qty = Number(reportQty);
+        if (!qty || qty <= 0) {
+            toast.error('Quantity produced must be greater than 0');
+            return;
+        }
+        if (!warehouseId) {
+            toast.error('Please select a warehouse');
+            return;
+        }
+
+        setUpdating(true);
+        try {
+            const response = await fetch(`/api/manufacturing/work-orders/${selectedSPK.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'REPORT_PRODUCTION',
+                    quantityProduced: qty,
+                    warehouseId,
+                    performedBy: performedBy || undefined,
+                }),
+            });
+            const payload = await response.json();
+            if (!payload.success) {
+                toast.error(payload.error || 'Failed to report production');
+                return;
+            }
+            toast.success('Production reported. Inventory and finance entries posted.')
+            setProgressDialogOpen(false);
+            setReportQty("");
+            await refreshSelectedWorkOrder();
+        } catch (err) {
+            console.error(err);
+            toast.error('Network error while posting production');
+        } finally {
+            setUpdating(false);
+        }
     };
 
     const formatDate = (dateStr: string | null | undefined) => {
@@ -158,10 +285,10 @@ export default function WorkOrdersPage() {
     };
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+        <div className="mf-page">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight">Work Orders (SPK)</h2>
+                    <h2 className="mf-title">Work Orders (SPK)</h2>
                     <p className="text-muted-foreground">Tugas individu dan tracking progress per work order.</p>
                 </div>
                 <div className="flex gap-2">
@@ -174,7 +301,10 @@ export default function WorkOrdersPage() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+                    <Button
+                        className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide"
+                        onClick={() => setCreateOpen(true)}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> New SPK
                     </Button>
                 </div>
@@ -254,7 +384,7 @@ export default function WorkOrdersPage() {
                                 ? 'Try adjusting your search or filter criteria.'
                                 : 'Create your first work order to get started.'}
                         </p>
-                        <Button className="mt-4 bg-black text-white">
+                        <Button className="mt-4 bg-black text-white" onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" /> New SPK
                         </Button>
                     </CardContent>
@@ -379,7 +509,7 @@ export default function WorkOrdersPage() {
                                 <div>
                                     <h4 className="font-black text-sm uppercase mb-3">Tasks ({selectedSPK.tasks.length})</h4>
                                     <div className="space-y-2">
-                                        {selectedSPK.tasks.map((task, i) => (
+                                        {selectedSPK.tasks.map((task) => (
                                             <div key={task.id} className="flex items-center justify-between p-2 bg-zinc-50 rounded border">
                                                 <div className="flex items-center gap-2">
                                                     {task.status === 'COMPLETED' ? (
@@ -402,20 +532,90 @@ export default function WorkOrdersPage() {
 
                             {/* Actions */}
                             <div className="pt-4 border-t flex gap-2">
+                                <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            className="flex-1 bg-black text-white hover:bg-zinc-800"
+                                            disabled={selectedSPK.status !== 'IN_PROGRESS' || updating}
+                                        >
+                                            Update Progress
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Report Production</DialogTitle>
+                                            <DialogDescription>Post produksi aktual untuk WO ini dan sinkronkan inventory + finance.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-3">
+                                            <div className="space-y-1.5">
+                                                <label className="text-sm font-medium">Quantity Produced</label>
+                                                <Input
+                                                    type="number"
+                                                    min={1}
+                                                    max={Math.max(1, selectedSPK.plannedQty - selectedSPK.actualQty)}
+                                                    value={reportQty}
+                                                    onChange={(e) => setReportQty(e.target.value)}
+                                                    placeholder="Masukkan qty produksi"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-sm font-medium">Warehouse</label>
+                                                <Select value={warehouseId} onValueChange={setWarehouseId}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select warehouse" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {warehouseOptions.map((wh) => (
+                                                            <SelectItem key={wh.id} value={wh.id}>{wh.code} - {wh.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <label className="text-sm font-medium">Performed By (optional)</label>
+                                                <Input value={performedBy} onChange={(e) => setPerformedBy(e.target.value)} placeholder="Operator name / user id" />
+                                            </div>
+                                            <Button onClick={reportProduction} disabled={updating} className="w-full">
+                                                {updating ? 'Posting...' : 'Post Production'}
+                                            </Button>
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
                                 <Button
-                                    className="flex-1 bg-black text-white hover:bg-zinc-800"
-                                    disabled={selectedSPK.status === 'COMPLETED'}
+                                    variant="outline"
+                                    className="border-black"
+                                    disabled={selectedSPK.status !== 'PLANNED' || updating}
+                                    onClick={() => runTransition('IN_PROGRESS')}
                                 >
-                                    Update Progress
+                                    Start
                                 </Button>
-                                <Button variant="outline" className="border-black">
-                                    Edit
+                                <Button
+                                    variant="outline"
+                                    className="border-black"
+                                    disabled={selectedSPK.status !== 'IN_PROGRESS' || updating}
+                                    onClick={() => runTransition('ON_HOLD')}
+                                >
+                                    Hold
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="border-black"
+                                    disabled={selectedSPK.status !== 'IN_PROGRESS' || updating}
+                                    onClick={() => runTransition('COMPLETED')}
+                                >
+                                    Complete
                                 </Button>
                             </div>
                         </div>
                     )}
                 </SheetContent>
             </Sheet>
+
+            <CreateWorkOrderDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                onCreated={fetchWorkOrders}
+            />
         </div>
     );
 }

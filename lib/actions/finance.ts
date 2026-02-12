@@ -1006,7 +1006,7 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
 
             if (existingInvoice) {
                 console.log("Invoice already exists:", existingInvoice.number)
-                return { success: true, invoiceId: existingInvoice.id, invoiceNumber: existingInvoice.number }
+                return { success: true as const, invoiceId: existingInvoice.id, invoiceNumber: existingInvoice.number }
             }
 
             // Generate Invoice Number
@@ -1095,7 +1095,7 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
             }
 
             return {
-                success: true,
+                success: true as const,
                 invoiceId: invoice.id,
                 invoiceNumber: invoice.number
             }
@@ -1103,7 +1103,7 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
     } catch (error) {
         console.error("Failed to create invoice from sales order:", error)
         return {
-            success: false,
+            success: false as const,
             error: (error as any)?.message || "Invoice creation failed"
         }
     }
@@ -2165,7 +2165,7 @@ export async function approveVendorBill(billId: string) {
                 totalAmount += amount
 
                 // Attempt to find expense account from product, else default
-                let debitAccountCode = '6000' // Default Expense
+                const debitAccountCode = '6000' // Default Expense
                 // If we had product.expenseAccount relation, we'd use it here.
                 // For now, let's look for a suitable account based on context or default.
 
@@ -2247,6 +2247,7 @@ export interface VendorPayment {
     method: string
     reference?: string
     billNumber?: string
+    notes?: string
 }
 
 /**
@@ -2275,7 +2276,8 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
                 amount: Number(p.amount),
                 method: p.method,
                 reference: p.reference || undefined,
-                billNumber: p.invoice?.number
+                billNumber: p.invoice?.number,
+                notes: p.notes || undefined,
             }))
         })
     } catch (error) {
@@ -2293,9 +2295,20 @@ export async function recordVendorPayment(data: {
     amount: number
     method?: 'CASH' | 'TRANSFER' | 'CHECK'
     reference?: string
+    notes?: string
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            if (!data.supplierId) {
+                throw new Error("Supplier is required")
+            }
+            if (!data.amount || Number(data.amount) <= 0) {
+                throw new Error("Amount must be greater than 0")
+            }
+            if (data.method === 'CHECK' && !data.reference) {
+                throw new Error("Check number/reference is required for CHECK payments")
+            }
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -2311,7 +2324,8 @@ export async function recordVendorPayment(data: {
                     amount: data.amount,
                     date: new Date(),
                     method: data.method || 'TRANSFER',
-                    reference: data.reference
+                    reference: data.reference,
+                    notes: data.notes
                 }
             })
 
@@ -2390,7 +2404,6 @@ export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
             })
 
             // Build tree structure
-            const accountMap = new Map<string, GLAccountNode>()
             const roots: GLAccountNode[] = []
 
             // Create flat list grouped by type (since no parentId in schema)
@@ -2735,7 +2748,7 @@ export async function approveAndPayBill(
             const paymentNumber = `PAY-${Date.now()}` // Simple gen
 
             // Create Payment Record
-            const payment = await prisma.payment.create({
+            const _payment = await prisma.payment.create({
                 data: {
                     number: paymentNumber,
                     amount: paymentDetails.amount,

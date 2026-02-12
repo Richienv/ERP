@@ -3,6 +3,8 @@
 import { withPrismaAuth } from "@/lib/db"
 import { formatIDR } from "@/lib/utils"
 
+import { InvoiceStatus, SalesOrderStatus } from "@prisma/client"
+
 export interface SalesStats {
     totalRevenue: number
     totalOrders: number
@@ -27,14 +29,14 @@ export async function getSalesStats(): Promise<SalesStats> {
                 where: {
                     type: 'INV_OUT',
                     issueDate: { gte: startOfMonth },
-                    status: { not: 'CANCELLED' }
+                    status: { notIn: [InvoiceStatus.CANCELLED, InvoiceStatus.VOID] }
                 }
             })
 
             // 2. Active Orders (Sales Orders that are confirmed but not completed)
             const activeOrdersCount = await prisma.salesOrder.count({
                 where: {
-                    status: { in: ['CONFIRMED', 'IN_PROGRESS', 'DELIVERED'] }
+                    status: { in: [SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS, SalesOrderStatus.DELIVERED] }
                 }
             })
 
@@ -68,7 +70,7 @@ export async function getSalesStats(): Promise<SalesStats> {
             }
         })
     } catch (error) {
-        console.error("Failed to fetch sales stats")
+        console.error("Failed to fetch sales stats", error)
         return { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] }
     }
 }

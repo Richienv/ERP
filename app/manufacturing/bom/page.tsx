@@ -34,6 +34,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { CreateBOMDialog } from "@/components/manufacturing/create-bom-dialog";
 
 interface BOMItem {
     id: string;
@@ -77,6 +78,7 @@ export default function BOMPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedBOM, setSelectedBOM] = useState<BOM | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(false);
 
     const fetchBOMs = async () => {
         setLoading(true);
@@ -128,10 +130,10 @@ export default function BOMPage() {
     };
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+        <div className="mf-page">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight">Bill of Materials</h2>
+                    <h2 className="mf-title">Bill of Materials</h2>
                     <p className="text-muted-foreground">Kelola BOM dan struktur komponen produk.</p>
                 </div>
                 <div className="flex gap-2">
@@ -144,7 +146,10 @@ export default function BOMPage() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+                    <Button
+                        className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide"
+                        onClick={() => setCreateOpen(true)}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> Create BOM
                     </Button>
                 </div>
@@ -207,7 +212,7 @@ export default function BOMPage() {
                                 ? 'Try adjusting your search criteria.'
                                 : 'Create your first BOM to define product components.'}
                         </p>
-                        <Button className="mt-4 bg-black text-white">
+                        <Button className="mt-4 bg-black text-white" onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" /> Create BOM
                         </Button>
                     </CardContent>
@@ -370,6 +375,12 @@ export default function BOMPage() {
                     )}
                 </SheetContent>
             </Sheet>
+
+            <CreateBOMDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                onCreated={fetchBOMs}
+            />
         </div>
     );
 }

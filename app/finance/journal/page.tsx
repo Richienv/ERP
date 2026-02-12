@@ -2,10 +2,7 @@
 
 import { useEffect, useState } from "react"
 import {
-    Search,
     Plus,
-    Filter,
-    FileText,
     Download,
     Save,
     Trash2,
@@ -21,6 +18,7 @@ import {
     CardContent,
     CardHeader,
 } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
     Select,
     SelectContent,
@@ -34,7 +32,7 @@ import { toast } from "sonner"
 
 export default function GeneralLedgerPage() {
     const [entries, setEntries] = useState<JournalEntryItem[]>([])
-    const [glAccounts, setGlAccounts] = useState<any[]>([])
+    const [glAccounts, setGlAccounts] = useState<Array<{ id: string; code: string; name: string; type: string }>>([])
     const [lines, setLines] = useState([
         { accountId: "", debit: 0, credit: 0 },
         { accountId: "", debit: 0, credit: 0 }
@@ -43,6 +41,7 @@ export default function GeneralLedgerPage() {
     const [ref, setRef] = useState("")
     const [loading, setLoading] = useState(true)
     const [posting, setPosting] = useState(false)
+    const [exportOpen, setExportOpen] = useState(false)
 
     useEffect(() => {
         loadData()
@@ -68,18 +67,34 @@ export default function GeneralLedgerPage() {
     }
 
     const handleSave = async () => {
-        if (!isBalanced || !desc) return
+        if (!isBalanced || !desc.trim()) return
 
         setPosting(true)
         try {
-            // Find account codes for the lines
-            const entryLines = lines.map(line => {
+            const validLines = lines.filter((line) => (Number(line.debit) > 0 || Number(line.credit) > 0))
+            if (validLines.length < 2) {
+                toast.error("Minimal dua baris akun dengan nominal")
+                return
+            }
+
+            const hasInvalidLine = validLines.some((line) => {
+                const debit = Number(line.debit) || 0
+                const credit = Number(line.credit) || 0
+                return !line.accountId || (debit > 0 && credit > 0) || (debit <= 0 && credit <= 0)
+            })
+            if (hasInvalidLine) {
+                toast.error("Setiap baris harus punya akun, dan hanya debit atau kredit yang bernilai")
+                return
+            }
+
+            const entryLines = validLines.map(line => {
                 const acc = glAccounts.find(a => a.id === line.accountId)
+                if (!acc) throw new Error("Account mapping not found")
                 return {
-                    accountCode: acc?.code || "",
+                    accountCode: acc.code,
                     debit: line.debit,
                     credit: line.credit,
-                    description: desc
+                    description: desc.trim()
                 }
             })
 
@@ -102,11 +117,45 @@ export default function GeneralLedgerPage() {
             } else {
                 toast.error(('error' in result ? result.error : "Failed to post entry") || "Failed to post entry")
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred during posting")
         } finally {
             setPosting(false)
         }
+    }
+
+    const handleExport = () => {
+        const header = ["Date", "Entry ID", "Reference", "Description", "Account Code", "Account Name", "Debit", "Credit"]
+        const rows: string[][] = []
+
+        entries.forEach((entry) => {
+            entry.lines.forEach((line) => {
+                rows.push([
+                    new Date(entry.date).toISOString(),
+                    entry.id,
+                    entry.reference || "",
+                    entry.description || "",
+                    line.account.code,
+                    line.account.name,
+                    String(line.debit || 0),
+                    String(line.credit || 0),
+                ])
+            })
+        })
+
+        const csvContent = [header, ...rows]
+            .map((r) => r.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(","))
+            .join("\n")
+
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `general-ledger-${new Date().toISOString().slice(0, 10)}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+        toast.success("Ledger export berhasil diunduh")
+        setExportOpen(false)
     }
 
     return (
@@ -254,9 +303,22 @@ export default function GeneralLedgerPage() {
                         <p className="text-muted-foreground font-bold text-sm mt-1">Chronological Record of All Transactions</p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" className="border-black font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none bg-white">
-                            <Download className="mr-2 h-4 w-4" /> Export
-                        </Button>
+                        <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="border-black font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none bg-white">
+                                    <Download className="mr-2 h-4 w-4" /> Export
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Export General Ledger</DialogTitle>
+                                    <DialogDescription>Download semua baris jurnal yang sedang tampil sebagai CSV.</DialogDescription>
+                                </DialogHeader>
+                                <Button onClick={handleExport} className="w-full">
+                                    Download CSV
+                                </Button>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                 </div>
 

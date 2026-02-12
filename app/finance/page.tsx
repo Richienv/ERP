@@ -1,8 +1,10 @@
 export const dynamic = 'force-dynamic'
 
+import Link from "next/link"
 import { FinanceMetricCard } from "@/components/finance/finance-metric-card"
 import { ActionItemsWidget } from "@/components/finance/action-items-widget"
 import { CashFlowChart } from "@/components/finance/cash-flow-chart"
+import { AccountingModuleActions } from "@/components/finance/accounting-module-actions"
 import { DollarSign, Wallet, CreditCard, Activity, ArrowUpRight, FileText, PiggyBank, Scale } from "lucide-react"
 import { getFinancialMetrics } from "@/lib/actions/finance"
 import { formatCompactNumber } from "@/lib/utils"
@@ -20,14 +22,16 @@ export default async function FinanceDashboardPage() {
                     <p className="text-muted-foreground mt-1">Gambaran umum posisi keuangan, arus kas, dan tugas akuntansi.</p>
                 </div>
                 <div className="flex gap-3">
-                    <button className="px-4 py-2 bg-white dark:bg-zinc-900 border border-border/50 rounded-xl text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-sm">
+                    <Link href="/finance/reports" className="px-4 py-2 bg-white dark:bg-zinc-900 border border-border/50 rounded-xl text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-sm inline-flex items-center">
                         Laporan Cepat
-                    </button>
-                    <button className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-2">
+                    </Link>
+                    <Link href="/finance/journal" className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-2">
                         <Scale size={16} /> Entri Jurnal Baru
-                    </button>
+                    </Link>
                 </div>
             </div>
+
+            <AccountingModuleActions />
 
             {/* KPI Cards Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -78,7 +82,7 @@ export default async function FinanceDashboardPage() {
                     <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="font-serif text-lg font-medium">Transaksi Terakhir</h3>
-                            <button className="text-sm text-primary hover:underline">Lihat Jurnal Umum</button>
+                            <Link href="/finance/journal" className="text-sm text-primary hover:underline">Lihat Jurnal Umum</Link>
                         </div>
                         <div className="space-y-4">
                             {[1, 2, 3].map((i) => (
@@ -107,22 +111,22 @@ export default async function FinanceDashboardPage() {
                     <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-sm">
                         <h3 className="font-serif text-lg font-medium mb-4">Akses Cepat</h3>
                         <div className="grid grid-cols-2 gap-3">
-                            <button className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left flex flex-col gap-2 group">
+                            <Link href="/finance/invoices" className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left flex flex-col gap-2 group">
                                 <FileText className="w-5 h-5 text-blue-500 group-hover:scale-110 transition-transform" />
                                 <span className="text-xs font-medium">Buat Invoice</span>
-                            </button>
-                            <button className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left flex flex-col gap-2 group">
+                            </Link>
+                            <Link href="/finance/bills" className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left flex flex-col gap-2 group">
                                 <CreditCard className="w-5 h-5 text-rose-500 group-hover:scale-110 transition-transform" />
                                 <span className="text-xs font-medium">Catat Bill</span>
-                            </button>
-                            <button className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left flex flex-col gap-2 group">
+                            </Link>
+                            <Link href="/finance/reports" className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left flex flex-col gap-2 group">
                                 <Activity className="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform" />
                                 <span className="text-xs font-medium">Rekonsiliasi</span>
-                            </button>
-                            <button className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left flex flex-col gap-2 group">
+                            </Link>
+                            <Link href="/finance/vendor-payments" className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors text-left flex flex-col gap-2 group">
                                 <ArrowUpRight className="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform" />
                                 <span className="text-xs font-medium">Transfer Kas</span>
-                            </button>
+                            </Link>
                         </div>
                     </div>
                 </div>

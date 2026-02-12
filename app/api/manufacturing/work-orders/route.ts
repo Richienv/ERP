@@ -116,13 +116,37 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
 
-        const { productId, plannedQty, startDate, dueDate } = body
+        const { productId, plannedQty, startDate, dueDate, priority, machineId } = body
 
         if (!productId || !plannedQty) {
             return NextResponse.json(
                 { success: false, error: 'Missing required fields: productId, plannedQty' },
                 { status: 400 }
             )
+        }
+
+        const numericQty = parseInt(plannedQty)
+        if (!Number.isFinite(numericQty) || numericQty <= 0) {
+            return NextResponse.json(
+                { success: false, error: 'plannedQty must be a positive number' },
+                { status: 400 }
+            )
+        }
+
+        const validPriorities = ['CRITICAL', 'HIGH', 'NORMAL', 'LOW']
+        const woPriority = validPriorities.includes(priority) ? priority : 'NORMAL'
+
+        if (machineId) {
+            const machine = await prisma.machine.findUnique({
+                where: { id: machineId },
+                select: { id: true, isActive: true },
+            })
+            if (!machine || !machine.isActive) {
+                return NextResponse.json(
+                    { success: false, error: 'Selected machine is invalid or inactive' },
+                    { status: 400 }
+                )
+            }
         }
 
         // Generate work order number
@@ -144,10 +168,12 @@ export async function POST(request: NextRequest) {
             data: {
                 number: woNumber,
                 productId,
-                plannedQty: parseInt(plannedQty),
+                plannedQty: numericQty,
                 actualQty: 0,
                 startDate: startDate ? new Date(startDate) : null,
                 dueDate: dueDate ? new Date(dueDate) : null,
+                priority: woPriority,
+                machineId: machineId || null,
                 status: 'PLANNED',
             },
             include: {

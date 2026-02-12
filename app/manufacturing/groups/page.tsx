@@ -7,7 +7,6 @@ import {
     RefreshCw,
     AlertCircle,
     FolderKanban,
-    Settings,
     ChevronRight,
     Activity,
 } from "lucide-react";
@@ -15,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
     Sheet,
@@ -24,6 +22,8 @@ import {
     SheetHeader,
     SheetTitle,
 } from "@/components/ui/sheet";
+import { GroupFormDialog } from "@/components/manufacturing/group-form-dialog";
+import { AssignMachineGroupDialog } from "@/components/manufacturing/assign-machine-group-dialog";
 
 interface Machine {
     id: string;
@@ -55,6 +55,9 @@ export default function WorkCenterGroupsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedGroup, setSelectedGroup] = useState<WorkCenterGroup | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [groupFormOpen, setGroupFormOpen] = useState(false);
+    const [editingGroup, setEditingGroup] = useState<WorkCenterGroup | null>(null);
+    const [assignMachineOpen, setAssignMachineOpen] = useState(false);
 
     const fetchGroups = async () => {
         setLoading(true);
@@ -96,6 +99,32 @@ export default function WorkCenterGroupsPage() {
         setSheetOpen(true);
     };
 
+    const handleCreateGroup = () => {
+        setEditingGroup(null);
+        setGroupFormOpen(true);
+    };
+
+    const handleEditGroup = () => {
+        if (!selectedGroup) return;
+        setEditingGroup(selectedGroup);
+        setGroupFormOpen(true);
+    };
+
+    const refreshGroupsAndSelection = async () => {
+        await fetchGroups();
+        if (selectedGroup?.id) {
+            try {
+                const response = await fetch(`/api/manufacturing/groups/${selectedGroup.id}`);
+                const payload = await response.json();
+                if (payload.success) {
+                    setSelectedGroup(payload.data);
+                }
+            } catch (error) {
+                console.error("Error refreshing selected group:", error);
+            }
+        }
+    };
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'RUNNING':
@@ -112,10 +141,10 @@ export default function WorkCenterGroupsPage() {
     };
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+        <div className="mf-page">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight">Work Center Groups</h2>
+                    <h2 className="mf-title">Work Center Groups</h2>
                     <p className="text-muted-foreground">Kelompokkan mesin/work center berdasarkan area atau fungsi.</p>
                 </div>
                 <div className="flex gap-2">
@@ -128,7 +157,10 @@ export default function WorkCenterGroupsPage() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+                    <Button
+                        className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide"
+                        onClick={handleCreateGroup}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> New Group
                     </Button>
                 </div>
@@ -186,7 +218,7 @@ export default function WorkCenterGroupsPage() {
                         <p className="text-sm text-muted-foreground mt-1">
                             {searchQuery ? 'Try adjusting your search.' : 'Create your first group to organize machines.'}
                         </p>
-                        <Button className="mt-4 bg-black text-white">
+                        <Button className="mt-4 bg-black text-white" onClick={handleCreateGroup}>
                             <Plus className="mr-2 h-4 w-4" /> New Group
                         </Button>
                     </CardContent>
@@ -342,10 +374,10 @@ export default function WorkCenterGroupsPage() {
 
                             {/* Actions */}
                             <div className="pt-4 border-t flex gap-2">
-                                <Button className="flex-1 bg-black text-white hover:bg-zinc-800">
+                                <Button className="flex-1 bg-black text-white hover:bg-zinc-800" onClick={handleEditGroup}>
                                     Edit Group
                                 </Button>
-                                <Button variant="outline" className="border-black">
+                                <Button variant="outline" className="border-black" onClick={() => setAssignMachineOpen(true)}>
                                     Add Machine
                                 </Button>
                             </div>
@@ -353,6 +385,23 @@ export default function WorkCenterGroupsPage() {
                     )}
                 </SheetContent>
             </Sheet>
+
+            <GroupFormDialog
+                open={groupFormOpen}
+                onOpenChange={setGroupFormOpen}
+                initialData={editingGroup}
+                onSaved={refreshGroupsAndSelection}
+            />
+
+            {selectedGroup && (
+                <AssignMachineGroupDialog
+                    open={assignMachineOpen}
+                    onOpenChange={setAssignMachineOpen}
+                    groupId={selectedGroup.id}
+                    groupName={selectedGroup.name}
+                    onAssigned={refreshGroupsAndSelection}
+                />
+            )}
         </div>
     );
 }

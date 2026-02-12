@@ -25,6 +25,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { CreateInspectionDialog } from "@/components/manufacturing/create-inspection-dialog";
 
 interface Inspection {
     id: string;
@@ -66,6 +67,7 @@ export default function QualityControlPage() {
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
+    const [createOpen, setCreateOpen] = useState(false);
 
     const fetchInspections = async () => {
         setLoading(true);
@@ -128,10 +130,10 @@ export default function QualityControlPage() {
     };
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6 font-sans">
+        <div className="mf-page">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight">Quality Control</h2>
+                    <h2 className="mf-title">Quality Control</h2>
                     <p className="text-muted-foreground">Monitor inspeksi kualitas dan tracking defect.</p>
                 </div>
                 <div className="flex gap-2">
@@ -144,7 +146,10 @@ export default function QualityControlPage() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+                    <Button
+                        className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide"
+                        onClick={() => setCreateOpen(true)}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> New Inspection
                     </Button>
                 </div>
@@ -246,7 +251,7 @@ export default function QualityControlPage() {
                                 ? 'Try adjusting your search or filter criteria.'
                                 : 'Create your first inspection to get started.'}
                         </p>
-                        <Button className="mt-4 bg-black text-white">
+                        <Button className="mt-4 bg-black text-white" onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" /> New Inspection
                         </Button>
                     </CardContent>
@@ -314,6 +319,12 @@ export default function QualityControlPage() {
                     </Table>
                 </Card>
             )}
+
+            <CreateInspectionDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                onCreated={fetchInspections}
+            />
         </div>
     );
 }

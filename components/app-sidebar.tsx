@@ -200,18 +200,6 @@ const data = {
           url: "/manufacturing",
         },
         {
-          title: "Bill of Materials (BoM)",
-          url: "/manufacturing/bom",
-        },
-        {
-          title: "Order Produksi (MO)",
-          url: "/manufacturing/orders",
-        },
-        {
-          title: "Perintah Kerja (SPK)",
-          url: "/manufacturing/work-orders",
-        },
-        {
           title: "Pusat Kerja (Mesin)",
           url: "/manufacturing/work-centers",
         },
@@ -220,12 +208,24 @@ const data = {
           url: "/manufacturing/groups",
         },
         {
+          title: "Bill of Materials (BoM)",
+          url: "/manufacturing/bom",
+        },
+        {
           title: "Routing Proses",
           url: "/manufacturing/routing",
         },
         {
           title: "Perencanaan (MPS)",
           url: "/manufacturing/planning",
+        },
+        {
+          title: "Order Produksi (MO)",
+          url: "/manufacturing/orders",
+        },
+        {
+          title: "Perintah Kerja (SPK)",
+          url: "/manufacturing/work-orders",
         },
         {
           title: "Kontrol Kualitas (QC)",

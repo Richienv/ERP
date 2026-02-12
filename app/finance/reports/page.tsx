@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
     Table,
     TableBody,
@@ -35,22 +38,31 @@ import {
 } from "@/components/ui/table"
 import { getProfitLossStatement, getBalanceSheet, getCashFlowStatement } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
+import { toast } from "sonner"
+import * as XLSX from "xlsx"
 
 export default function FinancialReportsPage() {
-    const [reportType, setReportType] = useState("pnl")
+    const [reportType, setReportType] = useState<"pnl" | "bs" | "cf">("pnl")
     const [loading, setLoading] = useState(false)
     const [pnlData, setPnlData] = useState<any>(null)
     const [balanceSheetData, setBalanceSheetData] = useState<any>(null)
     const [cashFlowData, setCashFlowData] = useState<any>(null)
+    const [comparisonMode, setComparisonMode] = useState<"LAST_MONTH" | "LAST_YEAR">("LAST_YEAR")
+    const [department, setDepartment] = useState<"ALL" | "SALES" | "OPS">("ALL")
+    const [dateDialogOpen, setDateDialogOpen] = useState(false)
+    const [exportDialogOpen, setExportDialogOpen] = useState(false)
+    const [exportFormat, setExportFormat] = useState<"CSV" | "XLS">("CSV")
 
     // Date range for reports
     const currentYear = new Date().getFullYear()
-    const [startDate] = useState(new Date(currentYear, 0, 1))
-    const [endDate] = useState(new Date())
+    const [startDate, setStartDate] = useState(new Date(currentYear, 0, 1))
+    const [endDate, setEndDate] = useState(new Date())
+    const [draftStartDate, setDraftStartDate] = useState(new Date(currentYear, 0, 1).toISOString().slice(0, 10))
+    const [draftEndDate, setDraftEndDate] = useState(new Date().toISOString().slice(0, 10))
 
     useEffect(() => {
         loadFinancialData()
-    }, [])
+    }, [startDate, endDate])
 
     async function loadFinancialData() {
         setLoading(true)
@@ -69,6 +81,90 @@ export default function FinancialReportsPage() {
         setLoading(false)
     }
 
+    function applyDateRange() {
+        const nextStart = new Date(draftStartDate)
+        const nextEnd = new Date(draftEndDate)
+        if (Number.isNaN(nextStart.getTime()) || Number.isNaN(nextEnd.getTime()) || nextStart > nextEnd) {
+            toast.error("Rentang tanggal tidak valid")
+            return
+        }
+
+        setStartDate(nextStart)
+        setEndDate(nextEnd)
+        setDateDialogOpen(false)
+        toast.success("Rentang tanggal laporan diperbarui")
+    }
+
+    function getExportRows() {
+        if (reportType === "pnl" && pnlData) {
+            const rows: Array<Record<string, string | number>> = [
+                { metric: "Revenue", amount: Number(pnlData.revenue || 0) },
+                { metric: "Cost of Goods Sold", amount: Number(pnlData.costOfGoodsSold || 0) },
+                { metric: "Gross Profit", amount: Number(pnlData.grossProfit || 0) },
+                { metric: "Operating Expenses", amount: Number(pnlData.totalOperatingExpenses || 0) },
+                { metric: "Operating Income", amount: Number(pnlData.operatingIncome || 0) },
+                { metric: "Tax Expense", amount: Number(pnlData.taxExpense || 0) },
+                { metric: "Net Income", amount: Number(pnlData.netIncome || 0) },
+            ]
+            return rows
+        }
+
+        if (reportType === "bs" && balanceSheetData) {
+            const rows: Array<Record<string, string | number>> = []
+            rows.push({ section: "Assets", metric: "Total Current Assets", amount: Number(balanceSheetData.assets?.totalCurrentAssets || 0) })
+            rows.push({ section: "Assets", metric: "Total Fixed Assets", amount: Number(balanceSheetData.assets?.totalFixedAssets || 0) })
+            rows.push({ section: "Assets", metric: "Total Assets", amount: Number(balanceSheetData.assets?.totalAssets || 0) })
+            rows.push({ section: "Liabilities", metric: "Total Liabilities", amount: Number(balanceSheetData.liabilities?.totalLiabilities || 0) })
+            rows.push({ section: "Equity", metric: "Total Equity", amount: Number(balanceSheetData.equity?.totalEquity || 0) })
+            rows.push({ section: "Checks", metric: "Assets = Liabilities + Equity", amount: Number(balanceSheetData.liabilitiesAndEquity?.total || 0) })
+            return rows
+        }
+
+        if (reportType === "cf" && cashFlowData) {
+            return [
+                { section: "Operating", amount: Number(cashFlowData.operatingActivities || 0) },
+                { section: "Investing", amount: Number(cashFlowData.investingActivities || 0) },
+                { section: "Financing", amount: Number(cashFlowData.financingActivities || 0) },
+                { section: "Net Increase in Cash", amount: Number(cashFlowData.netIncreaseInCash || 0) },
+            ]
+        }
+
+        return []
+    }
+
+    function exportReportPack() {
+        const rows = getExportRows()
+        if (rows.length === 0) {
+            toast.error("Data laporan tidak tersedia untuk diexport")
+            return
+        }
+
+        const stamp = new Date().toISOString().slice(0, 10)
+        if (exportFormat === "CSV") {
+            const headers = Object.keys(rows[0])
+            const csv = [
+                headers.join(","),
+                ...rows.map((row) => headers.map((h) => `"${String(row[h] ?? "").replaceAll('"', '""')}"`).join(",")),
+            ].join("\n")
+
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.href = url
+            a.download = `financial-report-${reportType}-${stamp}.csv`
+            a.click()
+            URL.revokeObjectURL(url)
+        } else {
+            const ws = XLSX.utils.json_to_sheet(rows)
+            const wb = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(wb, ws, "Report")
+            XLSX.writeFile(wb, `financial-report-${reportType}-${stamp}.xls`, { bookType: "xls" })
+        }
+
+        setExportDialogOpen(false)
+        toast.success(`Export ${exportFormat} berhasil diunduh`)
+    }
+
     return (
         <div className="flex-1 space-y-0 p-0 font-sans h-[calc(100vh-theme(spacing.16))] flex overflow-hidden">
 
@@ -82,7 +178,7 @@ export default function FinancialReportsPage() {
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <label className="text-xs font-black uppercase">Report Type</label>
-                        <Select value={reportType} onValueChange={setReportType}>
+                        <Select value={reportType} onValueChange={(value) => setReportType(value as "pnl" | "bs" | "cf")}>
                             <SelectTrigger className="border-black shadow-sm bg-white font-bold h-10">
                                 <SelectValue />
                             </SelectTrigger>
@@ -96,10 +192,33 @@ export default function FinancialReportsPage() {
 
                     <div className="space-y-2">
                         <label className="text-xs font-black uppercase">Date Range</label>
-                        <Button variant="outline" className="w-full justify-start text-left font-normal border-black shadow-sm bg-white hover:bg-zinc-50">
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            <span>Jan 2024 - Dec 2024</span>
-                        </Button>
+                        <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="w-full justify-start text-left font-normal border-black shadow-sm bg-white hover:bg-zinc-50">
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    <span>
+                                        {startDate.toLocaleDateString("id-ID")} - {endDate.toLocaleDateString("id-ID")}
+                                    </span>
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Pilih Rentang Tanggal</DialogTitle>
+                                    <DialogDescription>Atur periode laporan keuangan.</DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-3">
+                                    <div className="space-y-1.5">
+                                        <Label>Tanggal Mulai</Label>
+                                        <Input type="date" value={draftStartDate} onChange={(e) => setDraftStartDate(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label>Tanggal Akhir</Label>
+                                        <Input type="date" value={draftEndDate} onChange={(e) => setDraftEndDate(e.target.value)} />
+                                    </div>
+                                    <Button onClick={applyDateRange} className="w-full">Apply Date Range</Button>
+                                </div>
+                            </DialogContent>
+                        </Dialog>
                     </div>
 
                     <Separator className="bg-black/10" />
@@ -107,10 +226,18 @@ export default function FinancialReportsPage() {
                     <div className="space-y-2">
                         <label className="text-xs font-black uppercase">Comparison</label>
                         <div className="grid grid-cols-2 gap-2">
-                            <Button variant="outline" className="bg-white border-zinc-300 hover:border-black hover:bg-zinc-100 text-xs font-bold">
+                            <Button
+                                variant={comparisonMode === "LAST_MONTH" ? "default" : "outline"}
+                                className={comparisonMode === "LAST_MONTH" ? "bg-black text-white hover:bg-zinc-800 border-black text-xs font-bold" : "bg-white border-zinc-300 hover:border-black hover:bg-zinc-100 text-xs font-bold"}
+                                onClick={() => setComparisonMode("LAST_MONTH")}
+                            >
                                 Vs Last Month
                             </Button>
-                            <Button variant="default" className="bg-black text-white hover:bg-zinc-800 border-black text-xs font-bold">
+                            <Button
+                                variant={comparisonMode === "LAST_YEAR" ? "default" : "outline"}
+                                className={comparisonMode === "LAST_YEAR" ? "bg-black text-white hover:bg-zinc-800 border-black text-xs font-bold" : "bg-white border-zinc-300 hover:border-black hover:bg-zinc-100 text-xs font-bold"}
+                                onClick={() => setComparisonMode("LAST_YEAR")}
+                            >
                                 Vs Last Year
                             </Button>
                         </div>
@@ -119,17 +246,46 @@ export default function FinancialReportsPage() {
                     <div className="space-y-2">
                         <label className="text-xs font-black uppercase">Department</label>
                         <div className="flex flex-wrap gap-2">
-                            <Badge variant="secondary" className="bg-zinc-200 text-zinc-700 hover:bg-zinc-300 cursor-pointer">All Depts</Badge>
-                            <Badge variant="outline" className="bg-white border-zinc-300 text-zinc-500 hover:border-black cursor-pointer">Sales</Badge>
-                            <Badge variant="outline" className="bg-white border-zinc-300 text-zinc-500 hover:border-black cursor-pointer">Ops</Badge>
+                            <Badge onClick={() => setDepartment("ALL")} variant={department === "ALL" ? "secondary" : "outline"} className={`${department === "ALL" ? "bg-zinc-200 text-zinc-700" : "bg-white border-zinc-300 text-zinc-500"} hover:border-black cursor-pointer`}>
+                                All Depts
+                            </Badge>
+                            <Badge onClick={() => setDepartment("SALES")} variant={department === "SALES" ? "secondary" : "outline"} className={`${department === "SALES" ? "bg-zinc-200 text-zinc-700" : "bg-white border-zinc-300 text-zinc-500"} hover:border-black cursor-pointer`}>
+                                Sales
+                            </Badge>
+                            <Badge onClick={() => setDepartment("OPS")} variant={department === "OPS" ? "secondary" : "outline"} className={`${department === "OPS" ? "bg-zinc-200 text-zinc-700" : "bg-white border-zinc-300 text-zinc-500"} hover:border-black cursor-pointer`}>
+                                Ops
+                            </Badge>
                         </div>
                     </div>
                 </div>
 
                 <div className="mt-auto space-y-3">
-                    <Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold active:translate-y-1 active:shadow-none transition-all">
-                        <Download className="mr-2 h-4 w-4" /> Export Pack
-                    </Button>
+                    <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold active:translate-y-1 active:shadow-none transition-all">
+                                <Download className="mr-2 h-4 w-4" /> Export Pack
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Export Financial Report</DialogTitle>
+                                <DialogDescription>Unduh laporan aktif dalam format CSV atau XLS.</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-1.5">
+                                <Label>Format</Label>
+                                <Select value={exportFormat} onValueChange={(value) => setExportFormat(value as "CSV" | "XLS")}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="CSV">CSV</SelectItem>
+                                        <SelectItem value="XLS">XLS</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button onClick={exportReportPack} className="w-full">
+                                Download
+                            </Button>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
 
@@ -176,7 +332,7 @@ export default function FinancialReportsPage() {
                 </div>
 
                 {/* Financial Statements Tabs */}
-                <Tabs value={reportType} onValueChange={setReportType} className="w-full">
+                <Tabs value={reportType} onValueChange={(value) => setReportType(value as "pnl" | "bs" | "cf")} className="w-full">
                     <TabsList className="grid w-full grid-cols-3 border-2 border-black">
                         <TabsTrigger value="pnl" className="font-bold uppercase data-[state=active]:bg-black data-[state=active]:text-white">
                             <TrendingUp className="h-4 w-4 mr-2" /> P&L
