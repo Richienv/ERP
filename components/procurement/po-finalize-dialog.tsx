@@ -176,30 +176,30 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                         </div>
 
                         {/* Items Table */}
-                        <div className="border border-zinc-200 rounded-lg overflow-hidden">
-                            <table className="w-full text-sm">
+                        <div className="border border-zinc-200 rounded-lg overflow-x-auto">
+                            <table className="w-full min-w-[640px] text-sm table-fixed">
                                 <thead className="bg-zinc-100 border-b border-zinc-200 text-xs uppercase font-bold text-zinc-500">
                                     <tr>
-                                        <th className="px-4 py-3 text-left">Item Name</th>
-                                        <th className="px-4 py-3 text-right">Qty</th>
-                                        <th className="px-4 py-3 text-right">Unit Price</th>
-                                        <th className="px-4 py-3 text-right">Total</th>
+                                        <th className="px-4 py-3 text-left w-[44%]">Item Name</th>
+                                        <th className="px-4 py-3 text-right w-[16%]">Qty</th>
+                                        <th className="px-4 py-3 text-right w-[20%]">Unit Price</th>
+                                        <th className="px-4 py-3 text-right w-[20%]">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-100">
                                     {poData.items.map((item: any, idx: number) => (
                                         <tr key={idx}>
-                                            <td className="px-4 py-3 font-medium">
-                                                {item.productName}
+                                            <td className="px-4 py-3 font-medium break-words">
+                                                <span className="line-clamp-2">{item.productName}</span>
                                                 <div className="text-[10px] text-zinc-400 font-mono">{item.productCode}</div>
                                             </td>
-                                            <td className="px-4 py-3 text-right font-mono">
+                                            <td className="px-4 py-3 text-right font-mono whitespace-nowrap">
                                                 {item.quantity} <span className="text-[10px] text-zinc-400">{item.unit}</span>
                                             </td>
-                                            <td className="px-4 py-3 text-right font-mono text-zinc-600">
+                                            <td className="px-4 py-3 text-right font-mono text-zinc-600 whitespace-nowrap">
                                                 {formatIDR(item.unitPrice)}
                                             </td>
-                                            <td className="px-4 py-3 text-right font-bold text-zinc-900">
+                                            <td className="px-4 py-3 text-right font-bold text-zinc-900 whitespace-nowrap">
                                                 {formatIDR(item.totalPrice)}
                                             </td>
                                         </tr>

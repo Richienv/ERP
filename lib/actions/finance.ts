@@ -401,7 +401,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
 export async function getInvoiceKanbanData(): Promise<InvoiceKanbanData> {
     return withPrismaAuth(async (prisma) => {
         const invoices = await prisma.invoice.findMany({
-            where: { type: 'INV_OUT' }, // Only Customer Invoices (AR)
+            where: { type: { in: ['INV_OUT', 'INV_IN'] } }, // Customer Invoices + Vendor Bills
             include: {
                 customer: { select: { name: true } },
                 supplier: { select: { name: true } },

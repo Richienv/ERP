@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
     MoreVertical,
     CheckCircle2,
-    AlertTriangle,
     FileText,
     Clock,
     Mail
@@ -16,10 +16,8 @@ import { Badge } from "@/components/ui/badge"
 import {
     Card,
     CardContent,
-    CardDescription,
     CardFooter,
     CardHeader,
-    CardTitle,
 } from "@/components/ui/card"
 import {
     Dialog,
@@ -52,7 +50,7 @@ import {
     recordInvoicePayment,
 } from "@/lib/actions/finance"
 
-import { DndContext, DragOverlay, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core"
+import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core"
 
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
@@ -62,15 +60,14 @@ const emptyKanban: InvoiceKanbanData = { draft: [], sent: [], overdue: [], paid:
 export default function InvoicesKanbanPage() {
     const [invoices, setInvoices] = useState<InvoiceKanbanData>(emptyKanban)
     const [customers, setCustomers] = useState<Array<{ id: string; name: string; type?: 'CUSTOMER' | 'SUPPLIER' }>>([])
-    const [loading, setLoading] = useState(true)
-    const [loadError, setLoadError] = useState<string | null>(null)
+    const [, setLoading] = useState(true)
+    const [, setLoadError] = useState<string | null>(null)
     const [isCreatorOpen, setIsCreatorOpen] = useState(false)
 
     // Invoice Form State
     const [selectedCustomer, setSelectedCustomer] = useState("")
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
     const [dueDate, setDueDate] = useState("")
-    const [invoiceAmount, setInvoiceAmount] = useState("")
     const [invoiceNotes, setInvoiceNotes] = useState("")
     const [creating, setCreating] = useState(false)
 
@@ -100,6 +97,7 @@ export default function InvoicesKanbanPage() {
     const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0])
     const [payReference, setPayReference] = useState("")
     const [payAmount, setPayAmount] = useState("")
+    const router = useRouter()
 
     // Drag Handler
     const handleDragEnd = (event: DragEndEvent) => {
@@ -148,7 +146,7 @@ export default function InvoicesKanbanPage() {
             // Reload
             const kanban = await getInvoiceKanbanData()
             setInvoices(kanban)
-        } catch (error) {
+        } catch {
             toast.error("Failed to process send")
         } finally {
             setLoading(false)
@@ -173,7 +171,7 @@ export default function InvoicesKanbanPage() {
             // Reload
             const kanban = await getInvoiceKanbanData()
             setInvoices(kanban)
-        } catch (error) {
+        } catch {
             toast.error("Failed to record payment")
         } finally {
             setLoading(false)
@@ -191,7 +189,7 @@ export default function InvoicesKanbanPage() {
                 const data = await getPendingPurchaseOrders()
                 setPendingOrders(data)
             }
-        } catch (error) {
+        } catch {
             toast.error("Failed to load pending orders")
         } finally {
             setLoading(false)
@@ -206,7 +204,7 @@ export default function InvoicesKanbanPage() {
 
     const handleCreateInvoice = async () => {
         if (sourceType !== 'MANUAL' && !selectedOrderId) return
-        if (sourceType === 'MANUAL' && (!selectedCustomer || !invoiceAmount)) return
+        if (sourceType === 'MANUAL' && (!selectedCustomer || !manualPrice || manualQty <= 0)) return
 
         setCreating(true)
         try {
@@ -237,15 +235,22 @@ export default function InvoicesKanbanPage() {
                 // Reset form
                 setSelectedOrderId("")
                 setSelectedCustomer("")
-                setInvoiceAmount("")
                 setInvoiceNotes("")
+                setManualProduct("")
+                setManualCode("")
+                setManualQty(1)
+                setManualPrice("")
+                if (sourceType !== 'MANUAL') {
+                    await loadOrders(sourceType as 'SO' | 'PO')
+                }
                 // Reload data
                 const kanban = await getInvoiceKanbanData()
                 setInvoices(kanban)
+                router.refresh()
             } else {
                 toast.error(('error' in result ? result.error : "Failed to create invoice") || "Failed to create invoice")
             }
-        } catch (error) {
+        } catch {
             toast.error("An error occurred")
         } finally {
             setCreating(false)
@@ -424,7 +429,7 @@ export default function InvoicesKanbanPage() {
                                                 className="border-black font-medium h-10 shadow-sm"
                                                 placeholder="1"
                                                 value={manualQty}
-                                                onChange={(e) => setManualQty(Number(e.target.value))}
+                                                onChange={(e) => setManualQty(Math.max(1, Number(e.target.value) || 1))}
                                             />
                                         </div>
                                     </div>
@@ -455,7 +460,7 @@ export default function InvoicesKanbanPage() {
                             <Button
                                 className="bg-black text-white hover:bg-zinc-800 border-black uppercase font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-y-[2px] transition-all"
                                 onClick={handleCreateInvoice}
-                                disabled={creating || (sourceType !== 'MANUAL' && !selectedOrderId) || (sourceType === 'MANUAL' && (!selectedCustomer || !invoiceAmount))}
+                                disabled={creating || (sourceType !== 'MANUAL' && !selectedOrderId) || (sourceType === 'MANUAL' && (!selectedCustomer || !manualPrice || manualQty <= 0))}
                             >
                                 {creating ? "Creating..." : "Generate Invoice"}
                             </Button>

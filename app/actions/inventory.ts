@@ -51,7 +51,20 @@ export const getAllCategories = unstable_cache(
         const categories = await prisma.category.findMany({
             where: { isActive: true },
             include: {
-                children: true,
+                children: {
+                    include: {
+                        _count: {
+                            select: { products: true }
+                        },
+                        children: {
+                            include: {
+                                _count: {
+                                    select: { products: true }
+                                }
+                            }
+                        }
+                    }
+                },
                 _count: {
                     select: { products: true }
                 }
@@ -964,13 +977,16 @@ export const getStockMovements = unstable_cache(
         })
 
         return movements.map(mv => ({
+            // Normalize kain/fabric display unit in activity UI
+            // so operators read yard-based movement consistently.
+            normalizedUnit: mv.product.unit?.toLowerCase() === 'roll' ? 'Yard' : mv.product.unit,
             id: mv.id,
             type: mv.type,
             date: mv.createdAt,
             item: mv.product.name,
             code: mv.product.code,
             qty: mv.quantity,
-            unit: mv.product.unit,
+            unit: mv.product.unit?.toLowerCase() === 'roll' ? 'Yard' : mv.product.unit,
             warehouse: mv.warehouse.name,
             // Determine "entity" (Supplier, Customer, or Target Warehouse) based on type
             entity: mv.purchaseOrder?.supplier.name || mv.salesOrder?.customer.name || mv.notes || '-',

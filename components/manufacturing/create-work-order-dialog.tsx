@@ -26,9 +26,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated?: () => Promise<void> | void;
+  orderType?: "MO" | "SPK";
 }
 
-export function CreateWorkOrderDialog({ open, onOpenChange, onCreated }: Props) {
+export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType = "SPK" }: Props) {
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [machines, setMachines] = useState<MachineOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -108,6 +109,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated }: Props) 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          orderType,
           productId,
           plannedQty: Number(plannedQty),
           startDate: startDate || undefined,
@@ -123,7 +125,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated }: Props) 
         return;
       }
 
-      toast.success(`Work order ${payload.data?.number || "created"} successfully`);
+      toast.success(`${orderType} ${payload.data?.number || "created"} successfully`);
       resetForm();
       onOpenChange(false);
       if (onCreated) await onCreated();
@@ -139,8 +141,14 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated }: Props) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
         <DialogHeader className="px-6 py-5 border-b bg-white">
-          <DialogTitle className="text-3xl font-black uppercase tracking-tight">Create Production Order / SPK</DialogTitle>
-          <DialogDescription className="text-sm">Step-based creation: choose product, quantity, schedule, then optional machine assignment.</DialogDescription>
+          <DialogTitle className="text-3xl font-black uppercase tracking-tight">
+            {orderType === "MO" ? "Create Production Order (MO)" : "Create Work Instruction (SPK)"}
+          </DialogTitle>
+          <DialogDescription className="text-sm">
+            {orderType === "MO"
+              ? "MO fokus pada target produksi, planning date, dan alokasi kapasitas."
+              : "SPK fokus pada eksekusi detail di lantai produksi dan penugasan mesin."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="px-6 py-5 space-y-4">
@@ -219,7 +227,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated }: Props) 
             Cancel
           </Button>
           <Button className="flex-1 bg-black text-white hover:bg-zinc-800" disabled={submitting} onClick={handleSubmit}>
-            {submitting ? "Creating..." : "Create"}
+            {submitting ? "Creating..." : `Create ${orderType}`}
           </Button>
         </div>
       </DialogContent>

@@ -35,6 +35,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { CreateBOMDialog } from "@/components/manufacturing/create-bom-dialog";
+import { toast } from "sonner";
 
 interface BOMItem {
     id: string;
@@ -79,6 +80,8 @@ export default function BOMPage() {
     const [selectedBOM, setSelectedBOM] = useState<BOM | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
+    const [actionLoading, setActionLoading] = useState(false);
 
     const fetchBOMs = async () => {
         setLoading(true);
@@ -118,6 +121,92 @@ export default function BOMPage() {
     const handleCardClick = (bom: BOM) => {
         setSelectedBOM(bom);
         setSheetOpen(true);
+    };
+
+    const buildNextVersion = (bom: BOM) => {
+        const siblings = boms
+            .filter((item) => item.productId === bom.productId)
+            .map((item) => item.version.toLowerCase());
+
+        const versionMatch = bom.version.match(/^v(\d+)$/i);
+        if (versionMatch) {
+            let next = parseInt(versionMatch[1], 10) + 1;
+            let candidate = `v${next}`;
+            while (siblings.includes(candidate.toLowerCase())) {
+                next += 1;
+                candidate = `v${next}`;
+            }
+            return candidate;
+        }
+
+        let suffix = 1;
+        let candidate = `${bom.version}-copy-${suffix}`;
+        while (siblings.includes(candidate.toLowerCase())) {
+            suffix += 1;
+            candidate = `${bom.version}-copy-${suffix}`;
+        }
+        return candidate;
+    };
+
+    const handleDuplicate = async () => {
+        if (!selectedBOM) return;
+        setActionLoading(true);
+        try {
+            const response = await fetch('/api/manufacturing/bom', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productId: selectedBOM.productId,
+                    version: buildNextVersion(selectedBOM),
+                    items: selectedBOM.items.map((item) => ({
+                        materialId: item.materialId,
+                        quantity: Number(item.quantity),
+                        unit: item.unit || undefined,
+                        wastePct: Number(item.wastePct || 0),
+                    })),
+                }),
+            });
+            const payload = await response.json();
+            if (!payload.success) {
+                toast.error(payload.error || 'Failed to duplicate BOM');
+                return;
+            }
+            toast.success('BOM duplicated successfully');
+            setSheetOpen(false);
+            await fetchBOMs();
+        } catch (error) {
+            console.error(error);
+            toast.error('Network error while duplicating BOM');
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!selectedBOM) return;
+        const confirmed = window.confirm(`Delete BOM ${selectedBOM.product.code} ${selectedBOM.version}?`);
+        if (!confirmed) return;
+
+        setActionLoading(true);
+        try {
+            const response = await fetch(`/api/manufacturing/bom/${selectedBOM.id}`, {
+                method: 'DELETE',
+            });
+            const payload = await response.json();
+            if (!payload.success) {
+                toast.error(payload.error || 'Failed to delete BOM');
+                return;
+            }
+            toast.success('BOM deleted successfully');
+            setSheetOpen(false);
+            setSelectedBOM(null);
+            await fetchBOMs();
+        } catch (error) {
+            console.error(error);
+            toast.error('Network error while deleting BOM');
+        } finally {
+            setActionLoading(false);
+        }
     };
 
     const formatCurrency = (value: number) => {
@@ -361,13 +450,27 @@ export default function BOMPage() {
 
                             {/* Actions */}
                             <div className="pt-4 border-t flex gap-2">
-                                <Button className="flex-1 bg-black text-white hover:bg-zinc-800">
+                                <Button
+                                    className="flex-1 bg-black text-white hover:bg-zinc-800"
+                                    onClick={() => setEditOpen(true)}
+                                    disabled={actionLoading}
+                                >
                                     <Edit className="mr-2 h-4 w-4" /> Edit BOM
                                 </Button>
-                                <Button variant="outline" className="border-black">
+                                <Button
+                                    variant="outline"
+                                    className="border-black"
+                                    onClick={handleDuplicate}
+                                    disabled={actionLoading}
+                                >
                                     <Copy className="mr-2 h-4 w-4" /> Duplicate
                                 </Button>
-                                <Button variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+                                <Button
+                                    variant="outline"
+                                    className="border-red-300 text-red-600 hover:bg-red-50"
+                                    onClick={handleDelete}
+                                    disabled={actionLoading}
+                                >
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -380,6 +483,27 @@ export default function BOMPage() {
                 open={createOpen}
                 onOpenChange={setCreateOpen}
                 onCreated={fetchBOMs}
+            />
+            <CreateBOMDialog
+                open={editOpen}
+                onOpenChange={setEditOpen}
+                onCreated={async () => {
+                    await fetchBOMs();
+                    setSheetOpen(false);
+                }}
+                mode="edit"
+                initialBOM={selectedBOM ? {
+                    id: selectedBOM.id,
+                    productId: selectedBOM.productId,
+                    version: selectedBOM.version,
+                    isActive: selectedBOM.isActive,
+                    items: selectedBOM.items.map((item) => ({
+                        materialId: item.materialId,
+                        quantity: Number(item.quantity),
+                        unit: item.unit || null,
+                        wastePct: Number(item.wastePct || 0),
+                    }))
+                } : null}
             />
         </div>
     );

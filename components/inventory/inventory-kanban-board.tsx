@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { setProductManualAlert, createRestockRequest } from '@/app/actions/inventory'
 import {
@@ -43,15 +42,36 @@ interface Product {
     image: string
 }
 
+interface ProductMovementHistory {
+    id: string
+    type: string
+    quantity: number
+    createdAt: string
+    warehouse?: {
+        name: string
+    } | null
+    notes?: string | null
+}
+
+interface ProductDetailPayload {
+    id: string
+    code: string
+    name: string
+    unit: string
+    minStock: number
+    currentStock: number
+    transactions: ProductMovementHistory[]
+}
+
 interface KanbanColumnProps {
     title: string
     status: string
     products: Product[]
-    color: string
     onDrop: (productId: string, newStatus: string) => void
+    onCardClick: (productId: string) => void
 }
 
-function KanbanColumn({ title, status, products, color, onDrop }: KanbanColumnProps) {
+function KanbanColumn({ title, status, products, onDrop, onCardClick }: KanbanColumnProps) {
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault()
     }
@@ -76,7 +96,7 @@ function KanbanColumn({ title, status, products, color, onDrop }: KanbanColumnPr
 
     return (
         <div
-            className={`flex-1 min-w-[320px] max-w-[400px] flex flex-col h-full rounded-xl border-3 ${borderColor} ${bgColor} ${shadowClass} overflow-hidden`}
+            className={`flex-1 min-w-[320px] max-w-[400px] flex flex-col h-full min-h-0 rounded-xl border-3 ${borderColor} ${bgColor} ${shadowClass} overflow-hidden`}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
@@ -97,15 +117,17 @@ function KanbanColumn({ title, status, products, color, onDrop }: KanbanColumnPr
             </div>
 
             {/* Column Content */}
-            <ScrollArea className="flex-1 p-3">
-                <div className="space-y-4 pb-4">
+            <ScrollArea className="flex-1 min-h-0 p-3">
+                <div className="space-y-4 pb-8">
                     {products.map(product => (
                         <div
                             key={product.id}
                             draggable
                             onDragStart={(e) => e.dataTransfer.setData('productId', product.id)}
+                            onClick={() => onCardClick(product.id)}
                             className={cn(
                                 "p-4 bg-white rounded-lg border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-grab active:cursor-grabbing h-full relative group",
+                                "hover:translate-x-[1px] hover:translate-y-[1px] transition-transform",
                                 product.manualAlert && "border-red-600 shadow-red-900/20"
                             )}
                         >
@@ -145,6 +167,7 @@ function KanbanColumn({ title, status, products, color, onDrop }: KanbanColumnPr
                                     </div>
                                 )}
                             </div>
+                            <div className="mt-3 text-[10px] font-bold uppercase text-zinc-400">Klik untuk lihat riwayat pergerakan</div>
                         </div>
                     ))}
                     {products.length === 0 && (
@@ -178,8 +201,47 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
         warehouseId: "",
         notes: ""
     })
+    const [detailOpen, setDetailOpen] = useState(false)
+    const [detailLoading, setDetailLoading] = useState(false)
+    const [selectedDetail, setSelectedDetail] = useState<ProductDetailPayload | null>(null)
 
     const router = useRouter()
+
+    const openProductDetail = async (productId: string) => {
+        setDetailOpen(true)
+        setDetailLoading(true)
+        setSelectedDetail(null)
+        try {
+            const response = await fetch(`/api/products/${productId}`)
+            const payload = await response.json()
+            if (!payload.success) {
+                toast.error(payload.error || "Failed to load product detail")
+                return
+            }
+            const data = payload.data
+            setSelectedDetail({
+                id: data.id,
+                code: data.code,
+                name: data.name,
+                unit: data.unit,
+                minStock: data.minStock || 0,
+                currentStock: data.currentStock || 0,
+                transactions: (data.transactions || []).map((tx: any) => ({
+                    id: tx.id,
+                    type: tx.type,
+                    quantity: tx.quantity,
+                    createdAt: tx.createdAt,
+                    notes: tx.notes,
+                    warehouse: tx.warehouse || null
+                }))
+            })
+        } catch (error) {
+            console.error(error)
+            toast.error("Failed to load stock movement history")
+        } finally {
+            setDetailLoading(false)
+        }
+    }
 
     const handleDrop = async (productId: string, newStatus: string) => {
         const product = products.find(p => p.id === productId)
@@ -316,34 +378,34 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
     const totalWithTax = estimatedCost + tax
 
     return (
-        <div className="h-[calc(100vh-220px)] flex gap-6 overflow-x-auto pb-4">
+        <div className="h-[calc(100vh-220px)] flex gap-6 overflow-x-auto pb-4 min-h-0">
             <KanbanColumn
                 title="New Arrivals"
                 status="NEW"
                 products={products.filter(p => !p.manualAlert && p.status === 'NEW')}
-                color="bg-blue-50"
                 onDrop={handleDrop}
+                onCardClick={openProductDetail}
             />
             <KanbanColumn
                 title="Healthy Stock"
                 status="HEALTHY"
                 products={products.filter(p => !p.manualAlert && p.status === 'HEALTHY')}
-                color="bg-emerald-50"
                 onDrop={handleDrop}
+                onCardClick={openProductDetail}
             />
             <KanbanColumn
                 title="Low Stock"
                 status="LOW_STOCK"
                 products={products.filter(p => !p.manualAlert && p.status === 'LOW_STOCK')}
-                color="bg-amber-50"
                 onDrop={handleDrop}
+                onCardClick={openProductDetail}
             />
             <KanbanColumn
                 title="Critical / Alert"
                 status="CRITICAL"
                 products={products.filter(p => p.manualAlert || p.status === 'CRITICAL')}
-                color="bg-red-50"
                 onDrop={handleDrop}
+                onCardClick={openProductDetail}
             />
 
             {/* CONFIRMATION / PR DIALOG */}
@@ -451,6 +513,68 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
                             ) : "Remove Alert"}
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+                <DialogContent className="max-w-2xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-black uppercase">
+                            Stock Movement History
+                        </DialogTitle>
+                        <DialogDescription>
+                            {selectedDetail ? `${selectedDetail.code} - ${selectedDetail.name}` : "Loading product detail..."}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {detailLoading ? (
+                        <div className="py-6 text-sm text-muted-foreground">Loading...</div>
+                    ) : selectedDetail ? (
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="rounded-lg border p-3 bg-zinc-50">
+                                    <div className="text-[10px] uppercase font-black text-zinc-500">Current Stock</div>
+                                    <div className="text-xl font-black">
+                                        {selectedDetail.currentStock} <span className="text-xs font-bold text-zinc-500">{selectedDetail.unit}</span>
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border p-3 bg-zinc-50">
+                                    <div className="text-[10px] uppercase font-black text-zinc-500">Minimum Stock</div>
+                                    <div className="text-xl font-black">
+                                        {selectedDetail.minStock} <span className="text-xs font-bold text-zinc-500">{selectedDetail.unit}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="rounded-lg border overflow-hidden">
+                                <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 py-2 bg-zinc-100 border-b text-[10px] font-black uppercase">
+                                    <span>Type</span>
+                                    <span className="text-right">Qty</span>
+                                    <span>Warehouse</span>
+                                    <span className="text-right">Date</span>
+                                </div>
+                                <div className="max-h-72 overflow-y-auto divide-y">
+                                    {selectedDetail.transactions.length === 0 ? (
+                                        <div className="p-4 text-sm text-muted-foreground">No transactions found.</div>
+                                    ) : (
+                                        selectedDetail.transactions.map((tx) => (
+                                            <div key={tx.id} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 py-2 text-xs items-center">
+                                                <span className="font-bold">{tx.type}</span>
+                                                <span className={cn("text-right font-mono font-bold", tx.quantity >= 0 ? "text-emerald-700" : "text-red-700")}>
+                                                    {tx.quantity > 0 ? `+${tx.quantity}` : tx.quantity}
+                                                </span>
+                                                <span className="truncate">{tx.warehouse?.name || "-"}</span>
+                                                <span className="text-right text-zinc-500">
+                                                    {new Date(tx.createdAt).toLocaleDateString('id-ID')}
+                                                </span>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="py-6 text-sm text-muted-foreground">Product detail unavailable.</div>
+                    )}
                 </DialogContent>
             </Dialog>
         </div>

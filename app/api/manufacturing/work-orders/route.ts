@@ -7,21 +7,40 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url)
         const search = searchParams.get('search') || undefined
         const status = searchParams.get('status') || undefined
+        const orderType = (searchParams.get('orderType') || '').toUpperCase()
         const page = parseInt(searchParams.get('page') || '1')
         const limit = parseInt(searchParams.get('limit') || '20')
 
         // Build where clause
-        const whereClause: any = {}
+        const whereClause: any = { AND: [] }
 
         if (search) {
-            whereClause.OR = [
-                { number: { contains: search, mode: 'insensitive' } },
-                { product: { name: { contains: search, mode: 'insensitive' } } },
-            ]
+            whereClause.AND.push({
+                OR: [
+                    { number: { contains: search, mode: 'insensitive' } },
+                    { product: { name: { contains: search, mode: 'insensitive' } } },
+                ]
+            })
         }
 
         if (status) {
-            whereClause.status = status
+            whereClause.AND.push({ status })
+        }
+
+        if (orderType === 'MO') {
+            whereClause.AND.push({ number: { startsWith: 'MO-' } })
+        } else if (orderType === 'SPK') {
+            whereClause.AND.push({
+                OR: [
+                    { number: { startsWith: 'SPK-' } },
+                    // Backward compatibility for older records
+                    { number: { startsWith: 'WO-' } },
+                ]
+            })
+        }
+
+        if (whereClause.AND.length === 0) {
+            delete whereClause.AND
         }
 
         const offset = (page - 1) * limit
@@ -128,7 +147,7 @@ export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
 
-        const { productId, plannedQty, startDate, dueDate, priority, machineId } = body
+        const { productId, plannedQty, startDate, dueDate, priority, machineId, orderType } = body
 
         if (!productId || !plannedQty) {
             return NextResponse.json(
@@ -161,20 +180,28 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Generate work order number
+        const resolvedOrderType = String(orderType || 'SPK').toUpperCase() === 'MO' ? 'MO' : 'SPK'
+        const prefix = resolvedOrderType === 'MO' ? 'MO' : 'SPK'
+
+        // Generate work order number by type prefix
         const lastWO = await prisma.workOrder.findFirst({
+            where: {
+                number: {
+                    startsWith: `${prefix}-`,
+                },
+            },
             orderBy: { createdAt: 'desc' },
             select: { number: true },
         })
 
         let nextNumber = 1
         if (lastWO?.number) {
-            const match = lastWO.number.match(/WO-(\d+)/)
+            const match = lastWO.number.match(/(?:MO|SPK|WO)-(\d+)/)
             if (match) {
                 nextNumber = parseInt(match[1]) + 1
             }
         }
-        const woNumber = `WO-${String(nextNumber).padStart(5, '0')}`
+        const woNumber = `${prefix}-${String(nextNumber).padStart(5, '0')}`
 
         const workOrder = await prisma.workOrder.create({
             data: {

@@ -3,19 +3,11 @@
 import { useState, useMemo } from "react"
 import {
     FolderOpen,
-    Tag,
-    Package,
     Layers,
     Plus,
     Search,
     Filter,
-    MoreVertical,
-    ChevronRight,
-    Archive,
     ArrowRight,
-    X,
-    Trash2,
-    Save
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,7 +15,6 @@ import { Badge } from "@/components/ui/badge"
 import {
     Card,
     CardContent,
-    CardDescription,
     CardFooter,
     CardHeader,
     CardTitle,
@@ -49,7 +40,21 @@ interface CategoryWithChildren {
     code: string
     description: string | null
     parentId: string | null
-    children: any[] // Recursive type in validation
+    children: Array<{
+        id: string
+        name: string
+        code: string
+        description: string | null
+        parentId: string | null
+        _count: { products: number }
+        children?: Array<{
+            id: string
+            name: string
+            code: string
+            description: string | null
+            _count: { products: number }
+        }>
+    }>
     _count: { products: number }
 }
 
@@ -76,9 +81,12 @@ export function CategoriesClient({ categories, allCategories }: CategoriesClient
             // Prisma children might not have _count if we didn't include it deeply
             // For now let's just show direct children
             subs: cat.children.map((child: any) => ({
+                id: child.id,
+                code: child.code,
                 name: child.name,
-                // We might not have count for children unless fetched deep
-                count: 0
+                description: child.description,
+                count: child._count?.products || 0,
+                children: child.children || []
             })),
             value: 0, // We don't have value calc yet
             color: "bg-blue-100" // Default color
@@ -321,7 +329,6 @@ function CreateCategoryDialog({ open, onOpenChange, parents, onSuccess }: Create
 }
 
 function CategoryDetailDialog({ category, open, onOpenChange }: { category: any, open: boolean, onOpenChange: (v: boolean) => void }) {
-    // Simplified detail view
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0 bg-white">
@@ -341,7 +348,55 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                 </DialogHeader>
 
                 <div className="p-6 space-y-6">
-                    <p>Details not fully implemented in this view yet.</p>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg border border-black/10 bg-zinc-50 p-3">
+                            <p className="text-[10px] font-black uppercase text-zinc-500">Total Products</p>
+                            <p className="text-2xl font-black">{category.itemCount || 0}</p>
+                        </div>
+                        <div className="rounded-lg border border-black/10 bg-zinc-50 p-3">
+                            <p className="text-[10px] font-black uppercase text-zinc-500">Direct Sub-Categories</p>
+                            <p className="text-2xl font-black">{category.subs?.length || 0}</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <h4 className="text-xs font-black uppercase tracking-wide text-zinc-500">Tree Nodes</h4>
+                        {category.subs && category.subs.length > 0 ? (
+                            <div className="space-y-2">
+                                {category.subs.map((sub: any) => (
+                                    <div key={sub.id || sub.name} className="rounded-lg border border-black/10 p-3 bg-white">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div>
+                                                <p className="text-sm font-black uppercase">{sub.name}</p>
+                                                <p className="text-[11px] text-zinc-500 font-mono">{sub.code || "NO-CODE"}</p>
+                                            </div>
+                                            <Badge variant="outline" className="border-black text-[10px] font-bold">
+                                                {sub.count || 0} items
+                                            </Badge>
+                                        </div>
+                                        {sub.description && (
+                                            <p className="mt-2 text-xs text-zinc-600">{sub.description}</p>
+                                        )}
+                                        {sub.children && sub.children.length > 0 && (
+                                            <div className="mt-2 rounded border border-dashed border-zinc-200 bg-zinc-50 p-2">
+                                                <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">Sub Nodes</p>
+                                                <div className="space-y-1">
+                                                    {sub.children.map((child: any) => (
+                                                        <div key={child.id || child.name} className="flex items-center justify-between text-xs">
+                                                            <span className="font-medium">{child.name}</span>
+                                                            <span className="text-zinc-500">{child._count?.products || 0} items</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-zinc-500 italic">No child nodes found for this category.</p>
+                        )}
+                    </div>
                 </div>
 
                 <DialogFooter className="p-4 border-t border-black bg-zinc-50 flex gap-2 justify-end">

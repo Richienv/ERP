@@ -581,7 +581,7 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
         const user = await getAuthzUser()
         assertRole(user, PURCHASING_ROLES)
 
-        return await withPrismaAuth(async (prisma) => {
+        const result = await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
             // 1. Fetch PR Items
             const pr = await prisma.purchaseRequest.findUnique({
@@ -711,8 +711,13 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
         revalidateTagSafe('procurement')
         revalidateTagSafe('purchase-orders')
         revalidateTagSafe('receiving')
+        revalidateTagSafe('stats')
         revalidatePath('/procurement')
-        return { success: true, poIds: [] }
+        revalidatePath('/procurement/orders')
+        revalidatePath('/procurement/requests')
+        revalidatePath('/dashboard')
+
+        return result
 
     } catch (error: any) {
         console.error("Error converting PR to PO:", error)

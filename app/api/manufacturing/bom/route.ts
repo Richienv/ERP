@@ -1,6 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+function resolveMaterialUnitCost(material: {
+    costPrice: any
+    supplierItems?: Array<{ price: any; isPreferred: boolean }>
+}) {
+    const directCost = Number(material.costPrice || 0)
+    if (directCost > 0) return directCost
+
+    const preferredSupplierCost = material.supplierItems?.find((s) => s.isPreferred)?.price
+    if (preferredSupplierCost !== undefined && preferredSupplierCost !== null) {
+        return Number(preferredSupplierCost || 0)
+    }
+
+    const fallbackSupplierCost = material.supplierItems?.[0]?.price
+    return Number(fallbackSupplierCost || 0)
+}
+
 // GET /api/manufacturing/bom - Fetch all Bill of Materials
 export async function GET(request: NextRequest) {
     try {
@@ -51,6 +67,16 @@ export async function GET(request: NextRequest) {
                                 name: true,
                                 unit: true,
                                 costPrice: true,
+                                supplierItems: {
+                                    select: {
+                                        price: true,
+                                        isPreferred: true,
+                                    },
+                                    orderBy: {
+                                        isPreferred: 'desc',
+                                    },
+                                    take: 3,
+                                },
                             },
                         },
                     },
@@ -61,17 +87,29 @@ export async function GET(request: NextRequest) {
 
         // Calculate total cost for each BOM
         const bomsWithCost = boms.map(bom => {
-            const totalMaterialCost = bom.items.reduce((sum, item) => {
+            const normalizedItems = bom.items.map((item) => {
+                const unitCost = resolveMaterialUnitCost(item.material)
+                return {
+                    ...item,
+                    material: {
+                        ...item.material,
+                        costPrice: unitCost,
+                    },
+                }
+            })
+
+            const totalMaterialCost = normalizedItems.reduce((sum, item) => {
                 const qty = Number(item.quantity)
-                const cost = Number(item.material.costPrice)
+                const cost = Number(item.material.costPrice || 0)
                 const waste = Number(item.wastePct) / 100
                 return sum + (qty * cost * (1 + waste))
             }, 0)
 
             return {
                 ...bom,
+                items: normalizedItems,
                 totalMaterialCost: Math.round(totalMaterialCost),
-                itemCount: bom.items.length,
+                itemCount: normalizedItems.length,
             }
         })
 

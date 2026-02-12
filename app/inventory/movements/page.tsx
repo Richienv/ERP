@@ -3,15 +3,11 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ArrowRightLeft,
-  Calendar,
-  Filter,
   Activity
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ManualMovementDialog } from "@/components/inventory/manual-movement-dialog";
 import { getStockMovements, getProductsForKanban, getWarehouses } from "@/app/actions/inventory";
-import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider";
 
@@ -25,11 +21,28 @@ export default async function StockMovementsPage() {
   ]);
 
   // Calculate Daily Stats
-  const today = new Date().toDateString();
-  const todaysMoves = movements.filter(m => new Date(m.date).toDateString() === today);
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
 
-  const inboundCount = todaysMoves.filter(m => ['PO_RECEIVE', 'PRODUCTION_IN', 'RETURN_IN', 'ADJUSTMENT_IN', 'INITIAL'].some(t => m.type.includes(t)) && m.qty > 0).reduce((acc, curr) => acc + curr.qty, 0);
-  const outboundCount = todaysMoves.filter(m => ['SO_SHIPMENT', 'PRODUCTION_OUT', 'RETURN_OUT', 'SCRAP', 'ADJUSTMENT_OUT'].some(t => m.type.includes(t)) || m.qty < 0).reduce((acc, curr) => acc + Math.abs(curr.qty), 0);
+  const inboundTypes = new Set(['PO_RECEIVE', 'PRODUCTION_IN', 'RETURN_IN', 'INITIAL']);
+  const outboundTypes = new Set(['SO_SHIPMENT', 'PRODUCTION_OUT', 'RETURN_OUT', 'SCRAP']);
+
+  const todaysMoves = movements.filter((m) => {
+    const movementDate = new Date(m.date);
+    return movementDate >= startOfToday && movementDate <= endOfToday;
+  });
+
+  const inboundCount = todaysMoves
+    .filter((m) => m.type !== 'TRANSFER' && (m.qty > 0 || inboundTypes.has(m.type)))
+    .reduce((acc, curr) => acc + Math.max(0, curr.qty), 0);
+
+  const outboundCount = todaysMoves
+    .filter((m) => m.type !== 'TRANSFER' && (m.qty < 0 || outboundTypes.has(m.type)))
+    .reduce((acc, curr) => acc + Math.abs(Math.min(0, curr.qty) || curr.qty), 0);
+
   const transferCount = todaysMoves.filter(m => m.type === 'TRANSFER').length;
 
   // Group by Date
@@ -44,8 +57,8 @@ export default async function StockMovementsPage() {
 
   // Helper for icons/colors
   const getTypeConfig = (type: string, qty: number) => {
-    if (type.includes('IN') || (type === 'INITIAL') || (type === 'ADJUSTMENT' && qty > 0)) return { icon: ArrowDownRight, color: 'text-emerald-600', bg: 'bg-emerald-100', border: 'border-emerald-200', label: 'INBOUND' };
-    if (type.includes('OUT') || type === 'SCRAP' || (type === 'ADJUSTMENT' && qty < 0)) return { icon: ArrowUpRight, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200', label: 'OUTBOUND' };
+    if (inboundTypes.has(type) || (type === 'ADJUSTMENT' && qty > 0)) return { icon: ArrowDownRight, color: 'text-emerald-600', bg: 'bg-emerald-100', border: 'border-emerald-200', label: 'INBOUND' };
+    if (outboundTypes.has(type) || (type === 'ADJUSTMENT' && qty < 0)) return { icon: ArrowUpRight, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200', label: 'OUTBOUND' };
     if (type === 'TRANSFER') return { icon: ArrowRightLeft, color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200', label: 'TRANSFER' };
     return { icon: Activity, color: 'text-zinc-600', bg: 'bg-zinc-100', border: 'border-zinc-200', label: 'ACTIVITY' };
   };

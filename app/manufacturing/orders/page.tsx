@@ -112,6 +112,7 @@ export default function ProductionOrdersPage() {
         setError(null);
         try {
             const params = new URLSearchParams();
+            params.append('orderType', 'MO');
             if (searchQuery) params.append('search', searchQuery);
             if (statusFilter) params.append('status', statusFilter);
 
@@ -585,6 +586,7 @@ export default function ProductionOrdersPage() {
                 open={createOpen}
                 onOpenChange={setCreateOpen}
                 onCreated={fetchWorkOrders}
+                orderType="MO"
             />
         </div>
     );

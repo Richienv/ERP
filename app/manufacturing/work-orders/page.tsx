@@ -108,6 +108,7 @@ export default function WorkOrdersPage() {
         setError(null);
         try {
             const params = new URLSearchParams();
+            params.append('orderType', 'SPK');
             if (searchQuery) params.append('search', searchQuery);
             if (statusFilter) params.append('status', statusFilter);
 
@@ -615,6 +616,7 @@ export default function WorkOrdersPage() {
                 open={createOpen}
                 onOpenChange={setCreateOpen}
                 onCreated={fetchWorkOrders}
+                orderType="SPK"
             />
         </div>
     );
