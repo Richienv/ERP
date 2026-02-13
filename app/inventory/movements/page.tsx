@@ -20,30 +20,39 @@ export default async function StockMovementsPage() {
     getWarehouses()
   ]);
 
-  // Calculate Daily Stats
-  const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
+  // Calculate Daily Stats in business timezone (Indonesia) so cards match operator expectation.
+  const BUSINESS_TZ = 'Asia/Jakarta';
+  const inboundTypes = new Set(['PO_RECEIVE', 'PRODUCTION_IN', 'RETURN_IN', 'INITIAL', 'ADJUSTMENT_IN']);
+  const outboundTypes = new Set(['SO_SHIPMENT', 'PRODUCTION_OUT', 'RETURN_OUT', 'SCRAP', 'ADJUSTMENT_OUT']);
 
-  const inboundTypes = new Set(['PO_RECEIVE', 'PRODUCTION_IN', 'RETURN_IN', 'INITIAL']);
-  const outboundTypes = new Set(['SO_SHIPMENT', 'PRODUCTION_OUT', 'RETURN_OUT', 'SCRAP']);
+  const dateKey = (value: Date | string) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: BUSINESS_TZ }).format(new Date(value));
 
-  const todaysMoves = movements.filter((m) => {
-    const movementDate = new Date(m.date);
-    return movementDate >= startOfToday && movementDate <= endOfToday;
-  });
+  const todayKey = dateKey(new Date());
+  const todaysMoves = movements.filter((m) => dateKey(m.date) === todayKey);
 
-  const inboundCount = todaysMoves
-    .filter((m) => m.type !== 'TRANSFER' && (m.qty > 0 || inboundTypes.has(m.type)))
-    .reduce((acc, curr) => acc + Math.max(0, curr.qty), 0);
+  const classifyMovement = (type: string, qtyRaw: number) => {
+    if (type === 'TRANSFER') return { direction: 'TRANSFER' as const, units: 0 };
+    if (qtyRaw > 0 || (type === 'ADJUSTMENT' && qtyRaw >= 0) || inboundTypes.has(type)) {
+      return { direction: 'INBOUND' as const, units: Math.abs(qtyRaw) };
+    }
+    if (qtyRaw < 0 || (type === 'ADJUSTMENT' && qtyRaw < 0) || outboundTypes.has(type)) {
+      return { direction: 'OUTBOUND' as const, units: Math.abs(qtyRaw) };
+    }
+    return { direction: 'OTHER' as const, units: 0 };
+  };
 
-  const outboundCount = todaysMoves
-    .filter((m) => m.type !== 'TRANSFER' && (m.qty < 0 || outboundTypes.has(m.type)))
-    .reduce((acc, curr) => acc + Math.abs(Math.min(0, curr.qty) || curr.qty), 0);
+  const inboundCount = todaysMoves.reduce((acc, move) => {
+    const { direction, units } = classifyMovement(move.type, Number(move.qty || 0));
+    return direction === 'INBOUND' ? acc + units : acc;
+  }, 0);
 
-  const transferCount = todaysMoves.filter(m => m.type === 'TRANSFER').length;
+  const outboundCount = todaysMoves.reduce((acc, move) => {
+    const { direction, units } = classifyMovement(move.type, Number(move.qty || 0));
+    return direction === 'OUTBOUND' ? acc + units : acc;
+  }, 0);
+
+  const transferCount = todaysMoves.filter((m) => m.type === 'TRANSFER').length;
 
   // Group by Date
   const groupedMovements = movements.reduce((groups, move) => {

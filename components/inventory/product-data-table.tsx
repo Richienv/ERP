@@ -43,6 +43,8 @@ import {
   Trash2
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { StockStatusBadge, CurrencyDisplay } from "@/components/inventory"
 import { formatNumber, getStockStatus } from "@/lib/inventory-utils"
 import { type ProductWithRelations, type StockStatus } from "@/lib/types"
@@ -166,7 +168,10 @@ function getDisplayStockStatus(product: ProductWithStock): StockStatus {
   return getStockStatus(product.currentStock, product.minStock, product.maxStock)
 }
 
-export const columns: ColumnDef<ProductWithStock>[] = [
+const createColumns = (
+  onDelete: (product: ProductWithStock) => Promise<void>,
+  deletingProductId: string | null
+): ColumnDef<ProductWithStock>[] => [
   {
     accessorKey: "code",
     header: "Kode",
@@ -283,9 +288,16 @@ export const columns: ColumnDef<ProductWithStock>[] = [
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">
+            <DropdownMenuItem
+              className="text-red-600"
+              disabled={deletingProductId === product.id}
+              onSelect={(event) => {
+                event.preventDefault()
+                void onDelete(product)
+              }}
+            >
               <Trash2 className="mr-2 h-4 w-4" />
-              Hapus
+              {deletingProductId === product.id ? "Menghapus..." : "Hapus"}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -299,15 +311,51 @@ interface ProductDataTableProps {
 }
 
 export function ProductDataTable({ data }: ProductDataTableProps) {
+  const router = useRouter()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [globalFilter, setGlobalFilter] = React.useState("")
+  const [tableData, setTableData] = React.useState<ProductWithStock[]>(data)
+  const [deletingProductId, setDeletingProductId] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    setTableData(data)
+  }, [data])
+
+  const handleDeleteProduct = async (product: ProductWithStock) => {
+    if (deletingProductId) return
+    const confirmed = window.confirm(`Hapus produk "${product.name}"?`)
+    if (!confirmed) return
+
+    setDeletingProductId(product.id)
+    try {
+      const response = await fetch(`/api/products/${product.id}`, { method: "DELETE" })
+      const payload = await response.json()
+
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error || "Gagal menghapus produk")
+      }
+
+      setTableData((prev) => prev.filter((item) => item.id !== product.id))
+      toast.success(payload?.message || "Produk berhasil dihapus")
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error?.message || "Gagal menghapus produk")
+    } finally {
+      setDeletingProductId(null)
+    }
+  }
+
+  const currentColumns = React.useMemo(
+    () => createColumns(handleDeleteProduct, deletingProductId),
+    [deletingProductId]
+  )
 
   const table = useReactTable({
-    data,
-    columns,
+    data: tableData,
+    columns: currentColumns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -458,7 +506,7 @@ export function ProductDataTable({ data }: ProductDataTableProps) {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={columns.length}
+                  colSpan={currentColumns.length}
                   className="h-24 text-center"
                 >
                   Tidak ada produk ditemukan.

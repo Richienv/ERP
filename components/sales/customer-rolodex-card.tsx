@@ -3,15 +3,11 @@
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
 import {
     Building2,
     MapPin,
     Phone,
-    Mail,
     MoreHorizontal,
-    Star,
-    TrendingUp,
     AlertCircle,
     MessageCircle,
     FileText,
@@ -47,6 +43,20 @@ interface CustomerRolodexCardProps {
 }
 
 export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
+    const buildWhatsappPhone = (rawPhone: string) => {
+        const digits = rawPhone.replace(/\D/g, "")
+        if (!digits) return ""
+        if (digits.startsWith("0")) return `62${digits.slice(1)}`
+        return digits
+    }
+
+    const handleWhatsappClick = () => {
+        const phone = buildWhatsappPhone(customer.phone || "")
+        if (!phone) return
+        const text = encodeURIComponent(`Halo ${customer.name}, kami dari tim Sales ERP ingin follow up kebutuhan Anda.`)
+        window.open(`https://wa.me/${phone}?text=${text}`, "_blank", "noopener,noreferrer")
+    }
+
     // Determine Tier based on Total Value (Mock Logic)
     const getTier = (value: number) => {
         if (value > 2000000000) return { label: "PLATINUM", color: "bg-zinc-900 text-white border-zinc-900" } // > 2M
@@ -145,14 +155,24 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
             </CardContent>
 
             <CardFooter className="p-3 bg-zinc-50 border-t border-black grid grid-cols-3 gap-2">
-                <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold border-black hover:bg-zinc-100 px-0 flex gap-1">
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-[10px] font-bold border-black hover:bg-zinc-100 px-0 flex gap-1"
+                    onClick={handleWhatsappClick}
+                    disabled={!buildWhatsappPhone(customer.phone || "")}
+                >
                     <MessageCircle className="h-3 w-3" /> WA
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold border-black hover:bg-zinc-100 px-0 flex gap-1">
-                    <FileText className="h-3 w-3" /> Quote
+                <Button asChild variant="outline" size="sm" className="h-8 text-[10px] font-bold border-black hover:bg-zinc-100 px-0 flex gap-1">
+                    <Link href={`/sales/quotations/new?customerId=${customer.id}`}>
+                        <FileText className="h-3 w-3" /> Quote
+                    </Link>
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold border-black bg-black text-white hover:bg-zinc-800 hover:text-white px-0 flex gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
-                    <DollarSign className="h-3 w-3" /> Order
+                <Button asChild variant="outline" size="sm" className="h-8 text-[10px] font-bold border-black bg-black text-white hover:bg-zinc-800 hover:text-white px-0 flex gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
+                    <Link href={`/sales/orders/new?customerId=${customer.id}`}>
+                        <DollarSign className="h-3 w-3" /> Order
+                    </Link>
                 </Button>
             </CardFooter>
         </Card>

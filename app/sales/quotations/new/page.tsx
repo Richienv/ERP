@@ -1,12 +1,29 @@
-"use client"
-
 import { QuotationForm } from "@/components/sales/quotation-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 
-export default function NewQuotationPage() {
+type SearchParamsValue = string | string[] | undefined
+
+const readSearchParam = (params: Record<string, SearchParamsValue>, key: string) => {
+  const value = params[key]
+  if (Array.isArray(value)) return value[0]
+  return value
+}
+
+export default async function NewQuotationPage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, SearchParamsValue>> | Record<string, SearchParamsValue>
+}) {
+  const resolvedSearchParams = searchParams
+    ? (typeof (searchParams as Promise<Record<string, SearchParamsValue>>).then === "function"
+      ? await (searchParams as Promise<Record<string, SearchParamsValue>>)
+      : (searchParams as Record<string, SearchParamsValue>))
+    : {}
+  const initialCustomerId = readSearchParam(resolvedSearchParams, "customerId") || undefined
+
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       {/* Header */}
@@ -36,7 +53,7 @@ export default function NewQuotationPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <QuotationForm />
+          <QuotationForm initialCustomerId={initialCustomerId} />
         </CardContent>
       </Card>
     </div>

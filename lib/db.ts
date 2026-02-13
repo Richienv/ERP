@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import { createClient } from '@/lib/supabase/server'
 
 // Singleton pattern for Prisma Client with optimized settings
@@ -16,10 +16,30 @@ function decodeJwtPayload(token: string): Record<string, any> {
     return JSON.parse(json)
 }
 
-// Base Prisma client (without auth context)
-const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
+const withPoolGuards = (rawUrl?: string) => {
+    if (!rawUrl) return rawUrl
+    try {
+        const url = new URL(rawUrl)
+        if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_limit", "3")
+        if (!url.searchParams.has("pool_timeout")) url.searchParams.set("pool_timeout", "30")
+        if (!url.searchParams.has("pgbouncer")) url.searchParams.set("pgbouncer", "true")
+        return url.toString()
+    } catch {
+        return rawUrl
+    }
+}
+
+const prismaOptions: Prisma.PrismaClientOptions = {
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-})
+}
+
+const guardedDatabaseUrl = withPoolGuards(process.env.DATABASE_URL)
+if (guardedDatabaseUrl) {
+    prismaOptions.datasources = { db: { url: guardedDatabaseUrl } }
+}
+
+// Base Prisma client (without auth context)
+const basePrisma = globalForPrisma.prisma ?? new PrismaClient(prismaOptions)
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma
 
@@ -37,7 +57,6 @@ export async function withPrismaAuth<T>(
         }
 
         const claims = decodeJwtPayload(accessToken)
-        const claimsJson = JSON.stringify(claims)
         const sub = String(claims.sub || '')
         const role = String(claims.role || 'authenticated')
 
@@ -53,7 +72,7 @@ export async function withPrismaAuth<T>(
 
         return await withRetry(async () => {
             return await basePrisma.$transaction(async (tx) => {
-                const dbRole = (role === 'anon' || role === 'authenticated') ? role : 'authenticated'
+                const _dbRole = (role === 'anon' || role === 'authenticated') ? role : 'authenticated'
                 // BYPASS RLS FOR TRANSACTION POOLER COMPATIBILITY
                 // The 'postgres' user from the pooler connection string has full admin rights.
                 // Switching to 'authenticated' role causes 'permission denied for schema public' 

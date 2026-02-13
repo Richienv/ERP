@@ -716,7 +716,7 @@ export default function InvoicesKanbanPage() {
                             </div>
                             <p className="text-xs text-zinc-500 font-medium">Drag draft to Sent, then drop Sent/Overdue to Paid.</p>
                         </CardHeader>
-                        <CardContent className="grid min-h-0 gap-4 p-4 md:grid-cols-2 xl:grid-cols-3 overflow-y-auto">
+                        <CardContent className="grid min-h-0 gap-4 p-4 md:grid-cols-2 overflow-y-auto">
                             <LanePanel
                                 id="draft"
                                 title="Drafts"

@@ -61,7 +61,11 @@ const formatCurrency = (amount: number) => {
   }).format(amount)
 }
 
-export function QuotationForm() {
+interface QuotationFormProps {
+  initialCustomerId?: string
+}
+
+export function QuotationForm({ initialCustomerId }: QuotationFormProps) {
   const router = useRouter()
 
   const [customers, setCustomers] = useState<CustomerOption[]>([])
@@ -106,6 +110,16 @@ export function QuotationForm() {
         setCustomers(payload.data.customers || [])
         setProducts(payload.data.products || [])
         setSalesPersons(payload.data.users || [])
+
+        if (initialCustomerId) {
+          const hasCustomer = (payload.data.customers || []).some((customer) => customer.id === initialCustomerId)
+          if (hasCustomer) {
+            setForm((current) => ({
+              ...current,
+              customerId: initialCustomerId,
+            }))
+          }
+        }
       } catch (error: any) {
         toast.error(error?.message || "Gagal memuat data referensi")
       } finally {
@@ -114,7 +128,7 @@ export function QuotationForm() {
     }
 
     loadOptions()
-  }, [])
+  }, [initialCustomerId])
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({

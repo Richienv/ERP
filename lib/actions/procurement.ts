@@ -122,14 +122,11 @@ export const getVendors = unstable_cache(
 export const getProcurementStats = unstable_cache(
     async (input?: ProcurementStatsInput) => {
         try {
-            const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> => {
-                try {
-                    return await promise
-                } catch (error) {
+            const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> =>
+                promise.catch((error) => {
                     console.error(`Procurement stats segment failed: ${label}`, error)
                     return fallback
-                }
-            }
+                })
 
             const now = new Date()
             const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)

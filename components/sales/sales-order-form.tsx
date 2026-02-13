@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea"
 
 interface SalesOrderFormProps {
   quotationId?: string
+  initialCustomerId?: string
 }
 
 interface CustomerOption {
@@ -68,7 +69,7 @@ const formatCurrency = (amount: number) => {
   }).format(amount)
 }
 
-export function SalesOrderForm({ quotationId }: SalesOrderFormProps) {
+export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFormProps) {
   const router = useRouter()
 
   const [loadingOptions, setLoadingOptions] = useState(true)
@@ -132,6 +133,15 @@ export function SalesOrderForm({ quotationId }: SalesOrderFormProps) {
               paymentTerm: selectedCustomer?.paymentTerm || current.paymentTerm,
             }))
           }
+        } else if (initialCustomerId) {
+          const selectedCustomer = incomingCustomers.find((customer) => customer.id === initialCustomerId)
+          if (selectedCustomer) {
+            setForm((current) => ({
+              ...current,
+              customerId: selectedCustomer.id,
+              paymentTerm: selectedCustomer.paymentTerm || current.paymentTerm,
+            }))
+          }
         }
       } catch (error: any) {
         toast.error(error?.message || "Gagal memuat opsi sales order")
@@ -141,7 +151,7 @@ export function SalesOrderForm({ quotationId }: SalesOrderFormProps) {
     }
 
     loadOptions()
-  }, [quotationId])
+  }, [quotationId, initialCustomerId])
 
   const selectedCustomer = useMemo(
     () => customers.find((customer) => customer.id === form.customerId),

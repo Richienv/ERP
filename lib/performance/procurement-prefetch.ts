@@ -31,6 +31,10 @@ export function useProcurementPrefetch() {
             const links = document.querySelectorAll('a[href*="/procurement/"]')
             
             links.forEach(link => {
+                const linkEl = link as HTMLAnchorElement
+                if (linkEl.dataset.prefetchBound === "1") return
+                linkEl.dataset.prefetchBound = "1"
+
                 const href = (link as HTMLAnchorElement).href
                 const path = new URL(href).pathname
 
@@ -91,22 +95,9 @@ export function useProcurementPrefetch() {
         }
     }, [router])
 
-    // Prefetch all procurement pages on component mount (like Facebook does)
-    useEffect(() => {
-        const prefetchAllPages = async () => {
-            // Stagger prefetches to avoid overwhelming the network
-            for (let i = 0; i < procurementPages.length; i++) {
-                setTimeout(() => {
-                    router.prefetch(procurementPages[i])
-                }, i * 100) // 100ms stagger
-            }
-        }
-
-        // Prefetch after initial page load
-        if (typeof window !== 'undefined') {
-            setTimeout(prefetchAllPages, 1000) // 1 second after mount
-        }
-    }, [router])
+    // NOTE:
+    // We intentionally avoid bulk prefetch-on-mount here to prevent
+    // request storms that can exhaust database/session pool limits.
 }
 
 // Hook for components to prefetch related data
@@ -114,15 +105,14 @@ export function useDataPrefetch() {
     const prefetchData = async (dataKeys: string[]) => {
         // Trigger cache warming for specific data
         try {
-            const responses = await Promise.allSettled(
-                dataKeys.map(key => fetch(`/api/cache-warm?key=${key}`))
-            )
-            
-            responses.forEach((response, index) => {
-                if (response.status === 'fulfilled') {
-                    console.log(`🔥 Cache warmed: ${dataKeys[index]}`)
+            for (const key of dataKeys) {
+                const response = await fetch(`/api/cache-warm?key=${key}`)
+                if (response.ok) {
+                    console.log(`🔥 Cache warmed: ${key}`)
                 }
-            })
+                // Small delay to avoid overwhelming server/db connection pools.
+                await new Promise((resolve) => setTimeout(resolve, 120))
+            }
         } catch (error) {
             console.warn('Cache warming failed:', error)
         }
@@ -149,6 +139,10 @@ export function useInventoryPrefetch() {
             const links = document.querySelectorAll('a[href*="/inventory/"]')
 
             links.forEach(link => {
+                const linkEl = link as HTMLAnchorElement
+                if (linkEl.dataset.prefetchBound === "1") return
+                linkEl.dataset.prefetchBound = "1"
+
                 const href = (link as HTMLAnchorElement).href
                 const path = new URL(href).pathname
 
@@ -200,17 +194,6 @@ export function useInventoryPrefetch() {
         }
     }, [router])
 
-    useEffect(() => {
-        const prefetchAllPages = async () => {
-            for (let i = 0; i < inventoryPages.length; i++) {
-                setTimeout(() => {
-                    router.prefetch(inventoryPages[i])
-                }, i * 100)
-            }
-        }
-
-        if (typeof window !== 'undefined') {
-            setTimeout(prefetchAllPages, 1000)
-        }
-    }, [router])
+    // NOTE:
+    // Avoid bulk prefetch-on-mount to prevent connection spikes.
 }
