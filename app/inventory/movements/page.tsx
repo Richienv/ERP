@@ -17,11 +17,19 @@ import { InventoryPerformanceProvider } from "@/components/inventory/inventory-p
 
 export const dynamic = 'force-dynamic';
 
+/** Race a promise against a timeout — returns fallback on timeout */
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+  ])
+}
+
 export default async function StockMovementsPage() {
   const [movements, products, warehouses] = await Promise.all([
-    getStockMovements(100),
-    getProductsForKanban(),
-    getWarehouses()
+    withTimeout(getStockMovements(100), 8000, []),
+    withTimeout(getProductsForKanban(), 8000, []),
+    withTimeout(getWarehouses(), 5000, [])
   ]);
 
   // Calculate Daily Stats

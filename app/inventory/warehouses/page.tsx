@@ -26,8 +26,16 @@ import { getWarehouses } from "@/app/actions/inventory";
 import { WarehouseFormDialog } from "@/components/inventory/warehouse-form-dialog";
 import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider";
 
+/** Race a promise against a timeout — returns fallback on timeout */
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+  ])
+}
+
 async function WarehouseGrid() {
-  const warehouses = await getWarehouses()
+  const warehouses = await withTimeout(getWarehouses(), 8000, [])
 
   if (warehouses.length === 0) {
     return <div className="p-12 text-center text-muted-foreground border-2 border-dashed rounded-lg">No Warehouses Found.</div>

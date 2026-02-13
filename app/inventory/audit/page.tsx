@@ -59,12 +59,8 @@ type AuditLog = {
     systemQty: number;
     actualQty: number;
     auditor: string;
-    updatedAt: Date;
-    status: string; // 'MATCH' | 'DISCREPANCY'
-    vendorName: string;
-    poNumber: string;
-    invoiceNumber: string;
-    paymentStatus: string;
+    date: Date;
+    status: string;
 };
 
 export default function InventoryAuditPage() {
@@ -88,12 +84,15 @@ export default function InventoryAuditPage() {
         loadData();
     }, []);
 
+    const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> =>
+        Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))])
+
     const loadData = async () => {
         try {
             const [logs, prods, whs] = await Promise.all([
-                getRecentAudits(),
-                getProductsForKanban(),
-                getWarehouses()
+                withTimeout(getRecentAudits(), 8000, []),
+                withTimeout(getProductsForKanban(), 8000, []),
+                withTimeout(getWarehouses(), 5000, [])
             ]);
             setAuditLogs(logs);
             setProducts(prods);
@@ -296,10 +295,10 @@ export default function InventoryAuditPage() {
                                                     <div className="flex flex-col">
                                                         <span className="font-bold text-zinc-900 flex items-center gap-2">
                                                             <Clock className="h-3 w-3 text-zinc-400" />
-                                                            {format(new Date(log.updatedAt), 'HH:mm', { locale: id })}
+                                                            {format(new Date(log.date), 'HH:mm', { locale: id })}
                                                         </span>
                                                         <span className="text-xs font-bold text-muted-foreground">
-                                                            {format(new Date(log.updatedAt), 'dd MMM yyyy', { locale: id })}
+                                                            {format(new Date(log.date), 'dd MMM yyyy', { locale: id })}
                                                         </span>
                                                     </div>
                                                 </td>
