@@ -511,7 +511,7 @@ export async function getProductsForKanban() {
                 image: '/placeholder.png'
             }))
         })
-    })
+    }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
 }
 
 export async function setProductManualAlert(productId: string, isAlert: boolean) {
