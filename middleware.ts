@@ -31,17 +31,21 @@ export async function middleware(request: NextRequest) {
         }
     )
 
-    // Wrap getUser in try/catch — if auth is broken (stale JWT, network error),
+    // Wrap getUser in try/catch with timeout — if auth is broken (stale JWT, network error),
     // treat user as unauthenticated and clear auth cookies to prevent error loops
     let user = null
     try {
-        const { data, error } = await supabase.auth.getUser()
-        if (!error) {
-            user = data?.user ?? null
-        } else {
+        const authPromise = supabase.auth.getUser()
+        const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 5000))
+        const result = await Promise.race([authPromise, timeoutPromise])
+
+        if (result && 'data' in result && !result.error) {
+            user = result.data?.user ?? null
+        } else if (result && 'error' in result) {
             // Auth returned an error (e.g., invalid token) — clear auth cookies
             clearAuthCookies(response, request)
         }
+        // If timeout won (result is null), user stays null — treated as unauthenticated
     } catch (err) {
         // getUser() threw an exception — clear auth cookies
         console.error("Middleware: auth.getUser() threw, clearing cookies:", err)
