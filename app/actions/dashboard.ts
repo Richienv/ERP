@@ -880,7 +880,7 @@ export async function getDashboardOperations() {
                 fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
             ])
             return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue }
-        }, { maxWait: 5000, timeout: 8000 })
+        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
     } catch (error) {
         console.error("getDashboardOperations failed:", error)
         return {
@@ -904,7 +904,7 @@ export async function getDashboardActivity() {
                 fetchExecutiveAlerts(prisma).catch(() => []),
             ])
             return { activityFeed, executiveAlerts }
-        }, { maxWait: 5000, timeout: 8000 })
+        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
     } catch (error) {
         console.error("getDashboardActivity failed:", error)
         return { activityFeed: [], executiveAlerts: [] }
@@ -916,7 +916,7 @@ export async function getDashboardCharts() {
     try {
         return await withPrismaAuth(async (prisma) => {
             return fetchFinancialChartData(prisma)
-        }, { maxWait: 5000, timeout: 8000 })
+        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
     } catch (error) {
         console.error("getDashboardCharts failed:", error)
         return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }

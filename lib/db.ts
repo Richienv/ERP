@@ -1,4 +1,4 @@
-import { Prisma, PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { createClient } from '@/lib/supabase/server'
 
 // Singleton pattern for Prisma Client with optimized settings
@@ -16,36 +16,16 @@ function decodeJwtPayload(token: string): Record<string, any> {
     return JSON.parse(json)
 }
 
-const withPoolGuards = (rawUrl?: string) => {
-    if (!rawUrl) return rawUrl
-    try {
-        const url = new URL(rawUrl)
-        if (!url.searchParams.has("connection_limit")) url.searchParams.set("connection_limit", "3")
-        if (!url.searchParams.has("pool_timeout")) url.searchParams.set("pool_timeout", "30")
-        if (!url.searchParams.has("pgbouncer")) url.searchParams.set("pgbouncer", "true")
-        return url.toString()
-    } catch {
-        return rawUrl
-    }
-}
-
-const prismaOptions: Prisma.PrismaClientOptions = {
-    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-}
-
-const guardedDatabaseUrl = withPoolGuards(process.env.DATABASE_URL)
-if (guardedDatabaseUrl) {
-    prismaOptions.datasources = { db: { url: guardedDatabaseUrl } }
-}
-
 // Base Prisma client (without auth context)
-const basePrisma = globalForPrisma.prisma ?? new PrismaClient(prismaOptions)
+const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+})
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma
 
 export async function withPrismaAuth<T>(
     operation: (prisma: PrismaClient) => Promise<T>,
-    txOptions?: { maxWait?: number; timeout?: number }
+    txOptions?: { maxWait?: number; timeout?: number; maxRetries?: number }
 ): Promise<T> {
     try {
         const supabase = await createClient()
@@ -57,6 +37,7 @@ export async function withPrismaAuth<T>(
         }
 
         const claims = decodeJwtPayload(accessToken)
+        const claimsJson = JSON.stringify(claims)
         const sub = String(claims.sub || '')
         const role = String(claims.role || 'authenticated')
 
@@ -70,11 +51,28 @@ export async function withPrismaAuth<T>(
             }
         }
 
+        // Extract maxRetries from txOptions (default: 2 via withRetry defaults)
+        const { maxRetries, ...prismaOpts } = txOptions || {}
+
         return await withRetry(async () => {
             return await basePrisma.$transaction(async (tx) => {
-                // RLS bypassed: the pooler connection uses 'postgres' role with full admin rights.
-                // Role switching to 'authenticated' causes 'permission denied for schema public'
-                // in the current pooler setup. Auth context (sub/role) is validated above.
+                const dbRole = (role === 'anon' || role === 'authenticated') ? role : 'authenticated'
+                // BYPASS RLS FOR TRANSACTION POOLER COMPATIBILITY
+                // The 'postgres' user from the pooler connection string has full admin rights.
+                // Switching to 'authenticated' role causes 'permission denied for schema public'
+                // because the pooler environment or role grants might be misconfigured for this project type.
+
+                /*
+                try {
+                    await tx.$executeRawUnsafe(`SET LOCAL ROLE ${dbRole}`)
+                } catch {
+                    // ignore if role switching is not permitted
+                }
+
+                await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${sub}, true)`
+                await tx.$executeRaw`SELECT set_config('request.jwt.claim.role', ${dbRole}, true)`
+                await tx.$executeRaw`SELECT set_config('request.jwt.claims', ${claimsJson}, true)`
+                */
 
                 if (process.env.DEBUG_PRISMA_AUTH === '1') {
                     try {
@@ -89,8 +87,8 @@ export async function withPrismaAuth<T>(
 
                 return operation(tx as unknown as PrismaClient)
                 // Default timeouts: 15s maxWait for connection, 20s timeout for query
-            }, { maxWait: 15000, timeout: 20000, ...txOptions })
-        })
+            }, { maxWait: 15000, timeout: 20000, ...prismaOpts })
+        }, maxRetries !== undefined ? { maxRetries } : undefined)
     } catch (err) {
         console.warn('[Prisma] Failed to apply auth context:', err)
         throw err
