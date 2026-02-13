@@ -66,7 +66,7 @@ export async function getSalesStats(): Promise<SalesStats> {
                     date: o.orderDate
                 }))
             }
-        })
+        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
     } catch (error) {
         console.error("Failed to fetch sales stats")
         return { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] }
