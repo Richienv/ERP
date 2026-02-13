@@ -1,15 +1,34 @@
-import { Suspense } from "react"
+import { Suspense, cache } from "react"
 import { DashboardView } from "@/components/dashboard/dashboard-view"
-import { MetricsWrapper } from "@/components/dashboard/metrics-wrapper"
-import { OperationsWrapper } from "@/components/dashboard/operations-wrapper"
-import { getDashboardData, getLatestSnapshot } from "@/app/actions/dashboard"
+import { CompanyPulseBar } from "@/components/dashboard/company-pulse-bar"
+import { CeoActionCenter } from "@/components/dashboard/ceo-action-center"
+import { FinancialHealthCard } from "@/components/dashboard/financial-health-card"
+import { AiSearchCard } from "@/components/dashboard/ai-search-card"
+import { OperationsStrip } from "@/components/dashboard/operations-strip"
+import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
+import { TrendingWidget } from "@/components/dashboard/trending-widget"
+import {
+    getDashboardFinancials,
+    getDashboardOperations,
+    getDashboardActivity,
+    getDashboardCharts,
+} from "@/app/actions/dashboard"
 import { getSalesStats } from "@/lib/actions/sales"
+
+// React.cache() deduplicates these calls within a single render request
+// So even though multiple components call the same function, only 1 actual fetch happens
+const cachedFinancials = cache(() => getDashboardFinancials())
+const cachedOperations = cache(() => getDashboardOperations())
+const cachedSalesStats = cache(() => getSalesStats().catch(() => ({ totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] as any[] })))
 
 // Force dynamic rendering so data is always fresh
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+// =============================================================================
 // Skeleton components for Suspense fallbacks
+// =============================================================================
+
 function PulseBarSkeleton() {
     return (
         <div className="bg-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] h-[100px] animate-pulse">
@@ -74,78 +93,154 @@ function FeedSkeleton() {
     )
 }
 
-// Helper: race a promise against a timeout
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-    return Promise.race([
-        promise,
-        new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
-    ])
-}
+// =============================================================================
+// Async Server Components — each fetches its own data (true React streaming)
+// =============================================================================
 
-const FALLBACK_DASHBOARD = {
-    financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
-    deadStock: 0,
-    procurement: { activeCount: 0, delays: [], pendingApproval: [] },
-    hr: { totalSalary: 0, lateEmployees: [] },
-    leaves: 0,
-    audit: null,
-    prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
-    prodStatus: [],
-    materialStatus: [],
-    qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
-    workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
-    activityFeed: [],
-    executiveAlerts: [],
-    inventoryValue: { value: 0, itemCount: 0 }
-}
-
-export default async function DashboardPage() {
-    // Fetch all data in parallel with 10s page-level timeout
-    // Each call also has its own catch so any single failure doesn't block others
-    const [dashboardData, salesStats, snapshot] = await Promise.all([
-        withTimeout(getDashboardData().catch(() => FALLBACK_DASHBOARD), 10000, FALLBACK_DASHBOARD),
-        withTimeout(getSalesStats().catch(() => ({ totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] })), 10000, { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] as any[] }),
-        withTimeout(getLatestSnapshot().catch(() => null), 10000, null)
+/** PulseBar: Financial KPIs + inventory value */
+async function PulseBarSection() {
+    const [financials, sales, ops] = await Promise.all([
+        cachedFinancials(),
+        cachedSalesStats(),
+        cachedOperations(),
     ])
 
-    const sharedMetricsProps = { data: dashboardData, salesStats, snapshot }
-    const sharedOpsProps = { data: dashboardData, salesStats }
+    return (
+        <CompanyPulseBar
+            cashBalance={financials.cashBalance}
+            revenueMTD={sales.totalRevenue}
+            netMargin={financials.netMargin}
+            inventoryValue={ops.inventoryValue?.value ?? 0}
+            inventoryItems={ops.inventoryValue?.itemCount ?? 0}
+            burnRate={financials.burnRate}
+        />
+    )
+}
 
+/** ActionCenter: Procurement approvals + alerts — Prisma Group B */
+async function ActionCenterSection() {
+    const ops = await cachedOperations()
+
+    return (
+        <CeoActionCenter
+            pendingApproval={ops.procurement?.pendingApproval ?? ops.procurement?.delays ?? []}
+            activeCount={ops.procurement?.activeCount ?? 0}
+            alerts={[]}
+            pendingLeaves={ops.leaves ?? 0}
+        />
+    )
+}
+
+/** FinancialHealth: Cash flow chart + AR/AP — Supabase + Prisma charts */
+async function FinancialHealthSection() {
+    const [financials, charts] = await Promise.all([
+        cachedFinancials(),
+        getDashboardCharts(),
+    ])
+
+    const cashFlowData = (charts?.dataCash7d ?? []).map((d: any) => ({
+        date: d.name ?? d.date ?? d.day ?? "",
+        balance: Number(d.val ?? d.balance ?? d.value ?? 0)
+    }))
+
+    return (
+        <FinancialHealthCard
+            cashFlowData={cashFlowData}
+            accountsReceivable={financials.receivables}
+            accountsPayable={financials.payables}
+            overdueInvoices={financials.overdueInvoices}
+            upcomingPayables={financials.upcomingPayables}
+        />
+    )
+}
+
+/** OperationsStrip: Production/Inventory/Sales/HR/Quality tiles — Prisma Group B */
+async function OperationsStripSection() {
+    const [ops, sales] = await Promise.all([
+        cachedOperations(),
+        cachedSalesStats(),
+    ])
+
+    return (
+        <OperationsStrip
+            activeWorkOrders={ops.prodMetrics?.activeWorkOrders ?? 0}
+            lowStockCount={Array.isArray(ops.materialStatus) ? ops.materialStatus.length : 0}
+            salesRevenueMTD={sales.totalRevenue}
+            attendanceRate={ops.workforceStatus?.attendanceRate ?? 0}
+            totalStaff={ops.workforceStatus?.totalStaff ?? 0}
+            qualityPassRate={ops.qualityStatus?.passRate ?? 0}
+        />
+    )
+}
+
+/** ActivityFeed: Recent events — Prisma Group C (lightweight) */
+async function ActivityFeedSection() {
+    const activity = await getDashboardActivity()
+
+    const activities = (activity.activityFeed ?? []).map((a: any, i: number) => ({
+        id: a.id ?? `activity-${i}`,
+        type: a.type ?? "general",
+        title: a.title ?? a.message ?? "",
+        description: a.description ?? a.message ?? "",
+        timestamp: a.timestamp ?? a.time ?? a.createdAt ?? new Date().toISOString(),
+    }))
+
+    return <CompactActivityFeed activities={activities} />
+}
+
+/** TrendingWidget: Summary counts — Prisma Group B */
+async function TrendingSection() {
+    const [ops, sales] = await Promise.all([
+        cachedOperations(),
+        cachedSalesStats(),
+    ])
+
+    return (
+        <TrendingWidget
+            activePOs={ops.procurement?.activeCount ?? 0}
+            lowStockAlerts={Array.isArray(ops.materialStatus) ? ops.materialStatus.length : 0}
+            pendingLeaves={ops.leaves ?? 0}
+            activeOrders={sales.activeOrders}
+        />
+    )
+}
+
+// =============================================================================
+// Main page — renders the shell instantly, streams each section independently
+// =============================================================================
+
+export default function DashboardPage() {
     return (
         <DashboardView
             pulseBarSlot={
                 <Suspense fallback={<PulseBarSkeleton />}>
-                    <MetricsWrapper {...sharedMetricsProps} slot="pulseBar" />
+                    <PulseBarSection />
                 </Suspense>
             }
             actionCenterSlot={
                 <Suspense fallback={<CardSkeleton />}>
-                    <MetricsWrapper {...sharedMetricsProps} slot="actionCenter" />
+                    <ActionCenterSection />
                 </Suspense>
             }
             financialHealthSlot={
                 <Suspense fallback={<CardSkeleton />}>
-                    <MetricsWrapper {...sharedMetricsProps} slot="financialHealth" />
+                    <FinancialHealthSection />
                 </Suspense>
             }
-            aiSearchSlot={
-                <Suspense fallback={<CardSkeleton />}>
-                    <MetricsWrapper {...sharedMetricsProps} slot="aiSearch" />
-                </Suspense>
-            }
+            aiSearchSlot={<AiSearchCard />}
             operationsStripSlot={
                 <Suspense fallback={<StripSkeleton />}>
-                    <OperationsWrapper {...sharedOpsProps} slot="operationsStrip" />
+                    <OperationsStripSection />
                 </Suspense>
             }
             activityFeedSlot={
                 <Suspense fallback={<FeedSkeleton />}>
-                    <OperationsWrapper {...sharedOpsProps} slot="activityFeed" />
+                    <ActivityFeedSection />
                 </Suspense>
             }
             trendingSlot={
                 <Suspense fallback={<FeedSkeleton />}>
-                    <OperationsWrapper {...sharedOpsProps} slot="trending" />
+                    <TrendingSection />
                 </Suspense>
             }
         />
