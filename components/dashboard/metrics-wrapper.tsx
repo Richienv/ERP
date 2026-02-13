@@ -1,6 +1,7 @@
-import { FinanceSnapshot } from "@/components/dashboard/finance-snapshot"
-import { ExecutiveKPIs } from "@/components/dashboard/executive-kpis"
-import { MetricsAnimator } from "@/components/dashboard/metrics-animator"
+import { CompanyPulseBar } from "@/components/dashboard/company-pulse-bar"
+import { CeoActionCenter } from "@/components/dashboard/ceo-action-center"
+import { FinancialHealthCard } from "@/components/dashboard/financial-health-card"
+import { AiSearchCard } from "@/components/dashboard/ai-search-card"
 
 interface MetricsWrapperProps {
     data: {
@@ -11,41 +12,78 @@ interface MetricsWrapperProps {
         leaves: number
         audit: any
         prodMetrics: any
-        // Sales stats might still be separate if not included in dashboard aggregator, 
-        // but for now let's assume we pass what we have or fetch sales separately if needed.
-        // The dashboard aggregator didn't include sales stats in my previous edit?
-        // Wait, looking at getDashboardData, I missed getSalesStats in the aggregation!
-        // I should probably fix that or keep sales stats separate if it's from a different module/db part?
-        // getSalesStats was in the original parallel fetch list.
+        materialStatus: any
+        qualityStatus: any
+        workforceStatus: any
+        executiveAlerts: any
+        inventoryValue: { value: number; itemCount: number }
     }
-    // For now I will pass the aggregated data, and handled missing sales data gracefully or fetch it here if needed?
-    // Actually, getSalesStats is from @/lib/actions/sales. 
-    // It's better to pass it in too.
     salesStats: any
     snapshot: any
+    slot: "pulseBar" | "actionCenter" | "financialHealth" | "aiSearch"
 }
 
-export async function MetricsWrapper({ data, snapshot, salesStats }: MetricsWrapperProps) {
-    const kpiData = {
-        procurement: data.procurement,
-        hr: { ...data.hr, pendingLeaves: data.leaves },
-        inventory: {
-            auditDate: data.audit?.date,
-            warehouseName: data.audit?.warehouseName,
-            deadStockValue: data.deadStock
-        },
-        production: data.prodMetrics,
-        sales: salesStats
+export async function MetricsWrapper({ data, snapshot, salesStats, slot }: MetricsWrapperProps) {
+    // Prepare pulse bar data
+    const cashBalance = snapshot?.cashBalance ?? 0
+    const revenueMTD = salesStats?.totalRevenue ?? 0
+    const totalRevenue = snapshot?.totalRevenue ?? revenueMTD
+    const netProfit = snapshot?.netProfit ?? 0
+    const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
+    const inventoryValue = data.inventoryValue?.value ?? 0
+    const inventoryItems = data.inventoryValue?.itemCount ?? 0
+    const burnRate = snapshot?.burnRate ?? 0
+
+    if (slot === "pulseBar") {
+        return (
+            <CompanyPulseBar
+                cashBalance={cashBalance}
+                revenueMTD={revenueMTD}
+                netMargin={netMargin}
+                inventoryValue={inventoryValue}
+                inventoryItems={inventoryItems}
+                burnRate={burnRate}
+            />
+        )
     }
 
-    return (
-        <MetricsAnimator>
-            <div className="md:col-span-6">
-                <FinanceSnapshot data={snapshot} chartData={data.financialChart} />
-            </div>
-            <div className="md:col-span-6">
-                <ExecutiveKPIs {...kpiData} />
-            </div>
-        </MetricsAnimator>
-    )
+    if (slot === "actionCenter") {
+        const pendingApproval = data.procurement?.pendingApproval ?? data.procurement?.delays ?? []
+        const activeCount = data.procurement?.activeCount ?? 0
+        const alerts = data.executiveAlerts ?? []
+        const pendingLeaves = data.leaves ?? 0
+
+        return (
+            <CeoActionCenter
+                pendingApproval={pendingApproval}
+                activeCount={activeCount}
+                alerts={alerts}
+                pendingLeaves={pendingLeaves}
+            />
+        )
+    }
+
+    if (slot === "financialHealth") {
+        const cashFlowData = (data.financialChart?.dataCash7d ?? []).map((d: any) => ({
+            date: d.date ?? d.day ?? "",
+            balance: Number(d.balance ?? d.value ?? 0)
+        }))
+        const accountsReceivable = snapshot?.accountsReceivable ?? 0
+        const accountsPayable = snapshot?.accountsPayable ?? 0
+        const overdueInvoices = snapshot?.overdueInvoices ?? []
+        const upcomingPayables = snapshot?.upcomingPayables ?? []
+
+        return (
+            <FinancialHealthCard
+                cashFlowData={cashFlowData}
+                accountsReceivable={accountsReceivable}
+                accountsPayable={accountsPayable}
+                overdueInvoices={overdueInvoices}
+                upcomingPayables={upcomingPayables}
+            />
+        )
+    }
+
+    // aiSearch
+    return <AiSearchCard />
 }

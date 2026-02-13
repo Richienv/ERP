@@ -1,12 +1,20 @@
 'use server'
 
-import { withPrismaAuth } from "@/lib/db"
+import { withPrismaAuth, safeQuery, withRetry } from "@/lib/db"
 import { getFinancialMetrics } from "@/lib/actions/finance"
-import { getProcurementStats } from "@/lib/actions/procurement"
-import { PRStatus, PrismaClient } from "@prisma/client"
-
-const STOCK_OPNAME_PREFIX = "STOCK_OPNAME_REQUEST::"
-const PAYROLL_RUN_PREFIX = "PAYROLL_RUN::"
+import { PrismaClient } from "@prisma/client"
+import {
+    FALLBACK_DASHBOARD_SNAPSHOT,
+    FALLBACK_PROCUREMENT_METRICS,
+    FALLBACK_HR_METRICS,
+    FALLBACK_PRODUCTION_METRICS,
+    FALLBACK_PRODUCTION_STATUS,
+    FALLBACK_MATERIAL_STATUS,
+    FALLBACK_QUALITY_STATUS,
+    FALLBACK_WORKFORCE_STATUS,
+    FALLBACK_ACTIVITY_FEED,
+    FALLBACK_EXECUTIVE_ALERTS
+} from "@/lib/db-fallbacks"
 
 // ==============================================================================
 // INTERNAL FETCHERS (Accepts Prisma Client / Transaction)
@@ -28,7 +36,7 @@ function monthKey(date: Date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
-async function fetchSnapshot(_prisma: PrismaClient) {
+async function fetchSnapshot(prisma: PrismaClient) {
     try {
         const metrics = await getFinancialMetrics()
         return {
@@ -221,94 +229,59 @@ async function fetchDeadStockValue(prisma: PrismaClient) {
     return total
 }
 
-async function fetchProcurementMetrics(_prisma: PrismaClient) {
-    const stats = await getProcurementStats({
-        registryQuery: {
-            purchaseOrders: { page: 1, pageSize: 10 },
-            purchaseRequests: { page: 1, pageSize: 10 },
-            receiving: { page: 1, pageSize: 10 },
-        },
+async function fetchProcurementMetrics(prisma: PrismaClient) {
+    const activePO = await prisma.purchaseOrder.count({
+        where: { status: { in: ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED'] } }
     })
 
-    const poSummary = stats.purchaseOrders?.summary || {
-        draft: 0,
-        pendingApproval: 0,
-        approved: 0,
-        inProgress: 0,
-        received: 0,
-        completed: 0,
-        rejected: 0,
-        cancelled: 0,
-    }
-    const prSummary = stats.purchaseRequests?.summary || {
-        draft: 0,
-        pending: 0,
-        approved: 0,
-        poCreated: 0,
-        rejected: 0,
-        cancelled: 0,
-    }
+    const delayedPOs = await prisma.purchaseOrder.findMany({
+        where: {
+            status: { notIn: ['RECEIVED', 'COMPLETED', 'CANCELLED'] },
+            expectedDate: { lt: new Date() }
+        },
+        include: { supplier: true, items: { include: { product: true } } },
+        take: 5
+    })
+
+    // Get POs awaiting CEO approval
+    const pendingApprovalPOs = await prisma.purchaseOrder.findMany({
+        where: { status: 'PENDING_APPROVAL' },
+        include: {
+            supplier: { select: { name: true, email: true, phone: true } },
+            items: {
+                include: { product: { select: { name: true, code: true } } }
+            }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+    })
 
     return {
-        activeCount: poSummary.pendingApproval + poSummary.approved + poSummary.inProgress + poSummary.received,
-        pendingRequestsCount: prSummary.pending,
-        poStatusSummary: {
-            draft: poSummary.draft,
-            requested: poSummary.pendingApproval,
-            approved: poSummary.approved,
-            active: poSummary.inProgress,
-            completed: poSummary.received + poSummary.completed,
-            blocked: poSummary.rejected + poSummary.cancelled,
-        },
-        prStatusSummary: {
-            draft: prSummary.draft,
-            requested: prSummary.pending,
-            approved: prSummary.approved,
-            converted: prSummary.poCreated,
-            blocked: prSummary.rejected + prSummary.cancelled,
-        },
-        delays: [],
-        pendingApproval: (stats.purchaseOrders?.recent || [])
-            .filter((po: any) => po.status === "PENDING_APPROVAL")
-            .map((po: any) => ({
-                id: po.id,
-                number: po.number,
-                supplier: {
-                    name: po.supplier || "Unknown",
-                    email: null,
-                    phone: null,
-                },
-                totalAmount: Number(po.total || 0),
-                netAmount: Number(po.total || 0),
-                itemCount: 0,
-                items: [],
-            })),
-        pendingRequests: (stats.purchaseRequests?.recent || [])
-            .filter((pr: any) => pr.status === PRStatus.PENDING)
-            .map((pr: any) => ({
-                id: pr.id,
-                number: pr.number,
-                requesterName: pr.requester || "-",
-                itemCount: pr.itemCount || 0,
-                status: pr.status,
-            })),
-        recentPOs: (stats.purchaseOrders?.recent || []).map((po: any) => ({
+        activeCount: activePO,
+        delays: delayedPOs.map(po => ({
             id: po.id,
             number: po.number,
-            status: po.status,
-            supplierName: po.supplier || "Unknown",
-            itemQty: 0,
-            totalAmount: Number(po.total || 0),
-            date: po.date ? new Date(po.date).toISOString() : new Date().toISOString(),
+            supplierName: po.supplier.name,
+            productName: po.items[0]?.product.name || 'Materials',
+            daysLate: Math.floor((new Date().getTime() - (po.expectedDate?.getTime() || 0)) / (1000 * 3600 * 24))
         })),
-        recentPRs: (stats.purchaseRequests?.recent || []).map((pr: any) => ({
-            id: pr.id,
-            number: pr.number,
-            status: pr.status,
-            requesterName: pr.requester || "-",
-            itemCount: pr.itemCount || 0,
-            date: pr.date ? new Date(pr.date).toISOString() : new Date().toISOString(),
-        })),
+        pendingApproval: pendingApprovalPOs.map(po => ({
+            id: po.id,
+            number: po.number,
+            supplier: {
+                name: po.supplier.name,
+                email: po.supplier.email,
+                phone: po.supplier.phone
+            },
+            totalAmount: Number(po.totalAmount || 0),
+            netAmount: Number(po.netAmount || 0),
+            itemCount: po.items.length,
+            items: po.items.map(item => ({
+                productName: item.product.name,
+                productCode: item.product.code,
+                quantity: item.quantity
+            }))
+        }))
     }
 }
 
@@ -401,10 +374,10 @@ async function fetchProductionStatus(prisma: PrismaClient) {
             name: m.name,
             job: wo?.number || '-',
             desc: wo?.product?.name || 'No Active Job',
-            progress: wo ? Math.min(100, Math.round((wo.actualQty / wo.plannedQty) * 100)) : 0,
+            progress: wo ? Math.min(100, Math.round((wo.completedQty / wo.quantity) * 100)) : 0,
             status: statusLabel,
             supervisor: '-',
-            eta: wo?.dueDate ? wo.dueDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '-'
+            eta: wo?.endDate ? wo.endDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '-'
         }
     })
 }
@@ -590,22 +563,6 @@ async function fetchExecutiveAlerts(prisma: PrismaClient) {
         }
     })
 
-    const [pendingStockOpnameTasks, pendingPayrollTasks] = await Promise.all([
-        prisma.employeeTask.count({
-            where: {
-                status: "PENDING",
-                notes: { startsWith: STOCK_OPNAME_PREFIX },
-            },
-        }),
-        prisma.employeeTask.count({
-            where: {
-                status: "PENDING",
-                notes: { startsWith: PAYROLL_RUN_PREFIX },
-                relatedId: { startsWith: "PAYROLL-" },
-            },
-        }),
-    ])
-
     const alerts = [
         ...breakdowns.map(m => ({
             id: m.id,
@@ -626,58 +583,27 @@ async function fetchExecutiveAlerts(prisma: PrismaClient) {
             details: q.defects?.[0]?.description || q.notes || "Inspection failed",
             severity: "critical",
             machine: q.batchNumber
-        })),
-        ...(pendingStockOpnameTasks > 0 ? [{
-            id: "stock-opname-pending",
-            type: "Stock Opname Approval",
-            title: `${pendingStockOpnameTasks} adjustment menunggu approval`,
-            message: "Permintaan stock opname membutuhkan approval manager/boss.",
-            impact: "High",
-            details: "Cek modul Gudang > Stock Opname Adjustment.",
-            severity: "warning",
-            machine: "WAREHOUSE"
-        }] : []),
-        ...(pendingPayrollTasks > 0 ? [{
-            id: "payroll-pending",
-            type: "Payroll Approval",
-            title: `${pendingPayrollTasks} payroll run pending`,
-            message: "Payroll period belum disetujui/disburse.",
-            impact: "High",
-            details: "Cek SDM > Payroll untuk approval dan batch disbursement.",
-            severity: "warning",
-            machine: "HR"
-        }] : []),
+        }))
     ]
 
-    return alerts.slice(0, 4)
+    return alerts.slice(0, 2)
 }
 
-async function fetchSDMApprovalQueue(prisma: PrismaClient) {
-    const [pendingLeaves, pendingStockOpname, pendingPayroll] = await Promise.all([
-        prisma.leaveRequest.count({ where: { status: "PENDING" } }),
-        prisma.employeeTask.count({
-            where: {
-                status: "PENDING",
-                notes: { startsWith: STOCK_OPNAME_PREFIX },
-            },
-        }),
-        prisma.employeeTask.count({
-            where: {
-                status: "PENDING",
-                notes: { startsWith: PAYROLL_RUN_PREFIX },
-                relatedId: { startsWith: "PAYROLL-" },
-            },
-        }),
-    ])
 
-    return {
-        pendingLeaves,
-        pendingStockOpname,
-        pendingPayroll,
-        totalPending: pendingLeaves + pendingStockOpname + pendingPayroll,
+async function fetchTotalInventoryValue(prisma: PrismaClient) {
+    const stockLevels = await prisma.stockLevel.findMany({
+        include: { product: { select: { costPrice: true, isActive: true } } }
+    })
+    let value = 0
+    let itemCount = 0
+    for (const sl of stockLevels) {
+        if (sl.product.isActive && sl.quantity > 0) {
+            value += sl.quantity * Number(sl.product.costPrice)
+            itemCount += sl.quantity
+        }
     }
+    return { value, itemCount }
 }
-
 
 // ==============================================================================
 // PUBLIC AGGREGATED ACTION (Fetch Everything in One Transaction)
@@ -700,21 +626,11 @@ export async function getDashboardData() {
                 workforceStatus,
                 activityFeed,
                 executiveAlerts,
-                sdmApprovals
+                inventoryValue
             ] = await Promise.all([
                 fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
                 fetchDeadStockValue(prisma).catch(() => 0),
-                fetchProcurementMetrics(prisma).catch(() => ({
-                    activeCount: 0,
-                    pendingRequestsCount: 0,
-                    poStatusSummary: { draft: 0, requested: 0, approved: 0, active: 0, completed: 0, blocked: 0 },
-                    prStatusSummary: { draft: 0, requested: 0, approved: 0, converted: 0, blocked: 0 },
-                    delays: [],
-                    pendingApproval: [],
-                    pendingRequests: [],
-                    recentPOs: [],
-                    recentPRs: []
-                })),
+                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] })),
                 fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
                 fetchPendingLeaves(prisma).catch(() => 0),
                 fetchAuditStatus(prisma).catch(() => null),
@@ -725,7 +641,7 @@ export async function getDashboardData() {
                 fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
                 fetchActivityFeed(prisma).catch(() => []),
                 fetchExecutiveAlerts(prisma).catch(() => []),
-                fetchSDMApprovalQueue(prisma).catch(() => ({ pendingLeaves: 0, pendingStockOpname: 0, pendingPayroll: 0, totalPending: 0 }))
+                fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0 }))
             ])
 
             return {
@@ -742,7 +658,7 @@ export async function getDashboardData() {
                 workforceStatus,
                 activityFeed,
                 executiveAlerts,
-                sdmApprovals
+                inventoryValue
             }
         }, { maxWait: 15000, timeout: 20000 })
     } catch (error) {
@@ -751,17 +667,7 @@ export async function getDashboardData() {
         return {
             financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
             deadStock: 0,
-            procurement: {
-                activeCount: 0,
-                pendingRequestsCount: 0,
-                poStatusSummary: { draft: 0, requested: 0, approved: 0, active: 0, completed: 0, blocked: 0 },
-                prStatusSummary: { draft: 0, requested: 0, approved: 0, converted: 0, blocked: 0 },
-                delays: [],
-                pendingApproval: [],
-                pendingRequests: [],
-                recentPOs: [],
-                recentPRs: []
-            },
+            procurement: { activeCount: 0, delays: [] },
             hr: { totalSalary: 0, lateEmployees: [] },
             leaves: 0,
             audit: null,
@@ -772,7 +678,7 @@ export async function getDashboardData() {
             workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
             activityFeed: [],
             executiveAlerts: [],
-            sdmApprovals: { pendingLeaves: 0, pendingStockOpname: 0, pendingPayroll: 0, totalPending: 0 }
+            inventoryValue: { value: 0, itemCount: 0 }
         }
     }
 }
@@ -809,17 +715,7 @@ export async function getProcurementMetrics() {
         return await withPrismaAuth(async (prisma) => fetchProcurementMetrics(prisma))
     } catch (error) {
         console.error("Failed to fetch procurement metrics:", error)
-        return {
-            activeCount: 0,
-            pendingRequestsCount: 0,
-            poStatusSummary: { draft: 0, requested: 0, approved: 0, active: 0, completed: 0, blocked: 0 },
-            prStatusSummary: { draft: 0, requested: 0, approved: 0, converted: 0, blocked: 0 },
-            delays: [],
-            pendingApproval: [],
-            pendingRequests: [],
-            recentPOs: [],
-            recentPRs: []
-        }
+        return { activeCount: 0, delays: [] }
     }
 }
 
