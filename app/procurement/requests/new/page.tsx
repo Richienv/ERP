@@ -1,6 +1,8 @@
+import { ArrowLeft, ClipboardList } from 'lucide-react'
+import Link from 'next/link'
+import { supabase } from "@/lib/supabase"
 
 import { CreateRequestForm } from "@/components/procurement/create-request-form"
-import { supabase } from "@/lib/supabase"
 
 export default async function NewRequestPage() {
     // 1. Fetch Products with Category
@@ -16,22 +18,36 @@ export default async function NewRequestPage() {
         .eq('status', 'ACTIVE')
 
     return (
-        <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight text-black flex items-center gap-2">
-                        Buat Permintaan Baru
-                    </h2>
-                    <p className="text-muted-foreground mt-1 font-medium">Draft Purchase Request untuk pengadaan barang.</p>
+        <div className="flex-1 p-4 md:p-8 pt-6 max-w-4xl mx-auto">
+            {/* Back Button */}
+            <Link
+                href="/procurement/requests"
+                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-5"
+            >
+                <ArrowLeft className="h-4 w-4" />
+                Kembali ke Permintaan
+            </Link>
+
+            {/* Page Header */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-6 overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="px-6 py-4 flex items-center gap-3 border-l-[6px] border-l-violet-400">
+                    <ClipboardList className="h-5 w-5 text-violet-500" />
+                    <div>
+                        <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            Buat Permintaan Baru
+                        </h1>
+                        <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                            Draft Purchase Request untuk pengadaan barang
+                        </p>
+                    </div>
                 </div>
             </div>
 
-            <div className="max-w-3xl">
-                <CreateRequestForm 
-                    products={products || []} 
-                    employees={employees || []} 
-                />
-            </div>
+            {/* Form */}
+            <CreateRequestForm
+                products={products || []}
+                employees={employees || []}
+            />
         </div>
     )
 }

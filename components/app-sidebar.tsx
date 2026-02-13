@@ -502,16 +502,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader>
+      <SidebarHeader className="border-b border-zinc-200 dark:border-zinc-800">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
+              className="data-[slot=sidebar-menu-button]:!p-1.5 rounded-none hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
-              <a href="#">
-                <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Sistem ERP</span>
+              <a href="/dashboard">
+                <div className="flex items-center justify-center h-6 w-6 bg-zinc-900 dark:bg-white">
+                  <span className="text-[10px] font-black text-white dark:text-zinc-900 leading-none">EP</span>
+                </div>
+                <span className="text-[14px] font-black uppercase tracking-tight">Sistem ERP</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -521,7 +523,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain items={filteredNavMain} />
         {!isStaff && <NavSecondary items={filteredNavSecondary} className="mt-auto" />}
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="p-0">
         <NavUser />
       </SidebarFooter>
     </Sidebar>

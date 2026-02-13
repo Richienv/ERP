@@ -44,7 +44,6 @@ export function NavUser({
   const { user: authUser, logout } = useAuth()
   const router = useRouter()
 
-  // Helper to format role name nicely
   const formatRole = (role: string) => {
     const roleMap: Record<string, string> = {
       "ROLE_CEO": "Pemilik & CEO",
@@ -55,10 +54,9 @@ export function NavUser({
     return roleMap[role] || role.replace("ROLE_", "").replace(/_/g, " ")
   }
 
-  // Prioritize authUser, fallback to propUser, then default placeholder
   const user = authUser ? {
     name: authUser.name ?? "Tamu",
-    email: formatRole(authUser.role ?? "user"), // Show localized role as email/subtitle
+    email: formatRole(authUser.role ?? "user"),
     avatar: authUser.avatar || "",
   } : propUser || {
     name: "Tamu",
@@ -66,13 +64,15 @@ export function NavUser({
     avatar: ""
   }
 
-  // If no authUser and no propUser, show login button
   if (!authUser && !propUser) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
-          <SidebarMenuButton onClick={() => router.push("/login")}>
-            <IconLogout className="size-4" />
+          <SidebarMenuButton
+            onClick={() => router.push("/login")}
+            className="rounded-none font-bold text-[13px] tracking-tight hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          >
+            <IconLogout className="!size-4" />
             <span>Masuk</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -87,63 +87,65 @@ export function NavUser({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="data-[state=open]:bg-zinc-100 dark:data-[state=open]:bg-zinc-800 rounded-none border-t border-zinc-200 dark:border-zinc-800"
             >
-              <Avatar className="h-8 w-8 rounded-lg grayscale">
+              <Avatar className="h-7 w-7 rounded-none border border-zinc-300 dark:border-zinc-600">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">
+                <AvatarFallback className="rounded-none bg-zinc-900 text-white text-[10px] font-black">
                   {user.name.substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{user.name}</span>
-                <span className="text-muted-foreground truncate text-xs">
+              <div className="grid flex-1 text-left leading-tight">
+                <span className="truncate text-[13px] font-bold tracking-tight">{user.name}</span>
+                <span className="truncate text-[10px] font-medium text-zinc-400 uppercase tracking-widest">
                   {user.email}
                 </span>
               </div>
-              <IconDotsVertical className="ml-auto size-4" />
+              <IconDotsVertical className="ml-auto !size-4 text-zinc-400" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none p-0 overflow-hidden"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
           >
             <DropdownMenuLabel className="p-0 font-normal">
-              <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-lg">
+              <div className="flex items-center gap-2.5 px-3 py-2.5 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700">
+                <Avatar className="h-8 w-8 rounded-none border border-zinc-300 dark:border-zinc-600">
                   <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback className="rounded-lg">
+                  <AvatarFallback className="rounded-none bg-zinc-900 text-white text-[10px] font-black">
                     {user.name.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user.name}</span>
-                  <span className="text-muted-foreground truncate text-xs">
+                <div className="grid flex-1 text-left leading-tight">
+                  <span className="truncate text-sm font-bold">{user.name}</span>
+                  <span className="truncate text-[10px] font-medium text-zinc-400 uppercase tracking-widest">
                     {user.email}
                   </span>
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <IconUserCircle />
+              <DropdownMenuItem className="rounded-none text-[13px] font-medium px-3 py-2 cursor-pointer">
+                <IconUserCircle className="!size-4" />
                 Akun
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconCreditCard />
+              <DropdownMenuItem className="rounded-none text-[13px] font-medium px-3 py-2 cursor-pointer">
+                <IconCreditCard className="!size-4" />
                 Tagihan
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconNotification />
+              <DropdownMenuItem className="rounded-none text-[13px] font-medium px-3 py-2 cursor-pointer">
+                <IconNotification className="!size-4" />
                 Notifikasi
               </DropdownMenuItem>
             </DropdownMenuGroup>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={logout}>
-              <IconLogout />
+            <DropdownMenuSeparator className="my-0" />
+            <DropdownMenuItem
+              onClick={logout}
+              className="rounded-none text-[13px] font-bold px-3 py-2.5 text-red-600 focus:text-red-600 cursor-pointer"
+            >
+              <IconLogout className="!size-4" />
               Keluar
             </DropdownMenuItem>
           </DropdownMenuContent>

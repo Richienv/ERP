@@ -67,57 +67,57 @@ export function AiSearchCard() {
     };
 
     return (
-        <>
-            <div className="relative overflow-hidden rounded-3xl bg-card border border-border/50 p-6 md:p-8 flex flex-col h-full group shadow-sm hover:shadow-lg transition-all duration-300">
-                {/* Ambient Background Glow */}
-                <div className="absolute top-0 right-0 p-12 bg-indigo-500/10 blur-[80px] rounded-full pointer-events-none" />
+        <div className="h-full flex flex-col bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            {/* Header */}
+            <div className="flex-none flex items-center gap-3 px-4 py-3 border-b-2 border-black">
+                <div className="p-1.5 rounded-lg bg-black text-white">
+                    <Sparkles className="h-4 w-4" />
+                </div>
+                <div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">
+                        Tanya AI
+                    </h3>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Business Intelligence</p>
+                </div>
+            </div>
 
-                <div className="relative z-10 flex flex-col gap-6 h-full">
-
-                    {/* Header */}
-                    <div className="flex items-center gap-3">
-                        <div className="p-3 rounded-xl bg-primary/5 text-primary border border-primary/10">
-                            <Sparkles className="h-6 w-6" />
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-serif font-medium text-foreground">
-                                Tanya AI
-                            </h3>
-                            <p className="text-xs text-muted-foreground">Business Intelligence Assistant</p>
-                        </div>
+            <div className="flex-1 flex flex-col justify-center gap-4 p-4 md:p-5">
+                <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                    Tanyakan insight tentang penjualan, stok, atau prediksi arus kas.
+                </p>
+                <form onSubmit={(e) => handleSearch(e)} className="relative group/input mt-2">
+                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                        <Search className="h-5 w-5 text-zinc-400 group-focus-within/input:text-black dark:group-focus-within/input:text-white transition-colors" />
                     </div>
-
-                    <div className="flex-1 flex flex-col justify-center gap-4">
-                        <p className="text-muted-foreground ml-1">
-                            Tanyakan insight tentang penjualan, stok, atau prediksi arus kas.
-                        </p>
-                        <form onSubmit={(e) => handleSearch(e)} className="relative group/input mt-2">
-                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                                <Search className="h-6 w-6 text-muted-foreground group-focus-within/input:text-primary transition-colors" />
-                            </div>
-                            <input
-                                type="text"
-                                value={query}
-                                onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Contoh: Analisis tren penjualan..."
-                                className="w-full h-16 pl-14 pr-20 rounded-2xl bg-secondary/30 border border-border/50 text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-secondary/50 transition-all text-base font-medium"
-                            />
-                            <button
-                                type="submit"
-                                className="absolute inset-y-2 right-2 aspect-square rounded-xl bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors shadow-sm w-12 h-12 cursor-pointer z-10"
-                            >
-                                <ArrowRight className="h-6 w-6" />
-                            </button>
-                        </form>
-                        <div className="flex gap-2 flex-wrap mt-2 ml-1">
-                            <Badge variant="outline" className="cursor-pointer hover:bg-secondary transition-colors" onClick={() => handleSearch(undefined, "Analisis Penjualan Q1")}>
-                                📈 Analisis Penjualan
-                            </Badge>
-                            <Badge variant="outline" className="cursor-pointer hover:bg-secondary transition-colors" onClick={() => handleSearch(undefined, "Stok Bahan Baku Menipis")}>
-                                ⚠️ Stok Menipis
-                            </Badge>
-                        </div>
-                    </div>
+                    <input
+                        type="text"
+                        value={query}
+                        onChange={(e) => setQuery(e.target.value)}
+                        placeholder="Contoh: Analisis tren penjualan..."
+                        className="w-full h-14 pl-12 pr-16 rounded-none bg-zinc-50 dark:bg-zinc-800 border-2 border-black text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:bg-amber-50 dark:focus:bg-zinc-900 transition-all text-sm font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:translate-x-[2px] focus:translate-y-[2px] focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                    />
+                    <button
+                        type="submit"
+                        className="absolute inset-y-2 right-2 aspect-square bg-black text-white flex items-center justify-center hover:bg-zinc-800 transition-colors w-10 h-10 cursor-pointer z-10"
+                    >
+                        <ArrowRight className="h-5 w-5" />
+                    </button>
+                </form>
+                <div className="flex gap-2 flex-wrap mt-2">
+                    <Badge
+                        variant="outline"
+                        className="cursor-pointer bg-white hover:bg-zinc-50 border-2 border-zinc-200 text-zinc-600 font-bold px-3 py-1 text-xs rounded-full transition-colors"
+                        onClick={() => handleSearch(undefined, "Analisis Penjualan Q1")}
+                    >
+                        📈 Analisis Penjualan
+                    </Badge>
+                    <Badge
+                        variant="outline"
+                        className="cursor-pointer bg-white hover:bg-zinc-50 border-2 border-zinc-200 text-zinc-600 font-bold px-3 py-1 text-xs rounded-full transition-colors"
+                        onClick={() => handleSearch(undefined, "Stok Bahan Baku Menipis")}
+                    >
+                        ⚠️ Stok Menipis
+                    </Badge>
                 </div>
             </div>
 
@@ -312,6 +312,6 @@ export function AiSearchCard() {
                     </div>
                 </DialogContent>
             </Dialog>
-        </>
+        </div>
     );
 }

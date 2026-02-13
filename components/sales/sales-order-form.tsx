@@ -2,15 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Calculator, Plus, Save, ShoppingCart, Trash2 } from "lucide-react"
+import {
+  Calculator, Plus, Save, Trash2, User, FileText,
+  CalendarDays, StickyNote, Loader2
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 
 interface SalesOrderFormProps {
@@ -321,37 +322,38 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            Informasi Pesanan
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Customer *</Label>
+    <form onSubmit={onSubmit} className="space-y-3">
+      {/* ================================================================== */}
+      {/* SECTION 1 — Customer & Quotation                                   */}
+      {/* ================================================================== */}
+      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-amber-400">
+          <User className="h-4 w-4 text-amber-600" />
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Customer & Quotation</h3>
+        </div>
+        <div className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Customer *</Label>
               <Select value={form.customerId} onValueChange={onCustomerChange} disabled={loadingOptions}>
-                <SelectTrigger>
+                <SelectTrigger className="border-2 border-black h-10 font-medium">
                   <SelectValue placeholder="Pilih customer" />
                 </SelectTrigger>
                 <SelectContent>
                   {customers.map((customer) => (
                     <SelectItem key={customer.id} value={customer.id}>
-                      {customer.code} - {customer.name}
+                      <span className="font-mono text-xs text-zinc-400 mr-1">{customer.code}</span> {customer.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Quotation (Opsional)</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Quotation (Opsional)</Label>
               <Select value={form.quotationId || "none"} onValueChange={onQuotationChange} disabled={loadingOptions}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih quotation" />
+                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                  <SelectValue placeholder="Tanpa quotation" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Tanpa quotation</SelectItem>
@@ -364,19 +366,20 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Referensi Customer</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Referensi Customer</Label>
               <Input
                 value={form.customerRef}
                 onChange={(event) => updateForm("customerRef", event.target.value)}
                 placeholder="Nomor PO / referensi customer"
+                className="border-2 border-black h-10 font-medium"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Term Pembayaran</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Term Pembayaran</Label>
               <Select value={form.paymentTerm} onValueChange={(value) => updateForm("paymentTerm", value)}>
-                <SelectTrigger>
+                <SelectTrigger className="border-2 border-black h-10 font-medium">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -390,197 +393,291 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
                 </SelectContent>
               </Select>
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label>Tanggal Pesanan</Label>
+          {selectedCustomer && (
+            <div className="mt-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 px-4 py-2.5 flex items-center gap-2">
+              <User className="h-4 w-4 text-amber-600" />
+              <span className="text-xs font-bold text-amber-900 dark:text-amber-300">
+                {selectedCustomer.code} — {selectedCustomer.name}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ================================================================== */}
+      {/* SECTION 2 — Tanggal & Pengiriman                                   */}
+      {/* ================================================================== */}
+      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-amber-400">
+          <CalendarDays className="h-4 w-4 text-amber-600" />
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Tanggal & Pengiriman</h3>
+        </div>
+        <div className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Pesanan</Label>
               <Input
                 type="date"
                 value={form.orderDate}
                 onChange={(event) => updateForm("orderDate", event.target.value)}
+                className="border-2 border-black h-10 font-medium"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label>Tanggal Diminta</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Diminta</Label>
               <Input
                 type="date"
                 value={form.requestedDate}
                 onChange={(event) => updateForm("requestedDate", event.target.value)}
+                className="border-2 border-black h-10 font-medium"
               />
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label>Delivery Term</Label>
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Delivery Term</Label>
               <Input
                 value={form.deliveryTerm}
                 onChange={(event) => updateForm("deliveryTerm", event.target.value)}
-                placeholder="Contoh: Ex-work / FOB"
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label>Catatan</Label>
-              <Textarea
-                value={form.notes}
-                onChange={(event) => updateForm("notes", event.target.value)}
-                placeholder="Catatan untuk operasional"
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label>Catatan Internal</Label>
-              <Textarea
-                value={form.internalNotes}
-                onChange={(event) => updateForm("internalNotes", event.target.value)}
-                placeholder="Catatan internal tim sales"
+                placeholder="Ex-work / FOB / CIF"
+                className="border-2 border-black h-10 font-medium"
               />
             </div>
           </div>
+        </div>
+      </div>
 
-          {selectedCustomer && (
-            <p className="text-xs text-muted-foreground">
-              Customer terpilih: <span className="font-semibold">{selectedCustomer.code} - {selectedCustomer.name}</span>
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* ================================================================== */}
+      {/* SECTION 3 — Item Pesanan                                           */}
+      {/* ================================================================== */}
+      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center justify-between border-l-[5px] border-l-amber-400">
+          <div className="flex items-center gap-2">
+            <Calculator className="h-4 w-4 text-amber-600" />
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Item Pesanan</h3>
+            <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+              {items.length}
+            </span>
+          </div>
+          <Button
+            type="button"
+            onClick={addItem}
+            className="bg-amber-500 text-white hover:bg-amber-600 border-2 border-amber-600 text-[10px] font-black uppercase tracking-wide h-8 px-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" /> Tambah
+          </Button>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span className="flex items-center gap-2"><Calculator className="h-5 w-5" /> Item Pesanan</span>
-            <Button type="button" variant="outline" size="sm" onClick={addItem}>
-              <Plus className="mr-2 h-4 w-4" /> Tambah Item
+        <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
+          {items.map((item, index) => {
+            const lineSubtotal = item.quantity * item.unitPrice
+            const lineDiscount = lineSubtotal * (item.discount / 100)
+            const afterDiscount = lineSubtotal - lineDiscount
+            const lineTax = afterDiscount * (item.taxRate / 100)
+            const lineTotal = afterDiscount + lineTax
+
+            return (
+              <div key={index} className={`p-4 ${index % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/50 dark:bg-zinc-800/30"}`}>
+                {/* Row 1: Product + Delete */}
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="flex-none w-7 h-7 bg-amber-100 dark:bg-amber-900/30 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs font-black rounded-sm">
+                    {index + 1}
+                  </div>
+                  <div className="flex-1 grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Produk</Label>
+                      <Select
+                        value={item.productId || "none"}
+                        onValueChange={(value) => onProductChange(index, value === "none" ? "" : value)}
+                      >
+                        <SelectTrigger className="border-2 border-black h-10 font-medium">
+                          <SelectValue placeholder="Pilih produk" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Pilih produk</SelectItem>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              <span className="font-mono text-xs text-zinc-400 mr-1">{product.code}</span> {product.name}
+                              <span className="text-zinc-400 ml-1">({product.unit})</span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeItem(index)}
+                        disabled={items.length === 1}
+                        className="h-10 w-10 border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 hover:border-red-300 disabled:opacity-30 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 2: Description */}
+                <div className="ml-10 mb-3">
+                  <Input
+                    value={item.description}
+                    onChange={(event) => updateItem(index, { description: event.target.value })}
+                    placeholder="Deskripsi item"
+                    className="border border-zinc-300 dark:border-zinc-600 h-9 text-sm"
+                  />
+                </div>
+
+                {/* Row 3: Qty, Price, Disc, Tax, Total */}
+                <div className="ml-10 grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Qty</Label>
+                    <Input
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      value={item.quantity}
+                      onChange={(event) => updateItem(index, { quantity: Number(event.target.value || 0) })}
+                      className="border-2 border-black h-10 font-bold text-center"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Harga</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={item.unitPrice}
+                      onChange={(event) => updateItem(index, { unitPrice: Number(event.target.value || 0) })}
+                      className="border-2 border-black h-10 font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Diskon %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={item.discount}
+                      onChange={(event) => updateItem(index, { discount: Number(event.target.value || 0) })}
+                      className="border border-zinc-300 dark:border-zinc-600 h-10 text-center"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">PPN %</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={item.taxRate}
+                      onChange={(event) => updateItem(index, { taxRate: Number(event.target.value || 0) })}
+                      className="border border-zinc-300 dark:border-zinc-600 h-10 text-center"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total</Label>
+                    <div className="h-10 bg-amber-50 dark:bg-amber-950/20 border-2 border-amber-300 dark:border-amber-700 flex items-center justify-end px-3 font-black text-sm font-mono text-amber-900 dark:text-amber-200">
+                      {formatCurrency(lineTotal)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* ================================================================== */}
+      {/* SECTION 4 — Catatan                                                */}
+      {/* ================================================================== */}
+      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-amber-400">
+          <StickyNote className="h-4 w-4 text-amber-600" />
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Catatan</h3>
+        </div>
+        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Catatan Operasional</Label>
+            <Textarea
+              value={form.notes}
+              onChange={(event) => updateForm("notes", event.target.value)}
+              placeholder="Catatan untuk operasional & pengiriman"
+              className="border-2 border-black min-h-[80px] resize-none"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Catatan Internal</Label>
+            <Textarea
+              value={form.internalNotes}
+              onChange={(event) => updateForm("internalNotes", event.target.value)}
+              placeholder="Catatan internal tim sales"
+              className="border-2 border-black min-h-[80px] resize-none"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* ================================================================== */}
+      {/* SECTION 5 — Ringkasan & Submit                                     */}
+      {/* ================================================================== */}
+      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-amber-400">
+          <FileText className="h-4 w-4 text-amber-600" />
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Ringkasan Pesanan</h3>
+        </div>
+        <div className="p-5">
+          <div className="max-w-md ml-auto space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Subtotal</span>
+              <span className="font-mono font-bold">{formatCurrency(totals.subtotal)}</span>
+            </div>
+            {totals.discount > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[10px] font-black uppercase tracking-widest text-red-500">Diskon</span>
+                <span className="font-mono font-bold text-red-600">- {formatCurrency(totals.discount)}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">PPN</span>
+              <span className="font-mono font-bold">{formatCurrency(totals.tax)}</span>
+            </div>
+            <div className="border-t-2 border-amber-300 dark:border-amber-700 pt-3 flex items-center justify-between">
+              <span className="text-sm font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Grand Total</span>
+              <span className="text-2xl font-black font-mono text-amber-700 dark:text-amber-300">
+                {formatCurrency(totals.total)}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-700">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/sales/orders")}
+              className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-11 px-6 hover:border-zinc-500 transition-colors"
+            >
+              Batal
             </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[260px]">Produk</TableHead>
-                  <TableHead className="w-24">Qty</TableHead>
-                  <TableHead className="w-44">Harga</TableHead>
-                  <TableHead className="w-24">Disc %</TableHead>
-                  <TableHead className="w-24">Tax %</TableHead>
-                  <TableHead className="w-40 text-right">Total</TableHead>
-                  <TableHead className="w-16" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item, index) => {
-                  const lineSubtotal = item.quantity * item.unitPrice
-                  const lineDiscount = lineSubtotal * (item.discount / 100)
-                  const afterDiscount = lineSubtotal - lineDiscount
-                  const lineTax = afterDiscount * (item.taxRate / 100)
-                  const lineTotal = afterDiscount + lineTax
-
-                  return (
-                    <TableRow key={index}>
-                      <TableCell className="space-y-2">
-                        <Select
-                          value={item.productId || "none"}
-                          onValueChange={(value) => onProductChange(index, value === "none" ? "" : value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih produk" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Pilih produk</SelectItem>
-                            {products.map((product) => (
-                              <SelectItem key={product.id} value={product.id}>
-                                {product.code} - {product.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          value={item.description}
-                          onChange={(event) => updateItem(index, { description: event.target.value })}
-                          placeholder="Deskripsi item"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0.001"
-                          step="0.001"
-                          value={item.quantity}
-                          onChange={(event) => updateItem(index, { quantity: Number(event.target.value || 0) })}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          value={item.unitPrice}
-                          onChange={(event) => updateItem(index, { unitPrice: Number(event.target.value || 0) })}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={item.discount}
-                          onChange={(event) => updateItem(index, { discount: Number(event.target.value || 0) })}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={item.taxRate}
-                          onChange={(event) => updateItem(index, { taxRate: Number(event.target.value || 0) })}
-                        />
-                      </TableCell>
-                      <TableCell className="text-right font-bold">{formatCurrency(lineTotal)}</TableCell>
-                      <TableCell>
-                        <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(index)}>
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="max-w-sm ml-auto space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span>Subtotal</span>
-              <span>{formatCurrency(totals.subtotal)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Diskon</span>
-              <span>- {formatCurrency(totals.discount)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span>Pajak</span>
-              <span>{formatCurrency(totals.tax)}</span>
-            </div>
-            <div className="flex items-center justify-between border-t pt-2 text-lg font-black">
-              <span>Total</span>
-              <span>{formatCurrency(totals.total)}</span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 mt-6">
-            <Button type="button" variant="outline" onClick={() => router.push("/sales/orders")}>Batal</Button>
-            <Button type="submit" disabled={submitting || loadingOptions}>
-              <Save className="mr-2 h-4 w-4" />
-              {submitting ? "Menyimpan..." : "Simpan Sales Order"}
+            <Button
+              type="submit"
+              disabled={submitting || loadingOptions}
+              className="bg-amber-500 text-white hover:bg-amber-600 border-2 border-amber-600 font-black uppercase text-xs tracking-wide h-11 px-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transition-all active:scale-[0.98]"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" /> Simpan Sales Order
+                </>
+              )}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </form>
   )
 }

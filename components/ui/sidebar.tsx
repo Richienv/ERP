@@ -236,7 +236,7 @@ function Sidebar({
           // Adjust the padding for floating and inset variants.
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r-2 group-data-[side=left]:border-r-zinc-200 dark:group-data-[side=left]:border-r-zinc-800 group-data-[side=right]:border-l-2 group-data-[side=right]:border-l-zinc-200 dark:group-data-[side=right]:border-l-zinc-800",
           className
         )}
         {...props}

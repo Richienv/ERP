@@ -7,13 +7,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     CheckCircle, XCircle, FileText, Loader2, AlertTriangle,
-    ShieldAlert, Zap, ClipboardList, Plus, ArrowRight
+    ShieldAlert, Zap, ClipboardList, ArrowRight, BarChart3
 } from "lucide-react"
 import Link from "next/link"
 import { formatIDR } from "@/lib/utils"
 import { approvePurchaseOrder, rejectPurchaseOrder } from "@/lib/actions/procurement"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { NewPurchaseOrderDialog } from "@/components/procurement/new-po-dialog"
+import { CreateWorkOrderDialog } from "@/components/manufacturing/create-work-order-dialog"
+import { CreateInvoiceDialog } from "@/components/finance/create-invoice-dialog"
 
 interface PendingPO {
     id: string
@@ -65,6 +68,11 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
     const [rejectReason, setRejectReason] = useState("")
     const [processing, setProcessing] = useState(false)
     const router = useRouter()
+
+    // Quick Action dialog states
+    const [showPODialog, setShowPODialog] = useState(false)
+    const [showWODialog, setShowWODialog] = useState(false)
+    const [showInvoiceDialog, setShowInvoiceDialog] = useState(false)
 
     const totalBadge = pendingApproval.length + alerts.length
 
@@ -188,11 +196,10 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
 
                                 {pendingApproval.length > 0 ? (
                                     pendingApproval.map((po) => (
-                                        <button
+                                        <div
                                             key={po.id}
-                                            onClick={() => setSelectedPO(po)}
                                             className="w-full text-left bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-800 p-3
-                                                       hover:translate-x-[1px] hover:translate-y-[1px] transition-all active:scale-[0.98]"
+                                                       transition-all"
                                         >
                                             <div className="flex justify-between items-start mb-1">
                                                 <span className="font-mono text-[10px] font-black text-amber-900 dark:text-amber-300">{po.number}</span>
@@ -200,7 +207,36 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                             </div>
                                             <div className="text-xs font-bold text-amber-800 dark:text-amber-400">{po.supplier.name}</div>
                                             <div className="text-[10px] text-amber-600 dark:text-amber-500 mt-0.5">{po.itemCount} item</div>
-                                        </button>
+                                            {/* Inline Action Buttons */}
+                                            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-amber-200 dark:border-amber-700">
+                                                <button
+                                                    onClick={() => handleApprove(po)}
+                                                    disabled={processing}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider
+                                                               hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                >
+                                                    {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                                    Setujui
+                                                </button>
+                                                <button
+                                                    onClick={() => setSelectedPO(po)}
+                                                    disabled={processing}
+                                                    className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-zinc-800 text-red-600 text-[10px] font-black uppercase tracking-wider
+                                                               hover:bg-red-50 dark:hover:bg-red-950/30 active:scale-[0.97] transition-all disabled:opacity-50 border-2 border-red-400 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]"
+                                                >
+                                                    <XCircle className="h-3 w-3" />
+                                                    Tolak
+                                                </button>
+                                                <button
+                                                    onClick={() => setSelectedPO(po)}
+                                                    className="flex items-center justify-center p-1.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 text-[10px]
+                                                               hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors border border-zinc-300"
+                                                    title="Detail"
+                                                >
+                                                    <FileText className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </div>
                                     ))
                                 ) : (
                                     <div className="text-center py-4">
@@ -227,9 +263,8 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                             className="border-2 border-black p-3 bg-white dark:bg-zinc-900"
                                         >
                                             <div className="flex items-start gap-2">
-                                                <AlertTriangle className={`h-4 w-4 mt-0.5 flex-none ${
-                                                    alert.severity === "critical" ? "text-red-500" : "text-amber-500"
-                                                }`} />
+                                                <AlertTriangle className={`h-4 w-4 mt-0.5 flex-none ${alert.severity === "critical" ? "text-red-500" : "text-amber-500"
+                                                    }`} />
                                                 <div className="min-w-0">
                                                     <p className="text-xs font-black uppercase tracking-wide truncate">{alert.title}</p>
                                                     <p className="text-[10px] text-zinc-500 mt-0.5 line-clamp-2">{alert.message}</p>
@@ -251,17 +286,28 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                         {activeTab === "actions" && (
                             <div className="grid grid-cols-2 gap-2">
                                 {[
-                                    { label: "Buat PO", icon: ClipboardList, href: "/procurement/orders", color: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" },
-                                    { label: "Buat Invoice", icon: FileText, href: "/finance/invoices", color: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800" },
-                                    { label: "Buat WO", icon: Zap, href: "/manufacturing/work-orders", color: "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800" },
-                                    { label: "Laporan", icon: FileText, href: "/reports", color: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800" },
-                                ].map((action) => (
-                                    <Link key={action.label} href={action.href}>
-                                        <div className={`border-2 ${action.color} p-3 text-center hover:translate-x-[1px] hover:translate-y-[1px] transition-all active:scale-[0.98]`}>
-                                            <action.icon className="h-5 w-5 mx-auto mb-1.5 text-zinc-700 dark:text-zinc-300" />
-                                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">{action.label}</span>
-                                        </div>
-                                    </Link>
+                                    { label: "Buat PO", icon: ClipboardList, action: () => setShowPODialog(true), color: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800" },
+                                    { label: "Buat Invoice", icon: FileText, action: () => setShowInvoiceDialog(true), color: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800" },
+                                    { label: "Buat WO", icon: Zap, action: () => setShowWODialog(true), color: "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800" },
+                                    { label: "Laporan", icon: BarChart3, href: "/reports", color: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800" },
+                                ].map((item) => (
+                                    'action' in item && item.action ? (
+                                        <button
+                                            key={item.label}
+                                            onClick={item.action}
+                                            className={`border-2 ${item.color} p-3 text-center hover:translate-x-[1px] hover:translate-y-[1px] transition-all active:scale-[0.98]`}
+                                        >
+                                            <item.icon className="h-5 w-5 mx-auto mb-1.5 text-zinc-700 dark:text-zinc-300" />
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">{item.label}</span>
+                                        </button>
+                                    ) : (
+                                        <Link key={item.label} href={(item as any).href}>
+                                            <div className={`border-2 ${item.color} p-3 text-center hover:translate-x-[1px] hover:translate-y-[1px] transition-all active:scale-[0.98]`}>
+                                                <item.icon className="h-5 w-5 mx-auto mb-1.5 text-zinc-700 dark:text-zinc-300" />
+                                                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">{item.label}</span>
+                                            </div>
+                                        </Link>
+                                    )
                                 ))}
                             </div>
                         )}
@@ -373,6 +419,20 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Quick Action Dialogs */}
+            <NewPurchaseOrderDialog
+                controlledOpen={showPODialog}
+                onOpenChange={setShowPODialog}
+            />
+            <CreateWorkOrderDialog
+                open={showWODialog}
+                onOpenChange={setShowWODialog}
+            />
+            <CreateInvoiceDialog
+                open={showInvoiceDialog}
+                onOpenChange={setShowInvoiceDialog}
+            />
         </>
     )
 }

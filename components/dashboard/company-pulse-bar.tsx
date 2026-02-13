@@ -97,53 +97,52 @@ export function CompanyPulseBar({
     ]
 
     return (
-        <div className="bg-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
             <div className="grid grid-cols-2 md:grid-cols-5">
                 {metrics.map((metric, i) => (
                     <Link
                         key={metric.label}
                         href={metric.href}
                         className={`
-                            group relative p-4 md:p-5 transition-all hover:bg-zinc-900
-                            ${i < metrics.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-white/10" : "border-b-2 md:border-b-0 border-white/10"}
-                        `}
+                                group relative p-4 md:p-5 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800
+                                ${i < metrics.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800" : "border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800"}
+                            `}
                     >
                         {/* Accent top line */}
-                        <div className={`absolute top-0 left-0 right-0 h-1 ${metric.accentColor} opacity-80`} />
+                        <div className={`absolute top-0 left-0 right-0 h-1 ${metric.accentColor} opacity-100`} />
 
                         {/* Label + Icon */}
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="text-white/40 group-hover:text-white/60 transition-colors">
+                            <span className="text-zinc-400 group-hover:text-black dark:group-hover:text-white transition-colors">
                                 {metric.icon}
                             </span>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-white/70 transition-colors">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-black dark:group-hover:text-white transition-colors">
                                 {metric.label}
                             </span>
                         </div>
 
                         {/* Big Number */}
                         <div className="flex items-baseline gap-1">
-                            <span className="text-2xl md:text-3xl font-black tracking-tighter text-white">
+                            <span className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
                                 {metric.value === 0 && metric.label !== "NET MARGIN" ? (
-                                    <span className="text-white/30 text-lg">Belum ada data</span>
+                                    <span className="text-zinc-300 dark:text-zinc-700 text-lg">Belum ada data</span>
                                 ) : (
                                     metric.formatted
                                 )}
                             </span>
                             {metric.suffix && metric.value > 0 && (
-                                <span className="text-xs font-bold text-white/40">{metric.suffix}</span>
+                                <span className="text-xs font-bold text-zinc-400">{metric.suffix}</span>
                             )}
                         </div>
 
                         {/* Trend */}
                         <div className="flex items-center gap-1 mt-1.5">
-                            {metric.trend === "up" && <TrendingUp className="h-3 w-3 text-emerald-400" />}
-                            {metric.trend === "down" && <TrendingDown className="h-3 w-3 text-rose-400" />}
-                            <span className={`text-[10px] font-bold tracking-wide ${
-                                metric.trend === "up" ? "text-emerald-400" :
-                                metric.trend === "down" ? "text-rose-400" :
-                                "text-white/30"
-                            }`}>
+                            {metric.trend === "up" && <TrendingUp className="h-3 w-3 text-emerald-500" />}
+                            {metric.trend === "down" && <TrendingDown className="h-3 w-3 text-rose-500" />}
+                            <span className={`text-[10px] font-bold tracking-wide ${metric.trend === "up" ? "text-emerald-600 dark:text-emerald-400" :
+                                    metric.trend === "down" ? "text-rose-600 dark:text-rose-400" :
+                                        "text-zinc-400"
+                                }`}>
                                 {metric.trendLabel}
                             </span>
                         </div>

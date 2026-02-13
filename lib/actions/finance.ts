@@ -68,7 +68,9 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             cashResult,
             burnResult,
             revenueResult,
-            expenseResult
+            expenseResult,
+            paidInResult,
+            paidOutResult
         ] = await Promise.all([
             // 1. Receivables (All OUT invoices that are OPEN)
             supabase.from('invoices')
@@ -101,14 +103,12 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                 .limit(3),
 
             // 5. Cash Balance — query ALL cash/bank ASSET accounts (codes starting with 1)
-            // Previously hardcoded ['1000','1010','1020'] which may not exist in DB
             supabase.from('gl_accounts')
                 .select('balance, code')
                 .eq('type', 'ASSET')
                 .like('code', '1%'),
 
             // 6. Burn Rate (Expenses last 30 days)
-            // Try journal lines for EXPENSE accounts first; fallback to INV_IN invoices
             expenseAccountIds.length > 0 ? supabase.from('journal_lines')
                 .select('debit, journal_entries!inner(date)')
                 .in('accountId', expenseAccountIds)
@@ -126,7 +126,19 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                 .select('totalAmount')
                 .eq('type', 'INV_IN')
                 .gte('issueDate', startOfMonthIso)
-                .neq('status', 'CANCELLED')
+                .neq('status', 'CANCELLED'),
+
+            // 9. Paid IN (cash received from customers) — fallback for KAS when GL is empty
+            supabase.from('invoices')
+                .select('totalAmount')
+                .eq('type', 'INV_OUT')
+                .eq('status', 'PAID'),
+
+            // 10. Paid OUT (cash paid to suppliers) — fallback for KAS when GL is empty
+            supabase.from('invoices')
+                .select('totalAmount')
+                .eq('type', 'INV_IN')
+                .eq('status', 'PAID'),
         ])
 
         // Aggregations (JS Side)
@@ -134,7 +146,20 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
 
         const receivables = calculateSum(arResult.data || [], 'balanceDue')
         const payables = calculateSum(apResult.data || [], 'balanceDue')
-        const cashBal = calculateSum(cashResult.data || [], 'balance')
+        const cashFromGL = calculateSum(cashResult.data || [], 'balance')
+
+        // Revenue & Expenses (This Month) — calculate early so we can use in fallback
+        const revVal = calculateSum(revenueResult.data || [], 'totalAmount')
+        const expVal = calculateSum(expenseResult.data || [], 'totalAmount')
+
+        // Fallback chain for KAS:
+        // 1. GL accounts (proper accounting — preferred)
+        // 2. Paid invoices (net cash = paid IN - paid OUT)
+        // 3. Revenue MTD minus receivables (estimated realized cash)
+        const cashFromPaidIn = calculateSum(paidInResult.data || [], 'totalAmount')
+        const cashFromPaidOut = calculateSum(paidOutResult.data || [], 'totalAmount')
+        const cashFromPaid = cashFromPaidIn - cashFromPaidOut
+        const cashBal = cashFromGL > 0 ? cashFromGL : cashFromPaid > 0 ? cashFromPaid : Math.max(0, revVal - receivables)
 
         // Burn Rate — try journal-based first, fallback to expense invoices (INV_IN) last 30 days
         const burnFromJournals = (burnResult as any).data?.reduce((sum: number, item: any) => sum + (Number(item.debit) || 0), 0) || 0
@@ -143,8 +168,6 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         const burnTotal = burnFromJournals > 0 ? burnFromJournals : burnFromInvoices
         const burnRate = burnTotal / 30
 
-        const revVal = calculateSum(revenueResult.data || [], 'totalAmount')
-        const expVal = calculateSum(expenseResult.data || [], 'totalAmount')
         const margin = revVal > 0 ? ((revVal - expVal) / revVal) * 100 : 0
 
         // Mapping Lists
@@ -2856,10 +2879,10 @@ export async function getFinanceDashboardData() {
         try {
             await withPrismaAuth(async (prisma) => {
                 const overdueInvoices = await prisma.invoice.count({
-                    where: { status: 'OVERDUE', type: 'SALES' }
+                    where: { status: 'OVERDUE', type: 'INV_OUT' }
                 })
                 const pendingBills = await prisma.invoice.count({
-                    where: { status: { in: ['DRAFT', 'SENT'] }, type: 'PURCHASE' }
+                    where: { status: { in: ['DRAFT', 'ISSUED'] }, type: 'INV_IN' }
                 })
 
                 if (overdueInvoices > 0) {

@@ -33,14 +33,18 @@ export function NavSecondary({
             const isActive = pathname === item.url
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton 
-                  asChild 
+                <SidebarMenuButton
+                  asChild
                   isActive={isActive}
-                  className={isActive ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear" : ""}
+                  className={
+                    isActive
+                      ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
+                      : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-none font-medium"
+                  }
                 >
                   <Link href={item.url} prefetch>
-                    <item.icon />
-                    <span>{item.title}</span>
+                    <item.icon className="!size-4" />
+                    <span className="text-[13px] tracking-tight">{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

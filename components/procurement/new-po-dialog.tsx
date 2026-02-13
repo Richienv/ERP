@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -51,7 +51,8 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { cn, formatIDR } from "@/lib/utils"
-import { createPurchaseOrder } from "@/app/actions/purchase-order"
+import { createPurchaseOrder, getProductsForPO } from "@/app/actions/purchase-order"
+import { getVendors } from "@/lib/actions/procurement"
 import { Calendar } from "@/components/ui/calendar"
 
 const formSchema = z.object({
@@ -71,14 +72,55 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 interface NewPurchaseOrderDialogProps {
-    vendors: { id: string, name: string }[]
-    products: { id: string, name: string, code: string, unit: string, defaultPrice: number }[]
+    vendors?: { id: string, name: string }[]
+    products?: { id: string, name: string, code: string, unit: string, defaultPrice: number }[]
+    /** Controlled mode: open state from parent */
+    controlledOpen?: boolean
+    /** Controlled mode: callback when open state changes */
+    onOpenChange?: (open: boolean) => void
 }
 
 type DialogStep = 'form' | 'preview'
 
-export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDialogProps) {
-    const [open, setOpen] = useState(false)
+export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: productsProp, controlledOpen, onOpenChange }: NewPurchaseOrderDialogProps) {
+    const isControlled = controlledOpen !== undefined
+    const [internalOpen, setInternalOpen] = useState(false)
+    const open = isControlled ? controlledOpen : internalOpen
+    const setOpen = (v: boolean) => {
+        if (isControlled) onOpenChange?.(v)
+        else setInternalOpen(v)
+    }
+
+    // Self-fetch vendors/products if not provided
+    const [fetchedVendors, setFetchedVendors] = useState<{ id: string, name: string }[]>([])
+    const [fetchedProducts, setFetchedProducts] = useState<{ id: string, name: string, code: string, unit: string, defaultPrice: number }[]>([])
+    const [loadingData, setLoadingData] = useState(false)
+
+    const vendors = vendorsProp ?? fetchedVendors
+    const products = productsProp ?? fetchedProducts
+
+    useEffect(() => {
+        if (!open || (vendorsProp && productsProp)) return
+        let active = true
+        const fetchData = async () => {
+            setLoadingData(true)
+            try {
+                const [vendorData, productData] = await Promise.all([
+                    getVendors(),
+                    getProductsForPO(),
+                ])
+                if (!active) return
+                setFetchedVendors(vendorData.map((v: any) => ({ id: v.id, name: v.name })))
+                setFetchedProducts(productData.map((p: any) => ({ id: p.id, name: p.name, code: p.code, unit: p.unit || 'PCS', defaultPrice: p.defaultPrice || 0 })))
+            } catch (e) {
+                console.error("Failed to fetch PO dialog data:", e)
+            } finally {
+                if (active) setLoadingData(false)
+            }
+        }
+        fetchData()
+        return () => { active = false }
+    }, [open, vendorsProp, productsProp])
     const [step, setStep] = useState<DialogStep>('form')
     const [createdPO, setCreatedPO] = useState<{ id: string, number: string } | null>(null)
     const router = useRouter()
@@ -241,11 +283,13 @@ export function NewPurchaseOrderDialog({ vendors, products }: NewPurchaseOrderDi
             if (!isOpen) handleClose()
             else setOpen(true)
         }}>
-            <DialogTrigger asChild>
-                <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide transition-all active:translate-y-1 active:shadow-none">
-                    <Plus className="mr-2 h-4 w-4" /> Buat PO
-                </Button>
-            </DialogTrigger>
+            {!isControlled && (
+                <DialogTrigger asChild>
+                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide transition-all active:translate-y-1 active:shadow-none">
+                        <Plus className="mr-2 h-4 w-4" /> Buat PO
+                    </Button>
+                </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-[750px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="font-black text-xl uppercase flex items-center gap-2">

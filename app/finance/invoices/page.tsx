@@ -6,23 +6,17 @@ import {
     AlertTriangle,
     ChevronLeft,
     ChevronRight,
-    MoreVertical,
-    CheckCircle2,
     FileText,
-    Clock,
-    Mail,
-    Search
+    Search,
+    Send,
+    Banknote,
+    Loader2,
+    Receipt,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import {
-    Card,
-    CardContent,
-    CardFooter,
-    CardHeader,
-} from "@/components/ui/card"
+import { Label } from "@/components/ui/label"
 import {
     Dialog,
     DialogContent,
@@ -30,9 +24,7 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import {
     Select,
     SelectContent,
@@ -52,25 +44,16 @@ import {
     createBillFromPOId,
     moveInvoiceToSent,
     recordInvoicePayment,
-} from "@/lib/actions/finance"
-
-import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core"
+} from "@/lib/actions/finance-invoices"
 
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
+import { CreateInvoiceDialog } from "@/components/finance/create-invoice-dialog"
 
 const emptyKanban: InvoiceKanbanData = { draft: [], sent: [], overdue: [], paid: [] }
-const PAGE_SIZE = 8
+const PAGE_SIZE = 15
 
-type LaneKey = keyof InvoiceKanbanData
-
-type DuplicateWarningState = {
-    open: boolean
-    sourceType: 'SO' | 'PO' | null
-    orderId: string
-    existingInvoiceNumber: string
-    existingInvoiceStatus: string
-}
+type StatusTab = 'ALL' | 'DRAFT' | 'SENT' | 'OVERDUE' | 'PAID'
 
 const parseDateInput = (value: string) => {
     if (!value) return undefined
@@ -80,59 +63,31 @@ const parseDateInput = (value: string) => {
     return new Date(year, month - 1, day, 12, 0, 0, 0)
 }
 
-export default function InvoicesKanbanPage() {
+export default function InvoicesPage() {
     const [invoices, setInvoices] = useState<InvoiceKanbanData>(emptyKanban)
-    const [customers, setCustomers] = useState<Array<{ id: string; name: string; type?: 'CUSTOMER' | 'SUPPLIER' }>>([])
-    const [, setLoading] = useState(true)
-    const [, setLoadError] = useState<string | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [activeTab, setActiveTab] = useState<StatusTab>('ALL')
+    const [page, setPage] = useState(1)
+
+    // Create invoice dialog
     const [isCreatorOpen, setIsCreatorOpen] = useState(false)
 
-    // Invoice Form State
-    const [selectedCustomer, setSelectedCustomer] = useState("")
-    const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
-    const [dueDate, setDueDate] = useState("")
-    const [invoiceNotes, setInvoiceNotes] = useState("")
-    const [creating, setCreating] = useState(false)
-
-    const [sourceType, setSourceType] = useState<'SO' | 'PO' | 'MANUAL'>('MANUAL')
-    const [pendingOrders, setPendingOrders] = useState<any[]>([])
-    const [selectedOrderId, setSelectedOrderId] = useState("")
-
-    // Manual Item State
-    const [manualType, setManualType] = useState<'CUSTOMER' | 'SUPPLIER'>('CUSTOMER')
-    const [manualProduct, setManualProduct] = useState("")
-    const [manualCode, setManualCode] = useState("")
-    const [manualQty, setManualQty] = useState(1)
-    const [manualPrice, setManualPrice] = useState("")
-
-    // DnD & Workflow State
+    // Workflow dialogs
     const [activeInvoice, setActiveInvoice] = useState<InvoiceKanbanItem | null>(null)
     const [isSendDialogOpen, setIsSendDialogOpen] = useState(false)
     const [isPayDialogOpen, setIsPayDialogOpen] = useState(false)
 
-    // Send Form
+    // Send form
     const [sendMethod, setSendMethod] = useState<'WHATSAPP' | 'EMAIL'>('WHATSAPP')
     const [sendMessage, setSendMessage] = useState("")
     const [recipientContact, setRecipientContact] = useState("")
 
-    // Pay Form
+    // Pay form
     const [payMethod, setPayMethod] = useState<'TRANSFER' | 'CASH' | 'CHECK'>('TRANSFER')
     const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0])
     const [payReference, setPayReference] = useState("")
     const [payAmount, setPayAmount] = useState("")
-    const [lanePage, setLanePage] = useState<Record<LaneKey, number>>({
-        draft: 1,
-        sent: 1,
-        overdue: 1,
-        paid: 1,
-    })
-    const [duplicateWarning, setDuplicateWarning] = useState<DuplicateWarningState>({
-        open: false,
-        sourceType: null,
-        orderId: "",
-        existingInvoiceNumber: "",
-        existingInvoiceStatus: "",
-    })
+
     const [searchText, setSearchText] = useState("")
     const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'ALL' | 'INV_OUT' | 'INV_IN'>('ALL')
     const router = useRouter()
@@ -146,70 +101,112 @@ export default function InvoicesKanbanPage() {
         router.replace(qs ? `${pathname}?${qs}` : pathname)
     }
 
-    const loadInvoiceKanban = useCallback(async () => {
+    const loadInvoices = useCallback(async () => {
         const q = (searchParams.get("q") || "").trim()
         const type = (searchParams.get("type") as 'ALL' | 'INV_OUT' | 'INV_IN' | null) || "ALL"
         setSearchText(q)
         setInvoiceTypeFilter(type)
 
-        const [kanban, customerList] = await Promise.all([
-            getInvoiceKanbanData({ q: q || null, type }),
-            getInvoiceCustomers(),
-        ])
+        const kanban = await getInvoiceKanbanData({ q: q || null, type })
         setInvoices(kanban)
-        setCustomers(customerList)
     }, [searchParams])
 
-    // Drag Handler
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event
-        if (!over) return
-
-        const invoice = active.data.current as InvoiceKanbanItem
-        const targetColumn = over.id as string
-
-        // Draft -> Sent
-        if (invoice.status === 'DRAFT' && targetColumn === 'sent') {
-            setActiveInvoice(invoice)
-            // Default message with Link
-            setSendMessage(`Hi ${invoice.partyName}, here is invoice ${invoice.number} for ${formatIDR(invoice.amount)}. Please make payment by ${new Date(invoice.dueDate).toLocaleDateString()}. View Invoice: https://erp.orico.com/invoices/${invoice.id}`)
-            setRecipientContact("") // Reset or set to customer phone if available
-            setIsSendDialogOpen(true)
+    useEffect(() => {
+        let active = true
+        async function load() {
+            setLoading(true)
+            try {
+                if (!active) return
+                await loadInvoices()
+            } catch {
+                // ignore
+            } finally {
+                if (active) setLoading(false)
+            }
         }
-        // Sent/Overdue -> Paid
-        else if ((invoice.status === 'ISSUED' || invoice.status === 'OVERDUE' || invoice.status === 'PARTIAL') && targetColumn === 'paid') {
-            setActiveInvoice(invoice)
-            setPayAmount(String(invoice.amount))
-            setIsPayDialogOpen(true)
+        load()
+        return () => { active = false }
+    }, [loadInvoices])
+
+    useEffect(() => {
+        const refresh = () => {
+            if (document.visibilityState === "visible") void loadInvoices()
         }
+        const id = window.setInterval(refresh, 15000)
+        window.addEventListener("focus", refresh)
+        document.addEventListener("visibilitychange", refresh)
+        return () => {
+            window.clearInterval(id)
+            window.removeEventListener("focus", refresh)
+            document.removeEventListener("visibilitychange", refresh)
+        }
+    }, [loadInvoices])
+
+    // Flatten all invoices for the table
+    const allInvoices = useMemo(() => {
+        const tag = (items: InvoiceKanbanItem[], status: string) => items.map(i => ({ ...i, _tab: status }))
+        return [
+            ...tag(invoices.draft, 'DRAFT'),
+            ...tag(invoices.sent, 'SENT'),
+            ...tag(invoices.overdue, 'OVERDUE'),
+            ...tag(invoices.paid, 'PAID'),
+        ]
+    }, [invoices])
+
+    const filteredInvoices = useMemo(() => {
+        if (activeTab === 'ALL') return allInvoices
+        return allInvoices.filter(i => i._tab === activeTab)
+    }, [allInvoices, activeTab])
+
+    const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE))
+    const pagedInvoices = filteredInvoices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+    useEffect(() => { setPage(1) }, [activeTab])
+
+    const counts = useMemo(() => ({
+        all: allInvoices.length,
+        draft: invoices.draft.length,
+        sent: invoices.sent.length,
+        overdue: invoices.overdue.length,
+        paid: invoices.paid.length,
+    }), [allInvoices, invoices])
+
+    // Workflow handlers
+    const openSendDialog = (invoice: InvoiceKanbanItem) => {
+        setActiveInvoice(invoice)
+        setSendMessage(`Hi ${invoice.partyName}, here is invoice ${invoice.number} for ${formatIDR(invoice.amount)}. Please make payment by ${new Date(invoice.dueDate).toLocaleDateString()}. View Invoice: https://erp.orico.com/invoices/${invoice.id}`)
+        setRecipientContact("")
+        setIsSendDialogOpen(true)
+    }
+
+    const openPayDialog = (invoice: InvoiceKanbanItem) => {
+        setActiveInvoice(invoice)
+        setPayAmount(String(invoice.amount))
+        setPayDate(new Date().toISOString().split('T')[0])
+        setPayReference("")
+        setIsPayDialogOpen(true)
     }
 
     const handleConfirmSend = async () => {
         if (!activeInvoice) return
-
-        // Validate WhatsApp Number
         if (sendMethod === 'WHATSAPP') {
             if (!recipientContact) {
-                toast.error("Please enter a valid WhatsApp number.")
+                toast.error("Masukkan nomor WhatsApp")
                 return
             }
-            // Trigger Redirection immediately to avoid popup blockers
-            const phone = recipientContact.replace(/\D/g, '') // Remove non-digits
+            const phone = recipientContact.replace(/\D/g, '')
             const text = encodeURIComponent(sendMessage)
             window.open(`https://wa.me/${phone}?text=${text}`, '_blank')
         }
-
         setLoading(true)
         try {
             const result: any = await moveInvoiceToSent(activeInvoice.id, sendMessage, sendMethod)
-            if (!result.success) {
-                throw new Error(result.error || "Failed to send invoice")
-            }
-            toast.success(result.status === 'OVERDUE' ? "Invoice moved to Overdue (past due date)." : "Invoice sent and countdown started!")
+            if (!result.success) throw new Error(result.error || "Gagal mengirim invoice")
+            toast.success(result.status === 'OVERDUE' ? "Invoice dipindahkan ke Jatuh Tempo." : "Invoice terkirim!")
             setIsSendDialogOpen(false)
-            await loadInvoiceKanban()
+            await loadInvoices()
         } catch {
-            toast.error("Failed to process send")
+            toast.error("Gagal mengirim invoice")
         } finally {
             setLoading(false)
             setActiveInvoice(null)
@@ -220,230 +217,37 @@ export default function InvoicesKanbanPage() {
         if (!activeInvoice) return
         setLoading(true)
         try {
-            const paymentResult: any = await recordInvoicePayment({
+            const result: any = await recordInvoicePayment({
                 invoiceId: activeInvoice.id,
                 amount: parseFloat(payAmount),
                 paymentMethod: payMethod,
                 paymentDate: new Date(payDate),
                 reference: payReference,
-                notes: "Manual Payment from Kanban"
+                notes: "Pembayaran dari Invoice Center"
             })
-            if (!paymentResult.success) {
-                throw new Error(paymentResult.error || "Failed to record payment")
-            }
-            toast.success("Payment recorded successfully")
+            if (!result.success) throw new Error(result.error || "Gagal mencatat pembayaran")
+            toast.success("Pembayaran berhasil dicatat")
             setIsPayDialogOpen(false)
-            // Reload
-            await loadInvoiceKanban()
+            await loadInvoices()
         } catch {
-            toast.error("Failed to record payment")
+            toast.error("Gagal mencatat pembayaran")
         } finally {
             setLoading(false)
             setActiveInvoice(null)
         }
     }
 
-    const loadOrders = async (type: 'SO' | 'PO') => {
-        setLoading(true)
-        try {
-            if (type === 'SO') {
-                const data = await getPendingSalesOrders()
-                setPendingOrders(data)
-            } else {
-                const data = await getPendingPurchaseOrders()
-                setPendingOrders(data)
-            }
-        } catch {
-            toast.error("Failed to load pending orders")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        if (isCreatorOpen && sourceType !== 'MANUAL') {
-            loadOrders(sourceType as any)
-        }
-    }, [isCreatorOpen, sourceType])
-
-    const handleCreateInvoice = async (forceDuplicate = false) => {
-        if (sourceType !== 'MANUAL' && !selectedOrderId) return
-        if (sourceType === 'MANUAL' && (!selectedCustomer || !manualPrice || manualQty <= 0)) return
-
-        setCreating(true)
-        try {
-            let result: any
-            if (sourceType === 'SO') {
-                result = await createInvoiceFromSalesOrder(selectedOrderId, { forceCreate: forceDuplicate })
-            } else if (sourceType === 'PO') {
-                result = await createBillFromPOId(selectedOrderId, { forceCreate: forceDuplicate })
-            } else {
-                result = await createCustomerInvoice({
-                    customerId: selectedCustomer,
-                    amount: parseFloat(manualPrice) * manualQty,
-                    issueDate: parseDateInput(issueDate),
-                    dueDate: parseDateInput(dueDate),
-                    items: [{
-                        description: manualProduct || invoiceNotes || 'Manual Item',
-                        productCode: manualCode,
-                        quantity: manualQty,
-                        unitPrice: parseFloat(manualPrice) || 0
-                    }],
-                    type: manualType
-                })
-            }
-
-            if (!result.success && result.requiresConfirmation && !forceDuplicate && sourceType !== 'MANUAL') {
-                setDuplicateWarning({
-                    open: true,
-                    sourceType,
-                    orderId: selectedOrderId,
-                    existingInvoiceNumber: result.existingInvoiceNumber || "-",
-                    existingInvoiceStatus: result.existingInvoiceStatus || "UNKNOWN",
-                })
-                return
-            }
-
-            if (result.success) {
-                setDuplicateWarning({
-                    open: false,
-                    sourceType: null,
-                    orderId: "",
-                    existingInvoiceNumber: "",
-                    existingInvoiceStatus: "",
-                })
-                toast.success(result.alreadyExists ? `Using existing document ${result.billNumber || result.invoiceNumber}` : "Document created successfully")
-                setIsCreatorOpen(false)
-                // Reset form
-                setSelectedOrderId("")
-                setSelectedCustomer("")
-                setInvoiceNotes("")
-                setManualProduct("")
-                setManualCode("")
-                setManualQty(1)
-                setManualPrice("")
-                setDueDate("")
-                if (sourceType !== 'MANUAL') {
-                    await loadOrders(sourceType as 'SO' | 'PO')
-                }
-                // Reload data
-                await loadInvoiceKanban()
-                router.refresh()
-            } else {
-                toast.error(('error' in result ? result.error : "Failed to create invoice") || "Failed to create invoice")
-            }
-        } catch {
-            toast.error("An error occurred")
-        } finally {
-            setCreating(false)
-        }
-    }
-
-
-    useEffect(() => {
-        let active = true
-        async function load() {
-            setLoading(true)
-            setLoadError(null)
-            try {
-                if (!active) return
-                await loadInvoiceKanban()
-            } catch (error) {
-                if (!active) return
-                setLoadError(error instanceof Error ? error.message : "Failed to load invoices")
-            } finally {
-                if (active) setLoading(false)
-            }
-        }
-        load()
-        return () => {
-            active = false
-        }
-    }, [loadInvoiceKanban])
-
-    useEffect(() => {
-        const refreshFromServer = () => {
-            if (document.visibilityState === "visible") {
-                void loadInvoiceKanban()
-            }
-        }
-
-        const intervalId = window.setInterval(refreshFromServer, 15000)
-        window.addEventListener("focus", refreshFromServer)
-        document.addEventListener("visibilitychange", refreshFromServer)
-
-        return () => {
-            window.clearInterval(intervalId)
-            window.removeEventListener("focus", refreshFromServer)
-            document.removeEventListener("visibilitychange", refreshFromServer)
-        }
-    }, [loadInvoiceKanban])
-
-    const laneItems = useMemo<Record<LaneKey, InvoiceKanbanItem[]>>(() => ({
-        draft: invoices.draft,
-        sent: invoices.sent,
-        overdue: invoices.overdue,
-        paid: invoices.paid,
-    }), [invoices])
-
-    useEffect(() => {
-        setLanePage((prev) => {
-            const next = { ...prev }
-            ;(['draft', 'sent', 'overdue', 'paid'] as LaneKey[]).forEach((lane) => {
-                const totalPages = Math.max(1, Math.ceil((laneItems[lane]?.length || 0) / PAGE_SIZE))
-                next[lane] = Math.min(prev[lane], totalPages)
-            })
-            return next
-        })
-    }, [laneItems])
-
-    const pagedLanes = useMemo(() => {
-        const getPageSlice = (lane: LaneKey) => {
-            const items = laneItems[lane] || []
-            const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
-            const page = Math.min(lanePage[lane], totalPages)
-            const start = (page - 1) * PAGE_SIZE
-            return {
-                items: items.slice(start, start + PAGE_SIZE),
-                page,
-                totalPages,
-                totalItems: items.length,
-            }
-        }
-
-        return {
-            draft: getPageSlice('draft'),
-            sent: getPageSlice('sent'),
-            overdue: getPageSlice('overdue'),
-            paid: getPageSlice('paid'),
-        }
-    }, [laneItems, lanePage])
-
-    const updateLanePage = (lane: LaneKey, page: number) => {
-        setLanePage((prev) => ({ ...prev, [lane]: Math.max(1, page) }))
-    }
-
-    const isManualDueDatePast = useMemo(() => {
-        if (!dueDate) return false
-        const selectedDate = parseDateInput(dueDate)
-        if (!selectedDate) return false
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
-        return selectedDate < today
-    }, [dueDate])
-
-    const applyKanbanFilters = () => {
+    const applyFilters = () => {
         pushSearchParams((params) => {
-            const normalizedQ = searchText.trim()
-            if (normalizedQ) params.set("q", normalizedQ)
+            const q = searchText.trim()
+            if (q) params.set("q", q)
             else params.delete("q")
-
             if (invoiceTypeFilter === "ALL") params.delete("type")
             else params.set("type", invoiceTypeFilter)
         })
     }
 
-    const resetKanbanFilters = () => {
+    const resetFilters = () => {
         setSearchText("")
         setInvoiceTypeFilter("ALL")
         pushSearchParams((params) => {
@@ -452,343 +256,311 @@ export default function InvoicesKanbanPage() {
         })
     }
 
+    const statusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
+        DRAFT: { label: 'Draft', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700', dot: 'bg-zinc-400' },
+        ISSUED: { label: 'Terkirim', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700', dot: 'bg-blue-500' },
+        OVERDUE: { label: 'Jatuh Tempo', bg: 'bg-red-50 border-red-300', text: 'text-red-700', dot: 'bg-red-500' },
+        PARTIAL: { label: 'Sebagian', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700', dot: 'bg-amber-500' },
+        PAID: { label: 'Lunas', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+    }
+
+    const tabs: { key: StatusTab; label: string; count: number; color: string }[] = [
+        { key: 'ALL', label: 'Semua', count: counts.all, color: 'orange' },
+        { key: 'DRAFT', label: 'Draft', count: counts.draft, color: 'zinc' },
+        { key: 'SENT', label: 'Terkirim', count: counts.sent, color: 'blue' },
+        { key: 'OVERDUE', label: 'Jatuh Tempo', count: counts.overdue, color: 'red' },
+        { key: 'PAID', label: 'Lunas', count: counts.paid, color: 'emerald' },
+    ]
+
     return (
-        <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans h-[calc(100vh-theme(spacing.16))] flex flex-col">
-
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
-                <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight text-black flex items-center gap-2">
-                        Invoice Command Center
-                    </h2>
-                    <p className="text-muted-foreground mt-1 font-medium">Kanban flow & otomatisasi penagihan.</p>
-                </div>
-
-                <Dialog open={isCreatorOpen} onOpenChange={setIsCreatorOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide transition-all active:translate-y-1 active:shadow-none h-12 px-6">
-                            <FileText className="mr-2 h-4 w-4" /> Create Invoice
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
-                        <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
-                            <DialogTitle className="text-2xl font-black uppercase flex items-center gap-2">
-                                <FileText className="h-6 w-6" /> Create Invoice
-                            </DialogTitle>
-                            <DialogDescription className="font-medium text-black/60">
-                                Create a new invoice or bill manually or from an existing order.
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="p-6 space-y-4">
-                            {/* Source Type Toggle */}
-                            <div className="flex p-1 bg-zinc-100 rounded-lg border border-black/10">
-                                {(['SO', 'PO', 'MANUAL'] as const).map((type) => (
-                                    <button
-                                        key={type}
-                                        onClick={() => { setSourceType(type); setSelectedOrderId(""); }}
-                                        className={`flex-1 py-1.5 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${sourceType === type ? 'bg-black text-white shadow-sm' : 'text-zinc-500 hover:text-black'}`}
-                                    >
-                                        {type === 'SO' ? 'Sales Order' : type === 'PO' ? 'Purchase Order' : 'Manual'}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {sourceType !== 'MANUAL' ? (
-                                <div className="space-y-2">
-                                    <Label className="uppercase font-bold text-xs">Select {sourceType === 'SO' ? 'Sales Order' : 'Purchase Order'}</Label>
-                                    <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
-                                        <SelectTrigger className="border-black font-medium h-10 shadow-sm">
-                                            <SelectValue placeholder={`Select ${sourceType === 'SO' ? 'Order' : 'PO'}`} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {pendingOrders.length === 0 ? (
-                                                <div className="p-2 text-xs text-center italic text-muted-foreground">No pending {sourceType === 'SO' ? 'orders' : 'POs'} found</div>
-                                            ) : pendingOrders.map((order) => (
-                                                <SelectItem key={order.id} value={order.id}>
-                                                    {order.number} - {order.customerName || order.vendorName} ({formatIDR(order.amount)})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <p className="text-[10px] text-zinc-400 italic font-medium">Only orders without active invoice/bill are listed. Existing docs require explicit override.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {/* Manual Entry Fields */}
-                                    {/* Manual type toggle */}
-                                    <div className="flex gap-4">
-                                        <div className="flex items-center space-x-2">
-                                            <input type="radio" id="type-cust" checked={manualType === 'CUSTOMER'} onChange={() => setManualType('CUSTOMER')} className="accent-black" />
-                                            <Label htmlFor="type-cust">Customer Invoice</Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <input type="radio" id="type-supp" checked={manualType === 'SUPPLIER'} onChange={() => setManualType('SUPPLIER')} className="accent-black" />
-                                            <Label htmlFor="type-supp">Vendor Bill</Label>
-                                        </div>
-                                    </div>
-
-                                    {/* Customer Entry Fields */}
-                                    <div className="space-y-2">
-                                        <Label className="uppercase font-bold text-xs">{manualType === 'CUSTOMER' ? 'Customer' : 'Vendor'}</Label>
-                                        <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                                            <SelectTrigger className="border-black font-medium h-10 shadow-sm">
-                                                <SelectValue placeholder="Select Party" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {customers.filter(c => (c as any).type === manualType).length === 0 ? (
-                                                    <SelectItem value="empty" disabled>
-                                                        No active {manualType.toLowerCase()}s
-                                                    </SelectItem>
-                                                ) : customers.filter(c => (c as any).type === manualType).map((customer) => (
-                                                    <SelectItem key={customer.id} value={customer.id}>
-                                                        {customer.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="uppercase font-bold text-xs">Issue Date</Label>
-                                            <Input
-                                                type="date"
-                                                className="border-black font-medium h-10 shadow-sm"
-                                                value={issueDate}
-                                                onChange={(e) => setIssueDate(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="uppercase font-bold text-xs">Due Date</Label>
-                                            <Input
-                                                type="date"
-                                                className="border-black font-medium h-10 shadow-sm"
-                                                value={dueDate}
-                                                onChange={(e) => setDueDate(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-                                    {isManualDueDatePast && (
-                                        <p className="text-[11px] font-semibold text-red-600">
-                                            Due date is in the past. Once sent, this invoice will be marked Overdue immediately.
-                                        </p>
-                                    )}
-
-                                    <div className="space-y-2">
-                                        <Label className="uppercase font-bold text-xs">Description / Product</Label>
-                                        <Input
-                                            className="border-black font-medium h-10 shadow-sm"
-                                            placeholder="e.g. Consulting Services"
-                                            value={manualProduct}
-                                            onChange={(e) => setManualProduct(e.target.value)}
-                                        />
-                                    </div>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="uppercase font-bold text-xs">Product Code (Opt)</Label>
-                                            <Input
-                                                className="border-black font-medium h-10 shadow-sm"
-                                                placeholder="e.g. SERV-001"
-                                                value={manualCode}
-                                                onChange={(e) => setManualCode(e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="uppercase font-bold text-xs">Quantity</Label>
-                                            <Input
-                                                type="number"
-                                                className="border-black font-medium h-10 shadow-sm"
-                                                placeholder="1"
-                                                value={manualQty}
-                                                onChange={(e) => setManualQty(Math.max(1, Number(e.target.value) || 1))}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="uppercase font-bold text-xs">Unit Price</Label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-muted-foreground">Rp</span>
-                                            <Input
-                                                className="pl-9 border-black font-black h-10 shadow-sm"
-                                                placeholder="0"
-                                                type="number"
-                                                value={manualPrice}
-                                                onChange={(e) => setManualPrice(e.target.value)}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="p-2 bg-zinc-100 rounded text-right font-mono font-bold">
-                                        Total: {formatIDR((parseFloat(manualPrice) || 0) * manualQty)}
-                                    </div>
-                                </div>
-                            )}
+        <div className="flex-1 p-4 md:p-8 pt-6 max-w-7xl mx-auto space-y-4">
+            {/* Page Header */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-400">
+                    <div className="flex items-center gap-3">
+                        <Receipt className="h-5 w-5 text-orange-500" />
+                        <div>
+                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                                Invoice Command Center
+                            </h1>
+                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                                Kelola invoice, kirim tagihan, dan catat pembayaran
+                            </p>
                         </div>
-
-                        <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
-                            <Button variant="outline" className="border-black uppercase font-bold" onClick={() => setIsCreatorOpen(false)}>Cancel</Button>
-                            <Button
-                                className="bg-black text-white hover:bg-zinc-800 border-black uppercase font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-y-[2px] transition-all"
-                                onClick={() => { void handleCreateInvoice() }}
-                                disabled={creating || (sourceType !== 'MANUAL' && !selectedOrderId) || (sourceType === 'MANUAL' && (!selectedCustomer || !manualPrice || manualQty <= 0))}
-                            >
-                                {creating ? "Creating..." : "Generate Invoice"}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
-            </div>
-
-            <div className="rounded-lg border bg-white p-3">
-                <div className="grid gap-2 md:grid-cols-[1.6fr_220px_auto_auto]">
-                    <div className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
-                        <Input
-                            className="pl-9"
-                            placeholder="Cari nomor invoice / customer / supplier..."
-                            value={searchText}
-                            onChange={(event) => setSearchText(event.target.value)}
-                        />
                     </div>
-                    <Select value={invoiceTypeFilter} onValueChange={(value: 'ALL' | 'INV_OUT' | 'INV_IN') => setInvoiceTypeFilter(value)}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Semua tipe" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="ALL">Semua Tipe</SelectItem>
-                            <SelectItem value="INV_OUT">Customer Invoice</SelectItem>
-                            <SelectItem value="INV_IN">Vendor Bill</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button variant="secondary" onClick={applyKanbanFilters}>Terapkan</Button>
-                    <Button variant="outline" onClick={resetKanbanFilters}>Reset</Button>
+                    <Button
+                        onClick={() => setIsCreatorOpen(true)}
+                        className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                    >
+                        <FileText className="h-3.5 w-3.5 mr-1.5" /> Buat Invoice
+                    </Button>
                 </div>
             </div>
 
-            <Dialog
-                open={duplicateWarning.open}
-                onOpenChange={(open) => setDuplicateWarning((prev) => ({ ...prev, open }))}
-            >
-                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2 text-lg font-black uppercase">
-                            <AlertTriangle className="h-5 w-5 text-amber-500" />
-                            Invoice Already Exists
-                        </DialogTitle>
-                        <DialogDescription className="text-sm text-zinc-600">
-                            Order ini sudah punya invoice <span className="font-bold text-black">{duplicateWarning.existingInvoiceNumber}</span> ({duplicateWarning.existingInvoiceStatus}).
-                            Buat invoice baru hanya jika memang dibutuhkan untuk case khusus.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:justify-end">
+            {/* Search & Filter Bar */}
+            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="p-4">
+                    <div className="flex flex-col md:flex-row gap-3">
+                        <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                            <Input
+                                className="border-2 border-black h-10 pl-9 font-medium"
+                                placeholder="Cari nomor invoice / customer / supplier..."
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                            />
+                        </div>
+                        <Select value={invoiceTypeFilter} onValueChange={(v: any) => setInvoiceTypeFilter(v)}>
+                            <SelectTrigger className="border-2 border-black h-10 font-medium w-full md:w-[180px]">
+                                <SelectValue placeholder="Semua Tipe" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Semua Tipe</SelectItem>
+                                <SelectItem value="INV_OUT">Customer Invoice</SelectItem>
+                                <SelectItem value="INV_IN">Vendor Bill</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            onClick={applyFilters}
+                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-4"
+                        >
+                            Terapkan
+                        </Button>
                         <Button
                             variant="outline"
-                            className="border-black font-bold uppercase"
-                            onClick={() => setDuplicateWarning((prev) => ({ ...prev, open: false }))}
+                            onClick={resetFilters}
+                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
                         >
-                            Cancel
+                            Reset
                         </Button>
-                        <Button
-                            className="bg-black text-white hover:bg-zinc-800 font-bold uppercase"
-                            onClick={async () => {
-                                setDuplicateWarning((prev) => ({ ...prev, open: false }))
-                                await handleCreateInvoice(true)
-                            }}
-                        >
-                            Create New Anyway
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-
-            {/* DnD Context */}
-            <DndContext onDragEnd={handleDragEnd}>
-                <div className="grid flex-1 min-h-0 gap-6 xl:grid-cols-[2fr_1fr]">
-                    <Card className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] min-h-0 flex flex-col overflow-hidden">
-                        <CardHeader className="border-b border-black/10 bg-zinc-50 px-6 py-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-sm font-black uppercase tracking-wide">Open Workflow</h3>
-                                <Badge variant="outline" className="bg-white">{invoices.draft.length + invoices.sent.length + invoices.overdue.length} Invoices</Badge>
-                            </div>
-                            <p className="text-xs text-zinc-500 font-medium">Drag draft to Sent, then drop Sent/Overdue to Paid.</p>
-                        </CardHeader>
-                        <CardContent className="grid min-h-0 gap-4 p-4 md:grid-cols-2 overflow-y-auto">
-                            <LanePanel
-                                id="draft"
-                                title="Drafts"
-                                color="zinc"
-                                lane={pagedLanes.draft}
-                                onPageChange={(page) => updateLanePage('draft', page)}
-                            />
-                            <LanePanel
-                                id="sent"
-                                title="Sent to Client"
-                                color="blue"
-                                lane={pagedLanes.sent}
-                                onPageChange={(page) => updateLanePage('sent', page)}
-                            />
-                            <LanePanel
-                                id="overdue"
-                                title="Overdue"
-                                color="red"
-                                lane={pagedLanes.overdue}
-                                onPageChange={(page) => updateLanePage('overdue', page)}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    <Card className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] min-h-0 flex flex-col overflow-hidden">
-                        <CardHeader className="border-b border-black/10 bg-emerald-50 px-6 py-4">
-                            <div className="flex items-center gap-2">
-                                <h3 className="text-sm font-black uppercase tracking-wide text-emerald-800">Paid Ledger</h3>
-                                <Badge variant="outline" className="bg-white border-emerald-200 text-emerald-700">{invoices.paid.length}</Badge>
-                            </div>
-                            <p className="text-xs text-emerald-700/80 font-medium">Keep completed settlements searchable and paginated.</p>
-                        </CardHeader>
-                        <CardContent className="min-h-0 p-4 overflow-y-auto">
-                            <LanePanel
-                                id="paid"
-                                title="Paid"
-                                color="emerald"
-                                lane={pagedLanes.paid}
-                                onPageChange={(page) => updateLanePage('paid', page)}
-                            />
-                        </CardContent>
-                    </Card>
+                    </div>
                 </div>
-            </DndContext>
+            </div>
+
+            {/* Status Tabs */}
+            <div className="flex gap-2 flex-wrap">
+                {tabs.map((tab) => {
+                    const isActive = activeTab === tab.key
+                    return (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            className={`
+                                flex items-center gap-2 px-4 py-2 border-2 text-[11px] font-black uppercase tracking-widest transition-all
+                                ${isActive
+                                    ? 'border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] text-zinc-900'
+                                    : 'border-zinc-200 bg-zinc-50 text-zinc-400 hover:border-zinc-400 hover:text-zinc-600'
+                                }
+                            `}
+                        >
+                            {tab.label}
+                            <span className={`
+                                text-[10px] font-black px-1.5 py-0.5 min-w-[22px] text-center rounded-sm
+                                ${isActive ? 'bg-orange-500 text-white' : 'bg-zinc-200 text-zinc-500'}
+                            `}>
+                                {tab.count}
+                            </span>
+                        </button>
+                    )
+                })}
+            </div>
+
+            {/* Invoice Table */}
+            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 480 }}>
+                <div className="bg-orange-50 dark:bg-orange-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-orange-400">
+                    <Receipt className="h-4 w-4 text-orange-600" />
+                    <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                        Daftar Invoice
+                    </h3>
+                    <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+                        {filteredInvoices.length}
+                    </span>
+                </div>
+
+                {/* Table — uses CSS table for stable column widths regardless of row count */}
+                <div className="w-full flex-1 flex flex-col">
+                    {/* Table Header */}
+                    <div className="hidden md:grid grid-cols-[1fr_1.2fr_100px_140px_120px_120px_100px] gap-2 px-5 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                        {['No. Invoice', 'Pihak', 'Tipe', 'Jumlah', 'Status', 'Jatuh Tempo', 'Aksi'].map((h) => (
+                            <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                        ))}
+                    </div>
+
+                    {/* Table Rows */}
+                    {loading && pagedInvoices.length === 0 ? (
+                        <div className="flex items-center justify-center py-16 text-zinc-400">
+                            <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                            <span className="text-xs font-bold uppercase tracking-widest">Memuat data...</span>
+                        </div>
+                    ) : pagedInvoices.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                            Tidak ada invoice ditemukan
+                        </div>
+                    ) : (
+                        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            {pagedInvoices.map((invoice, idx) => {
+                                const cfg = statusConfig[invoice.status] || statusConfig.DRAFT
+                                const isDraft = invoice.status === 'DRAFT'
+                                const canPay = invoice.status === 'ISSUED' || invoice.status === 'OVERDUE' || invoice.status === 'PARTIAL'
+
+                                return (
+                                    <div
+                                        key={invoice.id}
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.2fr_100px_140px_120px_120px_100px] gap-2 px-5 py-3 items-center transition-colors hover:bg-orange-50/40 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? '' : 'bg-zinc-50/30 dark:bg-zinc-800/10'}`}
+                                    >
+                                        {/* Invoice Number */}
+                                        <div>
+                                            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{invoice.number}</span>
+                                        </div>
+
+                                        {/* Party */}
+                                        <div className="truncate">
+                                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{invoice.partyName}</span>
+                                        </div>
+
+                                        {/* Type */}
+                                        <div>
+                                            <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${invoice.type === 'INV_OUT'
+                                                ? 'bg-blue-50 border-blue-200 text-blue-600'
+                                                : 'bg-purple-50 border-purple-200 text-purple-600'
+                                                }`}>
+                                                {invoice.type === 'INV_OUT' ? 'Invoice' : 'Bill'}
+                                            </span>
+                                        </div>
+
+                                        {/* Amount */}
+                                        <div>
+                                            <span className={`font-mono font-black text-sm ${invoice.status === 'OVERDUE' ? 'text-red-700' :
+                                                invoice.status === 'PAID' ? 'text-emerald-700' : 'text-zinc-900 dark:text-zinc-100'
+                                                }`}>
+                                                {formatIDR(invoice.amount)}
+                                            </span>
+                                        </div>
+
+                                        {/* Status Badge */}
+                                        <div>
+                                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide px-2.5 py-1 border rounded-sm ${cfg.bg} ${cfg.text}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                                                {cfg.label}
+                                            </span>
+                                        </div>
+
+                                        {/* Due Date */}
+                                        <div>
+                                            <span className={`text-xs font-medium ${invoice.status === 'OVERDUE' ? 'text-red-600 font-bold' : 'text-zinc-500'}`}>
+                                                {new Date(invoice.dueDate).toLocaleDateString('id-ID')}
+                                            </span>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex gap-1.5">
+                                            {isDraft && (
+                                                <button
+                                                    onClick={() => openSendDialog(invoice)}
+                                                    title="Kirim Invoice"
+                                                    className="h-8 w-8 flex items-center justify-center border-2 border-blue-300 text-blue-500 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-700 transition-colors rounded-sm"
+                                                >
+                                                    <Send className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
+                                            {canPay && (
+                                                <button
+                                                    onClick={() => openPayDialog(invoice)}
+                                                    title="Catat Pembayaran"
+                                                    className="h-8 w-8 flex items-center justify-center border-2 border-emerald-300 text-emerald-500 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-700 transition-colors rounded-sm"
+                                                >
+                                                    <Banknote className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Pagination — always render to maintain consistent card height */}
+                <div className="px-5 py-3 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        {filteredInvoices.length} total
+                    </span>
+                    {filteredInvoices.length > PAGE_SIZE ? (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 border-2 border-black"
+                                disabled={page <= 1}
+                                onClick={() => setPage(p => p - 1)}
+                            >
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="text-xs font-black min-w-[50px] text-center">{page}/{totalPages}</span>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 border-2 border-black"
+                                disabled={page >= totalPages}
+                                onClick={() => setPage(p => p + 1)}
+                            >
+                                <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div />
+                    )}
+                </div>
+            </div>
+
+            {/* Create Invoice Dialog */}
+            <CreateInvoiceDialog open={isCreatorOpen} onOpenChange={setIsCreatorOpen} />
 
             {/* SEND DIALOG */}
             <Dialog open={isSendDialogOpen} onOpenChange={setIsSendDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Send Invoice {activeInvoice?.number}</DialogTitle>
-                        <DialogDescription>Select method and confirm message to start 30-day countdown.</DialogDescription>
+                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
+                    <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
+                        <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
+                            <Send className="h-5 w-5" /> Kirim Invoice {activeInvoice?.number}
+                        </DialogTitle>
+                        <DialogDescription className="font-medium text-black/60">
+                            Pilih metode pengiriman dan konfirmasi pesan.
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-2">
-                        <div className="flex gap-4">
-                            <Button variant={sendMethod === 'WHATSAPP' ? 'default' : 'outline'} onClick={() => setSendMethod('WHATSAPP')} className="flex-1">WhatsApp</Button>
-                            <Button variant={sendMethod === 'EMAIL' ? 'default' : 'outline'} onClick={() => setSendMethod('EMAIL')} className="flex-1">Email</Button>
+                    <div className="p-6 space-y-4">
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setSendMethod('WHATSAPP')}
+                                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-all ${sendMethod === 'WHATSAPP' ? 'border-green-600 bg-green-50 text-green-700' : 'border-zinc-200 text-zinc-400'}`}
+                            >
+                                WhatsApp
+                            </button>
+                            <button
+                                onClick={() => setSendMethod('EMAIL')}
+                                className={`flex-1 py-2 text-[10px] font-black uppercase tracking-wider border-2 transition-all ${sendMethod === 'EMAIL' ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-zinc-200 text-zinc-400'}`}
+                            >
+                                Email
+                            </button>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Length / Template</Label>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Template</Label>
                             <Select onValueChange={(val) => {
                                 if (!activeInvoice) return
                                 const link = `https://erp.orico.com/invoices/${activeInvoice.id}`
-                                let text = ""
-                                const dueDateText = new Date(activeInvoice.dueDate).toLocaleDateString()
-                                if (val === 'default') text = `Hi ${activeInvoice.partyName}, here is invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)}. Please make payment by ${dueDateText}. View Invoice: ${link}`
-                                if (val === 'formal') text = `Dear ${activeInvoice.partyName},\n\nPlease find the invoice ${activeInvoice.number} amounting to ${formatIDR(activeInvoice.amount)}. Payment is due by ${dueDateText}.\n\nView Invoice: ${link}\n\nSincerely,\nFinance Team`
-                                if (val === 'friendly') text = `Hey ${activeInvoice.partyName}! Just a friendly reminder about invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)}. Thanks for your business! View Invoice: ${link}`
-                                if (val === 'urgent') text = `URGENT: Invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)} is ready. Please process payment immediately. View Invoice: ${link}`
-                                setSendMessage(text)
+                                const due = new Date(activeInvoice.dueDate).toLocaleDateString()
+                                const map: Record<string, string> = {
+                                    default: `Hi ${activeInvoice.partyName}, here is invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)}. Please make payment by ${due}. View: ${link}`,
+                                    formal: `Dear ${activeInvoice.partyName},\n\nPlease find invoice ${activeInvoice.number} amounting to ${formatIDR(activeInvoice.amount)}. Payment due ${due}.\n\nView: ${link}\n\nSincerely,\nFinance Team`,
+                                    friendly: `Hey ${activeInvoice.partyName}! Reminder about invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)}. Thanks! View: ${link}`,
+                                    urgent: `URGENT: Invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)} is ready. Please process immediately. View: ${link}`,
+                                }
+                                setSendMessage(map[val] || '')
                             }}>
-                                <SelectTrigger><SelectValue placeholder="Select Template" /></SelectTrigger>
+                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                    <SelectValue placeholder="Pilih template" />
+                                </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="default">Standard</SelectItem>
                                     <SelectItem value="formal">Formal</SelectItem>
@@ -798,16 +570,15 @@ export default function InvoicesKanbanPage() {
                             </Select>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Recipient contact</Label>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                {sendMethod === 'WHATSAPP' ? 'Nomor WhatsApp' : 'Alamat Email'}
+                            </Label>
                             {sendMethod === 'WHATSAPP' ? (
-                                <div className="flex items-center border rounded-md overflow-hidden focus-within:ring-2 ring-black">
-                                    <div className="bg-zinc-100 px-3 py-2 border-r text-sm font-medium text-zinc-600 flex items-center gap-1">
-                                        <div className="w-4 h-4 bg-red-500 rounded-sm" /> {/* Indonesia Flag Mock */}
-                                        +62
-                                    </div>
+                                <div className="flex">
+                                    <span className="flex items-center px-3 border-2 border-r-0 border-black bg-zinc-100 text-xs font-bold text-zinc-500">+62</span>
                                     <Input
-                                        className="border-0 focus-visible:ring-0 rounded-none shadow-none"
+                                        className="border-2 border-black h-10 font-medium rounded-l-none"
                                         placeholder="812-3456-7890"
                                         value={recipientContact}
                                         onChange={(e) => setRecipientContact(e.target.value)}
@@ -815,36 +586,33 @@ export default function InvoicesKanbanPage() {
                                 </div>
                             ) : (
                                 <Input
+                                    className="border-2 border-black h-10 font-medium"
                                     placeholder="client@company.com"
                                     value={recipientContact}
                                     onChange={(e) => setRecipientContact(e.target.value)}
                                 />
                             )}
-                            <p className="text-[10px] text-muted-foreground">
-                                {sendMethod === 'WHATSAPP' ? 'Enter WhatsApp number without country code.' : 'Enter recipient email address.'}
-                            </p>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Message Preview</Label>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Preview Pesan</Label>
                             <textarea
-                                className="w-full h-32 p-2 border rounded-md text-sm font-sans"
+                                className="w-full h-28 p-3 border-2 border-black text-sm font-medium resize-none"
                                 value={sendMessage}
                                 onChange={(e) => setSendMessage(e.target.value)}
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsSendDialogOpen(false)}>Cancel</Button>
+                    <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
+                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsSendDialogOpen(false)}>Batal</Button>
                         {sendMethod === 'WHATSAPP' ? (
-                            <Button onClick={handleConfirmSend} className="bg-[#25D366] hover:bg-[#128C7E] text-white gap-2 font-bold">
-                                <span className="w-4 h-4 rounded-full bg-white flex items-center justify-center">
-                                    <span className="text-[10px] font-bold text-[#25D366]">W</span>
-                                </span>
-                                Send to WhatsApp
+                            <Button onClick={handleConfirmSend} className="bg-green-500 hover:bg-green-600 border-2 border-green-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
+                                Kirim via WhatsApp
                             </Button>
                         ) : (
-                            <Button onClick={handleConfirmSend}>Send & Start Timer</Button>
+                            <Button onClick={handleConfirmSend} className="bg-blue-500 hover:bg-blue-600 border-2 border-blue-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
+                                Kirim via Email
+                            </Button>
                         )}
                     </DialogFooter>
                 </DialogContent>
@@ -852,26 +620,35 @@ export default function InvoicesKanbanPage() {
 
             {/* PAY DIALOG */}
             <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Record Payment for {activeInvoice?.number}</DialogTitle>
-                        <DialogDescription>Confirm payment receipt details.</DialogDescription>
+                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
+                    <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
+                        <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
+                            <Banknote className="h-5 w-5" /> Catat Pembayaran {activeInvoice?.number}
+                        </DialogTitle>
+                        <DialogDescription className="font-medium text-black/60">
+                            Konfirmasi detail penerimaan pembayaran.
+                        </DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-2">
+                    <div className="p-6 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Date Received</Label>
-                                <Input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Terima</Label>
+                                <Input type="date" className="border-2 border-black h-10 font-medium" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
                             </div>
-                            <div className="space-y-2">
-                                <Label>Amount Received</Label>
-                                <Input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                            <div className="space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jumlah Diterima</Label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">Rp</span>
+                                    <Input type="number" className="border-2 border-black h-10 font-bold pl-9" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                                </div>
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Payment Method</Label>
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Metode Pembayaran</Label>
                             <Select value={payMethod} onValueChange={(v: any) => setPayMethod(v)}>
-                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                    <SelectValue />
+                                </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="TRANSFER">Bank Transfer</SelectItem>
                                     <SelectItem value="CASH">Cash</SelectItem>
@@ -879,176 +656,22 @@ export default function InvoicesKanbanPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Reference No. (Optional)</Label>
-                            <Input placeholder="Ref #123456" value={payReference} onChange={(e) => setPayReference(e.target.value)} />
+                        <div className="space-y-1.5">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">No. Referensi (Opsional)</Label>
+                            <Input className="border-2 border-black h-10 font-medium" placeholder="Ref #123456" value={payReference} onChange={(e) => setPayReference(e.target.value)} />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPayDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleConfirmPayment} className="bg-emerald-600 hover:bg-emerald-700 text-white">Confirm Payment</Button>
+                    <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
+                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsPayDialogOpen(false)}>Batal</Button>
+                        <Button
+                            onClick={handleConfirmPayment}
+                            className="bg-emerald-500 hover:bg-emerald-600 border-2 border-emerald-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                        >
+                            Konfirmasi Pembayaran
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-        </div>
-    )
-}
-
-function DraggableInvoiceCard({ invoice }: { invoice: InvoiceKanbanItem }) {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-        id: invoice.id,
-        data: invoice
-    })
-    const style = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-        zIndex: 999,
-        position: 'relative' as const
-    } : undefined
-
-    // Apply color logic based on status/column context if needed
-    // Copied existing card logic but wrapped
-    return (
-        <div ref={setNodeRef} style={style} {...listeners} {...attributes} className={`touch-none ${isDragging ? 'opacity-50 rotate-2 scale-105' : ''}`}>
-            <Card className="cursor-grab active:cursor-grabbing border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all bg-white group relative overflow-hidden">
-                {/* Status Badges */}
-                {invoice.status === 'OVERDUE' && (
-                    <div className="absolute -right-2 top-4 rotate-12 border-2 border-red-600 px-2 py-1 rounded opacity-30 group-hover:opacity-100 transition-opacity">
-                        <span className="text-[10px] font-black text-red-600 uppercase">LATE</span>
-                    </div>
-                )}
-                {invoice.status === 'ISSUED' && (
-                    <div className="absolute top-0 right-0 p-1 bg-blue-500 text-white rounded-bl-lg">
-                        <Mail className="h-3 w-3" />
-                    </div>
-                )}
-                {invoice.status === 'PAID' && (
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-10">
-                        <CheckCircle2 className="h-16 w-16 text-emerald-600" />
-                    </div>
-                )}
-
-                <CardHeader className="p-4 pb-2 flex-row justify-between items-start space-y-0">
-                    <span className={`font-mono text-xs font-bold ${invoice.status === 'OVERDUE' ? 'text-red-600' : 'text-muted-foreground'}`}>{invoice.number}</span>
-                    <MoreVertical className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                    <h4 className="font-bold text-sm mb-1">{invoice.partyName}</h4>
-                    <p className={`text-lg font-black ${invoice.status === 'OVERDUE' ? 'text-red-700' : invoice.status === 'PAID' ? 'text-emerald-800' : ''}`}>{formatIDR(invoice.amount)}</p>
-                </CardContent>
-                <CardFooter className="p-4 pt-0 text-[10px] text-muted-foreground flex items-center gap-1">
-                    {invoice.status === 'DRAFT' && <><Clock className="h-3 w-3" /> Created {new Date(invoice.issueDate).toLocaleDateString()}</>}
-                    {(invoice.status === 'ISSUED' || invoice.status === 'OVERDUE' || invoice.status === 'PARTIAL') && `Due: ${new Date(invoice.dueDate).toLocaleDateString()}`}
-                    {invoice.status === 'PAID' && `Paid`}
-                </CardFooter>
-            </Card>
-        </div>
-    )
-}
-
-function LanePanel({
-    id,
-    title,
-    color,
-    lane,
-    onPageChange,
-}: {
-    id: string
-    title: string
-    color: string
-    lane: { items: InvoiceKanbanItem[]; page: number; totalPages: number; totalItems: number }
-    onPageChange: (page: number) => void
-}) {
-    const { setNodeRef, isOver } = useDroppable({ id })
-
-    const bgMap: Record<string, string> = {
-        zinc: 'bg-zinc-100/50 border-zinc-200',
-        blue: 'bg-blue-50/50 border-blue-100',
-        red: 'bg-red-50/50 border-red-100',
-        emerald: 'bg-emerald-50/50 border-emerald-100',
-    }
-    const textMap: Record<string, string> = {
-        zinc: 'text-zinc-600',
-        blue: 'text-blue-700',
-        red: 'text-red-700',
-        emerald: 'text-emerald-700',
-    }
-    const indicatorMap: Record<string, string> = {
-        zinc: 'bg-zinc-400',
-        blue: 'bg-blue-500',
-        red: 'bg-red-500',
-        emerald: 'bg-emerald-500',
-    }
-
-    return (
-        <div ref={setNodeRef} className={`rounded-2xl border p-4 transition-colors ${bgMap[color]} ${isOver ? 'ring-2 ring-black ring-offset-1 bg-white' : ''}`}>
-            <div className="mb-3 flex items-center gap-2 border-b border-black/10 pb-2">
-                <div className={`h-3 w-3 rounded-full ${indicatorMap[color]} ${id === 'overdue' ? 'animate-pulse' : ''}`} />
-                <h3 className={`font-black uppercase text-sm ${textMap[color]}`}>{title}</h3>
-                <Badge variant="outline" className="ml-auto bg-white text-xs">{lane.totalItems}</Badge>
-            </div>
-            <div className="min-h-[240px] space-y-3">
-                {lane.items.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-zinc-300 bg-white/70 p-5 text-center text-xs font-medium text-zinc-500">
-                        No invoices in this stage.
-                    </div>
-                ) : (
-                    lane.items.map((invoice) => (
-                        <DraggableInvoiceCard key={invoice.id} invoice={invoice} />
-                    ))
-                )}
-            </div>
-            <PaginationControls
-                page={lane.page}
-                totalPages={lane.totalPages}
-                totalItems={lane.totalItems}
-                onPageChange={onPageChange}
-            />
-        </div>
-    )
-}
-
-function PaginationControls({
-    page,
-    totalPages,
-    totalItems,
-    onPageChange,
-}: {
-    page: number
-    totalPages: number
-    totalItems: number
-    onPageChange: (page: number) => void
-}) {
-    return (
-        <div className="mt-3 flex items-center justify-between border-t border-black/10 pt-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                {totalItems} total
-            </p>
-            <div className="flex items-center gap-1">
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7 border-zinc-300"
-                    disabled={page <= 1}
-                    onClick={() => onPageChange(page - 1)}
-                >
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-                <span className="min-w-14 text-center text-xs font-semibold text-zinc-600">
-                    {page}/{totalPages}
-                </span>
-                <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-7 w-7 border-zinc-300"
-                    disabled={page >= totalPages}
-                    onClick={() => onPageChange(page + 1)}
-                >
-                    <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-            </div>
         </div>
     )
 }

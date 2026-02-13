@@ -5,17 +5,15 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Trash2, Plus, ArrowLeft, Loader2 } from "lucide-react"
+import { Trash2, Plus, Loader2, UserCheck, StickyNote, Package, Save } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { createPurchaseRequest } from "@/lib/actions/procurement"
-import Link from "next/link"
 
 const itemSchema = z.object({
     productId: z.string().min(1, "Product is required"),
@@ -25,7 +23,7 @@ const itemSchema = z.object({
 
 const formSchema = z.object({
     requesterId: z.string().min(1, "Requester is required"),
-    department: z.string().optional(), // Could be inferred
+    department: z.string().optional(),
     priority: z.string().default("NORMAL"),
     notes: z.string().optional(),
     items: z.array(itemSchema).min(1, "At least one item is required")
@@ -42,7 +40,6 @@ export function CreateRequestForm({ products, employees }: Props) {
     const router = useRouter()
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Temporary state for adding new item
     const [newItem, setNewItem] = useState<{ productId: string, quantity: number, notes: string }>({
         productId: "",
         quantity: 1,
@@ -63,22 +60,21 @@ export function CreateRequestForm({ products, employees }: Props) {
 
     const handleAddItem = () => {
         if (!newItem.productId) {
-            toast.error("Please select a product")
+            toast.error("Pilih produk terlebih dahulu")
             return
         }
         if (newItem.quantity < 1) {
-            toast.error("Quantity must be greater than 0")
+            toast.error("Jumlah harus lebih dari 0")
             return
         }
 
-        // Check duplicate
         if (items.some(i => i.productId === newItem.productId)) {
-            toast.error("Item already added")
+            toast.error("Item sudah ditambahkan")
             return
         }
 
         form.setValue("items", [...items, newItem])
-        setNewItem({ productId: "", quantity: 1, notes: "" }) // Reset
+        setNewItem({ productId: "", quantity: 1, notes: "" })
     }
 
     const handleRemoveItem = (index: number) => {
@@ -91,14 +87,14 @@ export function CreateRequestForm({ products, employees }: Props) {
         try {
             const result = await createPurchaseRequest(values)
             if (result.success) {
-                toast.success("Purchase Request Created")
+                toast.success("Purchase Request berhasil dibuat")
                 router.push("/procurement/requests")
                 router.refresh()
             } else {
-                toast.error(result.error || "Failed to create request")
+                toast.error(result.error || "Gagal membuat request")
             }
         } catch (error) {
-            toast.error("Something went wrong")
+            toast.error("Terjadi kesalahan")
             console.error(error)
         } finally {
             setIsSubmitting(false)
@@ -108,41 +104,34 @@ export function CreateRequestForm({ products, employees }: Props) {
     const selectedProduct = products.find(p => p.id === newItem.productId)
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Link href="/procurement/requests">
-                    <Button variant="outline" size="icon" className="h-8 w-8">
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                </Link>
-                <div className="flex-1" />
-            </div>
-
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-
-                    {/* Header Info */}
-                    <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        <CardHeader>
-                            <CardTitle className="uppercase font-black">Request Details</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                {/* ================================================================== */}
+                {/* SECTION 1 — Detail Permintaan                                      */}
+                {/* ================================================================== */}
+                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
+                        <UserCheck className="h-4 w-4 text-violet-600" />
+                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Detail Permintaan</h3>
+                    </div>
+                    <div className="p-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                             <FormField
                                 control={form.control}
                                 name="requesterId"
                                 render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Requester (Staff)</FormLabel>
+                                    <FormItem className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pemohon (Staff) *</Label>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select staff..." />
+                                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                                    <SelectValue placeholder="Pilih staff..." />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
                                                 {employees.map(emp => (
                                                     <SelectItem key={emp.id} value={emp.id}>
-                                                        {emp.firstName} {emp.lastName} ({emp.department})
+                                                        {emp.firstName} {emp.lastName} <span className="text-zinc-400">({emp.department})</span>
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -156,12 +145,12 @@ export function CreateRequestForm({ products, employees }: Props) {
                                 control={form.control}
                                 name="priority"
                                 render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Priority</FormLabel>
+                                    <FormItem className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Prioritas</Label>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select priority..." />
+                                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                                    <SelectValue placeholder="Pilih prioritas..." />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
@@ -174,131 +163,163 @@ export function CreateRequestForm({ products, employees }: Props) {
                                     </FormItem>
                                 )}
                             />
+                        </div>
+                    </div>
+                </div>
 
-                            <FormField
-                                control={form.control}
-                                name="notes"
-                                render={({ field }) => (
-                                    <FormItem className="col-span-1 md:col-span-2">
-                                        <FormLabel>Notes</FormLabel>
-                                        <FormControl>
-                                            <Textarea placeholder="Any additional context (e.g. project name)..." {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    {/* Items Section */}
-                    <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        <CardHeader className="flex flex-row items-center justify-between">
-                            <CardTitle className="uppercase font-black">Items</CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-
-                            {/* Add Item Form */}
-                            <div className="flex flex-col md:flex-row gap-4 items-end bg-zinc-50 p-4 rounded-lg border border-dashed border-zinc-200">
-                                <div className="flex-1 w-full">
-                                    <FormLabel className="text-xs uppercase font-bold text-muted-foreground mb-1.5 block">Product</FormLabel>
-                                    <Select
-                                        value={newItem.productId}
-                                        onValueChange={(val) => setNewItem({ ...newItem, productId: val })}
-                                    >
-                                        <SelectTrigger className="bg-white">
-                                            <SelectValue placeholder="Search product..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {products.map(p => (
-                                                <SelectItem key={p.id} value={p.id}>
-                                                    {p.code} - {p.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="w-24">
-                                    <FormLabel className="text-xs uppercase font-bold text-muted-foreground mb-1.5 block">Qty</FormLabel>
-                                    <Input
-                                        type="number"
-                                        min={1}
-                                        className="bg-white"
-                                        value={newItem.quantity}
-                                        onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
-                                    />
-                                </div>
-                                <div className="text-sm pt-2 min-w-[60px] text-zinc-500 font-mono">
-                                    {selectedProduct?.unit || '-'}
-                                </div>
-                                <Button type="button" onClick={handleAddItem} className="bg-black text-white hover:bg-zinc-800">
-                                    <Plus className="h-4 w-4 mr-2" /> Add
-                                </Button>
-                            </div>
-
-                            {/* Items Table */}
-                            {items.length > 0 ? (
-                                <div className="border rounded-lg overflow-hidden">
-                                    <Table>
-                                        <TableHeader className="bg-zinc-100">
-                                            <TableRow>
-                                                <TableHead>Product</TableHead>
-                                                <TableHead>Qty</TableHead>
-                                                <TableHead className="w-[50px]"></TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {items.map((item, index) => {
-                                                const p = products.find(x => x.id === item.productId)
-                                                return (
-                                                    <TableRow key={index}>
-                                                        <TableCell>
-                                                            <div className="font-medium">{p?.name}</div>
-                                                            <div className="text-xs text-muted-foreground">{p?.code}</div>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {item.quantity} {p?.unit}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                                onClick={() => handleRemoveItem(index)}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )
-                                            })}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            ) : (
-                                <div className="text-center py-8 text-muted-foreground text-sm italic">
-                                    No items added yet.
-                                </div>
+                {/* ================================================================== */}
+                {/* SECTION 2 — Catatan                                                */}
+                {/* ================================================================== */}
+                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
+                        <StickyNote className="h-4 w-4 text-violet-600" />
+                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Catatan</h3>
+                    </div>
+                    <div className="p-5">
+                        <FormField
+                            control={form.control}
+                            name="notes"
+                            render={({ field }) => (
+                                <FormItem className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Catatan Tambahan</Label>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Konteks tambahan (mis. nama proyek, alasan kebutuhan)..."
+                                            className="border-2 border-black min-h-[80px] resize-none"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
                             )}
+                        />
+                    </div>
+                </div>
 
-                        </CardContent>
-                    </Card>
+                {/* ================================================================== */}
+                {/* SECTION 3 — Item Permintaan                                        */}
+                {/* ================================================================== */}
+                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center justify-between border-l-[5px] border-l-violet-400">
+                        <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4 text-violet-600" />
+                            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Item Permintaan</h3>
+                            <span className="bg-violet-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+                                {items.length}
+                            </span>
+                        </div>
+                    </div>
 
-                    <div className="flex justify-end gap-4">
-                        <Button type="button" variant="ghost" onClick={() => router.back()}>Cancel</Button>
+                    {/* Add Item Bar */}
+                    <div className="p-4 bg-violet-50/50 dark:bg-violet-950/10 border-b-2 border-black">
+                        <div className="flex flex-col md:flex-row gap-3 items-end">
+                            <div className="flex-1 w-full space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Produk</Label>
+                                <Select
+                                    value={newItem.productId}
+                                    onValueChange={(val) => setNewItem({ ...newItem, productId: val })}
+                                >
+                                    <SelectTrigger className="border-2 border-black h-10 font-medium bg-white">
+                                        <SelectValue placeholder="Pilih produk..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {products.map(p => (
+                                            <SelectItem key={p.id} value={p.id}>
+                                                <span className="font-mono text-xs text-zinc-400 mr-1">{p.code}</span> {p.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="w-24 space-y-1.5">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Qty</Label>
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    className="border-2 border-black h-10 font-bold text-center bg-white"
+                                    value={newItem.quantity}
+                                    onChange={(e) => setNewItem({ ...newItem, quantity: parseInt(e.target.value) || 0 })}
+                                />
+                            </div>
+                            <div className="text-sm min-w-[50px] h-10 flex items-center font-mono text-zinc-400 font-bold">
+                                {selectedProduct?.unit || '-'}
+                            </div>
+                            <Button
+                                type="button"
+                                onClick={handleAddItem}
+                                className="bg-violet-500 text-white hover:bg-violet-600 border-2 border-violet-600 text-[10px] font-black uppercase tracking-wide h-10 px-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                            >
+                                <Plus className="h-3.5 w-3.5 mr-1" /> Tambah
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Items List */}
+                    {items.length > 0 ? (
+                        <div className="divide-y divide-zinc-200 dark:divide-zinc-700">
+                            {items.map((item, index) => {
+                                const p = products.find(x => x.id === item.productId)
+                                return (
+                                    <div key={index} className={`p-4 flex items-center gap-3 ${index % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/50 dark:bg-zinc-800/30"}`}>
+                                        <div className="flex-none w-7 h-7 bg-violet-100 dark:bg-violet-900/30 border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300 flex items-center justify-center text-xs font-black rounded-sm">
+                                            {index + 1}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100 truncate">{p?.name}</div>
+                                            <div className="text-xs font-mono text-zinc-400">{p?.code}</div>
+                                        </div>
+                                        <div className="h-10 bg-violet-50 dark:bg-violet-950/20 border-2 border-violet-300 dark:border-violet-700 flex items-center px-4 font-black text-sm font-mono text-violet-900 dark:text-violet-200 rounded-sm">
+                                            {item.quantity} {p?.unit}
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-10 w-10 border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+                                            onClick={() => handleRemoveItem(index)}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-10 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                            Belum ada item ditambahkan
+                        </div>
+                    )}
+                </div>
+
+                {/* Submit Bar */}
+                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="p-5 flex items-center justify-end gap-3">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => router.push("/procurement/requests")}
+                            className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-11 px-6 hover:border-zinc-500 transition-colors"
+                        >
+                            Batal
+                        </Button>
                         <Button
                             type="submit"
                             disabled={isSubmitting || items.length === 0}
-                            className="bg-black text-white hover:bg-zinc-800 min-w-[150px] shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"
+                            className="bg-violet-500 text-white hover:bg-violet-600 border-2 border-violet-600 font-black uppercase text-xs tracking-wide h-11 px-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transition-all active:scale-[0.98]"
                         >
-                            {isSubmitting ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : null}
-                            Submit Request
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengirim...
+                                </>
+                            ) : (
+                                <>
+                                    <Save className="mr-2 h-4 w-4" /> Submit Request
+                                </>
+                            )}
                         </Button>
                     </div>
-
-                </form>
-            </Form>
-        </div>
+                </div>
+            </form>
+        </Form>
     )
 }

@@ -37,6 +37,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 const FALLBACK_FINANCIALS = {
     cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
     receivables: 0, payables: 0, overdueInvoices: [] as any[], upcomingPayables: [] as any[],
+    recentInvoices: [] as any[], netCashIn: 0,
 }
 const FALLBACK_OPERATIONS = {
     procurement: { activeCount: 0, delays: [], pendingApproval: [], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} },
@@ -174,11 +175,12 @@ async function ActionCenterSection() {
     )
 }
 
-/** FinancialHealth: Cash flow chart + AR/AP — Supabase + Prisma charts */
+/** FinancialHealth: Cash flow chart + AR/AP + Revenue Stream — Supabase + Prisma */
 async function FinancialHealthSection() {
-    const [financials, charts] = await Promise.all([
+    const [financials, charts, sales] = await Promise.all([
         cachedFinancials(),
         withTimeout(getDashboardCharts().catch(() => FALLBACK_CHARTS), 8000, FALLBACK_CHARTS),
+        cachedSalesStats(),
     ])
 
     const cashFlowData = (charts?.dataCash7d ?? []).map((d: any) => ({
@@ -193,6 +195,9 @@ async function FinancialHealthSection() {
             accountsPayable={financials.payables}
             overdueInvoices={financials.overdueInvoices}
             upcomingPayables={financials.upcomingPayables}
+            recentInvoices={financials.recentInvoices ?? []}
+            netCashIn={financials.netCashIn ?? 0}
+            revenueMTD={sales.totalRevenue}
         />
     )
 }

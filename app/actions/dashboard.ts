@@ -843,10 +843,40 @@ export async function getDashboardData() {
 // Each group opens its own lightweight transaction so React can stream them
 // ==============================================================================
 
+/** Fetch recent outgoing invoices for the CEO Transaction Log */
+async function fetchRecentInvoices(prisma: PrismaClient) {
+    const invoices = await prisma.invoice.findMany({
+        where: { type: 'INV_OUT' },
+        orderBy: { issueDate: 'desc' },
+        take: 5,
+        include: {
+            customer: { select: { name: true } },
+        },
+    })
+
+    return invoices.map(inv => ({
+        id: inv.id,
+        number: inv.number,
+        customer: inv.customer?.name ?? 'Unknown',
+        date: inv.issueDate.toLocaleDateString('id-ID', { year: 'numeric', month: '2-digit', day: '2-digit' }),
+        total: Number(inv.totalAmount),
+        status: inv.status,
+    }))
+}
+
 /** Group A: Financial snapshot — uses Supabase directly (no Prisma tx needed) */
 export async function getDashboardFinancials() {
     try {
-        const metrics = await getFinancialMetrics()
+        // Fetch financial metrics from Supabase + recent invoices from Prisma in parallel
+        const [metrics, recentInvoices] = await Promise.all([
+            getFinancialMetrics(),
+            withPrismaAuth(async (prisma) => fetchRecentInvoices(prisma), { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+                .catch(() => [] as Array<{ id: string; number: string; customer: string; date: string; total: number; status: string }>),
+        ])
+
+        // Net Cash In = revenue from PAID invoices this month (revenue - receivables gives realized cash)
+        const netCashIn = Math.max(0, metrics.revenue - metrics.receivables)
+
         return {
             cashBalance: metrics.cashBalance,
             revenue: metrics.revenue,
@@ -856,12 +886,16 @@ export async function getDashboardFinancials() {
             payables: metrics.payables,
             overdueInvoices: metrics.overdueInvoices,
             upcomingPayables: metrics.upcomingPayables,
+            recentInvoices,
+            netCashIn,
         }
     } catch (error) {
         console.error("getDashboardFinancials failed:", error)
         return {
             cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
             receivables: 0, payables: 0, overdueInvoices: [], upcomingPayables: [],
+            recentInvoices: [] as Array<{ id: string; number: string; customer: string; date: string; total: number; status: string }>,
+            netCashIn: 0,
         }
     }
 }

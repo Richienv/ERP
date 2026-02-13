@@ -2,9 +2,9 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
     Select,
@@ -18,13 +18,12 @@ import {
     FormControl,
     FormField,
     FormItem,
-    FormLabel,
     FormMessage,
 } from "@/components/ui/form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { ArrowLeft, Save, Tag } from "lucide-react"
+import { ArrowLeft, Save, Loader2, Tag, StickyNote, Coins } from "lucide-react"
 import Link from "next/link"
 import { createPriceList } from "@/lib/actions/sales"
 import { toast } from "sonner"
@@ -79,43 +78,50 @@ export default function NewPriceListPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="outline" size="icon" asChild>
-                    <Link href="/sales/pricelists">
-                        <ArrowLeft className="h-4 w-4" />
-                    </Link>
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Buat Daftar Harga Baru</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Tambahkan daftar harga baru untuk produk Anda
-                    </p>
+        <div className="flex-1 p-4 md:p-8 pt-6 max-w-3xl mx-auto">
+            {/* Back Button */}
+            <Link
+                href="/sales/pricelists"
+                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors mb-5"
+            >
+                <ArrowLeft className="h-4 w-4" />
+                Kembali ke Daftar Harga
+            </Link>
+
+            {/* Page Header */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-6 overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="px-6 py-4 flex items-center gap-3 border-l-[6px] border-l-emerald-400">
+                    <Tag className="h-5 w-5 text-emerald-500" />
+                    <div>
+                        <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            Buat Daftar Harga Baru
+                        </h1>
+                        <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                            Tambahkan daftar harga baru untuk produk Anda
+                        </p>
+                    </div>
                 </div>
             </div>
 
+            {/* Form */}
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-w-2xl">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center text-lg">
-                                <Tag className="mr-2 h-5 w-5" />
-                                Informasi Daftar Harga
-                            </CardTitle>
-                            <CardDescription>
-                                Detail utama daftar harga. Produk dapat ditambahkan setelah daftar harga dibuat.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+                    {/* SECTION 1 — Informasi Daftar Harga */}
+                    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+                            <Tag className="h-4 w-4 text-emerald-600" />
+                            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Informasi Daftar Harga</h3>
+                        </div>
+                        <div className="p-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                                 <FormField
                                     control={form.control}
                                     name="code"
                                     render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Kode *</FormLabel>
+                                        <FormItem className="space-y-1.5">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kode *</Label>
                                             <FormControl>
-                                                <Input placeholder="PL-001" {...field} />
+                                                <Input placeholder="PL-001" className="border-2 border-black h-10 font-medium" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -125,27 +131,36 @@ export default function NewPriceListPage() {
                                     control={form.control}
                                     name="name"
                                     render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Nama Daftar Harga *</FormLabel>
+                                        <FormItem className="space-y-1.5">
+                                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama Daftar Harga *</Label>
                                             <FormControl>
-                                                <Input placeholder="Harga Retail Standar" {...field} />
+                                                <Input placeholder="Harga Retail Standar" className="border-2 border-black h-10 font-medium" {...field} />
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )}
                                 />
                             </div>
+                        </div>
+                    </div>
 
+                    {/* SECTION 2 — Deskripsi */}
+                    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+                            <StickyNote className="h-4 w-4 text-emerald-600" />
+                            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Deskripsi</h3>
+                        </div>
+                        <div className="p-5">
                             <FormField
                                 control={form.control}
                                 name="description"
                                 render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Deskripsi</FormLabel>
+                                    <FormItem className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Penjelasan Daftar Harga</Label>
                                         <FormControl>
                                             <Textarea
                                                 placeholder="Penjelasan singkat mengenai daftar harga ini..."
-                                                className="resize-none"
+                                                className="border-2 border-black min-h-[80px] resize-none"
                                                 {...field}
                                             />
                                         </FormControl>
@@ -153,16 +168,25 @@ export default function NewPriceListPage() {
                                     </FormItem>
                                 )}
                             />
+                        </div>
+                    </div>
 
+                    {/* SECTION 3 — Mata Uang */}
+                    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+                            <Coins className="h-4 w-4 text-emerald-600" />
+                            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">Mata Uang</h3>
+                        </div>
+                        <div className="p-5">
                             <FormField
                                 control={form.control}
                                 name="currency"
                                 render={({ field }) => (
-                                    <FormItem className="max-w-[200px]">
-                                        <FormLabel>Mata Uang</FormLabel>
+                                    <FormItem className="space-y-1.5 max-w-[240px]">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pilih Mata Uang</Label>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
-                                                <SelectTrigger>
+                                                <SelectTrigger className="border-2 border-black h-10 font-medium">
                                                     <SelectValue placeholder="Pilih mata uang" />
                                                 </SelectTrigger>
                                             </FormControl>
@@ -175,23 +199,36 @@ export default function NewPriceListPage() {
                                     </FormItem>
                                 )}
                             />
-                        </CardContent>
-                    </Card>
+                        </div>
+                    </div>
 
-                    <div className="flex items-center justify-end gap-3">
-                        <Button variant="outline" asChild>
-                            <Link href="/sales/pricelists">Batal</Link>
-                        </Button>
-                        <Button type="submit" disabled={isLoading}>
-                            {isLoading ? (
-                                "Menyimpan..."
-                            ) : (
-                                <>
-                                    <Save className="mr-2 h-4 w-4" />
-                                    Simpan Daftar Harga
-                                </>
-                            )}
-                        </Button>
+                    {/* Submit Bar */}
+                    <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                        <div className="p-5 flex items-center justify-end gap-3">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => router.push("/sales/pricelists")}
+                                className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-xs tracking-wide h-11 px-6 hover:border-zinc-500 transition-colors"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                disabled={isLoading}
+                                className="bg-emerald-500 text-white hover:bg-emerald-600 border-2 border-emerald-600 font-black uppercase text-xs tracking-wide h-11 px-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transition-all active:scale-[0.98]"
+                            >
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Save className="mr-2 h-4 w-4" /> Simpan Daftar Harga
+                                    </>
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 </form>
             </Form>

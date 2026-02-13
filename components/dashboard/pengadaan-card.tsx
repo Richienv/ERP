@@ -293,15 +293,10 @@ export function PengadaanCard({
                         <p className="text-[10px] font-bold text-zinc-400 mb-2 uppercase tracking-wider">Pending Your Approval</p>
                         {pendingApproval?.length > 0 ? (
                             <div className="space-y-2">
-                                {pendingApproval.slice(0, 2).map((po) => (
+                                {pendingApproval.slice(0, 3).map((po) => (
                                     <div
                                         key={po.id}
-                                        className="bg-amber-50 border border-amber-200 rounded-lg p-2 hover:bg-amber-100 transition-colors"
-                                        onClick={(e) => {
-                                            e.preventDefault()
-                                            e.stopPropagation()
-                                            setSelectedPO(po)
-                                        }}
+                                        className="bg-amber-50 border-2 border-amber-200 rounded-lg p-2.5 transition-colors"
                                     >
                                         <div className="flex justify-between items-start mb-1">
                                             <span className="font-mono text-[10px] font-bold text-amber-900">{po.number}</span>
@@ -309,10 +304,39 @@ export function PengadaanCard({
                                         </div>
                                         <div className="text-[10px] font-medium text-amber-700">{po.supplier.name}</div>
                                         <div className="text-[9px] text-amber-600">{po.itemCount} items</div>
+                                        {/* Inline Action Buttons */}
+                                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-amber-200">
+                                            <button
+                                                onClick={() => handleApprove(po)}
+                                                disabled={processing}
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-wider
+                                                           rounded hover:bg-emerald-700 active:scale-[0.97] transition-all disabled:opacity-50"
+                                            >
+                                                {processing ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                                Approve
+                                            </button>
+                                            <button
+                                                onClick={() => { setSelectedPO(po); setRejectMode(true) }}
+                                                disabled={processing}
+                                                className="flex-1 flex items-center justify-center gap-1 px-2 py-1 bg-white text-red-600 text-[9px] font-black uppercase tracking-wider
+                                                           rounded border border-red-300 hover:bg-red-50 active:scale-[0.97] transition-all disabled:opacity-50"
+                                            >
+                                                <XCircle className="h-3 w-3" />
+                                                Reject
+                                            </button>
+                                            <button
+                                                onClick={() => setSelectedPO(po)}
+                                                className="flex items-center justify-center p-1 bg-zinc-100 text-zinc-500 rounded
+                                                           hover:bg-zinc-200 transition-colors border border-zinc-200"
+                                                title="View Detail"
+                                            >
+                                                <FileText className="h-3 w-3" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
-                                {pendingApproval.length > 2 && (
-                                    <p className="text-[10px] text-zinc-500 font-bold">+ {pendingApproval.length - 2} more</p>
+                                {pendingApproval.length > 3 && (
+                                    <p className="text-[10px] text-zinc-500 font-bold">+ {pendingApproval.length - 3} more</p>
                                 )}
                             </div>
                         ) : (

@@ -38,25 +38,24 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col gap-2">
+      <SidebarGroupContent className="flex flex-col gap-0.5">
         <SidebarMenu>
           {items.map((item) => {
             const isActive = pathname === item.url || pathname.startsWith(item.url + "/")
             const hasSubItems = item.items && item.items.length > 0
 
             if (hasSubItems) {
-              // Handle locked items
               if (item.locked) {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       tooltip={`${item.title} (Locked)`}
                       disabled
-                      className="opacity-50 cursor-not-allowed pointer-events-none"
+                      className="opacity-40 cursor-not-allowed pointer-events-none"
                     >
-                      {item.icon && <item.icon />}
-                      <span>{item.title}</span>
-                      <IconLock className="ml-auto size-4 text-muted-foreground" />
+                      {item.icon && <item.icon className="!size-4" />}
+                      <span className="text-[13px] font-medium tracking-tight">{item.title}</span>
+                      <IconLock className="ml-auto !size-3.5 text-zinc-400" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )
@@ -73,22 +72,30 @@ export function NavMain({
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton
                         tooltip={item.title}
-                        className={isActive ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear" : ""}
+                        className={
+                          isActive
+                            ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
+                            : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
+                        }
                       >
-                        {item.icon && <item.icon />}
-                        <span>{item.title}</span>
-                        <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        {item.icon && <item.icon className="!size-4" />}
+                        <span className="text-[13px] tracking-tight">{item.title}</span>
+                        <IconChevronRight className="ml-auto !size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenuSub>
+                      <SidebarMenuSub className="border-l-2 border-zinc-200 dark:border-zinc-700 ml-4 pl-2.5 mr-0 py-0.5">
                         {item.items!.map((subItem) => {
                           const isSubActive = pathname === subItem.url
                           return (
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton
                                 asChild
-                                className={isSubActive ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear" : ""}
+                                className={
+                                  isSubActive
+                                    ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none text-[12px]"
+                                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-none text-[12px] font-medium"
+                                }
                               >
                                 <Link href={subItem.url} prefetch>
                                   <span>{subItem.title}</span>
@@ -109,11 +116,15 @@ export function NavMain({
                 <SidebarMenuButton
                   tooltip={item.title}
                   asChild
-                  className={isActive ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground duration-200 ease-linear" : ""}
+                  className={
+                    isActive
+                      ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
+                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
+                  }
                 >
                   <Link href={item.url} prefetch>
-                    {item.icon && <item.icon />}
-                    <span>{item.title}</span>
+                    {item.icon && <item.icon className="!size-4" />}
+                    <span className="text-[13px] tracking-tight">{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

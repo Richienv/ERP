@@ -6,23 +6,25 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   CheckSquare,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   DollarSign,
   FileText,
   Package,
   Plus,
   Star,
-  TrendingUp,
   Truck,
   Users
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { getProcurementStats } from "@/lib/actions/procurement"
 import { formatIDR } from "@/lib/utils"
 import Link from "next/link"
 import { ProcurementPerformanceProvider } from "@/components/procurement/procurement-performance-provider"
+import { InlineApprovalList } from "@/components/procurement/inline-approval-list"
+import { prisma } from "@/lib/prisma"
+import { ProcurementStatus, PRStatus } from "@prisma/client"
 
 type SearchParamsValue = string | string[] | undefined
 
@@ -38,20 +40,27 @@ const readSearchParamInt = (params: Record<string, SearchParamsValue>, key: stri
   return Math.trunc(value)
 }
 
-function statusBadgeClass(status: string) {
-  if (["APPROVED", "ACCEPTED", "COMPLETED", "RECEIVED", "PO_CREATED"].includes(status)) {
-    return "bg-emerald-100 text-emerald-800 border-emerald-300"
+function statusLabel(status: string) {
+  const map: Record<string, { label: string; dot: string; bg: string; text: string }> = {
+    PO_DRAFT: { label: 'Draft', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    DRAFT: { label: 'Draft', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' },
+    PENDING: { label: 'Pending', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    PENDING_APPROVAL: { label: 'Pending', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    APPROVED: { label: 'Approved', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
+    PO_CREATED: { label: 'PO Created', dot: 'bg-blue-500', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700' },
+    ORDERED: { label: 'Ordered', dot: 'bg-blue-500', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700' },
+    VENDOR_CONFIRMED: { label: 'Confirmed', dot: 'bg-blue-500', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700' },
+    SHIPPED: { label: 'Shipped', dot: 'bg-indigo-500', bg: 'bg-indigo-50 border-indigo-300', text: 'text-indigo-700' },
+    PARTIAL_RECEIVED: { label: 'Partial', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    PARTIAL_ACCEPTED: { label: 'Partial', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    RECEIVED: { label: 'Received', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
+    ACCEPTED: { label: 'Accepted', dot: 'bg-emerald-500', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
+    COMPLETED: { label: 'Completed', dot: 'bg-emerald-600', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700' },
+    INSPECTING: { label: 'Inspecting', dot: 'bg-amber-500', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700' },
+    REJECTED: { label: 'Rejected', dot: 'bg-red-500', bg: 'bg-red-50 border-red-300', text: 'text-red-700' },
+    CANCELLED: { label: 'Cancelled', dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-500' },
   }
-  if (["PENDING", "PENDING_APPROVAL", "INSPECTING", "PARTIAL_ACCEPTED"].includes(status)) {
-    return "bg-amber-100 text-amber-800 border-amber-300"
-  }
-  if (["REJECTED", "CANCELLED"].includes(status)) {
-    return "bg-red-100 text-red-700 border-red-300"
-  }
-  if (["PO_DRAFT", "DRAFT"].includes(status)) {
-    return "bg-zinc-100 text-zinc-700 border-zinc-300"
-  }
-  return "bg-blue-100 text-blue-800 border-blue-300"
+  return map[status] || { label: status, dot: 'bg-zinc-400', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700' }
 }
 
 export default async function ProcurementPage({
@@ -84,7 +93,6 @@ export default async function ProcurementPage({
     return qs ? `/procurement?${qs}` : "/procurement"
   }
 
-  // Enterprise: Parallel data fetching with aggressive caching
   const stats = await getProcurementStats({
     registryQuery: {
       purchaseOrders: {
@@ -106,392 +114,497 @@ export default async function ProcurementPage({
   })
   const { spend, needsApproval, urgentNeeds, vendorHealth, incomingCount, recentActivity, purchaseOrders, purchaseRequests, receiving } = stats
 
+  // Fetch actual pending PO & PR details for inline approval
+  const [pendingPOsRaw, pendingPRsRaw] = await Promise.all([
+    prisma.purchaseOrder.findMany({
+      where: { status: ProcurementStatus.PENDING_APPROVAL },
+      select: {
+        id: true,
+        number: true,
+        totalAmount: true,
+        netAmount: true,
+        supplier: { select: { name: true } },
+        items: { select: { product: { select: { name: true, code: true } }, quantity: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+    prisma.purchaseRequest.findMany({
+      where: { status: PRStatus.PENDING },
+      select: {
+        id: true,
+        number: true,
+        department: true,
+        priority: true,
+        requester: { select: { firstName: true, lastName: true } },
+        items: { select: { product: { select: { name: true, code: true } }, quantity: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    }),
+  ])
+
+  const pendingItemsForApproval = [
+    ...pendingPOsRaw.map((po) => ({
+      id: po.id,
+      type: 'PO' as const,
+      number: po.number || '—',
+      label: po.supplier?.name || 'Unknown',
+      amount: Number(po.netAmount || po.totalAmount) || 0,
+      itemCount: po.items.length,
+      items: po.items.map((i) => ({
+        productName: i.product?.name || 'Unknown',
+        productCode: i.product?.code || '—',
+        quantity: Number(i.quantity) || 0,
+      })),
+    })),
+    ...pendingPRsRaw.map((pr) => ({
+      id: pr.id,
+      type: 'PR' as const,
+      number: pr.number || '—',
+      label: `${pr.requester?.firstName || ''} ${pr.requester?.lastName || ''}`.trim() || 'Unknown',
+      amount: 0,
+      department: pr.department || undefined,
+      priority: pr.priority || undefined,
+      itemCount: pr.items.length,
+      items: pr.items.map((i) => ({
+        productName: i.product?.name || 'Unknown',
+        productCode: i.product?.code || '—',
+        quantity: Number(i.quantity) || 0,
+      })),
+    })),
+  ]
+
+  const poMeta = stats.registryMeta.purchaseOrders
+  const prMeta = stats.registryMeta.purchaseRequests
+  const grnMeta = stats.registryMeta.receiving
+
   return (
     <ProcurementPerformanceProvider currentPath="/procurement">
-      <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
-        <div className="max-w-7xl mx-auto space-y-8 pb-20">
+      <div className="flex-1 p-4 md:p-8 pt-6 max-w-7xl mx-auto space-y-4">
 
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-black text-foreground font-serif tracking-tight uppercase">Pengadaan & Purchasing</h1>
-              <p className="text-muted-foreground mt-1 font-medium">Command Center rantai pasok & manajemen vendor.</p>
+        {/* ── Page Header ─────────────────────────────────────────── */}
+        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+          <div className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-l-[6px] border-l-violet-400">
+            <div className="flex items-center gap-3">
+              <Package className="h-5 w-5 text-violet-500" />
+              <div>
+                <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                  Dashboard Pengadaan
+                </h1>
+                <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                  Command center rantai pasok & manajemen vendor
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Link href="/procurement/requests">
-                <Button variant="outline" className="border-black font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]">
-                  <FileText className="mr-2 h-4 w-4" /> Requests
+                <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-[10px] tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
+                  <FileText className="mr-1.5 h-3.5 w-3.5" /> Requests
                 </Button>
               </Link>
               <Link href="/procurement/vendors">
-                <Button variant="outline" className="border-black font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px]">
-                  <Users className="mr-2 h-4 w-4" /> Vendors
+                <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-[10px] tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
+                  <Users className="mr-1.5 h-3.5 w-3.5" /> Vendors
                 </Button>
               </Link>
               <Link href="/procurement/requests/new">
-                <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide active:translate-y-1 active:shadow-none transition-all">
-                  <Plus className="mr-2 h-4 w-4" /> Buat Request
+                <Button className="bg-violet-500 text-white hover:bg-violet-600 border-2 border-violet-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Request
                 </Button>
               </Link>
             </div>
           </div>
+        </div>
 
-          {/* 1. Smart KPI Cards */}
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* ── KPI Cards ───────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Spend */}
+          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Spend (Bulan)</span>
+                <DollarSign className="h-4 w-4 text-emerald-500" />
+              </div>
+              <div className="text-xl font-black text-zinc-900 dark:text-white">{formatIDR(spend.current)}</div>
+              <div className="flex items-center gap-1 mt-1">
+                {spend.growth > 0 ? (
+                  <ArrowUpRight className="h-3 w-3 text-red-500" />
+                ) : (
+                  <ArrowDownRight className="h-3 w-3 text-emerald-500" />
+                )}
+                <span className={`text-[10px] font-bold ${spend.growth > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
+                  {Math.abs(spend.growth).toFixed(1)}%
+                </span>
+                <span className="text-[10px] text-zinc-400">vs bulan lalu</span>
+              </div>
+            </div>
+          </div>
 
-            {/* KPI: Spend Velocity */}
-            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-black uppercase text-muted-foreground">Spend (Month)</CardTitle>
-                <DollarSign className="h-4 w-4 text-emerald-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-black">{formatIDR(spend.current)}</div>
-                <p className="text-xs font-bold text-muted-foreground mt-1 flex items-center">
-                  {spend.growth > 0 ? (
-                    <ArrowUpRight className="h-3 w-3 text-red-500 mr-1" />
-                  ) : (
-                    <ArrowDownRight className="h-3 w-3 text-emerald-500 mr-1" />
-                  )}
-                  <span className={spend.growth > 0 ? "text-red-500" : "text-emerald-500"}>
-                    {Math.abs(spend.growth).toFixed(1)}%
+          {/* Vendor Health */}
+          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Vendor Health</span>
+                <Activity className="h-4 w-4 text-blue-500" />
+              </div>
+              <div className="text-xl font-black text-zinc-900 dark:text-white flex items-center gap-1.5">
+                {vendorHealth.rating.toFixed(1)} <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+              </div>
+              <span className="text-[10px] text-zinc-400 font-medium mt-1 block">
+                {vendorHealth.onTime.toFixed(0)}% On-Time Delivery
+              </span>
+            </div>
+          </div>
+
+          {/* Urgent Restock */}
+          <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden ${urgentNeeds > 0 ? 'bg-red-50 dark:bg-red-950/20' : 'bg-white dark:bg-zinc-900'}`}>
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Urgent Restock</span>
+                <AlertCircle className={`h-4 w-4 ${urgentNeeds > 0 ? 'text-red-500' : 'text-zinc-400'}`} />
+              </div>
+              <div className={`text-xl font-black ${urgentNeeds > 0 ? 'text-red-600' : 'text-zinc-900 dark:text-white'}`}>
+                {urgentNeeds} Item
+              </div>
+              <span className="text-[10px] text-zinc-400 font-medium mt-1 block">
+                Di bawah stok minimum
+              </span>
+            </div>
+          </div>
+
+          {/* Incoming */}
+          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Incoming</span>
+                <Truck className="h-4 w-4 text-indigo-500" />
+              </div>
+              <div className="text-xl font-black text-zinc-900 dark:text-white">{incomingCount} Order</div>
+              <span className="text-[10px] text-zinc-400 font-medium mt-1 block">
+                Open / partial delivery
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Approval Center ─────────────────────────────────────── */}
+        <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+          <div className="bg-amber-50 dark:bg-amber-950/20 px-5 py-2.5 border-b-2 border-black flex items-center justify-between border-l-[5px] border-l-amber-400">
+            <div className="flex items-center gap-2">
+              <CheckSquare className="h-4 w-4 text-amber-600" />
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                Menunggu Persetujuan
+              </h3>
+              <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+                {needsApproval}
+              </span>
+            </div>
+            <Link href="/procurement/requests">
+              <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-8 px-3 hover:border-zinc-500 transition-colors">
+                Lihat Semua
+              </Button>
+            </Link>
+          </div>
+          <InlineApprovalList pendingItems={pendingItemsForApproval} />
+        </div>
+
+        {/* ── Registry Tables ─────────────────────────────────────── */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+
+          {/* ─── Pesanan Pembelian (PO) ─── */}
+          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
+              <FileText className="h-4 w-4 text-violet-600" />
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                Pesanan Pembelian (PO)
+              </h3>
+            </div>
+
+            {/* Summary chips */}
+            <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1.5">
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-zinc-50 border-zinc-200 text-zinc-700">Draft: {purchaseOrders.summary.draft}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-amber-50 border-amber-200 text-amber-700">Pending: {purchaseOrders.summary.pendingApproval}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-emerald-50 border-emerald-200 text-emerald-700">Approved: {purchaseOrders.summary.approved}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-blue-50 border-blue-200 text-blue-700">Active: {purchaseOrders.summary.inProgress}</span>
+            </div>
+
+            {/* Filter pills */}
+            <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+              {[
+                { label: 'Semua', href: buildHref({ po_status: null, po_page: "1" }) },
+                { label: 'Pending', href: buildHref({ po_status: "PENDING_APPROVAL", po_page: "1" }) },
+                { label: 'Approved', href: buildHref({ po_status: "APPROVED", po_page: "1" }) },
+                { label: 'Ordered', href: buildHref({ po_status: "ORDERED", po_page: "1" }) },
+                { label: 'Received', href: buildHref({ po_status: "RECEIVED", po_page: "1" }) },
+              ].map((f) => (
+                <Link key={f.label} href={f.href}>
+                  <span className="text-[10px] font-bold px-2 py-0.5 border-2 border-zinc-200 hover:border-violet-400 hover:text-violet-700 transition-colors cursor-pointer rounded-sm text-zinc-500">
+                    {f.label}
                   </span>
-                  <span className="ml-1">vs last month</span>
-                </p>
-              </CardContent>
-            </Card>
+                </Link>
+              ))}
+            </div>
 
-            {/* KPI: Vendor Health */}
-            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-black uppercase text-muted-foreground">Vendor Health</CardTitle>
-                <Activity className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-black flex items-center gap-2">
-                  {vendorHealth.rating.toFixed(1)} <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+            {/* PO list */}
+            <div className="border-t border-zinc-200 dark:border-zinc-700">
+              {purchaseOrders.recent.length === 0 ? (
+                <div className="text-center py-10 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                  Tidak ada PO ditemukan
                 </div>
-                <p className="text-xs font-bold text-muted-foreground mt-1 text-black/60">
-                  {vendorHealth.onTime.toFixed(0)}% On-Time Delivery Rate
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* KPI: Urgent Needs */}
-            <Card className={`border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl ${urgentNeeds > 0 ? 'bg-red-50' : 'bg-white'}`}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-black uppercase text-muted-foreground">Urgent Restock</CardTitle>
-                <AlertCircle className={`h-4 w-4 ${urgentNeeds > 0 ? 'text-red-600' : 'text-muted-foreground'}`} />
-              </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-black ${urgentNeeds > 0 ? 'text-red-600' : ''}`}>{urgentNeeds} Items</div>
-                <p className="text-xs font-bold text-muted-foreground mt-1">
-                  Below minimum stock level
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* KPI: Incoming Goods */}
-            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-black uppercase text-muted-foreground">Incoming</CardTitle>
-                <Truck className="h-4 w-4 text-indigo-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-black">{incomingCount} Orders</div>
-                <p className="text-xs font-bold text-muted-foreground mt-1">
-                  Open or Partial delivery
-                </p>
-              </CardContent>
-            </Card>
-          </section>
-
-          {/* 2. Operational Status Cards */}
-          <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl overflow-hidden">
-              <CardHeader className="border-b border-black/10 bg-zinc-50">
-                <CardTitle className="text-base font-black uppercase flex items-center gap-2">
-                  <FileText className="h-4 w-4" /> Pesanan Pembelian (PO)
-                </CardTitle>
-                <CardDescription className="text-xs font-medium">Draft, approval, execution, completed</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                  <div className="rounded border p-2 bg-zinc-50">Draft: {purchaseOrders.summary.draft}</div>
-                  <div className="rounded border p-2 bg-amber-50 text-amber-800">Pending: {purchaseOrders.summary.pendingApproval}</div>
-                  <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Approved: {purchaseOrders.summary.approved}</div>
-                  <div className="rounded border p-2 bg-blue-50 text-blue-800">Active: {purchaseOrders.summary.inProgress}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={buildHref({ po_status: null, po_page: "1" })}><Badge variant="outline" className="cursor-pointer">All</Badge></Link>
-                  <Link href={buildHref({ po_status: "PENDING_APPROVAL", po_page: "1" })}><Badge variant="outline" className="cursor-pointer">Pending</Badge></Link>
-                  <Link href={buildHref({ po_status: "APPROVED", po_page: "1" })}><Badge variant="outline" className="cursor-pointer">Approved</Badge></Link>
-                  <Link href={buildHref({ po_status: "ORDERED", po_page: "1" })}><Badge variant="outline" className="cursor-pointer">Ordered</Badge></Link>
-                  <Link href={buildHref({ po_status: "RECEIVED", po_page: "1" })}><Badge variant="outline" className="cursor-pointer">Received</Badge></Link>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase text-zinc-500">Recent PO</p>
-                  {purchaseOrders.recent.length === 0 ? (
-                    <p className="text-xs text-zinc-400 italic">No PO records.</p>
-                  ) : (
-                    purchaseOrders.recent.map((po: any) => (
-                      <div key={po.id} className="flex justify-between items-start gap-2 border rounded p-2">
-                        <div>
-                          <p className="text-xs font-bold font-mono">{po.number}</p>
-                          <p className="text-[11px] text-zinc-500">{po.supplier}</p>
+              ) : (
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {purchaseOrders.recent.map((po: any, idx: number) => {
+                    const cfg = statusLabel(po.status)
+                    return (
+                      <div key={po.id} className={`px-4 py-2.5 flex items-center justify-between gap-2 ${idx % 2 === 0 ? '' : 'bg-zinc-50/50 dark:bg-zinc-800/10'}`}>
+                        <div className="min-w-0">
+                          <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">{po.number}</span>
+                          <span className="block text-[11px] text-zinc-400 truncate">{po.supplier}</span>
                         </div>
-                        <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(po.status)}`}>{po.status}</Badge>
+                        <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          {cfg.label}
+                        </span>
                       </div>
-                    ))
-                  )}
+                    )
+                  })}
                 </div>
-                <div className="flex items-center justify-between text-xs text-zinc-500">
-                  <span>Page {stats.registryMeta.purchaseOrders.page} / {stats.registryMeta.purchaseOrders.totalPages}</span>
-                  <span>Total {stats.registryMeta.purchaseOrders.total}</span>
-                </div>
-                <div className="flex gap-2">
-                  <Link href={buildHref({ po_page: String(Math.max(1, stats.registryMeta.purchaseOrders.page - 1)) })} className={stats.registryMeta.purchaseOrders.page <= 1 ? "pointer-events-none opacity-40" : ""}>
-                    <Button size="sm" variant="outline">Prev</Button>
-                  </Link>
-                  <Link href={buildHref({ po_page: String(Math.min(stats.registryMeta.purchaseOrders.totalPages, stats.registryMeta.purchaseOrders.page + 1)) })} className={stats.registryMeta.purchaseOrders.page >= stats.registryMeta.purchaseOrders.totalPages ? "pointer-events-none opacity-40" : ""}>
-                    <Button size="sm" variant="outline">Next</Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
 
-            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl overflow-hidden">
-              <CardHeader className="border-b border-black/10 bg-zinc-50">
-                <CardTitle className="text-base font-black uppercase flex items-center gap-2">
-                  <CheckSquare className="h-4 w-4" /> Permintaan Pembelian (PR)
-                </CardTitle>
-                <CardDescription className="text-xs font-medium">Purchase requests & approval pipeline</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                  <div className="rounded border p-2 bg-zinc-50">Draft: {purchaseRequests.summary.draft}</div>
-                  <div className="rounded border p-2 bg-amber-50 text-amber-800">Pending: {purchaseRequests.summary.pending}</div>
-                  <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Approved: {purchaseRequests.summary.approved}</div>
-                  <div className="rounded border p-2 bg-blue-50 text-blue-800">PO Created: {purchaseRequests.summary.poCreated}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={buildHref({ pr_status: null, pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">All</Badge></Link>
-                  <Link href={buildHref({ pr_status: "PENDING", pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">Pending</Badge></Link>
-                  <Link href={buildHref({ pr_status: "APPROVED", pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">Approved</Badge></Link>
-                  <Link href={buildHref({ pr_status: "PO_CREATED", pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">PO Created</Badge></Link>
-                  <Link href={buildHref({ pr_status: "DRAFT", pr_page: "1" })}><Badge variant="outline" className="cursor-pointer">Draft</Badge></Link>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase text-zinc-500">Recent PR</p>
-                  {purchaseRequests.recent.length === 0 ? (
-                    <p className="text-xs text-zinc-400 italic">No PR records.</p>
-                  ) : (
-                    purchaseRequests.recent.map((pr: any) => (
-                      <div key={pr.id} className="flex justify-between items-start gap-2 border rounded p-2">
-                        <div>
-                          <p className="text-xs font-bold font-mono">{pr.number}</p>
-                          <p className="text-[11px] text-zinc-500">{pr.requester}</p>
-                        </div>
-                        <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(pr.status)}`}>{pr.status}</Badge>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-xs text-zinc-500">
-                  <span>Page {stats.registryMeta.purchaseRequests.page} / {stats.registryMeta.purchaseRequests.totalPages}</span>
-                  <span>Total {stats.registryMeta.purchaseRequests.total}</span>
-                </div>
-                <div className="flex gap-2">
-                  <Link href={buildHref({ pr_page: String(Math.max(1, stats.registryMeta.purchaseRequests.page - 1)) })} className={stats.registryMeta.purchaseRequests.page <= 1 ? "pointer-events-none opacity-40" : ""}>
-                    <Button size="sm" variant="outline">Prev</Button>
+            {/* Pagination */}
+            <div className="px-4 py-2.5 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                {poMeta.total} total
+              </span>
+              {poMeta.totalPages > 1 ? (
+                <div className="flex items-center gap-1.5">
+                  <Link href={buildHref({ po_page: String(Math.max(1, poMeta.page - 1)) })} className={poMeta.page <= 1 ? "pointer-events-none opacity-40" : ""}>
+                    <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
                   </Link>
-                  <Link href={buildHref({ pr_page: String(Math.min(stats.registryMeta.purchaseRequests.totalPages, stats.registryMeta.purchaseRequests.page + 1)) })} className={stats.registryMeta.purchaseRequests.page >= stats.registryMeta.purchaseRequests.totalPages ? "pointer-events-none opacity-40" : ""}>
-                    <Button size="sm" variant="outline">Next</Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl overflow-hidden">
-              <CardHeader className="border-b border-black/10 bg-zinc-50">
-                <CardTitle className="text-base font-black uppercase flex items-center gap-2">
-                  <Truck className="h-4 w-4" /> Penerimaan (Receiving)
-                </CardTitle>
-                <CardDescription className="text-xs font-medium">Status GRN & goods receipt validation</CardDescription>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-                  <div className="rounded border p-2 bg-zinc-50">Draft: {receiving.summary.draft}</div>
-                  <div className="rounded border p-2 bg-amber-50 text-amber-800">Inspecting: {receiving.summary.inspecting}</div>
-                  <div className="rounded border p-2 bg-blue-50 text-blue-800">Partial: {receiving.summary.partialAccepted}</div>
-                  <div className="rounded border p-2 bg-emerald-50 text-emerald-800">Accepted: {receiving.summary.accepted}</div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Link href={buildHref({ grn_status: null, grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">All</Badge></Link>
-                  <Link href={buildHref({ grn_status: "DRAFT", grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">Draft</Badge></Link>
-                  <Link href={buildHref({ grn_status: "INSPECTING", grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">Inspecting</Badge></Link>
-                  <Link href={buildHref({ grn_status: "PARTIAL_ACCEPTED", grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">Partial</Badge></Link>
-                  <Link href={buildHref({ grn_status: "ACCEPTED", grn_page: "1" })}><Badge variant="outline" className="cursor-pointer">Accepted</Badge></Link>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black uppercase text-zinc-500">Recent Receiving</p>
-                  {receiving.recent.length === 0 ? (
-                    <p className="text-xs text-zinc-400 italic">No receiving records.</p>
-                  ) : (
-                    receiving.recent.map((grn: any) => (
-                      <div key={grn.id} className="flex justify-between items-start gap-2 border rounded p-2">
-                        <div>
-                          <p className="text-xs font-bold font-mono">{grn.number}</p>
-                          <p className="text-[11px] text-zinc-500">{grn.poNumber} • {grn.warehouse}</p>
-                        </div>
-                        <Badge variant="outline" className={`text-[10px] ${statusBadgeClass(grn.status)}`}>{grn.status}</Badge>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div className="flex items-center justify-between text-xs text-zinc-500">
-                  <span>Page {stats.registryMeta.receiving.page} / {stats.registryMeta.receiving.totalPages}</span>
-                  <span>Total {stats.registryMeta.receiving.total}</span>
-                </div>
-                <div className="flex gap-2">
-                  <Link href={buildHref({ grn_page: String(Math.max(1, stats.registryMeta.receiving.page - 1)) })} className={stats.registryMeta.receiving.page <= 1 ? "pointer-events-none opacity-40" : ""}>
-                    <Button size="sm" variant="outline">Prev</Button>
-                  </Link>
-                  <Link href={buildHref({ grn_page: String(Math.min(stats.registryMeta.receiving.totalPages, stats.registryMeta.receiving.page + 1)) })} className={stats.registryMeta.receiving.page >= stats.registryMeta.receiving.totalPages ? "pointer-events-none opacity-40" : ""}>
-                    <Button size="sm" variant="outline">Next</Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          {/* 2. Action Center */}
-          <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
-
-            {/* Needs Approval (Managers) */}
-            <Card className="md:col-span-2 border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl overflow-hidden">
-              <CardHeader className="bg-amber-50 border-b border-black/10 pb-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 bg-amber-100 text-amber-700 rounded-lg flex items-center justify-center border border-amber-200">
-                        <CheckSquare className="h-5 w-5" />
-                      </div>
-                      <CardTitle className="uppercase font-black text-lg">Needs Approval</CardTitle>
-                    </div>
-                    <CardDescription className="text-xs font-bold uppercase tracking-wide text-amber-700/80 pl-10">
-                      {needsApproval} Requests Waiting
-                    </CardDescription>
-                  </div>
-                  <Link href="/procurement/requests">
-                    <Button size="sm" className="bg-black text-white text-xs font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
-                      Review All
+                  <span className="text-[10px] font-black min-w-[40px] text-center">{poMeta.page}/{poMeta.totalPages}</span>
+                  <Link href={buildHref({ po_page: String(Math.min(poMeta.totalPages, poMeta.page + 1)) })} className={poMeta.page >= poMeta.totalPages ? "pointer-events-none opacity-40" : ""}>
+                    <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
+                      <ChevronRight className="h-3 w-3" />
                     </Button>
                   </Link>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {/* Mini List Preview - We could fetch this real-time or just link out. 
-                                 For now, let's keep it simple with empty state or static visual if 0
-                             */}
-                {needsApproval > 0 ? (
-                  <div className="p-8 text-center bg-zinc-50/50">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      You have <span className="font-bold text-black">{needsApproval} pending requests</span> requiring your attention.
-                    </p>
-                    <Link href="/procurement/requests" className="mt-4 inline-block text-xs font-bold uppercase underline underline-offset-4 decoration-2 decoration-amber-400 hover:decoration-amber-600">
-                      Go to Approval Queue &rarr;
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="p-8 text-center text-muted-foreground text-sm flex flex-col items-center gap-2">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-500/50" />
-                    <p>All caught up! No pending approvals.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+              ) : (
+                <div />
+              )}
+            </div>
+          </div>
 
-            {/* Quick Shortcuts */}
-            <div className="space-y-6">
-              <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
-                <CardHeader>
-                  <CardTitle className="uppercase font-black flex items-center gap-2 text-sm">
-                    <Clock className="h-4 w-4" /> Recent Activity
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-0 p-0">
-                  {recentActivity.length > 0 ? (
-                    <div className="divide-y divide-dashed divide-zinc-200">
-                      {recentActivity.map((po) => (
-                        <div key={po.id} className="p-3 text-sm flex justify-between items-center hover:bg-zinc-50 transition-colors">
-                          <div>
-                            <span className="font-bold block">{po.supplier.name}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase">{new Date(po.createdAt).toLocaleDateString()}</span>
-                          </div>
-                          <Badge variant="outline" className="text-[10px] h-5">{po.status}</Badge>
+          {/* ─── Permintaan Pembelian (PR) ─── */}
+          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
+              <CheckSquare className="h-4 w-4 text-violet-600" />
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                Permintaan Pembelian (PR)
+              </h3>
+            </div>
+
+            {/* Summary chips */}
+            <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1.5">
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-zinc-50 border-zinc-200 text-zinc-700">Draft: {purchaseRequests.summary.draft}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-amber-50 border-amber-200 text-amber-700">Pending: {purchaseRequests.summary.pending}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-emerald-50 border-emerald-200 text-emerald-700">Approved: {purchaseRequests.summary.approved}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-blue-50 border-blue-200 text-blue-700">PO Created: {purchaseRequests.summary.poCreated}</span>
+            </div>
+
+            {/* Filter pills */}
+            <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+              {[
+                { label: 'Semua', href: buildHref({ pr_status: null, pr_page: "1" }) },
+                { label: 'Pending', href: buildHref({ pr_status: "PENDING", pr_page: "1" }) },
+                { label: 'Approved', href: buildHref({ pr_status: "APPROVED", pr_page: "1" }) },
+                { label: 'PO Created', href: buildHref({ pr_status: "PO_CREATED", pr_page: "1" }) },
+                { label: 'Draft', href: buildHref({ pr_status: "DRAFT", pr_page: "1" }) },
+              ].map((f) => (
+                <Link key={f.label} href={f.href}>
+                  <span className="text-[10px] font-bold px-2 py-0.5 border-2 border-zinc-200 hover:border-violet-400 hover:text-violet-700 transition-colors cursor-pointer rounded-sm text-zinc-500">
+                    {f.label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+
+            {/* PR list */}
+            <div className="border-t border-zinc-200 dark:border-zinc-700">
+              {purchaseRequests.recent.length === 0 ? (
+                <div className="text-center py-10 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                  Tidak ada PR ditemukan
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {purchaseRequests.recent.map((pr: any, idx: number) => {
+                    const cfg = statusLabel(pr.status)
+                    return (
+                      <div key={pr.id} className={`px-4 py-2.5 flex items-center justify-between gap-2 ${idx % 2 === 0 ? '' : 'bg-zinc-50/50 dark:bg-zinc-800/10'}`}>
+                        <div className="min-w-0">
+                          <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">{pr.number}</span>
+                          <span className="block text-[11px] text-zinc-400 truncate">{pr.requester}</span>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-xs text-muted-foreground">No recent activity.</div>
-                  )}
-                </CardContent>
-              </Card>
+                        <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          {cfg.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
 
-              {/* Simple Links */}
-              <div className="grid grid-cols-2 gap-3">
-                <Link href="/procurement/vendors" className="block p-3 border border-black shadow-sm bg-white hover:bg-zinc-50 rounded-lg text-center transition-all active:translate-y-1">
-                  <Users className="h-5 w-5 mx-auto mb-1 text-black" />
-                  <span className="text-[10px] font-bold uppercase">Vendors</span>
+            {/* Pagination */}
+            <div className="px-4 py-2.5 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                {prMeta.total} total
+              </span>
+              {prMeta.totalPages > 1 ? (
+                <div className="flex items-center gap-1.5">
+                  <Link href={buildHref({ pr_page: String(Math.max(1, prMeta.page - 1)) })} className={prMeta.page <= 1 ? "pointer-events-none opacity-40" : ""}>
+                    <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
+                  </Link>
+                  <span className="text-[10px] font-black min-w-[40px] text-center">{prMeta.page}/{prMeta.totalPages}</span>
+                  <Link href={buildHref({ pr_page: String(Math.min(prMeta.totalPages, prMeta.page + 1)) })} className={prMeta.page >= prMeta.totalPages ? "pointer-events-none opacity-40" : ""}>
+                    <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div />
+              )}
+            </div>
+          </div>
+
+          {/* ─── Penerimaan (GRN) ─── */}
+          <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+            <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
+              <Truck className="h-4 w-4 text-violet-600" />
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                Penerimaan (Receiving)
+              </h3>
+            </div>
+
+            {/* Summary chips */}
+            <div className="px-4 pt-3 pb-2 flex flex-wrap gap-1.5">
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-zinc-50 border-zinc-200 text-zinc-700">Draft: {receiving.summary.draft}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-amber-50 border-amber-200 text-amber-700">Inspecting: {receiving.summary.inspecting}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-blue-50 border-blue-200 text-blue-700">Partial: {receiving.summary.partialAccepted}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-emerald-50 border-emerald-200 text-emerald-700">Accepted: {receiving.summary.accepted}</span>
+            </div>
+
+            {/* Filter pills */}
+            <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+              {[
+                { label: 'Semua', href: buildHref({ grn_status: null, grn_page: "1" }) },
+                { label: 'Draft', href: buildHref({ grn_status: "DRAFT", grn_page: "1" }) },
+                { label: 'Inspecting', href: buildHref({ grn_status: "INSPECTING", grn_page: "1" }) },
+                { label: 'Partial', href: buildHref({ grn_status: "PARTIAL_ACCEPTED", grn_page: "1" }) },
+                { label: 'Accepted', href: buildHref({ grn_status: "ACCEPTED", grn_page: "1" }) },
+              ].map((f) => (
+                <Link key={f.label} href={f.href}>
+                  <span className="text-[10px] font-bold px-2 py-0.5 border-2 border-zinc-200 hover:border-violet-400 hover:text-violet-700 transition-colors cursor-pointer rounded-sm text-zinc-500">
+                    {f.label}
+                  </span>
                 </Link>
-                <Link href="/inventory" className="block p-3 border border-black shadow-sm bg-white hover:bg-zinc-50 rounded-lg text-center transition-all active:translate-y-1">
-                  <Package className="h-5 w-5 mx-auto mb-1 text-black" />
-                  <span className="text-[10px] font-bold uppercase">Stock</span>
-                </Link>
-              </div>
+              ))}
             </div>
 
-          </section>
-
-          {/* 3. Strategic View (Placeholder for Charts) */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="h-5 w-5" />
-              <h3 className="text-lg font-black uppercase">Strategic Insights</h3>
+            {/* GRN list */}
+            <div className="border-t border-zinc-200 dark:border-zinc-700">
+              {receiving.recent.length === 0 ? (
+                <div className="text-center py-10 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                  Tidak ada GRN ditemukan
+                </div>
+              ) : (
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {receiving.recent.map((grn: any, idx: number) => {
+                    const cfg = statusLabel(grn.status)
+                    return (
+                      <div key={grn.id} className={`px-4 py-2.5 flex items-center justify-between gap-2 ${idx % 2 === 0 ? '' : 'bg-zinc-50/50 dark:bg-zinc-800/10'}`}>
+                        <div className="min-w-0">
+                          <span className="font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">{grn.number}</span>
+                          <span className="block text-[11px] text-zinc-400 truncate">{grn.poNumber} &bull; {grn.warehouse}</span>
+                        </div>
+                        <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          {cfg.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="h-64 border border-dashed border-black/20 rounded-xl bg-black/5 flex items-center justify-center text-muted-foreground font-medium text-sm">
-                Top Suppliers Chart (Coming Soon)
-              </div>
-              <div className="h-64 border border-dashed border-black/20 rounded-xl bg-black/5 flex items-center justify-center text-muted-foreground font-medium text-sm">
-                Spend by Category Chart (Coming Soon)
-              </div>
-            </div>
-          </section>
 
+            {/* Pagination */}
+            <div className="px-4 py-2.5 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                {grnMeta.total} total
+              </span>
+              {grnMeta.totalPages > 1 ? (
+                <div className="flex items-center gap-1.5">
+                  <Link href={buildHref({ grn_page: String(Math.max(1, grnMeta.page - 1)) })} className={grnMeta.page <= 1 ? "pointer-events-none opacity-40" : ""}>
+                    <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
+                      <ChevronLeft className="h-3 w-3" />
+                    </Button>
+                  </Link>
+                  <span className="text-[10px] font-black min-w-[40px] text-center">{grnMeta.page}/{grnMeta.totalPages}</span>
+                  <Link href={buildHref({ grn_page: String(Math.min(grnMeta.totalPages, grnMeta.page + 1)) })} className={grnMeta.page >= grnMeta.totalPages ? "pointer-events-none opacity-40" : ""}>
+                    <Button variant="outline" size="icon" className="h-7 w-7 border-2 border-black">
+                      <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div />
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* ── Recent Activity ─────────────────────────────────────── */}
+        <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+          <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
+            <Clock className="h-4 w-4 text-violet-600" />
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+              Aktivitas Terbaru
+            </h3>
+          </div>
+          {recentActivity.length > 0 ? (
+            <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {recentActivity.map((po: any) => {
+                const cfg = statusLabel(po.status)
+                return (
+                  <div key={po.id} className="px-5 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 block">{po.supplier.name}</span>
+                      <span className="text-[10px] text-zinc-400">{new Date(po.createdAt).toLocaleDateString('id-ID')}</span>
+                    </div>
+                    <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                      {cfg.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-10 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+              Belum ada aktivitas
+            </div>
+          )}
+        </div>
+
       </div>
     </ProcurementPerformanceProvider>
-  )
-}
-
-function CheckCircle2({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-    >
-      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" />
-      <path d="m9 12 2 2 4-4" />
-    </svg>
   )
 }
