@@ -39,19 +39,20 @@ import {
   ChevronDown,
   MoreHorizontal,
   Eye,
-  Edit,
   Trash2
 } from "lucide-react"
 import Link from "next/link"
 import { StockStatusBadge, CurrencyDisplay } from "@/components/inventory"
 import { formatNumber, getStockStatus } from "@/lib/inventory-utils"
 import { type ProductWithRelations } from "@/lib/types"
+import { ProductQuickView } from "@/components/inventory/product-quick-view"
 
 // Add current stock to products (would come from stock levels in real app)
 // Also override Decimal types to number for client usage
-export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'sellingPrice'> & {
+export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'sellingPrice' | 'manualBurnRate'> & {
   costPrice: number
   sellingPrice: number
+  manualBurnRate: number
   currentStock: number
 }
 
@@ -231,61 +232,69 @@ export const columns: ColumnDef<ProductWithStock>[] = [
       )
     },
   },
-  {
-    id: "actions",
-    header: "Aksi",
-    cell: ({ row }) => {
-      const product = row.original
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Buka menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href={`/inventory/products/${product.id}`}>
-                <Eye className="mr-2 h-4 w-4" />
-                Lihat Detail
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/inventory/products/${product.id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Hapus
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
-  },
+  // Actions column is defined dynamically in the component below
 ]
+
+function createActionsColumn(onQuickView: (id: string) => void): ColumnDef<ProductWithStock> {
+    return {
+        id: "actions",
+        header: "Aksi",
+        cell: ({ row }) => {
+            const product = row.original
+            return (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onQuickView(product.id)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Lihat Detail & Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600" onClick={() => onQuickView(product.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Hapus
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )
+        },
+    }
+}
 
 interface ProductDataTableProps {
   data: ProductWithStock[]
+  categories?: { id: string; name: string; code: string }[]
 }
 
-export function ProductDataTable({ data }: ProductDataTableProps) {
+export function ProductDataTable({ data, categories = [] }: ProductDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [globalFilter, setGlobalFilter] = React.useState("")
+  const [quickViewId, setQuickViewId] = React.useState<string | null>(null)
+  const [quickViewOpen, setQuickViewOpen] = React.useState(false)
+
+  const handleQuickView = React.useCallback((id: string) => {
+    setQuickViewId(id)
+    setQuickViewOpen(true)
+  }, [])
+
+  const allColumns = React.useMemo(
+    () => [...columns, createActionsColumn(handleQuickView)],
+    [handleQuickView]
+  )
 
   const table = useReactTable({
     data,
-    columns,
+    columns: allColumns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -470,6 +479,13 @@ export function ProductDataTable({ data }: ProductDataTableProps) {
           </Button>
         </div>
       </div>
+
+      <ProductQuickView
+        productId={quickViewId}
+        open={quickViewOpen}
+        onOpenChange={setQuickViewOpen}
+        categories={categories}
+      />
     </div>
   )
 }

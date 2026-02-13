@@ -25,9 +25,10 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { AlertCircle, CheckCircle2, Package, Calculator, Truck } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Package, Calculator, Truck, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { ProductQuickView } from '@/components/inventory/product-quick-view'
 
 interface Product {
     id: string
@@ -49,9 +50,10 @@ interface KanbanColumnProps {
     products: Product[]
     color: string
     onDrop: (productId: string, newStatus: string) => void
+    onCardClick: (productId: string) => void
 }
 
-function KanbanColumn({ title, status, products, color, onDrop }: KanbanColumnProps) {
+function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: KanbanColumnProps) {
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault()
     }
@@ -104,8 +106,9 @@ function KanbanColumn({ title, status, products, color, onDrop }: KanbanColumnPr
                             key={product.id}
                             draggable
                             onDragStart={(e) => e.dataTransfer.setData('productId', product.id)}
+                            onClick={() => onCardClick(product.id)}
                             className={cn(
-                                "p-4 bg-white rounded-lg border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-grab active:cursor-grabbing h-full relative group",
+                                "p-4 bg-white rounded-lg border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer active:cursor-grabbing h-full relative group hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all",
                                 product.manualAlert && "border-red-600 shadow-red-900/20"
                             )}
                         >
@@ -145,6 +148,13 @@ function KanbanColumn({ title, status, products, color, onDrop }: KanbanColumnPr
                                     </div>
                                 )}
                             </div>
+
+                            {/* Click hint */}
+                            <div className="mt-2 pt-2 border-t border-dashed border-zinc-200 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 flex items-center justify-center gap-1">
+                                    <Eye className="h-2.5 w-2.5" /> Klik untuk lihat detail
+                                </span>
+                            </div>
                         </div>
                     ))}
                     {products.length === 0 && (
@@ -162,15 +172,18 @@ function KanbanColumn({ title, status, products, color, onDrop }: KanbanColumnPr
 interface InventoryKanbanProps {
     products: Product[]
     warehouses: { id: string, name: string }[]
+    categories?: { id: string; name: string; code: string }[]
 }
 
-export function InventoryKanbanBoard({ products: initialProducts, warehouses }: InventoryKanbanProps) {
+export function InventoryKanbanBoard({ products: initialProducts, warehouses, categories = [] }: InventoryKanbanProps) {
     const [products, setProducts] = useState(initialProducts)
     const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, productId: string | null, toStatus: string | null }>({
         isOpen: false,
         productId: null,
         toStatus: null
     })
+    const [quickViewId, setQuickViewId] = useState<string | null>(null)
+    const [quickViewOpen, setQuickViewOpen] = useState(false)
 
     // PR Form State
     const [prForm, setPrForm] = useState({
@@ -315,6 +328,11 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
     const tax = estimatedCost * 0.11
     const totalWithTax = estimatedCost + tax
 
+    const handleCardClick = (productId: string) => {
+        setQuickViewId(productId)
+        setQuickViewOpen(true)
+    }
+
     return (
         <div className="h-[calc(100vh-220px)] flex gap-6 overflow-x-auto pb-4">
             <KanbanColumn
@@ -323,6 +341,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
                 products={products.filter(p => !p.manualAlert && p.status === 'NEW')}
                 color="bg-blue-50"
                 onDrop={handleDrop}
+                onCardClick={handleCardClick}
             />
             <KanbanColumn
                 title="Healthy Stock"
@@ -330,6 +349,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
                 products={products.filter(p => !p.manualAlert && p.status === 'HEALTHY')}
                 color="bg-emerald-50"
                 onDrop={handleDrop}
+                onCardClick={handleCardClick}
             />
             <KanbanColumn
                 title="Low Stock"
@@ -337,6 +357,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
                 products={products.filter(p => !p.manualAlert && p.status === 'LOW_STOCK')}
                 color="bg-amber-50"
                 onDrop={handleDrop}
+                onCardClick={handleCardClick}
             />
             <KanbanColumn
                 title="Critical / Alert"
@@ -344,6 +365,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
                 products={products.filter(p => p.manualAlert || p.status === 'CRITICAL')}
                 color="bg-red-50"
                 onDrop={handleDrop}
+                onCardClick={handleCardClick}
             />
 
             {/* CONFIRMATION / PR DIALOG */}
@@ -453,6 +475,14 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses }: 
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* PRODUCT QUICK VIEW */}
+            <ProductQuickView
+                productId={quickViewId}
+                open={quickViewOpen}
+                onOpenChange={setQuickViewOpen}
+                categories={categories}
+            />
         </div>
     )
 }

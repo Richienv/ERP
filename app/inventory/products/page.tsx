@@ -42,12 +42,12 @@ export default async function InventoryProductsPage() {
           </TabsList>
 
           <TabsContent value="kanban" className="mt-0">
-            <InventoryKanbanBoard products={products} warehouses={warehouses} />
+            <InventoryKanbanBoard products={products} warehouses={warehouses} categories={categories} />
           </TabsContent>
 
           <TabsContent value="list" className="mt-0">
             <div className="bg-white rounded-lg border p-4">
-              <ProductDataTable data={products} />
+              <ProductDataTable data={products} categories={categories} />
             </div>
           </TabsContent>
         </Tabs>

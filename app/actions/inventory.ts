@@ -1270,12 +1270,160 @@ export async function createProduct(input: CreateProductInput) {
     } catch (error) {
         console.error("Failed to create product:", error)
         if (error instanceof z.ZodError) {
-            return { success: false, error: (error as z.ZodError).errors[0].message }
+            return { success: false, error: error.issues[0].message }
         }
         // Prisma Unique Constraint Error
         if ((error as any).code === 'P2002') {
             return { success: false, error: "A product with this code already exists." }
         }
         return { success: false, error: "Failed to create product. Please try again." }
+    }
+}
+
+// ===============================================================================
+// PRODUCT MOVEMENTS (per product), UPDATE, DELETE
+// ===============================================================================
+
+/** Get stock movement history for a specific product */
+export async function getProductMovements(productId: string) {
+    try {
+        const movements = await prisma.inventoryTransaction.findMany({
+            where: { productId },
+            take: 50,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                warehouse: { select: { id: true, name: true } },
+                purchaseOrder: { select: { number: true, supplier: { select: { name: true } } } },
+                salesOrder: { select: { number: true, customer: { select: { name: true } } } },
+                workOrder: { select: { number: true } },
+            }
+        })
+
+        return movements.map(mv => ({
+            id: mv.id,
+            type: mv.type as string,
+            date: mv.createdAt.toISOString(),
+            qty: mv.quantity,
+            warehouseId: mv.warehouse.id,
+            warehouseName: mv.warehouse.name,
+            referenceId: mv.referenceId || undefined,
+            reference: mv.purchaseOrder?.number || mv.salesOrder?.number || mv.workOrder?.number || mv.referenceId || undefined,
+            entity: mv.purchaseOrder?.supplier.name || mv.salesOrder?.customer.name || undefined,
+            notes: mv.notes || undefined,
+            performedBy: mv.performedBy || 'System',
+        }))
+    } catch (error) {
+        console.error("Failed to fetch product movements:", error)
+        return []
+    }
+}
+
+/** Get full product detail by ID */
+export async function getProductById(productId: string) {
+    try {
+        const product = await prisma.product.findUnique({
+            where: { id: productId },
+            include: {
+                category: { select: { id: true, name: true, code: true } },
+                stockLevels: {
+                    include: { warehouse: { select: { id: true, name: true } } }
+                },
+            }
+        })
+        if (!product) return null
+
+        return {
+            id: product.id,
+            code: product.code,
+            name: product.name,
+            description: product.description,
+            unit: product.unit,
+            categoryId: product.categoryId,
+            categoryName: product.category?.name || null,
+            costPrice: product.costPrice?.toNumber() || 0,
+            sellingPrice: product.sellingPrice?.toNumber() || 0,
+            minStock: product.minStock,
+            maxStock: product.maxStock,
+            reorderLevel: product.reorderLevel,
+            barcode: product.barcode,
+            isActive: product.isActive,
+            manualAlert: product.manualAlert,
+            stockLevels: product.stockLevels.map(sl => ({
+                warehouseId: sl.warehouse.id,
+                warehouseName: sl.warehouse.name,
+                quantity: sl.quantity,
+            })),
+            totalStock: product.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0),
+        }
+    } catch (error) {
+        console.error("Failed to fetch product by ID:", error)
+        return null
+    }
+}
+
+/** Update an existing product */
+export async function updateProduct(productId: string, data: {
+    name?: string
+    description?: string
+    categoryId?: string
+    unit?: string
+    costPrice?: number
+    sellingPrice?: number
+    minStock?: number
+    maxStock?: number
+    reorderLevel?: number
+    barcode?: string
+}) {
+    try {
+        const updateData: any = {}
+        if (data.name !== undefined) updateData.name = data.name
+        if (data.description !== undefined) updateData.description = data.description
+        if (data.categoryId !== undefined) updateData.categoryId = data.categoryId || null
+        if (data.unit !== undefined) updateData.unit = data.unit
+        if (data.costPrice !== undefined) updateData.costPrice = data.costPrice
+        if (data.sellingPrice !== undefined) updateData.sellingPrice = data.sellingPrice
+        if (data.minStock !== undefined) updateData.minStock = data.minStock
+        if (data.maxStock !== undefined) updateData.maxStock = data.maxStock
+        if (data.reorderLevel !== undefined) updateData.reorderLevel = data.reorderLevel
+        if (data.barcode !== undefined) updateData.barcode = data.barcode || null
+
+        await prisma.product.update({
+            where: { id: productId },
+            data: updateData,
+        })
+
+        revalidateTagSafe('inventory')
+        revalidatePath('/inventory/products')
+        return { success: true }
+    } catch (error) {
+        console.error("Failed to update product:", error)
+        return { success: false, error: "Gagal memperbarui produk" }
+    }
+}
+
+/** Soft-delete a product (set isActive = false) */
+export async function deleteProduct(productId: string) {
+    try {
+        // Check if product has stock
+        const stockLevels = await prisma.stockLevel.findMany({
+            where: { productId },
+            select: { quantity: true }
+        })
+        const totalStock = stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        if (totalStock > 0) {
+            return { success: false, error: "Tidak dapat menghapus produk yang masih memiliki stok" }
+        }
+
+        await prisma.product.update({
+            where: { id: productId },
+            data: { isActive: false },
+        })
+
+        revalidateTagSafe('inventory')
+        revalidatePath('/inventory/products')
+        return { success: true }
+    } catch (error) {
+        console.error("Failed to delete product:", error)
+        return { success: false, error: "Gagal menghapus produk" }
     }
 }
