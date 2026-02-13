@@ -100,14 +100,15 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                 .order('dueDate', { ascending: true })
                 .limit(3),
 
-            // 5. Cash Balance
+            // 5. Cash Balance — query ALL cash/bank ASSET accounts (codes starting with 1)
+            // Previously hardcoded ['1000','1010','1020'] which may not exist in DB
             supabase.from('gl_accounts')
-                .select('balance')
+                .select('balance, code')
                 .eq('type', 'ASSET')
-                .in('code', ['1000', '1010', '1020']),
+                .like('code', '1%'),
 
             // 6. Burn Rate (Expenses last 30 days)
-            // Need join with journal_entries to filter by date
+            // Try journal lines for EXPENSE accounts first; fallback to INV_IN invoices
             expenseAccountIds.length > 0 ? supabase.from('journal_lines')
                 .select('debit, journal_entries!inner(date)')
                 .in('accountId', expenseAccountIds)
@@ -135,8 +136,11 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         const payables = calculateSum(apResult.data || [], 'balanceDue')
         const cashBal = calculateSum(cashResult.data || [], 'balance')
 
-        // Burn Rate
-        const burnTotal = (burnResult as any).data?.reduce((sum: number, item: any) => sum + (Number(item.debit) || 0), 0) || 0
+        // Burn Rate — try journal-based first, fallback to expense invoices (INV_IN) last 30 days
+        const burnFromJournals = (burnResult as any).data?.reduce((sum: number, item: any) => sum + (Number(item.debit) || 0), 0) || 0
+        // If no journal-based burn, compute from expense invoices (INV_IN)
+        const burnFromInvoices = calculateSum(expenseResult.data || [], 'totalAmount')
+        const burnTotal = burnFromJournals > 0 ? burnFromJournals : burnFromInvoices
         const burnRate = burnTotal / 30
 
         const revVal = calculateSum(revenueResult.data || [], 'totalAmount')

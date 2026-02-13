@@ -36,9 +36,9 @@ export async function OperationsWrapper({ data, salesStats, slot }: OperationsWr
         const activities = (data.activityFeed ?? []).map((a: any, i: number) => ({
             id: a.id ?? `activity-${i}`,
             type: a.type ?? "general",
-            title: a.title ?? "",
+            title: a.title ?? a.message ?? "",
             description: a.description ?? a.message ?? "",
-            timestamp: a.timestamp ?? a.createdAt ?? new Date().toISOString(),
+            timestamp: a.timestamp ?? a.time ?? a.createdAt ?? new Date().toISOString(),
         }))
 
         return <CompactActivityFeed activities={activities} />

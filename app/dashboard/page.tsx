@@ -92,7 +92,7 @@ const FALLBACK_DASHBOARD = {
     prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
     prodStatus: [],
     materialStatus: [],
-    qualityStatus: { passRate: 0, recentInspections: [] },
+    qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
     workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
     activityFeed: [],
     executiveAlerts: [],

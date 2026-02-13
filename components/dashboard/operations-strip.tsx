@@ -73,18 +73,24 @@ export function OperationsStrip({
         },
         {
             label: "SDM",
-            value: `${attendanceRate.toFixed(0)}%`,
-            detail: `${totalStaff} staf`,
+            value: totalStaff > 0
+                ? (attendanceRate > 0 ? `${attendanceRate.toFixed(0)}%` : `${totalStaff}`)
+                : "—",
+            detail: totalStaff > 0
+                ? (attendanceRate > 0 ? `${totalStaff} staf` : "total staf")
+                : "belum ada data",
             icon: <Users className="h-4 w-4" />,
-            health: attendanceRate >= 90 ? "good" : attendanceRate >= 70 ? "warning" : "critical",
+            health: totalStaff === 0 ? "warning" :
+                attendanceRate >= 90 ? "good" : attendanceRate >= 70 ? "warning" : "critical",
             href: "/hcm"
         },
         {
             label: "Kualitas",
-            value: `${qualityPassRate.toFixed(1)}%`,
-            detail: "pass rate",
+            value: qualityPassRate < 0 ? "—" : `${qualityPassRate.toFixed(1)}%`,
+            detail: qualityPassRate < 0 ? "belum ada inspeksi" : "pass rate",
             icon: <Shield className="h-4 w-4" />,
-            health: qualityPassRate >= 95 ? "good" : qualityPassRate >= 85 ? "warning" : "critical",
+            health: qualityPassRate < 0 ? "warning" :
+                qualityPassRate >= 95 ? "good" : qualityPassRate >= 85 ? "warning" : "critical",
             href: "/manufacturing/quality"
         }
     ]
