@@ -135,14 +135,14 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                                         className="border-2 border-black font-medium min-h-[70px]"
                                     />
                                 </div>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Kategori</label>
                                         <Select
                                             value={form.watch("categoryId") || "none"}
                                             onValueChange={v => form.setValue("categoryId", v === "none" ? "" : v)}
                                         >
-                                            <SelectTrigger className="border-2 border-black font-bold h-10">
+                                            <SelectTrigger className="border-2 border-black font-bold h-10 w-full truncate">
                                                 <SelectValue placeholder="Pilih kategori" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -161,7 +161,7 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                                             value={form.watch("unit") || "pcs"}
                                             onValueChange={v => form.setValue("unit", v)}
                                         >
-                                            <SelectTrigger className="border-2 border-black font-bold h-10">
+                                            <SelectTrigger className="border-2 border-black font-bold h-10 w-full">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -169,14 +169,14 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Barcode</label>
-                                        <Input
-                                            placeholder="Opsional"
-                                            {...form.register("barcode")}
-                                            className="border-2 border-black font-mono h-10"
-                                        />
-                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Barcode</label>
+                                    <Input
+                                        placeholder="Opsional"
+                                        {...form.register("barcode")}
+                                        className="border-2 border-black font-mono h-10"
+                                    />
                                 </div>
                             </div>
                         </div>
