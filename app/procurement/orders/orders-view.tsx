@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import {
     Search,
     Filter,
@@ -11,7 +12,8 @@ import {
     Truck,
     Eye,
     MessageSquare,
-    Mail
+    Mail,
+    Loader2
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,11 +38,15 @@ import {
 import { formatIDR } from "@/lib/utils"
 import { NewPurchaseOrderDialog } from "@/components/procurement/new-po-dialog"
 import { POFinalizeDialog } from "@/components/procurement/po-finalize-dialog"
+import { markAsOrdered } from "@/lib/actions/procurement"
+import { toast } from "sonner"
 
 interface Order {
     id: string
     dbId: string
     vendor: string
+    vendorEmail?: string
+    vendorPhone?: string
     date: string
     total: number
     status: string
@@ -56,6 +62,8 @@ interface OrdersViewProps {
 
 export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
+    const [sendingOrderId, setSendingOrderId] = useState<string | null>(null)
+    const router = useRouter()
 
     const filteredOrders = initialOrders.filter(order =>
         order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -85,6 +93,38 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
     }
 
     const [finalizePO, setFinalizePO] = useState<Order | null>(null)
+
+    const handleSendToVendor = async (po: Order, channel: "whatsapp" | "gmail") => {
+        setSendingOrderId(po.dbId)
+        try {
+            const phone = (po.vendorPhone || "").replace(/\D/g, "")
+            const vendorEmail = po.vendorEmail || ""
+            if (channel === "whatsapp" && !phone) throw new Error("Vendor WhatsApp number not found")
+            if (channel === "gmail" && !vendorEmail) throw new Error("Vendor email not found")
+
+            const orderedResult = await markAsOrdered(po.dbId)
+            if (!orderedResult.success) {
+                throw new Error((orderedResult as any).error || "Failed to mark PO as ORDERED")
+            }
+
+            const pdfUrl = `${window.location.origin}/api/documents/purchase-order/${po.dbId}?disposition=inline`
+            if (channel === "whatsapp") {
+                const message = `Hello! Please find attached Purchase Order ${po.id}. Total: ${formatIDR(po.total)}. PDF: ${pdfUrl}`
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, "_blank")
+            } else {
+                const subject = `Purchase Order ${po.id}`
+                const body = `Dear Vendor,%0D%0A%0D%0APlease find our Purchase Order attached.%0D%0APO Number: ${po.id}%0D%0ATotal Amount: ${formatIDR(po.total)}%0D%0A%0D%0APDF Link: ${pdfUrl}%0D%0A%0D%0AThank you.`
+                window.open(`https://mail.google.com/mail/?view=cm&to=${vendorEmail}&su=${encodeURIComponent(subject)}&body=${body}`, "_blank")
+            }
+
+            toast.success("PO marked as ORDERED and vendor message prepared")
+            router.refresh()
+        } catch (error: any) {
+            toast.error(error?.message || "Failed to send PO to vendor")
+        } finally {
+            setSendingOrderId(null)
+        }
+    }
 
     const OrdersTable = ({ data }: { data: Order[] }) => (
         <Card className="border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white">
@@ -151,39 +191,32 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                                         ) : po.status === 'APPROVED' ? (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-600 hover:text-white rounded-full">
-                                                        <MessageSquare className="h-3.5 w-3.5" />
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-600 hover:text-white rounded-full" disabled={sendingOrderId === po.dbId}>
+                                                        {sendingOrderId === po.dbId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenuItem
                                                         className="cursor-pointer"
+                                                        disabled={sendingOrderId === po.dbId}
                                                         onClick={(e) => {
                                                             e.stopPropagation()
-                                                            const pdfUrl = `${window.location.origin}/api/documents/purchase-order/${po.dbId}?disposition=inline`
-                                                            const message = `Hello! Please find attached Purchase Order ${po.id}. Total: ${formatIDR(po.total)}. PDF: ${pdfUrl}`
-                                                            const phone = (po as any).vendorPhone || ''
-                                                            const whatsappUrl = `https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`
-                                                            window.open(whatsappUrl, '_blank')
+                                                            handleSendToVendor(po, "whatsapp")
                                                         }}
                                                     >
                                                         <MessageSquare className="h-4 w-4 mr-2" />
-                                                        WhatsApp
+                                                        Send WhatsApp + Mark Ordered
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         className="cursor-pointer"
+                                                        disabled={sendingOrderId === po.dbId}
                                                         onClick={(e) => {
                                                             e.stopPropagation()
-                                                            const pdfUrl = `${window.location.origin}/api/documents/purchase-order/${po.dbId}?disposition=inline`
-                                                            const subject = `Purchase Order ${po.id}`
-                                                            const body = `Dear Vendor,%0D%0A%0D%0APlease find our Purchase Order attached.%0D%0APO Number: ${po.id}%0D%0ATotal Amount: ${formatIDR(po.total)}%0D%0A%0D%0APDF Link: ${pdfUrl}%0D%0A%0D%0AThank you.`
-                                                            const vendorEmail = (po as any).vendorEmail || ''
-                                                            const gmailUrl = `https://mail.google.com/mail/?view=cm&to=${vendorEmail}&su=${encodeURIComponent(subject)}&body=${body}`
-                                                            window.open(gmailUrl, '_blank')
+                                                            handleSendToVendor(po, "gmail")
                                                         }}
                                                     >
                                                         <Mail className="h-4 w-4 mr-2" />
-                                                        Gmail
+                                                        Send Gmail + Mark Ordered
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>

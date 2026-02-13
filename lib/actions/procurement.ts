@@ -611,6 +611,71 @@ export async function approvePurchaseRequest(id: string, _approverId?: string) {
     }
 }
 
+export async function approveAndCreatePOFromPR(id: string, _approverId?: string) {
+    try {
+        const approvalResult = await approvePurchaseRequest(id, _approverId)
+        if (!approvalResult.success) {
+            return approvalResult
+        }
+
+        const user = await getAuthzUser()
+        if (!PURCHASING_ROLES.includes(user.role)) {
+            return {
+                success: true,
+                poCreated: false,
+                poIds: [] as string[],
+                message: "PR approved. PO generation requires Purchasing role.",
+            }
+        }
+
+        const itemIds = await withPrismaAuth(async (prisma) => {
+            await requireActiveProcurementActor(prisma, user)
+            const pr = await prisma.purchaseRequest.findUnique({
+                where: { id },
+                include: {
+                    items: {
+                        where: {
+                            status: { in: ["APPROVED", "PENDING"] },
+                        },
+                        select: { id: true },
+                    },
+                },
+            })
+
+            if (!pr) throw new Error("Purchase request not found")
+            return pr.items.map((item) => item.id)
+        })
+
+        if (itemIds.length === 0) {
+            return {
+                success: true,
+                poCreated: false,
+                poIds: [] as string[],
+                message: "PR approved. No eligible items found for PO conversion.",
+            }
+        }
+
+        const poResult = await convertPRToPO(id, itemIds)
+        if (!poResult.success) {
+            return {
+                success: false,
+                poCreated: false,
+                poIds: [] as string[],
+                error: poResult.error || "Failed to generate PO after approval",
+            }
+        }
+
+        return {
+            success: true,
+            poCreated: true,
+            poIds: (poResult as any).poIds || [],
+            message: "PR approved and PO generated",
+        }
+    } catch (error: any) {
+        return { success: false, poCreated: false, poIds: [] as string[], error: error?.message || "Failed to run fast-lane approval" }
+    }
+}
+
 export async function rejectPurchaseRequest(id: string, reason: string) {
     try {
         const user = await getAuthzUser()

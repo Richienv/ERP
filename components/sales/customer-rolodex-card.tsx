@@ -11,7 +11,8 @@ import {
     AlertCircle,
     MessageCircle,
     FileText,
-    DollarSign
+    DollarSign,
+    Sparkles
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -65,6 +66,30 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
     }
 
     const tier = getTier(customer.totalOrderValue)
+
+    const nextAction = (() => {
+        if (customer.creditStatus === "HOLD" || customer.creditStatus === "BLOCKED") {
+            return {
+                label: "Review Kredit",
+                description: "Status kredit perlu review sebelum transaksi baru.",
+                href: `/sales/customers/${customer.id}`,
+            }
+        }
+
+        if (customer.isProspect) {
+            return {
+                label: "Buat Quote Cepat",
+                description: "Prospek baru, mulai dari quotation 1 langkah.",
+                href: `/sales/quotations/new?customerId=${customer.id}`,
+            }
+        }
+
+        return {
+            label: "Buat Order Cepat",
+            description: "Pelanggan aktif, lanjutkan langsung ke Sales Order.",
+            href: `/sales/orders/new?customerId=${customer.id}`,
+        }
+    })()
 
     // Status Indicator Color
     const getStatusColor = (status: string) => {
@@ -151,6 +176,16 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                         <Phone className="h-3 w-3 text-black" />
                         <span>{customer.phone}</span>
                     </div>
+                </div>
+
+                <div className="rounded-md border border-black/10 bg-zinc-50 p-2.5 space-y-2">
+                    <p className="text-[10px] uppercase font-black tracking-wider text-zinc-500 flex items-center gap-1">
+                        <Sparkles className="h-3 w-3" /> Next Best Action
+                    </p>
+                    <p className="text-[11px] text-zinc-600">{nextAction.description}</p>
+                    <Button asChild size="sm" className="h-7 w-full text-[10px] font-bold uppercase bg-black text-white hover:bg-zinc-800">
+                        <Link href={nextAction.href}>{nextAction.label}</Link>
+                    </Button>
                 </div>
             </CardContent>
 
