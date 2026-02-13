@@ -34,6 +34,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { CreateBOMDialog } from "@/components/manufacturing/bom/create-bom-dialog";
 
 interface BOMItem {
     id: string;
@@ -77,6 +78,7 @@ export default function BOMPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedBOM, setSelectedBOM] = useState<BOM | null>(null);
     const [sheetOpen, setSheetOpen] = useState(false);
+    const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
     const fetchBOMs = async () => {
         setLoading(true);
@@ -144,7 +146,10 @@ export default function BOMPage() {
                     >
                         <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
+                    <Button
+                        className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide"
+                        onClick={() => setCreateDialogOpen(true)}
+                    >
                         <Plus className="mr-2 h-4 w-4" /> Create BOM
                     </Button>
                 </div>
@@ -207,7 +212,7 @@ export default function BOMPage() {
                                 ? 'Try adjusting your search criteria.'
                                 : 'Create your first BOM to define product components.'}
                         </p>
-                        <Button className="mt-4 bg-black text-white">
+                        <Button className="mt-4 bg-black text-white" onClick={() => setCreateDialogOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" /> Create BOM
                         </Button>
                     </CardContent>
@@ -370,6 +375,13 @@ export default function BOMPage() {
                     )}
                 </SheetContent>
             </Sheet>
+
+            {/* Create BOM Dialog */}
+            <CreateBOMDialog
+                open={createDialogOpen}
+                onOpenChange={setCreateDialogOpen}
+                onCreated={fetchBOMs}
+            />
         </div>
     );
 }

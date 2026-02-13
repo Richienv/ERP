@@ -1,97 +1,216 @@
 "use client"
 
-import { useState } from "react"
-import { PRICE_BOOKS, PriceBook } from "./data"
-import { motion } from "framer-motion"
-import { Globe, ShoppingBag, Shield, Tag, BookOpen, Share2 } from "lucide-react"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { PriceListSummary, formatRupiah } from "./data"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Button } from "@/components/ui/button"
+import {
+    Tag,
+    Users,
+    Package,
+    MoreVertical,
+    Eye,
+    Edit,
+    Trash2,
+    ToggleLeft,
+    ToggleRight,
+} from "lucide-react"
+import { updatePriceList, deletePriceList } from "@/lib/actions/sales"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 interface PriceBookGalleryProps {
-    onOpenBook: (book: PriceBook) => void
+    priceLists: PriceListSummary[]
+    onOpenBook: (pl: PriceListSummary) => void
 }
 
-export function PriceBookGallery({ onOpenBook }: PriceBookGalleryProps) {
+export function PriceBookGallery({ priceLists, onOpenBook }: PriceBookGalleryProps) {
+    if (priceLists.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 text-center border-2 border-dashed border-black bg-white dark:bg-zinc-900">
+                <div className="w-20 h-20 bg-zinc-100 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center mb-6">
+                    <Tag className="h-10 w-10 text-zinc-400" />
+                </div>
+                <h3 className="text-xl font-black uppercase tracking-tight mb-2">Belum Ada Daftar Harga</h3>
+                <p className="text-sm font-medium text-muted-foreground max-w-sm uppercase tracking-wide">
+                    Buat daftar harga pertama untuk mulai mengatur harga produk berdasarkan segmen pelanggan.
+                </p>
+            </div>
+        )
+    }
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 p-4">
-            {PRICE_BOOKS.map((book) => (
-                <PriceBookCover key={book.id} book={book} onClick={() => onOpenBook(book)} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {priceLists.map((pl, index) => (
+                <PriceListCard
+                    key={pl.id}
+                    priceList={pl}
+                    colorIndex={index}
+                    onOpen={() => onOpenBook(pl)}
+                />
             ))}
         </div>
     )
 }
 
-function PriceBookCover({ book, onClick }: { book: PriceBook; onClick: () => void }) {
-    const getIcon = (iconName: string) => {
-        switch (iconName) {
-            case "globe": return <Globe className="h-12 w-12 text-white/90" />
-            case "store": return <ShoppingBag className="h-12 w-12 text-white/90" />
-            case "shield": return <Shield className="h-12 w-12 text-white/90" />
-            case "tag": return <Tag className="h-12 w-12 text-white/90" />
-            default: return <BookOpen className="h-12 w-12 text-white/90" />
+const CARD_ACCENTS = [
+    "bg-blue-500",
+    "bg-emerald-500",
+    "bg-amber-500",
+    "bg-purple-500",
+    "bg-rose-500",
+    "bg-cyan-500",
+    "bg-orange-500",
+    "bg-indigo-500",
+]
+
+function PriceListCard({
+    priceList,
+    colorIndex,
+    onOpen,
+}: {
+    priceList: PriceListSummary
+    colorIndex: number
+    onOpen: () => void
+}) {
+    const accent = CARD_ACCENTS[colorIndex % CARD_ACCENTS.length]
+    const router = useRouter()
+
+    async function handleToggleActive() {
+        const res = await updatePriceList(priceList.id, { isActive: !priceList.isActive })
+        if (res.success) {
+            toast.success(priceList.isActive ? "Daftar harga dinonaktifkan" : "Daftar harga diaktifkan", {
+                className: "font-bold border-2 border-black"
+            })
+            router.refresh()
+        } else {
+            toast.error(res.error)
         }
     }
 
-    // Pattern styles
-    const getPattern = (pattern: string) => {
-        // Simple CSS patterns using gradients
-        switch (pattern) {
-            case "dots": return "radial-gradient(circle, rgba(255,255,255,0.2) 2px, transparent 2px)"
-            case "grid": return "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)"
-            case "waves": return "repeating-linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.1) 10px, transparent 10px, transparent 20px)"
-            default: return ""
+    async function handleDelete() {
+        if (!confirm(`Hapus daftar harga "${priceList.name}"? Tindakan ini tidak dapat dibatalkan.`)) return
+        const res = await deletePriceList(priceList.id)
+        if (res.success) {
+            toast.success("Daftar harga dihapus", {
+                className: "font-bold border-2 border-black"
+            })
+            router.refresh()
+        } else {
+            toast.error(res.error)
         }
     }
+
+    const updatedDate = new Date(priceList.updatedAt).toLocaleDateString('id-ID', {
+        day: 'numeric', month: 'short', year: 'numeric'
+    })
 
     return (
-        <div className="group perspective-1000 cursor-pointer" onClick={onClick}>
-            <motion.div
-                whileHover={{ rotateY: -10, rotateX: 5, scale: 1.05 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className={`relative aspect-[3/4] rounded-r-2xl rounded-l-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] border-2 border-black overflow-hidden flex flex-col justify-between p-6 ${book.coverParams.color}`}
-            >
-                {/* Book Spine Highlight (Left) */}
-                <div className="absolute left-0 top-0 bottom-0 w-3 bg-white/20 border-r border-black/10 z-20"></div>
+        <div
+            className="group relative overflow-hidden cursor-pointer bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:scale-[0.98]"
+            onClick={onOpen}
+        >
+            {/* Color accent header */}
+            <div className={cn("h-3 w-full border-b-2 border-black", accent)} />
 
-                {/* Pattern Overlay */}
-                <div
-                    className="absolute inset-0 opacity-30 z-0 pointer-events-none"
-                    style={{
-                        backgroundImage: getPattern(book.coverParams.pattern),
-                        backgroundSize: book.coverParams.pattern === "dots" ? "16px 16px" : "20px 20px"
-                    }}
-                />
-
-                {/* Top Content */}
-                <div className="relative z-10">
-                    <div className="w-20 h-20 rounded-full border-2 border-white/40 flex items-center justify-center bg-white/10 backdrop-blur-sm mb-6">
-                        {getIcon(book.coverParams.icon)}
+            <div className="p-5">
+                {/* Header row */}
+                <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-black text-base uppercase tracking-tight truncate">
+                                {priceList.name}
+                            </h3>
+                            {!priceList.isActive && (
+                                <span className="bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border border-black">
+                                    Nonaktif
+                                </span>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-mono font-bold uppercase tracking-widest">
+                            {priceList.code}
+                        </p>
                     </div>
-                    <h3 className="text-3xl font-black text-white leading-tight mb-2 tracking-tight drop-shadow-sm font-serif">
-                        {book.title}
-                    </h3>
-                    <p className="text-white/80 font-medium text-sm border-l-2 border-white/50 pl-2">
-                        {book.subtitle}
-                    </p>
+
+                    {/* Actions dropdown */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 shrink-0 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all opacity-0 group-hover:opacity-100 bg-white"
+                            >
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            <DropdownMenuItem onClick={onOpen} className="font-bold text-xs uppercase">
+                                <Eye className="mr-2 h-4 w-4" /> Lihat Detail
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push(`/sales/pricelists/new?edit=${priceList.id}`)} className="font-bold text-xs uppercase">
+                                <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator className="bg-black" />
+                            <DropdownMenuItem onClick={handleToggleActive} className="font-bold text-xs uppercase">
+                                {priceList.isActive
+                                    ? <><ToggleLeft className="mr-2 h-4 w-4" /> Nonaktifkan</>
+                                    : <><ToggleRight className="mr-2 h-4 w-4" /> Aktifkan</>
+                                }
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive font-bold text-xs uppercase" onClick={handleDelete}>
+                                <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
-                {/* Bottom Content */}
-                <div className="relative z-10 flex flex-col items-start gap-2">
-                    <Badge variant="outline" className="bg-white/20 text-white border-white/40 hover:bg-white/30 backdrop-blur-md">
-                        {book.items.length} Items
-                    </Badge>
-                    <p className="text-[10px] text-white/60 font-mono">
-                        Valid: {book.validUntil}
+                {/* Description */}
+                {priceList.description && (
+                    <p className="text-xs font-medium text-muted-foreground line-clamp-2 mb-3">
+                        {priceList.description}
                     </p>
+                )}
+
+                {/* Preview items */}
+                {priceList.previewItems.length > 0 && (
+                    <div className="border-2 border-black bg-zinc-50 dark:bg-zinc-800 p-3 mb-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <div className="space-y-2">
+                            {priceList.previewItems.map((item, i) => (
+                                <div key={i} className="flex items-center justify-between text-xs">
+                                    <span className="truncate flex-1 mr-2 font-bold uppercase">{item.productName}</span>
+                                    <span className="font-mono font-black shrink-0 tracking-tight">{formatRupiah(item.price)}</span>
+                                </div>
+                            ))}
+                            {priceList.itemCount > 3 && (
+                                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide pt-1 border-t border-dashed border-zinc-300 dark:border-zinc-600">
+                                    +{priceList.itemCount - 3} produk lainnya
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Footer stats */}
+                <div className="flex items-center justify-between text-[10px] text-muted-foreground pt-3 border-t-2 border-black">
+                    <div className="flex items-center gap-3">
+                        <span className="flex items-center gap-1 font-bold uppercase">
+                            <Package className="h-3 w-3" />
+                            {priceList.itemCount}
+                        </span>
+                        <span className="flex items-center gap-1 font-bold uppercase">
+                            <Users className="h-3 w-3" />
+                            {priceList.customerCount}
+                        </span>
+                    </div>
+                    <span className="font-mono font-bold">{updatedDate}</span>
                 </div>
-
-                {/* Decorative "Page" Edges (Right side effect) */}
-                <div className="absolute top-2 bottom-2 right-0 w-1 bg-gradient-to-l from-black/20 to-transparent"></div>
-
-            </motion.div>
-
-            {/* Shadow/Reflection Hint */}
-            <div className="mt-4 mx-auto w-[80%] h-4 bg-black/10 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            </div>
         </div>
     )
 }

@@ -390,6 +390,275 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
 }
 
 // ==========================================
+// PRICELIST ACTIONS
+// ==========================================
+
+export async function getAllPriceLists() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const priceLists = await prisma.priceList.findMany({
+                include: {
+                    _count: {
+                        select: {
+                            customers: true,
+                            priceItems: true,
+                        }
+                    },
+                    priceItems: {
+                        take: 3,
+                        where: { isActive: true },
+                        include: {
+                            product: {
+                                select: { name: true, code: true, unit: true, sellingPrice: true }
+                            }
+                        },
+                        orderBy: { createdAt: 'desc' }
+                    }
+                },
+                orderBy: { createdAt: 'desc' }
+            })
+
+            return priceLists.map(pl => ({
+                id: pl.id,
+                code: pl.code,
+                name: pl.name,
+                description: pl.description,
+                currency: pl.currency,
+                isActive: pl.isActive,
+                itemCount: pl._count.priceItems,
+                customerCount: pl._count.customers,
+                previewItems: pl.priceItems.map(pi => ({
+                    productName: pi.product.name,
+                    productCode: pi.product.code,
+                    price: Number(pi.price),
+                    unit: pi.product.unit,
+                })),
+                createdAt: pl.createdAt.toISOString(),
+                updatedAt: pl.updatedAt.toISOString(),
+            }))
+        })
+    } catch (error) {
+        console.error("Error fetching pricelists:", error)
+        return []
+    }
+}
+
+export async function getPriceListById(id: string) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const pl = await prisma.priceList.findUnique({
+                where: { id },
+                include: {
+                    priceItems: {
+                        where: { isActive: true },
+                        include: {
+                            product: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    code: true,
+                                    unit: true,
+                                    sellingPrice: true,
+                                    description: true,
+                                    category: { select: { name: true } }
+                                }
+                            }
+                        },
+                        orderBy: { product: { name: 'asc' } }
+                    },
+                    customers: {
+                        select: { id: true, name: true, code: true },
+                        take: 10,
+                    },
+                    _count: {
+                        select: { customers: true, priceItems: true }
+                    }
+                }
+            })
+
+            if (!pl) return null
+
+            return {
+                id: pl.id,
+                code: pl.code,
+                name: pl.name,
+                description: pl.description,
+                currency: pl.currency,
+                isActive: pl.isActive,
+                itemCount: pl._count.priceItems,
+                customerCount: pl._count.customers,
+                items: pl.priceItems.map(pi => ({
+                    id: pi.id,
+                    productId: pi.productId,
+                    productCode: pi.product.code,
+                    productName: pi.product.name,
+                    productDescription: pi.product.description,
+                    category: pi.product.category?.name || '-',
+                    unit: pi.product.unit,
+                    basePrice: Number(pi.product.sellingPrice),
+                    listPrice: Number(pi.price),
+                    minQty: pi.minQty,
+                    validFrom: pi.validFrom?.toISOString() || null,
+                    validTo: pi.validTo?.toISOString() || null,
+                })),
+                customers: pl.customers,
+                createdAt: pl.createdAt.toISOString(),
+                updatedAt: pl.updatedAt.toISOString(),
+            }
+        })
+    } catch (error) {
+        console.error("Error fetching pricelist:", error)
+        return null
+    }
+}
+
+export async function createPriceList(data: {
+    code: string
+    name: string
+    description?: string
+    currency?: string
+}) {
+    try {
+        const result = await withPrismaAuth(async (prisma) => {
+            const priceList = await prisma.priceList.create({
+                data: {
+                    code: data.code,
+                    name: data.name,
+                    description: data.description || null,
+                    currency: data.currency || 'IDR',
+                    isActive: true,
+                }
+            })
+            return { success: true as const, data: priceList }
+        })
+
+        revalidatePath('/sales/pricelists')
+        return result
+    } catch (error: any) {
+        console.error("Error creating pricelist:", error)
+        if (error.code === 'P2002') {
+            return { success: false as const, error: "Kode daftar harga sudah digunakan" }
+        }
+        return { success: false as const, error: "Gagal membuat daftar harga" }
+    }
+}
+
+export async function updatePriceList(id: string, data: {
+    name?: string
+    description?: string
+    currency?: string
+    isActive?: boolean
+}) {
+    try {
+        await withPrismaAuth(async (prisma) => {
+            await prisma.priceList.update({
+                where: { id },
+                data,
+            })
+        })
+
+        revalidatePath('/sales/pricelists')
+        return { success: true as const }
+    } catch (error) {
+        console.error("Error updating pricelist:", error)
+        return { success: false as const, error: "Gagal mengupdate daftar harga" }
+    }
+}
+
+export async function deletePriceList(id: string) {
+    try {
+        await withPrismaAuth(async (prisma) => {
+            await prisma.priceList.delete({ where: { id } })
+        })
+
+        revalidatePath('/sales/pricelists')
+        return { success: true as const }
+    } catch (error) {
+        console.error("Error deleting pricelist:", error)
+        return { success: false as const, error: "Gagal menghapus daftar harga" }
+    }
+}
+
+export async function addPriceListItem(data: {
+    priceListId: string
+    productId: string
+    price: number
+    minQty?: number
+    validFrom?: string
+    validTo?: string
+}) {
+    try {
+        await withPrismaAuth(async (prisma) => {
+            await prisma.priceListItem.create({
+                data: {
+                    priceListId: data.priceListId,
+                    productId: data.productId,
+                    price: data.price,
+                    minQty: data.minQty || 1,
+                    validFrom: data.validFrom ? new Date(data.validFrom) : null,
+                    validTo: data.validTo ? new Date(data.validTo) : null,
+                    isActive: true,
+                }
+            })
+        })
+
+        revalidatePath('/sales/pricelists')
+        return { success: true as const }
+    } catch (error: any) {
+        console.error("Error adding price item:", error)
+        if (error.code === 'P2002') {
+            return { success: false as const, error: "Produk sudah ada di daftar harga ini" }
+        }
+        return { success: false as const, error: "Gagal menambahkan item" }
+    }
+}
+
+export async function removePriceListItem(id: string) {
+    try {
+        await withPrismaAuth(async (prisma) => {
+            await prisma.priceListItem.delete({ where: { id } })
+        })
+
+        revalidatePath('/sales/pricelists')
+        return { success: true as const }
+    } catch (error) {
+        console.error("Error removing price item:", error)
+        return { success: false as const, error: "Gagal menghapus item" }
+    }
+}
+
+export async function getProductsForPriceList() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const products = await prisma.product.findMany({
+                where: { isActive: true },
+                select: {
+                    id: true,
+                    code: true,
+                    name: true,
+                    unit: true,
+                    sellingPrice: true,
+                    category: { select: { name: true } },
+                },
+                orderBy: { name: 'asc' }
+            })
+
+            return products.map(p => ({
+                id: p.id,
+                code: p.code,
+                name: p.name,
+                unit: p.unit,
+                sellingPrice: Number(p.sellingPrice),
+                category: p.category?.name || '-',
+            }))
+        })
+    } catch (error) {
+        console.error("Error fetching products:", error)
+        return []
+    }
+}
+
+// ==========================================
 // SALES ORDER → INVOICE INTEGRATION
 // ==========================================
 
