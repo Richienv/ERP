@@ -6,11 +6,19 @@ import { ArrowRightLeft, CheckCircle2 } from "lucide-react"
 
 export const dynamic = 'force-dynamic';
 
+/** Race a promise against a timeout — returns fallback on timeout */
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+  ])
+}
+
 export default async function StockAdjustmentsPage() {
   const [products, warehouses, movements] = await Promise.all([
-    getProductsForKanban(),
-    getWarehouses(),
-    getStockMovements(50)
+    withTimeout(getProductsForKanban(), 8000, []),
+    withTimeout(getWarehouses(), 5000, []),
+    withTimeout(getStockMovements(50), 8000, [])
   ])
 
   // Filter for display if desired, or show all relevant Manual types

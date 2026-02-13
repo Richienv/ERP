@@ -17,9 +17,17 @@ import {
 import { getWarehouseDetails } from "@/app/actions/inventory"
 import { WarehouseEditDialog } from "@/components/inventory/warehouse-edit-dialog"
 
+/** Race a promise against a timeout — returns fallback on timeout */
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+  ])
+}
+
 export default async function WarehousePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params
-    const warehouse = await getWarehouseDetails(id)
+    const warehouse = await withTimeout(getWarehouseDetails(id), 8000, null)
 
     if (!warehouse) {
         return (

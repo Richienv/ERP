@@ -1234,7 +1234,7 @@ export async function getRecentAudits() {
                     status: (actualQty === systemQty) ? 'MATCH' : 'MISMATCH'
                 };
             });
-        })
+        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
 
     } catch (error) {
         console.error("Error fetching audits:", error);
