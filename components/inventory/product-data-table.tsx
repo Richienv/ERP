@@ -326,7 +326,13 @@ export function ProductDataTable({ data }: ProductDataTableProps) {
 
   const handleDeleteProduct = async (product: ProductWithStock) => {
     if (deletingProductId) return
-    const confirmed = window.confirm(`Hapus produk "${product.name}"?`)
+    const hasReferences = product._count && (
+      (product._count.stockLevels ?? 0) > 0 || (product._count.transactions ?? 0) > 0
+    )
+    const message = hasReferences
+      ? `Produk "${product.name}" memiliki data stok atau riwayat terkait.\n\nProduk akan dinonaktifkan (bukan dihapus permanen). Lanjutkan?`
+      : `Hapus produk "${product.name}" secara permanen?\n\nTindakan ini tidak dapat dibatalkan.`
+    const confirmed = window.confirm(message)
     if (!confirmed) return
 
     setDeletingProductId(product.id)
