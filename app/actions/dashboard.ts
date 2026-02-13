@@ -590,6 +590,21 @@ async function fetchExecutiveAlerts(prisma: PrismaClient) {
 }
 
 
+async function fetchTotalInventoryValue(prisma: PrismaClient) {
+    const stockLevels = await prisma.stockLevel.findMany({
+        include: { product: { select: { costPrice: true, isActive: true } } }
+    })
+    let value = 0
+    let itemCount = 0
+    for (const sl of stockLevels) {
+        if (sl.product.isActive && sl.quantity > 0) {
+            value += sl.quantity * Number(sl.product.costPrice)
+            itemCount += sl.quantity
+        }
+    }
+    return { value, itemCount }
+}
+
 // ==============================================================================
 // PUBLIC AGGREGATED ACTION (Fetch Everything in One Transaction)
 // ==============================================================================
@@ -610,7 +625,8 @@ export async function getDashboardData() {
                 qualityStatus,
                 workforceStatus,
                 activityFeed,
-                executiveAlerts
+                executiveAlerts,
+                inventoryValue
             ] = await Promise.all([
                 fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
                 fetchDeadStockValue(prisma).catch(() => 0),
@@ -624,7 +640,8 @@ export async function getDashboardData() {
                 fetchQualityStatus(prisma).catch(() => ({ passRate: 0, recentInspections: [] })),
                 fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
                 fetchActivityFeed(prisma).catch(() => []),
-                fetchExecutiveAlerts(prisma).catch(() => [])
+                fetchExecutiveAlerts(prisma).catch(() => []),
+                fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0 }))
             ])
 
             return {
@@ -640,7 +657,8 @@ export async function getDashboardData() {
                 qualityStatus,
                 workforceStatus,
                 activityFeed,
-                executiveAlerts
+                executiveAlerts,
+                inventoryValue
             }
         }, { maxWait: 15000, timeout: 20000 })
     } catch (error) {
@@ -659,7 +677,8 @@ export async function getDashboardData() {
             qualityStatus: { passRate: 0, recentInspections: [] },
             workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
             activityFeed: [],
-            executiveAlerts: []
+            executiveAlerts: [],
+            inventoryValue: { value: 0, itemCount: 0 }
         }
     }
 }

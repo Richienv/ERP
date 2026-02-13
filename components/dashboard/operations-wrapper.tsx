@@ -1,58 +1,56 @@
-import { ProductionLineStatus } from "@/components/manager/production-line-status"
-import { MaterialTrackingCard } from "@/components/manager/material-tracking-card"
-import { QualityTrackingCard } from "@/components/manager/quality-tracking-card"
-import { RitchieSDMCard } from "@/components/dashboard/ritchie-sdm-card"
-import { RitchieActivityFeed } from "@/components/dashboard/ritchie-activity-feed"
-import { ExecutiveAlerts } from "@/components/dashboard/executive-alerts"
-import { MetricsAnimator } from "@/components/dashboard/metrics-animator"
+import { OperationsStrip } from "@/components/dashboard/operations-strip"
+import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
+import { TrendingWidget } from "@/components/dashboard/trending-widget"
 
 interface OperationsWrapperProps {
     data: {
-        prodStatus: any
+        prodMetrics: any
         materialStatus: any
         qualityStatus: any
         workforceStatus: any
         activityFeed: any
         executiveAlerts: any
+        procurement: any
+        leaves: number
+        inventoryValue: { value: number; itemCount: number }
     }
+    salesStats: any
+    slot: "operationsStrip" | "activityFeed" | "trending"
 }
 
-export async function OperationsWrapper({ data }: OperationsWrapperProps) {
-    // Artificial delay removed for perf
-    // Data is now passed from parent
+export async function OperationsWrapper({ data, salesStats, slot }: OperationsWrapperProps) {
+    if (slot === "operationsStrip") {
+        return (
+            <OperationsStrip
+                activeWorkOrders={data.prodMetrics?.activeWorkOrders ?? 0}
+                lowStockCount={Array.isArray(data.materialStatus) ? data.materialStatus.length : 0}
+                salesRevenueMTD={salesStats?.totalRevenue ?? 0}
+                attendanceRate={data.workforceStatus?.attendanceRate ?? 0}
+                totalStaff={data.workforceStatus?.totalStaff ?? 0}
+                qualityPassRate={data.qualityStatus?.passRate ?? 0}
+            />
+        )
+    }
 
-    const machines = data.prodStatus
-    const materials = data.materialStatus
-    const qc = data.qualityStatus
-    const workforce = data.workforceStatus
-    const activities = data.activityFeed
-    const alerts = data.executiveAlerts
+    if (slot === "activityFeed") {
+        const activities = (data.activityFeed ?? []).map((a: any, i: number) => ({
+            id: a.id ?? `activity-${i}`,
+            type: a.type ?? "general",
+            title: a.title ?? "",
+            description: a.description ?? a.message ?? "",
+            timestamp: a.timestamp ?? a.createdAt ?? new Date().toISOString(),
+        }))
 
+        return <CompactActivityFeed activities={activities} />
+    }
+
+    // trending
     return (
-        <MetricsAnimator>
-            {/* Row 2: Operational Details */}
-            <div className="md:col-span-4 h-full min-h-[400px]">
-                <ProductionLineStatus data={machines} />
-            </div>
-            <div className="md:col-span-2 h-full min-h-[400px]">
-                <ExecutiveAlerts data={alerts} />
-            </div>
-
-            {/* Row 3: Tracking & HR - Nested Grid wrapper to span 6 cols */}
-            <div className="md:col-span-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-                <div className="min-h-[400px]">
-                    <RitchieActivityFeed data={activities} />
-                </div>
-                <div className="min-h-[400px]">
-                    <MaterialTrackingCard data={materials} />
-                </div>
-                <div className="min-h-[400px]">
-                    <QualityTrackingCard data={qc} />
-                </div>
-                <div className="min-h-[400px]">
-                    <RitchieSDMCard data={workforce} />
-                </div>
-            </div>
-        </MetricsAnimator>
+        <TrendingWidget
+            activePOs={data.procurement?.activeCount ?? 0}
+            lowStockAlerts={Array.isArray(data.materialStatus) ? data.materialStatus.length : 0}
+            pendingLeaves={data.leaves ?? 0}
+            activeOrders={salesStats?.activeOrders ?? 0}
+        />
     )
 }
