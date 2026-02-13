@@ -231,34 +231,57 @@ async function fetchDeadStockValue(prisma: PrismaClient) {
 }
 
 async function fetchProcurementMetrics(prisma: PrismaClient) {
-    const activePO = await prisma.purchaseOrder.count({
-        where: { status: { in: ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED'] } }
-    })
+    // Run all queries in parallel for speed
+    const [activePO, delayedPOs, pendingApprovalPOs, totalPRs, pendingPRs, poSummary, poByStatusRaw] = await Promise.all([
+        prisma.purchaseOrder.count({
+            where: { status: { in: ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED'] } }
+        }),
+        prisma.purchaseOrder.findMany({
+            where: {
+                status: { notIn: ['RECEIVED', 'COMPLETED', 'CANCELLED'] },
+                expectedDate: { lt: new Date() }
+            },
+            include: { supplier: true, items: { include: { product: true } } },
+            take: 5
+        }),
+        prisma.purchaseOrder.findMany({
+            where: { status: 'PENDING_APPROVAL' },
+            include: {
+                supplier: { select: { name: true, email: true, phone: true } },
+                items: { include: { product: { select: { name: true, code: true } } } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 5
+        }),
+        // PR counts for CEO visibility
+        prisma.purchaseRequest.count(),
+        prisma.purchaseRequest.count({ where: { status: 'PENDING' } }),
+        // PO total value (non-cancelled)
+        prisma.purchaseOrder.aggregate({
+            _sum: { totalAmount: true },
+            _count: true,
+            where: { status: { notIn: ['CANCELLED'] } }
+        }),
+        // PO breakdown by status
+        prisma.purchaseOrder.groupBy({
+            by: ['status'],
+            _count: true,
+            where: { status: { notIn: ['CANCELLED'] } }
+        }),
+    ])
 
-    const delayedPOs = await prisma.purchaseOrder.findMany({
-        where: {
-            status: { notIn: ['RECEIVED', 'COMPLETED', 'CANCELLED'] },
-            expectedDate: { lt: new Date() }
-        },
-        include: { supplier: true, items: { include: { product: true } } },
-        take: 5
-    })
-
-    // Get POs awaiting CEO approval
-    const pendingApprovalPOs = await prisma.purchaseOrder.findMany({
-        where: { status: 'PENDING_APPROVAL' },
-        include: {
-            supplier: { select: { name: true, email: true, phone: true } },
-            items: {
-                include: { product: { select: { name: true, code: true } } }
-            }
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 5
-    })
+    const poByStatus: Record<string, number> = {}
+    for (const g of poByStatusRaw) {
+        poByStatus[g.status] = g._count
+    }
 
     return {
         activeCount: activePO,
+        totalPRs,
+        pendingPRs,
+        totalPOs: poSummary._count,
+        totalPOValue: Number(poSummary._sum?.totalAmount ?? 0),
+        poByStatus,
         delays: delayedPOs.map(po => ({
             id: po.id,
             number: po.number,
@@ -761,7 +784,7 @@ export async function getDashboardData() {
             ] = await Promise.all([
                 fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
                 fetchDeadStockValue(prisma).catch(() => 0),
-                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [], pendingApproval: [] })),
+                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> })),
                 fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
                 fetchPendingLeaves(prisma).catch(() => 0),
                 fetchAuditStatus(prisma).catch(() => null),
@@ -798,7 +821,7 @@ export async function getDashboardData() {
         return {
             financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
             deadStock: 0,
-            procurement: { activeCount: 0, delays: [], pendingApproval: [] },
+            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> },
             hr: { totalSalary: 0, lateEmployees: [] },
             leaves: 0,
             audit: null,
@@ -848,7 +871,7 @@ export async function getDashboardOperations() {
     try {
         return await withPrismaAuth(async (prisma) => {
             const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue] = await Promise.all([
-                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [], pendingApproval: [] })),
+                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> })),
                 fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
                 fetchMaterialStatus(prisma).catch(() => []),
                 fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
@@ -861,7 +884,7 @@ export async function getDashboardOperations() {
     } catch (error) {
         console.error("getDashboardOperations failed:", error)
         return {
-            procurement: { activeCount: 0, delays: [], pendingApproval: [] },
+            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> },
             prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
             materialStatus: [],
             qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },

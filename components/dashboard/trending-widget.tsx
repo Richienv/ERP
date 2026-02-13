@@ -1,12 +1,14 @@
 "use client"
 
-import { BarChart3, ClipboardList, Package, CalendarOff, ShoppingCart } from "lucide-react"
+import { BarChart3, ClipboardList, Package, CalendarOff, ShoppingCart, FileText } from "lucide-react"
 
 interface TrendingWidgetProps {
     activePOs: number
     lowStockAlerts: number
     pendingLeaves: number
     activeOrders: number
+    totalPRs?: number
+    pendingPRs?: number
 }
 
 interface StatRow {
@@ -17,8 +19,9 @@ interface StatRow {
     barColor: string
 }
 
-export function TrendingWidget({ activePOs, lowStockAlerts, pendingLeaves, activeOrders }: TrendingWidgetProps) {
+export function TrendingWidget({ activePOs, lowStockAlerts, pendingLeaves, activeOrders, totalPRs = 0, pendingPRs = 0 }: TrendingWidgetProps) {
     const stats: StatRow[] = [
+        { label: "Purchase Req", value: totalPRs, icon: <FileText className="h-3.5 w-3.5" />, color: "text-purple-600 dark:text-purple-400", barColor: "bg-purple-500" },
         { label: "PO Aktif", value: activePOs, icon: <ClipboardList className="h-3.5 w-3.5" />, color: "text-blue-600 dark:text-blue-400", barColor: "bg-blue-500" },
         { label: "Stok Rendah", value: lowStockAlerts, icon: <Package className="h-3.5 w-3.5" />, color: "text-amber-600 dark:text-amber-400", barColor: "bg-amber-500" },
         { label: "Cuti Pending", value: pendingLeaves, icon: <CalendarOff className="h-3.5 w-3.5" />, color: "text-rose-600 dark:text-rose-400", barColor: "bg-rose-500" },

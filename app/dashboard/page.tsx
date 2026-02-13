@@ -15,15 +15,53 @@ import {
 } from "@/app/actions/dashboard"
 import { getSalesStats } from "@/lib/actions/sales"
 
-// React.cache() deduplicates these calls within a single render request
-// So even though multiple components call the same function, only 1 actual fetch happens
-const cachedFinancials = cache(() => getDashboardFinancials())
-const cachedOperations = cache(() => getDashboardOperations())
-const cachedSalesStats = cache(() => getSalesStats().catch(() => ({ totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] as any[] })))
-
 // Force dynamic rendering so data is always fresh
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+
+// =============================================================================
+// Timeout helper — ensures no data fetch can hang forever
+// =============================================================================
+
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((resolve) => setTimeout(() => {
+            console.warn(`[Dashboard] Data fetch timed out after ${ms}ms, using fallback`)
+            resolve(fallback)
+        }, ms))
+    ])
+}
+
+// Fallback data shapes
+const FALLBACK_FINANCIALS = {
+    cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
+    receivables: 0, payables: 0, overdueInvoices: [] as any[], upcomingPayables: [] as any[],
+}
+const FALLBACK_OPERATIONS = {
+    procurement: { activeCount: 0, delays: [], pendingApproval: [], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} },
+    prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
+    materialStatus: [] as any[],
+    qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
+    workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
+    leaves: 0,
+    inventoryValue: { value: 0, itemCount: 0, warehouses: [] },
+}
+const FALLBACK_SALES = { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] as any[] }
+const FALLBACK_CHARTS = { dataCash7d: [] as any[], dataReceivables: [] as any[], dataPayables: [] as any[], dataProfit: [] as any[] }
+const FALLBACK_ACTIVITY = { activityFeed: [] as any[], executiveAlerts: [] as any[] }
+
+// React.cache() deduplicates calls within a single render request.
+// Each cached function also has a 8s timeout so it never hangs.
+const cachedFinancials = cache(() =>
+    withTimeout(getDashboardFinancials().catch((e) => { console.error("Financials error:", e); return FALLBACK_FINANCIALS }), 8000, FALLBACK_FINANCIALS)
+)
+const cachedOperations = cache(() =>
+    withTimeout(getDashboardOperations().catch((e) => { console.error("Operations error:", e); return FALLBACK_OPERATIONS }), 8000, FALLBACK_OPERATIONS)
+)
+const cachedSalesStats = cache(() =>
+    withTimeout(getSalesStats().catch((e) => { console.error("Sales error:", e); return FALLBACK_SALES }), 8000, FALLBACK_SALES)
+)
 
 // =============================================================================
 // Skeleton components for Suspense fallbacks
@@ -127,6 +165,11 @@ async function ActionCenterSection() {
             activeCount={ops.procurement?.activeCount ?? 0}
             alerts={[]}
             pendingLeaves={ops.leaves ?? 0}
+            totalPRs={ops.procurement?.totalPRs ?? 0}
+            pendingPRs={ops.procurement?.pendingPRs ?? 0}
+            totalPOs={ops.procurement?.totalPOs ?? 0}
+            totalPOValue={ops.procurement?.totalPOValue ?? 0}
+            poByStatus={ops.procurement?.poByStatus ?? {}}
         />
     )
 }
@@ -135,7 +178,7 @@ async function ActionCenterSection() {
 async function FinancialHealthSection() {
     const [financials, charts] = await Promise.all([
         cachedFinancials(),
-        getDashboardCharts(),
+        withTimeout(getDashboardCharts().catch(() => FALLBACK_CHARTS), 8000, FALLBACK_CHARTS),
     ])
 
     const cashFlowData = (charts?.dataCash7d ?? []).map((d: any) => ({
@@ -175,7 +218,11 @@ async function OperationsStripSection() {
 
 /** ActivityFeed: Recent events — Prisma Group C (lightweight) */
 async function ActivityFeedSection() {
-    const activity = await getDashboardActivity()
+    const activity = await withTimeout(
+        getDashboardActivity().catch(() => FALLBACK_ACTIVITY),
+        8000,
+        FALLBACK_ACTIVITY
+    )
 
     const activities = (activity.activityFeed ?? []).map((a: any, i: number) => ({
         id: a.id ?? `activity-${i}`,
@@ -188,7 +235,7 @@ async function ActivityFeedSection() {
     return <CompactActivityFeed activities={activities} />
 }
 
-/** TrendingWidget: Summary counts — Prisma Group B */
+/** TrendingWidget: Summary counts — uses cached operations + sales */
 async function TrendingSection() {
     const [ops, sales] = await Promise.all([
         cachedOperations(),
@@ -201,6 +248,8 @@ async function TrendingSection() {
             lowStockAlerts={Array.isArray(ops.materialStatus) ? ops.materialStatus.length : 0}
             pendingLeaves={ops.leaves ?? 0}
             activeOrders={sales.activeOrders}
+            totalPRs={ops.procurement?.totalPRs ?? 0}
+            pendingPRs={ops.procurement?.pendingPRs ?? 0}
         />
     )
 }
