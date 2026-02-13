@@ -31,7 +31,22 @@ export async function middleware(request: NextRequest) {
         }
     )
 
-    const { data: { user } } = await supabase.auth.getUser()
+    // Wrap getUser in try/catch — if auth is broken (stale JWT, network error),
+    // treat user as unauthenticated and clear auth cookies to prevent error loops
+    let user = null
+    try {
+        const { data, error } = await supabase.auth.getUser()
+        if (!error) {
+            user = data?.user ?? null
+        } else {
+            // Auth returned an error (e.g., invalid token) — clear auth cookies
+            clearAuthCookies(response, request)
+        }
+    } catch (err) {
+        // getUser() threw an exception — clear auth cookies
+        console.error("Middleware: auth.getUser() threw, clearing cookies:", err)
+        clearAuthCookies(response, request)
+    }
 
     // Define protected routes
     const protectedRoutes = [
@@ -58,7 +73,10 @@ export async function middleware(request: NextRequest) {
     if (isProtectedRoute && !user) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
-        return NextResponse.redirect(url)
+        const redirectResponse = NextResponse.redirect(url)
+        // Also clear auth cookies on the redirect response to prevent loops
+        clearAuthCookies(redirectResponse, request)
+        return redirectResponse
     }
 
     // If user is logged in but trying to access login page, redirect to dashboard
@@ -69,6 +87,20 @@ export async function middleware(request: NextRequest) {
     }
 
     return response
+}
+
+/**
+ * Clear all Supabase auth cookies (sb-*) to prevent stale session loops.
+ */
+function clearAuthCookies(response: NextResponse, request: NextRequest) {
+    request.cookies.getAll().forEach(({ name }) => {
+        if (name.startsWith('sb-') || name.includes('supabase')) {
+            response.cookies.set(name, '', {
+                expires: new Date(0),
+                path: '/',
+            })
+        }
+    })
 }
 
 export const config = {
