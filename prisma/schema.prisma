@@ -167,20 +167,28 @@ model Location {
 // Products
 // ================================
 
+enum ProductType {
+  MANUFACTURED  // MFG — Produced in-house via BOM + Work Orders
+  TRADING       // TRD — Purchased from vendors for resale (PR→PO→GRN)
+  RAW_MATERIAL  // RAW — Purchased raw input for manufacturing
+  WIP           // WIP — Work In Process (intermediate: greige, dyed, printed)
+}
+
 model Product {
-  id           String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code         String  @unique
+  id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code         String      @unique
   name         String
   description  String?
-  categoryId   String? @db.Uuid
+  categoryId   String?     @db.Uuid
+  productType  ProductType @default(TRADING)
   unit         String // pcs, kg, liter, etc
-  costPrice    Decimal @default(0) @db.Decimal(15, 2)
-  sellingPrice Decimal @default(0) @db.Decimal(15, 2)
-  minStock     Int     @default(0)
-  maxStock     Int     @default(0)
-  reorderLevel Int     @default(0)
+  costPrice    Decimal     @default(0) @db.Decimal(15, 2)
+  sellingPrice Decimal     @default(0) @db.Decimal(15, 2)
+  minStock     Int         @default(0)
+  maxStock     Int         @default(0)
+  reorderLevel Int         @default(0)
   barcode      String?
-  isActive     Boolean @default(true)
+  isActive     Boolean     @default(true)
 
   // Planning & Procurement (Advanced)
   leadTime       Int     @default(7) // Days

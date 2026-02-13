@@ -124,12 +124,125 @@ export function getRelativeTime(date: string | Date): string {
 }
 
 /**
- * Validate product code format
+ * Validate product code format (legacy simple: ABC001)
  */
 export function isValidProductCode(code: string): boolean {
-  // Indonesian product code format: 3 letters + 3 numbers
   const regex = /^[A-Z]{3}\d{3}$/
   return regex.test(code)
+}
+
+/**
+ * Validate structured textile code: MFG-TSH-BR-BLK-001
+ */
+export function isValidStructuredCode(code: string): boolean {
+  return /^[A-Z]{3}-[A-Z]{3}-[A-Z]{2}-[A-Z]{3}-\d{3,4}$/.test(code)
+}
+
+// =====================================================================
+// TEXTILE PRODUCT CODE — Segment Master Data
+// Format: [Category 3]-[Type 3]-[Brand 2]-[Color 3]-[Seq 3-4]
+// e.g. MFG-TSH-BR-BLK-001
+// =====================================================================
+
+export type CodeSegment = { code: string; label: string; desc?: string }
+
+/** Segment 1 — Category (workflow enforcer) */
+export const CODE_CATEGORIES: CodeSegment[] = [
+  { code: 'MFG', label: 'Manufactured', desc: 'Produksi via BOM + Work Order' },
+  { code: 'TRD', label: 'Trading', desc: 'Beli dari vendor, jual langsung (PR→PO→GRN)' },
+  { code: 'RAW', label: 'Raw Material', desc: 'Bahan baku input manufaktur' },
+  { code: 'WIP', label: 'Work In Process', desc: 'Intermediate: greige, dyed, printed' },
+]
+
+/** Map 3-char category code → Prisma ProductType enum */
+export const CATEGORY_TO_PRODUCT_TYPE: Record<string, string> = {
+  MFG: 'MANUFACTURED',
+  TRD: 'TRADING',
+  RAW: 'RAW_MATERIAL',
+  WIP: 'WIP',
+}
+
+/** Segment 2 — Product Type (material/item classification) */
+export const CODE_PRODUCT_TYPES: Record<string, CodeSegment[]> = {
+  RAW: [
+    { code: 'YRN', label: 'Yarn', desc: 'Benang' },
+    { code: 'FAB', label: 'Fabric', desc: 'Kain mentah' },
+    { code: 'TRM', label: 'Trim', desc: 'Aksesori (kancing, resleting, label)' },
+    { code: 'CHM', label: 'Chemical', desc: 'Zat kimia (pewarna, softener)' },
+    { code: 'PKG', label: 'Packaging', desc: 'Material kemasan' },
+  ],
+  WIP: [
+    { code: 'GRY', label: 'Greige', desc: 'Kain greige (belum finishing)' },
+    { code: 'DYD', label: 'Dyed', desc: 'Kain sudah dicelup' },
+    { code: 'PRT', label: 'Printed', desc: 'Kain sudah dicetak' },
+    { code: 'CUT', label: 'Cut Parts', desc: 'Potongan siap jahit' },
+  ],
+  MFG: [
+    { code: 'TSH', label: 'T-Shirt', desc: 'Kaos' },
+    { code: 'PNT', label: 'Pants', desc: 'Celana' },
+    { code: 'JKT', label: 'Jacket', desc: 'Jaket' },
+    { code: 'SCR', label: 'Scarf', desc: 'Syal / Scarf' },
+    { code: 'DRS', label: 'Dress', desc: 'Gaun' },
+    { code: 'SKT', label: 'Skirt', desc: 'Rok' },
+    { code: 'HDW', label: 'Headwear', desc: 'Topi / Headwear' },
+    { code: 'BAG', label: 'Bag', desc: 'Tas' },
+    { code: 'OTR', label: 'Other', desc: 'Produk lain' },
+  ],
+  TRD: [
+    { code: 'TSH', label: 'T-Shirt', desc: 'Kaos (beli jadi)' },
+    { code: 'PNT', label: 'Pants', desc: 'Celana (beli jadi)' },
+    { code: 'JKT', label: 'Jacket', desc: 'Jaket (beli jadi)' },
+    { code: 'ACC', label: 'Accessory', desc: 'Aksesori (beli jadi)' },
+    { code: 'FAB', label: 'Fabric', desc: 'Kain (beli jadi, jual langsung)' },
+    { code: 'OTR', label: 'Other', desc: 'Produk lain' },
+  ],
+}
+
+/** Segment 3 — Brand */
+export const CODE_BRANDS: CodeSegment[] = [
+  { code: 'BR', label: 'Brand BR' },
+  { code: 'ZR', label: 'Brand ZR' },
+  { code: 'EL', label: 'Brand EL' },
+  { code: 'LV', label: 'Brand LV' },
+  { code: 'GN', label: 'Generic' },
+  { code: 'XX', label: 'Unbranded' },
+]
+
+/** Segment 4 — Color */
+export const CODE_COLORS: CodeSegment[] = [
+  { code: 'BLK', label: 'Black' },
+  { code: 'WHT', label: 'White' },
+  { code: 'IND', label: 'Indigo' },
+  { code: 'CML', label: 'Camel' },
+  { code: 'MRN', label: 'Maroon' },
+  { code: 'CHR', label: 'Charcoal' },
+  { code: 'NVY', label: 'Navy' },
+  { code: 'OLV', label: 'Olive' },
+  { code: 'TEL', label: 'Teal' },
+  { code: 'GLD', label: 'Gold' },
+  { code: 'RED', label: 'Red' },
+  { code: 'BLU', label: 'Blue' },
+  { code: 'GRN', label: 'Green' },
+  { code: 'GRY', label: 'Grey' },
+  { code: 'BEG', label: 'Beige' },
+  { code: 'CRM', label: 'Cream' },
+  { code: 'PNK', label: 'Pink' },
+  { code: 'MIX', label: 'Multi / Mix' },
+  { code: 'NAT', label: 'Natural' },
+]
+
+/** Build structured code from segments */
+export function buildStructuredCode(category: string, type: string, brand: string, color: string, seq: number): string {
+  return `${category}-${type}-${brand}-${color}-${seq.toString().padStart(3, '0')}`
+}
+
+/**
+ * Generate internal barcode from product code: ERP-{CODE}-{CHECK}
+ */
+export function generateBarcode(productCode: string): string {
+  const sum = productCode.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+  const check = (sum % 97).toString().padStart(2, '0')
+  return `ERP-${productCode}-${check}`
 }
 
 /**

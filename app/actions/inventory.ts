@@ -12,6 +12,7 @@ import {
     FALLBACK_WAREHOUSES
 } from "@/lib/db-fallbacks"
 import { createProductSchema, createCategorySchema, type CreateProductInput, type CreateCategoryInput } from "@/lib/validations"
+import { generateBarcode } from "@/lib/inventory-utils"
 import { z } from "zod"
 
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
@@ -1242,19 +1243,64 @@ export async function getRecentAudits() {
     }
 }
 
+/**
+ * Generate next sequence for a structured product code prefix.
+ * Prefix = "MFG-TSH-BR-BLK" → finds highest "MFG-TSH-BR-BLK-NNN" → returns NNN+1
+ */
+export async function generateNextSequence(prefix: string): Promise<number> {
+    const existing = await prisma.product.findMany({
+        where: { code: { startsWith: prefix } },
+        select: { code: true },
+        orderBy: { code: 'desc' },
+        take: 1,
+    })
+
+    if (existing.length === 0) return 1
+
+    const lastCode = existing[0].code
+    const parts = lastCode.split('-')
+    const seqPart = parts[parts.length - 1]
+    const parsed = parseInt(seqPart, 10)
+    return isNaN(parsed) ? 1 : parsed + 1
+}
+
 export async function createProduct(input: CreateProductInput) {
     try {
-        console.log("createProduct input:", input)
         const data = createProductSchema.parse(input)
+
+        // Build structured code from segments
+        const catCode = (data as any).codeCategory || 'TRD'
+        const typeCode = (data as any).codeType || 'OTR'
+        const brandCode = (data as any).codeBrand || 'XX'
+        const colorCode = (data as any).codeColor || 'NAT'
+
+        const prefix = `${catCode}-${typeCode}-${brandCode}-${colorCode}`
+        const seq = await generateNextSequence(prefix)
+        const finalCode = `${prefix}-${seq.toString().padStart(3, '0')}`
+
+        // Derive productType from category segment
+        const typeMap: Record<string, string> = { MFG: 'MANUFACTURED', TRD: 'TRADING', RAW: 'RAW_MATERIAL', WIP: 'WIP' }
+        const productType = typeMap[catCode] || 'TRADING'
+
+        // Auto-generate barcode
+        const finalBarcode = generateBarcode(finalCode)
 
         const product = await withRetry(async () => {
             return await prisma.product.create({
                 data: {
-                    ...data, // Spread validated data
-                    // Fix: Convert empty string categoryId to null for UUID column
+                    code: finalCode,
+                    name: data.name,
+                    description: data.description || null,
                     categoryId: data.categoryId === "" ? null : data.categoryId,
-                    isActive: true, // Default to active
-                    // Default timestamps are handled by DB
+                    productType: productType as any,
+                    unit: data.unit,
+                    costPrice: data.costPrice ?? 0,
+                    sellingPrice: data.sellingPrice ?? 0,
+                    minStock: data.minStock ?? 0,
+                    maxStock: data.maxStock ?? 0,
+                    reorderLevel: data.reorderLevel ?? 0,
+                    barcode: finalBarcode,
+                    isActive: true,
                 }
             })
         })
@@ -1263,20 +1309,17 @@ export async function createProduct(input: CreateProductInput) {
         revalidateTagSafe('products')
         revalidatePath('/inventory/products')
 
-        // Normalize Decimal fields to plain numbers/strings before returning to client
         const safeProduct = JSON.parse(JSON.stringify(product))
-
         return { success: true, data: safeProduct }
     } catch (error) {
         console.error("Failed to create product:", error)
         if (error instanceof z.ZodError) {
             return { success: false, error: error.issues[0].message }
         }
-        // Prisma Unique Constraint Error
         if ((error as any).code === 'P2002') {
-            return { success: false, error: "A product with this code already exists." }
+            return { success: false, error: "Kode produk sudah digunakan. Coba lagi." }
         }
-        return { success: false, error: "Failed to create product. Please try again." }
+        return { success: false, error: "Gagal membuat produk. Silakan coba lagi." }
     }
 }
 

@@ -2,10 +2,16 @@ import { z } from 'zod'
 
 // Product validation schema - base object for type inference
 export const createProductSchemaBase = z.object({
-  code: z.string().min(1, 'Kode produk wajib diisi').max(50, 'Kode produk maksimal 50 karakter'),
+  code: z.string().max(50, 'Kode produk maksimal 50 karakter').optional().default(''),
   name: z.string().min(1, 'Nama produk wajib diisi').max(200, 'Nama produk maksimal 200 karakter'),
   description: z.string().optional(),
   categoryId: z.string().optional(),
+  productType: z.enum(['MANUFACTURED', 'TRADING', 'RAW_MATERIAL', 'WIP']).optional().default('TRADING'),
+  // Structured code segments (server builds final code from these)
+  codeCategory: z.enum(['MFG', 'TRD', 'RAW', 'WIP']).optional().default('TRD'),
+  codeType: z.string().min(2).max(3).optional().default('OTR'),
+  codeBrand: z.string().min(2).max(2).optional().default('XX'),
+  codeColor: z.string().min(3).max(3).optional().default('NAT'),
   unit: z.string().min(1, 'Satuan wajib diisi').max(20, 'Satuan maksimal 20 karakter'),
   costPrice: z.number().min(0, 'Harga beli tidak boleh negatif').optional().default(0),
   sellingPrice: z.number().min(0, 'Harga jual tidak boleh negatif').optional().default(0),
