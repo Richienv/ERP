@@ -2976,3 +2976,124 @@ export async function getARPaymentRegistry(params: {
         }
     }
 }
+
+// ==========================================
+// VENDOR BILLS REGISTRY (paginated AP view)
+// ==========================================
+
+type VendorBillQueryInput = {
+    q?: string | null
+    status?: string | null
+    page?: number | null
+    pageSize?: number | null
+}
+
+export interface VendorBillRegistryResult {
+    rows: VendorBill[]
+    meta: {
+        page: number
+        pageSize: number
+        total: number
+        totalPages: number
+    }
+    query: {
+        q: string | null
+        status: string | null
+    }
+}
+
+const normalizeVendorBillQuery = (input?: VendorBillQueryInput) => {
+    const trimmedQ = (input?.q || "").trim()
+    const trimmedStatus = (input?.status || "").trim().toUpperCase()
+    const pageRaw = Number(input?.page)
+    const pageSizeRaw = Number(input?.pageSize)
+    return {
+        q: trimmedQ.length > 0 ? trimmedQ : null,
+        status: trimmedStatus.length > 0 ? trimmedStatus : null,
+        page: Number.isFinite(pageRaw) ? Math.max(1, Math.trunc(pageRaw)) : 1,
+        pageSize: Number.isFinite(pageSizeRaw) ? Math.min(50, Math.max(6, Math.trunc(pageSizeRaw))) : 12,
+    }
+}
+
+export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Promise<VendorBillRegistryResult> {
+    const query = normalizeVendorBillQuery(input)
+
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const where: any = {
+                type: 'INV_IN',
+                status: { in: ['DRAFT', 'ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED'] }
+            }
+
+            if (query.status) where.status = query.status
+            if (query.q) {
+                where.OR = [
+                    { number: { contains: query.q, mode: 'insensitive' } },
+                    { supplier: { name: { contains: query.q, mode: 'insensitive' } } }
+                ]
+            }
+
+            const [bills, total] = await Promise.all([
+                prisma.invoice.findMany({
+                    where,
+                    include: {
+                        supplier: {
+                            select: {
+                                id: true,
+                                name: true,
+                                bankName: true,
+                                bankAccountNumber: true,
+                                bankAccountName: true
+                            }
+                        }
+                    },
+                    orderBy: [{ dueDate: 'asc' }, { issueDate: 'desc' }],
+                    skip: (query.page - 1) * query.pageSize,
+                    take: query.pageSize
+                }),
+                prisma.invoice.count({ where })
+            ])
+
+            const now = new Date()
+            const rows: VendorBill[] = bills.map((bill) => ({
+                id: bill.id,
+                number: bill.number,
+                vendor: bill.supplier ? {
+                    id: bill.supplier.id,
+                    name: bill.supplier.name,
+                    bankName: bill.supplier.bankName || undefined,
+                    bankAccountNumber: bill.supplier.bankAccountNumber || undefined,
+                    bankAccountName: bill.supplier.bankAccountName || undefined
+                } : null,
+                purchaseOrderNumber: (bill as any).purchaseOrderId || undefined,
+                date: bill.issueDate,
+                dueDate: bill.dueDate,
+                amount: Number(bill.totalAmount),
+                balanceDue: Number(bill.balanceDue),
+                status: bill.status,
+                isOverdue: bill.dueDate < now && bill.status !== 'PAID'
+            }))
+
+            return {
+                rows,
+                meta: {
+                    page: query.page,
+                    pageSize: query.pageSize,
+                    total,
+                    totalPages: Math.max(1, Math.ceil(total / query.pageSize))
+                },
+                query: {
+                    q: query.q,
+                    status: query.status,
+                }
+            }
+        })
+    } catch (error) {
+        console.error("Failed to fetch vendor bills registry:", error)
+        return {
+            rows: [],
+            meta: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
+            query: { q: query.q, status: query.status }
+        }
+    }
+}
