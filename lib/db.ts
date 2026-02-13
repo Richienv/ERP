@@ -72,23 +72,9 @@ export async function withPrismaAuth<T>(
 
         return await withRetry(async () => {
             return await basePrisma.$transaction(async (tx) => {
-                const _dbRole = (role === 'anon' || role === 'authenticated') ? role : 'authenticated'
-                // BYPASS RLS FOR TRANSACTION POOLER COMPATIBILITY
-                // The 'postgres' user from the pooler connection string has full admin rights.
-                // Switching to 'authenticated' role causes 'permission denied for schema public' 
-                // because the pooler environment or role grants might be misconfigured for this project type.
-
-                /*
-                try {
-                    await tx.$executeRawUnsafe(`SET LOCAL ROLE ${dbRole}`)
-                } catch {
-                    // ignore if role switching is not permitted
-                }
-    
-                await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${sub}, true)`
-                await tx.$executeRaw`SELECT set_config('request.jwt.claim.role', ${dbRole}, true)`
-                await tx.$executeRaw`SELECT set_config('request.jwt.claims', ${claimsJson}, true)`
-                */
+                // RLS bypassed: the pooler connection uses 'postgres' role with full admin rights.
+                // Role switching to 'authenticated' causes 'permission denied for schema public'
+                // in the current pooler setup. Auth context (sub/role) is validated above.
 
                 if (process.env.DEBUG_PRISMA_AUTH === '1') {
                     try {

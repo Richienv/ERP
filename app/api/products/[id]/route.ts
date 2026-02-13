@@ -153,7 +153,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/products/[id] - Delete product
+// DELETE /api/products/[id] - Delete (or deactivate) product
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -161,12 +161,21 @@ export async function DELETE(
   try {
     const { id } = await params
 
-    // Check if product exists
+    // Check if product exists and count all dependent records
     const existingProduct = await prisma.product.findUnique({
       where: { id },
       include: {
-        stockLevels: true,
-        transactions: true,
+        _count: {
+          select: {
+            stockLevels: true,
+            transactions: true,
+            quotationItems: true,
+            salesOrderItems: true,
+            purchaseOrderItems: true,
+            BOMItem: true,
+            workOrders: true,
+          },
+        },
       },
     })
 
@@ -177,12 +186,17 @@ export async function DELETE(
       )
     }
 
-    // Check if product has stock or movements
-    const hasStock = existingProduct.stockLevels.some(level => level.quantity > 0)
-    const hasMovements = existingProduct.transactions.length > 0
+    // Check for ANY dependent records across all referencing tables
+    const counts = existingProduct._count
+    const hasStock = counts.stockLevels > 0
+    const hasMovements = counts.transactions > 0
+    const hasSalesRefs = counts.quotationItems > 0 || counts.salesOrderItems > 0
+    const hasProcurementRefs = counts.purchaseOrderItems > 0
+    const hasManufacturingRefs = (counts.BOMItem || 0) > 0 || counts.workOrders > 0
+    const hasDependencies = hasStock || hasMovements || hasSalesRefs || hasProcurementRefs || hasManufacturingRefs
 
-    if (hasStock || hasMovements) {
-      // Soft delete - mark as inactive instead of hard delete
+    if (hasDependencies) {
+      // Always soft-delete when any dependencies exist to avoid FK violations
       await prisma.product.update({
         where: { id },
         data: {
@@ -191,21 +205,28 @@ export async function DELETE(
         },
       })
 
+      const reasons: string[] = []
+      if (hasStock) reasons.push('stok aktif')
+      if (hasMovements) reasons.push('riwayat pergerakan')
+      if (hasSalesRefs) reasons.push('referensi penjualan')
+      if (hasProcurementRefs) reasons.push('referensi pengadaan')
+      if (hasManufacturingRefs) reasons.push('referensi manufaktur')
+
       const response: ApiResponse = {
         success: true,
-        message: 'Product deactivated successfully (has stock history)',
+        message: `Produk dinonaktifkan (memiliki ${reasons.join(', ')})`,
       }
 
       return NextResponse.json(response)
     } else {
-      // Hard delete if no stock or movements
+      // Hard delete only when no references exist anywhere
       await prisma.product.delete({
         where: { id },
       })
 
       const response: ApiResponse = {
         success: true,
-        message: 'Product deleted successfully',
+        message: 'Produk berhasil dihapus',
       }
 
       return NextResponse.json(response)
@@ -213,7 +234,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Error deleting product:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to delete product' },
+      { success: false, error: 'Gagal menghapus produk' },
       { status: 500 }
     )
   }
