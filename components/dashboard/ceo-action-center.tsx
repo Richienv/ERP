@@ -40,11 +40,25 @@ interface CeoActionCenterProps {
     activeCount: number
     alerts: Alert[]
     pendingLeaves: number
+    totalPRs?: number
+    pendingPRs?: number
+    totalPOs?: number
+    totalPOValue?: number
+    poByStatus?: Record<string, number>
 }
 
 type Tab = "approvals" | "alerts" | "actions"
 
-export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingLeaves }: CeoActionCenterProps) {
+function formatCompact(value: number): string {
+    if (value === 0) return "Rp 0"
+    const abs = Math.abs(value)
+    if (abs >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)}M`
+    if (abs >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(1)}jt`
+    if (abs >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}rb`
+    return `Rp ${value.toFixed(0)}`
+}
+
+export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingLeaves, totalPRs = 0, pendingPRs = 0, totalPOs = 0, totalPOValue = 0, poByStatus = {} }: CeoActionCenterProps) {
     const [activeTab, setActiveTab] = useState<Tab>("approvals")
     const [selectedPO, setSelectedPO] = useState<PendingPO | null>(null)
     const [rejectMode, setRejectMode] = useState(false)
@@ -152,6 +166,26 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                         {/* Approvals Tab */}
                         {activeTab === "approvals" && (
                             <div className="space-y-2">
+                                {/* PR/PO Summary Strip */}
+                                {(totalPRs > 0 || totalPOs > 0) && (
+                                    <div className="grid grid-cols-3 gap-1.5 mb-3">
+                                        <Link href="/procurement/requests" className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-2 text-center hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
+                                            <div className="text-lg font-black text-blue-900 dark:text-blue-300">{totalPRs}</div>
+                                            <div className="text-[9px] font-black uppercase tracking-wider text-blue-600 dark:text-blue-400">Total PR</div>
+                                            {pendingPRs > 0 && <div className="text-[9px] font-bold text-amber-600 mt-0.5">{pendingPRs} pending</div>}
+                                        </Link>
+                                        <Link href="/procurement/orders" className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-2 text-center hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">
+                                            <div className="text-lg font-black text-emerald-900 dark:text-emerald-300">{totalPOs}</div>
+                                            <div className="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Total PO</div>
+                                            <div className="text-[9px] font-bold text-emerald-700 dark:text-emerald-400 mt-0.5">{activeCount} aktif</div>
+                                        </Link>
+                                        <div className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-2 text-center">
+                                            <div className="text-sm font-black text-zinc-900 dark:text-zinc-100">{formatCompact(totalPOValue)}</div>
+                                            <div className="text-[9px] font-black uppercase tracking-wider text-zinc-500">Nilai PO</div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {pendingApproval.length > 0 ? (
                                     pendingApproval.map((po) => (
                                         <button
@@ -169,7 +203,7 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                                         </button>
                                     ))
                                 ) : (
-                                    <div className="text-center py-8">
+                                    <div className="text-center py-4">
                                         <CheckCircle className="h-8 w-8 mx-auto text-emerald-400 mb-2" />
                                         <p className="text-xs font-black uppercase tracking-wide text-zinc-400">Semua Beres</p>
                                         <p className="text-[10px] text-zinc-400 mt-1">Tidak ada persetujuan yang menunggu</p>
