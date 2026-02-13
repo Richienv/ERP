@@ -1,36 +1,18 @@
 export const dynamic = 'force-dynamic'
 
-import { getInventoryCommandCenterProducts, getCategories, getWarehouses } from '@/app/actions/inventory'
+import { getProductsForKanban, getCategories, getWarehouses } from '@/app/actions/inventory'
+import { getVendors } from '@/app/actions/vendor'
+import { InventoryKanbanBoard } from '@/components/inventory/inventory-kanban-board'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { SlidersHorizontal } from 'lucide-react'
+import { Plus, SlidersHorizontal } from 'lucide-react'
+import { ProductDataTable } from '@/components/inventory/product-data-table'
 import { ProductCreateDialog } from '@/components/inventory/product-create-dialog'
 import { InventoryPerformanceProvider } from '@/components/inventory/inventory-performance-provider'
-import { InventoryProductsTabs } from '@/components/inventory/inventory-products-tabs'
 
-type SearchParamsValue = string | string[] | undefined
-
-const readSearchParam = (params: Record<string, SearchParamsValue>, key: string) => {
-  const value = params[key]
-  if (Array.isArray(value)) return value[0]
-  return value
-}
-
-export default async function InventoryProductsPage({
-  searchParams,
-}: {
-  searchParams?: Promise<Record<string, SearchParamsValue>> | Record<string, SearchParamsValue>
-}) {
-  const resolvedSearchParams = searchParams
-    ? (typeof (searchParams as Promise<Record<string, SearchParamsValue>>).then === "function"
-      ? await (searchParams as Promise<Record<string, SearchParamsValue>>)
-      : (searchParams as Record<string, SearchParamsValue>))
-    : {}
-
-  const [commandCenter, categories, warehouses] = await Promise.all([
-    getInventoryCommandCenterProducts({
-      q: readSearchParam(resolvedSearchParams, "q"),
-      status: readSearchParam(resolvedSearchParams, "status"),
-    }),
+export default async function InventoryProductsPage() {
+  const [products, categories, warehouses] = await Promise.all([
+    getProductsForKanban(),
     getCategories(),
     getWarehouses()
   ])
@@ -51,12 +33,24 @@ export default async function InventoryProductsPage({
           </div>
         </div>
 
-        <InventoryProductsTabs
-          initialProducts={commandCenter.products}
-          warehouses={warehouses}
-          initialQuery={commandCenter.query}
-          initialSummary={commandCenter.summary}
-        />
+
+
+        <Tabs defaultValue="kanban" className="w-full">
+          <TabsList className="mb-4 bg-white border">
+            <TabsTrigger value="kanban">Kanban View</TabsTrigger>
+            <TabsTrigger value="list">Detailed List</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="kanban" className="mt-0">
+            <InventoryKanbanBoard products={products} warehouses={warehouses} categories={categories} />
+          </TabsContent>
+
+          <TabsContent value="list" className="mt-0">
+            <div className="bg-white rounded-lg border p-4">
+              <ProductDataTable data={products} categories={categories} />
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </InventoryPerformanceProvider>
   )

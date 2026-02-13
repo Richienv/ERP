@@ -39,23 +39,21 @@ import {
   ChevronDown,
   MoreHorizontal,
   Eye,
-  Edit,
   Trash2
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 import { StockStatusBadge, CurrencyDisplay } from "@/components/inventory"
 import { formatNumber, getStockStatus } from "@/lib/inventory-utils"
-import { type ProductWithRelations, type StockStatus } from "@/lib/types"
+import { type ProductWithRelations } from "@/lib/types"
+import { ProductQuickView } from "@/components/inventory/product-quick-view"
 
 // Add current stock to products (would come from stock levels in real app)
 // Also override Decimal types to number for client usage
-export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'sellingPrice'> & {
+export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'sellingPrice' | 'manualBurnRate'> & {
   costPrice: number
   sellingPrice: number
+  manualBurnRate: number
   currentStock: number
-  status?: string | null
 }
 
 // Mock data - same as before but typed properly
@@ -146,32 +144,7 @@ const productsWithStock: ProductWithStock[] = mockProducts.map(product => ({
       Math.floor(Math.random() * 50),
 }))
 
-function getDisplayStockStatus(product: ProductWithStock): StockStatus {
-  if (product.manualAlert) {
-    return "critical"
-  }
-
-  const normalizedStatus = (product.status || "").toUpperCase()
-  if (normalizedStatus === "CRITICAL" || normalizedStatus === "CRITICAL_WO_SHORTAGE") {
-    return product.currentStock <= 0 ? "out" : "critical"
-  }
-  if (normalizedStatus === "LOW_STOCK" || normalizedStatus === "RESTOCK_NEEDED") {
-    return "low"
-  }
-  if (normalizedStatus === "OUT_OF_STOCK") {
-    return "out"
-  }
-  if (normalizedStatus === "HEALTHY" || normalizedStatus === "OK" || normalizedStatus === "NEW") {
-    return product.currentStock <= 0 ? "out" : "normal"
-  }
-
-  return getStockStatus(product.currentStock, product.minStock, product.maxStock)
-}
-
-const createColumns = (
-  onDelete: (product: ProductWithStock) => Promise<void>,
-  deletingProductId: string | null
-): ColumnDef<ProductWithStock>[] => [
+export const columns: ColumnDef<ProductWithStock>[] = [
   {
     accessorKey: "code",
     header: "Kode",
@@ -233,6 +206,7 @@ const createColumns = (
     header: "Stok",
     cell: ({ row }) => {
       const product = row.original
+      const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
 
       return (
         <div className="text-center">
@@ -249,7 +223,7 @@ const createColumns = (
     header: "Status Stok",
     cell: ({ row }) => {
       const product = row.original
-      const stockStatus = getDisplayStockStatus(product)
+      const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
 
       return (
         <div className="text-center">
@@ -258,110 +232,69 @@ const createColumns = (
       )
     },
   },
-  {
-    id: "actions",
-    header: "Aksi",
-    cell: ({ row }) => {
-      const product = row.original
-
-      return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Buka menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href={`/inventory/products/${product.id}`}>
-                <Eye className="mr-2 h-4 w-4" />
-                Lihat Detail
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link href={`/inventory/products/${product.id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-red-600"
-              disabled={deletingProductId === product.id}
-              onSelect={(event) => {
-                event.preventDefault()
-                void onDelete(product)
-              }}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              {deletingProductId === product.id ? "Menghapus..." : "Hapus"}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )
-    },
-  },
+  // Actions column is defined dynamically in the component below
 ]
+
+function createActionsColumn(onQuickView: (id: string) => void): ColumnDef<ProductWithStock> {
+    return {
+        id: "actions",
+        header: "Aksi",
+        cell: ({ row }) => {
+            const product = row.original
+            return (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Buka menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onQuickView(product.id)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Lihat Detail & Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600" onClick={() => onQuickView(product.id)}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Hapus
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )
+        },
+    }
+}
 
 interface ProductDataTableProps {
   data: ProductWithStock[]
+  categories?: { id: string; name: string; code: string }[]
 }
 
-export function ProductDataTable({ data }: ProductDataTableProps) {
-  const router = useRouter()
+export function ProductDataTable({ data, categories = [] }: ProductDataTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
   const [globalFilter, setGlobalFilter] = React.useState("")
-  const [tableData, setTableData] = React.useState<ProductWithStock[]>(data)
-  const [deletingProductId, setDeletingProductId] = React.useState<string | null>(null)
+  const [quickViewId, setQuickViewId] = React.useState<string | null>(null)
+  const [quickViewOpen, setQuickViewOpen] = React.useState(false)
 
-  React.useEffect(() => {
-    setTableData(data)
-  }, [data])
+  const handleQuickView = React.useCallback((id: string) => {
+    setQuickViewId(id)
+    setQuickViewOpen(true)
+  }, [])
 
-  const handleDeleteProduct = async (product: ProductWithStock) => {
-    if (deletingProductId) return
-    const hasReferences = product._count && (
-      (product._count.stockLevels ?? 0) > 0 || (product._count.transactions ?? 0) > 0
-    )
-    const message = hasReferences
-      ? `Produk "${product.name}" memiliki data stok atau riwayat terkait.\n\nProduk akan dinonaktifkan (bukan dihapus permanen). Lanjutkan?`
-      : `Hapus produk "${product.name}" secara permanen?\n\nTindakan ini tidak dapat dibatalkan.`
-    const confirmed = window.confirm(message)
-    if (!confirmed) return
-
-    setDeletingProductId(product.id)
-    try {
-      const response = await fetch(`/api/products/${product.id}`, { method: "DELETE" })
-      const payload = await response.json()
-
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || "Gagal menghapus produk")
-      }
-
-      setTableData((prev) => prev.filter((item) => item.id !== product.id))
-      toast.success(payload?.message || "Produk berhasil dihapus")
-      router.refresh()
-    } catch (error: any) {
-      toast.error(error?.message || "Gagal menghapus produk")
-    } finally {
-      setDeletingProductId(null)
-    }
-  }
-
-  const currentColumns = React.useMemo(
-    () => createColumns(handleDeleteProduct, deletingProductId),
-    [deletingProductId]
+  const allColumns = React.useMemo(
+    () => [...columns, createActionsColumn(handleQuickView)],
+    [handleQuickView]
   )
 
   const table = useReactTable({
-    data: tableData,
-    columns: currentColumns,
+    data,
+    columns: allColumns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
@@ -512,7 +445,7 @@ export function ProductDataTable({ data }: ProductDataTableProps) {
             ) : (
               <TableRow>
                 <TableCell
-                  colSpan={currentColumns.length}
+                  colSpan={columns.length}
                   className="h-24 text-center"
                 >
                   Tidak ada produk ditemukan.
@@ -546,6 +479,13 @@ export function ProductDataTable({ data }: ProductDataTableProps) {
           </Button>
         </div>
       </div>
+
+      <ProductQuickView
+        productId={quickViewId}
+        open={quickViewOpen}
+        onOpenChange={setQuickViewOpen}
+        categories={categories}
+      />
     </div>
   )
 }

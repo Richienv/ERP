@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { setProductManualAlert, createRestockRequest } from '@/app/actions/inventory'
 import {
@@ -24,11 +25,10 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { AlertCircle, CheckCircle2, Package, Calculator, Truck } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Package, Calculator, Truck, Eye } from 'lucide-react'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
-
-const PRODUCT_DETAIL_CACHE_TTL_MS = 30_000
+import { ProductQuickView } from '@/components/inventory/product-quick-view'
 
 interface Product {
     id: string
@@ -44,36 +44,16 @@ interface Product {
     image: string
 }
 
-interface ProductMovementHistory {
-    id: string
-    type: string
-    quantity: number
-    createdAt: string
-    warehouse?: {
-        name: string
-    } | null
-    notes?: string | null
-}
-
-interface ProductDetailPayload {
-    id: string
-    code: string
-    name: string
-    unit: string
-    minStock: number
-    currentStock: number
-    transactions: ProductMovementHistory[]
-}
-
 interface KanbanColumnProps {
     title: string
     status: string
     products: Product[]
+    color: string
     onDrop: (productId: string, newStatus: string) => void
     onCardClick: (productId: string) => void
 }
 
-function KanbanColumn({ title, status, products, onDrop, onCardClick }: KanbanColumnProps) {
+function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: KanbanColumnProps) {
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault()
     }
@@ -98,7 +78,7 @@ function KanbanColumn({ title, status, products, onDrop, onCardClick }: KanbanCo
 
     return (
         <div
-            className={`flex-1 min-w-[320px] max-w-[400px] flex flex-col h-full min-h-0 rounded-xl border-3 ${borderColor} ${bgColor} ${shadowClass} overflow-hidden`}
+            className={`flex-1 min-w-[320px] max-w-[400px] flex flex-col h-full rounded-xl border-3 ${borderColor} ${bgColor} ${shadowClass} overflow-hidden`}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
@@ -119,8 +99,8 @@ function KanbanColumn({ title, status, products, onDrop, onCardClick }: KanbanCo
             </div>
 
             {/* Column Content */}
-            <ScrollArea className="flex-1 min-h-0 p-3">
-                <div className="space-y-4 pb-8">
+            <ScrollArea className="flex-1 p-3">
+                <div className="space-y-4 pb-4">
                     {products.map(product => (
                         <div
                             key={product.id}
@@ -128,8 +108,7 @@ function KanbanColumn({ title, status, products, onDrop, onCardClick }: KanbanCo
                             onDragStart={(e) => e.dataTransfer.setData('productId', product.id)}
                             onClick={() => onCardClick(product.id)}
                             className={cn(
-                                "p-4 bg-white rounded-lg border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-grab active:cursor-grabbing h-full relative group",
-                                "hover:translate-x-[1px] hover:translate-y-[1px] transition-transform",
+                                "p-4 bg-white rounded-lg border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer active:cursor-grabbing h-full relative group hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all",
                                 product.manualAlert && "border-red-600 shadow-red-900/20"
                             )}
                         >
@@ -169,7 +148,13 @@ function KanbanColumn({ title, status, products, onDrop, onCardClick }: KanbanCo
                                     </div>
                                 )}
                             </div>
-                            <div className="mt-3 text-[10px] font-bold uppercase text-zinc-400">Klik untuk lihat riwayat pergerakan</div>
+
+                            {/* Click hint */}
+                            <div className="mt-2 pt-2 border-t border-dashed border-zinc-200 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 flex items-center justify-center gap-1">
+                                    <Eye className="h-2.5 w-2.5" /> Klik untuk lihat detail
+                                </span>
+                            </div>
                         </div>
                     ))}
                     {products.length === 0 && (
@@ -187,16 +172,18 @@ function KanbanColumn({ title, status, products, onDrop, onCardClick }: KanbanCo
 interface InventoryKanbanProps {
     products: Product[]
     warehouses: { id: string, name: string }[]
-    onProductsChange?: (nextProducts: Product[]) => void
+    categories?: { id: string; name: string; code: string }[]
 }
 
-export function InventoryKanbanBoard({ products: initialProducts, warehouses, onProductsChange }: InventoryKanbanProps) {
+export function InventoryKanbanBoard({ products: initialProducts, warehouses, categories = [] }: InventoryKanbanProps) {
     const [products, setProducts] = useState(initialProducts)
     const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, productId: string | null, toStatus: string | null }>({
         isOpen: false,
         productId: null,
         toStatus: null
     })
+    const [quickViewId, setQuickViewId] = useState<string | null>(null)
+    const [quickViewOpen, setQuickViewOpen] = useState(false)
 
     // PR Form State
     const [prForm, setPrForm] = useState({
@@ -204,68 +191,8 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
         warehouseId: "",
         notes: ""
     })
-    const [detailOpen, setDetailOpen] = useState(false)
-    const [detailLoading, setDetailLoading] = useState(false)
-    const [selectedDetail, setSelectedDetail] = useState<ProductDetailPayload | null>(null)
-    const [detailCache, setDetailCache] = useState<Record<string, { cachedAt: number, data: ProductDetailPayload }>>({})
 
     const router = useRouter()
-
-    useEffect(() => {
-        setProducts(initialProducts)
-        setDetailCache({})
-    }, [initialProducts])
-
-    useEffect(() => {
-        onProductsChange?.(products)
-    }, [products, onProductsChange])
-
-    const openProductDetail = async (productId: string) => {
-        setDetailOpen(true)
-        setDetailLoading(true)
-        const cachedDetail = detailCache[productId]
-        if (cachedDetail && Date.now() - cachedDetail.cachedAt < PRODUCT_DETAIL_CACHE_TTL_MS) {
-            setSelectedDetail(cachedDetail.data)
-            setDetailLoading(false)
-            return
-        }
-        setSelectedDetail(null)
-        try {
-            const response = await fetch(`/api/products/${productId}`)
-            const payload = await response.json()
-            if (!payload.success) {
-                toast.error(payload.error || "Failed to load product detail")
-                return
-            }
-            const data = payload.data
-            const nextDetail = {
-                id: data.id,
-                code: data.code,
-                name: data.name,
-                unit: data.unit,
-                minStock: data.minStock || 0,
-                currentStock: data.currentStock || 0,
-                transactions: (data.transactions || []).map((tx: any) => ({
-                    id: tx.id,
-                    type: tx.type,
-                    quantity: tx.quantity,
-                    createdAt: tx.createdAt,
-                    notes: tx.notes,
-                    warehouse: tx.warehouse || null
-                }))
-            }
-            setSelectedDetail(nextDetail)
-            setDetailCache((prev) => ({
-                ...prev,
-                [productId]: { cachedAt: Date.now(), data: nextDetail }
-            }))
-        } catch (error) {
-            console.error(error)
-            toast.error("Failed to load stock movement history")
-        } finally {
-            setDetailLoading(false)
-        }
-    }
 
     const handleDrop = async (productId: string, newStatus: string) => {
         const product = products.find(p => p.id === productId)
@@ -349,11 +276,6 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
                 })
 
                 if (result.success) {
-                    setDetailCache((prev) => {
-                        const next = { ...prev }
-                        delete next[productId]
-                        return next
-                    })
                     const prNum = (result as any).prNumber
                     toast.dismiss()
                     toast.success(`Restock Request Created! PR #${prNum}`, {
@@ -390,11 +312,6 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
             const result = await setProductManualAlert(productId, false)
 
             if (result.success) {
-                setDetailCache((prev) => {
-                    const next = { ...prev }
-                    delete next[productId]
-                    return next
-                })
                 toast.dismiss()
                 toast.success("Manual Alert removed")
                 router.refresh()
@@ -411,35 +328,44 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
     const tax = estimatedCost * 0.11
     const totalWithTax = estimatedCost + tax
 
+    const handleCardClick = (productId: string) => {
+        setQuickViewId(productId)
+        setQuickViewOpen(true)
+    }
+
     return (
-        <div className="h-[calc(100vh-220px)] flex gap-6 overflow-x-auto pb-4 min-h-0">
+        <div className="h-[calc(100vh-220px)] flex gap-6 overflow-x-auto pb-4">
             <KanbanColumn
                 title="New Arrivals"
                 status="NEW"
                 products={products.filter(p => !p.manualAlert && p.status === 'NEW')}
+                color="bg-blue-50"
                 onDrop={handleDrop}
-                onCardClick={openProductDetail}
+                onCardClick={handleCardClick}
             />
             <KanbanColumn
                 title="Healthy Stock"
                 status="HEALTHY"
                 products={products.filter(p => !p.manualAlert && p.status === 'HEALTHY')}
+                color="bg-emerald-50"
                 onDrop={handleDrop}
-                onCardClick={openProductDetail}
+                onCardClick={handleCardClick}
             />
             <KanbanColumn
                 title="Low Stock"
                 status="LOW_STOCK"
                 products={products.filter(p => !p.manualAlert && p.status === 'LOW_STOCK')}
+                color="bg-amber-50"
                 onDrop={handleDrop}
-                onCardClick={openProductDetail}
+                onCardClick={handleCardClick}
             />
             <KanbanColumn
                 title="Critical / Alert"
                 status="CRITICAL"
                 products={products.filter(p => p.manualAlert || p.status === 'CRITICAL')}
+                color="bg-red-50"
                 onDrop={handleDrop}
-                onCardClick={openProductDetail}
+                onCardClick={handleCardClick}
             />
 
             {/* CONFIRMATION / PR DIALOG */}
@@ -550,67 +476,13 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, on
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-                <DialogContent className="max-w-2xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                    <DialogHeader>
-                        <DialogTitle className="text-xl font-black uppercase">
-                            Stock Movement History
-                        </DialogTitle>
-                        <DialogDescription>
-                            {selectedDetail ? `${selectedDetail.code} - ${selectedDetail.name}` : "Loading product detail..."}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {detailLoading ? (
-                        <div className="py-6 text-sm text-muted-foreground">Loading...</div>
-                    ) : selectedDetail ? (
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="rounded-lg border p-3 bg-zinc-50">
-                                    <div className="text-[10px] uppercase font-black text-zinc-500">Current Stock</div>
-                                    <div className="text-xl font-black">
-                                        {selectedDetail.currentStock} <span className="text-xs font-bold text-zinc-500">{selectedDetail.unit}</span>
-                                    </div>
-                                </div>
-                                <div className="rounded-lg border p-3 bg-zinc-50">
-                                    <div className="text-[10px] uppercase font-black text-zinc-500">Minimum Stock</div>
-                                    <div className="text-xl font-black">
-                                        {selectedDetail.minStock} <span className="text-xs font-bold text-zinc-500">{selectedDetail.unit}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="rounded-lg border overflow-hidden">
-                                <div className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 py-2 bg-zinc-100 border-b text-[10px] font-black uppercase">
-                                    <span>Type</span>
-                                    <span className="text-right">Qty</span>
-                                    <span>Warehouse</span>
-                                    <span className="text-right">Date</span>
-                                </div>
-                                <div className="max-h-72 overflow-y-auto divide-y">
-                                    {selectedDetail.transactions.length === 0 ? (
-                                        <div className="p-4 text-sm text-muted-foreground">No transactions found.</div>
-                                    ) : (
-                                        selectedDetail.transactions.map((tx) => (
-                                            <div key={tx.id} className="grid grid-cols-[1.2fr_0.8fr_0.8fr_1fr] gap-2 px-3 py-2 text-xs items-center">
-                                                <span className="font-bold">{tx.type}</span>
-                                                <span className={cn("text-right font-mono font-bold", tx.quantity >= 0 ? "text-emerald-700" : "text-red-700")}>
-                                                    {tx.quantity > 0 ? `+${tx.quantity}` : tx.quantity}
-                                                </span>
-                                                <span className="truncate">{tx.warehouse?.name || "-"}</span>
-                                                <span className="text-right text-zinc-500">
-                                                    {new Date(tx.createdAt).toLocaleDateString('id-ID')}
-                                                </span>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="py-6 text-sm text-muted-foreground">Product detail unavailable.</div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            {/* PRODUCT QUICK VIEW */}
+            <ProductQuickView
+                productId={quickViewId}
+                open={quickViewOpen}
+                onOpenChange={setQuickViewOpen}
+                categories={categories}
+            />
         </div>
     )
 }
