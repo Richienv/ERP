@@ -74,12 +74,38 @@ function FeedSkeleton() {
     )
 }
 
+// Helper: race a promise against a timeout
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+    ])
+}
+
+const FALLBACK_DASHBOARD = {
+    financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
+    deadStock: 0,
+    procurement: { activeCount: 0, delays: [], pendingApproval: [] },
+    hr: { totalSalary: 0, lateEmployees: [] },
+    leaves: 0,
+    audit: null,
+    prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
+    prodStatus: [],
+    materialStatus: [],
+    qualityStatus: { passRate: 0, recentInspections: [] },
+    workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
+    activityFeed: [],
+    executiveAlerts: [],
+    inventoryValue: { value: 0, itemCount: 0 }
+}
+
 export default async function DashboardPage() {
-    // Fetch all data in parallel (single aggregated transaction + 2 separate calls)
+    // Fetch all data in parallel with 10s page-level timeout
+    // Each call also has its own catch so any single failure doesn't block others
     const [dashboardData, salesStats, snapshot] = await Promise.all([
-        getDashboardData(),
-        getSalesStats().catch(() => ({ totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] })),
-        getLatestSnapshot().catch(() => null)
+        withTimeout(getDashboardData().catch(() => FALLBACK_DASHBOARD), 10000, FALLBACK_DASHBOARD),
+        withTimeout(getSalesStats().catch(() => ({ totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] })), 10000, { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] as any[] }),
+        withTimeout(getLatestSnapshot().catch(() => null), 10000, null)
     ])
 
     const sharedMetricsProps = { data: dashboardData, salesStats, snapshot }
