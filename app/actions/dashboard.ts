@@ -67,8 +67,9 @@ async function fetchFinancialChartData(prisma: PrismaClient) {
     start6m.setHours(0, 0, 0, 0)
 
     const [cashAccounts, journalLines, arInvoices, apInvoices] = await Promise.all([
+        // Query all ASSET accounts starting with '1' (cash/bank accounts)
         prisma.gLAccount.findMany({
-            where: { code: { in: ['1101', '1102'] } },
+            where: { type: 'ASSET', code: { startsWith: '1' } },
             select: { id: true, code: true, type: true, balance: true }
         }),
         prisma.journalLine.findMany({
@@ -335,15 +336,29 @@ async function fetchAuditStatus(prisma: PrismaClient) {
 }
 
 async function fetchProductionMetrics(prisma: PrismaClient) {
+    // Count both PLANNED and IN_PROGRESS work orders as "active"
     const activeWOs = await prisma.workOrder.count({
-        where: { status: 'IN_PROGRESS' }
+        where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
     })
 
     const snapshot = await prisma.executiveSnapshot.findFirst({ orderBy: { date: 'desc' } })
 
+    // Also get total completed this month for production count
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+
+    const completedThisMonth = await prisma.workOrder.aggregate({
+        _sum: { actualQty: true },
+        where: {
+            status: { in: ['COMPLETED', 'IN_PROGRESS'] },
+            startDate: { gte: startOfMonth }
+        }
+    })
+
     return {
         activeWorkOrders: activeWOs,
-        totalProduction: snapshot?.totalProduction || 0,
+        totalProduction: snapshot?.totalProduction || completedThisMonth._sum?.actualQty || 0,
         efficiency: snapshot?.avgEfficiency?.toNumber() || 0
     }
 }
@@ -374,10 +389,10 @@ async function fetchProductionStatus(prisma: PrismaClient) {
             name: m.name,
             job: wo?.number || '-',
             desc: wo?.product?.name || 'No Active Job',
-            progress: wo ? Math.min(100, Math.round((wo.completedQty / wo.quantity) * 100)) : 0,
+            progress: wo ? Math.min(100, Math.round((wo.actualQty / wo.plannedQty) * 100)) : 0,
             status: statusLabel,
             supervisor: '-',
-            eta: wo?.endDate ? wo.endDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '-'
+            eta: wo?.dueDate ? wo.dueDate.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : '-'
         }
     })
 }
@@ -385,28 +400,52 @@ async function fetchProductionStatus(prisma: PrismaClient) {
 async function fetchMaterialStatus(prisma: PrismaClient) {
     const products = await prisma.product.findMany({
         where: { isActive: true },
-        include: { stockLevels: true },
-        take: 100
+        include: {
+            stockLevels: {
+                include: { warehouse: { select: { name: true, code: true, isActive: true } } }
+            }
+        },
+        take: 200
     })
 
-    const withStock = products.map(p => ({
-        ...p,
-        totalStock: p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
-    }))
+    const withStock = products.map(p => {
+        const activeStockLevels = p.stockLevels.filter(sl => sl.warehouse.isActive)
+        const totalStock = activeStockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        // Use minStock if explicitly set (> 0), otherwise use a reasonable threshold:
+        // For products that have stock, use 10% of total as threshold; else just 1
+        const threshold = p.minStock > 0 ? p.minStock : Math.max(1, Math.ceil(totalStock * 0.1))
 
-    // Filter low stock (e.g., below 100 or minStock)
+        return {
+            ...p,
+            totalStock,
+            threshold,
+            warehouseBreakdown: activeStockLevels.map(sl => ({
+                warehouse: sl.warehouse.name,
+                code: sl.warehouse.code,
+                qty: sl.quantity
+            }))
+        }
+    })
+
+    // Filter low stock: products where totalStock <= threshold AND totalStock > 0
+    // Plus all out-of-stock (totalStock = 0) that have at least one stockLevel record
     const lowStock = withStock
-        .filter(p => p.totalStock <= (p.minStock || 100))
+        .filter(p => {
+            if (p.totalStock === 0 && p.stockLevels.length > 0) return true  // Out of stock
+            if (p.minStock > 0 && p.totalStock <= p.minStock) return true     // Below explicit minStock
+            return false
+        })
         .sort((a, b) => a.totalStock - b.totalStock)
-        .slice(0, 5)
+        .slice(0, 10)
 
     return lowStock.map(p => ({
         id: p.id,
         name: p.name,
         stockLevel: p.totalStock,
+        minStock: p.minStock,
         unit: p.unit,
         status: p.totalStock === 0 ? 'critical' : 'warning',
-        lastRestock: 'Recently' // Placeholder
+        warehouseBreakdown: p.warehouseBreakdown
     }))
 }
 
@@ -423,10 +462,12 @@ async function fetchQualityStatus(prisma: PrismaClient) {
 
     const last20 = await prisma.qualityInspection.findMany({
         take: 20,
+        orderBy: { inspectionDate: 'desc' },
         select: { status: true }
     })
     const passed = last20.filter(i => i.status === 'PASS').length
-    const passRate = last20.length > 0 ? Number(((passed / last20.length) * 100).toFixed(1)) : 100
+    // If no inspections exist, return -1 to signal "no data" (different from 0%)
+    const passRate = last20.length > 0 ? Number(((passed / last20.length) * 100).toFixed(1)) : -1
 
     const enrichedInspections = inspections.map(i => ({
         id: i.id,
@@ -441,12 +482,22 @@ async function fetchQualityStatus(prisma: PrismaClient) {
 
     return {
         passRate,
+        totalInspections: last20.length,
         recentInspections: enrichedInspections
     }
 }
 
 async function fetchWorkforceStatus(prisma: PrismaClient) {
-    const total = await prisma.employee.count({ where: { status: 'ACTIVE' } })
+    // Count employees by status — include ACTIVE and ON_LEAVE
+    const [activeCount, onLeaveCount, totalAll] = await Promise.all([
+        prisma.employee.count({ where: { status: 'ACTIVE' } }),
+        prisma.employee.count({ where: { status: 'ON_LEAVE' } }),
+        prisma.employee.count({ where: { status: { in: ['ACTIVE', 'ON_LEAVE'] } } })
+    ])
+
+    // Use totalAll as staff count (all non-terminated, non-inactive)
+    const total = totalAll > 0 ? totalAll : activeCount
+
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
@@ -458,8 +509,11 @@ async function fetchWorkforceStatus(prisma: PrismaClient) {
     const present = attendance.length
     const late = attendance.filter(a => a.isLate).length
 
+    // If no attendance records for today, check if it's a non-working day or no check-ins yet
+    // Show meaningful rate: if total > 0 but no attendance, rate is 0 but still show staff count
+
     const topEmployeesRaw = await prisma.employee.findMany({
-        where: { status: 'ACTIVE' },
+        where: { status: { in: ['ACTIVE', 'ON_LEAVE'] } },
         orderBy: { baseSalary: 'desc' },
         take: 5,
         include: {
@@ -480,7 +534,8 @@ async function fetchWorkforceStatus(prisma: PrismaClient) {
 
     const topEmployees = topEmployeesRaw.map(emp => {
         const att = emp.attendance[0]
-        const status = att ? (att.isLate ? 'Late' : 'Present') : 'Absent'
+        const status = att ? (att.isLate ? 'Late' : 'Present') :
+            emp.status === 'ON_LEAVE' ? 'On Leave' : 'Absent'
 
         const task = emp.tasks[0]
         let currentTask = 'Available'
@@ -513,37 +568,80 @@ async function fetchWorkforceStatus(prisma: PrismaClient) {
 }
 
 async function fetchActivityFeed(prisma: PrismaClient) {
-    const [invoices, movements, employees] = await Promise.all([
-        prisma.invoice.findMany({ take: 3, orderBy: { issueDate: 'desc' } }),
-        prisma.inventoryTransaction.findMany({ take: 3, orderBy: { createdAt: 'desc' }, include: { product: true } }),
-        prisma.employee.findMany({ take: 3, orderBy: { joinDate: 'desc' } })
+    const [invoices, movements, employees, purchaseOrders, salesOrders] = await Promise.all([
+        prisma.invoice.findMany({
+            take: 3,
+            orderBy: { issueDate: 'desc' },
+            include: { customer: { select: { name: true } }, supplier: { select: { name: true } } }
+        }),
+        prisma.inventoryTransaction.findMany({
+            take: 3,
+            orderBy: { createdAt: 'desc' },
+            include: { product: true, warehouse: { select: { name: true } } }
+        }),
+        prisma.employee.findMany({ take: 2, orderBy: { joinDate: 'desc' } }),
+        prisma.purchaseOrder.findMany({
+            take: 3,
+            orderBy: { createdAt: 'desc' },
+            include: { supplier: { select: { name: true } } }
+        }),
+        prisma.salesOrder.findMany({
+            take: 3,
+            orderBy: { orderDate: 'desc' },
+            include: { customer: { select: { name: true } } }
+        })
     ])
 
     const activities = [
         ...invoices.map(i => ({
             id: `inv-${i.id}`,
-            type: 'finance',
-            message: `New Invoice ${i.number}`,
-            time: i.issueDate.toISOString(),
-            user: 'System'
+            type: 'invoice' as const,
+            title: `Invoice ${i.number}`,
+            description: i.type === 'INV_OUT'
+                ? `Faktur ke ${i.customer?.name || 'pelanggan'}`
+                : `Tagihan dari ${i.supplier?.name || 'vendor'}`,
+            timestamp: i.issueDate.toISOString(),
+            user: 'Finance'
         })),
-        ...movements.map(m => ({
-            id: `tx-${m.id}`,
-            type: 'inventory',
-            message: `${m.type} ${m.quantity} ${m.product.name}`,
-            time: m.createdAt.toISOString(),
-            user: m.performedBy || 'Warehouse'
-        })),
+        ...movements.map(m => {
+            const isInbound = ['PO_RECEIVE', 'PRODUCTION_IN', 'RETURN_IN'].includes(m.type)
+            const typeLabel = isInbound ? 'Masuk' : 'Keluar'
+            return {
+                id: `tx-${m.id}`,
+                type: 'inventory' as const,
+                title: `${typeLabel} ${m.product.name}`,
+                description: `${m.quantity} ${m.product.unit || 'pcs'} @ ${m.warehouse?.name || 'Gudang'}`,
+                timestamp: m.createdAt.toISOString(),
+                user: m.performedBy || 'Warehouse'
+            }
+        }),
         ...employees.map(e => ({
             id: `emp-${e.id}`,
-            type: 'hr',
-            message: `New Hire: ${e.firstName}`,
-            time: e.joinDate.toISOString(),
+            type: 'hire' as const,
+            title: `Karyawan Baru`,
+            description: `${e.firstName} ${e.lastName || ''} - ${e.department}`,
+            timestamp: e.joinDate.toISOString(),
             user: 'HR'
+        })),
+        ...purchaseOrders.map(po => ({
+            id: `po-${po.id}`,
+            type: 'procurement' as const,
+            title: `PO ${po.number}`,
+            description: `${po.supplier.name} - ${po.status.replace(/_/g, ' ').toLowerCase()}`,
+            timestamp: po.createdAt.toISOString(),
+            user: 'Procurement'
+        })),
+        ...salesOrders.map(so => ({
+            id: `so-${so.id}`,
+            type: 'sales' as const,
+            title: `SO ${so.number}`,
+            description: `${so.customer.name} - ${so.status.toLowerCase()}`,
+            timestamp: so.orderDate.toISOString(),
+            user: 'Sales'
         }))
     ]
 
-    return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10)
+    return activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10)
 }
 
 async function fetchExecutiveAlerts(prisma: PrismaClient) {
@@ -592,17 +690,50 @@ async function fetchExecutiveAlerts(prisma: PrismaClient) {
 
 async function fetchTotalInventoryValue(prisma: PrismaClient) {
     const stockLevels = await prisma.stockLevel.findMany({
-        include: { product: { select: { costPrice: true, isActive: true } } }
+        include: {
+            product: { select: { costPrice: true, sellingPrice: true, isActive: true, name: true } },
+            warehouse: { select: { id: true, name: true, code: true, isActive: true } }
+        }
     })
     let value = 0
     let itemCount = 0
+    const warehouseMap = new Map<string, { name: string; code: string; value: number; itemCount: number; productCount: number }>()
+
     for (const sl of stockLevels) {
-        if (sl.product.isActive && sl.quantity > 0) {
-            value += sl.quantity * Number(sl.product.costPrice)
-            itemCount += sl.quantity
+        if (!sl.product.isActive || sl.quantity <= 0) continue
+        if (!sl.warehouse.isActive) continue
+
+        // Use costPrice if set, otherwise fall back to sellingPrice
+        const costPrice = Number(sl.product.costPrice)
+        const sellingPrice = Number(sl.product.sellingPrice)
+        const unitPrice = costPrice > 0 ? costPrice : sellingPrice
+
+        const lineValue = sl.quantity * unitPrice
+        value += lineValue
+        itemCount += sl.quantity
+
+        // Aggregate per warehouse
+        const whKey = sl.warehouse.id
+        const existing = warehouseMap.get(whKey)
+        if (existing) {
+            existing.value += lineValue
+            existing.itemCount += sl.quantity
+            existing.productCount += 1
+        } else {
+            warehouseMap.set(whKey, {
+                name: sl.warehouse.name,
+                code: sl.warehouse.code,
+                value: lineValue,
+                itemCount: sl.quantity,
+                productCount: 1
+            })
         }
     }
-    return { value, itemCount }
+
+    const warehouses = Array.from(warehouseMap.values())
+        .sort((a, b) => b.value - a.value)
+
+    return { value, itemCount, warehouses }
 }
 
 // ==============================================================================
@@ -630,14 +761,14 @@ export async function getDashboardData() {
             ] = await Promise.all([
                 fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
                 fetchDeadStockValue(prisma).catch(() => 0),
-                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] })),
+                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [], pendingApproval: [] })),
                 fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
                 fetchPendingLeaves(prisma).catch(() => 0),
                 fetchAuditStatus(prisma).catch(() => null),
                 fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
                 fetchProductionStatus(prisma).catch(() => []),
                 fetchMaterialStatus(prisma).catch(() => []),
-                fetchQualityStatus(prisma).catch(() => ({ passRate: 0, recentInspections: [] })),
+                fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
                 fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
                 fetchActivityFeed(prisma).catch(() => []),
                 fetchExecutiveAlerts(prisma).catch(() => []),
@@ -667,14 +798,14 @@ export async function getDashboardData() {
         return {
             financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
             deadStock: 0,
-            procurement: { activeCount: 0, delays: [] },
+            procurement: { activeCount: 0, delays: [], pendingApproval: [] },
             hr: { totalSalary: 0, lateEmployees: [] },
             leaves: 0,
             audit: null,
             prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
             prodStatus: [],
             materialStatus: [],
-            qualityStatus: { passRate: 0, recentInspections: [] },
+            qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
             workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
             activityFeed: [],
             executiveAlerts: [],

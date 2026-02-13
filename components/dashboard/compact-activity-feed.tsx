@@ -1,6 +1,6 @@
 "use client"
 
-import { Clock, FileText, Package, UserPlus, ArrowRight } from "lucide-react"
+import { Clock, FileText, Package, UserPlus, ArrowRight, ShoppingCart, Truck } from "lucide-react"
 import Link from "next/link"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -19,9 +19,13 @@ interface CompactActivityFeedProps {
 
 function getIcon(type: string) {
     switch (type) {
-        case "invoice": return <FileText className="h-3.5 w-3.5 text-purple-500" />
+        case "invoice":
+        case "finance": return <FileText className="h-3.5 w-3.5 text-purple-500" />
         case "inventory": return <Package className="h-3.5 w-3.5 text-emerald-500" />
-        case "hire": return <UserPlus className="h-3.5 w-3.5 text-blue-500" />
+        case "hire":
+        case "hr": return <UserPlus className="h-3.5 w-3.5 text-blue-500" />
+        case "procurement": return <Truck className="h-3.5 w-3.5 text-amber-500" />
+        case "sales": return <ShoppingCart className="h-3.5 w-3.5 text-cyan-500" />
         default: return <Clock className="h-3.5 w-3.5 text-zinc-400" />
     }
 }

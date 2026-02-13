@@ -27,9 +27,9 @@ export async function MetricsWrapper({ data, snapshot, salesStats, slot }: Metri
     // Prepare pulse bar data
     const cashBalance = snapshot?.cashBalance ?? 0
     const revenueMTD = salesStats?.totalRevenue ?? 0
-    const totalRevenue = snapshot?.totalRevenue ?? revenueMTD
-    const netProfit = snapshot?.netProfit ?? 0
-    const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0
+    // snapshot.netProfit is actually the netMargin percentage from getFinancialMetrics()
+    // So use it directly as a percentage, don't divide by revenue again
+    const netMargin = snapshot?.netProfit ?? 0
     const inventoryValue = data.inventoryValue?.value ?? 0
     const inventoryItems = data.inventoryValue?.itemCount ?? 0
     const burnRate = snapshot?.burnRate ?? 0
@@ -64,9 +64,11 @@ export async function MetricsWrapper({ data, snapshot, salesStats, slot }: Metri
     }
 
     if (slot === "financialHealth") {
+        // dataCash7d from fetchFinancialChartData: Array<{ name: string; val: number }>
+        // name = weekday (Mon, Tue...), val = cash in millions (jt)
         const cashFlowData = (data.financialChart?.dataCash7d ?? []).map((d: any) => ({
-            date: d.date ?? d.day ?? "",
-            balance: Number(d.balance ?? d.value ?? 0)
+            date: d.name ?? d.date ?? d.day ?? "",
+            balance: Number(d.val ?? d.balance ?? d.value ?? 0)
         }))
         const accountsReceivable = snapshot?.accountsReceivable ?? 0
         const accountsPayable = snapshot?.accountsPayable ?? 0
