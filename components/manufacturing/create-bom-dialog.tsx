@@ -6,8 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Plus, Trash2, Loader2, Package, Wrench } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ProductOption {
   id: string;
@@ -74,7 +76,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
         }
       } catch (error) {
         console.error(error);
-        toast.error("Failed to load products");
+        toast.error("Failed to load products", { className: "font-bold border-2 border-black" });
       } finally {
         setLoadingOptions(false);
       }
@@ -133,20 +135,20 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
 
   const handleSubmit = async () => {
     if (!productId) {
-      toast.error("Finished good product is required");
+      toast.error("Pilih produk jadi terlebih dahulu", { className: "font-bold border-2 border-black" });
       return;
     }
 
     const validLines = lines.filter((line) => line.materialId && Number(line.quantity) > 0);
     if (validLines.length === 0) {
-      toast.error("At least one material line is required");
+      toast.error("Minimal satu material diperlukan", { className: "font-bold border-2 border-black" });
       return;
     }
 
     const duplicated = new Set<string>();
     for (const line of validLines) {
       if (duplicated.has(line.materialId)) {
-        toast.error("Duplicate material lines are not allowed");
+        toast.error("Material duplikat tidak diperbolehkan", { className: "font-bold border-2 border-black" });
         return;
       }
       duplicated.add(line.materialId);
@@ -176,17 +178,21 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
 
       const payload = await response.json();
       if (!payload.success) {
-        toast.error(payload.error || (mode === "edit" ? "Failed to update BOM" : "Failed to create BOM"));
+        toast.error(payload.error || (mode === "edit" ? "Gagal memperbarui BOM" : "Gagal membuat BOM"), {
+          className: "font-bold border-2 border-black"
+        });
         return;
       }
 
-      toast.success(mode === "edit" ? "BOM updated successfully" : "BOM created successfully");
+      toast.success(mode === "edit" ? "BOM berhasil diperbarui" : "BOM berhasil dibuat", {
+        className: "font-bold border-2 border-black"
+      });
       resetForm();
       onOpenChange(false);
       if (onCreated) await onCreated();
     } catch (error) {
       console.error(error);
-      toast.error(mode === "edit" ? "Network error while updating BOM" : "Network error while creating BOM");
+      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border-2 border-black" });
     } finally {
       setSubmitting(false);
     }
@@ -194,128 +200,207 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-        <DialogHeader className="px-6 py-5 border-b bg-white">
-          <DialogTitle className="text-2xl md:text-3xl font-black uppercase tracking-tight leading-tight">
-            {mode === "edit" ? "Edit Bill Of Materials" : "Create Bill Of Materials"}
-          </DialogTitle>
-          <DialogDescription className="text-sm">Use options-driven input to avoid manual unit mismatch and data inconsistencies.</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-2xl lg:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+        {/* Neo-Brutalist Header */}
+        <div className="bg-black text-white px-6 pt-6 pb-4 shrink-0">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white flex items-center gap-3">
+              <div className="h-10 w-10 bg-white text-black flex items-center justify-center border-2 border-white">
+                <Wrench className="h-5 w-5" />
+              </div>
+              {mode === "edit" ? "Edit Bill of Materials" : "Buat Bill of Materials"}
+            </DialogTitle>
+            <DialogDescription className="text-zinc-400 font-medium text-xs uppercase tracking-wide mt-2">
+              Definisikan komponen material untuk produk jadi
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <div className="max-h-[72vh] overflow-y-auto px-6 py-5 space-y-5 bg-zinc-50/40">
-          <div className="rounded-xl border border-black/15 bg-zinc-50/50 p-4 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-              <div className="space-y-1.5 min-w-0 md:col-span-7">
-                <Label>Finished Good Product</Label>
+        {/* Scrollable body */}
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="px-6 py-5 space-y-6">
+            {/* Product selection row */}
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-4 items-end">
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest">Produk Jadi *</Label>
                 <Select value={productId} onValueChange={setProductId} disabled={loadingOptions || mode === "edit"}>
-                  <SelectTrigger className="h-12 bg-white min-w-0 [&>span]:truncate">
-                    <SelectValue placeholder="Select product" />
+                  <SelectTrigger className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold bg-white dark:bg-zinc-900 h-11">
+                    <SelectValue placeholder={loadingOptions ? "Memuat..." : "Pilih produk"} />
                   </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        <span className="block truncate">{product.code} - {product.name}</span>
+                  <SelectContent className="max-h-60 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    {products.map((p) => (
+                      <SelectItem key={p.id} value={p.id} className="font-medium">
+                        <span className="font-mono text-[10px] text-muted-foreground mr-2 font-bold">{p.code}</span>
+                        {p.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {selectedProduct ? (
-                  <p className="text-[11px] text-zinc-500 truncate">
-                    {selectedProduct.code} - {selectedProduct.name}
+                {selectedProduct && (
+                  <p className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest">
+                    {selectedProduct.code} &middot; {selectedProduct.name}
                   </p>
-                ) : null}
+                )}
               </div>
-              <div className="space-y-1.5 min-w-0 md:col-span-2">
-                <Label>Version</Label>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest">Versi</Label>
                 <Input
-                  className="h-12 bg-white"
                   value={version}
                   onChange={(e) => setVersion(e.target.value)}
+                  className="w-20 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold text-center bg-white dark:bg-zinc-900 h-11"
                   placeholder="v1"
                 />
               </div>
-              <div className="space-y-1.5 min-w-0 md:col-span-3">
-                <Label>Status</Label>
+              <div className="space-y-2">
+                <Label className="text-[10px] font-black uppercase tracking-widest">Status</Label>
                 <Select value={isActive ? "ACTIVE" : "INACTIVE"} onValueChange={(value) => setIsActive(value === "ACTIVE")}>
-                  <SelectTrigger className="h-12 bg-white min-w-0 [&>span]:truncate">
+                  <SelectTrigger className="w-28 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold bg-white dark:bg-zinc-900 h-11">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
-                    <SelectItem value="INACTIVE">Inactive</SelectItem>
+                  <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <SelectItem value="ACTIVE" className="font-bold">Aktif</SelectItem>
+                    <SelectItem value="INACTIVE" className="font-bold">Nonaktif</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-          </div>
 
-          <div className="rounded-xl border border-black/20 p-4 space-y-3 bg-white">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-black uppercase tracking-wide">Material Lines</p>
-              <Button type="button" size="sm" variant="outline" className="border-black" onClick={addLine}>
-                <Plus className="h-4 w-4 mr-1" /> Add Line
-              </Button>
-            </div>
+            {/* Material lines */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-black uppercase tracking-widest">Material / Komponen</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addLine}
+                  className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wide bg-white active:scale-[0.98]"
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  Tambah
+                </Button>
+              </div>
 
-            {lines.map((line, index) => (
-              <div key={index} className="rounded-lg border border-zinc-200 p-3 grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-zinc-50/50">
-                <div className="sm:col-span-5 space-y-1.5 min-w-0">
-                  <Label>Material</Label>
-                  <Select value={line.materialId} onValueChange={(value) => updateMaterial(index, value)}>
-                    <SelectTrigger className="h-11 bg-white min-w-0 [&>span]:truncate">
-                      <SelectValue placeholder="Select material" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {materialOptions.map((material) => (
-                        <SelectItem key={material.id} value={material.id}>
-                          <span className="block truncate">{material.code} - {material.name}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="sm:col-span-2 space-y-1.5 min-w-0">
-                  <Label>Qty</Label>
-                  <Input
-                    className="h-11 bg-white"
-                    type="number"
-                    min={0.0001}
-                    step="0.0001"
-                    value={line.quantity}
-                    onChange={(e) => updateLine(index, { quantity: e.target.value })}
-                  />
-                </div>
-                <div className="sm:col-span-2 space-y-1.5 min-w-0">
-                  <Label>Unit</Label>
-                  <Input value={line.unit || "-"} readOnly className="h-11 bg-zinc-100" />
-                </div>
-                <div className="sm:col-span-2 space-y-1.5 min-w-0">
-                  <Label>Waste %</Label>
-                  <Input
-                    className="h-11 bg-white"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={line.wastePct}
-                    onChange={(e) => updateLine(index, { wastePct: e.target.value })}
-                  />
-                </div>
-                <div className="sm:col-span-1">
-                  <Button type="button" variant="outline" size="icon" className="h-11 w-11 border-red-300 text-red-600" onClick={() => removeLine(index)}>
-                    <Trash2 className="h-4 w-4" />
+              {lines.length === 0 ? (
+                <div className="border-2 border-dashed border-black p-8 text-center bg-zinc-50 dark:bg-zinc-800/30">
+                  <div className="h-16 w-16 mx-auto bg-zinc-100 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center mb-4">
+                    <Package className="h-8 w-8 text-zinc-400" />
+                  </div>
+                  <p className="text-sm font-bold text-muted-foreground mb-3 uppercase tracking-wide">
+                    Belum ada material
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addLine}
+                    className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wide bg-white active:scale-[0.98]"
+                  >
+                    <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Material
                   </Button>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
+              ) : (
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                  {/* Column headers */}
+                  <div className="hidden sm:grid grid-cols-[1fr_80px_80px_80px_40px] gap-2 bg-black text-white p-3">
+                    <span className="text-[10px] font-black uppercase tracking-widest">Material</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Qty</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Satuan</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest">Waste%</span>
+                    <span />
+                  </div>
 
-        <div className="px-6 py-4 border-t bg-zinc-50 flex gap-2">
-          <Button variant="outline" className="flex-1 border-black" onClick={() => onOpenChange(false)}>
-            Cancel
+                  {lines.map((line, index) => (
+                    <div
+                      key={index}
+                      className={cn(
+                        "grid grid-cols-1 sm:grid-cols-[1fr_80px_80px_80px_40px] gap-2 items-center p-3 sm:p-2 border-b border-dashed border-zinc-300 dark:border-zinc-700",
+                        index % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/50 dark:bg-zinc-800/30"
+                      )}
+                    >
+                      <div className="space-y-1 sm:space-y-0">
+                        <Label className="text-[9px] font-bold uppercase sm:hidden">Material</Label>
+                        <Select value={line.materialId} onValueChange={(value) => updateMaterial(index, value)}>
+                          <SelectTrigger className="text-xs border-2 border-black font-bold bg-white dark:bg-zinc-900 h-9">
+                            <SelectValue placeholder="Pilih" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-60 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            {materialOptions.map((m) => (
+                              <SelectItem key={m.id} value={m.id} className="font-medium">
+                                <span className="font-mono text-[10px] text-muted-foreground mr-1.5 font-bold">{m.code}</span>
+                                {m.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1 sm:space-y-0">
+                        <Label className="text-[9px] font-bold uppercase sm:hidden">Qty</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={line.quantity}
+                          onChange={(e) => updateLine(index, { quantity: e.target.value })}
+                          className="text-xs border-2 border-black font-bold text-center bg-white dark:bg-zinc-900 h-9"
+                        />
+                      </div>
+                      <div className="space-y-1 sm:space-y-0">
+                        <Label className="text-[9px] font-bold uppercase sm:hidden">Satuan</Label>
+                        <Input
+                          value={line.unit || "-"}
+                          readOnly
+                          className="text-xs border-2 border-black font-bold text-center bg-zinc-100 dark:bg-zinc-800 h-9"
+                        />
+                      </div>
+                      <div className="space-y-1 sm:space-y-0">
+                        <Label className="text-[9px] font-bold uppercase sm:hidden">Waste %</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={line.wastePct}
+                          onChange={(e) => updateLine(index, { wastePct: e.target.value })}
+                          className="text-xs border-2 border-black font-bold text-center bg-white dark:bg-zinc-900 h-9"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 text-muted-foreground hover:text-white hover:bg-red-600 border-2 border-transparent hover:border-black transition-all"
+                        onClick={() => removeLine(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </ScrollArea>
+
+        {/* Neo-Brutalist Footer */}
+        <div className="px-6 py-4 border-t-2 border-black shrink-0 bg-zinc-50 dark:bg-zinc-800 flex gap-3">
+          <Button
+            variant="outline"
+            className="flex-1 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wide bg-white active:scale-[0.98]"
+            onClick={() => onOpenChange(false)}
+            disabled={submitting}
+          >
+            Batal
           </Button>
-          <Button className="flex-1 bg-black text-white hover:bg-zinc-800" disabled={submitting} onClick={handleSubmit}>
-            {submitting ? (mode === "edit" ? "Saving..." : "Creating...") : (mode === "edit" ? "Save BOM" : "Create BOM")}
+          <Button
+            className="flex-1 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] transition-all font-black uppercase text-xs tracking-wide active:scale-[0.98]"
+            disabled={submitting || !productId}
+            onClick={handleSubmit}
+          >
+            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitting
+              ? (mode === "edit" ? "Menyimpan..." : "Membuat...")
+              : (mode === "edit" ? "Simpan BOM" : "Buat BOM")
+            }
           </Button>
         </div>
       </DialogContent>
