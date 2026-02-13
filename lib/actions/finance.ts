@@ -2776,3 +2776,203 @@ export async function approveAndPayBill(
         return { success: false, error: error.message }
     }
 }
+
+// ==========================================
+// FINANCE DASHBOARD DATA (aggregated view)
+// ==========================================
+
+export async function getFinanceDashboardData() {
+    try {
+        // Build 7-day cash flow data
+        const cashFlow: Array<{ date: string; day: string; incoming: number; outgoing: number }> = []
+        const now = new Date()
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(now)
+            d.setDate(d.getDate() - i)
+            cashFlow.push({
+                date: d.toISOString().slice(0, 10),
+                day: d.toLocaleDateString('id-ID', { weekday: 'short' }),
+                incoming: 0,
+                outgoing: 0,
+            })
+        }
+
+        // Try to populate from journal entries
+        try {
+            const sevenDaysAgo = new Date(now)
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+            sevenDaysAgo.setHours(0, 0, 0, 0)
+
+            await withPrismaAuth(async (prisma) => {
+                const entries = await prisma.journalEntry.findMany({
+                    where: { date: { gte: sevenDaysAgo } },
+                    include: { lines: { include: { account: { select: { code: true, type: true } } } } }
+                })
+
+                for (const entry of entries) {
+                    const dateKey = new Date(entry.date).toISOString().slice(0, 10)
+                    const dayEntry = cashFlow.find(cf => cf.date === dateKey)
+                    if (!dayEntry) continue
+
+                    for (const line of entry.lines) {
+                        if (line.account.code.startsWith('1')) {
+                            dayEntry.incoming += Number(line.debit)
+                            dayEntry.outgoing += Number(line.credit)
+                        }
+                    }
+                }
+            })
+        } catch (e) {
+            console.error("Failed to populate cash flow:", e)
+        }
+
+        // Recent transactions from journal entries
+        let recentTransactions: Array<{ id: string; title: string; subtitle: string; date: string; direction: 'in' | 'out'; amount: number; href: string }> = []
+        try {
+            await withPrismaAuth(async (prisma) => {
+                const entries = await prisma.journalEntry.findMany({
+                    orderBy: { date: 'desc' },
+                    take: 5,
+                    include: {
+                        lines: { take: 1, include: { account: { select: { name: true } } } }
+                    }
+                })
+                recentTransactions = entries.map(e => ({
+                    id: e.id,
+                    title: e.description || 'Jurnal Umum',
+                    subtitle: e.lines[0]?.account?.name || 'N/A',
+                    date: e.date.toISOString(),
+                    direction: 'out' as const,
+                    amount: Number(e.lines[0]?.debit || e.lines[0]?.credit || 0),
+                    href: `/finance/journal`
+                }))
+            })
+        } catch (e) {
+            console.error("Failed to get recent transactions:", e)
+        }
+
+        // Action items
+        let actionItems: Array<{ id: string; title: string; type: 'urgent' | 'pending' | 'warning' | 'info'; due: string; href: string }> = []
+        try {
+            await withPrismaAuth(async (prisma) => {
+                const overdueInvoices = await prisma.invoice.count({
+                    where: { status: 'OVERDUE', type: 'SALES' }
+                })
+                const pendingBills = await prisma.invoice.count({
+                    where: { status: { in: ['DRAFT', 'SENT'] }, type: 'PURCHASE' }
+                })
+
+                if (overdueInvoices > 0) {
+                    actionItems.push({
+                        id: 'overdue-invoices',
+                        title: `${overdueInvoices} invoice jatuh tempo`,
+                        type: 'urgent',
+                        due: 'Segera',
+                        href: '/finance/invoices'
+                    })
+                }
+                if (pendingBills > 0) {
+                    actionItems.push({
+                        id: 'pending-bills',
+                        title: `${pendingBills} bill menunggu pembayaran`,
+                        type: 'pending',
+                        due: 'Minggu ini',
+                        href: '/finance/bills'
+                    })
+                }
+            })
+        } catch (e) {
+            console.error("Failed to get action items:", e)
+        }
+
+        return { cashFlow, recentTransactions, actionItems }
+    } catch (error) {
+        console.error("Failed to get finance dashboard data:", error)
+        return {
+            cashFlow: [],
+            recentTransactions: [],
+            actionItems: []
+        }
+    }
+}
+
+// ==========================================
+// AR PAYMENT REGISTRY (paginated view)
+// ==========================================
+
+export async function getARPaymentRegistry(params: {
+    paymentsQ?: string
+    invoicesQ?: string
+    customerId?: string
+    paymentPage?: number
+    invoicePage?: number
+    pageSize?: number
+}) {
+    const pageSize = params.pageSize || 20
+    const paymentPage = Math.max(1, params.paymentPage || 1)
+    const invoicePage = Math.max(1, params.invoicePage || 1)
+
+    try {
+        const [unallocated, openInvoices] = await Promise.all([
+            getUnallocatedPayments(),
+            getOpenInvoices()
+        ])
+
+        // Client-side filtering
+        let filteredPayments = unallocated
+        if (params.paymentsQ) {
+            const q = params.paymentsQ.toLowerCase()
+            filteredPayments = unallocated.filter(p =>
+                p.from.toLowerCase().includes(q) || p.number.toLowerCase().includes(q)
+            )
+        }
+        if (params.customerId) {
+            filteredPayments = filteredPayments.filter(p => p.customerId === params.customerId)
+        }
+
+        let filteredInvoices = openInvoices
+        if (params.invoicesQ) {
+            const q = params.invoicesQ.toLowerCase()
+            filteredInvoices = openInvoices.filter(inv =>
+                inv.number.toLowerCase().includes(q) ||
+                (inv.customer?.name || '').toLowerCase().includes(q)
+            )
+        }
+        if (params.customerId) {
+            filteredInvoices = filteredInvoices.filter(inv => inv.customer?.id === params.customerId)
+        }
+
+        // Paginate
+        const paginatedPayments = filteredPayments.slice((paymentPage - 1) * pageSize, paymentPage * pageSize)
+        const paginatedInvoices = filteredInvoices.slice((invoicePage - 1) * pageSize, invoicePage * pageSize)
+
+        return {
+            unallocated: paginatedPayments,
+            openInvoices: paginatedInvoices,
+            meta: {
+                payments: { page: paymentPage, pageSize, total: filteredPayments.length, totalPages: Math.ceil(filteredPayments.length / pageSize) },
+                invoices: { page: invoicePage, pageSize, total: filteredInvoices.length, totalPages: Math.ceil(filteredInvoices.length / pageSize) },
+            },
+            query: {
+                paymentsQ: params.paymentsQ || null,
+                invoicesQ: params.invoicesQ || null,
+                customerId: params.customerId || null,
+            }
+        }
+    } catch (error) {
+        console.error("Failed to get AR payment registry:", error)
+        return {
+            unallocated: [],
+            openInvoices: [],
+            meta: {
+                payments: { page: 1, pageSize, total: 0, totalPages: 0 },
+                invoices: { page: 1, pageSize, total: 0, totalPages: 0 },
+            },
+            query: {
+                paymentsQ: params.paymentsQ || null,
+                invoicesQ: params.invoicesQ || null,
+                customerId: params.customerId || null,
+            }
+        }
+    }
+}

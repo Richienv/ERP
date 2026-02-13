@@ -1427,3 +1427,81 @@ export async function deleteProduct(productId: string) {
         return { success: false, error: "Gagal menghapus produk" }
     }
 }
+
+// ==========================================
+// WAREHOUSE STAFFING
+// ==========================================
+
+export async function getWarehouseStaffing(warehouseId: string) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const warehouse = await prisma.warehouse.findUnique({
+                where: { id: warehouseId },
+                select: {
+                    id: true,
+                    managerId: true,
+                }
+            })
+
+            if (!warehouse) {
+                return {
+                    currentManager: null,
+                    managerCandidates: [],
+                    activeStaff: []
+                }
+            }
+
+            // Get all users as potential manager candidates
+            const users = await prisma.user.findMany({
+                where: { isActive: true },
+                select: { id: true, name: true },
+                take: 50
+            })
+
+            const candidates = users.map(u => ({
+                id: u.id,
+                name: u.name || 'Unnamed',
+                position: 'Staff'
+            }))
+
+            const currentManager = warehouse.managerId
+                ? candidates.find(c => c.id === warehouse.managerId) || null
+                : null
+
+            return {
+                currentManager,
+                managerCandidates: candidates,
+                activeStaff: candidates.slice(0, 10).map(c => ({
+                    ...c,
+                    department: 'Gudang',
+                    status: 'active' as const
+                }))
+            }
+        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+    } catch (error) {
+        console.error("Failed to get warehouse staffing:", error)
+        return {
+            currentManager: null,
+            managerCandidates: [],
+            activeStaff: []
+        }
+    }
+}
+
+export async function assignWarehouseManager(warehouseId: string, managerId: string) {
+    try {
+        await withPrismaAuth(async (prisma) => {
+            await prisma.warehouse.update({
+                where: { id: warehouseId },
+                data: { managerId }
+            })
+        })
+
+        revalidateTagSafe('inventory')
+        revalidatePath('/inventory/warehouses')
+        return { success: true }
+    } catch (error) {
+        console.error("Failed to assign warehouse manager:", error)
+        return { success: false, error: "Gagal assign manager gudang" }
+    }
+}
