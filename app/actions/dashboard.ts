@@ -816,6 +816,91 @@ export async function getDashboardData() {
 
 
 // ==============================================================================
+// STREAMING-FRIENDLY GROUP FETCHERS
+// Each group opens its own lightweight transaction so React can stream them
+// ==============================================================================
+
+/** Group A: Financial snapshot — uses Supabase directly (no Prisma tx needed) */
+export async function getDashboardFinancials() {
+    try {
+        const metrics = await getFinancialMetrics()
+        return {
+            cashBalance: metrics.cashBalance,
+            revenue: metrics.revenue,
+            netMargin: metrics.netMargin,
+            burnRate: metrics.burnRate,
+            receivables: metrics.receivables,
+            payables: metrics.payables,
+            overdueInvoices: metrics.overdueInvoices,
+            upcomingPayables: metrics.upcomingPayables,
+        }
+    } catch (error) {
+        console.error("getDashboardFinancials failed:", error)
+        return {
+            cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
+            receivables: 0, payables: 0, overdueInvoices: [], upcomingPayables: [],
+        }
+    }
+}
+
+/** Group B: Operations data (Prisma) — procurement, production, inventory, workforce */
+export async function getDashboardOperations() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue] = await Promise.all([
+                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [], pendingApproval: [] })),
+                fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
+                fetchMaterialStatus(prisma).catch(() => []),
+                fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
+                fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
+                fetchPendingLeaves(prisma).catch(() => 0),
+                fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
+            ])
+            return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue }
+        }, { maxWait: 5000, timeout: 8000 })
+    } catch (error) {
+        console.error("getDashboardOperations failed:", error)
+        return {
+            procurement: { activeCount: 0, delays: [], pendingApproval: [] },
+            prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
+            materialStatus: [],
+            qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
+            workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
+            leaves: 0,
+            inventoryValue: { value: 0, itemCount: 0, warehouses: [] },
+        }
+    }
+}
+
+/** Group C: Activity feed + alerts (Prisma, lightweight) */
+export async function getDashboardActivity() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const [activityFeed, executiveAlerts] = await Promise.all([
+                fetchActivityFeed(prisma).catch(() => []),
+                fetchExecutiveAlerts(prisma).catch(() => []),
+            ])
+            return { activityFeed, executiveAlerts }
+        }, { maxWait: 5000, timeout: 8000 })
+    } catch (error) {
+        console.error("getDashboardActivity failed:", error)
+        return { activityFeed: [], executiveAlerts: [] }
+    }
+}
+
+/** Group D: Chart data (Prisma, separate so it doesn't block operations) */
+export async function getDashboardCharts() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            return fetchFinancialChartData(prisma)
+        }, { maxWait: 5000, timeout: 8000 })
+    } catch (error) {
+        console.error("getDashboardCharts failed:", error)
+        return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }
+    }
+}
+
+// ==============================================================================
 // PUBLIC INDIVIDUAL ACTIONS (Fallback / Backward Compatibility)
 // ==============================================================================
 
