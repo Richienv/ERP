@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { Loader2, FileText, CheckCircle2, User, Building2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Loader2, FileText, User, Building2, Package, Hash, Calendar, ShieldCheck, Receipt, AlertTriangle } from "lucide-react"
 import { getPODetails } from "@/app/actions/purchase-order"
-import { updatePurchaseOrderVendor, submitPOForApproval, updatePurchaseOrderTaxMode } from "@/lib/actions/procurement"
+import { updatePurchaseOrderVendor, submitPOForApproval } from "@/lib/actions/procurement"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -24,7 +24,6 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
     const [processing, setProcessing] = useState(false)
     const [poData, setPoData] = useState<any>(null)
     const [selectedVendor, setSelectedVendor] = useState<string>("")
-    const [taxMode, setTaxMode] = useState<"PPN" | "NON_PPN">("PPN")
     const router = useRouter()
 
     useEffect(() => {
@@ -33,7 +32,6 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
         } else {
             setPoData(null)
             setSelectedVendor("")
-            setTaxMode("PPN")
         }
     }, [isOpen, poId])
 
@@ -43,13 +41,10 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
             const data = await getPODetails(id)
             if (data) {
                 setPoData(data)
-                // If vendor is assigned, use it. If it's a temp vendor (likely no ID in basic list), it might need attention
-                // The data.supplierId comes from the DB.
                 setSelectedVendor(data.supplierId || "")
-                setTaxMode(Number(data.taxAmount || 0) > 0 ? "PPN" : "NON_PPN")
             }
-        } catch {
-            toast.error("Failed to load PO details")
+        } catch (error) {
+            toast.error("Gagal memuat detail PO")
             onClose()
         } finally {
             setLoading(false)
@@ -58,37 +53,27 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
 
     const handleConfirm = async () => {
         if (!poId || !selectedVendor) {
-            toast.error("Please select a vendor")
+            toast.error("Pilih vendor terlebih dahulu")
             return
         }
 
         setProcessing(true)
         try {
-            // 1. Update Vendor if changed
             if (poData.supplierId !== selectedVendor) {
                 const updateRes = await updatePurchaseOrderVendor(poId, selectedVendor)
                 if (!updateRes.success) throw new Error(updateRes.error)
-                toast.success("Vendor updated")
+                toast.success("Vendor diperbarui")
             }
 
-            // 2. Persist tax mode/amount before submit
-            const taxRes = await updatePurchaseOrderTaxMode(poId, taxMode)
-            if (!taxRes.success) throw new Error(taxRes.error)
-
-            // 3. Submit PO for Approval (advances status from DRAFT)
             const submitRes = await submitPOForApproval(poId)
-            if (!submitRes.success) throw new Error(submitRes.error || "Failed to finalize PO")
+            if (!submitRes.success) throw new Error(submitRes.error || "Gagal finalisasi PO")
 
-            // 4. Generate PDF (Open in new tab)
             window.open(`/api/documents/purchase-order/${poData.id}?disposition=inline`, '_blank')
-
-            toast.success("PO Finalized & PDF Generated")
+            toast.success("PO Difinalisasi & PDF Dibuat")
             onClose()
-
-            // 5. Refresh data without full page reload
             router.refresh()
         } catch (error: any) {
-            toast.error(error.message || "Failed to finalize PO")
+            toast.error(error.message || "Gagal finalisasi PO")
         } finally {
             setProcessing(false)
         }
@@ -96,160 +81,169 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
 
     if (!isOpen) return null
 
+    const subtotal = poData?.subtotal || poData?.items?.reduce((acc: number, item: any) => acc + item.totalPrice, 0) || 0
+    const tax = poData?.taxAmount || (subtotal * 0.11)
+    const total = poData?.netAmount || (subtotal + tax)
+
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-xl font-black uppercase">
-                        <FileText className="h-6 w-6 text-blue-600" />
-                        Finalize Purchase Order
+            <DialogContent className="max-w-4xl p-0 border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0 bg-white">
+                {/* Header */}
+                <DialogHeader className="border-b-2 border-black px-6 py-4">
+                    <DialogTitle className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Finalisasi Pesanan Pembelian
                     </DialogTitle>
-                    <DialogDescription>
-                        Review details, assign vendor, and generate the official PDF.
-                    </DialogDescription>
+                    <p className="text-xs text-zinc-500 font-medium mt-0.5">
+                        Tinjau detail, tetapkan vendor, dan buat dokumen PDF resmi.
+                    </p>
                 </DialogHeader>
 
                 {loading ? (
-                    <div className="flex items-center justify-center py-12">
+                    <div className="flex items-center justify-center py-16">
                         <Loader2 className="h-8 w-8 animate-spin text-zinc-300" />
                     </div>
                 ) : poData ? (
-                    <div className="space-y-6 py-4">
-                        {/* Header Info */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-zinc-50 p-4 rounded-xl border border-zinc-200">
-                            <div>
-                                <div className="text-[10px] font-bold uppercase text-zinc-500">PO Number</div>
-                                <div className="text-sm font-bold">{poData.number}</div>
+                    <div className="p-6 space-y-5">
+                        {/* Row 1: PO Info Strip — horizontal cards */}
+                        <div className="grid grid-cols-4 gap-3">
+                            <div className="border-2 border-black p-3">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <Hash className="h-3 w-3 text-zinc-400" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">No. PO</span>
+                                </div>
+                                <span className="text-sm font-black font-mono">{poData.number}</span>
                             </div>
-                            <div>
-                                <div className="text-[10px] font-bold uppercase text-zinc-500">Date</div>
-                                <div className="font-medium">{new Date(poData.orderDate).toLocaleDateString()}</div>
+                            <div className="border-2 border-black p-3">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <Calendar className="h-3 w-3 text-zinc-400" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Tanggal</span>
+                                </div>
+                                <span className="text-sm font-bold">{new Date(poData.orderDate).toLocaleDateString('id-ID')}</span>
                             </div>
-                            <div>
-                                <div className="text-[10px] font-bold uppercase text-zinc-500">Requester</div>
-                                <div className="font-medium text-xs flex items-center gap-1">
-                                    <User className="h-3 w-3" /> {poData.requester}
+                            <div className="border-2 border-black p-3">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <User className="h-3 w-3 text-zinc-400" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Pemohon</span>
+                                </div>
+                                <span className="text-sm font-bold">{poData.requester || 'System'}</span>
+                            </div>
+                            <div className="border-2 border-black p-3">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                    <ShieldCheck className="h-3 w-3 text-zinc-400" />
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Disetujui</span>
+                                </div>
+                                <span className="text-sm font-bold">{poData.approver || '-'}</span>
+                            </div>
+                        </div>
+
+                        {/* Row 2: Vendor + Tax side by side */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="border-2 border-black p-4">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5 mb-2">
+                                    <Building2 className="h-3.5 w-3.5" /> Vendor
+                                </label>
+                                <Select value={selectedVendor} onValueChange={setSelectedVendor} disabled={processing}>
+                                    <SelectTrigger className="w-full font-bold h-10 border-2 border-black">
+                                        <SelectValue placeholder="Pilih Vendor" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {vendors.map(v => (
+                                            <SelectItem key={v.id} value={v.id} className="font-medium">
+                                                {v.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {!selectedVendor && (
+                                    <p className="text-[10px] text-red-500 font-bold mt-1.5 flex items-center gap-1">
+                                        <AlertTriangle className="h-3 w-3" /> Wajib memilih vendor
+                                    </p>
+                                )}
+                            </div>
+                            <div className="border-2 border-black p-4">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5 mb-2">
+                                    <Receipt className="h-3.5 w-3.5" /> Pajak
+                                </label>
+                                <div className="border-2 border-black bg-zinc-50 px-3 py-2 font-bold text-sm">
+                                    PPN 11%
                                 </div>
                             </div>
-                            <div>
-                                <div className="text-[10px] font-bold uppercase text-zinc-500">Approved By</div>
-                                <div className="font-medium text-xs flex items-center gap-1">
-                                    <CheckCircle2 className="h-3 w-3 text-emerald-600" /> {poData.approver}
+                        </div>
+
+                        {/* Row 3: Items Table + Totals */}
+                        <div className="border-2 border-black">
+                            <div className="bg-zinc-100 border-b-2 border-black">
+                                <div className="grid grid-cols-12 gap-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    <div className="col-span-5 px-4 py-2.5 border-r border-zinc-300">Item</div>
+                                    <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-300">Qty</div>
+                                    <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-300">Harga Satuan</div>
+                                    <div className="col-span-3 px-4 py-2.5 text-right">Total</div>
                                 </div>
                             </div>
-                        </div>
-
-                        {/* Vendor Selection */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-black uppercase flex items-center gap-2">
-                                <Building2 className="h-4 w-4" /> Vendor Assignment
-                            </label>
-                            <Select value={selectedVendor} onValueChange={setSelectedVendor} disabled={processing}>
-                                <SelectTrigger className="w-full font-medium h-12 border-black">
-                                    <SelectValue placeholder="Select Vendor" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {vendors.map(v => (
-                                        <SelectItem key={v.id} value={v.id} className="font-medium">
-                                            {v.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            {!selectedVendor && (
-                                <p className="text-xs text-red-500 font-bold">* You must assign a valid vendor before generating the PO.</p>
-                            )}
-                        </div>
-
-                        {/* Tax Mode */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-black uppercase">Tax</label>
-                            <Select value={taxMode} onValueChange={(value) => setTaxMode(value as "PPN" | "NON_PPN")} disabled={processing}>
-                                <SelectTrigger className="w-full font-medium h-12 border-black">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="PPN" className="font-medium">PPN 11%</SelectItem>
-                                    <SelectItem value="NON_PPN" className="font-medium">Non-PPN</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Items Table */}
-                        <div className="border border-zinc-200 rounded-lg overflow-x-auto">
-                            <table className="w-full min-w-[760px] text-sm table-auto">
-                                <thead className="bg-zinc-100 border-b border-zinc-200 text-xs uppercase font-bold text-zinc-500">
-                                    <tr>
-                                        <th className="px-4 py-3 text-left min-w-[300px]">Item Name</th>
-                                        <th className="px-4 py-3 text-right min-w-[120px]">Qty</th>
-                                        <th className="px-4 py-3 text-right min-w-[160px]">Unit Price</th>
-                                        <th className="px-4 py-3 text-right min-w-[160px]">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-zinc-100">
-                                    {poData.items.map((item: any, idx: number) => (
-                                        <tr key={idx}>
-                                            <td className="px-4 py-3 font-medium break-words align-top">
-                                                <span className="line-clamp-2">{item.productName}</span>
-                                                <div className="text-[10px] text-zinc-400 font-mono">{item.productCode}</div>
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-mono whitespace-nowrap align-top">
-                                                {item.quantity} <span className="text-[10px] text-zinc-400">{item.unit}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-mono text-zinc-600 whitespace-nowrap align-top">
-                                                {formatIDR(item.unitPrice)}
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-bold text-zinc-900 whitespace-nowrap align-top">
-                                                {formatIDR(item.totalPrice)}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Totals */}
-                        {(() => {
-                            const subtotal = poData.subtotal || poData.items.reduce((acc: number, item: any) => acc + item.totalPrice, 0)
-                            const tax = taxMode === "PPN" ? (subtotal * 0.11) : 0
-                            const total = subtotal + tax
-
-                            return (
-                                <div className="flex justify-end">
-                                    <div className="w-64 space-y-2">
-                                        <div className="flex justify-between text-sm text-zinc-500">
-                                            <span>Subtotal</span>
-                                            <span>{formatIDR(subtotal)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm text-zinc-500">
-                                            <span>{taxMode === "PPN" ? "Tax (11%)" : "Tax (0%)"}</span>
-                                            <span>{formatIDR(tax)}</span>
-                                        </div>
-                                        <Separator />
-                                        <div className="flex justify-between text-lg font-black text-black">
-                                            <span>Total</span>
-                                            <span>{formatIDR(total)}</span>
+                            {poData.items.map((item: any, idx: number) => (
+                                <div key={idx} className={`grid grid-cols-12 gap-0 ${idx < poData.items.length - 1 ? 'border-b border-zinc-200' : ''}`}>
+                                    <div className="col-span-5 px-4 py-3 flex items-center gap-2">
+                                        <Package className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                                        <div>
+                                            <span className="font-bold text-sm">{item.productName}</span>
+                                            <span className="text-[10px] text-zinc-400 font-mono ml-2">{item.productCode}</span>
                                         </div>
                                     </div>
+                                    <div className="col-span-2 px-4 py-3 text-right font-mono font-bold text-sm self-center">
+                                        {item.quantity} <span className="text-[10px] text-zinc-400">{item.unit}</span>
+                                    </div>
+                                    <div className="col-span-2 px-4 py-3 text-right font-mono text-sm text-zinc-600 self-center">
+                                        {formatIDR(item.unitPrice)}
+                                    </div>
+                                    <div className="col-span-3 px-4 py-3 text-right font-black text-sm self-center">
+                                        {formatIDR(item.totalPrice)}
+                                    </div>
                                 </div>
-                            )
-                        })()}
+                            ))}
+                            {/* Totals row inside table */}
+                            <div className="border-t-2 border-black bg-zinc-50">
+                                <div className="grid grid-cols-12 gap-0">
+                                    <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">Subtotal</div>
+                                    <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(subtotal)}</div>
+                                </div>
+                                <div className="grid grid-cols-12 gap-0 border-t border-zinc-200">
+                                    <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">PPN 11%</div>
+                                    <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(tax)}</div>
+                                </div>
+                                <div className="grid grid-cols-12 gap-0 border-t-2 border-black">
+                                    <div className="col-span-9 px-4 py-3 text-right text-sm font-black uppercase">Grand Total</div>
+                                    <div className="col-span-3 px-4 py-3 text-right font-black text-base">{formatIDR(total)}</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 ) : (
-                    <div className="py-12 text-center text-red-500 font-bold">Failed to load data</div>
+                    <div className="py-16 text-center text-red-500 font-bold">Gagal memuat data</div>
                 )}
 
-                <DialogFooter className="gap-2 sm:gap-0">
-                    <Button variant="ghost" onClick={onClose} disabled={processing}>Cancel</Button>
+                {/* Footer */}
+                <div className="border-t-2 border-black px-6 py-4 flex items-center justify-end gap-3 bg-white">
+                    <Button
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={processing}
+                        className="border-2 border-black font-black uppercase text-xs tracking-wider px-6 hover:bg-zinc-100"
+                    >
+                        Batal
+                    </Button>
                     <Button
                         onClick={handleConfirm}
                         disabled={!poData || processing || !selectedVendor}
-                        className="bg-black text-white hover:bg-zinc-800 font-bold uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-y-[2px] active:shadow-none transition-all"
+                        className="bg-white text-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 disabled:opacity-40"
                     >
-                        {processing ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <FileText className="h-4 w-4 mr-2" />}
-                        Confirm & Generate PDF
+                        {processing ? (
+                            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Memproses...</>
+                        ) : (
+                            <><FileText className="h-4 w-4 mr-2" /> Konfirmasi & Buat PDF</>
+                        )}
                     </Button>
-                </DialogFooter>
+                </div>
             </DialogContent>
         </Dialog>
     )
