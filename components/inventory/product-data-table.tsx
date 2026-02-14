@@ -37,11 +37,13 @@ import {
   Filter,
   Settings2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   MoreHorizontal,
   Eye,
-  Trash2
+  Trash2,
+  Package,
 } from "lucide-react"
-import Link from "next/link"
 import { StockStatusBadge, CurrencyDisplay } from "@/components/inventory"
 import { formatNumber, getStockStatus } from "@/lib/inventory-utils"
 import { type ProductWithRelations } from "@/lib/types"
@@ -132,10 +134,7 @@ const mockProducts: ProductWithStock[] = [
       transactions: 8
     }
   },
-  // Add more products as needed...
 ]
-
-// Add current stock to products (would come from stock levels in real app)
 
 const productsWithStock: ProductWithStock[] = mockProducts.map(product => ({
   ...product,
@@ -149,7 +148,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     accessorKey: "code",
     header: "Kode",
     cell: ({ row }) => (
-      <div className="font-medium">{row.getValue("code")}</div>
+      <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{row.getValue("code")}</span>
     ),
   },
   {
@@ -159,9 +158,9 @@ export const columns: ColumnDef<ProductWithStock>[] = [
       const product = row.original
       return (
         <div>
-          <div className="font-medium">{product.name}</div>
+          <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{product.name}</div>
           {product.description && (
-            <div className="text-xs text-muted-foreground line-clamp-1">
+            <div className="text-[10px] text-zinc-400 font-medium line-clamp-1 mt-0.5">
               {product.description}
             </div>
           )}
@@ -174,12 +173,20 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     header: "Kategori",
     cell: ({ row }) => {
       const category = row.original.category
-      return category ? category.name : "Tanpa Kategori"
+      const name = category ? category.name : "Tanpa Kategori"
+      return (
+        <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm bg-emerald-50 border-emerald-200 text-emerald-700">
+          {name}
+        </span>
+      )
     },
   },
   {
     accessorKey: "unit",
     header: "Satuan",
+    cell: ({ row }) => (
+      <span className="text-xs font-bold text-zinc-500 uppercase">{row.getValue("unit")}</span>
+    ),
   },
   {
     accessorKey: "costPrice",
@@ -187,7 +194,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     cell: ({ row }) => (
       <CurrencyDisplay
         amount={row.getValue("costPrice")}
-        className="text-right block"
+        className="text-right block font-mono text-sm font-bold"
       />
     ),
   },
@@ -197,7 +204,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     cell: ({ row }) => (
       <CurrencyDisplay
         amount={row.getValue("sellingPrice")}
-        className="text-right block"
+        className="text-right block font-mono text-sm font-bold"
       />
     ),
   },
@@ -206,12 +213,11 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     header: "Stok",
     cell: ({ row }) => {
       const product = row.original
-      const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
 
       return (
         <div className="text-center">
-          <div className="font-medium">{formatNumber(product.currentStock)}</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="font-mono font-black text-sm">{formatNumber(product.currentStock)}</div>
+          <div className="text-[10px] text-zinc-400 font-medium mt-0.5">
             Min: {product.minStock} | Max: {product.maxStock}
           </div>
         </div>
@@ -220,7 +226,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
   },
   {
     id: "status",
-    header: "Status Stok",
+    header: "Status",
     cell: ({ row }) => {
       const product = row.original
       const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
@@ -232,7 +238,6 @@ export const columns: ColumnDef<ProductWithStock>[] = [
       )
     },
   },
-  // Actions column is defined dynamically in the component below
 ]
 
 function createActionsColumn(onQuickView: (id: string) => void): ColumnDef<ProductWithStock> {
@@ -314,169 +319,211 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
     },
   })
 
+  const pageIndex = table.getState().pagination.pageIndex
+  const pageCount = table.getPageCount()
+
   return (
-    <div className="w-full">
-      <div className="flex items-center py-4 gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cari produk, kode, atau kategori..."
-            value={globalFilter}
-            onChange={(event) => setGlobalFilter(event.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Status Stok</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem
-              checked={columnFilters.find(f => f.id === "status")?.value === "normal"}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  setColumnFilters([...columnFilters.filter(f => f.id !== "status"), { id: "status", value: "normal" }])
-                } else {
-                  setColumnFilters(columnFilters.filter(f => f.id !== "status"))
-                }
-              }}
-            >
-              Normal
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={columnFilters.find(f => f.id === "status")?.value === "low"}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  setColumnFilters([...columnFilters.filter(f => f.id !== "status"), { id: "status", value: "low" }])
-                } else {
-                  setColumnFilters(columnFilters.filter(f => f.id !== "status"))
-                }
-              }}
-            >
-              Menipis
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={columnFilters.find(f => f.id === "status")?.value === "out"}
-              onCheckedChange={(checked) => {
-                if (checked) {
-                  setColumnFilters([...columnFilters.filter(f => f.id !== "status"), { id: "status", value: "out" }])
-                } else {
-                  setColumnFilters(columnFilters.filter(f => f.id !== "status"))
-                }
-              }}
-            >
-              Habis Stok
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline">
-              <Settings2 className="mr-2 h-4 w-4" />
-              Kolom
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Tampilkan Kolom</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
+    <div className="w-full space-y-4">
+      {/* Search & Filter Bar */}
+      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+        <div className="p-4">
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+              <Input
+                className="border-2 border-black h-10 pl-9 font-medium rounded-none"
+                placeholder="Cari produk, kode, atau kategori..."
+                value={globalFilter}
+                onChange={(event) => setGlobalFilter(event.target.value)}
+              />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-2 border-black font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
+                >
+                  <Filter className="mr-1.5 h-3.5 w-3.5" />
+                  Filter Stok
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest">Status Stok</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                  checked={columnFilters.find(f => f.id === "status")?.value === "normal"}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setColumnFilters([...columnFilters.filter(f => f.id !== "status"), { id: "status", value: "normal" }])
+                    } else {
+                      setColumnFilters(columnFilters.filter(f => f.id !== "status"))
                     }
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                )
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
-                  return (
-                    <TableHead key={header.id}>
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                    </TableHead>
-                  )
-                })}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
+                  }}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
+                  Normal
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={columnFilters.find(f => f.id === "status")?.value === "low"}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setColumnFilters([...columnFilters.filter(f => f.id !== "status"), { id: "status", value: "low" }])
+                    } else {
+                      setColumnFilters(columnFilters.filter(f => f.id !== "status"))
+                    }
+                  }}
                 >
-                  Tidak ada produk ditemukan.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} dari{" "}
-          {table.getFilteredRowModel().rows.length} produk dipilih.
+                  Menipis
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={columnFilters.find(f => f.id === "status")?.value === "out"}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setColumnFilters([...columnFilters.filter(f => f.id !== "status"), { id: "status", value: "out" }])
+                    } else {
+                      setColumnFilters(columnFilters.filter(f => f.id !== "status"))
+                    }
+                  }}
+                >
+                  Habis Stok
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-2 border-black font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
+                >
+                  <Settings2 className="mr-1.5 h-3.5 w-3.5" />
+                  Kolom
+                  <ChevronDown className="ml-1.5 h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest">Tampilkan Kolom</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {table
+                  .getAllColumns()
+                  .filter((column) => column.getCanHide())
+                  .map((column) => {
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        className="capitalize"
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(value) =>
+                          column.toggleVisibility(!!value)
+                        }
+                      >
+                        {column.id}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
-        <div className="space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Sebelumnya
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Selanjutnya
-          </Button>
+      </div>
+
+      {/* Table */}
+      <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col">
+        {/* Table Section Header */}
+        <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+          <Package className="h-4 w-4 text-emerald-600" />
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+            Daftar Produk
+          </h3>
+          <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+            {table.getFilteredRowModel().rows.length}
+          </span>
+        </div>
+
+        {/* Table Content */}
+        <div className="w-full overflow-auto">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="border-b-2 border-black bg-zinc-50 dark:bg-zinc-800/50 hover:bg-zinc-50">
+                  {headerGroup.headers.map((header) => {
+                    return (
+                      <TableHead key={header.id} className="text-[10px] font-black uppercase tracking-widest text-zinc-500 h-10">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                      </TableHead>
+                    )
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row, idx) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    className={`hover:bg-emerald-50/40 dark:hover:bg-emerald-950/10 transition-colors ${idx % 2 === 0 ? '' : 'bg-zinc-50/30 dark:bg-zinc-800/10'}`}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="py-3">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={allColumns.length}
+                    className="h-32 text-center"
+                  >
+                    <div className="flex flex-col items-center gap-2 text-zinc-400">
+                      <Package className="h-6 w-6 text-zinc-300" />
+                      <span className="text-xs font-bold uppercase tracking-widest">Tidak ada produk ditemukan</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination */}
+        <div className="px-5 py-3 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+            {table.getFilteredRowModel().rows.length} produk
+          </span>
+          {pageCount > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 border-2 border-black"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <span className="text-xs font-black min-w-[50px] text-center">
+                {pageIndex + 1}/{pageCount}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-8 w-8 border-2 border-black"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
+              >
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

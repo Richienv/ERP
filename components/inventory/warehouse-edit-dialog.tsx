@@ -1,123 +1,135 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { updateWarehouse } from "@/app/actions/inventory"
-import { toast } from "sonner"
-import { Edit, Loader2, Save } from "lucide-react"
-import { useRouter } from "next/navigation"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { updateWarehouse } from "@/app/actions/inventory";
+import { toast } from "sonner";
+import { Edit, Loader2, Save, Warehouse } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { NB } from "@/lib/dialog-styles";
 
 interface WarehouseEditDialogProps {
-    warehouse: {
-        id: string
-        name: string
-        code: string
-        address: string
-        capacity?: number
-    }
+  warehouse: {
+    id: string;
+    name: string;
+    code: string;
+    address: string;
+    capacity?: number;
+  };
 }
 
 export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
-    const [open, setOpen] = useState(false)
-    const [loading, setLoading] = useState(false)
-    const router = useRouter()
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-    const [formData, setFormData] = useState({
-        name: warehouse.name,
-        code: warehouse.code,
-        address: warehouse.address,
-        capacity: warehouse.capacity || 0
-    })
+  const [formData, setFormData] = useState({
+    name: warehouse.name,
+    code: warehouse.code,
+    address: warehouse.address,
+    capacity: warehouse.capacity || 0,
+  });
 
-    const handleSave = async () => {
-        setLoading(true)
-        try {
-            const result = await updateWarehouse(warehouse.id, formData)
-            if (result.success) {
-                toast.success("Warehouse updated successfully")
-                setOpen(false)
-                router.refresh()
-            } else {
-                toast.error("Failed to update", { description: result.error })
-            }
-        } catch (e) {
-            toast.error("An error occurred")
-        } finally {
-            setLoading(false)
-        }
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const result = await updateWarehouse(warehouse.id, formData);
+      if (result.success) {
+        toast.success("Warehouse updated successfully");
+        setOpen(false);
+        router.refresh();
+      } else {
+        toast.error("Failed to update", { description: result.error });
+      }
+    } catch {
+      toast.error("An error occurred");
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant="outline" className="border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] font-bold uppercase">
-                    <Edit className="mr-2 h-4 w-4" /> Edit Configuration
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-white rounded-xl">
-                <DialogHeader>
-                    <DialogTitle className="text-xl font-black uppercase">Edit Warehouse</DialogTitle>
-                    <DialogDescription>
-                        Update the details for connection and logistics.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="name" className="font-bold">Name</Label>
-                        <Input
-                            id="name"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="border-2 border-black font-medium"
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="code" className="font-bold">Code</Label>
-                        <Input
-                            id="code"
-                            value={formData.code}
-                            onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                            className="border-2 border-black font-medium"
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="address" className="font-bold">Full Address</Label>
-                        <Input
-                            id="address"
-                            value={formData.address}
-                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                            className="border-2 border-black font-medium"
-                        />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="capacity" className="font-bold">Max Capacity</Label>
-                        <Input
-                            id="capacity"
-                            type="number"
-                            value={formData.capacity}
-                            onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-                            className="border-2 border-black font-medium"
-                        />
-                    </div>
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className={NB.cancelBtn}>
+          <Edit className="mr-2 h-4 w-4" /> Edit Configuration
+        </Button>
+      </DialogTrigger>
+      <DialogContent className={NB.contentNarrow}>
+        <DialogHeader className={NB.header}>
+          <DialogTitle className={NB.title}>
+            <Warehouse className="h-5 w-5" /> Edit Warehouse
+          </DialogTitle>
+          <p className={NB.subtitle}>Update konfigurasi dan lokasi gudang.</p>
+        </DialogHeader>
+
+        <div className="p-5 space-y-4">
+          <div className={NB.section}>
+            <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+              <Warehouse className="h-4 w-4" />
+              <span className={NB.sectionTitle}>Detail Gudang</span>
+            </div>
+            <div className={NB.sectionBody}>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={NB.label}>Code</label>
+                  <Input
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    className={NB.inputMono}
+                  />
                 </div>
-                <DialogFooter>
-                    <Button onClick={handleSave} disabled={loading} className="w-full bg-black text-white hover:bg-zinc-800 font-bold border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                        {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Save className="mr-2 h-4 w-4" />}
-                        Save Changes
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
+                <div>
+                  <label className={NB.label}>Name</label>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className={NB.input}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={NB.label}>Full Address</label>
+                <Input
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className={NB.input}
+                />
+              </div>
+              <div className="max-w-[200px]">
+                <label className={NB.label}>Max Capacity</label>
+                <Input
+                  type="number"
+                  value={formData.capacity}
+                  onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
+                  className={NB.inputMono}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className={NB.footer}>
+            <Button variant="outline" className={NB.cancelBtn} onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button className={NB.submitBtn} disabled={loading} onClick={handleSave}>
+              {loading ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+              ) : (
+                <><Save className="mr-2 h-4 w-4" /> Save Changes</>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }

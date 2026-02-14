@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { Loader2, Cog } from "lucide-react";
+import { NB } from "@/lib/dialog-styles";
 
 interface MachineOption {
   id: string;
@@ -95,39 +96,47 @@ export function AssignMachineGroupDialog({ open, onOpenChange, groupId, groupNam
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-        <DialogHeader className="px-6 py-5 border-b bg-white">
-          <DialogTitle className="text-3xl font-black uppercase tracking-tight">Assign Machine</DialogTitle>
-          <DialogDescription className="text-sm">
-            Link machine to <span className="font-semibold text-black">{groupName}</span>. Only unassigned or same-group machines are listed.
-          </DialogDescription>
+      <DialogContent className={NB.contentNarrow}>
+        <DialogHeader className={NB.header}>
+          <DialogTitle className={NB.title}>
+            <Cog className="h-5 w-5" /> Assign Machine
+          </DialogTitle>
+          <p className={NB.subtitle}>Link machine to {groupName}</p>
         </DialogHeader>
 
-        <div className="px-6 py-5 space-y-4">
-          <div className="rounded-xl border border-black/15 bg-zinc-50/50 p-4 space-y-1.5">
-            <Label>Machine</Label>
-            <Select value={machineId} onValueChange={setMachineId} disabled={loadingOptions}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select machine" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableMachines.map((machine) => (
-                  <SelectItem key={machine.id} value={machine.id}>
-                    {machine.code} - {machine.name} ({machine.status})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <div className="p-5 space-y-4">
+          <div className={NB.section}>
+            <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+              <span className={NB.sectionTitle}>Pilih Mesin</span>
+            </div>
+            <div className={NB.sectionBody}>
+              <div>
+                <label className={NB.label}>Machine <span className={NB.labelRequired}>*</span></label>
+                <Select value={machineId} onValueChange={setMachineId} disabled={loadingOptions}>
+                  <SelectTrigger className={NB.select}>
+                    <SelectValue placeholder="Select machine" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMachines.map((machine) => (
+                      <SelectItem key={machine.id} value={machine.id}>
+                        {machine.code} - {machine.name} ({machine.status})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[9px] text-zinc-400 font-bold mt-1">Only unassigned or same-group machines shown</p>
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="px-6 py-4 border-t bg-zinc-50 flex gap-2">
-          <Button variant="outline" className="flex-1 border-black" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button className="flex-1 bg-black text-white hover:bg-zinc-800" disabled={submitting} onClick={handleAssign}>
-            {submitting ? "Assigning..." : "Assign"}
-          </Button>
+          <div className={NB.footer}>
+            <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button className={NB.submitBtn} disabled={submitting} onClick={handleAssign}>
+              {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Assigning...</> : "Assign"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

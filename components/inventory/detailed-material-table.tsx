@@ -151,7 +151,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
     const formatDate = (date: Date | null) => date ? new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'
 
     return (
-        <Card className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white mt-6">
+        <Card className="overflow-hidden bg-white rounded-none border-0 shadow-none h-full flex flex-col">
             <CardHeader className="p-6 border-b-2 border-black bg-zinc-50">
                 <div className="flex items-center justify-between">
                     <div>
@@ -163,57 +163,57 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                     </div>
 
                     {/* Filter Tabs */}
-                    <div className="flex bg-zinc-100 p-1 rounded-lg border border-zinc-200">
+                    <div className="flex bg-zinc-100 p-1 border border-zinc-200">
                         <button
                             onClick={() => setFilter('alert')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'alert' ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-700' : 'text-zinc-500 hover:text-red-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'alert' ? 'bg-red-600 text-white shadow-sm ring-1 ring-red-700' : 'text-zinc-500 hover:text-red-600'}`}
                         >
                             Alert
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${filter === 'alert' ? 'bg-white text-red-600' : 'bg-red-100 text-red-600'}`}>
+                            <span className={`text-[9px] px-1.5 py-0.5 font-black ${filter === 'alert' ? 'bg-white text-red-600' : 'bg-red-100 text-red-600'}`}>
                                 {data.filter(i => i.manualAlert || (i.gap > 0 && !i.isPendingRequest && (!i.openPOs || i.openPOs.length === 0))).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setFilter('requested')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'requested' ? 'bg-amber-100 text-amber-900 border border-amber-200 shadow-sm' : 'text-zinc-500 hover:text-amber-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'requested' ? 'bg-amber-100 text-amber-900 border border-amber-200 shadow-sm' : 'text-zinc-500 hover:text-amber-600'}`}
                         >
                             Requested
-                            <span className="bg-amber-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">
+                            <span className="bg-amber-600 text-white text-[9px] px-1 h-4 flex items-center justify-center">
                                 {data.filter(i => !i.manualAlert && (i.isPendingRequest || optimisticPendingRequests.has(i.id))).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setFilter('approved')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'approved' ? 'bg-blue-100 text-blue-900 border border-blue-200 shadow-sm' : 'text-zinc-500 hover:text-blue-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'approved' ? 'bg-blue-100 text-blue-900 border border-blue-200 shadow-sm' : 'text-zinc-500 hover:text-blue-600'}`}
                         >
                             Approved
-                            <span className="bg-blue-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">
+                            <span className="bg-blue-600 text-white text-[9px] px-1 h-4 flex items-center justify-center">
                                 {data.filter(i => !i.manualAlert && ((i.openPOs && i.openPOs.length > 0) || (optimisticPOs[i.id] && optimisticPOs[i.id].length > 0))).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setFilter('rejected')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'rejected' ? 'bg-red-100 text-red-900 border border-red-200 shadow-sm' : 'text-zinc-500 hover:text-red-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'rejected' ? 'bg-red-100 text-red-900 border border-red-200 shadow-sm' : 'text-zinc-500 hover:text-red-600'}`}
                         >
                             Rejected
-                            <span className="bg-red-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">
+                            <span className="bg-red-600 text-white text-[9px] px-1 h-4 flex items-center justify-center">
                                 {data.filter(i => i.isRejectedRequest).length}
                             </span>
                         </button>
                         <button
                             onClick={() => setFilter('completed')}
-                            className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'completed' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200 shadow-sm' : 'text-zinc-500 hover:text-emerald-600'}`}
+                            className={`px-3 py-1.5 text-xs font-bold uppercase transition-all flex items-center gap-1.5 ${filter === 'completed' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200 shadow-sm' : 'text-zinc-500 hover:text-emerald-600'}`}
                         >
                             Completed
-                            <span className="bg-emerald-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">
+                            <span className="bg-emerald-600 text-white text-[9px] px-1 h-4 flex items-center justify-center">
                                 {data.filter(i => !i.manualAlert && i.gap <= 0 && !i.isPendingRequest && (!i.openPOs || i.openPOs.length === 0)).length}
                             </span>
                         </button>
                     </div>
                 </div>
             </CardHeader>
-            <CardContent className="p-0 overflow-x-auto">
-                <div className="w-full border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <CardContent className="p-0 overflow-x-auto flex-1">
+                <div className="w-full bg-white">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
                             <thead>
@@ -265,7 +265,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                     {item.warehouses.length > 0 && (
                                                         <div className="flex flex-wrap justify-center gap-1 mt-1">
                                                             {item.warehouses.map(w => (
-                                                                <span key={w.name} className="text-[9px] bg-zinc-100 px-1 rounded border border-zinc-200" title={w.name}>
+                                                                <span key={w.name} className="text-[9px] bg-zinc-100 px-1 border border-zinc-200" title={w.name}>
                                                                     {w.name.substring(0, 3)}: {w.qty}
                                                                 </span>
                                                             ))}
@@ -274,7 +274,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
 
                                                     {/* Active Demand Warning */}
                                                     {item.demandSources.length > 0 && (
-                                                        <div className="mt-2 text-left bg-purple-50 p-2 rounded border border-purple-200">
+                                                        <div className="mt-2 text-left bg-purple-50 p-2 border border-purple-200">
                                                             <div className="text-[10px] font-bold text-purple-700 uppercase flex items-center gap-1">
                                                                 <AlertCircle className="h-3 w-3" /> Needed for WO
                                                             </div>
@@ -306,7 +306,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                     <span className="text-zinc-500 text-[10px] uppercase font-bold">Burn Rate</span>
                                                     <span className="font-mono text-right">{item.consumptionRate}/d</span>
                                                 </div>
-                                                <div className={`mt-2 text-[10px] font-black uppercase text-center border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] rounded p-1 ${item.stockEndsInDays < 7 ? 'bg-red-200 text-red-900' : 'bg-emerald-200 text-emerald-900'}`}>
+                                                <div className={`mt-2 text-[10px] font-black uppercase text-center border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-1 ${item.stockEndsInDays < 7 ? 'bg-red-200 text-red-900' : 'bg-emerald-200 text-emerald-900'}`}>
                                                     Stock ends: {item.stockEndsInDays === 999 ? '∞' : `${item.stockEndsInDays} days`}
                                                 </div>
                                             </td>
@@ -323,8 +323,8 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                     {/* Incoming PO */}
                                                     {/* Incoming PO - Hide if Manual Alert (User treats it as insufficient/ignored) */}
                                                     {!item.manualAlert && ((item.activePO) || (optimisticPOs[item.id] && optimisticPOs[item.id].length > 0)) && !optimisticResolvedItems.has(item.id) ? (
-                                                        <div className="bg-blue-100 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-2 rounded relative mt-1">
-                                                            <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[8px] font-black px-1 border border-black rounded shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] rotate-3">
+                                                        <div className="bg-blue-100 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] p-2 relative mt-1">
+                                                            <div className="absolute -top-1.5 -right-1.5 bg-blue-500 text-white text-[8px] font-black px-1 border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] rotate-3">
                                                                 INCOMING
                                                             </div>
                                                             <div className="text-[10px] font-bold mt-1 leading-tight">
@@ -354,7 +354,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                         <div className="text-[10px] text-red-500 font-bold">Deficit: {item.gap} {item.unit}</div>
                                                     </div>
                                                 ) : (
-                                                    <div className="mt-2 text-[10px] text-black font-black bg-emerald-300 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] inline-block px-2 py-0.5 rounded rotate-[-2deg]">
+                                                    <div className="mt-2 text-[10px] text-black font-black bg-emerald-300 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] inline-block px-2 py-0.5 rotate-[-2deg]">
                                                         HEALTHY
                                                     </div>
                                                 )}
@@ -407,7 +407,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                                 (item.isPendingRequest || optimisticPendingRequests.has(item.id)) ? (
                                                                     // B1. Pending -> Show Badge
                                                                     <div className="flex items-center justify-end gap-2 text-amber-600 font-bold text-xs uppercase">
-                                                                        <span className="bg-amber-100 px-2 py-1 rounded border border-amber-200 flex items-center gap-1">
+                                                                        <span className="bg-amber-100 px-2 py-1 border border-amber-200 flex items-center gap-1">
                                                                             <Loader2 className="h-3 w-3 animate-spin" />
                                                                             Pending Request
                                                                         </span>
@@ -432,7 +432,7 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                     ) : (
                                                         // NO GAP (Healthy) -> Show Badge
                                                         <div className="flex items-center justify-end gap-2 text-emerald-600 font-bold text-xs uppercase">
-                                                            <span className="bg-emerald-100 px-2 py-1 rounded border border-emerald-200">
+                                                            <span className="bg-emerald-100 px-2 py-1 border border-emerald-200">
                                                                 All Good
                                                             </span>
                                                         </div>

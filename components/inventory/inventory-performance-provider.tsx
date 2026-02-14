@@ -34,6 +34,9 @@ export function InventoryPerformanceProvider({
                 case '/inventory/audit':
                     prefetchData(['inventory-kanban', 'warehouses-list'])
                     break
+                case '/inventory/stock':
+                    prefetchData(['inventory-kanban', 'warehouses-list'])
+                    break
             }
         }
 

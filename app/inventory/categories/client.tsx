@@ -1,38 +1,33 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
 import {
     FolderOpen,
+    FolderPlus,
     Layers,
+    Loader2,
     Plus,
     Search,
-    Filter,
     ArrowRight,
+    Package,
+    ChevronRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
-    Card,
-    CardContent,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
-import {
     Dialog,
     DialogContent,
-    DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { createCategory } from "@/app/actions/inventory"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { createCategory, getNextCategoryCode } from "@/app/actions/inventory"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { NB } from "@/lib/dialog-styles"
 
 interface CategoryWithChildren {
     id: string
@@ -66,20 +61,13 @@ interface CategoriesClientProps {
 export function CategoriesClient({ categories, allCategories }: CategoriesClientProps) {
     const [selectedCategory, setSelectedCategory] = useState<any>(null)
     const [isCreateOpen, setIsCreateOpen] = useState(false)
+    const [search, setSearch] = useState("")
     const router = useRouter()
 
-    // Map flat/nested Prisma structure to UI structure
-    // Prisma returns children nested if we used include: { children: true }
-    // But if we just got a flat list, we'd need to build tree.
-    // The server action getAllCategories returns objects WITH children array.
-
     const uiCategories = useMemo(() => {
-        // Filter only Root categories (parentId === null) for the main grid
         return categories.filter(c => !c.parentId).map(cat => ({
             ...cat,
             itemCount: cat._count.products,
-            // Prisma children might not have _count if we didn't include it deeply
-            // For now let's just show direct children
             subs: cat.children.map((child: any) => ({
                 id: child.id,
                 code: child.code,
@@ -88,60 +76,149 @@ export function CategoriesClient({ categories, allCategories }: CategoriesClient
                 count: child._count?.products || 0,
                 children: child.children || []
             })),
-            value: 0, // We don't have value calc yet
-            color: "bg-blue-100" // Default color
         }))
     }, [categories])
 
+    const filteredCategories = useMemo(() => {
+        if (!search.trim()) return uiCategories
+        const q = search.toLowerCase()
+        return uiCategories.filter(c =>
+            c.name.toLowerCase().includes(q) ||
+            c.code.toLowerCase().includes(q) ||
+            c.subs.some((s: any) => s.name.toLowerCase().includes(q))
+        )
+    }, [uiCategories, search])
+
+    // Stats
+    const totalRoot = uiCategories.length
+    const totalSubs = uiCategories.reduce((sum, c) => sum + c.subs.length, 0)
+    const totalProducts = uiCategories.reduce((sum, c) => {
+        const subProducts = c.subs.reduce((s: number, sub: any) => s + (sub.count || 0), 0)
+        return sum + c.itemCount + subProducts
+    }, 0)
+
     return (
-        <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans">
+        <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto space-y-4">
 
-            {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight text-black">Pohon Kategori</h2>
-                    <p className="text-muted-foreground mt-1 font-medium">Struktur dan klasifikasi aset inventori.</p>
-                </div>
-                <Button
-                    onClick={() => setIsCreateOpen(true)}
-                    className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide transition-transform active:translate-y-1 active:shadow-none"
-                >
-                    <Plus className="mr-2 h-4 w-4" /> Kategori Baru
-                </Button>
-            </div>
-
-            {/* Toolbar */}
-            <div className="flex items-center gap-2 bg-white p-2 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search categories..." className="pl-9 border-black focus-visible:ring-black font-medium" />
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" className="border-black font-bold uppercase hover:bg-zinc-100">
-                        <Filter className="mr-2 h-4 w-4" /> Filter
-                    </Button>
-                    <Button variant="ghost" size="icon" className="hover:bg-zinc-100">
-                        <Layers className="h-4 w-4" />
+            {/* ═══════════════════════════════════════════ */}
+            {/* COMMAND HEADER                              */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-400">
+                    <div className="flex items-center gap-3">
+                        <Layers className="h-5 w-5 text-emerald-500" />
+                        <div>
+                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                                Kategori Produk
+                            </h1>
+                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                                Struktur dan klasifikasi pohon inventori
+                            </p>
+                        </div>
+                    </div>
+                    <Button
+                        onClick={() => setIsCreateOpen(true)}
+                        className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9"
+                    >
+                        <Plus className="mr-2 h-4 w-4" /> Kategori Baru
                     </Button>
                 </div>
             </div>
 
-            {/* Main Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {uiCategories.map((cat) => (
+            {/* ═══════════════════════════════════════════ */}
+            {/* KPI PULSE STRIP                            */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="grid grid-cols-3">
+                    {/* Root Categories */}
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <FolderOpen className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kategori Root</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                            {totalRoot}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-emerald-600">Klasifikasi utama</span>
+                        </div>
+                    </div>
+
+                    {/* Subcategories */}
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <Layers className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Sub-Kategori</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
+                            {totalSubs}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-blue-600">Node anak</span>
+                        </div>
+                    </div>
+
+                    {/* Total Products */}
+                    <div className="relative p-4 md:p-5">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-violet-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <Package className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Produk</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-violet-600">
+                            {totalProducts}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-violet-600">Terkait kategori</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* SEARCH BAR                                 */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="px-4 py-3 flex items-center gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                        <Input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Cari kategori atau sub-kategori..."
+                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                        />
+                    </div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                        {filteredCategories.length} dari {uiCategories.length} kategori
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* CATEGORY GRID                              */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredCategories.map((cat) => (
                     <CategoryCard key={cat.id} category={cat} onClick={() => setSelectedCategory(cat)} />
                 ))}
 
                 {/* Create Trigger Card */}
                 <button
                     onClick={() => setIsCreateOpen(true)}
-                    className="group relative flex flex-col items-center justify-center border-2 border-dashed border-zinc-300 hover:border-black rounded-xl p-8 transition-colors h-full min-h-[300px] bg-zinc-50 hover:bg-white"
+                    className="group relative flex flex-col items-center justify-center border-2 border-dashed border-zinc-300 hover:border-black p-8 transition-all h-full min-h-[280px] bg-zinc-50 hover:bg-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                 >
-                    <div className="h-16 w-16 bg-white border border-zinc-200 group-hover:border-black rounded-full flex items-center justify-center mb-4 shadow-sm group-hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all">
-                        <Plus className="h-8 w-8 text-zinc-400 group-hover:text-black" />
+                    <div className="h-14 w-14 bg-white border-2 border-zinc-200 group-hover:border-black flex items-center justify-center mb-4 group-hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] transition-all">
+                        <Plus className="h-7 w-7 text-zinc-400 group-hover:text-black" />
                     </div>
-                    <h3 className="text-lg font-black text-zinc-400 group-hover:text-black uppercase">Buat Kategori Root</h3>
-                    <p className="text-sm text-zinc-400 font-medium text-center mt-2 max-w-[200px]">Tambahkan klasifikasi utama baru untuk gudang.</p>
+                    <h3 className="text-sm font-black text-zinc-400 group-hover:text-black uppercase tracking-wider">
+                        Buat Kategori Root
+                    </h3>
+                    <p className="text-[10px] text-zinc-400 font-medium text-center mt-2 max-w-[200px]">
+                        Tambahkan klasifikasi utama baru untuk gudang
+                    </p>
                 </button>
             </div>
 
@@ -167,68 +244,102 @@ export function CategoriesClient({ categories, allCategories }: CategoriesClient
     )
 }
 
-function CategoryCard({ category, onClick }: { category: any, onClick: () => void }) {
-    return (
-        <Card
-            onClick={onClick}
-            className="group relative border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all bg-white rounded-xl overflow-hidden flex flex-col cursor-pointer"
-        >
-            <div className={`h-2 w-full ${category.color} border-b border-black/10`} />
+/* ═══════════════════════════════════════════════════════════════ */
+/* CATEGORY CARD                                                 */
+/* ═══════════════════════════════════════════════════════════════ */
 
-            <CardHeader className="pb-2">
+const ACCENT_COLORS = [
+    { top: "bg-emerald-400", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+    { top: "bg-blue-400", badge: "bg-blue-50 text-blue-700 border-blue-200" },
+    { top: "bg-violet-400", badge: "bg-violet-50 text-violet-700 border-violet-200" },
+    { top: "bg-amber-400", badge: "bg-amber-50 text-amber-700 border-amber-200" },
+    { top: "bg-rose-400", badge: "bg-rose-50 text-rose-700 border-rose-200" },
+    { top: "bg-cyan-400", badge: "bg-cyan-50 text-cyan-700 border-cyan-200" },
+]
+
+function CategoryCard({ category, onClick }: { category: any, onClick: () => void }) {
+    // Deterministic color based on category code
+    const colorIdx = category.code ? category.code.charCodeAt(category.code.length - 1) % ACCENT_COLORS.length : 0
+    const accent = ACCENT_COLORS[colorIdx]
+
+    return (
+        <div
+            onClick={onClick}
+            className="group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all bg-white overflow-hidden flex flex-col cursor-pointer"
+        >
+            {/* Top accent line */}
+            <div className={`h-1.5 w-full ${accent.top}`} />
+
+            {/* Header */}
+            <div className="px-4 pt-4 pb-3">
                 <div className="flex justify-between items-start">
-                    <div className="space-y-1">
-                        <Badge variant="outline" className="border-black text-[10px] font-bold uppercase tracking-wider bg-zinc-50">{category.code}</Badge>
-                        <CardTitle className="text-2xl font-black uppercase leading-none">{category.name}</CardTitle>
+                    <div className="space-y-2">
+                        <span className="inline-block border-2 border-black bg-zinc-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider font-mono">
+                            {category.code}
+                        </span>
+                        <h3 className="text-xl font-black uppercase leading-none tracking-tight text-zinc-900">
+                            {category.name}
+                        </h3>
                     </div>
-                    <div className="h-10 w-10 bg-black text-white rounded-lg flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
+                    <div className="h-10 w-10 bg-black text-white flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)]">
                         <FolderOpen className="h-5 w-5" />
                     </div>
                 </div>
-            </CardHeader>
+            </div>
 
-            <CardContent className="space-y-6 flex-1">
-                {/* Stats Row */}
-                <div className="grid grid-cols-2 gap-4 py-2 border-y border-dashed border-zinc-200">
-                    <div>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Total Items</p>
-                        <p className="text-lg font-black">{category.itemCount.toLocaleString()}</p>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground mb-0.5">Est. Value</p>
-                        <p className="text-lg font-black text-emerald-600">--</p>
-                    </div>
+            {/* Stats Row */}
+            <div className="mx-4 border-t-2 border-b-2 border-black grid grid-cols-2">
+                <div className="p-3 border-r-2 border-black">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">Total Produk</p>
+                    <p className="text-lg font-black tracking-tighter">{category.itemCount.toLocaleString()}</p>
                 </div>
+                <div className="p-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-0.5">Sub-Kategori</p>
+                    <p className="text-lg font-black tracking-tighter">{category.subs?.length || 0}</p>
+                </div>
+            </div>
 
-                {/* Subcategories List */}
-                <div className="space-y-3">
-                    <p className="text-xs font-bold uppercase flex items-center gap-2">
-                        <Layers className="h-3 w-3" /> Sub-Categories
-                    </p>
-                    <div className="space-y-2">
-                        {category.subs && category.subs.length > 0 ? category.subs.map((sub: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between text-sm p-2 bg-zinc-50 border border-black/5 rounded-lg group-hover:bg-white group-hover:border-black/10 transition-colors">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-black/20" />
-                                    <span className="font-medium text-zinc-700">{sub.name}</span>
-                                </div>
-                                <Badge variant="secondary" className="text-[10px] font-bold bg-white border border-black/10">{sub.count}</Badge>
+            {/* Subcategories List */}
+            <div className="px-4 py-3 flex-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5 mb-2">
+                    <Layers className="h-3 w-3" /> Sub-Kategori
+                </p>
+                <div className="space-y-1.5">
+                    {category.subs && category.subs.length > 0 ? category.subs.slice(0, 4).map((sub: any) => (
+                        <div key={sub.id || sub.name} className="flex items-center justify-between text-sm p-2 bg-zinc-50 border-2 border-zinc-200 group-hover:border-black/20 transition-colors">
+                            <div className="flex items-center gap-2">
+                                <ChevronRight className="h-3 w-3 text-zinc-400" />
+                                <span className="font-bold text-zinc-700 text-xs">{sub.name}</span>
                             </div>
-                        )) : (
-                            <p className="text-xs text-muted-foreground italic">No subcategories</p>
-                        )}
-                    </div>
+                            <span className={`text-[10px] font-black border px-1.5 py-0.5 ${accent.badge}`}>
+                                {sub.count}
+                            </span>
+                        </div>
+                    )) : (
+                        <p className="text-[10px] text-zinc-400 font-bold uppercase">Belum ada sub-kategori</p>
+                    )}
+                    {category.subs && category.subs.length > 4 && (
+                        <p className="text-[10px] font-black text-zinc-400 uppercase tracking-wider">
+                            +{category.subs.length - 4} lainnya
+                        </p>
+                    )}
                 </div>
-            </CardContent>
+            </div>
 
-            <CardFooter className="pt-4 border-t border-black bg-zinc-50">
-                <Button variant="ghost" className="w-full justify-between hover:bg-black hover:text-white group/btn transition-all uppercase font-bold text-xs border border-transparent hover:border-black">
-                    Manage Tree <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
-                </Button>
-            </CardFooter>
-        </Card>
+            {/* Footer */}
+            <div className="border-t-2 border-black bg-zinc-50 px-4 py-2.5">
+                <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-zinc-400 group-hover:text-black transition-colors">
+                    <span>Kelola Pohon</span>
+                    <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+            </div>
+        </div>
     )
 }
+
+/* ═══════════════════════════════════════════════════════════════ */
+/* CREATE CATEGORY DIALOG (already NB-styled)                    */
+/* ═══════════════════════════════════════════════════════════════ */
 
 interface CreateCategoryDialogProps {
     open: boolean
@@ -240,24 +351,35 @@ interface CreateCategoryDialogProps {
 function CreateCategoryDialog({ open, onOpenChange, parents, onSuccess }: CreateCategoryDialogProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState("")
+    const [code, setCode] = useState("")
+    const [name, setName] = useState("")
+    const [parentId, setParentId] = useState("root")
+    const [description, setDescription] = useState("")
+
+    useEffect(() => {
+        if (open) {
+            getNextCategoryCode().then(setCode)
+            setName("")
+            setParentId("root")
+            setDescription("")
+            setError("")
+        }
+    }, [open])
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         setIsLoading(true)
         setError("")
 
-        const formData = new FormData(e.currentTarget)
-        const data = {
-            name: formData.get("name") as string,
-            code: formData.get("code") as string,
-            description: formData.get("description") as string,
-            parentId: formData.get("parentId") === "root" ? undefined : formData.get("parentId") as string
-        }
-
-        const result = await createCategory(data)
+        const result = await createCategory({
+            name,
+            code,
+            description,
+            parentId: parentId === "root" ? undefined : parentId,
+        })
 
         if (result.success) {
-            toast.success("Category created successfully")
+            toast.success("Kategori berhasil dibuat")
             onSuccess()
         } else {
             setError(result.error as string)
@@ -268,140 +390,180 @@ function CreateCategoryDialog({ open, onOpenChange, parents, onSuccess }: Create
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0 bg-white">
-                <DialogHeader className="p-6 border-b border-black bg-zinc-50">
-                    <DialogTitle className="text-xl font-black uppercase leading-tight flex items-center gap-2">
-                        <div className="bg-black text-white p-1 rounded-md"><Plus className="h-4 w-4" /></div>
-                        Create Category
+            <DialogContent className={NB.contentNarrow}>
+                <DialogHeader className={NB.header}>
+                    <DialogTitle className={NB.title}>
+                        <FolderPlus className="h-5 w-5" /> Buat Kategori Baru
                     </DialogTitle>
-                    <DialogDescription className="text-black/60 font-medium">
-                        Add a new root or sub-category to the inventory tree.
-                    </DialogDescription>
+                    <p className={NB.subtitle}>Tambah kategori root atau sub-kategori ke pohon inventori.</p>
                 </DialogHeader>
 
-                <form onSubmit={handleSubmit}>
-                    <div className="p-6 space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label className="uppercase text-xs font-bold text-muted-foreground">Category Name</Label>
-                                <Input name="name" placeholder="e.g. Raw Material" className="border-black focus-visible:ring-black font-bold" required />
+                <ScrollArea className={NB.scroll}>
+                    <form onSubmit={handleSubmit}>
+                        <div className="p-5 space-y-4">
+                            <div className={NB.section}>
+                                <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                    <Layers className="h-4 w-4" />
+                                    <span className={NB.sectionTitle}>Detail Kategori</span>
+                                </div>
+                                <div className={NB.sectionBody}>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={NB.label}>Kode Kategori <span className={NB.labelRequired}>*</span></label>
+                                            <Input
+                                                value={code}
+                                                onChange={(e) => setCode(e.target.value)}
+                                                placeholder="CAT-001"
+                                                className={NB.inputMono}
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={NB.label}>Nama Kategori <span className={NB.labelRequired}>*</span></label>
+                                            <Input
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                placeholder="e.g. Raw Material"
+                                                className={NB.input}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className={NB.label}>Kategori Induk</label>
+                                        <Select value={parentId} onValueChange={setParentId}>
+                                            <SelectTrigger className={NB.select}>
+                                                <SelectValue placeholder="Pilih Induk (Opsional)" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="root">Tanpa Induk (Root)</SelectItem>
+                                                {parents.map(p => (
+                                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div>
+                                        <label className={NB.label}>Deskripsi</label>
+                                        <Textarea
+                                            value={description}
+                                            onChange={(e) => setDescription(e.target.value)}
+                                            placeholder="Jelaskan item apa yang masuk kategori ini..."
+                                            className={NB.textarea + " min-h-[80px]"}
+                                        />
+                                    </div>
+
+                                    {error && <p className={NB.error}>{error}</p>}
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="uppercase text-xs font-bold text-muted-foreground">Category Code</Label>
-                                <Input name="code" placeholder="e.g. RAW-001" className="border-black focus-visible:ring-black font-mono" required />
+
+                            <div className={NB.footer}>
+                                <Button type="button" variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
+                                    Batal
+                                </Button>
+                                <Button type="submit" disabled={isLoading} className={NB.submitBtn}>
+                                    {isLoading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : "Buat Kategori"}
+                                </Button>
                             </div>
                         </div>
-
-                        <div className="space-y-2">
-                            <Label className="uppercase text-xs font-bold text-muted-foreground">Parent Category</Label>
-                            <Select name="parentId">
-                                <SelectTrigger className="border-black focus:ring-black font-medium">
-                                    <SelectValue placeholder="Select Parent (Optional)" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="root">No Parent (Root Category)</SelectItem>
-                                    {parents.map(p => (
-                                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <Label className="uppercase text-xs font-bold text-muted-foreground">Description</Label>
-                            <Textarea name="description" placeholder="Describe what items belong here..." className="border-black focus-visible:ring-black min-h-[100px]" />
-                        </div>
-                        {error && <p className="text-red-600 text-sm font-bold">{error}</p>}
-                    </div>
-
-                    <DialogFooter className="p-4 border-t border-black bg-zinc-50 flex gap-2">
-                        <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1 border-black font-bold uppercase bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
-                            Cancel
-                        </Button>
-                        <Button type="submit" disabled={isLoading} className="flex-1 bg-black text-white hover:bg-zinc-800 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-bold tracking-wide">
-                            {isLoading ? "Saving..." : "Create Category"}
-                        </Button>
-                    </DialogFooter>
-                </form>
+                    </form>
+                </ScrollArea>
             </DialogContent>
         </Dialog>
     )
 }
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* CATEGORY DETAIL DIALOG (already NB-styled)                    */
+/* ═══════════════════════════════════════════════════════════════ */
+
 function CategoryDetailDialog({ category, open, onOpenChange }: { category: any, open: boolean, onOpenChange: (v: boolean) => void }) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0 bg-white">
-                <DialogHeader className={`p-6 border-b border-black bg-white`}>
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <Badge variant="outline" className="border-black bg-white text-black mb-2 shadow-sm">{category.code}</Badge>
-                            <DialogTitle className="text-3xl font-black uppercase leading-none">{category.name}</DialogTitle>
-                        </div>
-                        <div className="h-12 w-12 bg-black text-white flex items-center justify-center rounded-xl shadow-md">
-                            <FolderOpen className="h-6 w-6" />
-                        </div>
-                    </div>
-                    <DialogDescription className="text-black/70 font-medium mt-2">
-                        {category.description || "No description provided."}
-                    </DialogDescription>
+            <DialogContent className={NB.content}>
+                <DialogHeader className={NB.header}>
+                    <DialogTitle className={NB.title}>
+                        <FolderOpen className="h-5 w-5" /> {category.name}
+                    </DialogTitle>
+                    <p className={NB.subtitle}>
+                        <span className="font-mono">{category.code}</span> — {category.description || "Tidak ada deskripsi."}
+                    </p>
                 </DialogHeader>
 
-                <div className="p-6 space-y-6">
-                    <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg border border-black/10 bg-zinc-50 p-3">
-                            <p className="text-[10px] font-black uppercase text-zinc-500">Total Products</p>
-                            <p className="text-2xl font-black">{category.itemCount || 0}</p>
-                        </div>
-                        <div className="rounded-lg border border-black/10 bg-zinc-50 p-3">
-                            <p className="text-[10px] font-black uppercase text-zinc-500">Direct Sub-Categories</p>
-                            <p className="text-2xl font-black">{category.subs?.length || 0}</p>
-                        </div>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h4 className="text-xs font-black uppercase tracking-wide text-zinc-500">Tree Nodes</h4>
-                        {category.subs && category.subs.length > 0 ? (
-                            <div className="space-y-2">
-                                {category.subs.map((sub: any) => (
-                                    <div key={sub.id || sub.name} className="rounded-lg border border-black/10 p-3 bg-white">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div>
-                                                <p className="text-sm font-black uppercase">{sub.name}</p>
-                                                <p className="text-[11px] text-zinc-500 font-mono">{sub.code || "NO-CODE"}</p>
-                                            </div>
-                                            <Badge variant="outline" className="border-black text-[10px] font-bold">
-                                                {sub.count || 0} items
-                                            </Badge>
-                                        </div>
-                                        {sub.description && (
-                                            <p className="mt-2 text-xs text-zinc-600">{sub.description}</p>
-                                        )}
-                                        {sub.children && sub.children.length > 0 && (
-                                            <div className="mt-2 rounded border border-dashed border-zinc-200 bg-zinc-50 p-2">
-                                                <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">Sub Nodes</p>
-                                                <div className="space-y-1">
-                                                    {sub.children.map((child: any) => (
-                                                        <div key={child.id || child.name} className="flex items-center justify-between text-xs">
-                                                            <span className="font-medium">{child.name}</span>
-                                                            <span className="text-zinc-500">{child._count?.products || 0} items</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                ))}
+                <ScrollArea className={NB.scroll}>
+                    <div className="p-5 space-y-4">
+                        {/* Stats */}
+                        <div className={NB.section}>
+                            <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                <Layers className="h-4 w-4" />
+                                <span className={NB.sectionTitle}>Statistik</span>
                             </div>
-                        ) : (
-                            <p className="text-sm text-zinc-500 italic">No child nodes found for this category.</p>
-                        )}
-                    </div>
-                </div>
+                            <div className={NB.sectionBody}>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="border-2 border-black p-3">
+                                        <p className="text-[10px] font-black uppercase text-zinc-500">Total Produk</p>
+                                        <p className="text-2xl font-black">{category.itemCount || 0}</p>
+                                    </div>
+                                    <div className="border-2 border-black p-3">
+                                        <p className="text-[10px] font-black uppercase text-zinc-500">Sub-Kategori</p>
+                                        <p className="text-2xl font-black">{category.subs?.length || 0}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                <DialogFooter className="p-4 border-t border-black bg-zinc-50 flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="border-black font-bold uppercase">Close</Button>
-                </DialogFooter>
+                        {/* Tree Nodes */}
+                        <div className={NB.section}>
+                            <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                <Layers className="h-4 w-4" />
+                                <span className={NB.sectionTitle}>Tree Nodes</span>
+                            </div>
+                            {category.subs && category.subs.length > 0 ? (
+                                <div className="divide-y-2 divide-black">
+                                    {category.subs.map((sub: any) => (
+                                        <div key={sub.id || sub.name} className="px-4 py-3">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div>
+                                                    <p className="text-sm font-black uppercase">{sub.name}</p>
+                                                    <p className="text-[11px] text-zinc-500 font-mono">{sub.code || "NO-CODE"}</p>
+                                                </div>
+                                                <Badge variant="outline" className="border-2 border-black text-[10px] font-black">
+                                                    {sub.count || 0} items
+                                                </Badge>
+                                            </div>
+                                            {sub.description && (
+                                                <p className="mt-2 text-xs text-zinc-600">{sub.description}</p>
+                                            )}
+                                            {sub.children && sub.children.length > 0 && (
+                                                <div className="mt-2 border-2 border-dashed border-zinc-300 bg-zinc-50 p-2">
+                                                    <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">Sub Nodes</p>
+                                                    <div className="space-y-1">
+                                                        {sub.children.map((child: any) => (
+                                                            <div key={child.id || child.name} className="flex items-center justify-between text-xs">
+                                                                <span className="font-bold">{child.name}</span>
+                                                                <span className="text-zinc-500 font-mono">{child._count?.products || 0}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-4 text-sm text-zinc-400 font-bold">Tidak ada sub-node.</div>
+                            )}
+                        </div>
+
+                        <div className={NB.footer}>
+                            <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
+                                Tutup
+                            </Button>
+                        </div>
+                    </div>
+                </ScrollArea>
             </DialogContent>
         </Dialog>
     )

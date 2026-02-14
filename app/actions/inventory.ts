@@ -17,6 +17,17 @@ import { z } from "zod"
 
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
+export async function getNextCategoryCode(): Promise<string> {
+    const last = await prisma.category.findFirst({
+        where: { code: { startsWith: 'CAT-' } },
+        orderBy: { code: 'desc' },
+        select: { code: true },
+    })
+    const lastNum = last ? parseInt(last.code.replace('CAT-', ''), 10) : 0
+    const next = (isNaN(lastNum) ? 0 : lastNum) + 1
+    return `CAT-${String(next).padStart(3, '0')}`
+}
+
 export async function createCategory(input: CreateCategoryInput) {
     try {
         const data = createCategorySchema.parse(input)

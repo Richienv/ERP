@@ -13,37 +13,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
-import {
     Search,
     Filter,
-    MoreHorizontal,
-    Eye,
-    FileText,
-    DollarSign,
-    Calendar,
-    CheckCircle,
-    AlertCircle,
     Download,
-    Printer,
-    CreditCard,
-    TrendingUp,
     Store,
     ArrowUpRight,
-    ArrowDownRight,
-    SearchCode,
     Receipt
 } from "lucide-react"
 import Link from "next/link"
-import { IconTrendingUp, IconTrendingDown } from "@tabler/icons-react"
 import { cn } from "@/lib/utils"
-import { motion } from "framer-motion"
+import { toast } from "sonner"
 
 // --- Mock Data ---
 
@@ -100,11 +79,37 @@ export default function SalesStreamPage() {
                         <p className="text-muted-foreground font-medium mt-1">Real-time financial performance & closing metrics.</p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" className="border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                        <Button
+                            variant="outline"
+                            className="border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                            onClick={() => {
+                                const headers = ["No", "Number", "Customer", "Date", "Due", "Total", "Status"]
+                                const rows = INVOICES.map((inv, i) => [
+                                    i + 1,
+                                    inv.number,
+                                    inv.customer,
+                                    inv.date,
+                                    inv.due,
+                                    inv.total,
+                                    inv.status,
+                                ])
+                                const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
+                                const blob = new Blob([csv], { type: "text/csv" })
+                                const url = URL.createObjectURL(blob)
+                                const a = document.createElement("a")
+                                a.href = url
+                                a.download = `revenue-stream-${new Date().toISOString().slice(0, 10)}.csv`
+                                a.click()
+                                URL.revokeObjectURL(url)
+                                toast.success("Data berhasil di-export")
+                            }}
+                        >
                             <Download className="mr-2 h-4 w-4" /> Export
                         </Button>
-                        <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-transparent font-bold shadow-lg">
-                            <Receipt className="mr-2 h-4 w-4" /> Buat Invoice
+                        <Button asChild className="bg-black text-white hover:bg-zinc-800 border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                            <Link href="/finance/invoices">
+                                <Receipt className="mr-2 h-4 w-4" /> Buat Invoice
+                            </Link>
                         </Button>
                     </div>
                 </div>

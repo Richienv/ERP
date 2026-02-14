@@ -3,11 +3,10 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Building2, CreditCard, FileText, Phone, Save } from "lucide-react"
+import { ArrowLeft, Building2, CreditCard, FileText, Phone, Save, Loader2, Users } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   FormControl,
@@ -22,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useForm } from "react-hook-form"
+import { NB } from "@/lib/dialog-styles"
 
 type CustomerFormValues = {
   code: string
@@ -107,19 +107,18 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <div className="flex items-center space-x-4">
-          <Button variant="outline" size="icon" asChild>
+    <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="icon" asChild className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] hover:translate-x-[1px] rounded-none">
             <Link href="/sales/customers">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
           <div>
-            <h2 className="text-3xl font-bold tracking-tight">Tambah Pelanggan Baru</h2>
-            <p className="text-muted-foreground">
-              Buat data pelanggan atau prospek baru.
-            </p>
+            <h2 className="text-3xl font-black tracking-tight uppercase">Tambah Pelanggan Baru</h2>
+            <p className="text-muted-foreground font-bold text-xs uppercase tracking-wider mt-1">Buat data pelanggan atau prospek baru.</p>
           </div>
         </div>
       </div>
@@ -127,24 +126,22 @@ export default function NewCustomerPage() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Building2 className="mr-2 h-5 w-5" />
-                  Informasi Dasar
-                </CardTitle>
-                <CardDescription>Data dasar pelanggan/prospek</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            {/* Informasi Dasar */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-amber-400 bg-amber-50`}>
+                <Building2 className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Informasi Dasar</span>
+              </div>
+              <div className={NB.sectionBody}>
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="code"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Kode Pelanggan *</FormLabel>
+                        <label className={NB.label}>Kode Pelanggan <span className={NB.labelRequired}>*</span></label>
                         <FormControl>
-                          <Input placeholder="CUST-2026-0001" {...field} />
+                          <Input placeholder="CUST-2026-0001" className={NB.inputMono} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -156,14 +153,14 @@ export default function NewCustomerPage() {
                     name="customerType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Jenis Pelanggan *</FormLabel>
+                        <label className={NB.label}>Jenis Pelanggan <span className={NB.labelRequired}>*</span></label>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className={NB.select}>
                               <SelectValue />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="border-2 border-black rounded-none">
                             <SelectItem value="INDIVIDUAL">Perorangan</SelectItem>
                             <SelectItem value="COMPANY">Perusahaan</SelectItem>
                             <SelectItem value="GOVERNMENT">Pemerintah</SelectItem>
@@ -179,9 +176,9 @@ export default function NewCustomerPage() {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nama {customerType === "INDIVIDUAL" ? "Lengkap" : "Perusahaan"} *</FormLabel>
+                      <label className={NB.label}>Nama {customerType === "INDIVIDUAL" ? "Lengkap" : "Perusahaan"} <span className={NB.labelRequired}>*</span></label>
                       <FormControl>
-                        <Input placeholder={customerType === "INDIVIDUAL" ? "Nama lengkap" : "PT. Contoh Perusahaan"} {...field} />
+                        <Input placeholder={customerType === "INDIVIDUAL" ? "Nama lengkap" : "PT. Contoh Perusahaan"} className={NB.input} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -194,16 +191,16 @@ export default function NewCustomerPage() {
                     name="legalName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Nama Legal</FormLabel>
+                        <label className={NB.label}>Nama Legal</label>
                         <FormControl>
-                          <Input placeholder="Nama legal sesuai dokumen" {...field} />
+                          <Input placeholder="Nama legal sesuai dokumen" className={NB.input} {...field} />
                         </FormControl>
                       </FormItem>
                     )}
                   />
                 )}
 
-                <div className="flex items-center space-x-8">
+                <div className="flex items-center gap-8 pt-2">
                   <FormField
                     control={form.control}
                     name="isProspect"
@@ -213,11 +210,12 @@ export default function NewCustomerPage() {
                           <Checkbox
                             checked={field.value}
                             onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                            className="border-2 border-black rounded-none h-5 w-5"
                           />
                         </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Prospek</FormLabel>
-                          <FormDescription>Masih calon pelanggan</FormDescription>
+                        <div className="space-y-0.5 leading-none">
+                          <FormLabel className="text-xs font-black uppercase">Prospek</FormLabel>
+                          <FormDescription className="text-[10px] text-zinc-500">Masih calon pelanggan</FormDescription>
                         </div>
                       </FormItem>
                     )}
@@ -232,36 +230,35 @@ export default function NewCustomerPage() {
                           <Checkbox
                             checked={field.value}
                             onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                            className="border-2 border-black rounded-none h-5 w-5"
                           />
                         </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Aktif</FormLabel>
-                          <FormDescription>Status aktif customer</FormDescription>
+                        <div className="space-y-0.5 leading-none">
+                          <FormLabel className="text-xs font-black uppercase">Aktif</FormLabel>
+                          <FormDescription className="text-[10px] text-zinc-500">Status aktif customer</FormDescription>
                         </div>
                       </FormItem>
                     )}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Phone className="mr-2 h-5 w-5" />
-                  Informasi Kontak
-                </CardTitle>
-                <CardDescription>Data kontak dan komunikasi</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            {/* Informasi Kontak */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-amber-400 bg-amber-50`}>
+                <Phone className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Informasi Kontak</span>
+              </div>
+              <div className={NB.sectionBody}>
                 <FormField
                   control={form.control}
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Nomor Telepon</FormLabel>
+                      <label className={NB.label}>Nomor Telepon</label>
                       <FormControl>
-                        <Input placeholder="08xxxxxxxxxx" {...field} />
+                        <Input placeholder="08xxxxxxxxxx" className={NB.input} {...field} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -272,9 +269,9 @@ export default function NewCustomerPage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <label className={NB.label}>Email</label>
                       <FormControl>
-                        <Input type="email" placeholder="email@company.com" {...field} />
+                        <Input type="email" placeholder="email@company.com" className={NB.input} {...field} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -285,9 +282,9 @@ export default function NewCustomerPage() {
                   name="website"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Website</FormLabel>
+                      <label className={NB.label}>Website</label>
                       <FormControl>
-                        <Input placeholder="https://company.com" {...field} />
+                        <Input placeholder="https://company.com" className={NB.input} {...field} />
                       </FormControl>
                     </FormItem>
                   )}
@@ -298,36 +295,34 @@ export default function NewCustomerPage() {
                   name="currency"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Mata Uang</FormLabel>
+                      <label className={NB.label}>Mata Uang</label>
                       <FormControl>
-                        <Input {...field} />
+                        <Input className={NB.inputMono} {...field} />
                       </FormControl>
                     </FormItem>
                   )}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <FileText className="mr-2 h-5 w-5" />
-                  Informasi Pajak
-                </CardTitle>
-                <CardDescription>NPWP/NIK dan status pajak</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            {/* Informasi Pajak */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-amber-400 bg-amber-50`}>
+                <FileText className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Informasi Pajak</span>
+              </div>
+              <div className={NB.sectionBody}>
                 {customerType === "INDIVIDUAL" ? (
                   <FormField
                     control={form.control}
                     name="nik"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>NIK</FormLabel>
+                        <label className={NB.label}>NIK</label>
                         <FormControl>
-                          <Input placeholder="16 digit NIK" {...field} />
+                          <Input placeholder="16 digit NIK" className={NB.inputMono} {...field} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -338,9 +333,9 @@ export default function NewCustomerPage() {
                     name="npwp"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>NPWP</FormLabel>
+                        <label className={NB.label}>NPWP</label>
                         <FormControl>
-                          <Input placeholder="00.000.000.0-000.000" {...field} />
+                          <Input placeholder="00.000.000.0-000.000" className={NB.inputMono} {...field} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -356,11 +351,12 @@ export default function NewCustomerPage() {
                         <Checkbox
                           checked={field.value}
                           onCheckedChange={(checked) => field.onChange(Boolean(checked))}
+                          className="border-2 border-black rounded-none h-5 w-5"
                         />
                       </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Kena Pajak</FormLabel>
-                        <FormDescription>Centang jika customer kena pajak</FormDescription>
+                      <div className="space-y-0.5 leading-none">
+                        <FormLabel className="text-xs font-black uppercase">Kena Pajak</FormLabel>
+                        <FormDescription className="text-[10px] text-zinc-500">Centang jika customer kena pajak</FormDescription>
                       </div>
                     </FormItem>
                   )}
@@ -373,14 +369,14 @@ export default function NewCustomerPage() {
                       name="taxStatus"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Status Pajak</FormLabel>
+                          <label className={NB.label}>Status Pajak</label>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger>
+                              <SelectTrigger className={NB.select}>
                                 <SelectValue />
                               </SelectTrigger>
                             </FormControl>
-                            <SelectContent>
+                            <SelectContent className="border-2 border-black rounded-none">
                               <SelectItem value="PKP">PKP</SelectItem>
                               <SelectItem value="NON_PKP">Non-PKP</SelectItem>
                               <SelectItem value="EXEMPT">Bebas Pajak</SelectItem>
@@ -395,34 +391,32 @@ export default function NewCustomerPage() {
                       name="taxAddress"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Alamat Pajak</FormLabel>
+                          <label className={NB.label}>Alamat Pajak</label>
                           <FormControl>
-                            <Textarea placeholder="Alamat sesuai NPWP" className="resize-none" {...field} />
+                            <Textarea placeholder="Alamat sesuai NPWP" className={NB.textarea + " min-h-[80px]"} {...field} />
                           </FormControl>
                         </FormItem>
                       )}
                     />
                   </>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <CreditCard className="mr-2 h-5 w-5" />
-                  Manajemen Kredit
-                </CardTitle>
-                <CardDescription>Pengaturan limit kredit dan pembayaran</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            {/* Manajemen Kredit */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-amber-400 bg-amber-50`}>
+                <CreditCard className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Manajemen Kredit</span>
+              </div>
+              <div className={NB.sectionBody}>
                 <div className="grid gap-4 md:grid-cols-3">
                   <FormField
                     control={form.control}
                     name="creditLimit"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Limit Kredit</FormLabel>
+                        <label className={NB.label}>Limit Kredit</label>
                         <FormControl>
                           <Input
                             type="number"
@@ -430,6 +424,7 @@ export default function NewCustomerPage() {
                             value={field.value}
                             onChange={(event) => field.onChange(Number(event.target.value || 0))}
                             placeholder="0"
+                            className={NB.inputMono}
                           />
                         </FormControl>
                       </FormItem>
@@ -441,7 +436,7 @@ export default function NewCustomerPage() {
                     name="creditTerm"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Jangka Waktu (Hari)</FormLabel>
+                        <label className={NB.label}>Jangka Waktu (Hari)</label>
                         <FormControl>
                           <Input
                             type="number"
@@ -449,6 +444,7 @@ export default function NewCustomerPage() {
                             value={field.value}
                             onChange={(event) => field.onChange(Number(event.target.value || 0))}
                             placeholder="30"
+                            className={NB.inputMono}
                           />
                         </FormControl>
                       </FormItem>
@@ -460,14 +456,14 @@ export default function NewCustomerPage() {
                     name="paymentTerm"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Term Pembayaran</FormLabel>
+                        <label className={NB.label}>Term Pembayaran</label>
                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
-                            <SelectTrigger>
+                            <SelectTrigger className={NB.select}>
                               <SelectValue />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="border-2 border-black rounded-none">
                             <SelectItem value="CASH">Cash</SelectItem>
                             <SelectItem value="NET_15">NET 15</SelectItem>
                             <SelectItem value="NET_30">NET 30</SelectItem>
@@ -481,22 +477,20 @@ export default function NewCustomerPage() {
                     )}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center justify-end space-x-4">
-            <Button variant="outline" asChild>
+          {/* Footer Actions */}
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <Button variant="outline" asChild className={NB.cancelBtn}>
               <Link href="/sales/customers">Batal</Link>
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading} className={NB.submitBtn}>
               {isLoading ? (
-                <>Menyimpan...</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</>
               ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Simpan Pelanggan
-                </>
+                <><Save className="mr-2 h-4 w-4" /> Simpan Pelanggan</>
               )}
             </Button>
           </div>

@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
     Select,
@@ -15,13 +14,12 @@ import {
 import { createManualMovement } from "@/app/actions/inventory"
 import { toast } from "sonner"
 import { Loader2, ArrowRightLeft, Plus, Minus, Box, CheckCircle2 } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface AdjustmentFormProps {
     products: { id: string, name: string, code: string, unit: string }[]
     warehouses: { id: string, name: string }[]
 }
-
-import { useRouter } from "next/navigation"
 
 export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     const [loading, setLoading] = useState(false)
@@ -35,21 +33,21 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     const [quantity, setQuantity] = useState("")
     const [reason, setReason] = useState("")
     const [notes, setNotes] = useState("")
-    const [searchQuery, setSearchQuery] = useState("") // Move search query here to reset it too
+    const [searchQuery, setSearchQuery] = useState("")
 
     const handleSubmit = async () => {
         if (!productId || !warehouseId || !quantity) {
-            toast.error("Please fill in all required fields")
+            toast.error("Mohon lengkapi semua field yang wajib diisi")
             return
         }
 
         if (type === 'TRANSFER' && !targetWarehouseId) {
-            toast.error("Please select a target warehouse")
+            toast.error("Mohon pilih gudang tujuan")
             return
         }
 
         if (type === 'TRANSFER' && warehouseId === targetWarehouseId) {
-            toast.error("Source and Target warehouse cannot be the same")
+            toast.error("Gudang asal dan tujuan tidak boleh sama")
             return
         }
 
@@ -62,30 +60,27 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 targetWarehouseId: type === 'TRANSFER' ? targetWarehouseId : undefined,
                 quantity: Number(quantity),
                 notes: reason ? `${reason} - ${notes}` : notes,
-                userId: "system-user" // In a real app, get from session
+                userId: "system-user"
             })
 
             if (result.success) {
-                toast.success("Adjustment saved successfully!", {
-                    description: "Inventory levels have been updated.",
-                    className: "border-2 border-black bg-white text-green-700 font-bold"
+                toast.success("Penyesuaian berhasil disimpan!", {
+                    description: "Level inventori telah diperbarui.",
                 })
 
-                // Reset ALL fields to blank state
                 setProductId("")
                 setWarehouseId("")
                 setTargetWarehouseId("")
                 setQuantity("")
                 setReason("")
                 setNotes("")
-                setSearchQuery("") // Clear the search box visual text
-
+                setSearchQuery("")
                 router.refresh()
             } else {
-                toast.error("Failed to save adjustment", { description: ("error" in result && result.error) ? String(result.error) : "Unknown error" })
+                toast.error("Gagal menyimpan", { description: ("error" in result && result.error) ? String(result.error) : "Kesalahan tidak diketahui" })
             }
         } catch {
-            toast.error("An unexpected error occurred")
+            toast.error("Terjadi kesalahan sistem")
         } finally {
             setLoading(false)
         }
@@ -105,79 +100,81 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="space-y-2">
-                <Label className="font-bold uppercase text-xs text-muted-foreground">Adjustment Type</Label>
+        <div className="space-y-4">
+            {/* Type Section */}
+            <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                    Tipe Penyesuaian <span className="text-red-500">*</span>
+                </label>
                 <Select value={type} onValueChange={(val: any) => setType(val)}>
-                    <SelectTrigger className="h-12 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold text-base rounded-xl">
-                        <SelectValue placeholder="Select type" />
+                    <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
+                        <SelectValue placeholder="Pilih tipe" />
                     </SelectTrigger>
-                    <SelectContent className="border-2 border-black font-bold" usePortal={false}>
+                    <SelectContent>
                         <SelectItem value="ADJUSTMENT_IN">
-                            <div className="flex items-center gap-2 text-emerald-700">
-                                <Plus className="h-4 w-4" /> Stock IN (Addition)
+                            <div className="flex items-center gap-2 text-emerald-700 font-bold">
+                                <Plus className="h-4 w-4" /> Stok Masuk (Penambahan)
                             </div>
                         </SelectItem>
                         <SelectItem value="ADJUSTMENT_OUT">
-                            <div className="flex items-center gap-2 text-red-700">
-                                <Minus className="h-4 w-4" /> Stock OUT (Reduction)
+                            <div className="flex items-center gap-2 text-red-700 font-bold">
+                                <Minus className="h-4 w-4" /> Stok Keluar (Pengurangan)
                             </div>
                         </SelectItem>
                         <SelectItem value="TRANSFER">
-                            <div className="flex items-center gap-2 text-blue-700">
-                                <ArrowRightLeft className="h-4 w-4" /> Transfer Warehouse
+                            <div className="flex items-center gap-2 text-violet-700 font-bold">
+                                <ArrowRightLeft className="h-4 w-4" /> Transfer Gudang
                             </div>
                         </SelectItem>
                     </SelectContent>
                 </Select>
             </div>
 
-
-
-
-            <div className="space-y-2 relative group">
-                <Label className="font-bold uppercase text-xs text-muted-foreground">Product</Label>
+            {/* Product Search */}
+            <div className="relative">
+                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                    Produk <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                     <Input
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value)
                             setOpenProduct(true)
-                            if (productId) setProductId("") // Clear selection on edit
+                            if (productId) setProductId("")
                         }}
                         onFocus={() => setOpenProduct(true)}
-                        onBlur={() => setTimeout(() => setOpenProduct(false), 200)} // Delay to allow click
-                        placeholder="Search Product Code or Name..."
-                        className="h-12 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold text-base rounded-xl pr-10"
+                        onBlur={() => setTimeout(() => setOpenProduct(false), 200)}
+                        placeholder="Cari kode atau nama produk..."
+                        className="border-2 border-black font-bold h-10 pr-10 rounded-none"
                     />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <Box className="h-5 w-5" />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
+                        <Box className="h-4 w-4" />
                     </div>
                 </div>
 
                 {/* Suggestions Dropdown */}
                 {openProduct && (
-                    <div className="absolute top-[85px] left-0 w-full z-50 bg-white border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-[300px] overflow-auto animate-in fade-in zoom-in-95 duration-100">
+                    <div className="absolute top-full left-0 w-full z-50 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-[240px] overflow-auto mt-1 rounded-none">
                         {filteredProducts.length === 0 ? (
-                            <div className="p-4 text-sm text-center text-muted-foreground font-bold italic">
-                                No products found. <br />
-                                <span className="text-xs font-normal">Try a different name or code.</span>
+                            <div className="p-4 text-center">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Produk tidak ditemukan</p>
                             </div>
                         ) : (
                             filteredProducts.map(p => (
                                 <div
                                     key={p.id}
                                     onMouseDown={(e) => {
-                                        e.preventDefault() // Prevent blur
+                                        e.preventDefault()
                                         handleSelectProduct(p)
                                     }}
-                                    className="p-3 hover:bg-zinc-100 cursor-pointer border-b last:border-0 border-black/10 flex items-center justify-between group/item transition-colors"
+                                    className="px-3 py-2.5 hover:bg-zinc-100 cursor-pointer border-b border-zinc-100 last:border-0 flex items-center justify-between transition-colors"
                                 >
                                     <div>
-                                        <div className="font-bold text-sm">{p.name}</div>
-                                        <div className="text-xs text-muted-foreground font-mono font-bold">{p.code}</div>
+                                        <div className="font-bold text-sm text-zinc-900">{p.name}</div>
+                                        <div className="text-[10px] text-zinc-500 font-mono font-bold">{p.code}</div>
                                     </div>
-                                    {productId === p.id && <CheckCircle2 className="h-4 w-4 text-green-600" />}
+                                    {productId === p.id && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
                                 </div>
                             ))
                         )}
@@ -185,16 +182,17 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label className="font-bold uppercase text-xs text-muted-foreground">
-                        {type === 'TRANSFER' ? 'From Warehouse' : 'Warehouse'}
-                    </Label>
+            {/* Warehouse(s) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                        {type === 'TRANSFER' ? 'Gudang Asal' : 'Gudang'} <span className="text-red-500">*</span>
+                    </label>
                     <Select value={warehouseId} onValueChange={setWarehouseId}>
-                        <SelectTrigger className="h-12 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold rounded-xl">
-                            <SelectValue placeholder="Select Source" />
+                        <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
+                            <SelectValue placeholder="Pilih gudang..." />
                         </SelectTrigger>
-                        <SelectContent className="border-2 border-black font-bold" usePortal={false}>
+                        <SelectContent>
                             {warehouses.map(w => (
                                 <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                             ))}
@@ -203,13 +201,15 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 </div>
 
                 {type === 'TRANSFER' && (
-                    <div className="space-y-2 animate-in fade-in slide-in-from-left-2">
-                        <Label className="font-bold uppercase text-xs text-muted-foreground">To Warehouse</Label>
+                    <div>
+                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                            Gudang Tujuan <span className="text-red-500">*</span>
+                        </label>
                         <Select value={targetWarehouseId} onValueChange={setTargetWarehouseId}>
-                            <SelectTrigger className="h-12 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold rounded-xl">
-                                <SelectValue placeholder="Select Target" />
+                            <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
+                                <SelectValue placeholder="Pilih tujuan..." />
                             </SelectTrigger>
-                            <SelectContent className="border-2 border-black font-bold" usePortal={false}>
+                            <SelectContent>
                                 {warehouses.filter(w => w.id !== warehouseId).map(w => (
                                     <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
                                 ))}
@@ -219,49 +219,59 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 )}
             </div>
 
-            <div className="space-y-2">
-                <Label className="font-bold uppercase text-xs text-muted-foreground">Amount</Label>
+            {/* Quantity */}
+            <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                    Jumlah <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
                     <Input
                         type="number"
                         value={quantity}
                         onChange={(e) => setQuantity(e.target.value)}
                         placeholder="0"
-                        className="h-12 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-black text-lg rounded-xl pl-4"
+                        className="border-2 border-black font-mono font-bold h-10 text-lg rounded-none"
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground">
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-400 uppercase">
                         UNIT
                     </div>
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <Label className="font-bold uppercase text-xs text-muted-foreground">Reason</Label>
+            {/* Reason */}
+            <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                    Alasan
+                </label>
                 <Input
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
-                    placeholder="Brief reason (e.g. Damage, Expired, Gift)"
-                    className="h-12 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold rounded-xl"
+                    placeholder="Rusak, Kadaluarsa, Hadiah, dll."
+                    className="border-2 border-black font-bold h-10 rounded-none"
                 />
             </div>
 
-            <div className="space-y-2">
-                <Label className="font-bold uppercase text-xs text-muted-foreground">Additional Notes</Label>
+            {/* Notes */}
+            <div>
+                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
+                    Catatan Tambahan
+                </label>
                 <Textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Details..."
-                    className="min-h-[100px] border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] font-bold rounded-xl resize-none"
+                    placeholder="Detail tambahan..."
+                    className="border-2 border-black font-medium min-h-[80px] resize-none rounded-none"
                 />
             </div>
 
+            {/* Submit */}
             <Button
                 onClick={handleSubmit}
-                className="w-full h-14 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all uppercase font-black tracking-wide text-lg rounded-xl mt-4"
+                className="w-full bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider h-10 mt-2 rounded-none"
                 disabled={loading}
             >
-                {loading ? <Loader2 className="animate-spin mr-2" /> : <Box className="mr-2 h-5 w-5" />}
-                Save Adjustment
+                {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Box className="mr-2 h-4 w-4" />}
+                Simpan Penyesuaian
             </Button>
         </div>
     )

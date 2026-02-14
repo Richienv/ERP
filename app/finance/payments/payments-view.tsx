@@ -7,24 +7,21 @@ import {
     ArrowRightLeft,
     BadgeCheck,
     CalendarClock,
+    Check,
+    ChevronLeft,
+    ChevronRight,
     CircleDollarSign,
     FileText,
+    Loader2,
     Plus,
     RefreshCcw,
     Search,
+    AlertTriangle,
     Wallet
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle
-} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
     Select,
     SelectContent,
@@ -36,11 +33,11 @@ import { Textarea } from "@/components/ui/textarea"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger
 } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { NB } from "@/lib/dialog-styles"
 import { matchPaymentToInvoice, recordARPayment } from "@/lib/actions/finance"
 import { toast } from "sonner"
 
@@ -265,264 +262,236 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
         })
     }
 
+    // Determine workflow step
+    const currentStep = selectedPayment && selectedInvoice ? 3 : selectedPayment ? 2 : 1
+
     return (
-        <div className="flex-1 space-y-6 p-4 pt-6 md:p-8">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                    <h1 className="text-3xl font-serif font-bold tracking-tight text-zinc-900">Penerimaan Piutang (AR)</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        Alur kerja: pilih pembayaran masuk, pilih invoice tujuan, lalu konfirmasi alokasi.
-                    </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="outline" onClick={() => router.refresh()}>
-                        <RefreshCcw className="mr-2 h-4 w-4" />
-                        Segarkan Data
-                    </Button>
-                    <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                        <DialogTrigger asChild>
-                            <Button className="bg-black text-white hover:bg-zinc-800">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Catat Penerimaan
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Catat Penerimaan Baru</DialogTitle>
-                                <DialogDescription>
-                                    Isi data penerimaan pelanggan. Anda bisa simpan sebagai dana belum dialokasikan atau langsung kaitkan ke invoice.
-                                </DialogDescription>
-                            </DialogHeader>
+        <div className="flex-1 p-4 md:p-8 pt-6 max-w-7xl mx-auto space-y-4">
 
-                            <div className="grid gap-4 py-2 md:grid-cols-2">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="ar-customer">Pelanggan</Label>
-                                    <Select
-                                        value={createForm.customerId || EMPTY_INVOICE_VALUE}
-                                        onValueChange={(value) =>
-                                            setCreateForm((prev) => ({
-                                                ...prev,
-                                                customerId: value === EMPTY_INVOICE_VALUE ? "" : value
-                                            }))
-                                        }
-                                    >
-                                        <SelectTrigger id="ar-customer">
-                                            <SelectValue placeholder="Pilih pelanggan" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih pelanggan</SelectItem>
-                                            {customerOptions.map((customer) => (
-                                                <SelectItem key={customer.id} value={customer.id}>
-                                                    {customer.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="ar-amount">Nominal</Label>
-                                    <Input
-                                        id="ar-amount"
-                                        type="number"
-                                        min={0}
-                                        step="0.01"
-                                        value={createForm.amount}
-                                        onChange={(event) =>
-                                            setCreateForm((prev) => ({ ...prev, amount: event.target.value }))
-                                        }
-                                        placeholder="Contoh: 250000"
-                                    />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="ar-date">Tanggal Penerimaan</Label>
-                                    <Input
-                                        id="ar-date"
-                                        type="date"
-                                        value={createForm.date}
-                                        onChange={(event) =>
-                                            setCreateForm((prev) => ({ ...prev, date: event.target.value }))
-                                        }
-                                    />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="ar-method">Metode Pembayaran</Label>
-                                    <Select
-                                        value={createForm.method}
-                                        onValueChange={(value) =>
-                                            setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod }))
-                                        }
-                                    >
-                                        <SelectTrigger id="ar-method">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="TRANSFER">Transfer</SelectItem>
-                                            <SelectItem value="CASH">Tunai</SelectItem>
-                                            <SelectItem value="CHECK">Cek</SelectItem>
-                                            <SelectItem value="CARD">Kartu</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="grid gap-2 md:col-span-2">
-                                    <Label htmlFor="ar-invoice">Hubungkan ke Invoice (Opsional)</Label>
-                                    <Select
-                                        value={createForm.invoiceId || EMPTY_INVOICE_VALUE}
-                                        onValueChange={(value) => {
-                                            if (value === EMPTY_INVOICE_VALUE) {
-                                                setCreateForm((prev) => ({ ...prev, invoiceId: "" }))
-                                                return
-                                            }
-                                            const invoice = openInvoices.find((item) => item.id === value)
-                                            setCreateForm((prev) => ({
-                                                ...prev,
-                                                invoiceId: value,
-                                                customerId: invoice?.customer?.id ?? prev.customerId
-                                            }))
-                                        }}
-                                    >
-                                        <SelectTrigger id="ar-invoice">
-                                            <SelectValue placeholder="Pilih invoice jika ingin langsung dialokasikan" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value={EMPTY_INVOICE_VALUE}>Tidak langsung dialokasikan</SelectItem>
-                                            {openInvoices.map((invoice) => (
-                                                <SelectItem key={invoice.id} value={invoice.id}>
-                                                    {invoice.number} - {invoice.customer?.name ?? "Tanpa pelanggan"}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="ar-reference">Referensi (Opsional)</Label>
-                                    <Input
-                                        id="ar-reference"
-                                        value={createForm.reference}
-                                        onChange={(event) =>
-                                            setCreateForm((prev) => ({ ...prev, reference: event.target.value }))
-                                        }
-                                        placeholder="No. transfer / no. cek"
-                                    />
-                                </div>
-
-                                <div className="grid gap-2">
-                                    <Label htmlFor="ar-notes">Catatan (Opsional)</Label>
-                                    <Textarea
-                                        id="ar-notes"
-                                        className="min-h-24"
-                                        value={createForm.notes}
-                                        onChange={(event) =>
-                                            setCreateForm((prev) => ({ ...prev, notes: event.target.value }))
-                                        }
-                                        placeholder="Catatan tambahan"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-2">
-                                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                                    Batal
-                                </Button>
-                                <Button
-                                    className="bg-black text-white hover:bg-zinc-800"
-                                    onClick={handleCreatePayment}
-                                    disabled={submittingPayment}
-                                >
-                                    {submittingPayment ? "Menyimpan..." : "Simpan Penerimaan"}
-                                </Button>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+            {/* ═══════════════════════════════════════════ */}
+            {/* COMMAND HEADER                              */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-400">
+                    <div className="flex items-center gap-3">
+                        <Wallet className="h-5 w-5 text-orange-500" />
+                        <div>
+                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                                Penerimaan Piutang (AR)
+                            </h1>
+                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                                Alokasikan dana masuk ke invoice pelanggan secara otomatis
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => router.refresh()}
+                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
+                        >
+                            <RefreshCcw className="mr-1.5 h-3.5 w-3.5" /> Segarkan
+                        </Button>
+                        <Button
+                            onClick={() => setIsCreateDialogOpen(true)}
+                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                        >
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Catat Penerimaan
+                        </Button>
+                    </div>
                 </div>
             </div>
 
-            <div className="rounded-lg border bg-white p-3">
-                <div className="grid gap-2 md:grid-cols-4">
-                    <Input
-                        value={paymentQuery}
-                        onChange={(event) => setPaymentQuery(event.target.value)}
-                        placeholder="Cari pembayaran..."
-                    />
-                    <Input
-                        value={invoiceQuery}
-                        onChange={(event) => setInvoiceQuery(event.target.value)}
-                        placeholder="Cari invoice..."
-                    />
-                    <Button variant="secondary" onClick={applyRegistryFilters}>Terapkan</Button>
-                    <Button variant="outline" onClick={resetRegistryFilters}>Reset</Button>
+            {/* ═══════════════════════════════════════════ */}
+            {/* KPI PULSE STRIP                            */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="grid grid-cols-2 md:grid-cols-4">
+                    {/* Unallocated Funds */}
+                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <Wallet className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dana Belum Dialokasi</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                            {stats.unallocatedAmount === 0
+                                ? <span className="text-zinc-300 text-lg">Rp 0</span>
+                                : formatIDR(stats.unallocatedAmount)}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-emerald-600">{stats.unallocatedCount} transaksi</span>
+                        </div>
+                    </div>
+
+                    {/* Open Invoices */}
+                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <FileText className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Invoice Terbuka</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                            {stats.openInvoicesCount}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-blue-600">Belum lunas / parsial</span>
+                        </div>
+                    </div>
+
+                    {/* Outstanding Amount */}
+                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <CircleDollarSign className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Piutang</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                            {stats.outstandingAmount === 0
+                                ? <span className="text-zinc-300 text-lg">Rp 0</span>
+                                : formatIDR(stats.outstandingAmount)}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-amber-600">Saldo belum tertagih</span>
+                        </div>
+                    </div>
+
+                    {/* Today's Payments */}
+                    <div className="relative p-4 md:p-5">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-violet-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <CalendarClock className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hari Ini</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                            {stats.todayPayments === 0
+                                ? <span className="text-zinc-300 text-lg">Rp 0</span>
+                                : formatIDR(stats.todayPayments)}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-violet-600">Penerimaan masuk hari ini</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <Card className="border-zinc-200 shadow-sm">
-                    <CardContent className="p-5">
-                        <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Dana Belum Dialokasikan</p>
-                            <Wallet className="h-4 w-4 text-emerald-600" />
-                        </div>
-                        <p className="text-2xl font-bold">{formatIDR(stats.unallocatedAmount)}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">{stats.unallocatedCount} transaksi menunggu alokasi</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-zinc-200 shadow-sm">
-                    <CardContent className="p-5">
-                        <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invoice Terbuka</p>
-                            <FileText className="h-4 w-4 text-blue-600" />
-                        </div>
-                        <p className="text-2xl font-bold">{stats.openInvoicesCount}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Invoice belum lunas / parsial</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-zinc-200 shadow-sm">
-                    <CardContent className="p-5">
-                        <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Piutang Berjalan</p>
-                            <CircleDollarSign className="h-4 w-4 text-amber-600" />
-                        </div>
-                        <p className="text-2xl font-bold">{formatIDR(stats.outstandingAmount)}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Saldo invoice yang belum tertagih</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-zinc-200 shadow-sm">
-                    <CardContent className="p-5">
-                        <div className="mb-3 flex items-center justify-between">
-                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Penerimaan Hari Ini</p>
-                            <CalendarClock className="h-4 w-4 text-violet-600" />
-                        </div>
-                        <p className="text-2xl font-bold">{formatIDR(stats.todayPayments)}</p>
-                        <p className="mt-1 text-xs text-muted-foreground">Total pembayaran masuk hari ini</p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
-                <Card className="border-zinc-200 shadow-sm">
-                    <CardHeader className="space-y-3">
-                        <CardTitle className="text-lg">Langkah 1: Pilih Pembayaran</CardTitle>
-                        <CardDescription>Daftar dana masuk yang belum dialokasikan ke invoice.</CardDescription>
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            {/* ═══════════════════════════════════════════ */}
+            {/* SEARCH & FILTER BAR                        */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="p-4">
+                    <div className="flex flex-col md:flex-row gap-3">
+                        <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                             <Input
+                                className="border-2 border-black h-10 pl-9 font-medium rounded-none"
+                                placeholder="Cari pembayaran (no., pelanggan, metode)..."
                                 value={paymentQuery}
-                                onChange={(event) => setPaymentQuery(event.target.value)}
-                                className="pl-9"
-                                placeholder="Cari nomor, pelanggan, metode"
+                                onChange={(e) => setPaymentQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && applyRegistryFilters()}
                             />
                         </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                        <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                            <Input
+                                className="border-2 border-black h-10 pl-9 font-medium rounded-none"
+                                placeholder="Cari invoice (no., pelanggan)..."
+                                value={invoiceQuery}
+                                onChange={(e) => setInvoiceQuery(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && applyRegistryFilters()}
+                            />
+                        </div>
+                        <Button
+                            onClick={applyRegistryFilters}
+                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-4"
+                        >
+                            Terapkan
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={resetRegistryFilters}
+                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
+                        >
+                            Reset
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* WORKFLOW STEPS INDICATOR                    */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="px-6 py-3 flex items-center gap-0">
+                    {/* Step 1 */}
+                    <div className="flex items-center gap-2">
+                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${
+                            currentStep >= 1 ? "bg-emerald-500 text-white" : "bg-zinc-100 text-zinc-400"
+                        }`}>
+                            {currentStep > 1 ? <Check className="h-4 w-4" /> : "1"}
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${
+                            currentStep >= 1 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
+                        }`}>
+                            Pilih Pembayaran
+                        </span>
+                    </div>
+                    {/* Connector */}
+                    <div className={`flex-1 h-0.5 mx-3 ${currentStep > 1 ? "bg-emerald-500" : "bg-zinc-200"}`} />
+                    {/* Step 2 */}
+                    <div className="flex items-center gap-2">
+                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${
+                            currentStep >= 2 ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-400"
+                        }`}>
+                            {currentStep > 2 ? <Check className="h-4 w-4" /> : "2"}
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${
+                            currentStep >= 2 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
+                        }`}>
+                            Pilih Invoice
+                        </span>
+                    </div>
+                    {/* Connector */}
+                    <div className={`flex-1 h-0.5 mx-3 ${currentStep > 2 ? "bg-orange-500" : "bg-zinc-200"}`} />
+                    {/* Step 3 */}
+                    <div className="flex items-center gap-2">
+                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${
+                            currentStep >= 3 ? "bg-orange-500 text-white" : "bg-zinc-100 text-zinc-400"
+                        }`}>
+                            3
+                        </div>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${
+                            currentStep >= 3 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
+                        }`}>
+                            Konfirmasi
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* MAIN WORKFLOW: TWO PANELS                   */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="grid gap-4 xl:grid-cols-2">
+
+                {/* ── LEFT PANEL: Payments ── */}
+                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 420 }}>
+                    {/* Panel Header */}
+                    <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
+                        <Wallet className="h-4 w-4 text-emerald-600" />
+                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                            Pembayaran Masuk
+                        </h3>
+                        <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+                            {registryMeta.payments.total}
+                        </span>
+                    </div>
+
+                    {/* Payment Items */}
+                    <div className="flex-1 overflow-auto divide-y divide-zinc-100 dark:divide-zinc-800">
                         {filteredPayments.length === 0 ? (
-                            <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                                Tidak ada pembayaran yang cocok.
+                            <div className="flex-1 flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                Tidak ada pembayaran ditemukan
                             </div>
                         ) : (
                             filteredPayments.map((item) => {
@@ -531,38 +500,54 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                     <button
                                         type="button"
                                         key={item.id}
-                                        className={`w-full rounded-xl border p-3 text-left transition ${isSelected
-                                            ? "border-black bg-zinc-100"
-                                            : "border-zinc-200 bg-white hover:border-zinc-400"
-                                            }`}
+                                        className={`w-full px-5 py-3 text-left transition-colors ${isSelected
+                                            ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500"
+                                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
+                                        }`}
                                         onClick={() => {
                                             setSelectedPaymentId(item.id)
                                             setSelectedInvoiceId(null)
                                         }}
                                     >
-                                        <div className="mb-1 flex items-center justify-between gap-2">
-                                            <Badge variant={isSelected ? "default" : "outline"}>{item.number}</Badge>
-                                            <span className="text-xs text-muted-foreground">
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.number}</span>
+                                            <span className="text-[10px] font-bold text-zinc-400">
                                                 {new Date(item.date).toLocaleDateString("id-ID")}
                                             </span>
                                         </div>
-                                        <p className="font-semibold">{item.from}</p>
-                                        <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>{item.method}</span>
-                                            <span className="font-semibold text-emerald-700">{formatIDR(item.amount)}</span>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">{item.from}</span>
+                                            <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{formatIDR(item.amount)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${
+                                                item.method === "TRANSFER" ? "bg-blue-50 border-blue-200 text-blue-600" :
+                                                item.method === "CASH" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
+                                                item.method === "CHECK" ? "bg-amber-50 border-amber-200 text-amber-600" :
+                                                "bg-violet-50 border-violet-200 text-violet-600"
+                                            }`}>
+                                                {METHOD_LABEL[item.method as PaymentMethod] ?? item.method}
+                                            </span>
+                                            {item.reference && (
+                                                <span className="text-[10px] font-medium text-zinc-400 truncate">Ref: {item.reference}</span>
+                                            )}
                                         </div>
                                     </button>
                                 )
                             })
                         )}
-                        <div className="flex items-center justify-between border-t pt-3 text-xs text-zinc-500">
-                            <span>Page {registryMeta.payments.page}/{registryMeta.payments.totalPages}</span>
-                            <span>Total {registryMeta.payments.total}</span>
-                        </div>
-                        <div className="flex gap-2">
+                    </div>
+
+                    {/* Pagination */}
+                    <div className="px-5 py-3 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            Hal {registryMeta.payments.page}/{registryMeta.payments.totalPages}
+                        </span>
+                        <div className="flex items-center gap-2">
                             <Button
-                                size="sm"
                                 variant="outline"
+                                size="icon"
+                                className="h-8 w-8 border-2 border-black"
                                 disabled={registryMeta.payments.page <= 1}
                                 onClick={() =>
                                     pushSearchParams((params) => {
@@ -570,11 +555,12 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                     })
                                 }
                             >
-                                Prev
+                                <ChevronLeft className="h-3.5 w-3.5" />
                             </Button>
                             <Button
-                                size="sm"
                                 variant="outline"
+                                size="icon"
+                                className="h-8 w-8 border-2 border-black"
                                 disabled={registryMeta.payments.page >= registryMeta.payments.totalPages}
                                 onClick={() =>
                                     pushSearchParams((params) => {
@@ -582,171 +568,445 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                     })
                                 }
                             >
-                                Next
+                                <ChevronRight className="h-3.5 w-3.5" />
                             </Button>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
 
-                <div className="space-y-6">
-                    <Card className="border-zinc-200 shadow-sm">
-                        <CardHeader className="space-y-3">
-                            <CardTitle className="text-lg">Langkah 2: Pilih Invoice Tujuan</CardTitle>
-                            <CardDescription>
-                                {selectedPayment
-                                    ? `Invoice difilter untuk pelanggan: ${selectedPayment.from}`
-                                    : "Pilih pembayaran terlebih dahulu agar daftar invoice terfilter otomatis."}
-                            </CardDescription>
-                            <div className="relative">
-                                <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    value={invoiceQuery}
-                                    onChange={(event) => setInvoiceQuery(event.target.value)}
-                                    className="pl-9"
-                                    placeholder="Cari nomor invoice / pelanggan"
-                                />
-                            </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            {!selectedPayment ? (
-                                <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                                    Silakan pilih pembayaran pada panel kiri.
-                                </div>
-                            ) : filteredInvoices.length === 0 ? (
-                                <div className="rounded-xl border border-dashed p-6 text-center text-sm text-muted-foreground">
-                                    Tidak ada invoice yang cocok untuk pembayaran ini.
-                                </div>
-                            ) : (
-                                filteredInvoices.map((invoice) => {
-                                    const isSelected = selectedInvoiceId === invoice.id
-                                    return (
-                                        <button
-                                            key={invoice.id}
-                                            type="button"
-                                            onClick={() => setSelectedInvoiceId(invoice.id)}
-                                            className={`w-full rounded-xl border p-3 text-left transition ${isSelected
-                                                ? "border-black bg-zinc-100"
-                                                : "border-zinc-200 bg-white hover:border-zinc-400"
-                                                }`}
-                                        >
-                                            <div className="mb-2 flex items-center justify-between gap-2">
-                                                <span className="font-semibold">{invoice.number}</span>
-                                                <Badge variant={invoice.isOverdue ? "destructive" : "outline"}>
-                                                    {invoice.isOverdue ? "Terlambat" : "Belum Jatuh Tempo"}
-                                                </Badge>
-                                            </div>
-                                            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                                                <span className="text-muted-foreground">
-                                                    {invoice.customer?.name ?? "Tanpa pelanggan"}
-                                                </span>
-                                                <span className="font-semibold">{formatIDR(invoice.balanceDue)}</span>
-                                            </div>
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                                Jatuh tempo {new Date(invoice.dueDate).toLocaleDateString("id-ID")}
-                                            </p>
-                                        </button>
-                                    )
-                                })
-                            )}
-                            <div className="flex items-center justify-between border-t pt-3 text-xs text-zinc-500">
-                                <span>Page {registryMeta.invoices.page}/{registryMeta.invoices.totalPages}</span>
-                                <span>Total {registryMeta.invoices.total}</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={registryMeta.invoices.page <= 1}
-                                    onClick={() =>
-                                        pushSearchParams((params) => {
-                                            params.set("inv_page", String(Math.max(1, registryMeta.invoices.page - 1)))
-                                        })
-                                    }
-                                >
-                                    Prev
-                                </Button>
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={registryMeta.invoices.page >= registryMeta.invoices.totalPages}
-                                    onClick={() =>
-                                        pushSearchParams((params) => {
-                                            params.set("inv_page", String(Math.min(registryMeta.invoices.totalPages, registryMeta.invoices.page + 1)))
-                                        })
-                                    }
-                                >
-                                    Next
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+                {/* ── RIGHT PANEL: Invoices ── */}
+                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 420 }}>
+                    {/* Panel Header */}
+                    <div className="bg-blue-50 dark:bg-blue-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-blue-400">
+                        <FileText className="h-4 w-4 text-blue-600" />
+                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                            Invoice Tujuan
+                        </h3>
+                        {selectedPayment && (
+                            <span className="bg-blue-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+                                {filteredInvoices.length}
+                            </span>
+                        )}
+                    </div>
 
-                    <Card className="border-zinc-200 shadow-sm">
-                        <CardHeader>
-                            <CardTitle className="text-lg">Langkah 3: Konfirmasi Alokasi</CardTitle>
-                            <CardDescription>
-                                Pastikan nominal dan pelanggan sudah benar sebelum dialokasikan.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-3 md:grid-cols-2">
-                                <div className="rounded-lg border bg-zinc-50 p-3">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pembayaran Terpilih</p>
-                                    {selectedPayment ? (
-                                        <div className="mt-2 space-y-1 text-sm">
-                                            <p className="font-semibold">{selectedPayment.number}</p>
-                                            <p>{selectedPayment.from}</p>
-                                            <p className="font-semibold text-emerald-700">{formatIDR(selectedPayment.amount)}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                Metode: {METHOD_LABEL[selectedPayment.method as PaymentMethod] ?? selectedPayment.method}
-                                            </p>
+                    {/* Filtered-for notice */}
+                    {selectedPayment && (
+                        <div className="px-5 py-2 border-b border-zinc-100 bg-blue-50/50 dark:bg-blue-950/10">
+                            <span className="text-[10px] font-bold text-blue-600">
+                                Difilter untuk: {selectedPayment.from}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Invoice Items */}
+                    <div className="flex-1 overflow-auto divide-y divide-zinc-100 dark:divide-zinc-800">
+                        {!selectedPayment ? (
+                            <div className="flex-1 flex flex-col items-center justify-center py-16 gap-2 text-zinc-400">
+                                <ArrowRightLeft className="h-6 w-6 text-zinc-300" />
+                                <span className="text-xs font-bold uppercase tracking-widest">Pilih pembayaran terlebih dahulu</span>
+                            </div>
+                        ) : filteredInvoices.length === 0 ? (
+                            <div className="flex-1 flex items-center justify-center py-16 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                Tidak ada invoice yang cocok
+                            </div>
+                        ) : (
+                            filteredInvoices.map((invoice) => {
+                                const isSelected = selectedInvoiceId === invoice.id
+                                return (
+                                    <button
+                                        key={invoice.id}
+                                        type="button"
+                                        onClick={() => setSelectedInvoiceId(invoice.id)}
+                                        className={`w-full px-5 py-3 text-left transition-colors ${isSelected
+                                            ? "bg-blue-50 dark:bg-blue-950/30 border-l-4 border-l-blue-500"
+                                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{invoice.number}</span>
+                                            <Badge
+                                                variant={invoice.isOverdue ? "destructive" : "outline"}
+                                                className={invoice.isOverdue
+                                                    ? "text-[10px] font-black uppercase"
+                                                    : "text-[10px] font-black uppercase border-zinc-300 text-zinc-500"}
+                                            >
+                                                {invoice.isOverdue ? "Jatuh Tempo" : "On Time"}
+                                            </Badge>
                                         </div>
-                                    ) : (
-                                        <p className="mt-2 text-sm text-muted-foreground">Belum ada pembayaran dipilih.</p>
-                                    )}
-                                </div>
-
-                                <div className="rounded-lg border bg-zinc-50 p-3">
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Invoice Tujuan</p>
-                                    {selectedInvoice ? (
-                                        <div className="mt-2 space-y-1 text-sm">
-                                            <p className="font-semibold">{selectedInvoice.number}</p>
-                                            <p>{selectedInvoice.customer?.name ?? "Tanpa pelanggan"}</p>
-                                            <p className="font-semibold">{formatIDR(selectedInvoice.balanceDue)}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                                Jatuh tempo: {new Date(selectedInvoice.dueDate).toLocaleDateString("id-ID")}
-                                            </p>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">
+                                                {invoice.customer?.name ?? "Tanpa pelanggan"}
+                                            </span>
+                                            <span className={`font-mono font-black text-sm whitespace-nowrap ${
+                                                invoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"
+                                            }`}>
+                                                {formatIDR(invoice.balanceDue)}
+                                            </span>
                                         </div>
-                                    ) : (
-                                        <p className="mt-2 text-sm text-muted-foreground">Belum ada invoice dipilih.</p>
-                                    )}
-                                </div>
-                            </div>
+                                        <div className="mt-1 text-[10px] font-medium text-zinc-400">
+                                            Jatuh tempo {new Date(invoice.dueDate).toLocaleDateString("id-ID")}
+                                        </div>
+                                    </button>
+                                )
+                            })
+                        )}
+                    </div>
 
-                            {paymentInvoiceMismatch && (
-                                <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-                                    Pelanggan pembayaran tidak sama dengan pelanggan invoice. Pilih invoice yang sesuai.
-                                </div>
-                            )}
-
-                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-zinc-50 p-3">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <ArrowRightLeft className="h-4 w-4" />
-                                    <span>Alokasi akan mengurangi saldo invoice dan membuat jurnal otomatis.</span>
-                                </div>
-                                <Button
-                                    className="bg-black text-white hover:bg-zinc-800"
-                                    disabled={!canMatch}
-                                    onClick={() => selectedPayment && selectedInvoice && handleMatch(selectedPayment.id, selectedInvoice.id)}
-                                >
-                                    <BadgeCheck className="mr-2 h-4 w-4" />
-                                    {processing ? "Memproses..." : "Alokasikan Pembayaran"}
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    {/* Pagination */}
+                    <div className="px-5 py-3 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            Hal {registryMeta.invoices.page}/{registryMeta.invoices.totalPages}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 border-2 border-black"
+                                disabled={registryMeta.invoices.page <= 1}
+                                onClick={() =>
+                                    pushSearchParams((params) => {
+                                        params.set("inv_page", String(Math.max(1, registryMeta.invoices.page - 1)))
+                                    })
+                                }
+                            >
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-8 w-8 border-2 border-black"
+                                disabled={registryMeta.invoices.page >= registryMeta.invoices.totalPages}
+                                onClick={() =>
+                                    pushSearchParams((params) => {
+                                        params.set("inv_page", String(Math.min(registryMeta.invoices.totalPages, registryMeta.invoices.page + 1)))
+                                    })
+                                }
+                            >
+                                <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* CONFIRMATION PANEL                         */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                {/* Panel Header */}
+                <div className="bg-orange-50 dark:bg-orange-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-orange-400">
+                    <BadgeCheck className="h-4 w-4 text-orange-600" />
+                    <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                        Konfirmasi Alokasi
+                    </h3>
+                </div>
+
+                <div className="p-5 space-y-4">
+                    {/* Summary Cards */}
+                    <div className="grid gap-4 md:grid-cols-2">
+                        {/* Selected Payment */}
+                        <div className={`border-2 p-4 ${selectedPayment ? "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-zinc-200 bg-zinc-50 dark:bg-zinc-800"}`}>
+                            <div className="flex items-center gap-2 mb-3">
+                                <Wallet className={`h-4 w-4 ${selectedPayment ? "text-emerald-600" : "text-zinc-400"}`} />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pembayaran Terpilih</span>
+                            </div>
+                            {selectedPayment ? (
+                                <div className="space-y-1.5">
+                                    <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{selectedPayment.number}</p>
+                                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{selectedPayment.from}</p>
+                                    <p className="font-mono font-black text-lg text-emerald-700 dark:text-emerald-400">{formatIDR(selectedPayment.amount)}</p>
+                                    <span className="text-[10px] font-bold text-zinc-400">
+                                        Metode: {METHOD_LABEL[selectedPayment.method as PaymentMethod] ?? selectedPayment.method}
+                                    </span>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-zinc-400 font-medium">Belum ada pembayaran dipilih.</p>
+                            )}
+                        </div>
+
+                        {/* Selected Invoice */}
+                        <div className={`border-2 p-4 ${selectedInvoice ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : "border-zinc-200 bg-zinc-50 dark:bg-zinc-800"}`}>
+                            <div className="flex items-center gap-2 mb-3">
+                                <FileText className={`h-4 w-4 ${selectedInvoice ? "text-blue-600" : "text-zinc-400"}`} />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Invoice Tujuan</span>
+                            </div>
+                            {selectedInvoice ? (
+                                <div className="space-y-1.5">
+                                    <p className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{selectedInvoice.number}</p>
+                                    <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">{selectedInvoice.customer?.name ?? "Tanpa pelanggan"}</p>
+                                    <p className={`font-mono font-black text-lg ${selectedInvoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"}`}>
+                                        {formatIDR(selectedInvoice.balanceDue)}
+                                    </p>
+                                    <span className="text-[10px] font-bold text-zinc-400">
+                                        Jatuh tempo: {new Date(selectedInvoice.dueDate).toLocaleDateString("id-ID")}
+                                    </span>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-zinc-400 font-medium">Belum ada invoice dipilih.</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Amount Comparison */}
+                    {selectedPayment && selectedInvoice && (
+                        <div className="border-2 border-black bg-zinc-50 dark:bg-zinc-800 p-4">
+                            <div className="flex items-center justify-between">
+                                <div className="text-center flex-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Pembayaran</span>
+                                    <span className="font-mono font-black text-lg text-emerald-700">{formatIDR(selectedPayment.amount)}</span>
+                                </div>
+                                <div className="px-4">
+                                    <ArrowRightLeft className="h-5 w-5 text-zinc-400" />
+                                </div>
+                                <div className="text-center flex-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Sisa Invoice</span>
+                                    <span className="font-mono font-black text-lg text-zinc-900 dark:text-zinc-100">{formatIDR(selectedInvoice.balanceDue)}</span>
+                                </div>
+                                <div className="px-4">
+                                    <span className="text-zinc-400">=</span>
+                                </div>
+                                <div className="text-center flex-1">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Selisih</span>
+                                    <span className={`font-mono font-black text-lg ${
+                                        selectedPayment.amount - selectedInvoice.balanceDue >= 0 ? "text-emerald-700" : "text-red-700"
+                                    }`}>
+                                        {formatIDR(selectedPayment.amount - selectedInvoice.balanceDue)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Mismatch Warning */}
+                    {paymentInvoiceMismatch && (
+                        <div className="border-2 border-red-400 bg-red-50 dark:bg-red-950/20 p-3 flex items-center gap-3">
+                            <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
+                            <span className="text-sm font-bold text-red-700 dark:text-red-400">
+                                Pelanggan pembayaran tidak sama dengan pelanggan invoice. Pilih invoice yang sesuai.
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Action Row */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm text-zinc-400">
+                            <ArrowRightLeft className="h-4 w-4" />
+                            <span className="text-[10px] font-bold uppercase tracking-wide">Alokasi akan mengurangi saldo invoice & membuat jurnal otomatis</span>
+                        </div>
+                        <Button
+                            disabled={!canMatch}
+                            onClick={() => selectedPayment && selectedInvoice && handleMatch(selectedPayment.id, selectedInvoice.id)}
+                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all disabled:opacity-40 disabled:shadow-none"
+                        >
+                            {processing ? (
+                                <>
+                                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Memproses...
+                                </>
+                            ) : (
+                                <>
+                                    <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> Alokasikan Pembayaran
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* CREATE PAYMENT DIALOG                      */}
+            {/* ═══════════════════════════════════════════ */}
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogContent className={NB.content}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}>
+                            <Wallet className="h-5 w-5" /> Catat Penerimaan Baru
+                        </DialogTitle>
+                        <p className={NB.subtitle}>
+                            Isi data penerimaan pelanggan. Simpan sebagai dana belum dialokasikan atau langsung kaitkan ke invoice.
+                        </p>
+                    </DialogHeader>
+
+                    <ScrollArea className={NB.scroll}>
+                        <div className="p-6 space-y-5">
+                            {/* Customer & Amount Section */}
+                            <div className={NB.section}>
+                                <div className="bg-orange-50 dark:bg-orange-950/20 px-4 py-2 border-b-2 border-black flex items-center gap-2 border-l-[4px] border-l-orange-400">
+                                    <CircleDollarSign className="h-4 w-4 text-orange-600" />
+                                    <span className={NB.sectionTitle}>Data Penerimaan</span>
+                                </div>
+                                <div className={NB.sectionBody}>
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label className={NB.label}>Pelanggan <span className="text-red-500">*</span></label>
+                                            <Select
+                                                value={createForm.customerId || EMPTY_INVOICE_VALUE}
+                                                onValueChange={(value) =>
+                                                    setCreateForm((prev) => ({
+                                                        ...prev,
+                                                        customerId: value === EMPTY_INVOICE_VALUE ? "" : value
+                                                    }))
+                                                }
+                                            >
+                                                <SelectTrigger className={NB.select}>
+                                                    <SelectValue placeholder="Pilih pelanggan" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih pelanggan</SelectItem>
+                                                    {customerOptions.map((customer) => (
+                                                        <SelectItem key={customer.id} value={customer.id}>
+                                                            {customer.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div>
+                                            <label className={NB.label}>Nominal <span className="text-red-500">*</span></label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">Rp</span>
+                                                <Input
+                                                    type="number"
+                                                    min={0}
+                                                    step="0.01"
+                                                    value={createForm.amount}
+                                                    onChange={(event) =>
+                                                        setCreateForm((prev) => ({ ...prev, amount: event.target.value }))
+                                                    }
+                                                    placeholder="250000"
+                                                    className={`${NB.inputMono} pl-9`}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className={NB.label}>Tanggal Penerimaan</label>
+                                            <Input
+                                                type="date"
+                                                value={createForm.date}
+                                                onChange={(event) =>
+                                                    setCreateForm((prev) => ({ ...prev, date: event.target.value }))
+                                                }
+                                                className={NB.input}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className={NB.label}>Metode Pembayaran</label>
+                                            <Select
+                                                value={createForm.method}
+                                                onValueChange={(value) =>
+                                                    setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod }))
+                                                }
+                                            >
+                                                <SelectTrigger className={NB.select}>
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="TRANSFER">Transfer</SelectItem>
+                                                    <SelectItem value="CASH">Tunai</SelectItem>
+                                                    <SelectItem value="CHECK">Cek</SelectItem>
+                                                    <SelectItem value="CARD">Kartu</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Invoice Link Section */}
+                            <div className={NB.section}>
+                                <div className="bg-blue-50 dark:bg-blue-950/20 px-4 py-2 border-b-2 border-black flex items-center gap-2 border-l-[4px] border-l-blue-400">
+                                    <FileText className="h-4 w-4 text-blue-600" />
+                                    <span className={NB.sectionTitle}>Hubungkan ke Invoice</span>
+                                </div>
+                                <div className={NB.sectionBody}>
+                                    <div>
+                                        <label className={NB.label}>Invoice (Opsional)</label>
+                                        <Select
+                                            value={createForm.invoiceId || EMPTY_INVOICE_VALUE}
+                                            onValueChange={(value) => {
+                                                if (value === EMPTY_INVOICE_VALUE) {
+                                                    setCreateForm((prev) => ({ ...prev, invoiceId: "" }))
+                                                    return
+                                                }
+                                                const invoice = openInvoices.find((item) => item.id === value)
+                                                setCreateForm((prev) => ({
+                                                    ...prev,
+                                                    invoiceId: value,
+                                                    customerId: invoice?.customer?.id ?? prev.customerId
+                                                }))
+                                            }}
+                                        >
+                                            <SelectTrigger className={NB.select}>
+                                                <SelectValue placeholder="Tidak langsung dialokasikan" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={EMPTY_INVOICE_VALUE}>Tidak langsung dialokasikan</SelectItem>
+                                                {openInvoices.map((invoice) => (
+                                                    <SelectItem key={invoice.id} value={invoice.id}>
+                                                        {invoice.number} - {invoice.customer?.name ?? "Tanpa pelanggan"}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div>
+                                            <label className={NB.label}>Referensi (Opsional)</label>
+                                            <Input
+                                                value={createForm.reference}
+                                                onChange={(event) =>
+                                                    setCreateForm((prev) => ({ ...prev, reference: event.target.value }))
+                                                }
+                                                placeholder="No. transfer / no. cek"
+                                                className={NB.input}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className={NB.label}>Catatan (Opsional)</label>
+                                            <Textarea
+                                                value={createForm.notes}
+                                                onChange={(event) =>
+                                                    setCreateForm((prev) => ({ ...prev, notes: event.target.value }))
+                                                }
+                                                placeholder="Catatan tambahan"
+                                                className={NB.textarea}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Footer Actions */}
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => setIsCreateDialogOpen(false)}
+                                    className={NB.cancelBtn}
+                                >
+                                    Batal
+                                </Button>
+                                <Button
+                                    onClick={handleCreatePayment}
+                                    disabled={submittingPayment}
+                                    className={NB.submitBtn}
+                                >
+                                    {submittingPayment ? (
+                                        <>
+                                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Menyimpan...
+                                        </>
+                                    ) : (
+                                        "Simpan Penerimaan"
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    </ScrollArea>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

@@ -1,9 +1,9 @@
 'use server'
 
 import { withPrismaAuth, prisma } from "@/lib/db"
-import { supabase } from "@/lib/supabase"
 import { revalidatePath, unstable_cache } from "next/cache"
 import { FALLBACK_PRODUCTS } from "@/lib/db-fallbacks"
+import { createClient } from "@/lib/supabase/server"
 
 // ==========================================
 // GET PRODUCTS FOR PO CREATION
@@ -75,37 +75,50 @@ export async function createPurchaseOrder(data: {
         const taxAmount = (data.includeTax ?? true) ? (subtotal * 0.11) : 0
         const totalAmount = subtotal + taxAmount
 
-        // Prepare Payload for RPC
-        const payload = {
-            number: poNumber,
-            supplierId: data.supplierId,
-            expectedDate: data.expectedDate ? data.expectedDate.toISOString() : null,
-            totalAmount,
-            taxAmount,
-            netAmount: totalAmount,
-            notes: data.notes || null,
-            items: data.items.map(item => ({
-                productId: item.productId,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice
-            }))
-        }
+        // Get authenticated user
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        const userId = user?.id
 
-        // Call Supabase RPC
-        const { data: result, error } = await supabase.rpc('create_purchase_order_v2', { payload })
+        // Create PO with items using Prisma transaction
+        const po = await prisma.$transaction(async (tx) => {
+            const purchaseOrder = await tx.purchaseOrder.create({
+                data: {
+                    number: poNumber,
+                    supplierId: data.supplierId,
+                    expectedDate: data.expectedDate || null,
+                    totalAmount,
+                    taxAmount,
+                    netAmount: totalAmount,
+                    status: 'PO_DRAFT',
+                    createdBy: userId || null,
+                    items: {
+                        create: data.items.map(item => ({
+                            productId: item.productId,
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice,
+                            totalPrice: item.quantity * item.unitPrice,
+                        })),
+                    },
+                },
+            })
 
-        if (error) {
-            throw new Error(error.message)
-        }
+            // Create initial PO event
+            await tx.purchaseOrderEvent.create({
+                data: {
+                    purchaseOrderId: purchaseOrder.id,
+                    status: 'PO_DRAFT',
+                    changedBy: userId || purchaseOrder.id,
+                    action: 'CREATE',
+                    notes: 'Purchase Order created',
+                },
+            })
 
-        const typedResult = result as any
-
-        if (!typedResult.success) {
-            throw new Error(typedResult.error || "Failed to create PO via RPC")
-        }
+            return purchaseOrder
+        })
 
         revalidatePath('/procurement/orders')
-        return { success: true, poId: typedResult.poId, number: typedResult.number }
+        return { success: true, poId: po.id, number: po.number }
 
     } catch (error: any) {
         console.error("Error creating PO:", error)

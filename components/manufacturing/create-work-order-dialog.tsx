@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { Loader2, Factory, Package, CalendarDays, Cog } from "lucide-react";
+import { NB } from "@/lib/dialog-styles";
 
 interface ProductOption {
   id: string;
@@ -139,97 +141,132 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-        <DialogHeader className="px-6 py-5 border-b bg-white">
-          <DialogTitle className="text-3xl font-black uppercase tracking-tight">
+      <DialogContent className={NB.content}>
+        <DialogHeader className={NB.header}>
+          <DialogTitle className={NB.title}>
+            <Factory className="h-5 w-5" />
             {orderType === "MO" ? "Create Production Order (MO)" : "Create Work Instruction (SPK)"}
           </DialogTitle>
-          <DialogDescription className="text-sm">
+          <p className={NB.subtitle}>
             {orderType === "MO"
               ? "MO fokus pada target produksi, planning date, dan alokasi kapasitas."
               : "SPK fokus pada eksekusi detail di lantai produksi dan penugasan mesin."}
-          </DialogDescription>
+          </p>
         </DialogHeader>
 
-        <div className="px-6 py-5 space-y-4">
-          <div className="rounded-xl border border-black/15 bg-zinc-50/50 p-4 space-y-3">
-            <div className="space-y-1.5">
-              <Label>Finished Good Product</Label>
-              <Select value={productId} onValueChange={setProductId} disabled={loadingOptions}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {products.map((product) => (
-                    <SelectItem key={product.id} value={product.id}>
-                      {product.code} - {product.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <ScrollArea className={NB.scroll}>
+          <div className="p-5 space-y-4">
+            {/* Product Selection */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+                <Package className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Produk & Jumlah</span>
+              </div>
+              <div className={NB.sectionBody}>
+                <div>
+                  <label className={NB.label}>Finished Good Product <span className={NB.labelRequired}>*</span></label>
+                  <Select value={productId} onValueChange={setProductId} disabled={loadingOptions}>
+                    <SelectTrigger className={NB.select}>
+                      <SelectValue placeholder="Select product" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          {product.code} - {product.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={NB.label}>Planned Qty <span className={NB.labelRequired}>*</span></label>
+                    <Input type="number" min={1} value={plannedQty} onChange={(e) => setPlannedQty(e.target.value)} className={NB.inputMono} />
+                  </div>
+                  <div>
+                    <label className={NB.label}>Priority</label>
+                    <Select value={priority} onValueChange={setPriority}>
+                      <SelectTrigger className={NB.select}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CRITICAL">CRITICAL</SelectItem>
+                        <SelectItem value="HIGH">HIGH</SelectItem>
+                        <SelectItem value="NORMAL">NORMAL</SelectItem>
+                        <SelectItem value="LOW">LOW</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Planned Qty</Label>
-                <Input type="number" min={1} value={plannedQty} onChange={(e) => setPlannedQty(e.target.value)} />
+            {/* Scheduling */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+                <CalendarDays className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Jadwal</span>
               </div>
-              <div className="space-y-1.5">
-                <Label>Priority</Label>
-                <Select value={priority} onValueChange={setPriority}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CRITICAL">CRITICAL</SelectItem>
-                    <SelectItem value="HIGH">HIGH</SelectItem>
-                    <SelectItem value="NORMAL">NORMAL</SelectItem>
-                    <SelectItem value="LOW">LOW</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Start Date</Label>
-                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Due Date</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <div className={NB.sectionBody}>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={NB.label}>Start Date</label>
+                    <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={NB.input} />
+                  </div>
+                  <div>
+                    <label className={NB.label}>Due Date</label>
+                    <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={NB.input} />
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Machine / Work Center (Optional)</Label>
-              <Select value={machineId} onValueChange={setMachineId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Assign machine" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No Machine</SelectItem>
-                  {machines
-                    .filter((m) => m.status !== "OFFLINE")
-                    .map((machine) => (
-                      <SelectItem key={machine.id} value={machine.id}>
-                        {machine.code} - {machine.name} ({machine.status})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+            {/* Machine Assignment */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+                <Cog className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Mesin / Work Center</span>
+              </div>
+              <div className={NB.sectionBody}>
+                <div>
+                  <label className={NB.label}>Assign Machine (Optional)</label>
+                  <Select value={machineId} onValueChange={setMachineId}>
+                    <SelectTrigger className={NB.select}>
+                      <SelectValue placeholder="Assign machine" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Machine</SelectItem>
+                      {machines
+                        .filter((m) => m.status !== "OFFLINE")
+                        .map((machine) => (
+                          <SelectItem key={machine.id} value={machine.id}>
+                            {machine.code} - {machine.name} ({machine.status})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className={NB.footer}>
+              <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button className={NB.submitBtn} disabled={submitting} onClick={handleSubmit}>
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
+                  </>
+                ) : (
+                  `Create ${orderType}`
+                )}
+              </Button>
             </div>
           </div>
-        </div>
-
-        <div className="px-6 py-4 border-t bg-zinc-50 flex gap-2">
-          <Button variant="outline" className="flex-1 border-black" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button className="flex-1 bg-black text-white hover:bg-zinc-800" disabled={submitting} onClick={handleSubmit}>
-            {submitting ? "Creating..." : `Create ${orderType}`}
-          </Button>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

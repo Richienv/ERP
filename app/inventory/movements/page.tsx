@@ -3,7 +3,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   ArrowRightLeft,
-  Activity
+  Activity,
+  Filter,
+  Calendar,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ManualMovementDialog } from "@/components/inventory/manual-movement-dialog";
@@ -28,7 +30,7 @@ export default async function StockMovementsPage() {
     withTimeout(getWarehouses(), 5000, [])
   ]);
 
-  // Calculate Daily Stats in business timezone (Indonesia) so cards match operator expectation.
+  // Calculate Daily Stats in business timezone (Indonesia)
   const BUSINESS_TZ = 'Asia/Jakarta';
   const inboundTypes = new Set(['PO_RECEIVE', 'PRODUCTION_IN', 'RETURN_IN', 'INITIAL', 'ADJUSTMENT_IN']);
   const outboundTypes = new Set(['SO_SHIPMENT', 'PRODUCTION_OUT', 'RETURN_OUT', 'SCRAP', 'ADJUSTMENT_OUT']);
@@ -64,7 +66,7 @@ export default async function StockMovementsPage() {
 
   // Group by Date
   const groupedMovements = movements.reduce((groups, move) => {
-    const date = new Date(move.date).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const date = new Date(move.date).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
     if (!groups[date]) {
       groups[date] = [];
     }
@@ -74,110 +76,204 @@ export default async function StockMovementsPage() {
 
   // Helper for icons/colors
   const getTypeConfig = (type: string, qty: number) => {
-    if (inboundTypes.has(type) || (type === 'ADJUSTMENT' && qty > 0)) return { icon: ArrowDownRight, color: 'text-emerald-600', bg: 'bg-emerald-100', border: 'border-emerald-200', label: 'INBOUND' };
-    if (outboundTypes.has(type) || (type === 'ADJUSTMENT' && qty < 0)) return { icon: ArrowUpRight, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200', label: 'OUTBOUND' };
-    if (type === 'TRANSFER') return { icon: ArrowRightLeft, color: 'text-purple-600', bg: 'bg-purple-100', border: 'border-purple-200', label: 'TRANSFER' };
-    return { icon: Activity, color: 'text-zinc-600', bg: 'bg-zinc-100', border: 'border-zinc-200', label: 'ACTIVITY' };
+    if (inboundTypes.has(type) || (type === 'ADJUSTMENT' && qty > 0)) return { icon: ArrowDownRight, color: 'text-emerald-600', bg: 'bg-emerald-500', bgLight: 'bg-emerald-50', border: 'border-emerald-200', label: 'INBOUND' };
+    if (outboundTypes.has(type) || (type === 'ADJUSTMENT' && qty < 0)) return { icon: ArrowUpRight, color: 'text-blue-600', bg: 'bg-blue-500', bgLight: 'bg-blue-50', border: 'border-blue-200', label: 'OUTBOUND' };
+    if (type === 'TRANSFER') return { icon: ArrowRightLeft, color: 'text-violet-600', bg: 'bg-violet-500', bgLight: 'bg-violet-50', border: 'border-violet-200', label: 'TRANSFER' };
+    return { icon: Activity, color: 'text-zinc-600', bg: 'bg-zinc-500', bgLight: 'bg-zinc-50', border: 'border-zinc-200', label: 'ACTIVITY' };
   };
 
   return (
     <InventoryPerformanceProvider currentPath="/inventory/movements">
-      <div className="flex-1 space-y-6 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black font-serif tracking-tight">Stock Movement</h2>
-            <p className="text-muted-foreground mt-1">Real-time history of goods flow and adjustments.</p>
-          </div>
-          <ManualMovementDialog
-            products={products.map(p => ({ id: p.id, name: p.name, code: p.code }))}
-            warehouses={warehouses.map(w => ({ id: w.id, name: w.name }))}
-          />
-        </div>
+      <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto space-y-4">
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Summary Cards */}
-          <div className="bg-emerald-50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between group hover:-translate-y-1 transition-transform">
-            <div>
-              <p className="text-xs font-bold uppercase text-emerald-800 tracking-wider">Inbound (Today)</p>
-              <h3 className="text-3xl font-black text-emerald-900 mt-1">{inboundCount.toLocaleString()} <span className="text-sm font-bold text-emerald-700/60">Units</span></h3>
+        {/* ═══════════════════════════════════════════ */}
+        {/* COMMAND HEADER                              */}
+        {/* ═══════════════════════════════════════════ */}
+        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+          <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-violet-400">
+            <div className="flex items-center gap-3">
+              <ArrowRightLeft className="h-5 w-5 text-violet-500" />
+              <div>
+                <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                  Stock Movement
+                </h1>
+                <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                  Real-time history of goods flow and adjustments
+                </p>
+              </div>
             </div>
-            <div className="h-12 w-12 bg-emerald-200 rounded-full flex items-center justify-center border-2 border-black shadow-sm group-hover:rotate-12 transition-transform">
-              <ArrowDownRight className="h-6 w-6 text-emerald-900" />
-            </div>
-          </div>
-          <div className="bg-blue-50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between group hover:-translate-y-1 transition-transform">
-            <div>
-              <p className="text-xs font-bold uppercase text-blue-800 tracking-wider">Outbound (Today)</p>
-              <h3 className="text-3xl font-black text-blue-900 mt-1">{outboundCount.toLocaleString()} <span className="text-sm font-bold text-blue-700/60">Units</span></h3>
-            </div>
-            <div className="h-12 w-12 bg-blue-200 rounded-full flex items-center justify-center border-2 border-black shadow-sm group-hover:-rotate-12 transition-transform">
-              <ArrowUpRight className="h-6 w-6 text-blue-900" />
-            </div>
-          </div>
-          <div className="bg-purple-50 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-xl flex items-center justify-between group hover:-translate-y-1 transition-transform">
-            <div>
-              <p className="text-xs font-bold uppercase text-purple-800 tracking-wider">Transfers (Today)</p>
-              <h3 className="text-3xl font-black text-purple-900 mt-1">{transferCount.toLocaleString()} <span className="text-sm font-bold text-purple-700/60">Moves</span></h3>
-            </div>
-            <div className="h-12 w-12 bg-purple-200 rounded-full flex items-center justify-center border-2 border-black shadow-sm group-hover:scale-110 transition-transform">
-              <ArrowRightLeft className="h-6 w-6 text-purple-900" />
+            <div className="flex items-center gap-2">
+              <ManualMovementDialog
+                products={products.map(p => ({ id: p.id, name: p.name, code: p.code }))}
+                warehouses={warehouses.map(w => ({ id: w.id, name: w.name }))}
+              />
             </div>
           </div>
         </div>
 
-        <div className="mt-8">
-          <h3 className="text-xl font-black uppercase mb-6 flex items-center gap-2">
-            <Activity className="h-5 w-5" /> Activity Log
-          </h3>
+        {/* ═══════════════════════════════════════════ */}
+        {/* KPI PULSE STRIP                            */}
+        {/* ═══════════════════════════════════════════ */}
+        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+          <div className="grid grid-cols-2 md:grid-cols-4">
+            {/* Inbound Today */}
+            <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
+              <div className="flex items-center gap-2 mb-2">
+                <ArrowDownRight className="h-4 w-4 text-zinc-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Inbound Hari Ini</span>
+              </div>
+              <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
+                {inboundCount.toLocaleString()}
+              </div>
+              <div className="flex items-center gap-1 mt-1.5">
+                <span className="text-[10px] font-bold text-emerald-600">Unit masuk</span>
+              </div>
+            </div>
 
-          <div className="relative border-l-2 border-dashed border-black/20 ml-4 space-y-8">
+            {/* Outbound Today */}
+            <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
+              <div className="flex items-center gap-2 mb-2">
+                <ArrowUpRight className="h-4 w-4 text-zinc-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Outbound Hari Ini</span>
+              </div>
+              <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
+                {outboundCount.toLocaleString()}
+              </div>
+              <div className="flex items-center gap-1 mt-1.5">
+                <span className="text-[10px] font-bold text-blue-600">Unit keluar</span>
+              </div>
+            </div>
+
+            {/* Transfers Today */}
+            <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-violet-400" />
+              <div className="flex items-center gap-2 mb-2">
+                <ArrowRightLeft className="h-4 w-4 text-zinc-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Transfer Hari Ini</span>
+              </div>
+              <div className="text-2xl md:text-3xl font-black tracking-tighter text-violet-600">
+                {transferCount.toLocaleString()}
+              </div>
+              <div className="flex items-center gap-1 mt-1.5">
+                <span className="text-[10px] font-bold text-violet-600">Perpindahan</span>
+              </div>
+            </div>
+
+            {/* Total Movements */}
+            <div className="relative p-4 md:p-5">
+              <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
+              <div className="flex items-center gap-2 mb-2">
+                <Activity className="h-4 w-4 text-zinc-400" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Pergerakan</span>
+              </div>
+              <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                {movements.length.toLocaleString()}
+              </div>
+              <div className="flex items-center gap-1 mt-1.5">
+                <span className="text-[10px] font-bold text-zinc-400">Seluruh histori</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════ */}
+        {/* ACTIVITY TABLE                              */}
+        {/* ═══════════════════════════════════════════ */}
+        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+          {/* Table Header */}
+          <div className="px-6 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-zinc-500" />
+              <span className="text-sm font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-200">Activity Log</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400">
+              <Calendar className="h-3 w-3" />
+              {movements.length} entries
+            </div>
+          </div>
+
+          {/* Table Content */}
+          <div className="divide-y-2 divide-black">
             {Object.entries(groupedMovements).map(([date, moves]) => (
-              <div key={date} className="relative pl-8">
-                <div className="absolute -left-[9px] top-0 h-4 w-4 rounded-full border-2 border-black bg-white" />
-                <h4 className="text-sm font-black uppercase mb-4 text-zinc-500 bg-zinc-100/50 inline-block px-2 py-1 rounded border border-zinc-200">{date}</h4>
+              <div key={date}>
+                {/* Date Header */}
+                <div className="px-6 py-2 bg-zinc-100 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{date}</span>
+                </div>
 
-                <div className="space-y-3">
+                {/* Movement Rows */}
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {moves.map((move) => {
                     const config = getTypeConfig(move.type, move.qty);
                     const Icon = config.icon;
 
                     return (
-                      <div key={move.id} className="relative group">
-                        <div className="bg-white border-2 border-black rounded-lg p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all flex items-center justify-between gap-4">
-
-                          <div className="flex items-center gap-4">
-                            <div className={cn("h-10 w-10 rounded-md border-2 border-black flex items-center justify-center shrink-0", config.bg)}>
-                              <Icon className={cn("h-5 w-5", config.color)} />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <Badge variant="outline" className={cn("font-black text-[10px] border-black bg-white", config.color)}>
-                                  {move.type.replace('_', ' ')}
-                                </Badge>
-                                <span className="text-xs font-bold text-zinc-400 font-mono">#{move.id.slice(0, 8)}</span>
-                              </div>
-                              <h4 className="font-bold text-sm">{move.item} <span className="font-normal text-zinc-500">({move.code})</span></h4>
-
-                              <div className="text-xs mt-1 flex items-center gap-2 text-zinc-600">
-                                <span className="font-bold">{move.warehouse}</span>
-                                {move.type === 'TRANSFER' ? <ArrowRightLeft className="h-3 w-3" /> : (config.label === 'INBOUND' ? <ArrowRightLeft className="h-3 w-3 rotate-180 opacity-0" /> : <ArrowRightLeft className="h-3 w-3 opacity-0" />)}
-                                {/* Contextual Info */}
-                                {move.type === 'TRANSFER' && <span className="font-bold">{move.entity}</span>}
-                                {move.type === 'PO_RECEIVE' && <span>from <span className="font-bold">{move.entity}</span> (PO: {move.reference})</span>}
-                                {move.type === 'SO_SHIPMENT' && <span>to <span className="font-bold">{move.entity}</span> (SO: {move.reference})</span>}
-                              </div>
-                            </div>
+                      <div
+                        key={move.id}
+                        className="px-6 py-3 flex items-center justify-between gap-4 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors group"
+                      >
+                        {/* Left: Icon + Info */}
+                        <div className="flex items-center gap-4 min-w-0 flex-1">
+                          {/* Type Icon */}
+                          <div className={cn(
+                            "h-9 w-9 border-2 border-black flex items-center justify-center shrink-0 text-white",
+                            config.bg
+                          )}>
+                            <Icon className="h-4 w-4" />
                           </div>
 
-                          <div className="text-right shrink-0">
-                            <div className={cn("text-lg font-black", config.color)}>
-                              {move.qty > 0 ? '+' : ''}{move.qty} <span className="text-xs font-bold text-black opacity-60">{move.unit}</span>
+                          {/* Details */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <span className="text-sm font-black text-zinc-900 dark:text-white truncate">
+                                {move.item}
+                              </span>
+                              <span className="text-[10px] font-mono font-bold text-zinc-400 shrink-0">
+                                {move.code}
+                              </span>
                             </div>
-                            <div className="text-xs font-bold text-zinc-400 mt-1">
-                              {new Date(move.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {move.user}
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                className={cn(
+                                  "text-[8px] font-black uppercase px-1.5 py-0 h-4 border-2 border-black text-white",
+                                  config.bg
+                                )}
+                              >
+                                {move.type.replace('_', ' ')}
+                              </Badge>
+                              <span className="text-[10px] font-bold text-zinc-400">
+                                {move.warehouse}
+                              </span>
+                              {move.type === 'PO_RECEIVE' && (
+                                <span className="text-[10px] text-zinc-400">
+                                  dari <span className="font-bold">{move.entity}</span>
+                                </span>
+                              )}
+                              {move.type === 'SO_SHIPMENT' && (
+                                <span className="text-[10px] text-zinc-400">
+                                  ke <span className="font-bold">{move.entity}</span>
+                                </span>
+                              )}
+                              {move.type === 'TRANSFER' && (
+                                <span className="text-[10px] text-zinc-400">
+                                  → <span className="font-bold">{move.entity}</span>
+                                </span>
+                              )}
                             </div>
                           </div>
+                        </div>
 
+                        {/* Right: Quantity + Time */}
+                        <div className="text-right shrink-0">
+                          <div className={cn("text-base font-black tabular-nums", config.color)}>
+                            {move.qty > 0 ? '+' : ''}{move.qty}
+                            <span className="text-[10px] font-bold text-zinc-400 ml-1">{move.unit}</span>
+                          </div>
+                          <div className="text-[10px] font-bold text-zinc-400 mt-0.5">
+                            {new Date(move.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {move.user}
+                          </div>
                         </div>
                       </div>
                     );
@@ -187,10 +283,15 @@ export default async function StockMovementsPage() {
             ))}
 
             {movements.length === 0 && (
-              <div className="pl-8 text-zinc-400 italic font-medium">No movements recorded yet.</div>
+              <div className="px-6 py-12 text-center">
+                <Activity className="h-8 w-8 text-zinc-300 mx-auto mb-3" />
+                <p className="text-sm font-bold text-zinc-400">Belum ada pergerakan stok tercatat.</p>
+                <p className="text-xs text-zinc-400 mt-1">Pergerakan akan muncul saat ada transaksi masuk/keluar.</p>
+              </div>
             )}
           </div>
         </div>
+
       </div>
     </InventoryPerformanceProvider>
   );

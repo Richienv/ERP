@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import { Loader2, Cog, Activity, Settings2 } from "lucide-react";
+import { NB } from "@/lib/dialog-styles";
 
 interface GroupOption {
   id: string;
@@ -39,18 +41,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   initialData?: MachineFormData | null;
   onSaved?: () => Promise<void> | void;
-}
-
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-xl border border-black/15 bg-zinc-50/50 p-4 space-y-3">
-      <div>
-        <h4 className="text-sm font-black uppercase tracking-wide">{title}</h4>
-        {description && <p className="text-xs text-muted-foreground mt-1">{description}</p>}
-      </div>
-      {children}
-    </section>
-  );
 }
 
 export function MachineFormDialog({ open, onOpenChange, initialData, onSaved }: Props) {
@@ -181,141 +171,168 @@ export function MachineFormDialog({ open, onOpenChange, initialData, onSaved }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-        <DialogHeader className="px-6 py-5 border-b bg-white">
-          <DialogTitle className="text-3xl font-black uppercase tracking-tight">{isEdit ? "Edit Machine" : "Create Machine"}</DialogTitle>
-          <DialogDescription className="text-sm">
-            Form create fokus ke data operasional. Konfigurasi detail lanjutan dipusatkan di menu Document & System.
-          </DialogDescription>
+      <DialogContent className={NB.content}>
+        <DialogHeader className={NB.header}>
+          <DialogTitle className={NB.title}>
+            <Cog className="h-5 w-5" />
+            {isEdit ? "Edit Machine" : "Create Machine"}
+          </DialogTitle>
+          <p className={NB.subtitle}>Data operasional mesin. Detail lanjutan via Document & System.</p>
         </DialogHeader>
 
-        <div className="max-h-[70vh] overflow-y-auto px-6 py-5 space-y-4">
-          <Section title="Identity">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Machine Code</Label>
-                <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MC-001" disabled={isEdit} />
+        <ScrollArea className={NB.scroll}>
+          <div className="p-5 space-y-4">
+            {/* Identity */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+                <Cog className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Identity</span>
               </div>
-              <div className="space-y-1.5">
-                <Label>Machine Name</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Cutting Machine A" />
+              <div className={NB.sectionBody}>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={NB.label}>Machine Code {!isEdit && <span className={NB.labelRequired}>*</span>}</label>
+                    <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MC-001" disabled={isEdit} className={NB.inputMono} />
+                  </div>
+                  <div>
+                    <label className={NB.label}>Machine Name <span className={NB.labelRequired}>*</span></label>
+                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Cutting Machine A" className={NB.input} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className={NB.label}>Group</label>
+                    <Select value={groupId} onValueChange={setGroupId} disabled={loadingOptions}>
+                      <SelectTrigger className={NB.select}>
+                        <SelectValue placeholder="Select group" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Group</SelectItem>
+                        {groups.map((group) => (
+                          <SelectItem key={group.id} value={group.id}>
+                            {group.code} - {group.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className={NB.label}>Status</label>
+                    <Select value={status} onValueChange={setStatus}>
+                      <SelectTrigger className={NB.select}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IDLE">IDLE</SelectItem>
+                        <SelectItem value="RUNNING">RUNNING</SelectItem>
+                        <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
+                        <SelectItem value="BREAKDOWN">BREAKDOWN</SelectItem>
+                        <SelectItem value="OFFLINE">OFFLINE</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className={NB.label}>Activation</label>
+                    <Select value={isActive} onValueChange={setIsActive}>
+                      <SelectTrigger className={NB.select}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Active</SelectItem>
+                        <SelectItem value="false">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Group</Label>
-                <Select value={groupId} onValueChange={setGroupId} disabled={loadingOptions}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select group" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No Group</SelectItem>
-                    {groups.map((group) => (
-                      <SelectItem key={group.id} value={group.id}>
-                        {group.code} - {group.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="IDLE">IDLE</SelectItem>
-                    <SelectItem value="RUNNING">RUNNING</SelectItem>
-                    <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
-                    <SelectItem value="BREAKDOWN">BREAKDOWN</SelectItem>
-                    <SelectItem value="OFFLINE">OFFLINE</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>Activation</Label>
-                <Select value={isActive} onValueChange={setIsActive}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">Active</SelectItem>
-                    <SelectItem value="false">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </Section>
 
-          <Section title="Operational">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label>Capacity / Hour</Label>
-                <Input type="number" min={0} value={capacityPerHour} onChange={(e) => setCapacityPerHour(e.target.value)} />
+            {/* Operational */}
+            <div className={NB.section}>
+              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+                <Activity className="h-4 w-4" />
+                <span className={NB.sectionTitle}>Operational</span>
               </div>
-              <div className="space-y-1.5">
-                <Label>Std Hours / Day</Label>
-                <Input type="number" min={1} value={standardHoursPerDay} onChange={(e) => setStandardHoursPerDay(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Health Score</Label>
-                <Input type="number" min={0} max={100} value={healthScore} onChange={(e) => setHealthScore(e.target.value)} />
+              <div className={NB.sectionBody}>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className={NB.label}>Capacity / Hour</label>
+                    <Input type="number" min={0} value={capacityPerHour} onChange={(e) => setCapacityPerHour(e.target.value)} className={NB.inputMono} />
+                  </div>
+                  <div>
+                    <label className={NB.label}>Std Hours / Day</label>
+                    <Input type="number" min={1} value={standardHoursPerDay} onChange={(e) => setStandardHoursPerDay(e.target.value)} className={NB.inputMono} />
+                  </div>
+                  <div>
+                    <label className={NB.label}>Health Score</label>
+                    <Input type="number" min={0} max={100} value={healthScore} onChange={(e) => setHealthScore(e.target.value)} className={NB.inputMono} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={NB.label}>Next Maintenance</label>
+                    <Input type="date" value={nextMaintenance} onChange={(e) => setNextMaintenance(e.target.value)} className={NB.input} />
+                  </div>
+                  <div>
+                    <label className={NB.label}>Quick Note</label>
+                    <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={NB.textarea + " min-h-[40px]"} placeholder="Optional note" />
+                  </div>
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Next Maintenance</Label>
-                <Input type="date" value={nextMaintenance} onChange={(e) => setNextMaintenance(e.target.value)} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Quick Note</Label>
-                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="min-h-[42px]" placeholder="Optional note" />
-              </div>
-            </div>
-          </Section>
 
-          <details className="rounded-xl border border-dashed border-black/20 p-4 bg-white">
-            <summary className="cursor-pointer text-sm font-bold uppercase tracking-wide">Advanced (Document & System)</summary>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
-              <div className="space-y-1.5">
-                <Label>Brand</Label>
-                <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Juki" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Model</Label>
-                <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="DDL-8700" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Serial Number</Label>
-                <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="SN-12345" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>OH Time / Hour</Label>
-                <Input type="number" min={0} step="0.01" value={overheadTimePerHour} onChange={(e) => setOverheadTimePerHour(e.target.value)} />
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label>OH Material Cost / Hour</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={overheadMaterialCostPerHour}
-                  onChange={(e) => setOverheadMaterialCostPerHour(e.target.value)}
-                />
-              </div>
+            {/* Advanced */}
+            <div className={NB.section}>
+              <details>
+                <summary className={`${NB.sectionHead} border-l-4 border-l-zinc-300 cursor-pointer`}>
+                  <Settings2 className="h-4 w-4" />
+                  <span className={NB.sectionTitle}>Advanced (Document & System)</span>
+                </summary>
+                <div className={NB.sectionBody}>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className={NB.label}>Brand</label>
+                      <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Juki" className={NB.input} />
+                    </div>
+                    <div>
+                      <label className={NB.label}>Model</label>
+                      <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="DDL-8700" className={NB.input} />
+                    </div>
+                    <div>
+                      <label className={NB.label}>Serial Number</label>
+                      <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="SN-12345" className={NB.inputMono} />
+                    </div>
+                    <div>
+                      <label className={NB.label}>OH Time / Hour</label>
+                      <Input type="number" min={0} step="0.01" value={overheadTimePerHour} onChange={(e) => setOverheadTimePerHour(e.target.value)} className={NB.inputMono} />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className={NB.label}>OH Material Cost / Hour</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={overheadMaterialCostPerHour}
+                        onChange={(e) => setOverheadMaterialCostPerHour(e.target.value)}
+                        className={NB.inputMono}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
-          </details>
-        </div>
 
-        <div className="px-6 py-4 border-t bg-zinc-50 flex gap-2">
-          <Button variant="outline" className="flex-1 border-black" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button className="flex-1 bg-black text-white hover:bg-zinc-800" disabled={submitting} onClick={handleSubmit}>
-            {submitting ? "Saving..." : isEdit ? "Save Changes" : "Create Machine"}
-          </Button>
-        </div>
+            {/* Footer */}
+            <div className={NB.footer}>
+              <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button className={NB.submitBtn} disabled={submitting} onClick={handleSubmit}>
+                {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : isEdit ? "Save Changes" : "Create Machine"}
+              </Button>
+            </div>
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

@@ -1,21 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { setProductManualAlert, createRestockRequest } from '@/app/actions/inventory'
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
     Select,
@@ -76,31 +71,50 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: K
     const borderColor = 'border-black'
     const shadowClass = 'shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
 
+    // Map status to accent colors for left border
+    const accentColor =
+        status === 'CRITICAL' ? 'border-l-red-400' :
+            status === 'LOW_STOCK' ? 'border-l-amber-400' :
+                status === 'NEW' ? 'border-l-blue-400' :
+                    'border-l-emerald-400'
+
+    const headerBg =
+        status === 'CRITICAL' ? 'bg-red-50 dark:bg-red-950/20' :
+            status === 'LOW_STOCK' ? 'bg-amber-50 dark:bg-amber-950/20' :
+                status === 'NEW' ? 'bg-blue-50 dark:bg-blue-950/20' :
+                    'bg-emerald-50 dark:bg-emerald-950/20'
+
+    const countBg =
+        status === 'CRITICAL' ? 'bg-red-500' :
+            status === 'LOW_STOCK' ? 'bg-amber-500' :
+                status === 'NEW' ? 'bg-blue-500' :
+                    'bg-emerald-500'
+
     return (
         <div
-            className={`flex-1 min-w-[320px] max-w-[400px] flex flex-col h-full rounded-xl border-3 ${borderColor} ${bgColor} ${shadowClass} overflow-hidden`}
+            className="flex-1 min-w-[320px] max-w-[400px] flex flex-col h-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
             {/* Column Header */}
-            <div className={`p-4 border-b-3 ${borderColor} bg-white/50 backdrop-blur-sm`}>
-                <div className="flex items-center justify-between">
-                    <h3 className="font-black uppercase tracking-wider text-sm flex items-center gap-2 text-black">
-                        {status === 'CRITICAL' && <AlertCircle className="h-5 w-5 text-red-600 fill-red-100" />}
-                        {status === 'LOW_STOCK' && <Package className="h-5 w-5 text-amber-600 fill-amber-100" />}
-                        {status === 'HEALTHY' && <CheckCircle2 className="h-5 w-5 text-emerald-600 fill-emerald-100" />}
-                        {status === 'NEW' && <Package className="h-5 w-5 text-blue-600 fill-blue-100" />}
+            <div className={`px-4 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] ${accentColor} ${headerBg}`}>
+                <div className="flex items-center gap-2 flex-1">
+                    {status === 'CRITICAL' && <AlertCircle className="h-4 w-4 text-red-600" />}
+                    {status === 'LOW_STOCK' && <Package className="h-4 w-4 text-amber-600" />}
+                    {status === 'HEALTHY' && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+                    {status === 'NEW' && <Package className="h-4 w-4 text-blue-600" />}
+                    <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
                         {title}
                     </h3>
-                    <div className={`px-2 py-0.5 text-xs font-black border-2 border-black bg-white rounded-full min-w-[24px] text-center`}>
-                        {products.length}
-                    </div>
                 </div>
+                <span className={`${countBg} text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm`}>
+                    {products.length}
+                </span>
             </div>
 
             {/* Column Content */}
             <ScrollArea className="flex-1 p-3">
-                <div className="space-y-4 pb-4">
+                <div className="space-y-3 pb-4">
                     {products.map(product => (
                         <div
                             key={product.id}
@@ -108,59 +122,59 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: K
                             onDragStart={(e) => e.dataTransfer.setData('productId', product.id)}
                             onClick={() => onCardClick(product.id)}
                             className={cn(
-                                "p-4 bg-white rounded-lg border-3 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer active:cursor-grabbing h-full relative group hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all",
+                                "p-4 bg-white dark:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer active:cursor-grabbing relative group hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all",
                                 product.manualAlert && "border-red-600 shadow-red-900/20"
                             )}
                         >
                             <div className="flex justify-between items-start mb-2">
-                                <Badge variant="outline" className="text-[10px] font-bold border-2 border-black bg-zinc-100 text-black px-1.5 py-0 rounded-md">
+                                <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border-2 border-black bg-zinc-100 text-zinc-700">
                                     {product.code}
-                                </Badge>
+                                </span>
                                 {product.manualAlert && (
-                                    <Badge className="text-[9px] bg-red-600 text-white border-2 border-red-800 shadow-sm px-1.5 h-5 rounded-md">
-                                        MANUAL ALERT
-                                    </Badge>
+                                    <span className="text-[9px] font-black uppercase px-1.5 py-0.5 bg-red-600 text-white border-2 border-red-800">
+                                        ALERT
+                                    </span>
                                 )}
                             </div>
 
-                            <h4 className="font-black text-sm leading-tight mb-1 text-black line-clamp-2 uppercase">
+                            <h4 className="font-black text-sm leading-tight mb-1 text-zinc-900 dark:text-zinc-100 line-clamp-2 uppercase">
                                 {product.name}
                             </h4>
-                            <p className="text-[10px] uppercase tracking-wide text-zinc-500 font-bold mb-3">
+                            <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold mb-3">
                                 {typeof product.category === 'object' ? product.category?.name || 'Uncategorized' : product.category}
                             </p>
 
-                            <div className="flex items-center justify-between pt-3 border-t-2 border-black/10 border-dashed">
+                            <div className="flex items-center justify-between pt-3 border-t-2 border-zinc-100 dark:border-zinc-700">
                                 <div>
-                                    <div className="text-[9px] font-bold text-zinc-400 uppercase">Stock Level</div>
-                                    <div className={cn("font-black text-base leading-none mt-0.5", product.totalStock === 0 ? "text-red-600" : "text-black")}>
-                                        {product.totalStock} <span className="text-[10px] text-zinc-500 font-bold">{product.unit}</span>
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Level Stok</div>
+                                    <div className={cn("font-black text-base leading-none mt-0.5", product.totalStock === 0 ? "text-red-600" : "text-zinc-900 dark:text-zinc-100")}>
+                                        {product.totalStock} <span className="text-[10px] text-zinc-400 font-bold">{product.unit}</span>
                                     </div>
                                 </div>
                                 {product.status !== 'HEALTHY' && (
-                                    <div className={cn(
-                                        "text-[9px] font-black uppercase px-2 py-1 rounded border-2 border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
-                                        product.status === 'CRITICAL' ? "bg-red-200 text-red-900" :
-                                            product.status === 'LOW_STOCK' ? "bg-amber-200 text-amber-900" :
-                                                "bg-blue-200 text-blue-900"
+                                    <span className={cn(
+                                        "text-[9px] font-black uppercase px-2 py-1 border-2 border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
+                                        product.status === 'CRITICAL' ? "bg-red-100 text-red-800" :
+                                            product.status === 'LOW_STOCK' ? "bg-amber-100 text-amber-800" :
+                                                "bg-blue-100 text-blue-800"
                                     )}>
                                         {product.status.replace('_', ' ')}
-                                    </div>
+                                    </span>
                                 )}
                             </div>
 
                             {/* Click hint */}
-                            <div className="mt-2 pt-2 border-t border-dashed border-zinc-200 text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="mt-2 pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-700 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                                 <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400 flex items-center justify-center gap-1">
-                                    <Eye className="h-2.5 w-2.5" /> Klik untuk lihat detail
+                                    <Eye className="h-2.5 w-2.5" /> Klik untuk detail
                                 </span>
                             </div>
                         </div>
                     ))}
                     {products.length === 0 && (
-                        <div className="text-center py-12 border-3 border-dashed border-black/10 rounded-lg">
-                            <Package className="h-8 w-8 text-black/20 mx-auto mb-2" />
-                            <p className="text-xs font-bold text-black/30 uppercase">Empty</p>
+                        <div className="text-center py-12 border-2 border-dashed border-zinc-200 dark:border-zinc-700">
+                            <Package className="h-8 w-8 text-zinc-300 mx-auto mb-2" />
+                            <p className="text-xs font-black uppercase tracking-widest text-zinc-400">Kosong</p>
                         </div>
                     )}
                 </div>
@@ -370,54 +384,54 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
 
             {/* CONFIRMATION / PR DIALOG */}
             <Dialog open={confirmDialog.isOpen} onOpenChange={(open) => !open && setConfirmDialog(prev => ({ ...prev, isOpen: false }))}>
-                <DialogContent className="max-w-xl border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-black uppercase flex items-center gap-2">
+                <DialogContent className="max-w-xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
+                    <DialogHeader className="bg-black text-white px-6 py-4">
+                        <DialogTitle className="text-lg font-black uppercase tracking-wider text-white flex items-center gap-2">
                             {confirmDialog.toStatus === 'CRITICAL' ? (
-                                <><AlertCircle className="h-6 w-6 text-red-600" /> Critical Restock Request</>
+                                <><AlertCircle className="h-5 w-5 text-red-400" /> Permintaan Restock Kritis</>
                             ) : (
-                                "Remove Critical Alert"
+                                "Hapus Alert Kritis"
                             )}
                         </DialogTitle>
-                        <DialogDescription className="font-medium text-base">
+                        <p className="text-zinc-400 text-[11px] font-bold mt-0.5">
                             {confirmDialog.toStatus === 'CRITICAL'
-                                ? "Flagging this product as CRITICAL will trigger an immediate Purchase Request. Please provide details below."
-                                : "Are you sure you want to remove the Critical flag? This will NOT cancel any active Purchase Requests."
+                                ? "Produk akan ditandai KRITIS dan Purchase Request otomatis dibuat."
+                                : "Alert kritis akan dihapus. Purchase Request aktif tidak akan dibatalkan."
                             }
-                        </DialogDescription>
+                        </p>
                     </DialogHeader>
 
                     {confirmDialog.toStatus === 'CRITICAL' && currentProduct && (
-                        <div className="grid gap-6 py-4">
+                        <div className="p-6 space-y-4">
                             {/* Product Summary */}
-                            <div className="flex items-center gap-4 bg-zinc-50 p-4 rounded-lg border-2 border-dashed border-zinc-200">
-                                <div className="h-12 w-12 bg-white rounded-md border border-zinc-200 flex items-center justify-center">
+                            <div className="flex items-center gap-4 bg-zinc-50 dark:bg-zinc-800 p-4 border-2 border-black">
+                                <div className="h-12 w-12 bg-white dark:bg-zinc-900 border-2 border-black flex items-center justify-center">
                                     <Package className="h-6 w-6 text-zinc-400" />
                                 </div>
                                 <div>
-                                    <h4 className="font-bold text-sm">{currentProduct.name}</h4>
-                                    <p className="text-xs text-muted-foreground font-mono">{currentProduct.code} • Current: {currentProduct.totalStock} {currentProduct.unit}</p>
+                                    <h4 className="font-black text-sm uppercase">{currentProduct.name}</h4>
+                                    <p className="text-[10px] text-zinc-400 font-mono font-bold">{currentProduct.code} &bull; Stok: {currentProduct.totalStock} {currentProduct.unit}</p>
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label className="font-bold">Restock Quantity</Label>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Jumlah Restock</label>
                                     <div className="relative">
                                         <Input
                                             type="number"
-                                            className="font-mono font-bold pl-8 border-2 border-black"
+                                            className="font-mono font-bold pl-8 border-2 border-black h-10"
                                             value={prForm.quantity}
                                             onChange={(e) => setPrForm(prev => ({ ...prev, quantity: e.target.value }))}
                                         />
-                                        <span className="absolute left-3 top-2.5 text-xs text-muted-foreground font-bold">#</span>
+                                        <span className="absolute left-3 top-2.5 text-xs text-zinc-400 font-bold">#</span>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label className="font-bold">Target Warehouse</Label>
+                                <div>
+                                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Gudang Tujuan</label>
                                     <Select value={prForm.warehouseId} onValueChange={(val) => setPrForm(prev => ({ ...prev, warehouseId: val }))}>
-                                        <SelectTrigger className="border-2 border-black font-bold">
-                                            <SelectValue placeholder="Select..." />
+                                        <SelectTrigger className="border-2 border-black font-bold h-10">
+                                            <SelectValue placeholder="Pilih..." />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {warehouses.map(w => (
@@ -428,51 +442,57 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="font-bold">Notes / Reason</Label>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Catatan / Alasan</label>
                                 <Textarea
-                                    className="border-2 border-black font-medium resize-none"
-                                    placeholder="e.g. Urgent customer order..."
+                                    className="border-2 border-black font-medium resize-none min-h-[60px]"
+                                    placeholder="Contoh: Pesanan pelanggan mendesak..."
                                     value={prForm.notes}
                                     onChange={(e) => setPrForm(prev => ({ ...prev, notes: e.target.value }))}
                                 />
                             </div>
 
                             {/* Auto Calculation */}
-                            <div className="bg-blue-50 border-2 border-blue-200 p-4 rounded-xl space-y-2">
-                                <div className="flex items-center gap-2 text-blue-800 font-black text-xs uppercase tracking-wider">
-                                    <Calculator className="h-4 w-4" /> Estimated Cost
+                            <div className="bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-300 p-4 space-y-2">
+                                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-400 font-black text-[10px] uppercase tracking-widest">
+                                    <Calculator className="h-4 w-4" /> Estimasi Biaya
                                 </div>
                                 <div className="flex justify-between items-center text-sm font-medium">
-                                    <span>Subtotal ({currentProduct.costPrice || 0} × {prForm.quantity || 0})</span>
-                                    <span>Rp {estimatedCost.toLocaleString()}</span>
+                                    <span>Subtotal ({currentProduct.costPrice || 0} x {prForm.quantity || 0})</span>
+                                    <span className="font-mono font-bold">Rp {estimatedCost.toLocaleString()}</span>
                                 </div>
-                                <div className="flex justify-between items-center text-sm font-medium text-muted-foreground">
-                                    <span>Tax (11%)</span>
-                                    <span>Rp {tax.toLocaleString()}</span>
+                                <div className="flex justify-between items-center text-sm font-medium text-zinc-400">
+                                    <span>PPN (11%)</span>
+                                    <span className="font-mono font-bold">Rp {tax.toLocaleString()}</span>
                                 </div>
-                                <div className="border-t border-blue-200 pt-2 flex justify-between items-center font-black text-lg">
-                                    <span>Total Estimate</span>
-                                    <span>Rp {totalWithTax.toLocaleString()}</span>
+                                <div className="border-t border-blue-200 dark:border-blue-700 pt-2 flex justify-between items-center font-black text-lg">
+                                    <span>Total Estimasi</span>
+                                    <span className="font-mono">Rp {totalWithTax.toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    <DialogFooter className="gap-2">
-                        <Button variant="outline" onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}>Cancel</Button>
+                    <div className="flex items-center justify-end gap-3 px-6 py-4 border-t-2 border-black bg-zinc-50 dark:bg-zinc-800">
+                        <Button
+                            variant="outline"
+                            onClick={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+                            className="border-2 border-black font-black uppercase text-xs tracking-wider px-6 h-9"
+                        >
+                            Batal
+                        </Button>
                         <Button
                             onClick={confirmMove}
                             className={cn(
-                                "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-black tracking-wide",
-                                confirmDialog.toStatus === 'CRITICAL' ? "bg-red-600 hover:bg-red-700 text-white" : ""
+                                "border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all uppercase font-black text-xs tracking-wider px-6 h-9",
+                                confirmDialog.toStatus === 'CRITICAL' ? "bg-red-600 hover:bg-red-700 text-white border-red-700" : "bg-black text-white"
                             )}
                         >
                             {confirmDialog.toStatus === 'CRITICAL' ? (
-                                <><Truck className="mr-2 h-4 w-4" /> Create Request</>
-                            ) : "Remove Alert"}
+                                <><Truck className="mr-2 h-4 w-4" /> Buat Permintaan</>
+                            ) : "Hapus Alert"}
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 

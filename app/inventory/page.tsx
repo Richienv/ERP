@@ -14,6 +14,7 @@ import {
 } from "@/components/inventory/inventory-skeletons"
 import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider"
 import { getWarehouses } from "@/app/actions/inventory"
+import { InventoryDashboardView } from "@/components/inventory/inventory-dashboard-view"
 
 export default async function InventoryPage() {
   const warehouses = await getWarehouses()
@@ -21,74 +22,78 @@ export default async function InventoryPage() {
 
   return (
     <InventoryPerformanceProvider currentPath="/inventory">
-      <div className="min-h-[calc(100vh-theme(spacing.16))] w-full bg-background p-4 md:p-8 font-sans transition-colors duration-300">
-        <div className="max-w-7xl mx-auto space-y-8 pb-20">
-
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <InventoryDashboardView
+        /* Row 1: Header */
+        headerSlot={
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-4xl font-black text-foreground tracking-tighter uppercase mb-2 flex items-center gap-3">
-                Manajemen Logistik
+              <h1 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase flex items-center gap-2">
+                📦 Logistik Command Center
               </h1>
-              <p className="text-muted-foreground font-bold text-lg">Command Center operasional gudang & pemantauan real-time.</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-0.5">Real-time warehouse &amp; inventory monitoring</p>
             </div>
-
             <div className="flex gap-2">
               <MaterialInputForm />
             </div>
           </div>
+        }
 
-          {/* 1. Global KPIs (Action Command) */}
-          <section>
-            <Suspense fallback={<KPISkeleton />}>
-              <GlobalKPIs />
-            </Suspense>
-            <Suspense fallback={<MaterialTableSkeleton />}>
-              <MaterialTableWrapper />
-            </Suspense>
-          </section>
+        /* Row 2: KPI PulseBar */
+        pulseBarSlot={
+          <Suspense fallback={<KPISkeleton />}>
+            <GlobalKPIs />
+          </Suspense>
+        }
 
-          {/* 2. Procurement Insights (Data Driven) */}
-          <section>
-            <Suspense fallback={<ProcurementInsightsSkeleton />}>
-              <ProcurementInsights />
-            </Suspense>
-          </section>
+        /* Row 3: Main Content — Material Table (left) + Warehouses (right) */
+        mainLeftSlot={
+          <Suspense fallback={<MaterialTableSkeleton />}>
+            <MaterialTableWrapper />
+          </Suspense>
+        }
 
-          {/* 3. Per-Warehouse Activity (Cards) */}
-          <section>
-            <h2 className="text-xl font-black mb-6 text-foreground uppercase tracking-tight">Status Operasional Gudang (Real-time)</h2>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {liveWarehouses.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-sm text-zinc-500">
-                  Belum ada data gudang aktif.
-                </div>
-              ) : (
-                liveWarehouses.map((warehouse) => {
-                  const dockStatus = warehouse.utilization >= 90 ? "CONGESTED" : warehouse.utilization >= 60 ? "BUSY" : "IDLE"
-                  return (
-                    <WarehouseCard
-                      key={warehouse.id}
-                      id={warehouse.id}
-                      name={`${warehouse.code} - ${warehouse.name}`}
-                      manager={warehouse.manager || "Unassigned"}
-                      staffActive={warehouse.staff || 0}
-                      dockStatus={dockStatus}
-                      inventoryValue={warehouse.totalValue || 0}
-                      depreciationValue={Math.round((warehouse.totalValue || 0) * 0.03)}
-                      activePOs={warehouse.activePOs || 0}
-                      activeTasks={warehouse.pendingTasks || 0}
-                    />
-                  )
-                })
-              )}
+        mainRightSlot={
+          <div className="flex flex-col gap-2 h-full overflow-y-auto p-3">
+            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 px-1">
+              Gudang Aktif
             </div>
-          </section>
+            {liveWarehouses.length === 0 ? (
+              <div className="border-2 border-dashed border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 text-xs text-zinc-500 font-bold text-center">
+                Belum ada gudang aktif.
+              </div>
+            ) : (
+              liveWarehouses.map((warehouse) => {
+                const dockStatus = warehouse.utilization >= 90 ? "CONGESTED" : warehouse.utilization >= 60 ? "BUSY" : "IDLE"
+                return (
+                  <WarehouseCard
+                    key={warehouse.id}
+                    id={warehouse.id}
+                    name={`${warehouse.code} - ${warehouse.name}`}
+                    manager={warehouse.manager || "Unassigned"}
+                    staffActive={warehouse.staff || 0}
+                    dockStatus={dockStatus}
+                    inventoryValue={warehouse.totalValue || 0}
+                    depreciationValue={Math.round((warehouse.totalValue || 0) * 0.03)}
+                    activePOs={warehouse.activePOs || 0}
+                    activeTasks={warehouse.pendingTasks || 0}
+                  />
+                )
+              })
+            )}
+          </div>
+        }
 
-          {/* 4. Quick Actions (Moved to Bottom) */}
+        /* Row 4: Bottom — Quick Actions + Procurement */
+        bottomLeftSlot={
           <InventoryQuickActions />
-        </div>
-      </div>
+        }
+
+        bottomRightSlot={
+          <Suspense fallback={<ProcurementInsightsSkeleton />}>
+            <ProcurementInsights />
+          </Suspense>
+        }
+      />
     </InventoryPerformanceProvider>
   )
 }
