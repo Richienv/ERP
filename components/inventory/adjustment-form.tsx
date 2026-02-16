@@ -15,6 +15,8 @@ import { createManualMovement } from "@/app/actions/inventory"
 import { toast } from "sonner"
 import { Loader2, ArrowRightLeft, Plus, Minus, Box, CheckCircle2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { useTransition } from "react"
 
 interface AdjustmentFormProps {
     products: { id: string, name: string, code: string, unit: string }[]
@@ -24,6 +26,8 @@ interface AdjustmentFormProps {
 export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     const [loading, setLoading] = useState(false)
     const router = useRouter()
+
+    const [isPending, startTransition] = useTransition()
 
     // Form States
     const [type, setType] = useState<'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER'>('ADJUSTMENT_IN')
@@ -75,7 +79,10 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 setReason("")
                 setNotes("")
                 setSearchQuery("")
-                router.refresh()
+
+                startTransition(() => {
+                    router.refresh()
+                })
             } else {
                 toast.error("Gagal menyimpan", { description: ("error" in result && result.error) ? String(result.error) : "Kesalahan tidak diketahui" })
             }
@@ -101,6 +108,15 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
 
     return (
         <div className="space-y-4">
+            {/* Loading Dialog */}
+            <Dialog open={loading || isPending} onOpenChange={() => { }}>
+                <DialogContent className="max-w-[300px] border-2 border-black p-8 text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] [&>button]:hidden">
+                    <Loader2 className="h-10 w-10 animate-spin mx-auto text-black mb-4" />
+                    <h3 className="font-black uppercase text-lg">Memproses...</h3>
+                    <p className="text-xs text-zinc-500 font-medium">Mohon tunggu sebentar</p>
+                </DialogContent>
+            </Dialog>
+
             {/* Type Section */}
             <div>
                 <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
@@ -268,9 +284,9 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
             <Button
                 onClick={handleSubmit}
                 className="w-full bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider h-10 mt-2 rounded-none"
-                disabled={loading}
+                disabled={loading || isPending}
             >
-                {loading ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Box className="mr-2 h-4 w-4" />}
+                {loading || isPending ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Box className="mr-2 h-4 w-4" />}
                 Simpan Penyesuaian
             </Button>
         </div>
