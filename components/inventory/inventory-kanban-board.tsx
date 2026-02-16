@@ -92,7 +92,7 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: K
 
     return (
         <div
-            className="flex-1 min-w-[320px] max-w-[400px] flex flex-col h-full border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
+            className="flex-1 min-w-[320px] max-w-[400px] flex flex-col border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
             onDragOver={handleDragOver}
             onDrop={handleDrop}
         >
@@ -113,7 +113,7 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: K
             </div>
 
             {/* Column Content */}
-            <ScrollArea className="flex-1 p-3">
+            <div className="p-3">
                 <div className="space-y-3 pb-4">
                     {products.map(product => (
                         <div
@@ -178,7 +178,7 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: K
                         </div>
                     )}
                 </div>
-            </ScrollArea>
+            </div>
         </div>
     )
 }
@@ -348,7 +348,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
     }
 
     return (
-        <div className="h-[calc(100vh-220px)] flex gap-6 overflow-x-auto pb-4">
+        <div className="flex gap-6 overflow-x-auto pb-4">
             <KanbanColumn
                 title="New Arrivals"
                 status="NEW"

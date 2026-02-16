@@ -56,6 +56,7 @@ export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'selling
   sellingPrice: number
   manualBurnRate: number
   currentStock: number
+  status?: string // Added server status field
 }
 
 // Mock data - same as before but typed properly
@@ -229,7 +230,30 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     header: "Status",
     cell: ({ row }) => {
       const product = row.original
-      const stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
+
+      // Use server status if available, otherwise calculate
+      let stockStatus: any = 'normal'
+
+      if (product.status) {
+        // Map server status (HEALTHY, LOW_STOCK, CRITICAL, NEW) to badge status (normal, low, critical, out)
+        switch (product.status) {
+          case 'CRITICAL':
+            // If stock is 0, show 'out', otherwise 'critical'
+            // But if it's manual alert, it's critical even if stock > 0
+            stockStatus = product.currentStock === 0 ? 'out' : 'critical'
+            break
+          case 'LOW_STOCK':
+            stockStatus = 'low'
+            break
+          case 'HEALTHY':
+          case 'NEW':
+          default:
+            stockStatus = 'normal'
+        }
+      } else {
+        // Fallback to client calculation
+        stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
+      }
 
       return (
         <div className="text-center">
@@ -241,36 +265,36 @@ export const columns: ColumnDef<ProductWithStock>[] = [
 ]
 
 function createActionsColumn(onQuickView: (id: string) => void): ColumnDef<ProductWithStock> {
-    return {
-        id: "actions",
-        header: "Aksi",
-        cell: ({ row }) => {
-            const product = row.original
-            return (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Aksi</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onQuickView(product.id)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            Lihat Detail & Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-red-600" onClick={() => onQuickView(product.id)}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Hapus
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            )
-        },
-    }
+  return {
+    id: "actions",
+    header: "Aksi",
+    cell: ({ row }) => {
+      const product = row.original
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Buka menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Aksi</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onQuickView(product.id)}>
+              <Eye className="mr-2 h-4 w-4" />
+              Lihat Detail & Edit
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="text-red-600" onClick={() => onQuickView(product.id)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Hapus
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )
+    },
+  }
 }
 
 interface ProductDataTableProps {
