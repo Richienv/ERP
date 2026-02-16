@@ -386,16 +386,17 @@ export default async function SalesDashboardPage() {
                   ) : (
                     <div className="space-y-2">
                       {recentQuotations.map((quote) => (
-                        <div
+                        <Link
                           key={quote.id}
-                          className="flex items-center justify-between py-1.5 border-b border-black/5 last:border-0"
+                          href={`/sales/quotations/${quote.id}`}
+                          className="flex items-center justify-between py-1.5 border-b border-black/5 last:border-0 hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors px-1 -mx-1"
                         >
                           <div className="min-w-0">
                             <p className="text-xs font-bold truncate">{quote.number}</p>
                             <p className="text-[10px] text-zinc-400 truncate">{quote.customer.name}</p>
                           </div>
                           <span className={`
-                            text-[10px] font-black uppercase px-1.5 py-0.5 flex-shrink-0 border bg-white border-black
+                            text-[9px] font-black uppercase px-1.5 py-0.5 flex-shrink-0 border bg-white border-black
                             ${quote.status === "ACCEPTED" ? "text-emerald-700 bg-emerald-50" :
                               quote.status === "SENT" ? "text-blue-700 bg-blue-50" :
                                 quote.status === "REJECTED" ? "text-red-700 bg-red-50" :
@@ -404,7 +405,7 @@ export default async function SalesDashboardPage() {
                           `}>
                             {quote.status}
                           </span>
-                        </div>
+                        </Link>
                       ))}
                     </div>
                   )}
@@ -455,12 +456,11 @@ export default async function SalesDashboardPage() {
                   <p className="text-[10px] text-zinc-400 truncate">{inv.customer?.name || "-"}</p>
                   <div className="flex items-center justify-between mt-1.5">
                     <span className="text-xs font-black">{formatIDR(toNumber(inv.totalAmount))}</span>
-                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border border-black ${
-                      inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" :
-                      inv.status === "ISSUED" ? "bg-blue-100 text-blue-700" :
-                      inv.status === "OVERDUE" ? "bg-red-100 text-red-700" :
-                      "bg-zinc-100 text-zinc-700"
-                    }`}>{inv.status}</span>
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border border-black ${inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" :
+                        inv.status === "ISSUED" ? "bg-blue-100 text-blue-700" :
+                          inv.status === "OVERDUE" ? "bg-red-100 text-red-700" :
+                            "bg-zinc-100 text-zinc-700"
+                      }`}>{inv.status}</span>
                   </div>
                 </Link>
               ))}

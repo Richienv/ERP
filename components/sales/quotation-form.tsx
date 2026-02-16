@@ -64,9 +64,10 @@ const formatCurrency = (amount: number) => {
 
 interface QuotationFormProps {
   initialCustomerId?: string
+  initialData?: any
 }
 
-export function QuotationForm({ initialCustomerId }: QuotationFormProps) {
+export function QuotationForm({ initialCustomerId, initialData }: QuotationFormProps) {
   const router = useRouter()
 
   const [customers, setCustomers] = useState<CustomerOption[]>([])
@@ -76,26 +77,38 @@ export function QuotationForm({ initialCustomerId }: QuotationFormProps) {
   const [submitting, setSubmitting] = useState(false)
 
   const [form, setForm] = useState({
-    customerId: "",
-    customerRef: "",
-    quotationDate: new Date().toISOString().slice(0, 10),
-    validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-    salesPersonId: "",
-    paymentTerm: "NET_30",
-    deliveryTerm: "",
-    notes: "",
+    customerId: initialData?.customerId || "",
+    customerRef: initialData?.customerRef || "",
+    quotationDate: initialData?.quotationDate ? new Date(initialData.quotationDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    validUntil: initialData?.validUntil ? new Date(initialData.validUntil).toISOString().slice(0, 10) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    salesPersonId: initialData?.salesPersonId || "",
+    paymentTerm: initialData?.paymentTerm || "NET_30",
+    deliveryTerm: initialData?.deliveryTerm || "",
+    notes: initialData?.notes || "",
   })
 
-  const [lines, setLines] = useState<QuotationLine[]>([
-    {
-      productId: "",
-      description: "",
-      quantity: 1,
-      unitPrice: 0,
-      discount: 0,
-      taxRate: 11,
-    },
-  ])
+  const [lines, setLines] = useState<QuotationLine[]>(() => {
+    if (initialData?.items && initialData.items.length > 0) {
+      return initialData.items.map((item: any) => ({
+        productId: item.productId,
+        description: item.description || "",
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        discount: Number(item.discount || 0),
+        taxRate: Number(item.taxRate || 11),
+      }))
+    }
+    return [
+      {
+        productId: "",
+        description: "",
+        quantity: 1,
+        unitPrice: 0,
+        discount: 0,
+        taxRate: 11,
+      },
+    ]
+  })
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -112,7 +125,7 @@ export function QuotationForm({ initialCustomerId }: QuotationFormProps) {
         setProducts(payload.data.products || [])
         setSalesPersons(payload.data.users || [])
 
-        if (initialCustomerId) {
+        if (initialCustomerId && !initialData) {
           const hasCustomer = (payload.data.customers || []).some((customer) => customer.id === initialCustomerId)
           if (hasCustomer) {
             setForm((current) => ({
@@ -129,7 +142,7 @@ export function QuotationForm({ initialCustomerId }: QuotationFormProps) {
     }
 
     loadOptions()
-  }, [initialCustomerId])
+  }, [initialCustomerId, initialData])
 
   const updateForm = (key: keyof typeof form, value: string) => {
     setForm((current) => ({
@@ -142,9 +155,9 @@ export function QuotationForm({ initialCustomerId }: QuotationFormProps) {
     setLines((current) => current.map((line, lineIndex) => (
       lineIndex === index
         ? {
-            ...line,
-            ...patch,
-          }
+          ...line,
+          ...patch,
+        }
         : line
     )))
   }
@@ -221,8 +234,12 @@ export function QuotationForm({ initialCustomerId }: QuotationFormProps) {
 
     setSubmitting(true)
     try {
-      const response = await fetch("/api/sales/quotations", {
-        method: "POST",
+      const isEdit = !!initialData?.id
+      const url = isEdit ? `/api/sales/quotations/${initialData.id}` : "/api/sales/quotations"
+      const method = isEdit ? "PATCH" : "POST"
+
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -241,17 +258,18 @@ export function QuotationForm({ initialCustomerId }: QuotationFormProps) {
 
       const payload = await response.json()
       if (!payload.success) {
-        throw new Error(payload.error || "Gagal membuat quotation")
+        throw new Error(payload.error || `Gagal ${isEdit ? 'memperbarui' : 'membuat'} quotation`)
       }
 
-      toast.success(`Quotation ${payload.data?.number || "baru"} berhasil dibuat`)
+      toast.success(isEdit ? `Quotation ${initialData.number} berhasil diperbarui` : `Quotation ${payload.data?.number || "baru"} berhasil dibuat`)
       router.push("/sales/quotations")
     } catch (error: any) {
-      toast.error(error?.message || "Gagal membuat quotation")
+      toast.error(error?.message || `Gagal ${initialData?.id ? 'memperbarui' : 'membuat'} quotation`)
     } finally {
       setSubmitting(false)
     }
   }
+
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">

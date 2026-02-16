@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
     MoreHorizontal,
@@ -12,6 +13,7 @@ import {
     CheckCircle2,
     XCircle,
     FileText,
+    Loader2,
 } from "lucide-react"
 import {
     DropdownMenu,
@@ -88,9 +90,30 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
     const KanbanCard = ({ qt }: { qt: Quotation }) => {
         const probability = getWinProbability(qt)
         const isStalled = qt.status === 'SENT' && probability < 30
+        const [converting, setConverting] = useState(false)
+
+        const handleConvert = async () => {
+            setConverting(true)
+            try {
+                const result = await convertQuotationToSalesOrder(qt.id)
+                if (result.success) {
+                    toast.success(`Sales Order ${result.orderNumber} berhasil dibuat`)
+                    router.push(`/sales/orders/${result.orderId}`)
+                } else {
+                    toast.error(result.error || 'Gagal konversi ke Sales Order')
+                }
+            } catch {
+                toast.error('Gagal konversi ke Sales Order')
+            } finally {
+                setConverting(false)
+            }
+        }
 
         return (
-            <div className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-3 mb-3 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer relative overflow-hidden group">
+            <div
+                onClick={() => router.push(`/sales/quotations/${qt.id}`)}
+                className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-3 mb-3 hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer relative overflow-hidden group"
+            >
 
                 {/* Stall Alert */}
                 {isStalled && (
@@ -103,46 +126,38 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                 <div className="flex justify-between items-start mb-2">
                     <span className="font-mono text-[10px] text-zinc-400 font-black tracking-wider">{qt.number}</span>
                     <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity rounded-none">
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rounded-none">
-                            <DropdownMenuItem className="text-xs font-bold" onClick={() => router.push(`/sales/quotations/${qt.id}`)}>
+                            <DropdownMenuItem className="text-xs font-bold" onSelect={() => router.push(`/sales/quotations/${qt.id}`)}>
                                 <Eye className="mr-2 h-3.5 w-3.5" /> Lihat Detail
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-xs font-bold" onClick={() => router.push(`/sales/quotations/${qt.id}/edit`)}>
+                            <DropdownMenuItem className="text-xs font-bold" onSelect={() => router.push(`/sales/quotations/${qt.id}/edit`)}>
                                 <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Penawaran
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Ubah Status</DropdownMenuLabel>
                             {qt.status === 'DRAFT' && (
-                                <DropdownMenuItem onClick={() => handleStatusChange(qt.id, 'SENT')} className="text-xs font-bold">
+                                <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'SENT')} className="text-xs font-bold">
                                     <Send className="mr-2 h-3.5 w-3.5" /> Tandai Terkirim
                                 </DropdownMenuItem>
                             )}
                             {qt.status === 'SENT' && (
                                 <>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(qt.id, 'ACCEPTED')} className="text-xs font-bold text-emerald-600">
+                                    <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'ACCEPTED')} className="text-xs font-bold text-emerald-600">
                                         <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Tandai Diterima
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusChange(qt.id, 'REJECTED')} className="text-xs font-bold text-red-600">
+                                    <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'REJECTED')} className="text-xs font-bold text-red-600">
                                         <XCircle className="mr-2 h-3.5 w-3.5" /> Tandai Ditolak
                                     </DropdownMenuItem>
                                 </>
                             )}
                             {qt.status === 'ACCEPTED' && (
-                                <DropdownMenuItem className="text-xs font-bold text-violet-600" onClick={async () => {
-                                    const result = await convertQuotationToSalesOrder(qt.id)
-                                    if (result.success) {
-                                        toast.success(`Sales Order ${result.orderNumber} berhasil dibuat`)
-                                        router.push(`/sales/orders/${result.orderId}`)
-                                    } else {
-                                        toast.error(result.error || 'Gagal konversi ke Sales Order')
-                                    }
-                                }}>
-                                    <ArrowRight className="mr-2 h-3.5 w-3.5" /> Konversi ke PO
+                                <DropdownMenuItem className="text-xs font-bold text-violet-600" onSelect={() => handleConvert()}>
+                                    <ArrowRight className="mr-2 h-3.5 w-3.5" /> Konversi ke Sales Order
                                 </DropdownMenuItem>
                             )}
                         </DropdownMenuContent>
@@ -164,6 +179,21 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                         </span>
                     )}
                 </div>
+
+                {/* ACCEPTED: Prominent Convert Button */}
+                {qt.status === 'ACCEPTED' && (
+                    <Button
+                        onClick={handleConvert}
+                        disabled={converting}
+                        className="mt-3 w-full h-8 bg-violet-600 text-white hover:bg-violet-700 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] transition-all text-[10px] font-black uppercase tracking-wider rounded-none"
+                    >
+                        {converting ? (
+                            <><Loader2 className="mr-1.5 h-3 w-3 animate-spin" /> Mengkonversi...</>
+                        ) : (
+                            <><ArrowRight className="mr-1.5 h-3 w-3" /> Konversi ke Sales Order</>
+                        )}
+                    </Button>
+                )}
 
                 {/* Footer: Date + Salesperson */}
                 <div className="mt-2 flex items-center justify-between">
