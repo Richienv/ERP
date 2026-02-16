@@ -13,29 +13,31 @@ export async function getCurrentUserRole() {
         return null
     }
 
-    // 1. Try to get role from Supabase App Metadata (fastest, if using Custom Claims)
-    // const role = user.app_metadata?.role
-
-    // 2. Fallback: Get from public.users table (authoritative)
     try {
-        // We can use Prisma or Supabase. Using Prisma for consistency with legacy code if available,
-        // but Supabase client is already authenticated.
-        // Let's use Supabase to avoid Prisma "Tenant not found" issues if RLS is tricky,
-        // although Prisma 'User' table might be accessible.
-        
-        // Using Prisma:
-        const dbUser = await prisma.user.findUnique({
-            where: { email: user.email! },
-            select: { role: true, id: true }
-        })
+        // 1. Try metadata first (fastest)
+        const metadata = (user.user_metadata as any) || {}
+        let role = metadata?.role || ""
 
-        if (!dbUser) return null
+        // 2. Fallback: Get from public.users table (authoritative)
+        let dbId = user.id
+        if (user.email) {
+            const dbUser = await prisma.user.findUnique({
+                where: { email: user.email },
+                select: { role: true, id: true }
+            })
+            if (dbUser) {
+                dbId = dbUser.id
+                if (!role) role = dbUser.role
+            }
+        }
+
+        if (!role) role = "ROLE_STAFF"
 
         return {
-            id: user.id, // Auth ID
-            dbId: dbUser.id, // Public ID (should match)
+            id: user.id,
+            dbId,
             email: user.email,
-            role: dbUser.role
+            role
         }
     } catch (e) {
         console.error("Error fetching user role:", e)
@@ -58,12 +60,10 @@ export async function requireRole(allowedRoles: string[]) {
         throw new Error("Unauthorized: Not authenticated")
     }
 
-    // Normalize roles for comparison (case-insensitive if needed)
-    const hasRole = allowedRoles.some(role => 
-        user.role.toUpperCase() === role.toUpperCase() || 
-        // Allow ADMIN to do everything usually
-        user.role.toUpperCase() === 'ADMIN'
-    )
+    const normalizedUserRole = user.role.toUpperCase()
+    const hasRole = allowedRoles.some(role =>
+        normalizedUserRole === role.toUpperCase()
+    ) || normalizedUserRole === 'ADMIN' || normalizedUserRole === 'ROLE_ADMIN'
 
     if (!hasRole) {
         throw new Error(`Forbidden: Requires one of [${allowedRoles.join(', ')}]`)

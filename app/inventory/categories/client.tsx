@@ -11,6 +11,7 @@ import {
     ArrowRight,
     Package,
     ChevronRight,
+    X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +25,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { createCategory, getNextCategoryCode } from "@/app/actions/inventory"
+import { createCategory, getNextCategoryCode, getProductsByCategory, getProductsNotInCategory, assignProductToCategory, removeProductFromCategory } from "@/app/actions/inventory"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { NB } from "@/lib/dialog-styles"
@@ -98,7 +99,7 @@ export function CategoriesClient({ categories, allCategories }: CategoriesClient
     }, 0)
 
     return (
-        <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto space-y-4">
+        <div className="p-4 md:p-8 pt-6 w-full space-y-4">
 
             {/* ═══════════════════════════════════════════ */}
             {/* COMMAND HEADER                              */}
@@ -480,9 +481,71 @@ function CreateCategoryDialog({ open, onOpenChange, parents, onSuccess }: Create
 /* ═══════════════════════════════════════════════════════════════ */
 
 function CategoryDetailDialog({ category, open, onOpenChange }: { category: any, open: boolean, onOpenChange: (v: boolean) => void }) {
+    const [products, setProducts] = useState<Array<{ id: string; code: string; name: string; unit: string; sellingPrice: number; totalStock: number }>>([])
+    const [loadingProducts, setLoadingProducts] = useState(false)
+    const [showAddRow, setShowAddRow] = useState(false)
+    const [availableProducts, setAvailableProducts] = useState<Array<{ id: string; code: string; name: string }>>([])
+    const [selectedProductId, setSelectedProductId] = useState("")
+    const [adding, setAdding] = useState(false)
+    const router = useRouter()
+
+    const loadProducts = async () => {
+        setLoadingProducts(true)
+        const data = await getProductsByCategory(category.id)
+        setProducts(data)
+        setLoadingProducts(false)
+    }
+
+    useEffect(() => {
+        if (open && category?.id) {
+            loadProducts()
+            setShowAddRow(false)
+            setSelectedProductId("")
+        }
+    }, [open, category?.id])
+
+    const handleOpenAddRow = async () => {
+        setShowAddRow(true)
+        const available = await getProductsNotInCategory(category.id)
+        setAvailableProducts(available)
+    }
+
+    const handleAddProduct = async () => {
+        if (!selectedProductId) {
+            toast.error("Pilih produk terlebih dahulu")
+            return
+        }
+        setAdding(true)
+        const result = await assignProductToCategory(selectedProductId, category.id)
+        if (result.success) {
+            toast.success("Produk berhasil ditambahkan ke kategori")
+            setSelectedProductId("")
+            setShowAddRow(false)
+            await loadProducts()
+            router.refresh()
+        } else {
+            toast.error(result.error || "Gagal menambahkan produk")
+        }
+        setAdding(false)
+    }
+
+    const handleRemoveProduct = async (productId: string) => {
+        const result = await removeProductFromCategory(productId)
+        if (result.success) {
+            toast.success("Produk dihapus dari kategori")
+            await loadProducts()
+            router.refresh()
+        } else {
+            toast.error(result.error || "Gagal menghapus produk")
+        }
+    }
+
+    const formatCurrency = (v: number) =>
+        new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(v)
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className={NB.content}>
+            <DialogContent className={NB.contentWide}>
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}>
                         <FolderOpen className="h-5 w-5" /> {category.name}
@@ -504,7 +567,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="border-2 border-black p-3">
                                         <p className="text-[10px] font-black uppercase text-zinc-500">Total Produk</p>
-                                        <p className="text-2xl font-black">{category.itemCount || 0}</p>
+                                        <p className="text-2xl font-black">{products.length}</p>
                                     </div>
                                     <div className="border-2 border-black p-3">
                                         <p className="text-[10px] font-black uppercase text-zinc-500">Sub-Kategori</p>
@@ -514,13 +577,128 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                             </div>
                         </div>
 
-                        {/* Tree Nodes */}
+                        {/* Produk dalam Kategori */}
                         <div className={NB.section}>
-                            <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
-                                <Layers className="h-4 w-4" />
-                                <span className={NB.sectionTitle}>Tree Nodes</span>
+                            <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50 flex items-center justify-between`}>
+                                <div className="flex items-center gap-2">
+                                    <Package className="h-4 w-4" />
+                                    <span className={NB.sectionTitle}>Produk dalam Kategori</span>
+                                </div>
+                                {!showAddRow && (
+                                    <button
+                                        type="button"
+                                        onClick={handleOpenAddRow}
+                                        className="flex items-center gap-1 bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[9px] tracking-wider px-2.5 h-6"
+                                    >
+                                        <Plus className="h-3 w-3" /> Tambah
+                                    </button>
+                                )}
                             </div>
-                            {category.subs && category.subs.length > 0 ? (
+
+                            {/* Add product row */}
+                            {showAddRow && (
+                                <div className="px-4 py-3 bg-violet-50 border-b-2 border-black">
+                                    <div className="flex gap-2 items-center">
+                                        <select
+                                            className="flex-1 border-2 border-black bg-white text-xs font-bold h-9 px-2 rounded-none"
+                                            value={selectedProductId}
+                                            onChange={(e) => setSelectedProductId(e.target.value)}
+                                        >
+                                            <option value="">Pilih produk...</option>
+                                            {availableProducts.map((p) => (
+                                                <option key={p.id} value={p.id}>
+                                                    [{p.code}] {p.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <button
+                                            type="button"
+                                            onClick={handleAddProduct}
+                                            disabled={adding}
+                                            className="flex items-center gap-1 bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[9px] tracking-wider px-3 h-9 shrink-0"
+                                        >
+                                            {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                                            {adding ? "..." : "Tambah"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setShowAddRow(false); setSelectedProductId("") }}
+                                            className="border-2 border-black bg-white hover:bg-zinc-100 h-9 w-9 flex items-center justify-center shrink-0"
+                                        >
+                                            <X className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {loadingProducts ? (
+                                <div className="p-4 text-center">
+                                    <Loader2 className="h-5 w-5 animate-spin mx-auto text-zinc-400 mb-1" />
+                                    <p className="text-[10px] font-bold text-zinc-400 uppercase">Memuat produk...</p>
+                                </div>
+                            ) : products.length > 0 ? (
+                                <div className={NB.tableWrap}>
+                                    <table className="w-full">
+                                        <thead className={NB.tableHead}>
+                                            <tr>
+                                                <th className={`${NB.tableHeadCell} text-left`}>Kode</th>
+                                                <th className={`${NB.tableHeadCell} text-left`}>Nama Produk</th>
+                                                <th className={`${NB.tableHeadCell} text-center`}>Unit</th>
+                                                <th className={`${NB.tableHeadCell} text-right`}>Harga Jual</th>
+                                                <th className={`${NB.tableHeadCell} text-right`}>Stok</th>
+                                                <th className={`${NB.tableHeadCell} w-10`}></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {products.map((p) => (
+                                                <tr key={p.id} className={NB.tableRow}>
+                                                    <td className={NB.tableCell}>
+                                                        <span className="text-[11px] font-mono font-bold">{p.code}</span>
+                                                    </td>
+                                                    <td className={NB.tableCell}>
+                                                        <span className="text-xs font-bold">{p.name}</span>
+                                                    </td>
+                                                    <td className={`${NB.tableCell} text-center`}>
+                                                        <span className="text-[10px] font-black uppercase text-zinc-500">{p.unit}</span>
+                                                    </td>
+                                                    <td className={`${NB.tableCell} text-right`}>
+                                                        <span className="text-xs font-mono font-bold">{formatCurrency(p.sellingPrice)}</span>
+                                                    </td>
+                                                    <td className={`${NB.tableCell} text-right`}>
+                                                        <span className={`text-xs font-black ${p.totalStock <= 0 ? 'text-red-500' : ''}`}>
+                                                            {p.totalStock.toLocaleString()}
+                                                        </span>
+                                                    </td>
+                                                    <td className={NB.tableCell}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveProduct(p.id)}
+                                                            className="text-red-400 hover:text-red-600"
+                                                            title="Hapus dari kategori"
+                                                        >
+                                                            <X className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="p-4 text-center">
+                                    <Package className="h-6 w-6 mx-auto text-zinc-200 mb-1" />
+                                    <p className="text-[10px] font-bold text-zinc-400 uppercase">Belum ada produk di kategori ini</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sub-Kategori */}
+                        {category.subs && category.subs.length > 0 && (
+                            <div className={NB.section}>
+                                <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                    <Layers className="h-4 w-4" />
+                                    <span className={NB.sectionTitle}>Sub-Kategori</span>
+                                </div>
                                 <div className="divide-y-2 divide-black">
                                     {category.subs.map((sub: any) => (
                                         <div key={sub.id || sub.name} className="px-4 py-3">
@@ -530,32 +708,14 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                                                     <p className="text-[11px] text-zinc-500 font-mono">{sub.code || "NO-CODE"}</p>
                                                 </div>
                                                 <Badge variant="outline" className="border-2 border-black text-[10px] font-black">
-                                                    {sub.count || 0} items
+                                                    {sub.count || 0} produk
                                                 </Badge>
                                             </div>
-                                            {sub.description && (
-                                                <p className="mt-2 text-xs text-zinc-600">{sub.description}</p>
-                                            )}
-                                            {sub.children && sub.children.length > 0 && (
-                                                <div className="mt-2 border-2 border-dashed border-zinc-300 bg-zinc-50 p-2">
-                                                    <p className="text-[10px] font-black uppercase text-zinc-500 mb-1">Sub Nodes</p>
-                                                    <div className="space-y-1">
-                                                        {sub.children.map((child: any) => (
-                                                            <div key={child.id || child.name} className="flex items-center justify-between text-xs">
-                                                                <span className="font-bold">{child.name}</span>
-                                                                <span className="text-zinc-500 font-mono">{child._count?.products || 0}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
                                     ))}
                                 </div>
-                            ) : (
-                                <div className="p-4 text-sm text-zinc-400 font-bold">Tidak ada sub-node.</div>
-                            )}
-                        </div>
+                            </div>
+                        )}
 
                         <div className={NB.footer}>
                             <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>

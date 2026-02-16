@@ -530,7 +530,7 @@ export default function PosRevampPage() {
             </div>
 
             {/* === RIGHT: REGISTER / CART === */}
-            <div className="w-[420px] flex flex-col h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden z-10 shrink-0">
+            <div className="w-full md:w-[360px] lg:w-[420px] flex flex-col h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden z-10 shrink-0">
 
                 {/* Customer Section Header */}
                 <div className="bg-zinc-50 dark:bg-zinc-800 p-3 border-b-2 border-black flex justify-between items-center">

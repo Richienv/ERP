@@ -1,8 +1,9 @@
 import { Suspense } from "react"
 import { getCuttingDashboard } from "@/lib/actions/cutting"
 import { cutPlanStatusLabels, cutPlanStatusColors } from "@/lib/cut-plan-state-machine"
-import { Scissors, FileText, Layers, Clock, CheckCircle2 } from "lucide-react"
+import { Scissors, FileText, Layers, Clock, CheckCircle2, Plus } from "lucide-react"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
 
 export const dynamic = "force-dynamic"
 
@@ -115,11 +116,18 @@ async function DashboardContent() {
 export default function CuttingPage() {
     return (
         <div className="p-6 space-y-6">
-            <div className="flex items-center gap-2">
-                <Scissors className="h-5 w-5" />
-                <h1 className="text-sm font-black uppercase tracking-widest">
-                    Pemotongan Kain
-                </h1>
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Scissors className="h-5 w-5" />
+                    <h1 className="text-sm font-black uppercase tracking-widest">
+                        Pemotongan Kain
+                    </h1>
+                </div>
+                <Button asChild className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider">
+                    <Link href="/cutting/plans/new">
+                        <Plus className="mr-2 h-4 w-4" /> Buat Cut Plan
+                    </Link>
+                </Button>
             </div>
 
             <Suspense

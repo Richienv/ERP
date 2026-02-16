@@ -392,6 +392,76 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
 }
 
 // ==========================================
+// QUOTATION → SALES ORDER CONVERSION
+// ==========================================
+
+export async function convertQuotationToSalesOrder(quotationId: string): Promise<{
+    success: boolean
+    orderId?: string
+    orderNumber?: string
+    error?: string
+}> {
+    try {
+        const result = await withPrismaAuth(async (prisma) => {
+            const quotation = await prisma.quotation.findUniqueOrThrow({
+                where: { id: quotationId },
+                include: { items: true, customer: true },
+            })
+
+            if (quotation.status !== 'ACCEPTED') {
+                throw new Error('Hanya quotation dengan status ACCEPTED yang bisa dikonversi')
+            }
+
+            // Generate SO number
+            const count = await prisma.salesOrder.count()
+            const year = new Date().getFullYear()
+            const number = `SO-${year}-${String(count + 1).padStart(4, '0')}`
+
+            const salesOrder = await prisma.salesOrder.create({
+                data: {
+                    number,
+                    customerId: quotation.customerId,
+                    orderDate: new Date(),
+                    subtotal: quotation.subtotal,
+                    taxAmount: quotation.taxAmount,
+                    discountAmount: quotation.discountAmount,
+                    total: quotation.total,
+                    status: 'CONFIRMED',
+                    quotationId: quotation.id,
+                    items: {
+                        create: quotation.items.map((item) => ({
+                            productId: item.productId,
+                            description: item.description,
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice,
+                            discount: item.discount,
+                            taxRate: item.taxRate,
+                            lineTotal: item.lineTotal,
+                        })),
+                    },
+                },
+            })
+
+            // Update quotation status to CONVERTED
+            await prisma.quotation.update({
+                where: { id: quotationId },
+                data: { status: 'CONVERTED' },
+            })
+
+            return { orderId: salesOrder.id, orderNumber: salesOrder.number }
+        })
+
+        revalidatePath('/sales/quotations')
+        revalidatePath('/sales/orders')
+        return { success: true, orderId: result.orderId, orderNumber: result.orderNumber }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal mengkonversi quotation ke Sales Order'
+        console.error("[convertQuotationToSalesOrder] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+// ==========================================
 // PRICELIST ACTIONS
 // ==========================================
 

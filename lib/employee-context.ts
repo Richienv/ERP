@@ -31,9 +31,10 @@ export const sameDepartment = (left?: string | null, right?: string | null) =>
 export async function resolveEmployeeContext(
     prisma: PrismaClient,
     user: AuthzUser,
-    options?: { requireActive?: boolean }
+    options?: { requireActive?: boolean; autoProvision?: boolean }
 ): Promise<EmployeeContext | null> {
     const requireActive = options?.requireActive ?? true
+    const autoProvision = options?.autoProvision ?? true
 
     const select = {
         id: true,
@@ -55,10 +56,44 @@ export async function resolveEmployeeContext(
     }
 
     if (!employee && user.email) {
-        employee = await (prisma as any).employee.findUnique({
-            where: { email: user.email },
+        employee = await (prisma as any).employee.findFirst({
+            where: { email: { equals: user.email, mode: 'insensitive' } },
             select,
         })
+    }
+
+    // Auto-provision: create Employee record from auth user if not found
+    if (!employee && autoProvision && user.email) {
+        try {
+            const emailPrefix = user.email.split('@')[0] || 'user'
+            const nameParts = emailPrefix.replace(/[._-]/g, ' ').split(' ')
+            const firstName = nameParts[0] ? nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1) : 'User'
+            const lastName = nameParts.slice(1).map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') || null
+
+            // Generate unique employee code
+            const count = await (prisma as any).employee.count()
+            const employeeCode = `EMP-${String(count + 1).padStart(4, '0')}`
+
+            employee = await (prisma as any).employee.create({
+                data: {
+                    employeeId: employeeCode,
+                    firstName,
+                    lastName,
+                    email: user.email,
+                    department: 'Umum',
+                    position: 'Staff',
+                    joinDate: new Date(),
+                    status: 'ACTIVE',
+                    baseSalary: 0,
+                },
+                select,
+            })
+
+            console.log(`[resolveEmployeeContext] Auto-provisioned employee ${employeeCode} for ${user.email}`)
+        } catch (e) {
+            console.error("[resolveEmployeeContext] Auto-provision failed:", e)
+            return null
+        }
     }
 
     if (!employee) return null

@@ -27,7 +27,7 @@ export function InventoryDashboardView({
 }: InventoryDashboardViewProps) {
     return (
         <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
-            <div className="flex flex-col gap-2 p-3 md:p-4 h-[calc(100svh-theme(spacing.16))]">
+            <div className="flex flex-col gap-2 p-3 md:p-4 min-h-[calc(100svh-theme(spacing.16))]">
 
                 {/* Row 1: Header — standalone */}
                 <motion.div

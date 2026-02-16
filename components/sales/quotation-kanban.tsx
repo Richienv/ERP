@@ -21,8 +21,9 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { updateQuotationStatus } from "@/lib/actions/sales"
+import { updateQuotationStatus, convertQuotationToSalesOrder } from "@/lib/actions/sales"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 const formatCompact = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
@@ -44,6 +45,7 @@ interface QuotationKanbanProps {
 }
 
 export function QuotationKanban({ quotations }: QuotationKanbanProps) {
+    const router = useRouter()
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -107,10 +109,10 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rounded-none">
-                            <DropdownMenuItem className="text-xs font-bold">
+                            <DropdownMenuItem className="text-xs font-bold" onClick={() => router.push(`/sales/quotations/${qt.id}`)}>
                                 <Eye className="mr-2 h-3.5 w-3.5" /> Lihat Detail
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-xs font-bold">
+                            <DropdownMenuItem className="text-xs font-bold" onClick={() => router.push(`/sales/quotations/${qt.id}/edit`)}>
                                 <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Penawaran
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
@@ -131,7 +133,15 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                                 </>
                             )}
                             {qt.status === 'ACCEPTED' && (
-                                <DropdownMenuItem className="text-xs font-bold text-violet-600">
+                                <DropdownMenuItem className="text-xs font-bold text-violet-600" onClick={async () => {
+                                    const result = await convertQuotationToSalesOrder(qt.id)
+                                    if (result.success) {
+                                        toast.success(`Sales Order ${result.orderNumber} berhasil dibuat`)
+                                        router.push(`/sales/orders/${result.orderId}`)
+                                    } else {
+                                        toast.error(result.error || 'Gagal konversi ke Sales Order')
+                                    }
+                                }}>
                                     <ArrowRight className="mr-2 h-3.5 w-3.5" /> Konversi ke PO
                                 </DropdownMenuItem>
                             )}

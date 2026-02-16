@@ -32,7 +32,7 @@ export function DashboardView({
 }: DashboardViewProps) {
     return (
         <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
-            <div className="flex flex-col gap-4 p-4 md:p-5 lg:p-6 h-[calc(100svh-theme(spacing.16))]">
+            <div className="flex flex-col gap-4 p-4 md:p-5 lg:p-6 min-h-[calc(100svh-theme(spacing.16))]">
 
                 {/* Row 1: Company Pulse Bar */}
                 <motion.div
@@ -76,7 +76,7 @@ export function DashboardView({
                 {textileStripSlot && (
                     <motion.div
                         className="flex-none grid grid-cols-1 md:grid-cols-12 gap-4"
-                        style={{ height: "220px" }}
+                        style={{ minHeight: "220px" }}
                         {...fadeIn}
                         transition={{ duration: 0.3, delay: 0.12 }}
                     >
@@ -87,7 +87,7 @@ export function DashboardView({
                 {/* Row 4: Bottom Row — Activity Feed + Trending */}
                 <motion.div
                     className="flex-none grid grid-cols-1 md:grid-cols-12 gap-4"
-                    style={{ height: "180px" }}
+                    style={{ minHeight: "180px" }}
                     {...fadeIn}
                     transition={{ duration: 0.3, delay: 0.15 }}
                 >

@@ -52,7 +52,14 @@ export function SubcontractOrderForm({
     const [selectedQty, setSelectedQty] = useState("")
 
     const addItem = () => {
-        if (!selectedProduct || !selectedQty) return
+        if (!selectedProduct) {
+            toast.error("Pilih produk terlebih dahulu")
+            return
+        }
+        if (!selectedQty || parseInt(selectedQty) <= 0) {
+            toast.error("Masukkan qty yang valid")
+            return
+        }
         const product = products.find((p) => p.id === selectedProduct)
         if (!product) return
 

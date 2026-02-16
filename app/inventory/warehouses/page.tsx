@@ -203,13 +203,13 @@ async function WarehouseGrid() {
                 {/* Capacity Meter */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-[10px] font-black uppercase tracking-wide text-zinc-500">
-                    <span>Kapasitas ({wh.capacity > 85 ? 'Penuh' : 'Tersedia'})</span>
-                    <span className={wh.capacity > 85 ? "text-red-600" : "text-emerald-600"}>{wh.capacity}%</span>
+                    <span>Kapasitas ({wh.utilization > 85 ? 'Penuh' : 'Tersedia'})</span>
+                    <span className={wh.utilization > 85 ? "text-red-600" : "text-emerald-600"}>{wh.utilization}%</span>
                   </div>
                   <Progress
-                    value={wh.capacity}
+                    value={wh.utilization}
                     className="h-2.5 border-2 border-black/10 bg-zinc-100 rounded-none"
-                    indicatorClassName={wh.capacity > 85 ? "bg-red-500" : "bg-black"}
+                    indicatorClassName={wh.utilization > 85 ? "bg-red-500" : "bg-black"}
                   />
                   <p className="text-[10px] font-mono text-zinc-400 text-right font-bold mt-0.5">
                     {wh.items.toLocaleString()} / {wh.capacity.toLocaleString()} Units

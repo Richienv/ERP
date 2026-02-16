@@ -222,7 +222,7 @@ export default function StockAlertsPage() {
             </div>
           </div>
         </CardHeader>
-        <div className="p-0">
+        <div className="p-0 max-h-[60vh] overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent border-b border-black bg-zinc-100/50">

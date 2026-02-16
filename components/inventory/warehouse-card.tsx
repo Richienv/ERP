@@ -14,13 +14,14 @@ interface WarehouseCardProps {
     activeTasks: number;
     depreciationValue: number;
     dockStatus: 'BUSY' | 'IDLE' | 'CONGESTED';
+    capacityPercent?: number;
 }
 
 export function WarehouseCard({
     id,
     name, manager, staffActive,
     inventoryValue, activePOs, activeTasks, depreciationValue,
-    dockStatus
+    dockStatus, capacityPercent
 }: WarehouseCardProps) {
     const formatCurrency = (val: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', notation: 'compact', maximumFractionDigits: 1 }).format(val);
 
@@ -74,6 +75,22 @@ export function WarehouseCard({
                         <div className="text-[8px] font-bold uppercase text-zinc-400">Task</div>
                     </div>
                 </div>
+
+                {/* Capacity */}
+                {capacityPercent !== undefined && (
+                    <div>
+                        <div className="flex items-center justify-between mb-1">
+                            <span className="text-[8px] font-bold uppercase text-zinc-400">Kapasitas</span>
+                            <span className="text-[9px] font-black text-zinc-700">{capacityPercent}%</span>
+                        </div>
+                        <div className="w-full bg-zinc-200 h-1.5">
+                            <div
+                                className={`h-1.5 transition-all ${capacityPercent >= 90 ? 'bg-red-500' : capacityPercent >= 60 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                                style={{ width: `${Math.min(capacityPercent, 100)}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
 
                 {/* Action */}
                 <Link href={`/inventory/warehouses/${id}`} className="block">

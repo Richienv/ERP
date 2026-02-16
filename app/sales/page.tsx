@@ -41,6 +41,7 @@ export default async function SalesDashboardPage() {
     openAR,
     recentOrders,
     recentQuotations,
+    recentInvoices,
   ] = await Promise.all([
     prisma.invoice.aggregate({
       _sum: { totalAmount: true },
@@ -82,6 +83,12 @@ export default async function SalesDashboardPage() {
     prisma.quotation.findMany({
       take: 4,
       orderBy: { quotationDate: "desc" },
+      include: { customer: { select: { name: true } } },
+    }),
+    prisma.invoice.findMany({
+      take: 5,
+      where: { type: "INV_OUT" },
+      orderBy: { issueDate: "desc" },
       include: { customer: { select: { name: true } } },
     }),
   ])
@@ -199,7 +206,7 @@ export default async function SalesDashboardPage() {
 
   return (
     <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
-      <div className="flex flex-col gap-4 p-4 md:p-5 lg:p-6 h-[calc(100svh-theme(spacing.16))]">
+      <div className="flex flex-col gap-4 p-4 md:p-5 lg:p-6 min-h-[calc(100svh-theme(spacing.16))]">
 
         {/* Row 1: Header */}
         <div className="flex-none flex items-center justify-between">
@@ -298,7 +305,7 @@ export default async function SalesDashboardPage() {
                     {recentOrders.map((order) => (
                       <Link
                         key={order.id}
-                        href={`/sales/orders`}
+                        href={`/sales/orders/${order.id}`}
                         className="flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
                       >
                         <div className="flex items-center gap-3 min-w-0">
@@ -429,7 +436,39 @@ export default async function SalesDashboardPage() {
           </div>
         </div>
 
-        {/* Row 4: Quick Links Strip */}
+        {/* Row 4: Recent Invoices */}
+        {recentInvoices.length > 0 && (
+          <div className="flex-none bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b-2 border-black">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-zinc-500" />
+                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Invoice Terbaru</h3>
+              </div>
+              <Link href="/finance/invoices" className="text-[10px] font-black uppercase tracking-wider text-zinc-400 hover:text-black transition-colors flex items-center gap-1">
+                Semua <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x-2 divide-black">
+              {recentInvoices.map((inv) => (
+                <Link key={inv.id} href="/finance/invoices" className="px-4 py-3 hover:bg-zinc-50 transition-colors">
+                  <p className="text-xs font-black uppercase">{inv.number}</p>
+                  <p className="text-[10px] text-zinc-400 truncate">{inv.customer?.name || "-"}</p>
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-xs font-black">{formatIDR(toNumber(inv.totalAmount))}</span>
+                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border border-black ${
+                      inv.status === "PAID" ? "bg-emerald-100 text-emerald-700" :
+                      inv.status === "ISSUED" ? "bg-blue-100 text-blue-700" :
+                      inv.status === "OVERDUE" ? "bg-red-100 text-red-700" :
+                      "bg-zinc-100 text-zinc-700"
+                    }`}>{inv.status}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Row 5: Quick Links Strip */}
         <div className="flex-none grid grid-cols-1 md:grid-cols-3 gap-4">
           {quickLinks.map((group) => (
             <div

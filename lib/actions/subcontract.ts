@@ -466,6 +466,25 @@ export async function upsertSubcontractorRate(data: {
     }
 }
 
+export async function deleteSubcontractorRate(
+    rateId: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            await prisma.subcontractorRate.delete({
+                where: { id: rateId },
+            })
+        })
+
+        revalidatePath('/subcontract')
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal menghapus tarif'
+        console.error("[deleteSubcontractorRate] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
 // ==============================================================================
 // Subcontract Orders (read-only — use singleton prisma)
 // ==============================================================================

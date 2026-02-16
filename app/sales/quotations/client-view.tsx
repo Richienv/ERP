@@ -72,8 +72,8 @@ export default function QuotationsClient({ initialQuotations }: QuotationsClient
                     </div>
                     <div className="flex items-center gap-2">
                         <Button variant="outline" asChild className="border-2 border-black font-black uppercase text-[10px] tracking-wider h-9 px-4 rounded-none">
-                            <Link href="/sales/quotations/templates">
-                                <FileText className="mr-2 h-3.5 w-3.5" /> Template
+                            <Link href="/sales/pricelists">
+                                <FileText className="mr-2 h-3.5 w-3.5" /> Daftar Harga
                             </Link>
                         </Button>
                         <Button asChild className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9 rounded-none">

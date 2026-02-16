@@ -79,7 +79,7 @@ export const getPendingPOsForReceiving = unstable_cache(
             () => withRetry(() => prismaAny.purchaseOrder.findMany({
                 where: {
                     status: {
-                        in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] as any
+                        in: ['APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] as any
                     }
                 },
                 orderBy: { orderDate: 'desc' },

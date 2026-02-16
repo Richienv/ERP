@@ -84,7 +84,7 @@ export default async function StockMovementsPage() {
 
   return (
     <InventoryPerformanceProvider currentPath="/inventory/movements">
-      <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto space-y-4">
+      <div className="p-4 md:p-8 pt-6 w-full space-y-4">
 
         {/* ═══════════════════════════════════════════ */}
         {/* COMMAND HEADER                              */}

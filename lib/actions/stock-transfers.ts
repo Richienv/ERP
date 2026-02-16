@@ -5,6 +5,8 @@ import { PrismaClient, TransferStatus } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertTransferTransition } from "@/lib/stock-transfer-machine"
 import { revalidatePath } from "next/cache"
+import { getAuthzUser } from "@/lib/authz"
+import { resolveEmployeeContext } from "@/lib/employee-context"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -125,30 +127,26 @@ export async function createStockTransfer(data: {
             return { success: false, error: 'Qty harus > 0' }
         }
 
-        const transferId = await withPrismaAuth(async (prisma: PrismaClient) => {
-            // Get current user's employee ID
-            const supabase = await (await import('@/lib/supabase/server')).createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) throw new Error('Tidak terautentikasi')
+        // Resolve employee BEFORE transaction to avoid connection pool contention
+        const authUser = await getAuthzUser()
+        const empCtx = await resolveEmployeeContext(prisma, authUser, { requireActive: false })
+        if (!empCtx) {
+            return { success: false, error: 'Profil karyawan tidak ditemukan. Pastikan email akun terhubung ke data karyawan.' }
+        }
 
-            const employee = await prisma.employee.findFirst({
-                where: { email: user.email },
-                select: { id: true },
-            })
-            if (!employee) throw new Error('Profil karyawan tidak ditemukan')
-
+        const transferId = await withPrismaAuth(async (tx: PrismaClient) => {
             // Generate transfer number
-            const count = await prisma.stockTransfer.count()
+            const count = await tx.stockTransfer.count()
             const number = `TRF-${String(count + 1).padStart(5, '0')}`
 
-            const transfer = await prisma.stockTransfer.create({
+            const transfer = await tx.stockTransfer.create({
                 data: {
                     number,
                     fromWarehouseId: data.fromWarehouseId,
                     toWarehouseId: data.toWarehouseId,
                     productId: data.productId,
                     quantity: data.quantity,
-                    requestedBy: employee.id,
+                    requestedBy: empCtx.id,
                     notes: data.notes ?? null,
                     status: 'DRAFT',
                 },
@@ -171,8 +169,16 @@ export async function transitionStockTransfer(
     newStatus: TransferStatus
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        await withPrismaAuth(async (prisma: PrismaClient) => {
-            const transfer = await prisma.stockTransfer.findUniqueOrThrow({
+        // Resolve employee BEFORE transaction for approval
+        let approverId: string | null = null
+        if (newStatus === 'APPROVED') {
+            const authUser = await getAuthzUser()
+            const empCtx = await resolveEmployeeContext(prisma, authUser, { requireActive: false })
+            if (empCtx) approverId = empCtx.id
+        }
+
+        await withPrismaAuth(async (tx: PrismaClient) => {
+            const transfer = await tx.stockTransfer.findUniqueOrThrow({
                 where: { id: transferId },
                 select: { status: true },
             })
@@ -180,21 +186,9 @@ export async function transitionStockTransfer(
             assertTransferTransition(transfer.status, newStatus)
 
             const updates: Record<string, unknown> = { status: newStatus }
+            if (approverId) updates.approvedBy = approverId
 
-            // Set approver on approval
-            if (newStatus === 'APPROVED') {
-                const supabase = await (await import('@/lib/supabase/server')).createClient()
-                const { data: { user } } = await supabase.auth.getUser()
-                if (user) {
-                    const employee = await prisma.employee.findFirst({
-                        where: { email: user.email },
-                        select: { id: true },
-                    })
-                    if (employee) updates.approvedBy = employee.id
-                }
-            }
-
-            await prisma.stockTransfer.update({
+            await tx.stockTransfer.update({
                 where: { id: transferId },
                 data: updates,
             })

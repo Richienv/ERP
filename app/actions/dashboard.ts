@@ -1,8 +1,16 @@
 'use server'
 
-import { withPrismaAuth, safeQuery, withRetry } from "@/lib/db"
+import { withPrismaAuth, safeQuery, withRetry, prisma as basePrisma } from "@/lib/db"
 import { getFinancialMetrics } from "@/lib/actions/finance"
 import { PrismaClient } from "@prisma/client"
+import { createClient } from "@/lib/supabase/server"
+
+async function requireAuth() {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error("Unauthorized")
+    return user
+}
 import {
     FALLBACK_DASHBOARD_SNAPSHOT,
     FALLBACK_PROCUREMENT_METRICS,
@@ -765,56 +773,56 @@ async function fetchTotalInventoryValue(prisma: PrismaClient) {
 
 export async function getDashboardData() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const [
-                financialChart,
-                deadStock,
-                procurement,
-                hr,
-                leaves,
-                audit,
-                prodMetrics,
-                prodStatus,
-                materialStatus,
-                qualityStatus,
-                workforceStatus,
-                activityFeed,
-                executiveAlerts,
-                inventoryValue
-            ] = await Promise.all([
-                fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
-                fetchDeadStockValue(prisma).catch(() => 0),
-                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> })),
-                fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
-                fetchPendingLeaves(prisma).catch(() => 0),
-                fetchAuditStatus(prisma).catch(() => null),
-                fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
-                fetchProductionStatus(prisma).catch(() => []),
-                fetchMaterialStatus(prisma).catch(() => []),
-                fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
-                fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
-                fetchActivityFeed(prisma).catch(() => []),
-                fetchExecutiveAlerts(prisma).catch(() => []),
-                fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0 }))
-            ])
+        await requireAuth()
+        const prisma = basePrisma
+        const [
+            financialChart,
+            deadStock,
+            procurement,
+            hr,
+            leaves,
+            audit,
+            prodMetrics,
+            prodStatus,
+            materialStatus,
+            qualityStatus,
+            workforceStatus,
+            activityFeed,
+            executiveAlerts,
+            inventoryValue
+        ] = await Promise.all([
+            fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
+            fetchDeadStockValue(prisma).catch(() => 0),
+            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> })),
+            fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
+            fetchPendingLeaves(prisma).catch(() => 0),
+            fetchAuditStatus(prisma).catch(() => null),
+            fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
+            fetchProductionStatus(prisma).catch(() => []),
+            fetchMaterialStatus(prisma).catch(() => []),
+            fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
+            fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
+            fetchActivityFeed(prisma).catch(() => []),
+            fetchExecutiveAlerts(prisma).catch(() => []),
+            fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0 }))
+        ])
 
-            return {
-                financialChart,
-                deadStock,
-                procurement,
-                hr,
-                leaves,
-                audit,
-                prodMetrics,
-                prodStatus,
-                materialStatus,
-                qualityStatus,
-                workforceStatus,
-                activityFeed,
-                executiveAlerts,
-                inventoryValue
-            }
-        }, { maxWait: 15000, timeout: 20000 })
+        return {
+            financialChart,
+            deadStock,
+            procurement,
+            hr,
+            leaves,
+            audit,
+            prodMetrics,
+            prodStatus,
+            materialStatus,
+            qualityStatus,
+            workforceStatus,
+            activityFeed,
+            executiveAlerts,
+            inventoryValue
+        }
     } catch (error) {
         console.error("Failed to fetch dashboard aggregated data:", error)
         // Ensure graceful fallback structure matches expected return
@@ -867,10 +875,11 @@ async function fetchRecentInvoices(prisma: PrismaClient) {
 /** Group A: Financial snapshot — uses Supabase directly (no Prisma tx needed) */
 export async function getDashboardFinancials() {
     try {
+        await requireAuth()
         // Fetch financial metrics from Supabase + recent invoices from Prisma in parallel
         const [metrics, recentInvoices] = await Promise.all([
             getFinancialMetrics(),
-            withPrismaAuth(async (prisma) => fetchRecentInvoices(prisma), { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+            fetchRecentInvoices(basePrisma)
                 .catch(() => [] as Array<{ id: string; number: string; customer: string; date: string; total: number; status: string }>),
         ])
 
@@ -900,21 +909,21 @@ export async function getDashboardFinancials() {
     }
 }
 
-/** Group B: Operations data (Prisma) — procurement, production, inventory, workforce */
+/** Group B: Operations data (Prisma) — read-only, no transaction needed */
 export async function getDashboardOperations() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue] = await Promise.all([
-                fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> })),
-                fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
-                fetchMaterialStatus(prisma).catch(() => []),
-                fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
-                fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
-                fetchPendingLeaves(prisma).catch(() => 0),
-                fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
-            ])
-            return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue }
-        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+        await requireAuth()
+        const prisma = basePrisma
+        const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue] = await Promise.all([
+            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> })),
+            fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
+            fetchMaterialStatus(prisma).catch(() => []),
+            fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
+            fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
+            fetchPendingLeaves(prisma).catch(() => 0),
+            fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
+        ])
+        return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue }
     } catch (error) {
         console.error("getDashboardOperations failed:", error)
         return {
@@ -929,28 +938,27 @@ export async function getDashboardOperations() {
     }
 }
 
-/** Group C: Activity feed + alerts (Prisma, lightweight) */
+/** Group C: Activity feed + alerts (Prisma, read-only) */
 export async function getDashboardActivity() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const [activityFeed, executiveAlerts] = await Promise.all([
-                fetchActivityFeed(prisma).catch(() => []),
-                fetchExecutiveAlerts(prisma).catch(() => []),
-            ])
-            return { activityFeed, executiveAlerts }
-        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+        await requireAuth()
+        const prisma = basePrisma
+        const [activityFeed, executiveAlerts] = await Promise.all([
+            fetchActivityFeed(prisma).catch(() => []),
+            fetchExecutiveAlerts(prisma).catch(() => []),
+        ])
+        return { activityFeed, executiveAlerts }
     } catch (error) {
         console.error("getDashboardActivity failed:", error)
         return { activityFeed: [], executiveAlerts: [] }
     }
 }
 
-/** Group D: Chart data (Prisma, separate so it doesn't block operations) */
+/** Group D: Chart data (Prisma, read-only) */
 export async function getDashboardCharts() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            return fetchFinancialChartData(prisma)
-        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+        await requireAuth()
+        return await fetchFinancialChartData(basePrisma)
     } catch (error) {
         console.error("getDashboardCharts failed:", error)
         return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }
@@ -967,7 +975,8 @@ export async function getLatestSnapshot() {
 
 export async function getFinancialChartData() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchFinancialChartData(prisma))
+        await requireAuth()
+        return await fetchFinancialChartData(basePrisma)
     } catch (error) {
         console.error("Failed to fetch financial chart data:", error)
         return { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }
@@ -976,7 +985,8 @@ export async function getFinancialChartData() {
 
 export async function getDeadStockValue() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchDeadStockValue(prisma))
+        await requireAuth()
+        return await fetchDeadStockValue(basePrisma)
     } catch (error) {
         console.error("Failed to compute dead stock value:", error)
         return 0
@@ -985,7 +995,8 @@ export async function getDeadStockValue() {
 
 export async function getProcurementMetrics() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchProcurementMetrics(prisma))
+        await requireAuth()
+        return await fetchProcurementMetrics(basePrisma)
     } catch (error) {
         console.error("Failed to fetch procurement metrics:", error)
         return { activeCount: 0, delays: [] }
@@ -994,7 +1005,8 @@ export async function getProcurementMetrics() {
 
 export async function getHRMetrics() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchHRMetrics(prisma))
+        await requireAuth()
+        return await fetchHRMetrics(basePrisma)
     } catch (error) {
         console.error("Failed to fetch HR metrics:", error)
         return { totalSalary: 0, lateEmployees: [] }
@@ -1003,7 +1015,8 @@ export async function getHRMetrics() {
 
 export async function getPendingLeaves() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchPendingLeaves(prisma))
+        await requireAuth()
+        return await fetchPendingLeaves(basePrisma)
     } catch (error) {
         console.error("Failed to fetch pending leaves:", error)
         return 0
@@ -1012,7 +1025,8 @@ export async function getPendingLeaves() {
 
 export async function getAuditStatus() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchAuditStatus(prisma))
+        await requireAuth()
+        return await fetchAuditStatus(basePrisma)
     } catch (error) {
         console.error("Failed to fetch audit status:", error)
         return null
@@ -1021,7 +1035,8 @@ export async function getAuditStatus() {
 
 export async function getProductionMetrics() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchProductionMetrics(prisma))
+        await requireAuth()
+        return await fetchProductionMetrics(basePrisma)
     } catch (error) {
         console.error("Failed to fetch production metrics:", error)
         return { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 }
@@ -1030,7 +1045,8 @@ export async function getProductionMetrics() {
 
 export async function getProductionStatus() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchProductionStatus(prisma))
+        await requireAuth()
+        return await fetchProductionStatus(basePrisma)
     } catch (error) {
         console.error("Failed to fetch production status:", error)
         return []
@@ -1039,7 +1055,8 @@ export async function getProductionStatus() {
 
 export async function getMaterialStatus() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchMaterialStatus(prisma))
+        await requireAuth()
+        return await fetchMaterialStatus(basePrisma)
     } catch (error) {
         console.error("Failed to fetch material status:", error)
         return []
@@ -1048,7 +1065,8 @@ export async function getMaterialStatus() {
 
 export async function getQualityStatus() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchQualityStatus(prisma))
+        await requireAuth()
+        return await fetchQualityStatus(basePrisma)
     } catch (error) {
         console.error("Failed to fetch quality status:", error)
         return { passRate: 0, recentInspections: [] }
@@ -1057,7 +1075,8 @@ export async function getQualityStatus() {
 
 export async function getWorkforceStatus() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchWorkforceStatus(prisma))
+        await requireAuth()
+        return await fetchWorkforceStatus(basePrisma)
     } catch (error) {
         console.error("Failed to fetch workforce status:", error)
         return { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] }
@@ -1066,7 +1085,8 @@ export async function getWorkforceStatus() {
 
 export async function getActivityFeed() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchActivityFeed(prisma))
+        await requireAuth()
+        return await fetchActivityFeed(basePrisma)
     } catch (error) {
         console.error("Failed to fetch activity feed:", error)
         return []
@@ -1075,7 +1095,8 @@ export async function getActivityFeed() {
 
 export async function getExecutiveAlerts() {
     try {
-        return await withPrismaAuth(async (prisma) => fetchExecutiveAlerts(prisma))
+        await requireAuth()
+        return await fetchExecutiveAlerts(basePrisma)
     } catch (error) {
         console.error("Failed to fetch executive alerts:", error)
         return []

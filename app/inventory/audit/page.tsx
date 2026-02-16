@@ -147,7 +147,7 @@ export default function InventoryAuditPage() {
                 setFormProduct("");
                 setFormQty("");
                 setFormAuditor("");
-                loadData();
+                await loadData();
             } else {
                 toast.error("Gagal menyimpan audit");
             }
@@ -259,11 +259,10 @@ export default function InventoryAuditPage() {
                                 <button
                                     key={s}
                                     onClick={() => setStatusFilter(s)}
-                                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
-                                        statusFilter === s
+                                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${statusFilter === s
                                             ? "bg-black text-white"
                                             : "bg-white text-zinc-400 hover:bg-zinc-50"
-                                    }`}
+                                        }`}
                                 >
                                     {s === "ALL" ? "Semua" : s === "MATCH" ? "Sesuai" : "Selisih"}
                                 </button>
@@ -321,9 +320,8 @@ export default function InventoryAuditPage() {
                                     return (
                                         <tr
                                             key={log.id}
-                                            className={`border-b border-zinc-100 last:border-b-0 hover:bg-emerald-50/50 transition-colors ${
-                                                idx % 2 === 1 ? "bg-zinc-50/50" : ""
-                                            }`}
+                                            className={`border-b border-zinc-100 last:border-b-0 hover:bg-emerald-50/50 transition-colors ${idx % 2 === 1 ? "bg-zinc-50/50" : ""
+                                                }`}
                                         >
                                             {/* Time */}
                                             <td className="px-4 py-3">

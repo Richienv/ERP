@@ -15,6 +15,7 @@ import { toast } from "sonner"
 import {
     getSubcontractorRates,
     upsertSubcontractorRate,
+    deleteSubcontractorRate,
 } from "@/lib/actions/subcontract"
 import type { SubcontractorRateData } from "@/lib/actions/subcontract"
 
@@ -110,6 +111,16 @@ export function RateManagementDialog({
         }).format(value)
     }
 
+    const handleDeleteRate = async (rateId: string) => {
+        const result = await deleteSubcontractorRate(rateId)
+        if (result.success) {
+            toast.success("Tarif berhasil dihapus")
+            loadRates()
+        } else {
+            toast.error(result.error || "Gagal menghapus tarif")
+        }
+    }
+
     const getOperationLabel = (value: string) =>
         OPERATIONS.find((o) => o.value === value)?.label || value
 
@@ -157,6 +168,7 @@ export function RateManagementDialog({
                                                     <th className={`${NB.tableHeadCell} text-left`}>
                                                         Berlaku
                                                     </th>
+                                                    <th className={`${NB.tableHeadCell} w-10`}></th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -184,6 +196,15 @@ export function RateManagementDialog({
                                                                     ? ` — ${new Date(rate.validTo).toLocaleDateString("id-ID")}`
                                                                     : " — Sekarang"}
                                                             </span>
+                                                        </td>
+                                                        <td className={NB.tableCell}>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDeleteRate(rate.id)}
+                                                                className="text-red-500 hover:text-red-700"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))}

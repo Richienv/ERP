@@ -76,6 +76,7 @@ export default async function InventoryPage() {
                     depreciationValue={Math.round((warehouse.totalValue || 0) * 0.03)}
                     activePOs={warehouse.activePOs || 0}
                     activeTasks={warehouse.pendingTasks || 0}
+                    capacityPercent={warehouse.utilization || 0}
                   />
                 )
               })
