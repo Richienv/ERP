@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -74,6 +75,7 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                 label: "Review Kredit",
                 description: "Status kredit perlu review sebelum transaksi baru.",
                 href: `/sales/customers/${customer.id}`,
+                isDialog: false,
             }
         }
 
@@ -82,6 +84,7 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                 label: "Buat Quote Cepat",
                 description: "Prospek baru, mulai dari quotation 1 langkah.",
                 href: `/sales/quotations/new?customerId=${customer.id}`,
+                isDialog: false,
             }
         }
 
@@ -89,6 +92,7 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
             label: "Buat Order Cepat",
             description: "Pelanggan aktif, lanjutkan langsung ke Sales Order.",
             href: `/sales/orders/new?customerId=${customer.id}`,
+            isDialog: false,
         }
     })()
 

@@ -80,7 +80,7 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
   const [quotations, setQuotations] = useState<QuotationOption[]>([])
 
   const [form, setForm] = useState({
-    customerId: "",
+    customerId: (!quotationId && initialCustomerId) ? initialCustomerId : "",
     quotationId: quotationId || "",
     customerRef: "",
     orderDate: new Date().toISOString().slice(0, 10),
@@ -135,12 +135,23 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
             }))
           }
         } else if (initialCustomerId) {
+          // If we have an initial customer, we ensure it's selected and update/sync details
           const selectedCustomer = incomingCustomers.find((customer) => customer.id === initialCustomerId)
+
           if (selectedCustomer) {
             setForm((current) => ({
               ...current,
               customerId: selectedCustomer.id,
               paymentTerm: selectedCustomer.paymentTerm || current.paymentTerm,
+            }))
+          } else {
+            // If strictly following internalCustomerId even if not in list (e.g. inactive?), 
+            // we keep the ID from state init. 
+            // Optionally we could warn or clear it if it MUST be in the list.
+            // For now, we trust the URL param.
+            setForm((current) => ({
+              ...current,
+              customerId: initialCustomerId
             }))
           }
         }
@@ -233,9 +244,9 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
     setItems((current) => current.map((item, itemIndex) => (
       itemIndex === index
         ? {
-            ...item,
-            ...patch,
-          }
+          ...item,
+          ...patch,
+        }
         : item
     )))
   }
