@@ -28,6 +28,76 @@ export async function getNextCategoryCode(): Promise<string> {
     return `CAT-${String(next).padStart(3, '0')}`
 }
 
+export async function getProductsNotInCategory(categoryId: string) {
+    const products = await prisma.product.findMany({
+        where: {
+            isActive: true,
+            OR: [
+                { categoryId: null },
+                { categoryId: { not: categoryId } },
+            ],
+        },
+        select: { id: true, code: true, name: true },
+        orderBy: { name: 'asc' },
+        take: 100,
+    })
+    return products
+}
+
+export async function assignProductToCategory(productId: string, categoryId: string) {
+    try {
+        await prisma.product.update({
+            where: { id: productId },
+            data: { categoryId },
+        })
+        revalidatePath('/inventory/categories')
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal menambahkan produk'
+        return { success: false, error: msg }
+    }
+}
+
+export async function removeProductFromCategory(productId: string) {
+    try {
+        await prisma.product.update({
+            where: { id: productId },
+            data: { categoryId: null },
+        })
+        revalidatePath('/inventory/categories')
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal menghapus produk dari kategori'
+        return { success: false, error: msg }
+    }
+}
+
+export async function getProductsByCategory(categoryId: string) {
+    const products = await prisma.product.findMany({
+        where: { categoryId, isActive: true },
+        select: {
+            id: true,
+            code: true,
+            name: true,
+            unit: true,
+            sellingPrice: true,
+            stockLevels: {
+                select: { quantity: true },
+            },
+        },
+        orderBy: { name: 'asc' },
+        take: 50,
+    })
+    return products.map(p => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        unit: p.unit,
+        sellingPrice: Number(p.sellingPrice),
+        totalStock: p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0),
+    }))
+}
+
 export async function createCategory(input: CreateCategoryInput) {
     try {
         const data = createCategorySchema.parse(input)
@@ -116,7 +186,7 @@ export const getWarehouses = unstable_cache(
 
             const totalItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
             const capacity = w.capacity || 50000 // Default if missing
-            const utilization = capacity > 0 ? Math.min(Math.round((totalItems / capacity) * 100), 100) : 0
+            const utilization = capacity > 0 ? Math.min(parseFloat(((totalItems / capacity) * 100).toFixed(1)), 100) : 0
 
             return {
                 id: w.id,
@@ -1027,121 +1097,113 @@ export async function createManualMovement(data: {
         if (data.type === 'TRANSFER' && !data.targetWarehouseId) throw new Error("Target warehouse required for transfer")
         if (data.type === 'TRANSFER' && data.warehouseId === data.targetWarehouseId) throw new Error("Cannot transfer to same warehouse")
 
-        return await withPrismaAuth(async (prisma) => {
-            return await prisma.$transaction(async (tx) => {
-                // Determine DB Type & Sign
-                let dbType = 'ADJUSTMENT'
-                let qtyChange = 0
+        return await withPrismaAuth(async (tx) => {
+            // Determine DB Type & Sign
+            let dbType = 'ADJUSTMENT'
+            let qtyChange = 0
 
-                if (data.type === 'ADJUSTMENT_IN') {
-                    dbType = 'ADJUSTMENT'
-                    qtyChange = data.quantity
-                } else if (data.type === 'ADJUSTMENT_OUT') {
-                    dbType = 'ADJUSTMENT'
-                    qtyChange = -data.quantity
-                } else if (data.type === 'SCRAP') {
-                    dbType = 'SCRAP'
-                    qtyChange = -data.quantity
-                } else if (data.type === 'TRANSFER') {
-                    dbType = 'TRANSFER'
-                    qtyChange = -data.quantity // Source decreases
+            if (data.type === 'ADJUSTMENT_IN') {
+                dbType = 'ADJUSTMENT'
+                qtyChange = data.quantity
+            } else if (data.type === 'ADJUSTMENT_OUT') {
+                dbType = 'ADJUSTMENT'
+                qtyChange = -data.quantity
+            } else if (data.type === 'SCRAP') {
+                dbType = 'SCRAP'
+                qtyChange = -data.quantity
+            } else if (data.type === 'TRANSFER') {
+                dbType = 'TRANSFER'
+                qtyChange = -data.quantity // Source decreases
+            }
+
+            // 0. Validate Source Stock for Outbound/Transfer
+            if (qtyChange < 0) {
+                const strictSource = await tx.stockLevel.findFirst({
+                    where: { productId: data.productId, warehouseId: data.warehouseId }
+                })
+
+                if (!strictSource || strictSource.quantity < Math.abs(qtyChange)) {
+                    throw new Error(`Insufficient stock in source warehouse. Available: ${strictSource?.quantity || 0}`)
                 }
+            }
 
-                // 0. Validate Source Stock for Outbound/Transfer
-                if (qtyChange < 0) {
-                    // Use findFirst to avoid unique constraint validaton issues with null locations for now
-                    const strictSource = await tx.stockLevel.findFirst({
-                        where: { productId: data.productId, warehouseId: data.warehouseId }
-                    })
+            // 1. Create Source Transaction
+            await tx.inventoryTransaction.create({
+                data: {
+                    productId: data.productId,
+                    warehouseId: data.warehouseId,
+                    type: dbType as any,
+                    quantity: qtyChange,
+                    notes: data.notes,
+                    performedBy: data.userId
+                }
+            })
 
-                    if (!strictSource || strictSource.quantity < Math.abs(qtyChange)) {
-                        throw new Error(`Insufficient stock in source warehouse. Available: ${strictSource?.quantity || 0}`)
+            // 2. Update Source Stock Level
+            const sourceLevel = await tx.stockLevel.findFirst({
+                where: { productId: data.productId, warehouseId: data.warehouseId }
+            })
+
+            if (sourceLevel) {
+                await tx.stockLevel.update({
+                    where: { id: sourceLevel.id },
+                    data: {
+                        quantity: { increment: qtyChange },
+                        availableQty: { increment: qtyChange }
                     }
-                }
-
-                // 1. Create Source Transaction
-                await tx.inventoryTransaction.create({
+                })
+            } else if (qtyChange > 0) {
+                await tx.stockLevel.create({
                     data: {
                         productId: data.productId,
                         warehouseId: data.warehouseId,
-                        type: dbType as any,
                         quantity: qtyChange,
-                        notes: data.notes,
+                        availableQty: qtyChange
+                    }
+                })
+            } else {
+                throw new Error("Cannot deduce from empty stock")
+            }
+
+            // 3. Handle TRANSFER (Target Side)
+            if (data.type === 'TRANSFER' && data.targetWarehouseId) {
+                await tx.inventoryTransaction.create({
+                    data: {
+                        productId: data.productId,
+                        warehouseId: data.targetWarehouseId,
+                        type: 'TRANSFER',
+                        quantity: data.quantity,
+                        notes: `Transfer from ${data.warehouseId} | ${data.notes || ''}`,
                         performedBy: data.userId
                     }
                 })
 
-                // 2. Update Source Stock Level
-                const sourceLevel = await tx.stockLevel.findFirst({
-                    where: { productId: data.productId, warehouseId: data.warehouseId }
+                const targetLevel = await tx.stockLevel.findFirst({
+                    where: { productId: data.productId, warehouseId: data.targetWarehouseId }
                 })
 
-                if (sourceLevel) {
+                if (targetLevel) {
                     await tx.stockLevel.update({
-                        where: { id: sourceLevel.id },
+                        where: { id: targetLevel.id },
                         data: {
-                            quantity: { increment: qtyChange },
-                            availableQty: { increment: qtyChange }
-                        }
-                    })
-                } else if (qtyChange > 0) {
-                    // Create if IN and not exists
-                    await tx.stockLevel.create({
-                        data: {
-                            productId: data.productId,
-                            warehouseId: data.warehouseId,
-                            quantity: qtyChange,
-                            availableQty: qtyChange
+                            quantity: { increment: data.quantity },
+                            availableQty: { increment: data.quantity }
                         }
                     })
                 } else {
-                    throw new Error("Cannot deduce from empty stock")
-                }
-
-                // 3. Handle TRANSFER (Target Side)
-                if (data.type === 'TRANSFER' && data.targetWarehouseId) {
-                    // Create Incoming Transaction at Target
-                    await tx.inventoryTransaction.create({
+                    await tx.stockLevel.create({
                         data: {
                             productId: data.productId,
                             warehouseId: data.targetWarehouseId,
-                            type: 'TRANSFER',
-                            quantity: data.quantity, // Positive at target
-                            notes: `Transfer from ${data.warehouseId} | ${data.notes || ''}`,
-                            performedBy: data.userId
+                            quantity: data.quantity,
+                            availableQty: data.quantity
                         }
                     })
-
-                    // Update Target Stock
-                    const targetLevel = await tx.stockLevel.findFirst({
-                        where: { productId: data.productId, warehouseId: data.targetWarehouseId }
-                    })
-
-                    if (targetLevel) {
-                        await tx.stockLevel.update({
-                            where: { id: targetLevel.id },
-                            data: {
-                                quantity: { increment: data.quantity },
-                                availableQty: { increment: data.quantity }
-                            }
-                        })
-                    } else {
-                        await tx.stockLevel.create({
-                            data: {
-                                productId: data.productId,
-                                warehouseId: data.targetWarehouseId,
-                                quantity: data.quantity,
-                                availableQty: data.quantity
-                            }
-                        })
-                    }
                 }
+            }
 
-                return { success: true }
-            })
-
-                // Revalidate outside transaction
-                ; (revalidateTag as any)('inventory')
+            // Revalidate
+            ; (revalidateTag as any)('inventory')
             revalidatePath('/inventory/movements')
             revalidatePath('/inventory/products')
             revalidatePath('/inventory/warehouses')
@@ -1197,6 +1259,7 @@ export async function submitSpotAudit(data: {
             const systemQty = existingStock?.quantity || 0;
             const discrepancy = actualQty - systemQty;
 
+            // 2. Update Stock (Only if discrepancy exists)
             if (discrepancy !== 0) {
                 if (existingStock) {
                     await prisma.stockLevel.update({
@@ -1213,23 +1276,23 @@ export async function submitSpotAudit(data: {
                         }
                     });
                 }
-
-                // 3. Record Transaction
-                await prisma.inventoryTransaction.create({
-                    data: {
-                        type: 'ADJUSTMENT', // Fixed Enum
-                        quantity: discrepancy, // Signed value (+ for IN, - for OUT)
-                        productId,
-                        warehouseId,
-                        referenceId: `AUDIT-${Date.now()}`,
-                        notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
-                    }
-                });
-
-                revalidateTagSafe('inventory')
-                revalidateTagSafe('warehouse-details')
-                // revalidatePath('/inventory/audit') // Optional: Explicitly refresh the calling page
             }
+
+            // 3. Record Transaction (Always record audit, even if match)
+            await prisma.inventoryTransaction.create({
+                data: {
+                    type: 'ADJUSTMENT', // Fixed Enum
+                    quantity: discrepancy, // Signed value (+ for IN, - for OUT, 0 for MATCH)
+                    productId,
+                    warehouseId,
+                    referenceId: `AUDIT-${Date.now()}`,
+                    notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
+                }
+            });
+
+            revalidateTagSafe('inventory')
+            revalidateTagSafe('warehouse-details')
+            // revalidatePath('/inventory/audit') // Optional: Explicitly refresh the calling page
 
             return { success: true };
         })
