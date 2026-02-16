@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Loader2, Factory, Package, CalendarDays, Cog } from "lucide-react";
-import { NB } from "@/lib/dialog-styles";
+import { Loader2, Factory, Package, CalendarDays, Cog, AlertTriangle } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 interface ProductOption {
   id: string;
@@ -81,7 +81,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
         }
       } catch (error) {
         console.error(error);
-        toast.error("Failed to load form options");
+        toast.error("Gagal memuat opsi form", { className: "font-bold border-2 border-black rounded-none" });
       } finally {
         setLoadingOptions(false);
       }
@@ -101,7 +101,7 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
 
   const handleSubmit = async () => {
     if (!productId || Number(plannedQty) <= 0) {
-      toast.error("Product and planned quantity are required");
+      toast.error("Produk dan jumlah rencana harus diisi", { className: "font-bold border-2 border-black rounded-none" });
       return;
     }
 
@@ -123,17 +123,17 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
 
       const payload = await response.json();
       if (!payload.success) {
-        toast.error(payload.error || "Failed to create work order");
+        toast.error(payload.error || "Gagal membuat perintah kerja", { className: "font-bold border-2 border-black rounded-none" });
         return;
       }
 
-      toast.success(`${orderType} ${payload.data?.number || "created"} successfully`);
+      toast.success(`${orderType} ${payload.data?.number || "berhasil dibuat"}`, { className: "font-bold border-2 border-black rounded-none" });
       resetForm();
       onOpenChange(false);
       if (onCreated) await onCreated();
     } catch (error) {
       console.error(error);
-      toast.error("Network error while creating work order");
+      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border-2 border-black rounded-none" });
     } finally {
       setSubmitting(false);
     }
@@ -141,60 +141,73 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={NB.content}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <Factory className="h-5 w-5" />
-            {orderType === "MO" ? "Create Production Order (MO)" : "Create Work Instruction (SPK)"}
-          </DialogTitle>
-          <p className={NB.subtitle}>
-            {orderType === "MO"
-              ? "MO fokus pada target produksi, planning date, dan alokasi kapasitas."
-              : "SPK fokus pada eksekusi detail di lantai produksi dan penugasan mesin."}
-          </p>
-        </DialogHeader>
-
-        <ScrollArea className={NB.scroll}>
-          <div className="p-5 space-y-4">
-            {/* Product Selection */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
-                <Package className="h-4 w-4" />
-                <span className={NB.sectionTitle}>Produk & Jumlah</span>
+      <DialogContent className="sm:max-w-2xl overflow-hidden p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none gap-0 bg-white">
+        {/* Header */}
+        <div className="bg-black text-white px-6 pt-6 pb-4 shrink-0 border-b-2 border-black">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white flex items-center gap-3">
+              <div className="h-10 w-10 bg-white text-black flex items-center justify-center border-2 border-white rounded-none">
+                <Factory className="h-5 w-5" />
               </div>
-              <div className={NB.sectionBody}>
-                <div>
-                  <label className={NB.label}>Finished Good Product <span className={NB.labelRequired}>*</span></label>
+              {orderType === "MO" ? "Buat Production Order (MO)" : "Buat Work Order (SPK)"}
+            </DialogTitle>
+            <p className="text-zinc-400 font-medium text-xs uppercase tracking-wide mt-2">
+              {orderType === "MO"
+                ? "MO fokus pada target produksi, planning date, dan alokasi kapasitas."
+                : "SPK fokus pada eksekusi detail di lantai produksi dan penugasan mesin."}
+            </p>
+          </DialogHeader>
+        </div>
+
+        <ScrollArea className="max-h-[70vh]">
+          <div className="p-6 space-y-6">
+
+            {/* Product Section */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <div className="bg-blue-50 border-b-2 border-black p-3 flex items-center gap-2">
+                <Package className="h-4 w-4 text-blue-900" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-900">Produk & Jumlah</span>
+              </div>
+              <div className="p-4 space-y-4 bg-white">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Finished Good Product <span className="text-red-500">*</span></Label>
                   <Select value={productId} onValueChange={setProductId} disabled={loadingOptions}>
-                    <SelectTrigger className={NB.select}>
-                      <SelectValue placeholder="Select product" />
+                    <SelectTrigger className="border-2 border-black font-bold h-10 rounded-none focus:ring-0 focus:ring-offset-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                      <SelectValue placeholder="Pilih Produk" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-60 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none">
                       {products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.code} - {product.name}
+                        <SelectItem key={product.id} value={product.id} className="font-medium cursor-pointer hover:bg-zinc-100 rounded-none">
+                          <span className="font-mono text-[10px] text-zinc-400 mr-2 font-bold">{product.code}</span>
+                          {product.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={NB.label}>Planned Qty <span className={NB.labelRequired}>*</span></label>
-                    <Input type="number" min={1} value={plannedQty} onChange={(e) => setPlannedQty(e.target.value)} className={NB.inputMono} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Planned Qty <span className="text-red-500">*</span></Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={plannedQty}
+                      onChange={(e) => setPlannedQty(e.target.value)}
+                      className="border-2 border-black font-mono font-bold h-10 rounded-none focus-visible:ring-0 focus-visible:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                    />
                   </div>
-                  <div>
-                    <label className={NB.label}>Priority</label>
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Priority</Label>
                     <Select value={priority} onValueChange={setPriority}>
-                      <SelectTrigger className={NB.select}>
+                      <SelectTrigger className="border-2 border-black font-bold h-10 rounded-none focus:ring-0 focus:ring-offset-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CRITICAL">CRITICAL</SelectItem>
-                        <SelectItem value="HIGH">HIGH</SelectItem>
-                        <SelectItem value="NORMAL">NORMAL</SelectItem>
-                        <SelectItem value="LOW">LOW</SelectItem>
+                      <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none">
+                        <SelectItem value="CRITICAL" className="font-black text-red-600 focus:bg-red-50 rounded-none">CRITICAL</SelectItem>
+                        <SelectItem value="HIGH" className="font-bold text-amber-600 focus:bg-amber-50 rounded-none">HIGH</SelectItem>
+                        <SelectItem value="NORMAL" className="font-medium focus:bg-zinc-100 rounded-none">NORMAL</SelectItem>
+                        <SelectItem value="LOW" className="font-medium text-zinc-500 focus:bg-zinc-50 rounded-none">LOW</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -202,46 +215,57 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
               </div>
             </div>
 
-            {/* Scheduling */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
-                <CalendarDays className="h-4 w-4" />
-                <span className={NB.sectionTitle}>Jadwal</span>
+            {/* Schedule Section */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <div className="bg-amber-50 border-b-2 border-black p-3 flex items-center gap-2">
+                <CalendarDays className="h-4 w-4 text-amber-900" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-amber-900">Jadwal Produksi</span>
               </div>
-              <div className={NB.sectionBody}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={NB.label}>Start Date</label>
-                    <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={NB.input} />
+              <div className="p-4 space-y-4 bg-white">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Start Date</Label>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="border-2 border-black font-medium h-10 rounded-none focus-visible:ring-0 focus-visible:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                    />
                   </div>
-                  <div>
-                    <label className={NB.label}>Due Date</label>
-                    <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={NB.input} />
+                  <div className="space-y-1.5">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Due Date</Label>
+                    <Input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="border-2 border-black font-medium h-10 rounded-none focus-visible:ring-0 focus-visible:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                    />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Machine Assignment */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
-                <Cog className="h-4 w-4" />
-                <span className={NB.sectionTitle}>Mesin / Work Center</span>
+            {/* Machine Section */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              <div className="bg-zinc-50 border-b-2 border-black p-3 flex items-center gap-2">
+                <Cog className="h-4 w-4 text-zinc-900" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-900">Alokasi Mesin</span>
               </div>
-              <div className={NB.sectionBody}>
-                <div>
-                  <label className={NB.label}>Assign Machine (Optional)</label>
+              <div className="p-4 space-y-4 bg-white">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Assign Machine (Optional)</Label>
                   <Select value={machineId} onValueChange={setMachineId}>
-                    <SelectTrigger className={NB.select}>
-                      <SelectValue placeholder="Assign machine" />
+                    <SelectTrigger className="border-2 border-black font-bold h-10 rounded-none focus:ring-0 focus:ring-offset-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                      <SelectValue placeholder="Pilih Mesin" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Machine</SelectItem>
+                    <SelectContent className="max-h-60 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none">
+                      <SelectItem value="none" className="font-bold cursor-pointer hover:bg-zinc-100 rounded-none">Tidak Ada</SelectItem>
                       {machines
                         .filter((m) => m.status !== "OFFLINE")
                         .map((machine) => (
-                          <SelectItem key={machine.id} value={machine.id}>
-                            {machine.code} - {machine.name} ({machine.status})
+                          <SelectItem key={machine.id} value={machine.id} className="font-medium cursor-pointer hover:bg-zinc-100 rounded-none">
+                            <span className="font-mono text-[10px] text-zinc-400 mr-2 font-bold">{machine.code}</span>
+                            {machine.name} ({machine.status})
                           </SelectItem>
                         ))}
                     </SelectContent>
@@ -250,23 +274,32 @@ export function CreateWorkOrderDialog({ open, onOpenChange, onCreated, orderType
               </div>
             </div>
 
-            {/* Footer */}
-            <div className={NB.footer}>
-              <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button className={NB.submitBtn} disabled={submitting} onClick={handleSubmit}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
-                  </>
-                ) : (
-                  `Create ${orderType}`
-                )}
-              </Button>
-            </div>
           </div>
         </ScrollArea>
+
+        {/* Footer */}
+        <div className="px-6 py-4 border-t-2 border-black bg-zinc-50 flex gap-3">
+          <Button
+            variant="outline"
+            className="flex-1 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wide bg-white active:scale-[0.98] rounded-none h-10"
+            onClick={() => onOpenChange(false)}
+          >
+            Batal
+          </Button>
+          <Button
+            className="flex-1 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] transition-all font-black uppercase text-xs tracking-wide active:scale-[0.98] rounded-none h-10 hover:bg-zinc-800"
+            disabled={submitting}
+            onClick={handleSubmit}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
+              </>
+            ) : (
+              `Buat ${orderType}`
+            )}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

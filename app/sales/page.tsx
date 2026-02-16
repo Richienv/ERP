@@ -11,6 +11,7 @@ import {
   Database,
   Factory,
   Receipt,
+  Square,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -215,7 +216,7 @@ export default async function SalesDashboardPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-xs uppercase tracking-wider"
+                className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-xs uppercase tracking-wider rounded-none"
               >
                 <FileText className="mr-1.5 h-3.5 w-3.5" />
                 Quotation
@@ -224,7 +225,7 @@ export default async function SalesDashboardPage() {
             <Link href="/sales/orders/new">
               <Button
                 size="sm"
-                className="bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-xs uppercase tracking-wider"
+                className="bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-xs uppercase tracking-wider rounded-none"
               >
                 <Package className="mr-1.5 h-3.5 w-3.5" />
                 Sales Order
@@ -254,7 +255,7 @@ export default async function SalesDashboardPage() {
                       {kpi.label}
                     </span>
                   </div>
-                  <div className={`h-2 w-2 rounded-full ${healthColor(kpi.health)}`} />
+                  <div className={`h-2 w-2 border border-black ${healthColor(kpi.health)}`} />
                 </div>
                 <p className="text-xl font-black tracking-tighter text-zinc-900 dark:text-white">
                   {kpi.value}
@@ -301,7 +302,7 @@ export default async function SalesDashboardPage() {
                         className="flex items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0" />
+                          <div className="h-2 w-2 bg-blue-500 border border-black flex-shrink-0" />
                           <div className="min-w-0">
                             <p className="text-sm font-black uppercase tracking-wide truncate">
                               {order.number}
@@ -314,11 +315,11 @@ export default async function SalesDashboardPage() {
                         <div className="text-right flex-shrink-0 ml-3">
                           <p className="text-sm font-black">{formatIDR(toNumber(order.total))}</p>
                           <span className={`
-                            text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded
-                            ${order.status === "COMPLETED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                              order.status === "CANCELLED" ? "bg-red-50 text-red-700 border border-red-200" :
-                                order.status === "CONFIRMED" ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                                  "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                            text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 border-2 border-black
+                            ${order.status === "COMPLETED" ? "bg-emerald-100 text-emerald-800" :
+                              order.status === "CANCELLED" ? "bg-red-100 text-red-800" :
+                                order.status === "CONFIRMED" ? "bg-blue-100 text-blue-800" :
+                                  "bg-zinc-100 text-zinc-800"
                             }
                           `}>
                             {order.status}
@@ -387,11 +388,11 @@ export default async function SalesDashboardPage() {
                             <p className="text-[10px] text-zinc-400 truncate">{quote.customer.name}</p>
                           </div>
                           <span className={`
-                            text-[10px] font-black uppercase px-1.5 py-0.5 rounded flex-shrink-0
-                            ${quote.status === "ACCEPTED" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" :
-                              quote.status === "SENT" ? "bg-blue-50 text-blue-700 border border-blue-200" :
-                                quote.status === "REJECTED" ? "bg-red-50 text-red-700 border border-red-200" :
-                                  "bg-zinc-100 text-zinc-600 border border-zinc-200"
+                            text-[10px] font-black uppercase px-1.5 py-0.5 flex-shrink-0 border bg-white border-black
+                            ${quote.status === "ACCEPTED" ? "text-emerald-700 bg-emerald-50" :
+                              quote.status === "SENT" ? "text-blue-700 bg-blue-50" :
+                                quote.status === "REJECTED" ? "text-red-700 bg-red-50" :
+                                  "text-zinc-600"
                             }
                           `}>
                             {quote.status}
@@ -408,7 +409,7 @@ export default async function SalesDashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-[10px] uppercase tracking-wider"
+                      className="w-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-[10px] uppercase tracking-wider rounded-none"
                     >
                       CRM Leads
                     </Button>
@@ -417,7 +418,7 @@ export default async function SalesDashboardPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-[10px] uppercase tracking-wider"
+                      className="w-full border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all font-bold text-[10px] uppercase tracking-wider rounded-none"
                     >
                       Quotations
                     </Button>
@@ -446,7 +447,7 @@ export default async function SalesDashboardPage() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 border-2 ${group.linkBg} font-black text-xs uppercase tracking-wide transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] active:scale-[0.97]`}
+                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-black ${group.linkBg} font-black text-xs uppercase tracking-wide transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] active:scale-[0.97] rounded-none`}
                   >
                     {link.icon}
                     {link.label}

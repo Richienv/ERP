@@ -3,29 +3,25 @@
 import { useState } from "react"
 import {
     Search,
-    Filter,
     Phone,
     Mail,
     MapPin,
     Star,
-    ExternalLink,
     Building2,
-    BadgeCheck
+    BadgeCheck,
+    TrendingUp,
+    ShoppingCart,
+    Users,
+    AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { NewVendorDialog } from "@/components/procurement/new-vendor-dialog"
 import { VendorActions } from "@/components/procurement/vendor-actions"
+import { cn } from "@/lib/utils"
 
-// Type definition matching getVendors return type
 type Vendor = {
     id: string
     code: string
@@ -47,156 +43,202 @@ interface VendorsViewProps {
 
 export function VendorsView({ initialVendors }: VendorsViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
+    const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL")
 
-    // Filter vendors based on search
-    const filteredVendors = initialVendors.filter(vendor =>
-        vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vendor.code.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filteredVendors = initialVendors.filter(vendor => {
+        const matchesSearch = vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            vendor.code.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesStatus = filterStatus === "ALL" ||
+            (filterStatus === "ACTIVE" && vendor.isActive) ||
+            (filterStatus === "INACTIVE" && !vendor.isActive)
+        return matchesSearch && matchesStatus
+    })
 
-    // Helper to generate consistent colors based on name
+    // Stats
+    const totalVendors = initialVendors.length
+    const activeVendors = initialVendors.filter(v => v.isActive).length
+    const totalActiveOrders = initialVendors.reduce((sum, v) => sum + v.activeOrders, 0)
+    const avgRating = initialVendors.length > 0
+        ? (initialVendors.reduce((sum, v) => sum + v.rating, 0) / initialVendors.length).toFixed(1)
+        : "0"
+
     const getVendorColor = (name: string) => {
         const colors = [
             "bg-emerald-500", "bg-blue-500", "bg-amber-500",
             "bg-purple-500", "bg-indigo-500", "bg-rose-500"
         ]
-        const index = name.length % colors.length
-        return colors[index]
+        return colors[name.length % colors.length]
     }
 
-    // Helper to get initials
-    const getInitials = (name: string) => {
-        return name
-            .split(" ")
-            .map(n => n[0])
-            .join("")
-            .slice(0, 2)
-            .toUpperCase()
-    }
+    const getInitials = (name: string) =>
+        name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
 
     return (
-        <div className="flex-1 space-y-6 p-4 md:p-8 pt-6 font-sans">
+        <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
 
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h2 className="text-3xl font-black font-serif tracking-tight text-black flex items-center gap-2">
-                        <Building2 className="h-8 w-8" /> Pemasok
-                    </h2>
-                    <p className="text-muted-foreground mt-1 font-medium">Database dan manajemen relasi vendor aktif.</p>
-                </div>
-
-                {/* New Vendor Dialog Button */}
-                <NewVendorDialog />
-            </div>
-
-            {/* Toolbar */}
-            <div className="flex items-center gap-2 bg-white p-2 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Cari nama vendor..."
-                        className="pl-9 border-black focus-visible:ring-black font-medium"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" className="border-black font-bold uppercase hover:bg-zinc-100">
-                        <Filter className="mr-2 h-4 w-4" /> Filter
-                    </Button>
+            {/* ═══ COMMAND HEADER ═══ */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-indigo-400">
+                    <div className="flex items-center gap-3">
+                        <Building2 className="h-5 w-5 text-indigo-500" />
+                        <div>
+                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                                Pemasok
+                            </h1>
+                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                                Database dan manajemen relasi vendor aktif
+                            </p>
+                        </div>
+                    </div>
+                    <NewVendorDialog />
                 </div>
             </div>
 
-            {/* Vendors Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* ═══ KPI PULSE STRIP ═══ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="grid grid-cols-2 md:grid-cols-4">
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <Users className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Vendor</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{totalVendors}</div>
+                        <div className="text-[10px] font-bold text-indigo-600 mt-1">Semua pemasok</div>
+                    </div>
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <BadgeCheck className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor Aktif</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{activeVendors}</div>
+                        <div className="text-[10px] font-bold text-emerald-600 mt-1">Dalam kerjasama</div>
+                    </div>
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <ShoppingCart className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Order Aktif</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{totalActiveOrders}</div>
+                        <div className="text-[10px] font-bold text-amber-600 mt-1">PO berjalan</div>
+                    </div>
+                    <div className="relative p-4 md:p-5">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <Star className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Rata-rata Rating</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">{avgRating}</div>
+                        <div className="text-[10px] font-bold text-blue-600 mt-1">Dari 5.0</div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══ SEARCH & FILTER BAR ═══ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="px-4 py-3 flex items-center gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                        <Input
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Cari nama vendor atau kode..."
+                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                        />
+                    </div>
+                    <div className="flex border-2 border-black">
+                        {(["ALL", "ACTIVE", "INACTIVE"] as const).map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => setFilterStatus(s)}
+                                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
+                                    filterStatus === s
+                                        ? "bg-black text-white"
+                                        : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                }`}
+                            >
+                                {s === "ALL" ? "Semua" : s === "ACTIVE" ? "Aktif" : "Nonaktif"}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hidden md:block">
+                        {filteredVendors.length} vendor
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══ VENDOR GRID ═══ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredVendors.map((vendor) => (
-                    <Card key={vendor.id} className="group relative border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all bg-white rounded-xl overflow-hidden flex flex-col">
-                        {/* Status Stripe */}
-                        <div className={`h-2 w-full ${getVendorColor(vendor.name)} border-b border-black/10`} />
+                    <div key={vendor.id} className="group bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all overflow-hidden flex flex-col">
+                        {/* Color stripe */}
+                        <div className={cn("h-1 w-full", getVendorColor(vendor.name))} />
 
-                        <CardHeader className="pb-2 flex-row gap-4 items-start space-y-0">
-                            <Avatar className="h-14 w-14 border-2 border-black shadow-sm">
-                                <AvatarFallback className="font-black bg-zinc-100 text-black">{getInitials(vendor.name)}</AvatarFallback>
+                        {/* Header */}
+                        <div className="px-4 py-3 flex items-start gap-3">
+                            <Avatar className="h-10 w-10 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                <AvatarFallback className="font-black bg-zinc-100 dark:bg-zinc-800 text-xs">{getInitials(vendor.name)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                    <Badge variant="outline" className="text-[10px] font-bold uppercase border-black bg-zinc-50">{vendor.code}</Badge>
-                                    {vendor.rating >= 4 && <BadgeCheck className="h-4 w-4 text-blue-500" />}
+                                <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-[9px] font-black uppercase border-black bg-zinc-50 dark:bg-zinc-800 tracking-widest">{vendor.code}</Badge>
+                                    {vendor.rating >= 4 && <BadgeCheck className="h-3.5 w-3.5 text-blue-500" />}
+                                    {!vendor.isActive && <span className="text-[9px] font-black uppercase tracking-widest text-red-500">Nonaktif</span>}
                                 </div>
-                                <CardTitle className="text-xl font-black uppercase mt-1 truncate leading-tight" title={vendor.name}>{vendor.name}</CardTitle>
-                                <div className="flex items-center gap-1 mt-1">
+                                <h3 className="font-black text-sm uppercase mt-1 truncate leading-tight" title={vendor.name}>{vendor.name}</h3>
+                                <div className="flex items-center gap-0.5 mt-1">
                                     {[...Array(5)].map((_, i) => (
-                                        <Star key={i} className={`h-3 w-3 ${i < vendor.rating ? "fill-amber-400 text-amber-400" : "fill-zinc-200 text-zinc-200"}`} />
+                                        <Star key={i} className={cn("h-3 w-3", i < vendor.rating ? "fill-amber-400 text-amber-400" : "fill-zinc-200 text-zinc-200")} />
                                     ))}
                                 </div>
                             </div>
-                        </CardHeader>
+                        </div>
 
-                        <CardContent className="space-y-4 flex-1">
-                            <div className="text-sm space-y-2 py-2 border-y border-dashed border-zinc-200">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <MapPin className="h-3.5 w-3.5" />
-                                    <span className="truncate">{vendor.address || "-"}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Mail className="h-3.5 w-3.5" />
-                                    <span className="truncate">{vendor.email || "-"}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Phone className="h-3.5 w-3.5" />
-                                    <span className="truncate">{vendor.phone || "-"}</span>
-                                </div>
-                                {vendor.contactName && (
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                        <span className="text-xs font-bold bg-zinc-100 px-1 rounded">PIC</span>
-                                        <span className="truncate">{vendor.contactName}</span>
-                                    </div>
-                                )}
+                        {/* Contact Info */}
+                        <div className="px-4 py-2 space-y-1.5 border-y border-zinc-100 dark:border-zinc-800 text-xs">
+                            <div className="flex items-center gap-2 text-zinc-500">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{vendor.address || "-"}</span>
                             </div>
+                            <div className="flex items-center gap-2 text-zinc-500">
+                                <Mail className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{vendor.email || "-"}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-zinc-500">
+                                <Phone className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{vendor.phone || "-"}</span>
+                            </div>
+                            {vendor.contactName && (
+                                <div className="flex items-center gap-2 text-zinc-500">
+                                    <span className="text-[9px] font-black bg-zinc-100 dark:bg-zinc-800 px-1 border border-black">PIC</span>
+                                    <span className="truncate">{vendor.contactName}</span>
+                                </div>
+                            )}
+                        </div>
 
-                            <div className="grid grid-cols-2 gap-2">
-                                <div className="p-2 border border-black/10 rounded bg-zinc-50">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Total Orders</p>
-                                    <p className="text-lg font-black">{vendor.totalOrders}</p>
-                                </div>
-                                <div className="p-2 border border-black/10 rounded bg-zinc-50">
-                                    <p className="text-[10px] font-bold uppercase text-muted-foreground">Active Orders</p>
-                                    <p className="text-lg font-black">{vendor.activeOrders}</p>
-                                </div>
+                        {/* Stats */}
+                        <div className="px-4 py-3 grid grid-cols-2 gap-2">
+                            <div className="p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total Orders</p>
+                                <p className="text-lg font-black">{vendor.totalOrders}</p>
                             </div>
-                        </CardContent>
+                            <div className="p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Active Orders</p>
+                                <p className="text-lg font-black">{vendor.activeOrders}</p>
+                            </div>
+                        </div>
 
                         <VendorActions vendor={vendor} />
-                    </Card>
+                    </div>
                 ))}
-
-                {/* Add Vendor Quick Access (Trigger Dialog) */}
-                <div className="h-full min-h-[300px] flex">
-                    <NewVendorDialog /> {/* Re-using dialog here but styled differently? Or just use the button in header? */}
-                    {/* Actually, let's keep the placeholder card design but wrap it to trigger the dialog logic. 
-                        Since NewVendorDialog handles its own trigger button, I'll extract the Dialog Content logic or 
-                        just wrap a custom trigger.
-                    */}
-                </div>
-
-                {/* 
-                   Wait, NewVendorDialog has a fixed button trigger. 
-                   I should refactor NewVendorDialog to accept a 'trigger' prop or just use `DialogTrigger` asChild
-                   Let's assume standard behavior for now to save time, and maybe create a second instance of the dialog 
-                   with a different trigger for this card if needed. 
-                   Actually, looking at `new-vendor-dialog.tsx`, it renders a specific <Button>.
-                   
-                   Refinement: The plan for Step 2405 included a big dashed placeholder card at the end of the list.
-                   I will make NewVendorDialog accept a custom trigger or just render a second one here.
-                   For now, let's just render the grid. The big dashed card is nice but maybe redundant with the header button.
-                   I'll omit the big dashed card for now to keep it clean, or I can add it back later if requested.
-                 */}
             </div>
 
             {filteredVendors.length === 0 && (
-                <div className="text-center py-20 text-muted-foreground">
-                    <p>Tidak ada vendor yang ditemukan.</p>
+                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-12 text-center">
+                    <Building2 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tidak ada vendor yang ditemukan</p>
                 </div>
             )}
         </div>

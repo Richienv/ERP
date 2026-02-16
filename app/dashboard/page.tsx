@@ -14,6 +14,10 @@ import {
     getDashboardCharts,
 } from "@/app/actions/dashboard"
 import { getSalesStats } from "@/lib/actions/sales"
+import { getOEEMetrics, getRecentShiftNotes, getRecentDowntimeLogs } from "@/lib/actions/dashboard-textile"
+import { OEEGauge } from "@/components/dashboard/oee-gauge"
+import { ShiftHandoverWidget } from "@/components/dashboard/shift-handover-widget"
+import { MachineDowntimeWidget } from "@/components/dashboard/machine-downtime-widget"
 
 // Force dynamic rendering so data is always fresh
 export const dynamic = 'force-dynamic'
@@ -51,6 +55,7 @@ const FALLBACK_OPERATIONS = {
 const FALLBACK_SALES = { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] as any[] }
 const FALLBACK_CHARTS = { dataCash7d: [] as any[], dataReceivables: [] as any[], dataPayables: [] as any[], dataProfit: [] as any[] }
 const FALLBACK_ACTIVITY = { activityFeed: [] as any[], executiveAlerts: [] as any[] }
+const FALLBACK_OEE = { oee: 0, availability: 0, performance: 0, quality: 0, totalScheduledMinutes: 0, totalDowntimeMinutes: 0, totalProduced: 0, totalDefects: 0 }
 
 // React.cache() deduplicates calls within a single render request.
 // Each cached function also has a 8s timeout so it never hangs.
@@ -240,6 +245,66 @@ async function ActivityFeedSection() {
     return <CompactActivityFeed activities={activities} />
 }
 
+/** TextileStrip: OEE + Shift Handover + Machine Downtime */
+async function TextileStripSection() {
+    const [oee, shiftNotes, downtimeLogs] = await Promise.all([
+        withTimeout(getOEEMetrics().catch((e) => { console.error("OEE error:", e); return FALLBACK_OEE }), 8000, FALLBACK_OEE),
+        withTimeout(getRecentShiftNotes(5).catch(() => []), 8000, []),
+        withTimeout(getRecentDowntimeLogs(8).catch(() => []), 8000, []),
+    ])
+
+    return (
+        <>
+            <div className="md:col-span-3 min-h-0 overflow-hidden">
+                <OEEGauge
+                    oee={oee.oee}
+                    availability={oee.availability}
+                    performance={oee.performance}
+                    quality={oee.quality}
+                />
+            </div>
+            <div className="md:col-span-4 min-h-0 overflow-hidden">
+                <ShiftHandoverWidget notes={shiftNotes} />
+            </div>
+            <div className="md:col-span-5 min-h-0 overflow-hidden">
+                <MachineDowntimeWidget logs={downtimeLogs} />
+            </div>
+        </>
+    )
+}
+
+function TextileStripSkeleton() {
+    return (
+        <>
+            <div className="md:col-span-3">
+                <div className="h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+                    <div className="h-10 bg-zinc-50 border-b-2 border-black" />
+                    <div className="p-6 flex flex-col items-center gap-3">
+                        <div className="h-24 w-24 bg-zinc-100 rounded-full" />
+                        <div className="h-4 w-16 bg-zinc-100" />
+                    </div>
+                </div>
+            </div>
+            <div className="md:col-span-4">
+                <div className="h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+                    <div className="h-10 bg-zinc-50 border-b-2 border-black" />
+                    <div className="p-4 space-y-3">
+                        {[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-zinc-100" />)}
+                    </div>
+                </div>
+            </div>
+            <div className="md:col-span-5">
+                <div className="h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+                    <div className="h-10 bg-zinc-50 border-b-2 border-black" />
+                    <div className="p-4 space-y-3">
+                        {[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-zinc-100" />)}
+                    </div>
+                </div>
+            </div>
+        </>
+    )
+}
+
 /** TrendingWidget: Summary counts — uses cached operations + sales */
 async function TrendingSection() {
     const [ops, sales] = await Promise.all([
@@ -285,6 +350,11 @@ export default function DashboardPage() {
             operationsStripSlot={
                 <Suspense fallback={<StripSkeleton />}>
                     <OperationsStripSection />
+                </Suspense>
+            }
+            textileStripSlot={
+                <Suspense fallback={<TextileStripSkeleton />}>
+                    <TextileStripSection />
                 </Suspense>
             }
             activityFeedSlot={

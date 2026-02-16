@@ -34,6 +34,11 @@ export function QualityTrackingCard({ data }: QualityTrackingCardProps) {
 
     const passRate = data?.passRate || 0
 
+    const handleItemClick = (item: any) => {
+        setSelectedItem(item)
+        setIsOpen(true)
+    }
+
     return (
         <div className="h-full group/card">
             <Card className="h-full flex flex-col border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-xl overflow-hidden bg-white dark:bg-black hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transition-all duration-200">

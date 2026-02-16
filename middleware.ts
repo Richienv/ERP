@@ -64,7 +64,10 @@ export async function middleware(request: NextRequest) {
         "/hr",
         "/accountant",
         "/manager",
-        "/staff"
+        "/staff",
+        "/subcontract",
+        "/cutting",
+        "/costing"
     ]
 
     const { pathname } = request.nextUrl

@@ -802,6 +802,30 @@ export async function deactivateEmployee(employeeId: string) {
     }
 }
 
+export async function bulkDeactivateEmployees(employeeIds: string[]) {
+    try {
+        if (!employeeIds.length) return { success: false, error: 'Tidak ada karyawan yang dipilih' }
+
+        return await withPrismaAuth(async (prisma) => {
+            const result = await prisma.employee.updateMany({
+                where: { id: { in: employeeIds }, status: { not: 'INACTIVE' } },
+                data: { status: 'INACTIVE' },
+            })
+
+            revalidateTagSafe('employee')
+            revalidateTagSafe('hr')
+            revalidatePath('/hcm')
+            revalidatePath('/hcm/employee-master')
+            revalidatePath('/dashboard')
+
+            return { success: true, count: result.count }
+        })
+    } catch (error: any) {
+        console.error('Failed to bulk deactivate employees:', error)
+        return { success: false, error: error?.message || 'Gagal menonaktifkan karyawan' }
+    }
+}
+
 export async function getAttendanceSnapshot(params?: { date?: string; department?: string }) {
     try {
         const { start, end } = toDayWindow(params?.date)

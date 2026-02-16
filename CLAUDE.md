@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code when working with this Indonesian ERP system.
 
+## Implementation SOP — User-First Thinking
+
+> **MANDATORY**: Every feature we build must be justified by a real user problem. After completing any implementation, always explain the impact in this format:
+>
+> **Sebelumnya (Before):** What the user had to do manually / what was broken / what was missing
+> **Sekarang (Now):** What the user can do now, in fewer steps
+> **Kenapa penting (Why it matters):** How this saves time, reduces errors, or follows industry standard
+>
+> This keeps us honest — if we can't explain the user benefit, we shouldn't build it.
+
+### Design Principles for Indonesian SME Users
+
+1. **Simplicity over features** — Our target users are Indonesian textile/garment SMEs who value straightforward workflows. If a feature is "cool" but adds complexity without clear benefit, skip it.
+2. **Fewer steps = better** — Always look for ways to reduce clicks, combine screens, auto-calculate values. If the system can figure it out, don't ask the user.
+3. **Bahasa Indonesia first** — All labels, statuses, error messages in Bahasa. Use industry terms that Indonesian factory workers actually use (CMT, potong, jahit, etc.).
+4. **No feature without a use-case** — Before implementing, identify: Who is the user? What problem do they have? How does this solve it? If the answer is vague, clarify first.
+5. **Industry standard as baseline, simplify from there** — Match what competitors offer (Accurate, Jurnal, HashMicro) but strip away enterprise bloat that SMEs don't need.
+
 ## Development Commands
 
 ```bash

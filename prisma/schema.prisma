@@ -130,11 +130,14 @@ model Warehouse {
   managerId  String? @db.Uuid
   isActive   Boolean @default(true)
 
-  locations      Location[]
-  stockLevels    StockLevel[]
-  transactions     InventoryTransaction[]
-  stockAudits    StockAudit[]
+  locations          Location[]
+  stockLevels        StockLevel[]
+  transactions       InventoryTransaction[]
+  stockAudits        StockAudit[]
   goodsReceivedNotes GoodsReceivedNote[]
+  fabricRolls        FabricRoll[]
+  transfersFrom      StockTransfer[]        @relation("TransferFrom")
+  transfersTo        StockTransfer[]        @relation("TransferTo")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -153,8 +156,8 @@ model Location {
   capacity    Int?
   isActive    Boolean @default(true)
 
-  warehouse      Warehouse       @relation(fields: [warehouseId], references: [id])
-  stockLevels    StockLevel[]
+  warehouse   Warehouse    @relation(fields: [warehouseId], references: [id])
+  stockLevels StockLevel[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -168,10 +171,10 @@ model Location {
 // ================================
 
 enum ProductType {
-  MANUFACTURED  // MFG — Produced in-house via BOM + Work Orders
-  TRADING       // TRD — Purchased from vendors for resale (PR→PO→GRN)
-  RAW_MATERIAL  // RAW — Purchased raw input for manufacturing
-  WIP           // WIP — Work In Process (intermediate: greige, dyed, printed)
+  MANUFACTURED // MFG — Produced in-house via BOM + Work Orders
+  TRADING // TRD — Purchased from vendors for resale (PR→PO→GRN)
+  RAW_MATERIAL // RAW — Purchased raw input for manufacturing
+  WIP // WIP — Work In Process (intermediate: greige, dyed, printed)
 }
 
 model Product {
@@ -190,26 +193,33 @@ model Product {
   barcode      String?
   isActive     Boolean     @default(true)
 
+  // Textile-specific fields
+  color       String?
+  size        String?
+  weight      Decimal? @db.Decimal(10, 2) // kg per unit
+  widthCm     Decimal? @db.Decimal(10, 2) // Width in cm (for fabrics)
+  composition String? // e.g. "100% Cotton", "65/35 Poly/Cotton"
+
   // Planning & Procurement (Advanced)
   leadTime       Int     @default(7) // Days
   safetyStock    Int     @default(0)
   manualBurnRate Decimal @default(0) @db.Decimal(10, 2) // Per Day consumption override
   manualAlert    Boolean @default(false) // Manually flagged as Critical via Kanban
 
-  category           Category?           @relation(fields: [categoryId], references: [id])
-  stockLevels        StockLevel[]
-  transactions       InventoryTransaction[]
-  stockAlerts        StockAlert[]
-  priceListItems     PriceListItem[]
-  quotationItems     QuotationItem[]
-  salesOrderItems    SalesOrderItem[]
-  purchaseOrderItems PurchaseOrderItem[]
+  category             Category?              @relation(fields: [categoryId], references: [id])
+  stockLevels          StockLevel[]
+  transactions         InventoryTransaction[]
+  stockAlerts          StockAlert[]
+  priceListItems       PriceListItem[]
+  quotationItems       QuotationItem[]
+  salesOrderItems      SalesOrderItem[]
+  purchaseOrderItems   PurchaseOrderItem[]
   purchaseRequestItems PurchaseRequestItem[]
-  stockAuditItems    StockAuditItem[]
-  workOrders         WorkOrder[]
+  stockAuditItems      StockAuditItem[]
+  workOrders           WorkOrder[]
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
   InvoiceItem     InvoiceItem[]
   BillOfMaterials BillOfMaterials[]
   BOMItem         BOMItem[]
@@ -219,9 +229,17 @@ model Product {
   routingSteps    RoutingStep[]
 
   // Alternative / Substitute Products (Self-relation)
-  alternativeProductId String?  @db.Uuid
-  alternativeProduct   Product? @relation("ProductAlternatives", fields: [alternativeProductId], references: [id])
+  alternativeProductId String?   @db.Uuid
+  alternativeProduct   Product?  @relation("ProductAlternatives", fields: [alternativeProductId], references: [id])
   substituteFor        Product[] @relation("ProductAlternatives")
+
+  // Textile upgrade relations
+  fabricRolls           FabricRoll[]
+  styleVariants         StyleVariant[]
+  stockTransfers        StockTransfer[]
+  subcontractOrderItems SubcontractOrderItem[]
+  cutPlans              CutPlan[]              @relation("CutPlanFabric")
+  garmentCostSheets     GarmentCostSheet[]
 
   @@map("products")
 }
@@ -252,61 +270,66 @@ model StockLevel {
 
 // Ledger: The Single Source of Truth for Inventory
 model InventoryTransaction {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  productId   String   @db.Uuid
-  warehouseId String   @db.Uuid
-  locationId  String?  @db.Uuid // Optional: Specific Bin/Rack location
-  
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId   String  @db.Uuid
+  warehouseId String  @db.Uuid
+  locationId  String? @db.Uuid // Optional: Specific Bin/Rack location
+
   // Transaction Details
-  type        TransactionType
-  quantity    Int             // Positive for IN, Negative for OUT
-  unitCost    Decimal?        @db.Decimal(15, 2) // FIFO/Average Cost Tracking
-  totalValue  Decimal?        @db.Decimal(15, 2)
-  
+  type       TransactionType
+  quantity   Int // Positive for IN, Negative for OUT
+  unitCost   Decimal?        @db.Decimal(15, 2) // FIFO/Average Cost Tracking
+  totalValue Decimal?        @db.Decimal(15, 2)
+
   // Strict Audit Links (The "Professional" Connection)
   referenceId     String? // Fallback
   purchaseOrderId String? @db.Uuid
   salesOrderId    String? @db.Uuid
   workOrderId     String? @db.Uuid
   adjustmentId    String? @db.Uuid // For Stock Audits
-  
+
   // Relations
   product       Product        @relation(fields: [productId], references: [id])
   warehouse     Warehouse      @relation(fields: [warehouseId], references: [id])
   purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
   salesOrder    SalesOrder?    @relation(fields: [salesOrderId], references: [id])
   workOrder     WorkOrder?     @relation(fields: [workOrderId], references: [id])
-  
+
   performedBy String? // User ID
   notes       String?
-  
+
   journalEntries JournalEntry[]
 
   createdAt DateTime @default(now())
 
-  @@map("inventory_transactions")
   @@index([productId])
   @@index([warehouseId])
   @@index([createdAt])
   @@index([type])
+  @@map("inventory_transactions")
 }
 
 enum TransactionType {
   // Inbound
-  PO_RECEIVE      // From Supplier
-  PRODUCTION_IN   // From Manufacturing (Finished Goods)
-  RETURN_IN       // From Customer
-  
+  PO_RECEIVE // From Supplier
+  PRODUCTION_IN // From Manufacturing (Finished Goods)
+  RETURN_IN // From Customer
+
   // Outbound
-  SO_SHIPMENT     // To Customer
-  PRODUCTION_OUT  // Raw Material Consumption
-  RETURN_OUT      // To Supplier
-  SCRAP           // Waste/Damaged
-  
+  SO_SHIPMENT // To Customer
+  PRODUCTION_OUT // Raw Material Consumption
+  RETURN_OUT // To Supplier
+  SCRAP // Waste/Damaged
+
   // Internal
-  TRANSFER        // Warehouse Transfer
-  ADJUSTMENT      // Cycle Count Correction
-  INITIAL         // Opening Balance
+  TRANSFER // Warehouse Transfer
+  ADJUSTMENT // Cycle Count Correction
+  INITIAL // Opening Balance
+
+  // Subcontract & Cutting
+  SUBCONTRACT_OUT // Material issued to CMT subcontractor
+  SUBCONTRACT_IN // Material returned from CMT subcontractor
+  CUT_CONSUME // Fabric consumed by cutting plan
 }
 
 // ================================
@@ -533,6 +556,10 @@ model Quotation {
   // Status
   status QuotationStatus @default(DRAFT)
 
+  // Versioning (Textile upgrade)
+  version           Int     @default(1)
+  parentQuotationId String? @db.Uuid
+
   // Notes
   notes         String?
   internalNotes String?
@@ -541,6 +568,10 @@ model Quotation {
   customer    Customer        @relation(fields: [customerId], references: [id])
   items       QuotationItem[]
   salesOrders SalesOrder[]
+
+  // Versioning relations
+  parentQuotation Quotation?  @relation("QuotationVersions", fields: [parentQuotationId], references: [id])
+  revisions       Quotation[] @relation("QuotationVersions")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -601,15 +632,15 @@ model SalesOrder {
   internalNotes String?
 
   // Relations
-  customer  Customer         @relation(fields: [customerId], references: [id])
-  quotation Quotation?       @relation(fields: [quotationId], references: [id])
-  items     SalesOrderItem[]
-  transactions InventoryTransaction[]
-  invoices  Invoice[]
+  customer       Customer               @relation(fields: [customerId], references: [id])
+  quotation      Quotation?             @relation(fields: [quotationId], references: [id])
+  items          SalesOrderItem[]
+  transactions   InventoryTransaction[]
+  invoices       Invoice[]
   journalEntries JournalEntry[]
-  workOrders WorkOrder[]
-  
-  tasks     EmployeeTask[]
+  workOrders     WorkOrder[]
+
+  tasks EmployeeTask[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -630,12 +661,16 @@ model SalesOrderItem {
   taxRate     Decimal @default(11) @db.Decimal(5, 2) // PPN 11%
   lineTotal   Decimal @db.Decimal(15, 2)
 
+  // Textile: color-size per line (Textile upgrade)
+  color String?
+  size  String?
+
   // Delivery tracking
   qtyDelivered Decimal @default(0) @db.Decimal(10, 3)
   qtyInvoiced  Decimal @default(0) @db.Decimal(10, 3)
 
-  product    Product    @relation(fields: [productId], references: [id])
-  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product    Product     @relation(fields: [productId], references: [id])
+  salesOrder SalesOrder  @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
   workOrders WorkOrder[]
 
   createdAt DateTime @default(now())
@@ -879,8 +914,10 @@ model Supplier {
   address     String?
 
   // Performance
-  rating     Int @default(0) // 1-5 stars
-  onTimeRate Int @default(0) // percentage
+  rating         Int      @default(0) // 1-5 stars
+  onTimeRate     Int      @default(0) // percentage
+  qualityScore   Decimal? @db.Decimal(5, 2) // Quality score 0-100
+  responsiveness Decimal? @db.Decimal(5, 2) // Responsiveness score 0-100
 
   // Bank Details (For Payouts)
   bankName          String?
@@ -902,16 +939,16 @@ model Supplier {
 
 // Multi-Vendor Sourcing
 model SupplierProduct {
-  id          String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  supplierId  String @db.Uuid
-  productId   String @db.Uuid
-  
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  supplierId String @db.Uuid
+  productId  String @db.Uuid
+
   // Terms
   price       Decimal @db.Decimal(15, 2)
   currency    String  @default("IDR")
   leadTime    Int     @default(7) // Days (specific to this vendor)
   minOrderQty Int     @default(1)
-  
+
   skuCode     String? // Vendor's SKU for this item
   isPreferred Boolean @default(false)
 
@@ -941,12 +978,16 @@ model PurchaseOrder {
   netAmount   Decimal @default(0) @db.Decimal(15, 2)
 
   // Status
-  status         ProcurementStatus @default(PO_DRAFT)
-  previousStatus ProcurementStatus?
-  paymentStatus  PaymentStatus     @default(UNPAID)
+  status          ProcurementStatus  @default(PO_DRAFT)
+  previousStatus  ProcurementStatus?
+  paymentStatus   PaymentStatus      @default(UNPAID)
   rejectionReason String?
 
   datePaid DateTime?
+
+  // Textile upgrade: templates & landed cost
+  templateName    String?
+  landedCostTotal Decimal? @db.Decimal(15, 2) // Total landed cost (freight + customs + insurance)
 
   // User Relations
   requestedBy String? @db.Uuid // Original Requester (Inventory Staff)
@@ -954,17 +995,17 @@ model PurchaseOrder {
   approvedBy  String? @db.Uuid // Director/CEO
 
   // Relations
-  supplier Supplier            @relation(fields: [supplierId], references: [id])
-  items    PurchaseOrderItem[]
+  supplier         Supplier             @relation(fields: [supplierId], references: [id])
+  items            PurchaseOrderItem[]
   purchaseRequests PurchaseRequest[]
-  events  PurchaseOrderEvent[]
-  invoices Invoice[]
-  journalEntries JournalEntry[]
-  
+  events           PurchaseOrderEvent[]
+  invoices         Invoice[]
+  journalEntries   JournalEntry[]
+
   // Tracking
-  tasks       EmployeeTask[]
-  inspections QualityInspection[]
-  transactions InventoryTransaction[]
+  tasks              EmployeeTask[]
+  inspections        QualityInspection[]
+  transactions       InventoryTransaction[]
   goodsReceivedNotes GoodsReceivedNote[]
 
   createdAt DateTime @default(now())
@@ -978,17 +1019,17 @@ model PurchaseOrderEvent {
   purchaseOrderId String            @db.Uuid
   status          ProcurementStatus
   changedBy       String            @db.Uuid // User ID (Supabase Auth ID)
-  action          String            // e.g. "SUBMIT_APPROVAL", "APPROVE", "REJECT", "VENDOR_CONFIRM"
+  action          String // e.g. "SUBMIT_APPROVAL", "APPROVE", "REJECT", "VENDOR_CONFIRM"
   notes           String?
-  metadata        Json?             // For extra context (source: MANUAL, tracking info, etc.)
+  metadata        Json? // For extra context (source: MANUAL, tracking info, etc.)
 
-  purchaseOrder   PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime          @default(now())
+  createdAt DateTime @default(now())
 
-  @@map("purchase_order_events")
   @@index([purchaseOrderId])
   @@index([createdAt])
+  @@map("purchase_order_events")
 }
 
 model PurchaseOrderItem {
@@ -996,10 +1037,10 @@ model PurchaseOrderItem {
   purchaseOrderId String @db.Uuid
   productId       String @db.Uuid
 
-  quantity   Int
-  receivedQty Int @default(0)
-  unitPrice  Decimal @db.Decimal(15, 2)
-  totalPrice Decimal @db.Decimal(15, 2)
+  quantity    Int
+  receivedQty Int     @default(0)
+  unitPrice   Decimal @db.Decimal(15, 2)
+  totalPrice  Decimal @db.Decimal(15, 2)
 
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   product       Product       @relation(fields: [productId], references: [id])
@@ -1011,24 +1052,22 @@ model PurchaseOrderItem {
   @@map("purchase_order_items")
 }
 
-
-
 model PurchaseRequestItem {
-  id                String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  purchaseRequestId String   @db.Uuid
-  productId         String   @db.Uuid
-  
-  quantity          Int
-  status            PRItemStatus @default(PENDING)
-  targetDate        DateTime?
-  notes             String?
-  
-  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
-  product           Product         @relation(fields: [productId], references: [id])
-  
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  
+  id                String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  purchaseRequestId String @db.Uuid
+  productId         String @db.Uuid
+
+  quantity   Int
+  status     PRItemStatus @default(PENDING)
+  targetDate DateTime?
+  notes      String?
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("purchase_request_items")
 }
 
@@ -1036,30 +1075,29 @@ model PurchaseRequest {
   id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   number      String   @unique
   requestDate DateTime @default(now())
-  
-  status      PRStatus @default(PENDING)
-  priority    String   @default("NORMAL")
-  
-  requesterId String   @db.Uuid
+
+  status   PRStatus @default(PENDING)
+  priority String   @default("NORMAL")
+
+  requesterId String  @db.Uuid
   department  String?
   notes       String?
-  
-  requester   Employee @relation("PrRequester", fields: [requesterId], references: [id])
-  items       PurchaseRequestItem[]
-  
-  approverId  String?  @db.Uuid
-  approver    Employee? @relation("PrApprover", fields: [approverId], references: [id])
+
+  requester Employee              @relation("PrRequester", fields: [requesterId], references: [id])
+  items     PurchaseRequestItem[]
+
+  approverId String?   @db.Uuid
+  approver   Employee? @relation("PrApprover", fields: [approverId], references: [id])
 
   // Relations to PO
-  convertedToPOId String? @db.Uuid
+  convertedToPOId String?        @db.Uuid
   purchaseOrder   PurchaseOrder? @relation(fields: [convertedToPOId], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("purchase_requests")
 }
-
 
 enum PRStatus {
   DRAFT
@@ -1114,55 +1152,55 @@ enum ProcurementStatus {
 // ================================
 
 model GoodsReceivedNote {
-  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  number          String    @unique
-  purchaseOrderId String    @db.Uuid
-  warehouseId     String    @db.Uuid
-  
-  receivedDate    DateTime  @default(now())
-  receivedById    String    @db.Uuid
-  
-  status          GRNStatus @default(DRAFT)
-  notes           String?
-  
+  id              String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number          String @unique
+  purchaseOrderId String @db.Uuid
+  warehouseId     String @db.Uuid
+
+  receivedDate DateTime @default(now())
+  receivedById String   @db.Uuid
+
+  status GRNStatus @default(DRAFT)
+  notes  String?
+
   // Relations
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-  warehouse       Warehouse     @relation(fields: [warehouseId], references: [id])
-  receivedBy      Employee      @relation(fields: [receivedById], references: [id])
-  items           GRNItem[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
-  @@map("goods_received_notes")
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
+  receivedBy    Employee      @relation(fields: [receivedById], references: [id])
+  items         GRNItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([purchaseOrderId])
   @@index([status])
+  @@map("goods_received_notes")
 }
 
 model GRNItem {
-  id                String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  grnId             String  @db.Uuid
-  poItemId          String  @db.Uuid
-  productId         String  @db.Uuid
-  
-  quantityOrdered   Int
-  quantityReceived  Int
-  quantityAccepted  Int     @default(0)
-  quantityRejected  Int     @default(0)
-  unitCost          Decimal @db.Decimal(15, 2)
-  
-  inspectionNotes   String?
-  
+  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  grnId     String @db.Uuid
+  poItemId  String @db.Uuid
+  productId String @db.Uuid
+
+  quantityOrdered  Int
+  quantityReceived Int
+  quantityAccepted Int     @default(0)
+  quantityRejected Int     @default(0)
+  unitCost         Decimal @db.Decimal(15, 2)
+
+  inspectionNotes String?
+
   // Relations
-  grn               GoodsReceivedNote  @relation(fields: [grnId], references: [id], onDelete: Cascade)
-  poItem            PurchaseOrderItem  @relation(fields: [poItemId], references: [id])
-  product           Product            @relation(fields: [productId], references: [id])
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
-  @@map("grn_items")
+  grn     GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  poItem  PurchaseOrderItem @relation(fields: [poItemId], references: [id])
+  product Product           @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([grnId])
+  @@map("grn_items")
 }
 
 enum GRNStatus {
@@ -1194,14 +1232,29 @@ model Employee {
   // Salary
   baseSalary Decimal @default(0) @db.Decimal(15, 2)
 
+  // BPJS & Compensation (Textile upgrade)
+  bpjsKesehatan       String? // BPJS Kesehatan number
+  bpjsKetenagakerjaan String? // BPJS Ketenagakerjaan number
+  shiftType           ShiftType? // Default shift assignment
+  hourlyRate          Decimal?   @db.Decimal(15, 2) // Upah per jam
+  pieceRate           Decimal?   @db.Decimal(15, 2) // Upah per potong
+
   // Relations
-  attendance    Attendance[]
-  leaveRequests LeaveRequest[]
-  tasks         EmployeeTask[]
-  inspections   QualityInspection[]
-  purchaseRequests PurchaseRequest[] @relation("PrRequester")
-  reviewedRequests PurchaseRequest[] @relation("PrApprover")
+  attendance         Attendance[]
+  leaveRequests      LeaveRequest[]
+  tasks              EmployeeTask[]
+  inspections        QualityInspection[]
+  purchaseRequests   PurchaseRequest[]   @relation("PrRequester")
+  reviewedRequests   PurchaseRequest[]   @relation("PrApprover")
   goodsReceivedNotes GoodsReceivedNote[]
+
+  // Textile upgrade relations
+  shiftNotes         ShiftNote[]          @relation("ShiftNoteCreator")
+  downtimeLogs       MachineDowntimeLog[] @relation("DowntimeLogger")
+  operatorSkills     OperatorSkill[]      @relation("OperatorSkills")
+  transferRequests   StockTransfer[]      @relation("TransferRequester")
+  transferApprovals  StockTransfer[]      @relation("TransferApprover")
+  onboardingProgress OnboardingProgress[] @relation("OnboardingProgress")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1264,33 +1317,33 @@ model LeaveRequest {
 }
 
 model EmployeeTask {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  employeeId String   @db.Uuid
+  id         String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeId String     @db.Uuid
   title      String
   type       TaskType
   status     TaskStatus @default(PENDING)
   priority   Priority   @default(MEDIUM)
-  notes      String?    // For rejection reasons or extra details
-  
+  notes      String? // For rejection reasons or extra details
+
   // Polymorphic-ish reference to business docs
-  relatedId  String?  // e.g. PO ID, Batch ID (Legacy/Fallback)
-  
+  relatedId String? // e.g. PO ID, Batch ID (Legacy/Fallback)
+
   // Professional Relations (Hard Links)
   purchaseOrderId String? @db.Uuid
   salesOrderId    String? @db.Uuid
   workOrderId     String? @db.Uuid
 
-  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  salesOrder      SalesOrder?    @relation(fields: [salesOrderId], references: [id])
-  workOrder       WorkOrder?     @relation(fields: [workOrderId], references: [id])
-  
-  deadline   DateTime?
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  salesOrder    SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  workOrder     WorkOrder?     @relation(fields: [workOrderId], references: [id])
+
+  deadline    DateTime?
   completedAt DateTime?
 
-  employee   Employee @relation(fields: [employeeId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id])
 
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("employee_tasks")
 }
@@ -1319,14 +1372,14 @@ enum TaskStatus {
 // ================================
 
 model QualityInspection {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   batchNumber String
-  materialId  String   @db.Uuid
-  inspectorId String   @db.Uuid
-  
-  inspectionDate DateTime @default(now())
+  materialId  String @db.Uuid
+  inspectorId String @db.Uuid
+
+  inspectionDate DateTime         @default(now())
   status         InspectionStatus
-  score          Decimal  @default(100) @db.Decimal(5, 2)
+  score          Decimal          @default(100) @db.Decimal(5, 2)
   notes          String?
 
   // Professional Relations
@@ -1337,25 +1390,26 @@ model QualityInspection {
   inspector     Employee       @relation(fields: [inspectorId], references: [id])
   workOrder     WorkOrder?     @relation(fields: [workOrderId], references: [id])
   purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  
-  defects     InspectionDefect[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  defects             InspectionDefect[]
+  garmentMeasurements GarmentMeasurement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("quality_inspections")
 }
 
 model InspectionDefect {
-  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  inspectionId String   @db.Uuid
+  id           String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  inspectionId String       @db.Uuid
   type         DefectType
   description  String
   actionTaken  DefectAction
-  
-  inspection   QualityInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
 
-  createdAt    DateTime @default(now())
+  inspection QualityInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 
   @@map("inspection_defects")
 }
@@ -1398,7 +1452,7 @@ enum LeaveStatus {
 // ================================
 
 model StockAudit {
-  id          String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   warehouseId String    @db.Uuid
   warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
 
@@ -1457,26 +1511,37 @@ model WorkOrder {
   startDate DateTime?
   dueDate   DateTime?
 
+  // Textile upgrade: garment stages & scheduling
+  stage          GarmentStage? @default(CUTTING)
+  scheduledStart DateTime?
+  scheduledEnd   DateTime?
+  routingId      String?       @db.Uuid
+
   status WOStatus @default(PLANNED)
 
   product        Product         @relation(fields: [productId], references: [id])
   salesOrder     SalesOrder?     @relation(fields: [salesOrderId], references: [id])
   salesOrderItem SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id])
-  
-  tasks       EmployeeTask[]
-  inspections QualityInspection[]
+
+  tasks        EmployeeTask[]
+  inspections  QualityInspection[]
   transactions InventoryTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  // Assigned Machine/Work Center
-  machineId String? @db.Uuid
-  machine   Machine? @relation(fields: [machineId], references: [id])
 
-  @@map("work_orders")
+  // Assigned Machine/Work Center
+  machineId String?  @db.Uuid
+  machine   Machine? @relation(fields: [machineId], references: [id])
+  routing   Routing? @relation(fields: [routingId], references: [id])
+
+  // Textile upgrade relations
+  subcontractOrders SubcontractOrder[]
+  cutPlans          CutPlan[]
+
   @@index([salesOrderId])
   @@index([machineId])
+  @@map("work_orders")
 }
 
 enum WOStatus {
@@ -1492,10 +1557,10 @@ enum WOStatus {
 // ================================
 
 model Invoice {
-  id      String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  number  String  @unique
-  quoteId String? @db.Uuid // Optional link to quote
-  orderId String? @db.Uuid // Legacy polymorphic reference (prefer explicit relations below)
+  id              String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number          String  @unique
+  quoteId         String? @db.Uuid // Optional link to quote
+  orderId         String? @db.Uuid // Legacy polymorphic reference (prefer explicit relations below)
   salesOrderId    String? @db.Uuid
   purchaseOrderId String? @db.Uuid
 
@@ -1519,23 +1584,23 @@ model Invoice {
   status InvoiceStatus @default(DRAFT)
 
   // Relations
-  customer      Customer?     @relation(fields: [customerId], references: [id])
-  supplier      Supplier?     @relation(fields: [supplierId], references: [id])
-  salesOrder    SalesOrder?   @relation(fields: [salesOrderId], references: [id])
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  items         InvoiceItem[]
-  payments      Payment[]
+  customer       Customer?      @relation(fields: [customerId], references: [id])
+  supplier       Supplier?      @relation(fields: [supplierId], references: [id])
+  salesOrder     SalesOrder?    @relation(fields: [salesOrderId], references: [id])
+  purchaseOrder  PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  items          InvoiceItem[]
+  payments       Payment[]
   journalEntries JournalEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("invoices")
   @@index([type, status])
   @@index([issueDate])
   @@index([dueDate])
   @@index([customerId])
   @@index([supplierId])
+  @@map("invoices")
 }
 
 model InvoiceItem {
@@ -1551,9 +1616,9 @@ model InvoiceItem {
   invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id])
 
-  @@map("invoice_items")
   @@index([invoiceId])
   @@index([productId])
+  @@map("invoice_items")
 }
 
 model Payment {
@@ -1570,9 +1635,9 @@ model Payment {
 
   notes String?
 
-  invoice  Invoice?  @relation(fields: [invoiceId], references: [id])
-  customer Customer? @relation(fields: [customerId], references: [id])
-  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  invoice        Invoice?       @relation(fields: [invoiceId], references: [id])
+  customer       Customer?      @relation(fields: [customerId], references: [id])
+  supplier       Supplier?      @relation(fields: [supplierId], references: [id])
   journalEntries JournalEntry[]
 
   createdAt DateTime @default(now())
@@ -1625,17 +1690,18 @@ model Machine {
   nextMaintenance DateTime?
 
   // Capacity
-  capacityPerHour Int? // Output capacity
-  standardHoursPerDay Int @default(8)
-  overheadTimePerHour Decimal @default(0) @db.Decimal(10, 2)
+  capacityPerHour             Int? // Output capacity
+  standardHoursPerDay         Int     @default(8)
+  overheadTimePerHour         Decimal @default(0) @db.Decimal(10, 2)
   overheadMaterialCostPerHour Decimal @default(0) @db.Decimal(15, 2)
 
   isActive Boolean @default(true)
 
-  logs MaintenanceLog[]
-  group WorkCenterGroup? @relation(fields: [groupId], references: [id])
+  logs         MaintenanceLog[]
+  group        WorkCenterGroup?     @relation(fields: [groupId], references: [id])
   routingSteps RoutingStep[]
-  workOrders WorkOrder[]
+  workOrders   WorkOrder[]
+  downtimeLogs MachineDowntimeLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1715,13 +1781,15 @@ enum MaintenanceType {
 // ================================
 
 model WorkCenterGroup {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code        String   @unique
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String  @unique
   name        String
   description String?
-  isActive    Boolean  @default(true)
+  isActive    Boolean @default(true)
 
-  machines Machine[]
+  machines       Machine[]
+  calendars      WorkCenterCalendar[]
+  operatorSkills OperatorSkill[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1730,13 +1798,14 @@ model WorkCenterGroup {
 }
 
 model Routing {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code        String   @unique
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String  @unique
   name        String
   description String?
-  isActive    Boolean  @default(true)
+  isActive    Boolean @default(true)
 
-  steps RoutingStep[]
+  steps      RoutingStep[]
+  workOrders WorkOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1745,18 +1814,18 @@ model Routing {
 }
 
 model RoutingStep {
-  id            String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  routingId     String   @db.Uuid
-  machineId     String?  @db.Uuid
-  sequence      Int
-  name          String
-  description   String?
+  id              String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  routingId       String  @db.Uuid
+  machineId       String? @db.Uuid
+  sequence        Int
+  name            String
+  description     String?
   durationMinutes Int
 
   // Optional material link per step (raw material/consumable)
-  materialId    String?  @db.Uuid
-  materialQty   Decimal? @db.Decimal(10, 3)
-  materialUnit  String?
+  materialId   String?  @db.Uuid
+  materialQty  Decimal? @db.Decimal(10, 3)
+  materialUnit String?
 
   routing  Routing  @relation(fields: [routingId], references: [id], onDelete: Cascade)
   machine  Machine? @relation(fields: [machineId], references: [id])
@@ -1765,11 +1834,11 @@ model RoutingStep {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("routing_steps")
   @@unique([routingId, sequence])
   @@index([routingId])
   @@index([machineId])
   @@index([materialId])
+  @@map("routing_steps")
 }
 
 // ================================
@@ -1777,14 +1846,15 @@ model RoutingStep {
 // ================================
 
 model GLAccount {
-  id          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  code        String      @unique // e.g. "1010"
-  name        String      // e.g. "Bank BCA"
-  type        AccountType // ASSET, LIABILITY, etc.
-  balance     Decimal     @default(0) @db.Decimal(15, 2)
-  isSystem    Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
-  
-  lines       JournalLine[]
+  id       String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code     String      @unique // e.g. "1010"
+  name     String // e.g. "Bank BCA"
+  type     AccountType // ASSET, LIABILITY, etc.
+  balance  Decimal     @default(0) @db.Decimal(15, 2)
+  isSystem Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
+
+  lines               JournalLine[]
+  bankReconciliations BankReconciliation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1794,46 +1864,52 @@ model GLAccount {
 
 // Journal Entry
 model JournalEntry {
-  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  date        DateTime @default(now())
+  id          String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date        DateTime    @default(now())
   description String
-  reference   String?  // e.g. "INV-001"
+  reference   String? // e.g. "INV-001"
   status      EntryStatus @default(POSTED)
-  invoiceId   String? @db.Uuid
-  paymentId   String? @db.Uuid
-  salesOrderId String? @db.Uuid
-  purchaseOrderId String? @db.Uuid
+
+  // Recurring journal entries (Textile upgrade)
+  isRecurring       Boolean   @default(false)
+  recurringPattern  String? // e.g. "MONTHLY", "WEEKLY"
+  nextRecurringDate DateTime?
+
+  invoiceId              String? @db.Uuid
+  paymentId              String? @db.Uuid
+  salesOrderId           String? @db.Uuid
+  purchaseOrderId        String? @db.Uuid
   inventoryTransactionId String? @db.Uuid
-  
-  lines       JournalLine[]
-  invoice     Invoice?     @relation(fields: [invoiceId], references: [id])
-  payment     Payment?     @relation(fields: [paymentId], references: [id])
-  salesOrder  SalesOrder?  @relation(fields: [salesOrderId], references: [id])
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
+  lines                JournalLine[]
+  invoice              Invoice?              @relation(fields: [invoiceId], references: [id])
+  payment              Payment?              @relation(fields: [paymentId], references: [id])
+  salesOrder           SalesOrder?           @relation(fields: [salesOrderId], references: [id])
+  purchaseOrder        PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id])
   inventoryTransaction InventoryTransaction? @relation(fields: [inventoryTransactionId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("journal_entries")
   @@index([date])
+  @@map("journal_entries")
 }
 
 model JournalLine {
-  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  entryId     String  @db.Uuid
-  accountId   String  @db.Uuid
-  
+  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  entryId   String @db.Uuid
+  accountId String @db.Uuid
+
   description String?
   debit       Decimal @default(0) @db.Decimal(15, 2)
   credit      Decimal @default(0) @db.Decimal(15, 2)
-  
-  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  account     GLAccount    @relation(fields: [accountId], references: [id])
 
-  @@map("journal_lines")
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account GLAccount    @relation(fields: [accountId], references: [id])
+
   @@index([entryId])
   @@index([accountId])
+  @@map("journal_lines")
 }
 
 enum AccountType {
@@ -1848,4 +1924,590 @@ enum EntryStatus {
   DRAFT
   POSTED
   VOID
+}
+
+// ================================
+// Textile Upgrade Enums (Phase 1A)
+// ================================
+
+enum ShiftType {
+  MORNING // Pagi
+  AFTERNOON // Siang
+  NIGHT // Malam
+}
+
+enum DowntimeCategory {
+  MECHANICAL
+  ELECTRICAL
+  MATERIAL_SHORTAGE
+  OPERATOR_ERROR
+  CHANGEOVER
+  PLANNED_MAINTENANCE
+  OTHER
+}
+
+enum FabricRollStatus {
+  AVAILABLE // Tersedia
+  RESERVED // Dipesan
+  IN_USE // Dipakai
+  DEPLETED // Habis
+}
+
+enum TransferStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  IN_TRANSIT
+  RECEIVED
+  CANCELLED
+}
+
+enum SubcontractCapability {
+  CUT // Potong
+  SEW // Jahit
+  WASH // Cuci
+  PRINT // Cetak/Print
+  EMBROIDERY // Bordir
+  FINISHING // Finishing
+}
+
+enum SubcontractOrderStatus {
+  SC_DRAFT // Draft
+  SC_SENT // Terkirim ke CMT
+  SC_IN_PROGRESS // Dalam Proses
+  SC_PARTIAL_COMPLETE // Sebagian Selesai
+  SC_COMPLETED // Selesai
+  SC_CANCELLED // Dibatalkan
+}
+
+enum CutPlanStatus {
+  CP_DRAFT // Draft
+  FABRIC_ALLOCATED // Kain Dialokasikan
+  IN_CUTTING // Sedang Dipotong
+  CP_COMPLETED // Selesai
+  CP_CANCELLED // Dibatalkan
+}
+
+enum CostSheetStatus {
+  CS_DRAFT // Draft
+  CS_FINALIZED // Final
+  CS_APPROVED // Disetujui
+}
+
+enum ReconciliationStatus {
+  REC_DRAFT // Draft
+  REC_IN_PROGRESS // Dalam Proses
+  REC_COMPLETED // Selesai
+}
+
+enum GarmentStage {
+  CUTTING // Potong
+  SEWING // Jahit
+  FINISHING // Finishing
+  QC // Quality Control
+  PACKING // Packing
+  DONE // Selesai
+}
+
+enum SkillLevel {
+  TRAINEE // Trainee
+  CERTIFIED // Tersertifikasi
+  EXPERT // Ahli
+}
+
+// ================================
+// Factory/Manufacturing Extensions (Phase 1B)
+// ================================
+
+model ShiftNote {
+  id        String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  shiftDate DateTime  @db.Date
+  shiftType ShiftType
+
+  content   String // Catatan handover
+  createdBy String @db.Uuid
+
+  creator Employee @relation("ShiftNoteCreator", fields: [createdBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shiftDate])
+  @@map("shift_notes")
+}
+
+model MachineDowntimeLog {
+  id        String           @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  machineId String           @db.Uuid
+  category  DowntimeCategory
+
+  startTime DateTime
+  endTime   DateTime?
+  notes     String?
+
+  loggedBy String @db.Uuid
+
+  machine Machine  @relation(fields: [machineId], references: [id])
+  logger  Employee @relation("DowntimeLogger", fields: [loggedBy], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([machineId])
+  @@index([startTime])
+  @@map("machine_downtime_logs")
+}
+
+model WorkCenterCalendar {
+  id           String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workCenterId String  @db.Uuid
+  dayOfWeek    Int // 0=Sunday, 1=Monday, ... 6=Saturday
+  shiftStart   String // "07:00"
+  shiftEnd     String // "15:00"
+  isHoliday    Boolean @default(false)
+
+  workCenter WorkCenterGroup @relation(fields: [workCenterId], references: [id])
+
+  @@unique([workCenterId, dayOfWeek])
+  @@map("work_center_calendars")
+}
+
+model OperatorSkill {
+  id            String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeId    String     @db.Uuid
+  workCenterId  String     @db.Uuid
+  skillLevel    SkillLevel @default(TRAINEE)
+  certifiedDate DateTime?
+
+  employee   Employee        @relation("OperatorSkills", fields: [employeeId], references: [id])
+  workCenter WorkCenterGroup @relation(fields: [workCenterId], references: [id])
+
+  @@unique([employeeId, workCenterId])
+  @@map("operator_skills")
+}
+
+// ================================
+// Inventory/Textile (Phase 1B)
+// ================================
+
+model FabricRoll {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId  String @db.Uuid
+  rollNumber String @unique
+
+  lengthMeters Decimal   @db.Decimal(10, 2)
+  widthCm      Decimal?  @db.Decimal(10, 2)
+  weight       Decimal?  @db.Decimal(10, 2) // kg
+  dyeLot       String?
+  greigeDate   DateTime? @db.Date
+  grade        String? // A, B, C
+
+  warehouseId String           @db.Uuid
+  locationBin String?
+  status      FabricRollStatus @default(AVAILABLE)
+
+  product       Product                 @relation(fields: [productId], references: [id])
+  warehouse     Warehouse               @relation(fields: [warehouseId], references: [id])
+  transactions  FabricRollTransaction[]
+  cutPlanLayers CutPlanLayer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([status])
+  @@map("fabric_rolls")
+}
+
+enum FabricRollTransactionType {
+  FR_RECEIVE // Terima
+  FR_CUT // Potong
+  FR_TRANSFER // Transfer
+  FR_ADJUST // Penyesuaian
+}
+
+model FabricRollTransaction {
+  id           String                    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  fabricRollId String                    @db.Uuid
+  type         FabricRollTransactionType
+  meters       Decimal                   @db.Decimal(10, 2)
+  reference    String?
+  date         DateTime                  @default(now())
+
+  fabricRoll FabricRoll @relation(fields: [fabricRollId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([fabricRollId])
+  @@map("fabric_roll_transactions")
+}
+
+model StyleVariant {
+  id        String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId String  @db.Uuid
+  colorCode String?
+  colorName String?
+  size      String?
+  sku       String  @unique
+
+  product             Product              @relation(fields: [productId], references: [id])
+  cutPlanOutputs      CutPlanOutput[]
+  garmentMeasurements GarmentMeasurement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, colorCode, size])
+  @@map("style_variants")
+}
+
+model StockTransfer {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number          String         @unique
+  fromWarehouseId String         @db.Uuid
+  toWarehouseId   String         @db.Uuid
+  productId       String         @db.Uuid
+  quantity        Int
+  status          TransferStatus @default(DRAFT)
+
+  requestedBy String  @db.Uuid
+  approvedBy  String? @db.Uuid
+  notes       String?
+
+  fromWarehouse Warehouse @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  product       Product   @relation(fields: [productId], references: [id])
+  requester     Employee  @relation("TransferRequester", fields: [requestedBy], references: [id])
+  approver      Employee? @relation("TransferApprover", fields: [approvedBy], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("stock_transfers")
+}
+
+// ================================
+// Subcontract/CMT Module (Phase 1B)
+// ================================
+
+model Subcontractor {
+  id                  String                  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name                String
+  npwp                String?
+  address             String?
+  capabilities        SubcontractCapability[]
+  capacityUnitsPerDay Int?
+  contactPerson       String?
+  phone               String?
+  email               String?
+  isActive            Boolean                 @default(true)
+
+  rates  SubcontractorRate[]
+  orders SubcontractOrder[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subcontractors")
+}
+
+model SubcontractorRate {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  subcontractorId String    @db.Uuid
+  operation       String // e.g. "SEW", "WASH"
+  productType     String? // e.g. "T-Shirt", "Kemeja"
+  ratePerUnit     Decimal   @db.Decimal(15, 2)
+  validFrom       DateTime  @db.Date
+  validTo         DateTime? @db.Date
+
+  subcontractor Subcontractor @relation(fields: [subcontractorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subcontractorId])
+  @@map("subcontractor_rates")
+}
+
+model SubcontractOrder {
+  id              String                 @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number          String                 @unique
+  subcontractorId String                 @db.Uuid
+  workOrderId     String?                @db.Uuid
+  operation       String // e.g. "SEW", "CUT"
+  status          SubcontractOrderStatus @default(SC_DRAFT)
+
+  issuedDate         DateTime  @default(now())
+  expectedReturnDate DateTime?
+
+  subcontractor Subcontractor          @relation(fields: [subcontractorId], references: [id])
+  workOrder     WorkOrder?             @relation(fields: [workOrderId], references: [id])
+  items         SubcontractOrderItem[]
+  shipments     SubcontractShipment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([subcontractorId])
+  @@index([status])
+  @@map("subcontract_orders")
+}
+
+model SubcontractOrderItem {
+  id        String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderId   String @db.Uuid
+  productId String @db.Uuid
+
+  issuedQty   Int
+  returnedQty Int @default(0)
+  defectQty   Int @default(0)
+  wastageQty  Int @default(0)
+
+  order   SubcontractOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product          @relation(fields: [productId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@map("subcontract_order_items")
+}
+
+enum SubcontractShipmentDirection {
+  OUTBOUND // Material ke CMT
+  INBOUND // Material dari CMT
+}
+
+model SubcontractShipment {
+  id                 String                       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  orderId            String                       @db.Uuid
+  direction          SubcontractShipmentDirection
+  date               DateTime                     @default(now())
+  deliveryNoteNumber String?
+  items              Json? // Detail items shipped
+
+  order SubcontractOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@map("subcontract_shipments")
+}
+
+// ================================
+// Cutting Module (Phase 1B)
+// ================================
+
+model CutPlan {
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number          String        @unique
+  workOrderId     String?       @db.Uuid
+  fabricProductId String        @db.Uuid
+  status          CutPlanStatus @default(CP_DRAFT)
+
+  markerLength      Decimal?  @db.Decimal(10, 2) // meters
+  markerEfficiency  Decimal?  @db.Decimal(5, 2) // percentage
+  totalLayers       Int?
+  totalFabricMeters Decimal?  @db.Decimal(10, 2)
+  plannedDate       DateTime? @db.Date
+
+  workOrder     WorkOrder?      @relation(fields: [workOrderId], references: [id])
+  fabricProduct Product         @relation("CutPlanFabric", fields: [fabricProductId], references: [id])
+  layers        CutPlanLayer[]
+  outputs       CutPlanOutput[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([workOrderId])
+  @@index([status])
+  @@map("cut_plans")
+}
+
+model CutPlanLayer {
+  id           String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  cutPlanId    String  @db.Uuid
+  layerNumber  Int
+  fabricRollId String  @db.Uuid
+  metersUsed   Decimal @db.Decimal(10, 2)
+
+  cutPlan    CutPlan    @relation(fields: [cutPlanId], references: [id], onDelete: Cascade)
+  fabricRoll FabricRoll @relation(fields: [fabricRollId], references: [id])
+
+  @@unique([cutPlanId, layerNumber])
+  @@map("cut_plan_layers")
+}
+
+model CutPlanOutput {
+  id             String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  cutPlanId      String @db.Uuid
+  styleVariantId String @db.Uuid
+
+  plannedQty Int
+  actualQty  Int @default(0)
+  defectQty  Int @default(0)
+
+  cutPlan      CutPlan      @relation(fields: [cutPlanId], references: [id], onDelete: Cascade)
+  styleVariant StyleVariant @relation(fields: [styleVariantId], references: [id])
+
+  @@index([cutPlanId])
+  @@map("cut_plan_outputs")
+}
+
+// ================================
+// Garment Costing Module (Phase 1B)
+// ================================
+
+enum CostCategory {
+  FABRIC
+  TRIM
+  LABOR
+  OVERHEAD
+  SUBCONTRACT
+  OTHER
+}
+
+model GarmentCostSheet {
+  id        String          @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number    String          @unique
+  productId String          @db.Uuid
+  version   Int             @default(1)
+  status    CostSheetStatus @default(CS_DRAFT)
+
+  targetPrice  Decimal? @db.Decimal(15, 2)
+  targetMargin Decimal? @db.Decimal(5, 2) // percentage
+  totalCost    Decimal  @default(0) @db.Decimal(15, 2)
+
+  product Product         @relation(fields: [productId], references: [id])
+  items   CostSheetItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@map("garment_cost_sheets")
+}
+
+model CostSheetItem {
+  id          String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  costSheetId String       @db.Uuid
+  category    CostCategory
+  description String
+
+  quantity  Decimal @db.Decimal(10, 4)
+  unitCost  Decimal @db.Decimal(15, 2)
+  totalCost Decimal @db.Decimal(15, 2)
+
+  // Actuals (filled after production)
+  actualQuantity  Decimal? @db.Decimal(10, 4)
+  actualUnitCost  Decimal? @db.Decimal(15, 2)
+  actualTotalCost Decimal? @db.Decimal(15, 2)
+
+  costSheet GarmentCostSheet @relation(fields: [costSheetId], references: [id], onDelete: Cascade)
+
+  @@index([costSheetId])
+  @@map("cost_sheet_items")
+}
+
+// ================================
+// HCM Extensions (Phase 1B)
+// ================================
+
+model OnboardingTemplate {
+  id    String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name  String
+  tasks Json // Array of { key, title, description, department }
+
+  progress OnboardingProgress[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("onboarding_templates")
+}
+
+model OnboardingProgress {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  employeeId  String    @db.Uuid
+  templateId  String    @db.Uuid
+  taskKey     String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  employee Employee           @relation("OnboardingProgress", fields: [employeeId], references: [id])
+  template OnboardingTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([employeeId, templateId, taskKey])
+  @@map("onboarding_progress")
+}
+
+// ================================
+// Finance Extensions (Phase 1B)
+// ================================
+
+model BankReconciliation {
+  id            String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  glAccountId   String               @db.Uuid
+  statementDate DateTime             @db.Date
+  periodStart   DateTime             @db.Date
+  periodEnd     DateTime             @db.Date
+  status        ReconciliationStatus @default(REC_DRAFT)
+
+  closedBy String?   @db.Uuid
+  closedAt DateTime?
+
+  glAccount GLAccount                @relation(fields: [glAccountId], references: [id])
+  items     BankReconciliationItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([glAccountId])
+  @@map("bank_reconciliations")
+}
+
+enum MatchStatus {
+  UNMATCHED // Belum Cocok
+  MATCHED // Cocok
+  PARTIAL // Sebagian Cocok
+  EXCLUDED // Dikecualikan
+}
+
+model BankReconciliationItem {
+  id                  String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  reconciliationId    String      @db.Uuid
+  bankRef             String?
+  bankDate            DateTime?   @db.Date
+  bankAmount          Decimal     @db.Decimal(15, 2)
+  bankDescription     String?
+  systemTransactionId String?     @db.Uuid // JournalEntry or Payment ID
+  matchStatus         MatchStatus @default(UNMATCHED)
+  matchedBy           String?     @db.Uuid
+  matchedAt           DateTime?
+
+  reconciliation BankReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+
+  @@index([reconciliationId])
+  @@map("bank_reconciliation_items")
+}
+
+// ================================
+// Quality Extensions (Phase 1B)
+// ================================
+
+model GarmentMeasurement {
+  id             String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  inspectionId   String  @db.Uuid
+  styleVariantId String  @db.Uuid
+  measurePoint   String // e.g. "Chest Width", "Sleeve Length"
+  specValue      Decimal @db.Decimal(10, 2) // Target measurement
+  actualValue    Decimal @db.Decimal(10, 2) // Measured value
+  tolerance      Decimal @db.Decimal(5, 2) // +/- tolerance
+
+  inspection   QualityInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  styleVariant StyleVariant      @relation(fields: [styleVariantId], references: [id])
+
+  @@index([inspectionId])
+  @@map("garment_measurements")
 }

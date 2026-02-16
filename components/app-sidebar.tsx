@@ -16,6 +16,7 @@ import {
   IconChartLine,
   IconTruck,
   IconWorld,
+  IconScissors,
 } from "@tabler/icons-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -77,6 +78,14 @@ const data = {
         {
           title: "Stock Opname",
           url: "/inventory/adjustments",
+        },
+        {
+          title: "Fabric Rolls",
+          url: "/inventory/fabric-rolls",
+        },
+        {
+          title: "Transfer Stok",
+          url: "/inventory/transfers",
         },
       ],
     },
@@ -191,6 +200,10 @@ const data = {
           title: "Laporan Keuangan",
           url: "/finance/reports",
         },
+        {
+          title: "Rekonsiliasi Bank",
+          url: "/finance/reconciliation",
+        },
       ],
     },
     {
@@ -223,6 +236,10 @@ const data = {
           url: "/manufacturing/planning",
         },
         {
+          title: "Jadwal Produksi",
+          url: "/manufacturing/schedule",
+        },
+        {
           title: "Order Produksi (MO)",
           url: "/manufacturing/orders",
         },
@@ -233,6 +250,55 @@ const data = {
         {
           title: "Kontrol Kualitas (QC)",
           url: "/manufacturing/quality",
+        },
+      ],
+    },
+    {
+      title: "Subkontrak",
+      url: "/subcontract",
+      icon: IconTruck,
+      items: [
+        {
+          title: "Dashboard CMT",
+          url: "/subcontract",
+        },
+        {
+          title: "Registri Mitra",
+          url: "/subcontract/registry",
+        },
+        {
+          title: "Order Subkontrak",
+          url: "/subcontract/orders",
+        },
+      ],
+    },
+    {
+      title: "Pemotongan",
+      url: "/cutting",
+      icon: IconScissors,
+      items: [
+        {
+          title: "Dashboard Potong",
+          url: "/cutting",
+        },
+        {
+          title: "Daftar Cut Plan",
+          url: "/cutting/plans",
+        },
+      ],
+    },
+    {
+      title: "Kalkulasi Biaya",
+      url: "/costing",
+      icon: IconCurrencyDollar,
+      items: [
+        {
+          title: "Dashboard Biaya",
+          url: "/costing",
+        },
+        {
+          title: "Daftar Cost Sheet",
+          url: "/costing/sheets",
         },
       ],
     },
@@ -252,6 +318,14 @@ const data = {
         {
           title: "Absensi",
           url: "/hcm/attendance",
+        },
+        {
+          title: "Jadwal Shift",
+          url: "/hcm/shifts",
+        },
+        {
+          title: "Onboarding",
+          url: "/hcm/onboarding",
         },
       ],
     },
@@ -341,6 +415,16 @@ const data = {
       title: "Manajemen Pengguna",
       url: "/settings/users",
       icon: IconUsers,
+    },
+    {
+      title: "Matriks Izin",
+      url: "/settings/permissions",
+      icon: IconSettings,
+    },
+    {
+      title: "Penomoran Dokumen",
+      url: "/settings/numbering",
+      icon: IconFileDescription,
     },
     {
       title: "Bantuan & Dukungan",
@@ -435,6 +519,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (title.includes("Financial Command Center")) relevantKeys = ["FINANCE", "ACCOUNTING", "INVOICE", "PAYMENT", "BILL"];
     if (title.includes("Pengadaan")) relevantKeys = ["PURCHASING", "PURCHASE", "VENDOR", "PO", "PR", "RECEIVING"];
     if (title.includes("Manufaktur")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "MO", "SPK", "BOM", "ROUTING", "WORK_ORDER"];
+    if (title.includes("Subkontrak")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "SUBCONTRACT", "CMT"];
+    if (title.includes("Pemotongan")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "CUTTING", "CUT_PLAN"];
+    if (title.includes("Kalkulasi Biaya")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "COSTING", "FINANCE"];
     if (title.includes("Factory Command Center")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "INVENTORY", "PURCHASING", "WORK_ORDER"];
     if (title.includes("SDM")) relevantKeys = ["HR", "SDM", "PAYROLL", "EMPLOYEE", "ATTENDANCE"];
     if (title.includes("Dokumen")) relevantKeys = ["DOCUMENTS", "SYSTEM", "REPORT"];

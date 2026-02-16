@@ -6,11 +6,13 @@ import {
   Droppable,
   Draggable,
   DropResult,
+  DroppableProvided,
+  DroppableStateSnapshot
 } from "@hello-pangea/dnd"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Calendar, Flame, User } from "lucide-react"
+import { Calendar, Flame, User, Building2 } from "lucide-react"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 
@@ -41,41 +43,48 @@ interface LeadKanbanProps {
   onStatusChange?: (leadId: string, status: LeadStage) => Promise<void> | void
 }
 
-const STATUS_META: Record<LeadStage, { title: string; accent: string; badgeClass: string }> = {
+const STATUS_META: Record<LeadStage, { title: string; accent: string; badgeClass: string; borderColor: string }> = {
   NEW: {
     title: "Baru",
     accent: "bg-sky-500",
     badgeClass: "bg-sky-100 text-sky-800 border-sky-200",
+    borderColor: "border-sky-200"
   },
   CONTACTED: {
     title: "Dihubungi",
     accent: "bg-indigo-500",
     badgeClass: "bg-indigo-100 text-indigo-800 border-indigo-200",
+    borderColor: "border-indigo-200"
   },
   QUALIFIED: {
     title: "Terkualifikasi",
     accent: "bg-violet-500",
     badgeClass: "bg-violet-100 text-violet-800 border-violet-200",
+    borderColor: "border-violet-200"
   },
   PROPOSAL: {
     title: "Proposal",
     accent: "bg-amber-500",
     badgeClass: "bg-amber-100 text-amber-800 border-amber-200",
+    borderColor: "border-amber-200"
   },
   NEGOTIATION: {
     title: "Negosiasi",
     accent: "bg-orange-500",
     badgeClass: "bg-orange-100 text-orange-800 border-orange-200",
+    borderColor: "border-orange-200"
   },
   WON: {
     title: "Menang",
     accent: "bg-emerald-500",
     badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-200",
+    borderColor: "border-emerald-200"
   },
   LOST: {
     title: "Kalah",
     accent: "bg-rose-500",
     badgeClass: "bg-rose-100 text-rose-800 border-rose-200",
+    borderColor: "border-rose-200"
   },
 }
 
@@ -107,7 +116,7 @@ const formatDate = (value: string | Date) => {
 }
 
 const getHeatClass = (probability: number) => {
-  if (probability >= 80) return "bg-gradient-to-b from-rose-500 to-orange-500"
+  if (probability >= 80) return "bg-gradient-to-r from-rose-500 to-orange-500"
   if (probability >= 50) return "bg-amber-500"
   return "bg-sky-500"
 }
@@ -146,9 +155,9 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
       current.map((lead) =>
         lead.id === draggableId
           ? {
-              ...lead,
-              status: newStatus,
-            }
+            ...lead,
+            status: newStatus,
+          }
           : lead
       )
     )
@@ -178,32 +187,33 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <ScrollArea className="h-full w-full whitespace-nowrap rounded-md p-4">
-        <div className="flex space-x-5 pb-4">
+      <ScrollArea className="h-full w-full whitespace-nowrap bg-zinc-100/50">
+        <div className="flex space-x-4 p-4">
           {STATUS_ORDER.map((status) => {
             const meta = STATUS_META[status]
             const statusLeads = grouped[status]
             const totalValue = statusLeads.reduce((sum, lead) => sum + lead.estimatedValue, 0)
 
             return (
-              <div key={status} className="w-[320px] flex-shrink-0 flex flex-col space-y-3">
-                <div className="p-4 rounded-xl border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden">
-                  <div className={cn("absolute top-0 left-0 w-full h-1", meta.accent)} />
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-black text-xs uppercase tracking-wider">{meta.title}</h3>
-                    <Badge className={cn("border font-bold", meta.badgeClass)}>{statusLeads.length}</Badge>
+              <div key={status} className="w-[300px] flex-shrink-0 flex flex-col space-y-3">
+                {/* Column Header */}
+                <div className="p-3 border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden rounded-none">
+                  <div className={cn("absolute top-0 left-0 w-full h-1.5", meta.accent)} />
+                  <div className="flex items-center justify-between mb-2 mt-1">
+                    <h3 className="font-black text-xs uppercase tracking-wider text-zinc-800">{meta.title}</h3>
+                    <Badge className={cn("border-2 rounded-none font-bold h-5 px-1.5", meta.badgeClass)}>{statusLeads.length}</Badge>
                   </div>
-                  <p className="text-sm font-semibold text-zinc-600">{formatIDR(totalValue)}</p>
+                  <p className="text-sm font-black text-zinc-900 tracking-tight">{formatIDR(totalValue)}</p>
                 </div>
 
                 <Droppable droppableId={status}>
-                  {(provided, snapshot) => (
+                  {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
                     <div
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={cn(
-                        "rounded-xl min-h-[420px] p-2 border-2 border-dashed border-transparent transition-colors",
-                        snapshot.isDraggingOver ? "border-black/50 bg-zinc-100/70" : "bg-zinc-50/70"
+                        "min-h-[500px] p-2 border-2 border-dashed transition-colors rounded-none",
+                        snapshot.isDraggingOver ? "border-black bg-zinc-200/50" : "border-zinc-300 bg-zinc-50"
                       )}
                     >
                       {statusLeads.map((lead, index) => (
@@ -216,46 +226,52 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
                               style={dragProvided.draggableProps.style}
                               className="mb-3"
                             >
-                              <Card
+                              <div
                                 className={cn(
-                                  "border-2 border-black bg-white overflow-hidden",
+                                  "border-2 border-black bg-white overflow-hidden transition-all rounded-none",
                                   dragSnapshot.isDragging
-                                    ? "shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rotate-1"
-                                    : "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                                    ? "shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rotate-2 scale-105 z-50"
+                                    : "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
                                 )}
                               >
-                                <div className={cn("h-1", getHeatClass(lead.probability))} />
-                                <CardContent className="p-4 space-y-3">
+                                <div className={cn("h-1.5 w-full", getHeatClass(lead.probability))} />
+                                <div className="p-3 space-y-3">
                                   <div>
-                                    <p className="text-sm font-black leading-tight line-clamp-2">{lead.title}</p>
-                                    <p className="text-xs text-muted-foreground line-clamp-1">{lead.company || "Tanpa perusahaan"}</p>
+                                    <p className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide mb-1">
+                                      {lead.title}
+                                    </p>
+                                    <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-500">
+                                      <Building2 className="h-3 w-3" />
+                                      <span className="truncate max-w-[180px]">{lead.company || "No Company"}</span>
+                                    </div>
                                   </div>
 
-                                  <div className="space-y-1 text-xs text-zinc-600">
-                                    <div className="flex items-center gap-2">
+                                  <div className="space-y-1.5 pt-2 border-t border-dashed border-zinc-200">
+                                    <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-600">
                                       <User className="h-3 w-3" />
                                       <span className="truncate">{lead.contactName}</span>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-400">
                                       <Calendar className="h-3 w-3" />
                                       <span>{formatDate(lead.updatedAt)}</span>
                                     </div>
                                   </div>
 
-                                  <div className="flex items-center justify-between">
-                                    <p className="text-sm font-extrabold">{formatIDR(lead.estimatedValue)}</p>
-                                    <Badge variant="outline" className="font-bold">
-                                      {lead.probability}%
-                                    </Badge>
-                                  </div>
+                                  <div className="pt-2 flex items-center justify-between">
+                                    <p className="text-sm font-black text-zinc-900">{formatIDR(lead.estimatedValue)}</p>
 
-                                  {lead.probability >= 80 && (
-                                    <div className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-700 bg-orange-100 border border-orange-200 rounded-full px-2 py-1">
-                                      <Flame className="h-3 w-3" /> Hot Lead
-                                    </div>
-                                  )}
-                                </CardContent>
-                              </Card>
+                                    {lead.probability >= 80 ? (
+                                      <div className="flex items-center gap-1 bg-orange-100 text-orange-700 border-2 border-orange-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
+                                        <Flame className="h-3 w-3 fill-orange-500" /> HOT
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] font-bold text-zinc-400">
+                                        {lead.probability}% Prob.
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           )}
                         </Draggable>
@@ -268,7 +284,7 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
             )
           })}
         </div>
-        <ScrollBar orientation="horizontal" />
+        <ScrollBar orientation="horizontal" className="h-2.5" />
       </ScrollArea>
     </DragDropContext>
   )

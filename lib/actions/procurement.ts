@@ -2,7 +2,7 @@
 
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
-import { ProcurementStatus } from "@prisma/client"
+import { ProcurementStatus, PrismaClient } from "@prisma/client"
 import { recordPendingBillFromPO } from "@/lib/actions/finance"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
 import { assertRole, getAuthzUser } from "@/lib/authz"
@@ -1422,5 +1422,351 @@ export async function createVendor(data: {
     } catch (error: any) {
         console.error("Error creating vendor:", error)
         return { success: false, error: error.message || "Failed to create vendor" }
+    }
+}
+
+// ==============================================================================
+// PO Templates
+// ==============================================================================
+
+export interface POTemplate {
+    templateName: string
+    supplierId: string
+    supplierName: string
+    supplierCode: string
+    itemCount: number
+    lastUsed: string
+    items: {
+        productId: string
+        productName: string
+        productCode: string
+        quantity: number
+        unitPrice: number
+    }[]
+}
+
+/**
+ * Save a PO configuration as a reusable template.
+ */
+export async function savePOAsTemplate(
+    poId: string,
+    templateName: string
+): Promise<{ success: boolean; error?: string }> {
+    if (!templateName.trim()) {
+        return { success: false, error: 'Nama template wajib diisi' }
+    }
+
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: { templateName: templateName.trim() },
+            })
+        })
+
+        revalidatePath('/procurement/orders')
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal menyimpan template'
+        console.error("[savePOAsTemplate] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Get all PO templates (POs with templateName set).
+ */
+export async function getPOTemplates(): Promise<POTemplate[]> {
+    try {
+        return await withPrismaAuth(async (prisma: PrismaClient) => {
+            const pos = await prisma.purchaseOrder.findMany({
+                where: {
+                    templateName: { not: null },
+                },
+                select: {
+                    templateName: true,
+                    supplierId: true,
+                    orderDate: true,
+                    supplier: { select: { name: true, code: true } },
+                    items: {
+                        select: {
+                            productId: true,
+                            quantity: true,
+                            unitPrice: true,
+                            product: { select: { name: true, code: true } },
+                        },
+                    },
+                },
+                orderBy: { orderDate: 'desc' },
+            })
+
+            // Deduplicate by template name (keep most recent)
+            const seen = new Map<string, POTemplate>()
+            for (const po of pos) {
+                const name = po.templateName!
+                if (seen.has(name)) continue
+                seen.set(name, {
+                    templateName: name,
+                    supplierId: po.supplierId,
+                    supplierName: po.supplier.name,
+                    supplierCode: po.supplier.code,
+                    itemCount: po.items.length,
+                    lastUsed: po.orderDate.toISOString(),
+                    items: po.items.map((i: { productId: string; product: { name: string; code: string }; quantity: number; unitPrice: unknown }) => ({
+                        productId: i.productId,
+                        productName: i.product.name,
+                        productCode: i.product.code,
+                        quantity: i.quantity,
+                        unitPrice: Number(i.unitPrice),
+                    })),
+                })
+            }
+
+            return Array.from(seen.values())
+        })
+    } catch (error) {
+        console.error("[getPOTemplates] Error:", error)
+        return []
+    }
+}
+
+/**
+ * Create a new draft PO from a template.
+ */
+export async function createPOFromTemplate(
+    templateName: string
+): Promise<{ success: boolean; poId?: string; error?: string }> {
+    try {
+        const poId = await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Find the most recent PO with this template name
+            const template = await prisma.purchaseOrder.findFirst({
+                where: { templateName },
+                orderBy: { orderDate: 'desc' },
+                select: {
+                    supplierId: true,
+                    items: {
+                        select: {
+                            productId: true,
+                            quantity: true,
+                            unitPrice: true,
+                            totalPrice: true,
+                        },
+                    },
+                },
+            })
+
+            if (!template) throw new Error('Template tidak ditemukan')
+
+            // Get user
+            const supabase = await (await import('@/lib/supabase/server')).createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) throw new Error('Tidak terautentikasi')
+
+            // Generate PO number
+            const date = new Date()
+            const year = date.getFullYear()
+            const month = String(date.getMonth() + 1).padStart(2, '0')
+            const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
+            const poNumber = `PO-${year}${month}${random}-${template.supplierId.substring(0, 4)}`
+
+            const subtotal = template.items.reduce((s: number, i: { totalPrice: unknown }) => s + Number(i.totalPrice), 0)
+            const taxAmount = subtotal * 0.11
+            const netAmount = subtotal + taxAmount
+
+            const po = await prisma.purchaseOrder.create({
+                data: {
+                    number: poNumber,
+                    supplierId: template.supplierId,
+                    templateName,
+                    status: 'PO_DRAFT',
+                    createdBy: user.id,
+                    totalAmount: subtotal,
+                    taxAmount,
+                    netAmount,
+                    items: {
+                        create: template.items.map((i: Record<string, unknown>) => ({
+                            productId: i.productId as string,
+                            quantity: i.quantity as number,
+                            unitPrice: Number(i.unitPrice),
+                            totalPrice: Number(i.totalPrice),
+                        })),
+                    },
+                },
+            })
+
+            await createPurchaseOrderEvent(prisma as any, {
+                purchaseOrderId: po.id,
+                status: 'PO_DRAFT',
+                changedBy: user.id,
+                action: 'CREATE_FROM_TEMPLATE',
+                metadata: { source: 'TEMPLATE', templateName },
+            })
+
+            return po.id
+        })
+
+        revalidatePath('/procurement/orders')
+        return { success: true, poId }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal membuat PO dari template'
+        console.error("[createPOFromTemplate] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+// ==============================================================================
+// Landed Cost
+// ==============================================================================
+
+/**
+ * Save landed cost total to a PO.
+ */
+export async function saveLandedCost(
+    poId: string,
+    landedCostTotal: number
+): Promise<{ success: boolean; error?: string }> {
+    if (landedCostTotal < 0) {
+        return { success: false, error: 'Landed cost tidak boleh negatif' }
+    }
+
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            await prisma.purchaseOrder.update({
+                where: { id: poId },
+                data: { landedCostTotal },
+            })
+        })
+
+        revalidatePath('/procurement/orders')
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal menyimpan landed cost'
+        console.error("[saveLandedCost] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Get supplier performance metrics for scorecard.
+ */
+export async function getSupplierScorecard(supplierId: string): Promise<{
+    supplier: {
+        id: string
+        name: string
+        code: string
+        rating: number
+        onTimeRate: number
+        qualityScore: number
+        responsiveness: number
+    }
+    metrics: {
+        totalPOs: number
+        completedPOs: number
+        avgLeadTimeDays: number
+        totalSpend: number
+        defectRate: number
+        onTimeDeliveryPct: number
+    }
+} | null> {
+    try {
+        return await withPrismaAuth(async (prisma: PrismaClient) => {
+            const supplier = await prisma.supplier.findUnique({
+                where: { id: supplierId },
+                select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    rating: true,
+                    onTimeRate: true,
+                    qualityScore: true,
+                    responsiveness: true,
+                },
+            })
+
+            if (!supplier) return null
+
+            // Get PO statistics
+            const [totalPOs, completedPOs, poAggregates] = await Promise.all([
+                prisma.purchaseOrder.count({ where: { supplierId } }),
+                prisma.purchaseOrder.count({
+                    where: { supplierId, status: 'COMPLETED' },
+                }),
+                prisma.purchaseOrder.aggregate({
+                    where: { supplierId, status: { in: ['COMPLETED', 'RECEIVED'] } },
+                    _sum: { netAmount: true },
+                }),
+            ])
+
+            // Calculate avg lead time from completed POs
+            const completedPOsWithDates = await prisma.purchaseOrder.findMany({
+                where: {
+                    supplierId,
+                    status: 'COMPLETED',
+                    expectedDate: { not: null },
+                },
+                select: {
+                    orderDate: true,
+                    expectedDate: true,
+                    updatedAt: true,
+                },
+                take: 50,
+                orderBy: { updatedAt: 'desc' },
+            })
+
+            let totalLeadDays = 0
+            let onTimeCount = 0
+            for (const po of completedPOsWithDates) {
+                const orderDate = po.orderDate.getTime()
+                const completedDate = po.updatedAt.getTime()
+                const leadDays = Math.ceil((completedDate - orderDate) / (1000 * 60 * 60 * 24))
+                totalLeadDays += leadDays
+
+                if (po.expectedDate && completedDate <= po.expectedDate.getTime()) {
+                    onTimeCount++
+                }
+            }
+
+            const avgLeadTimeDays = completedPOsWithDates.length > 0
+                ? Math.round(totalLeadDays / completedPOsWithDates.length)
+                : 0
+            const onTimeDeliveryPct = completedPOsWithDates.length > 0
+                ? Math.round((onTimeCount / completedPOsWithDates.length) * 100)
+                : supplier.onTimeRate
+
+            // Get defect rate from GRN items
+            const grnStats = await prisma.gRNItem.aggregate({
+                where: {
+                    grn: {
+                        purchaseOrder: { supplierId },
+                    },
+                },
+                _sum: { quantityReceived: true, quantityRejected: true },
+            })
+
+            const totalReceived = grnStats._sum.quantityReceived || 0
+            const totalRejected = grnStats._sum.quantityRejected || 0
+            const defectRate = totalReceived > 0
+                ? Math.round((totalRejected / totalReceived) * 10000) / 100
+                : 0
+
+            return {
+                supplier: {
+                    ...supplier,
+                    qualityScore: Number(supplier.qualityScore ?? 0),
+                    responsiveness: Number(supplier.responsiveness ?? 0),
+                },
+                metrics: {
+                    totalPOs,
+                    completedPOs,
+                    avgLeadTimeDays,
+                    totalSpend: Number(poAggregates._sum.netAmount ?? 0),
+                    defectRate,
+                    onTimeDeliveryPct,
+                },
+            }
+        })
+    } catch (error) {
+        console.error("[getSupplierScorecard] Error:", error)
+        return null
     }
 }

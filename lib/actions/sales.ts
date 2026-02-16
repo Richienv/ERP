@@ -661,6 +661,285 @@ export async function getProductsForPriceList() {
 }
 
 // ==========================================
+// QUOTATION VERSIONING
+// ==========================================
+
+export interface QuotationVersionEntry {
+    id: string
+    number: string
+    version: number
+    status: string
+    total: number
+    quotationDate: string
+    isCurrent: boolean
+}
+
+/**
+ * Create a new revision of an existing quotation.
+ * Copies all items to a new quotation with incremented version.
+ */
+export async function createQuotationRevision(
+    quotationId: string
+): Promise<{ success: boolean; newQuotationId?: string; error?: string }> {
+    try {
+        const newId = await withPrismaAuth(async (prisma) => {
+            const original = await prisma.quotation.findUniqueOrThrow({
+                where: { id: quotationId },
+                include: { items: true },
+            })
+
+            // Find the root quotation (for versioning chain)
+            const rootId = original.parentQuotationId ?? original.id
+
+            // Count existing versions
+            const versionCount = await prisma.quotation.count({
+                where: {
+                    OR: [
+                        { id: rootId },
+                        { parentQuotationId: rootId },
+                    ],
+                },
+            })
+
+            // Generate new number
+            const baseNumber = original.number.replace(/-v\d+$/, '')
+            const newVersion = versionCount + 1
+            const newNumber = `${baseNumber}-v${newVersion}`
+
+            // Create revision
+            const revision = await prisma.quotation.create({
+                data: {
+                    number: newNumber,
+                    customerId: original.customerId,
+                    customerRef: original.customerRef,
+                    quotationDate: new Date(),
+                    validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // +14 days
+                    paymentTerm: original.paymentTerm,
+                    deliveryTerm: original.deliveryTerm,
+                    subtotal: original.subtotal,
+                    taxAmount: original.taxAmount,
+                    discountAmount: original.discountAmount,
+                    total: original.total,
+                    status: 'DRAFT',
+                    version: newVersion,
+                    parentQuotationId: rootId,
+                    notes: original.notes,
+                    internalNotes: `Revisi dari ${original.number}`,
+                    items: {
+                        create: original.items.map((item) => ({
+                            productId: item.productId,
+                            description: item.description,
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice,
+                            discount: item.discount,
+                            taxRate: item.taxRate,
+                            lineTotal: item.lineTotal,
+                        })),
+                    },
+                },
+            })
+
+            return revision.id
+        })
+
+        revalidatePath('/sales/quotations')
+        return { success: true, newQuotationId: newId }
+    } catch (error) {
+        console.error("[createQuotationRevision] Error:", error)
+        return { success: false, error: 'Gagal membuat revisi quotation' }
+    }
+}
+
+/**
+ * Get version history for a quotation (all versions in the chain).
+ */
+export async function getQuotationVersionHistory(
+    quotationId: string
+): Promise<QuotationVersionEntry[]> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const current = await prisma.quotation.findUniqueOrThrow({
+                where: { id: quotationId },
+                select: { id: true, parentQuotationId: true },
+            })
+
+            const rootId = current.parentQuotationId ?? current.id
+
+            const versions = await prisma.quotation.findMany({
+                where: {
+                    OR: [
+                        { id: rootId },
+                        { parentQuotationId: rootId },
+                    ],
+                },
+                select: {
+                    id: true,
+                    number: true,
+                    version: true,
+                    status: true,
+                    total: true,
+                    quotationDate: true,
+                },
+                orderBy: { version: 'asc' },
+            })
+
+            return versions.map((v) => ({
+                id: v.id,
+                number: v.number,
+                version: v.version,
+                status: v.status,
+                total: Number(v.total),
+                quotationDate: v.quotationDate.toISOString(),
+                isCurrent: v.id === quotationId,
+            }))
+        })
+    } catch (error) {
+        console.error("[getQuotationVersionHistory] Error:", error)
+        return []
+    }
+}
+
+// ==========================================
+// SO FULFILLMENT TRACKING
+// ==========================================
+
+export interface SOFulfillmentData {
+    orderId: string
+    orderNumber: string
+    customerName: string
+    status: string
+    items: {
+        id: string
+        productName: string
+        productCode: string
+        color: string | null
+        size: string | null
+        qtyOrdered: number
+        qtyDelivered: number
+        qtyInvoiced: number
+        fulfillmentPct: number
+    }[]
+    overallFulfillmentPct: number
+}
+
+export async function getSOFulfillment(salesOrderId: string): Promise<SOFulfillmentData | null> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const so = await prisma.salesOrder.findUnique({
+                where: { id: salesOrderId },
+                include: {
+                    customer: { select: { name: true } },
+                    items: {
+                        include: {
+                            product: { select: { name: true, code: true } },
+                        },
+                        orderBy: { createdAt: 'asc' },
+                    },
+                },
+            })
+
+            if (!so) return null
+
+            const items = so.items.map((item) => {
+                const ordered = Number(item.quantity)
+                const delivered = Number(item.qtyDelivered)
+                return {
+                    id: item.id,
+                    productName: item.product.name,
+                    productCode: item.product.code,
+                    color: item.color,
+                    size: item.size,
+                    qtyOrdered: ordered,
+                    qtyDelivered: delivered,
+                    qtyInvoiced: Number(item.qtyInvoiced),
+                    fulfillmentPct: ordered > 0 ? Math.round((delivered / ordered) * 100) : 0,
+                }
+            })
+
+            const totalOrdered = items.reduce((s, i) => s + i.qtyOrdered, 0)
+            const totalDelivered = items.reduce((s, i) => s + i.qtyDelivered, 0)
+
+            return {
+                orderId: so.id,
+                orderNumber: so.number,
+                customerName: so.customer.name,
+                status: so.status,
+                items,
+                overallFulfillmentPct: totalOrdered > 0
+                    ? Math.round((totalDelivered / totalOrdered) * 100)
+                    : 0,
+            }
+        })
+    } catch (error) {
+        console.error("[getSOFulfillment] Error:", error)
+        return null
+    }
+}
+
+export async function recordPartialShipment(
+    salesOrderItemId: string,
+    qtyShipped: number
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma) => {
+            const item = await prisma.salesOrderItem.findUniqueOrThrow({
+                where: { id: salesOrderItemId },
+                select: { quantity: true, qtyDelivered: true, salesOrderId: true },
+            })
+
+            const ordered = Number(item.quantity)
+            const alreadyDelivered = Number(item.qtyDelivered)
+            const newDelivered = alreadyDelivered + qtyShipped
+
+            if (newDelivered > ordered) {
+                throw new Error(`Qty kirim (${newDelivered}) melebihi qty order (${ordered})`)
+            }
+
+            await prisma.salesOrderItem.update({
+                where: { id: salesOrderItemId },
+                data: { qtyDelivered: newDelivered },
+            })
+
+            // Check if all items are fully delivered → update SO status
+            const allItems = await prisma.salesOrderItem.findMany({
+                where: { salesOrderId: item.salesOrderId },
+                select: { quantity: true, qtyDelivered: true },
+            })
+
+            const allFulfilled = allItems.every(
+                (i) => Number(i.qtyDelivered) >= Number(i.quantity)
+            )
+
+            if (allFulfilled) {
+                await prisma.salesOrder.update({
+                    where: { id: item.salesOrderId },
+                    data: { status: 'DELIVERED' },
+                })
+            } else {
+                // Ensure status is IN_PROGRESS if partially shipped
+                const so = await prisma.salesOrder.findUnique({
+                    where: { id: item.salesOrderId },
+                    select: { status: true },
+                })
+                if (so?.status === 'CONFIRMED') {
+                    await prisma.salesOrder.update({
+                        where: { id: item.salesOrderId },
+                        data: { status: 'IN_PROGRESS' },
+                    })
+                }
+            }
+        })
+
+        revalidatePath('/sales/orders')
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal mencatat pengiriman'
+        console.error("[recordPartialShipment] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+// ==========================================
 // SALES ORDER → INVOICE INTEGRATION
 // ==========================================
 

@@ -16,9 +16,22 @@ function decodeJwtPayload(token: string): Record<string, any> {
     return JSON.parse(json)
 }
 
+// Append connection_limit to DATABASE_URL for Supabase session-mode pooler compatibility.
+// Session-mode poolers limit concurrent connections to pool_size. Without this,
+// Prisma opens multiple connections per instance and exhausts the pool.
+function getDatasourceUrl(): string | undefined {
+    const url = process.env.DATABASE_URL
+    if (!url) return undefined
+    const separator = url.includes('?') ? '&' : '?'
+    // If already has connection_limit, don't add another
+    if (url.includes('connection_limit=')) return url
+    return `${url}${separator}connection_limit=1`
+}
+
 // Base Prisma client (without auth context)
 const basePrisma = globalForPrisma.prisma ?? new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+    datasourceUrl: getDatasourceUrl(),
 })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = basePrisma

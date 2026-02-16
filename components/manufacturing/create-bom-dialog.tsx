@@ -76,7 +76,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
         }
       } catch (error) {
         console.error(error);
-        toast.error("Failed to load products", { className: "font-bold border-2 border-black" });
+        toast.error("Failed to load products", { className: "font-bold border-2 border-black rounded-none" });
       } finally {
         setLoadingOptions(false);
       }
@@ -93,11 +93,11 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
       setIsActive(initialBOM.isActive);
       const mappedLines = initialBOM.items.length > 0
         ? initialBOM.items.map((item) => ({
-            materialId: item.materialId,
-            quantity: String(item.quantity),
-            unit: item.unit || "",
-            wastePct: String(item.wastePct ?? 0),
-          }))
+          materialId: item.materialId,
+          quantity: String(item.quantity),
+          unit: item.unit || "",
+          wastePct: String(item.wastePct ?? 0),
+        }))
         : [{ materialId: "", quantity: "1", unit: "", wastePct: "0" }];
       setLines(mappedLines);
       return;
@@ -135,20 +135,20 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
 
   const handleSubmit = async () => {
     if (!productId) {
-      toast.error("Pilih produk jadi terlebih dahulu", { className: "font-bold border-2 border-black" });
+      toast.error("Pilih produk jadi terlebih dahulu", { className: "font-bold border-2 border-black rounded-none" });
       return;
     }
 
     const validLines = lines.filter((line) => line.materialId && Number(line.quantity) > 0);
     if (validLines.length === 0) {
-      toast.error("Minimal satu material diperlukan", { className: "font-bold border-2 border-black" });
+      toast.error("Minimal satu material diperlukan", { className: "font-bold border-2 border-black rounded-none" });
       return;
     }
 
     const duplicated = new Set<string>();
     for (const line of validLines) {
       if (duplicated.has(line.materialId)) {
-        toast.error("Material duplikat tidak diperbolehkan", { className: "font-bold border-2 border-black" });
+        toast.error("Material duplikat tidak diperbolehkan", { className: "font-bold border-2 border-black rounded-none" });
         return;
       }
       duplicated.add(line.materialId);
@@ -179,20 +179,20 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
       const payload = await response.json();
       if (!payload.success) {
         toast.error(payload.error || (mode === "edit" ? "Gagal memperbarui BOM" : "Gagal membuat BOM"), {
-          className: "font-bold border-2 border-black"
+          className: "font-bold border-2 border-black rounded-none"
         });
         return;
       }
 
       toast.success(mode === "edit" ? "BOM berhasil diperbarui" : "BOM berhasil dibuat", {
-        className: "font-bold border-2 border-black"
+        className: "font-bold border-2 border-black rounded-none"
       });
       resetForm();
       onOpenChange(false);
       if (onCreated) await onCreated();
     } catch (error) {
       console.error(error);
-      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border-2 border-black" });
+      toast.error("Terjadi kesalahan jaringan", { className: "font-bold border-2 border-black rounded-none" });
     } finally {
       setSubmitting(false);
     }
@@ -200,12 +200,12 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl lg:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+      <DialogContent className="sm:max-w-2xl lg:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none gap-0">
         {/* Neo-Brutalist Header */}
-        <div className="bg-black text-white px-6 pt-6 pb-4 shrink-0">
+        <div className="bg-black text-white px-6 pt-6 pb-4 shrink-0 border-b-2 border-black">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black uppercase tracking-tight text-white flex items-center gap-3">
-              <div className="h-10 w-10 bg-white text-black flex items-center justify-center border-2 border-white">
+              <div className="h-10 w-10 bg-white text-black flex items-center justify-center border-2 border-white rounded-none">
                 <Wrench className="h-5 w-5" />
               </div>
               {mode === "edit" ? "Edit Bill of Materials" : "Buat Bill of Materials"}
@@ -217,19 +217,19 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
         </div>
 
         {/* Scrollable body */}
-        <ScrollArea className="flex-1 min-h-0">
+        <ScrollArea className="flex-1 min-h-0 bg-white">
           <div className="px-6 py-5 space-y-6">
             {/* Product selection row */}
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-4 items-end">
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest">Produk Jadi *</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Produk Jadi *</Label>
                 <Select value={productId} onValueChange={setProductId} disabled={loadingOptions || mode === "edit"}>
-                  <SelectTrigger className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold bg-white dark:bg-zinc-900 h-11">
+                  <SelectTrigger className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold bg-white dark:bg-zinc-900 h-11 rounded-none focus:ring-0 focus:ring-offset-0">
                     <SelectValue placeholder={loadingOptions ? "Memuat..." : "Pilih produk"} />
                   </SelectTrigger>
-                  <SelectContent className="max-h-60 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <SelectContent className="max-h-60 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none">
                     {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id} className="font-medium">
+                      <SelectItem key={p.id} value={p.id} className="font-medium focus:bg-zinc-100 rounded-none cursor-pointer">
                         <span className="font-mono text-[10px] text-muted-foreground mr-2 font-bold">{p.code}</span>
                         {p.name}
                       </SelectItem>
@@ -243,23 +243,23 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                 )}
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest">Versi</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Versi</Label>
                 <Input
                   value={version}
                   onChange={(e) => setVersion(e.target.value)}
-                  className="w-20 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold text-center bg-white dark:bg-zinc-900 h-11"
+                  className="w-20 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold text-center bg-white dark:bg-zinc-900 h-11 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   placeholder="v1"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest">Status</Label>
+                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</Label>
                 <Select value={isActive ? "ACTIVE" : "INACTIVE"} onValueChange={(value) => setIsActive(value === "ACTIVE")}>
-                  <SelectTrigger className="w-28 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold bg-white dark:bg-zinc-900 h-11">
+                  <SelectTrigger className="w-28 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] font-bold bg-white dark:bg-zinc-900 h-11 rounded-none focus:ring-0 focus:ring-offset-0">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <SelectItem value="ACTIVE" className="font-bold">Aktif</SelectItem>
-                    <SelectItem value="INACTIVE" className="font-bold">Nonaktif</SelectItem>
+                  <SelectContent className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none">
+                    <SelectItem value="ACTIVE" className="font-bold focus:bg-zinc-100 rounded-none cursor-pointer">Aktif</SelectItem>
+                    <SelectItem value="INACTIVE" className="font-bold focus:bg-zinc-100 rounded-none cursor-pointer">Nonaktif</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -268,13 +268,13 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
             {/* Material lines */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-black uppercase tracking-widest">Material / Komponen</Label>
+                <Label className="text-xs font-black uppercase tracking-widest text-zinc-500">Material / Komponen</Label>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={addLine}
-                  className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wide bg-white active:scale-[0.98]"
+                  className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wide bg-white active:scale-[0.98] rounded-none h-8"
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" />
                   Tambah
@@ -282,8 +282,8 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
               </div>
 
               {lines.length === 0 ? (
-                <div className="border-2 border-dashed border-black p-8 text-center bg-zinc-50 dark:bg-zinc-800/30">
-                  <div className="h-16 w-16 mx-auto bg-zinc-100 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center mb-4">
+                <div className="border-2 border-dashed border-black p-8 text-center bg-zinc-50/50">
+                  <div className="h-16 w-16 mx-auto bg-zinc-100 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center mb-4 rounded-full">
                     <Package className="h-8 w-8 text-zinc-400" />
                   </div>
                   <p className="text-sm font-bold text-muted-foreground mb-3 uppercase tracking-wide">
@@ -294,39 +294,39 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                     variant="outline"
                     size="sm"
                     onClick={addLine}
-                    className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wide bg-white active:scale-[0.98]"
+                    className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wide bg-white active:scale-[0.98] rounded-none h-9 px-4"
                   >
                     <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Material
                   </Button>
                 </div>
               ) : (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden rounded-none">
                   {/* Column headers */}
-                  <div className="hidden sm:grid grid-cols-[1fr_80px_80px_80px_40px] gap-2 bg-black text-white p-3">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Material</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Qty</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Satuan</span>
-                    <span className="text-[10px] font-black uppercase tracking-widest">Waste%</span>
-                    <span />
+                  <div className="hidden sm:grid grid-cols-[1fr_80px_60px_60px_40px] gap-0 bg-black text-white border-b-2 border-black">
+                    <div className="p-3 text-[10px] font-black uppercase tracking-widest border-r border-zinc-800">Material</div>
+                    <div className="p-3 text-[10px] font-black uppercase tracking-widest border-r border-zinc-800 text-center">Qty</div>
+                    <div className="p-3 text-[10px] font-black uppercase tracking-widest border-r border-zinc-800 text-center">Unit</div>
+                    <div className="p-3 text-[10px] font-black uppercase tracking-widest border-r border-zinc-800 text-center">Waste%</div>
+                    <div className="p-3" />
                   </div>
 
                   {lines.map((line, index) => (
                     <div
                       key={index}
                       className={cn(
-                        "grid grid-cols-1 sm:grid-cols-[1fr_80px_80px_80px_40px] gap-2 items-center p-3 sm:p-2 border-b border-dashed border-zinc-300 dark:border-zinc-700",
-                        index % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/50 dark:bg-zinc-800/30"
+                        "grid grid-cols-1 sm:grid-cols-[1fr_80px_60px_60px_40px] gap-0 items-center border-b-2 border-black last:border-b-0",
+                        index % 2 === 0 ? "bg-white" : "bg-zinc-50"
                       )}
                     >
-                      <div className="space-y-1 sm:space-y-0">
-                        <Label className="text-[9px] font-bold uppercase sm:hidden">Material</Label>
+                      <div className="p-2 border-b sm:border-b-0 border-black/10 sm:border-r-2 sm:border-black h-full flex flex-col justify-center">
+                        <Label className="text-[9px] font-bold uppercase sm:hidden mb-1">Material</Label>
                         <Select value={line.materialId} onValueChange={(value) => updateMaterial(index, value)}>
-                          <SelectTrigger className="text-xs border-2 border-black font-bold bg-white dark:bg-zinc-900 h-9">
-                            <SelectValue placeholder="Pilih" />
+                          <SelectTrigger className="text-xs border-none font-bold bg-transparent h-8 p-0 focus:ring-0 focus:ring-offset-0 px-2 rounded-none">
+                            <SelectValue placeholder="Pilih Material..." />
                           </SelectTrigger>
-                          <SelectContent className="max-h-60 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                          <SelectContent className="max-h-60 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none">
                             {materialOptions.map((m) => (
-                              <SelectItem key={m.id} value={m.id} className="font-medium">
+                              <SelectItem key={m.id} value={m.id} className="font-medium rounded-none py-2 cursor-pointer focus:bg-zinc-100">
                                 <span className="font-mono text-[10px] text-muted-foreground mr-1.5 font-bold">{m.code}</span>
                                 {m.name}
                               </SelectItem>
@@ -334,45 +334,51 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="space-y-1 sm:space-y-0">
-                        <Label className="text-[9px] font-bold uppercase sm:hidden">Qty</Label>
+
+                      <div className="p-2 border-b sm:border-b-0 border-black/10 sm:border-r-2 sm:border-black h-full flex flex-col justify-center">
+                        <Label className="text-[9px] font-bold uppercase sm:hidden mb-1">Qty</Label>
                         <Input
                           type="number"
                           min="0"
                           step="0.01"
                           value={line.quantity}
                           onChange={(e) => updateLine(index, { quantity: e.target.value })}
-                          className="text-xs border-2 border-black font-bold text-center bg-white dark:bg-zinc-900 h-9"
+                          className="text-xs border-none font-bold text-center bg-transparent h-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none w-full"
+                          placeholder="0"
                         />
                       </div>
-                      <div className="space-y-1 sm:space-y-0">
-                        <Label className="text-[9px] font-bold uppercase sm:hidden">Satuan</Label>
-                        <Input
-                          value={line.unit || "-"}
-                          readOnly
-                          className="text-xs border-2 border-black font-bold text-center bg-zinc-100 dark:bg-zinc-800 h-9"
-                        />
+
+                      <div className="p-2 border-b sm:border-b-0 border-black/10 sm:border-r-2 sm:border-black h-full flex flex-col justify-center">
+                        <Label className="text-[9px] font-bold uppercase sm:hidden mb-1">Satuan</Label>
+                        <div className="text-xs font-mono font-bold text-center text-muted-foreground py-1 bg-zinc-100/50 h-full flex items-center justify-center">
+                          {line.unit || "-"}
+                        </div>
                       </div>
-                      <div className="space-y-1 sm:space-y-0">
-                        <Label className="text-[9px] font-bold uppercase sm:hidden">Waste %</Label>
+
+                      <div className="p-2 border-b sm:border-b-0 border-black/10 sm:border-r-2 sm:border-black h-full flex flex-col justify-center">
+                        <Label className="text-[9px] font-bold uppercase sm:hidden mb-1">Waste %</Label>
                         <Input
                           type="number"
                           min="0"
                           step="0.1"
                           value={line.wastePct}
                           onChange={(e) => updateLine(index, { wastePct: e.target.value })}
-                          className="text-xs border-2 border-black font-bold text-center bg-white dark:bg-zinc-900 h-9"
+                          className="text-xs border-none font-bold text-center bg-transparent h-8 p-0 focus-visible:ring-0 focus-visible:ring-offset-0 rounded-none w-full"
+                          placeholder="0"
                         />
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 text-muted-foreground hover:text-white hover:bg-red-600 border-2 border-transparent hover:border-black transition-all"
-                        onClick={() => removeLine(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+
+                      <div className="p-2 flex items-center justify-center">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-black hover:text-white hover:bg-red-600 rounded-none transition-colors"
+                          onClick={() => removeLine(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -382,17 +388,17 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
         </ScrollArea>
 
         {/* Neo-Brutalist Footer */}
-        <div className="px-6 py-4 border-t-2 border-black shrink-0 bg-zinc-50 dark:bg-zinc-800 flex gap-3">
+        <div className="px-6 py-4 border-t-2 border-black shrink-0 bg-zinc-50 flex gap-3">
           <Button
             variant="outline"
-            className="flex-1 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wide bg-white active:scale-[0.98]"
+            className="flex-1 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wide bg-white active:scale-[0.98] rounded-none h-10"
             onClick={() => onOpenChange(false)}
             disabled={submitting}
           >
             Batal
           </Button>
           <Button
-            className="flex-1 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] transition-all font-black uppercase text-xs tracking-wide active:scale-[0.98]"
+            className="flex-1 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] transition-all font-black uppercase text-xs tracking-wide active:scale-[0.98] rounded-none h-10 hover:bg-zinc-800"
             disabled={submitting || !productId}
             onClick={handleSubmit}
           >

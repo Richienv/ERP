@@ -11,6 +11,8 @@ interface DashboardViewProps {
     operationsStripSlot: ReactNode
     activityFeedSlot: ReactNode
     trendingSlot: ReactNode
+    // Textile upgrade slots (Phase 2)
+    textileStripSlot?: ReactNode
 }
 
 const fadeIn = {
@@ -26,6 +28,7 @@ export function DashboardView({
     operationsStripSlot,
     activityFeedSlot,
     trendingSlot,
+    textileStripSlot,
 }: DashboardViewProps) {
     return (
         <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
@@ -68,6 +71,18 @@ export function DashboardView({
                 >
                     {operationsStripSlot}
                 </motion.div>
+
+                {/* Row 3.5: Textile Strip (OEE + Shift Handover + Downtime) */}
+                {textileStripSlot && (
+                    <motion.div
+                        className="flex-none grid grid-cols-1 md:grid-cols-12 gap-4"
+                        style={{ height: "220px" }}
+                        {...fadeIn}
+                        transition={{ duration: 0.3, delay: 0.12 }}
+                    >
+                        {textileStripSlot}
+                    </motion.div>
+                )}
 
                 {/* Row 4: Bottom Row — Activity Feed + Trending */}
                 <motion.div

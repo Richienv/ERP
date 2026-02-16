@@ -1,11 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { Search, CheckCircle2, XCircle, MessageSquare, Package, Loader2, Calendar } from "lucide-react"
+import { Search, CheckCircle2, XCircle, MessageSquare, Package, Loader2, Calendar, Clock, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
@@ -36,7 +35,6 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
     const [search, setSearch] = useState("")
     const [processing, setProcessing] = useState<string | null>(null)
 
-    // Dialog States
     const [rejectOpen, setRejectOpen] = useState(false)
     const [approveOpen, setApproveOpen] = useState(false)
     const [poOpen, setPOOpen] = useState(false)
@@ -64,8 +62,6 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
         if (filter === 'completed') return r.status === 'PO_CREATED'
         return true
     })
-
-    // --- ACTIONS ---
 
     const handleAction = (req: PurchaseRequest, action: 'reject' | 'approve' | 'po') => {
         setSelectedReq(req)
@@ -99,8 +95,6 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
 
     const confirmApprove = async () => {
         if (!selectedReq) return
-        // Mock Approver ID (Richie)
-        // In real app, get session user ID
         const approverId = "mock-approver-id"
 
         setProcessing(selectedReq.id)
@@ -127,7 +121,6 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
 
         setProcessing(selectedReq.id)
         try {
-            // Create PO for ALL items in the PR
             const itemIds = selectedReq.items.map(i => i.id)
             const result = await createPOFromPR(selectedReq.id, itemIds, "Generated from PR")
 
@@ -144,124 +137,166 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row items-center gap-4 bg-white p-2 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-xl">
-                <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search PR, requester, items..."
-                        className="pl-9 border-black focus-visible:ring-black font-medium"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
+        <div className="space-y-4">
 
-                <div className="flex bg-zinc-100 p-1 rounded-lg border border-zinc-200">
-                    <button
-                        onClick={() => setFilter('pending')}
-                        className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'pending' ? 'bg-amber-100 text-amber-900 border border-amber-200 shadow-sm' : 'text-zinc-500 hover:text-amber-600'}`}
-                    >
-                        Pending
-                        <span className="bg-amber-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">{pendingCount}</span>
-                    </button>
-                    <button
-                        onClick={() => setFilter('approved')}
-                        className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'approved' ? 'bg-emerald-100 text-emerald-900 border border-emerald-200 shadow-sm' : 'text-zinc-500 hover:text-emerald-600'}`}
-                    >
-                        Approved
-                        <span className="bg-emerald-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">{approvedCount}</span>
-                    </button>
-                    <button
-                        onClick={() => setFilter('rejected')}
-                        className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'rejected' ? 'bg-red-100 text-red-900 border border-red-200 shadow-sm' : 'text-zinc-500 hover:text-red-600'}`}
-                    >
-                        Rejected
-                        <span className="bg-red-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">{rejectedCount}</span>
-                    </button>
-                    <button
-                        onClick={() => setFilter('completed')}
-                        className={`px-3 py-1.5 text-xs font-bold uppercase rounded-md transition-all flex items-center gap-1.5 ${filter === 'completed' ? 'bg-blue-100 text-blue-900 border border-blue-200 shadow-sm' : 'text-zinc-500 hover:text-blue-600'}`}
-                    >
-                        Completed
-                        <span className="bg-blue-600 text-white text-[9px] px-1 rounded-full h-4 flex items-center justify-center">{completedCount}</span>
-                    </button>
+            {/* ═══ KPI PULSE STRIP ═══ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="grid grid-cols-2 md:grid-cols-4">
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <Clock className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pending</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{pendingCount}</div>
+                        <div className="text-[10px] font-bold text-amber-600 mt-1">Menunggu persetujuan</div>
+                    </div>
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Approved</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{approvedCount}</div>
+                        <div className="text-[10px] font-bold text-emerald-600 mt-1">Disetujui</div>
+                    </div>
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <XCircle className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Rejected</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{rejectedCount}</div>
+                        <div className="text-[10px] font-bold text-red-600 mt-1">Ditolak</div>
+                    </div>
+                    <div className="relative p-4 md:p-5">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <Package className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Completed</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">{completedCount}</div>
+                        <div className="text-[10px] font-bold text-blue-600 mt-1">PO dibuat</div>
+                    </div>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* ═══ SEARCH & FILTER BAR ═══ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="px-4 py-3 flex items-center gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                        <Input
+                            placeholder="Cari PR, requester, items..."
+                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex border-2 border-black">
+                        {([
+                            { key: 'pending' as const, label: 'Pending', count: pendingCount },
+                            { key: 'approved' as const, label: 'Approved', count: approvedCount },
+                            { key: 'rejected' as const, label: 'Rejected', count: rejectedCount },
+                            { key: 'completed' as const, label: 'Completed', count: completedCount },
+                        ]).map((s) => (
+                            <button
+                                key={s.key}
+                                onClick={() => setFilter(s.key)}
+                                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 flex items-center gap-1.5 ${
+                                    filter === s.key
+                                        ? "bg-black text-white"
+                                        : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                }`}
+                            >
+                                {s.label}
+                                <span className={`text-[9px] px-1 ${filter === s.key ? "bg-white/20" : "bg-zinc-200"} rounded-full`}>{s.count}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hidden md:block">
+                        {filtered.length} permintaan
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══ REQUEST CARDS GRID ═══ */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {filtered.map((req) => (
-                    <Card key={req.id} className="group border border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all bg-white rounded-xl overflow-hidden">
-                        <CardHeader className="flex-row items-start justify-between pb-2 bg-zinc-50/50 border-b border-black/5">
+                    <div key={req.id} className="group bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all overflow-hidden flex flex-col">
+                        {/* Card Header */}
+                        <div className="px-4 py-3 flex items-start justify-between bg-zinc-50 dark:bg-zinc-800 border-b border-zinc-100 dark:border-zinc-700">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 bg-black text-white rounded-lg flex items-center justify-center font-black text-xs border border-black/20">
+                                <div className="h-9 w-9 bg-black text-white flex items-center justify-center font-black text-[10px] border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
                                     PR
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black uppercase leading-none">{req.number}</h3>
-                                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mt-1">
+                                    <h3 className="text-sm font-black uppercase leading-none">{req.number}</h3>
+                                    <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-400 mt-1">
                                         <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> {new Date(req.date).toLocaleDateString()}</span>
-                                        <span>•</span>
+                                        <span>&bull;</span>
                                         <span className="uppercase">{req.department || 'General'}</span>
                                     </div>
                                 </div>
                             </div>
-                            <Badge variant={req.priority === 'HIGH' ? 'destructive' : 'outline'} className={`uppercase font-bold text-[10px] ${req.priority !== 'HIGH' && 'border-black text-black'}`}>
-                                {req.priority} Priority
+                            <Badge variant={req.priority === 'HIGH' ? 'destructive' : 'outline'} className={`uppercase font-black text-[9px] tracking-widest ${req.priority !== 'HIGH' && 'border-black text-black dark:text-white'}`}>
+                                {req.priority}
                             </Badge>
-                        </CardHeader>
+                        </div>
 
-                        <CardContent className="space-y-4 pt-4">
-                            <div className="flex items-center gap-2 text-sm">
-                                <Avatar className="h-6 w-6 border border-black/20">
-                                    <AvatarFallback className="bg-zinc-100 text-[10px] font-bold">
+                        {/* Card Body */}
+                        <div className="px-4 py-3 space-y-3 flex-1">
+                            <div className="flex items-center gap-2 text-xs">
+                                <Avatar className="h-5 w-5 border border-black">
+                                    <AvatarFallback className="bg-zinc-100 dark:bg-zinc-800 text-[9px] font-bold">
                                         {req.requester.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
-                                <span className="font-bold text-sm">Requested by {req.requester}</span>
+                                <span className="font-bold text-xs">Requested by {req.requester}</span>
                             </div>
 
-                            <div className="bg-white p-3 rounded-lg border border-zinc-200 space-y-2">
-                                <p className="text-xs font-bold uppercase text-muted-foreground mb-2 flex justify-between">
+                            <div className="bg-zinc-50 dark:bg-zinc-800 p-3 border border-zinc-200 dark:border-zinc-700 space-y-1.5">
+                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500 flex justify-between">
                                     <span>Items Requested</span>
                                     <span>{req.itemCount} Items</span>
                                 </p>
                                 {req.items.slice(0, 3).map(item => (
-                                    <div key={item.id} className="flex justify-between text-sm items-center border-b border-dashed border-zinc-100 last:border-0 pb-1 last:pb-0">
+                                    <div key={item.id} className="flex justify-between text-xs items-center border-b border-dashed border-zinc-200 dark:border-zinc-700 last:border-0 pb-1 last:pb-0">
                                         <span className="font-medium truncate max-w-[70%]">{item.productName}</span>
-                                        <span className="font-mono text-xs bg-zinc-100 px-1.5 py-0.5 rounded">{item.quantity} {item.unit}</span>
+                                        <span className="font-mono text-[10px] bg-zinc-100 dark:bg-zinc-700 px-1.5 py-0.5">{item.quantity} {item.unit}</span>
                                     </div>
                                 ))}
                                 {req.itemCount > 3 && (
-                                    <p className="text-xs text-center text-muted-foreground italic pt-1">...and {req.itemCount - 3} more</p>
+                                    <p className="text-[10px] text-center text-zinc-400 pt-1">...dan {req.itemCount - 3} lainnya</p>
                                 )}
                             </div>
 
                             {req.notes && (
-                                <div className="flex gap-2 text-xs text-black/70 bg-amber-50 p-2 rounded border border-amber-100 items-start">
+                                <div className="flex gap-2 text-[10px] text-zinc-600 dark:text-zinc-400 bg-amber-50 dark:bg-amber-900/20 p-2 border border-amber-200 dark:border-amber-800 items-start">
                                     <MessageSquare className="h-3 w-3 mt-0.5 text-amber-600 shrink-0" />
                                     <span className="italic line-clamp-2">"{req.notes}"</span>
                                 </div>
                             )}
-                        </CardContent>
+                        </div>
 
-                        <CardFooter className="pt-4 border-t border-black bg-zinc-50 flex gap-2">
+                        {/* Card Footer */}
+                        <div className="px-4 py-3 border-t-2 border-black bg-zinc-50 dark:bg-zinc-800 flex gap-2">
                             {filter === 'pending' && (
                                 <>
                                     <Button
                                         onClick={() => handleAction(req, 'reject')}
                                         variant="outline"
                                         disabled={!!processing}
-                                        className="flex-1 border-black font-bold uppercase hover:bg-red-50 hover:text-red-600 hover:border-red-600 shadow-sm"
+                                        className="flex-1 border-2 border-black font-black uppercase text-[10px] tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-600 h-9"
                                     >
-                                        <XCircle className="mr-2 h-4 w-4" /> Reject
+                                        <XCircle className="mr-1.5 h-3.5 w-3.5" /> Reject
                                     </Button>
                                     <Button
                                         onClick={() => handleAction(req, 'approve')}
                                         disabled={!!processing}
-                                        className="flex-1 bg-black text-white hover:bg-zinc-800 border border-black font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"
+                                        className="flex-1 bg-black text-white hover:bg-zinc-800 border-2 border-black font-black uppercase text-[10px] tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all h-9"
                                     >
-                                        {processing === req.id ? <Loader2 className="animate-spin h-4 w-4" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                                        Approve + PO
+                                        {processing === req.id ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Approve + PO</>}
                                     </Button>
                                 </>
                             )}
@@ -269,77 +304,82 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                                 <Button
                                     onClick={() => handleAction(req, 'po')}
                                     disabled={!!processing}
-                                    className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 border border-black font-bold uppercase shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none transition-all"
+                                    className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black font-black uppercase text-[10px] tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all h-9"
                                 >
-                                    {processing === req.id ? <Loader2 className="animate-spin h-4 w-4" /> : <Package className="mr-2 h-4 w-4" />}
-                                    Convert to PO
+                                    {processing === req.id ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <><Package className="mr-1.5 h-3.5 w-3.5" /> Convert to PO</>}
                                 </Button>
                             )}
                             {filter === 'rejected' && (
-                                <div className="w-full text-center text-xs font-bold text-red-600 uppercase py-2 bg-red-50 rounded border border-red-100">
+                                <div className="w-full text-center text-[10px] font-black text-red-600 uppercase tracking-widest py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                                     Rejected
                                 </div>
                             )}
-                        </CardFooter>
-                    </Card>
+                            {filter === 'completed' && (
+                                <div className="w-full text-center text-[10px] font-black text-blue-600 uppercase tracking-widest py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                    PO Created
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 ))}
 
                 {filtered.length === 0 && (
-                    <div className="col-span-full text-center p-12 border-2 border-dashed border-zinc-200 rounded-xl bg-zinc-50">
-                        <p className="text-muted-foreground font-bold">No requests found in this tab.</p>
+                    <div className="col-span-full border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-12 text-center">
+                        <AlertCircle className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tidak ada permintaan di tab ini</p>
                     </div>
                 )}
             </div>
 
             {/* REJECT DIALOG */}
             <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
-                <DialogContent>
+                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
                     <DialogHeader>
-                        <DialogTitle className="text-red-600 uppercase font-black flex items-center gap-2"><XCircle className="h-5 w-5" /> Reject Request</DialogTitle>
+                        <DialogTitle className="text-red-600 uppercase font-black flex items-center gap-2 text-sm tracking-widest"><XCircle className="h-5 w-5" /> Reject Request</DialogTitle>
                         <DialogDescription>Reason for rejection?</DialogDescription>
                     </DialogHeader>
-                    <Textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Enter reason..." />
+                    <Textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Enter reason..." className="border-2 border-black" />
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setRejectOpen(false)}>Cancel</Button>
-                        <Button variant="destructive" onClick={confirmReject}>Confirm Reject</Button>
+                        <Button variant="destructive" onClick={confirmReject} className="border-2 border-black font-black uppercase text-xs tracking-widest">Confirm Reject</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* APPROVE DIALOG */}
             <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
-                <DialogContent>
+                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
                     <DialogHeader>
-                        <DialogTitle className="uppercase font-black flex items-center gap-2"><CheckCircle2 className="h-5 w-5 text-emerald-600" /> Approve Fast-Lane</DialogTitle>
+                        <DialogTitle className="uppercase font-black flex items-center gap-2 text-sm tracking-widest"><CheckCircle2 className="h-5 w-5 text-emerald-600" /> Approve Fast-Lane</DialogTitle>
                         <DialogDescription>
                             Approve <b>{selectedReq?.number}</b> and automatically generate PO from approved items.
                             <br /><br />
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-[10px] text-zinc-400">
                                 If your account has no Purchasing access, request stays approved and PO can be generated by Purchasing team.
                             </span>
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setApproveOpen(false)}>Cancel</Button>
-                        <Button className="bg-black text-white" onClick={confirmApprove}>Approve & Process</Button>
+                        <Button className="bg-black text-white border-2 border-black font-black uppercase text-xs tracking-widest" onClick={confirmApprove}>Approve & Process</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* PO DIALOG */}
             <Dialog open={poOpen} onOpenChange={setPOOpen}>
-                <DialogContent>
+                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
                     <DialogHeader>
-                        <DialogTitle className="uppercase font-black flex items-center gap-2"><Package className="h-5 w-5 text-blue-600" /> Generate POs</DialogTitle>
+                        <DialogTitle className="uppercase font-black flex items-center gap-2 text-sm tracking-widest"><Package className="h-5 w-5 text-blue-600" /> Generate POs</DialogTitle>
                         <DialogDescription>
                             This will create Purchase Orders for <b>{selectedReq?.itemCount} items</b> in <b>{selectedReq?.number}</b>.
                             <br /><br />
-                            <span className="text-xs text-muted-foreground bg-zinc-100 p-1 rounded">Note: Items without preferred suppliers will be skipped or require manual intervention.</span>
+                            <span className="text-[10px] text-zinc-400 bg-zinc-100 dark:bg-zinc-800 p-1">Note: Items without preferred suppliers will be skipped or require manual intervention.</span>
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setPOOpen(false)}>Cancel</Button>
-                        <Button className="bg-blue-600 text-white hover:bg-blue-700" onClick={confirmCreatePO}>Generate POs</Button>
+                        <Button className="bg-blue-600 text-white hover:bg-blue-700 border-2 border-black font-black uppercase text-xs tracking-widest" onClick={confirmCreatePO}>Generate POs</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

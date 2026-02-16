@@ -1,363 +1,544 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { MoreHorizontal, Plus, Phone, MessageSquare, AlertCircle, Calendar, User, CheckCircle2, XCircle, Filter, Search } from "lucide-react"
+import { useState, useMemo } from "react"
+import { useRouter } from "next/navigation"
+import { Plus, Filter, AlertTriangle, Clock, CheckCircle, Ban, Calendar, User, FileText, ArrowRight } from "lucide-react"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
+    DialogDescription,
     DialogFooter
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useState } from "react"
-import { Checkbox } from "@/components/ui/checkbox"
+import { NB } from "@/lib/dialog-styles"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { toast } from "sonner"
+import { createTask } from "@/lib/actions/tasks"
+import type { ManagerTaskDTO, ManagerTasksData, AssignableEmployee, AssignableOrder } from "@/lib/actions/tasks"
+import Link from "next/link"
 
-export function ManagerTaskBoard() {
+// ==============================================================================
+// Constants
+// ==============================================================================
+
+const PRIORITY_LABELS: Record<string, string> = {
+    LOW: "Rendah", MEDIUM: "Sedang", HIGH: "Tinggi", URGENT: "Mendesak",
+}
+const PRIORITY_COLORS: Record<string, string> = {
+    LOW: "bg-zinc-100 text-zinc-600 border-zinc-300",
+    MEDIUM: "bg-orange-100 text-orange-700 border-orange-300",
+    HIGH: "bg-red-100 text-red-700 border-red-300",
+    URGENT: "bg-red-500 text-white border-red-600 animate-pulse",
+}
+
+const TYPE_LABELS: Record<string, string> = {
+    PRODUCTION: "Produksi", QUALITY_CHECK: "Kualitas", LOGISTICS: "Gudang",
+    SALES: "Penjualan", PO_REVIEW: "Review PO", PURCHASE_REQUEST: "Permintaan Beli",
+    OTHER: "Lainnya", ADMIN: "Admin",
+}
+
+const COLUMN_CONFIG = [
+    { key: "pending", label: "Menunggu", icon: Clock, color: "border-t-zinc-400" },
+    { key: "inProgress", label: "Berjalan", icon: ArrowRight, color: "border-t-blue-500" },
+    { key: "blocked", label: "Kendala", icon: AlertTriangle, color: "border-t-red-500" },
+    { key: "completed", label: "Selesai", icon: CheckCircle, color: "border-t-emerald-500" },
+] as const
+
+// ==============================================================================
+// Main Component
+// ==============================================================================
+
+interface ManagerTaskBoardProps {
+    tasks: ManagerTasksData
+    employees: AssignableEmployee[]
+    orders: AssignableOrder[]
+}
+
+export function ManagerTaskBoard({ tasks, employees, orders }: ManagerTaskBoardProps) {
     const [isNewTaskOpen, setIsNewTaskOpen] = useState(false)
-    const [isFilterOpen, setIsFilterOpen] = useState(false)
-    const [selectedTask, setSelectedTask] = useState<any>(null)
+    const [selectedTask, setSelectedTask] = useState<ManagerTaskDTO | null>(null)
+    const [filterEmployee, setFilterEmployee] = useState("")
+
+    const filteredTasks = useMemo(() => {
+        if (!filterEmployee) return tasks
+        return {
+            pending: tasks.pending.filter((t) => t.employeeId === filterEmployee),
+            inProgress: tasks.inProgress.filter((t) => t.employeeId === filterEmployee),
+            blocked: tasks.blocked.filter((t) => t.employeeId === filterEmployee),
+            completed: tasks.completed.filter((t) => t.employeeId === filterEmployee),
+        }
+    }, [tasks, filterEmployee])
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h2 className="text-xl font-black font-serif tracking-tight flex items-center gap-2">
-                    📋 Task Management Center
+                <h2 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
+                    Pusat Manajemen Tugas
                 </h2>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setIsFilterOpen(true)} className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all">
-                        <Filter className="h-4 w-4 mr-2" /> Filter: My Tasks
-                    </Button>
-                    <Button size="sm" onClick={() => setIsNewTaskOpen(true)} className="bg-black text-white hover:bg-zinc-800 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.5)]">
-                        <Plus className="h-4 w-4 mr-1" /> New Task
-                    </Button>
+                    <select
+                        className="border-2 border-black text-[10px] font-black uppercase tracking-wider px-3 h-8 bg-white"
+                        value={filterEmployee}
+                        onChange={(e) => setFilterEmployee(e.target.value)}
+                    >
+                        <option value="">Semua Staf</option>
+                        {employees.map((e) => (
+                            <option key={e.id} value={e.id}>{e.name}</option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={() => setIsNewTaskOpen(true)}
+                        className="flex items-center gap-1.5 bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-4 h-8"
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                        Tugas Baru
+                    </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-[600px] overflow-x-auto pb-4">
-                {/* Column 1: TO DO */}
-                <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4 rounded-xl border border-black/10 flex flex-col gap-4 min-w-[300px]">
-                    <div className="flex justify-between items-center text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                        <span>TO DO (18)</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                    </div>
-
-                    {/* Task Card: Critical */}
-                    <TaskCard
-                        id="TASK-2456"
-                        title="Order polyester yarn ASAP"
-                        desc="Production stopped on Line 2 if not arrived by Monday."
-                        priority="URGENT 🔥"
-                        variant="destructive"
-                        tags={[{ icon: AlertCircle, text: "Blocker: Waiting supplier quote" }]}
-                        assignee="PA"
-                        due="Due: 5 PM"
-                        onClick={() => setSelectedTask({ id: "TASK-2456", title: "Order polyester yarn ASAP", status: "TODO" })}
-                    />
-
-                    {/* Task Card: Normal */}
-                    <TaskCard
-                        id="TASK-2458"
-                        title="Schedule Line 3 maintenance"
-                        desc=""
-                        priority="MAINTENANCE"
-                        variant="secondary"
-                        assignee="PJ"
-                        due="Tomorrow"
-                        onClick={() => setSelectedTask({ id: "TASK-2458", title: "Schedule Line 3 maintenance", status: "TODO" })}
-                    />
-                </div>
-
-                {/* Column 2: IN PROGRESS */}
-                <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4 rounded-xl border border-black/10 flex flex-col gap-4 min-w-[300px]">
-                    <div className="flex justify-between items-center text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                        <span>IN PROGRESS (24)</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                    </div>
-
-                    {/* Task Card: Progress */}
-                    <TaskCard
-                        id="TASK-2441"
-                        title="Fix color defect SO-234"
-                        desc=""
-                        priority="HIGH"
-                        variant="outline"
-                        assignee="ID"
-                        progress={85}
-                        actions={true}
-                        footer='"Redying now, will finish 7PM" - 15m ago'
-                        onClick={() => setSelectedTask({ id: "TASK-2441", title: "Fix color defect SO-234", status: "IN_PROGRESS" })}
-                    />
-                </div>
-
-                {/* Column 3: REVIEW */}
-                <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4 rounded-xl border border-black/10 flex flex-col gap-4 min-w-[300px]">
-                    <div className="flex justify-between items-center text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                        <span>REVIEW (7)</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                    </div>
-                    <TaskCard
-                        id="TASK-2398"
-                        title="Approve rework plan"
-                        desc="Impact: Rp 67M"
-                        priority="APPROVAL"
-                        variant="blue"
-                        assignee="ME"
-                        hasReviewAction={true}
-                        footer="Waiting: 2 hours"
-                        footerType="warning"
-                        onClick={() => setSelectedTask({ id: "TASK-2398", title: "Approve rework plan", status: "REVIEW", isApproval: true })}
-                    />
-                </div>
-
-                {/* Column 4: COMPLETED */}
-                <div className="bg-zinc-50/50 dark:bg-zinc-900/50 p-4 rounded-xl border border-black/10 flex flex-col gap-4 min-w-[300px]">
-                    <div className="flex justify-between items-center text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                        <span>COMPLETED (156)</span>
-                        <MoreHorizontal className="h-4 w-4" />
-                    </div>
-                    <Card className="bg-zinc-50 dark:bg-zinc-900 border border-black/20 opacity-75 hover:opacity-100 transition-opacity rounded-xl">
-                        <CardContent className="p-4 space-y-2">
-                            <div className="flex justify-between items-start">
-                                <span className="text-[10px] font-black text-emerald-600 border border-emerald-200 bg-emerald-50 px-1 rounded">✅ TODAY</span>
-                                <span className="text-xs font-mono text-muted-foreground">#TASK-2389</span>
+            {/* Kanban Columns */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {COLUMN_CONFIG.map((col) => {
+                    const colTasks = filteredTasks[col.key as keyof ManagerTasksData]
+                    const Icon = col.icon
+                    return (
+                        <div
+                            key={col.key}
+                            className={`bg-zinc-50 border-2 border-black border-t-4 ${col.color} p-3 flex flex-col gap-3 min-h-[300px]`}
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5">
+                                    <Icon className="h-3.5 w-3.5" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest">
+                                        {col.label}
+                                    </span>
+                                </div>
+                                <span className="text-[9px] font-black px-1.5 py-0.5 bg-white border-2 border-black">
+                                    {colTasks.length}
+                                </span>
                             </div>
-                            <h3 className="font-medium text-sm leading-tight decoration-slate-400 line-through text-muted-foreground">Shipped SO-2026-234</h3>
-                            <div className="text-xs text-muted-foreground">2000m to PT Mode Fashion</div>
-                            <div className="text-[10px] text-muted-foreground border-t border-black/5 pt-1 mt-1 font-medium">
-                                By: Warehouse Team • 4:30 PM
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+
+                            {colTasks.length === 0 ? (
+                                <div className="flex-1 flex items-center justify-center">
+                                    <span className="text-[9px] font-bold text-zinc-400">Kosong</span>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2 flex-1 overflow-y-auto max-h-[500px]">
+                                    {colTasks.map((task) => (
+                                        <KanbanCard
+                                            key={task.id}
+                                            task={task}
+                                            onClick={() => setSelectedTask(task)}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )
+                })}
             </div>
 
-            {/* NEW TASK DIALOG */}
-            <NewTaskDialog open={isNewTaskOpen} onOpenChange={setIsNewTaskOpen} />
+            {/* Create Task Dialog */}
+            <NewTaskDialog
+                open={isNewTaskOpen}
+                onOpenChange={setIsNewTaskOpen}
+                employees={employees}
+                orders={orders}
+            />
 
-            {/* FILTER DIALOG */}
-            <FilterDialog open={isFilterOpen} onOpenChange={setIsFilterOpen} />
-
-            {/* TASK DETAIL DIALOG */}
-            {selectedTask && <TaskDetailDialog task={selectedTask} onClose={() => setSelectedTask(null)} />}
-
+            {/* Task Detail Dialog */}
+            {selectedTask && (
+                <TaskDetailDialog
+                    task={selectedTask}
+                    onClose={() => setSelectedTask(null)}
+                />
+            )}
         </div>
     )
 }
 
-// --- SUB-COMPONENTS & DIALOGS ---
+// ==============================================================================
+// Kanban Card
+// ==============================================================================
 
-function TaskCard({ id, title, desc, priority, variant, tags, assignee, due, progress, actions, footer, footerType, hasReviewAction, onClick }: any) {
+function KanbanCard({ task, onClick }: { task: ManagerTaskDTO; onClick: () => void }) {
+    const linkedLabel = task.workOrderNumber
+        ? `WO: ${task.workOrderNumber}`
+        : task.purchaseOrderNumber
+            ? `PO: ${task.purchaseOrderNumber}`
+            : task.salesOrderNumber
+                ? `SO: ${task.salesOrderNumber}`
+                : null
+
     return (
-        <Card onClick={onClick} className="bg-white dark:bg-zinc-950 border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 transition-transform cursor-pointer rounded-xl group relative overflow-hidden">
-            {hasReviewAction && <div className="absolute top-0 right-0 w-8 h-8 bg-blue-100 rounded-bl-xl border-l border-b border-black flex items-center justify-center z-10"><CheckCircle2 className="h-4 w-4 text-blue-600" /></div>}
-            <CardContent className="p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                    <Badge variant={variant === 'destructive' ? 'destructive' : 'secondary'} className={`text-[10px] px-1.5 py-0.5 h-5 shadow-sm border border-black/10 ${variant === 'blue' ? 'bg-blue-600 text-white' : variant === 'outline' ? 'bg-amber-50 text-amber-700 border-black' : ''}`}>
-                        {priority}
-                    </Badge>
-                    <span className="text-xs font-mono font-bold text-muted-foreground">{id}</span>
-                </div>
-                <h3 className="font-bold text-sm leading-tight">{title}</h3>
-                {desc && <p className="text-xs text-muted-foreground line-clamp-2 font-medium">{desc}</p>}
-
-                {progress !== undefined && (
-                    <>
-                        <div className="w-full h-2 bg-zinc-100 border border-black/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-amber-500 border-r border-black/20" style={{ width: `${progress}%` }} />
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground font-medium">
-                            <span>{progress}% Done</span>
-                            <span>Started: 2:30 PM</span>
-                        </div>
-                    </>
+        <div
+            onClick={onClick}
+            className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-pointer p-3 space-y-2"
+        >
+            <div className="flex justify-between items-start gap-2">
+                <span className={`text-[8px] font-black px-1.5 py-0.5 border ${PRIORITY_COLORS[task.priority] || PRIORITY_COLORS.MEDIUM}`}>
+                    {PRIORITY_LABELS[task.priority] || task.priority}
+                </span>
+                {task.deadline && (
+                    <span className="text-[9px] font-mono font-bold text-zinc-400">
+                        {new Date(task.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                    </span>
                 )}
-
-                <div className="flex items-center justify-between pt-2 border-t border-black/10">
-                    <div className="flex -space-x-2">
-                        <Avatar className="h-6 w-6 border-2 border-white dark:border-zinc-900">
-                            <AvatarFallback className="text-[10px] bg-blue-100 text-blue-700 font-bold">{assignee}</AvatarFallback>
-                        </Avatar>
-                    </div>
-                    {due && <div className={`text-xs font-black ${variant === 'destructive' ? 'text-red-600' : 'text-muted-foreground'}`}>{due}</div>}
-                    {hasReviewAction && (
-                        <Button size="sm" className="h-6 text-[10px] bg-blue-600 hover:bg-blue-700 text-white border border-black shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]">Review</Button>
-                    )}
-                    {actions && (
-                        <div className="flex gap-1">
-                            <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-zinc-100 rounded-full"><Phone className="h-3 w-3" /></Button>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-zinc-100 rounded-full"><MessageSquare className="h-3 w-3" /></Button>
-                        </div>
-                    )}
+            </div>
+            <h3 className="text-xs font-black leading-tight">{task.title}</h3>
+            {linkedLabel && (
+                <div className="text-[8px] font-black text-blue-600 bg-blue-50 px-1.5 py-0.5 border border-blue-200 w-fit">
+                    {linkedLabel}
                 </div>
-
-                {tags?.map((Tag: any, i: number) => (
-                    <div key={i} className="text-[10px] bg-red-50 dark:bg-red-900/20 text-red-700 font-bold p-1.5 rounded border border-red-100 dark:border-red-900 flex items-center gap-1">
-                        <Tag.icon className="h-3 w-3" />
-                        <span>{Tag.text}</span>
+            )}
+            <div className="flex items-center justify-between pt-1 border-t border-zinc-200">
+                <div className="flex items-center gap-1.5">
+                    <div className="w-5 h-5 bg-zinc-200 border border-black flex items-center justify-center">
+                        <span className="text-[8px] font-black">
+                            {task.employeeName.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        </span>
                     </div>
-                ))}
-
-                {footer && (
-                    <div className={`text-[10px] p-1 rounded text-center border mt-2 ${footerType === 'warning' ? 'text-amber-600 font-bold bg-amber-50 border-amber-100' : 'text-muted-foreground italic bg-zinc-50 border-black/5'}`}>
-                        {footer}
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                    <span className="text-[9px] font-bold text-zinc-500">{task.employeeName}</span>
+                </div>
+                <span className="text-[8px] font-bold text-zinc-400">
+                    {TYPE_LABELS[task.type] || task.type}
+                </span>
+            </div>
+        </div>
     )
 }
 
-function NewTaskDialog({ open, onOpenChange }: any) {
+// ==============================================================================
+// New Task Dialog
+// ==============================================================================
+
+function NewTaskDialog({
+    open,
+    onOpenChange,
+    employees,
+    orders,
+}: {
+    open: boolean
+    onOpenChange: (v: boolean) => void
+    employees: AssignableEmployee[]
+    orders: AssignableOrder[]
+}) {
+    const router = useRouter()
+    const [loading, setLoading] = useState(false)
+    const [title, setTitle] = useState("")
+    const [employeeId, setEmployeeId] = useState("")
+    const [type, setType] = useState("PRODUCTION")
+    const [priority, setPriority] = useState("MEDIUM")
+    const [notes, setNotes] = useState("")
+    const [deadline, setDeadline] = useState("")
+    const [orderId, setOrderId] = useState("")
+
+    const handleCreate = async () => {
+        if (!title.trim()) { toast.error("Judul tugas wajib diisi"); return }
+        if (!employeeId) { toast.error("Pilih karyawan"); return }
+
+        setLoading(true)
+
+        const selectedOrder = orders.find((o) => `${o.type}:${o.id}` === orderId)
+
+        const result = await createTask({
+            title: title.trim(),
+            employeeId,
+            type,
+            priority,
+            notes: notes.trim() || undefined,
+            deadline: deadline || undefined,
+            workOrderId: selectedOrder?.type === "WO" ? selectedOrder.id : undefined,
+            purchaseOrderId: selectedOrder?.type === "PO" ? selectedOrder.id : undefined,
+            salesOrderId: selectedOrder?.type === "SO" ? selectedOrder.id : undefined,
+        })
+
+        setLoading(false)
+
+        if (result.success) {
+            toast.success("Tugas berhasil dibuat")
+            onOpenChange(false)
+            setTitle("")
+            setEmployeeId("")
+            setNotes("")
+            setDeadline("")
+            setOrderId("")
+            router.refresh()
+        } else {
+            toast.error(result.error || "Gagal membuat tugas")
+        }
+    }
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0">
-                <DialogHeader className="p-4 border-b border-black bg-zinc-50">
-                    <DialogTitle className="uppercase font-black text-lg">Create New Task</DialogTitle>
-                    <DialogDescription>Assign a new priority task to the team.</DialogDescription>
+            <DialogContent className={NB.content}>
+                <DialogHeader className={NB.header}>
+                    <DialogTitle className={NB.title}>
+                        <Plus className="h-5 w-5" />
+                        Buat Tugas Baru
+                    </DialogTitle>
+                    <p className={NB.subtitle}>Tugaskan pekerjaan ke anggota tim</p>
                 </DialogHeader>
-                <div className="p-4 space-y-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="title" className="text-xs font-bold uppercase">Task Title</Label>
-                        <Input id="title" placeholder="e.g. Check Line 5 Output" className="border-black focus-visible:ring-black" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="priority" className="text-xs font-bold uppercase">Priority</Label>
-                            <Select>
-                                <SelectTrigger className="border-black"><SelectValue placeholder="Select" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="high">High</SelectItem>
-                                    <SelectItem value="normal">Normal</SelectItem>
-                                    <SelectItem value="low">Low</SelectItem>
-                                </SelectContent>
-                            </Select>
+
+                <ScrollArea className={NB.scroll}>
+                    <div className="p-6 space-y-5">
+                        {/* Title */}
+                        <div>
+                            <label className={NB.label}>
+                                Judul Tugas <span className={NB.labelRequired}>*</span>
+                            </label>
+                            <Input
+                                className={NB.input}
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Misal: Inspeksi kualitas batch DY-2026"
+                            />
                         </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="assignee" className="text-xs font-bold uppercase">Assign To</Label>
-                            <Select>
-                                <SelectTrigger className="border-black"><SelectValue placeholder="Select Team" /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="prod">Production</SelectItem>
-                                    <SelectItem value="maint">Maintenance</SelectItem>
-                                    <SelectItem value="qc">Quality</SelectItem>
-                                </SelectContent>
-                            </Select>
+
+                        {/* Employee + Type */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className={NB.label}>
+                                    Ditugaskan Ke <span className={NB.labelRequired}>*</span>
+                                </label>
+                                <select
+                                    className={NB.select}
+                                    value={employeeId}
+                                    onChange={(e) => setEmployeeId(e.target.value)}
+                                >
+                                    <option value="">Pilih karyawan...</option>
+                                    {employees.map((e) => (
+                                        <option key={e.id} value={e.id}>
+                                            {e.name} — {e.position}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className={NB.label}>Tipe Tugas</label>
+                                <select
+                                    className={NB.select}
+                                    value={type}
+                                    onChange={(e) => setType(e.target.value)}
+                                >
+                                    <option value="PRODUCTION">Produksi</option>
+                                    <option value="QUALITY_CHECK">Kualitas</option>
+                                    <option value="LOGISTICS">Gudang / Logistik</option>
+                                    <option value="SALES">Penjualan</option>
+                                    <option value="OTHER">Teknisi / Lainnya</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Priority + Deadline */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className={NB.label}>Prioritas</label>
+                                <select
+                                    className={NB.select}
+                                    value={priority}
+                                    onChange={(e) => setPriority(e.target.value)}
+                                >
+                                    <option value="LOW">Rendah</option>
+                                    <option value="MEDIUM">Sedang</option>
+                                    <option value="HIGH">Tinggi</option>
+                                    <option value="URGENT">Mendesak</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className={NB.label}>Tenggat Waktu</label>
+                                <Input
+                                    type="datetime-local"
+                                    className={NB.input}
+                                    value={deadline}
+                                    onChange={(e) => setDeadline(e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Link to Order */}
+                        {orders.length > 0 && (
+                            <div>
+                                <label className={NB.label}>Hubungkan ke Order</label>
+                                <select
+                                    className={NB.select}
+                                    value={orderId}
+                                    onChange={(e) => setOrderId(e.target.value)}
+                                >
+                                    <option value="">— Tidak ada —</option>
+                                    {orders.map((o) => (
+                                        <option key={`${o.type}:${o.id}`} value={`${o.type}:${o.id}`}>
+                                            {o.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Notes */}
+                        <div>
+                            <label className={NB.label}>Instruksi / Catatan</label>
+                            <Textarea
+                                className={NB.textarea}
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                placeholder="Detail instruksi, lokasi, target, dll..."
+                            />
+                        </div>
+
+                        {/* Footer */}
+                        <div className={NB.footer}>
+                            <button
+                                type="button"
+                                onClick={() => onOpenChange(false)}
+                                className={NB.cancelBtn}
+                            >
+                                Batal
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCreate}
+                                disabled={loading}
+                                className={NB.submitBtn}
+                            >
+                                {loading ? "Menyimpan..." : "Buat Tugas"}
+                            </button>
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="desc" className="text-xs font-bold uppercase">Description / Parts Info</Label>
-                        <Textarea id="desc" placeholder="Details about parts, location, or specific requirements..." className="border-black min-h-[100px]" />
-                    </div>
-                </div>
-                <DialogFooter className="p-4 border-t border-black bg-zinc-50 flex gap-2">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1 border-black font-bold uppercase bg-white text-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">Cancel</Button>
-                    <Button onClick={() => onOpenChange(false)} className="flex-1 bg-black text-white hover:bg-zinc-800 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-bold">Create Task</Button>
-                </DialogFooter>
+                </ScrollArea>
             </DialogContent>
         </Dialog>
     )
 }
 
-function FilterDialog({ open, onOpenChange }: any) {
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[300px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0">
-                <DialogHeader className="p-4 border-b border-black">
-                    <DialogTitle className="uppercase font-black text-base">Filter Tasks</DialogTitle>
-                </DialogHeader>
-                <div className="p-4 space-y-4">
-                    <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="my-tasks" className="border-black data-[state=checked]:bg-black data-[state=checked]:text-white" />
-                            <label htmlFor="my-tasks" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Assigned to Me</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="urgent" className="border-black data-[state=checked]:bg-black data-[state=checked]:text-white" />
-                            <label htmlFor="urgent" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Urgent Only</label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <Checkbox id="overdue" className="border-black data-[state=checked]:bg-black data-[state=checked]:text-white" />
-                            <label htmlFor="overdue" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Overdue</label>
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter className="p-4 border-t border-black">
-                    <Button onClick={() => onOpenChange(false)} className="w-full bg-black text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">Apply Filters</Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
+// ==============================================================================
+// Task Detail Dialog
+// ==============================================================================
 
-function TaskDetailDialog({ task, onClose }: any) {
-    const isApproval = task.isApproval;
+function TaskDetailDialog({ task, onClose }: { task: ManagerTaskDTO; onClose: () => void }) {
+    const linkedOrder = task.workOrderNumber
+        ? { label: `WO: ${task.workOrderNumber}`, href: `/manufacturing/orders` }
+        : task.purchaseOrderNumber
+            ? { label: `PO: ${task.purchaseOrderNumber}`, href: `/procurement/orders` }
+            : task.salesOrderNumber
+                ? { label: `SO: ${task.salesOrderNumber}`, href: `/sales/orders` }
+                : null
+
+    // Parse issue from notes if BLOCKED
+    let issueInfo: { category?: string; description?: string; reportedAt?: string } | null = null
+    if (task.notes?.includes("ISSUE::")) {
+        try {
+            const issueJson = task.notes.split("ISSUE::").pop()
+            issueInfo = JSON.parse(issueJson || "{}")
+        } catch { /* ignore */ }
+    }
 
     return (
         <Dialog open={true} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[500px] border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 gap-0 bg-white">
-                <DialogHeader className="p-6 border-b border-black bg-zinc-50">
+            <DialogContent className={NB.content}>
+                <DialogHeader className={NB.header}>
                     <div className="flex items-center gap-2 mb-2">
-                        <Badge className="bg-black text-white hover:bg-black uppercase">{task.status}</Badge>
-                        <span className="font-mono text-zinc-500 font-bold">{task.id}</span>
+                        <span className={`text-[8px] font-black px-1.5 py-0.5 border ${PRIORITY_COLORS[task.priority] || ""}`}>
+                            {PRIORITY_LABELS[task.priority] || task.priority}
+                        </span>
+                        <span className="text-[10px] font-bold text-zinc-400">
+                            {TYPE_LABELS[task.type] || task.type}
+                        </span>
                     </div>
-                    <DialogTitle className="text-xl font-black uppercase leading-tight">{task.title}</DialogTitle>
+                    <DialogTitle className={NB.title}>{task.title}</DialogTitle>
+                    <p className={NB.subtitle}>
+                        Ditugaskan ke: {task.employeeName} — {task.employeeDepartment}
+                    </p>
                 </DialogHeader>
 
-                <div className="p-6 space-y-6">
-                    <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-zinc-50 p-3 rounded border border-black/10">
-                                <span className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Assignee</span>
-                                <div className="flex items-center gap-2 font-bold">
-                                    <Avatar className="h-6 w-6"><AvatarFallback>PA</AvatarFallback></Avatar>
-                                    Production Team
-                                </div>
-                            </div>
-                            <div className="bg-zinc-50 p-3 rounded border border-black/10">
-                                <span className="text-[10px] font-bold uppercase text-muted-foreground block mb-1">Due Date</span>
-                                <div className="flex items-center gap-2 font-bold">
-                                    <Calendar className="h-4 w-4" /> Today, 5 PM
-                                </div>
-                            </div>
+                <div className="p-6 space-y-5">
+                    {/* Status + Dates */}
+                    <div className="grid grid-cols-3 gap-4">
+                        <div>
+                            <span className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Status</span>
+                            <span className={`text-[10px] font-black px-2 py-1 border inline-block ${
+                                task.status === "COMPLETED" ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                                : task.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-700 border-blue-300"
+                                : task.status === "BLOCKED" ? "bg-red-100 text-red-700 border-red-300"
+                                : "bg-zinc-100 text-zinc-600 border-zinc-300"
+                            }`}>
+                                {task.status === "PENDING" ? "MENUNGGU"
+                                    : task.status === "IN_PROGRESS" ? "BERJALAN"
+                                    : task.status === "COMPLETED" ? "SELESAI"
+                                    : task.status === "BLOCKED" ? "KENDALA"
+                                    : task.status}
+                            </span>
                         </div>
                         <div>
-                            <span className="text-[10px] font-bold uppercase text-muted-foreground block mb-2">Description</span>
-                            <p className="text-sm text-zinc-700 leading-relaxed">
-                                {isApproval ? "Review required for rework plan involving 2000 yards of fabric. Estimated cost impact is Rp 67M. Requires Manager approval to proceed with chemical treatment." : "Full detailed description of the task would go here. Including technical specifications, part numbers, and specific location data."}
-                            </p>
+                            <span className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Dibuat</span>
+                            <span className="text-xs font-bold">
+                                {new Date(task.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Tenggat</span>
+                            <span className="text-xs font-bold">
+                                {task.deadline
+                                    ? new Date(task.deadline).toLocaleDateString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+                                    : "—"}
+                            </span>
                         </div>
                     </div>
 
-                    {isApproval && (
-                        <div className="bg-blue-50 p-4 border border-blue-100 rounded-lg flex items-start gap-3">
-                            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                    {/* Linked Order */}
+                    {linkedOrder && (
+                        <div className="bg-blue-50 border-2 border-blue-300 p-3 flex items-center justify-between">
                             <div>
-                                <h4 className="font-bold text-blue-800 text-sm">Manager Approval Required</h4>
-                                <p className="text-xs text-blue-600 mt-1">This action involves budget allocation less than 50M.</p>
+                                <span className="text-[9px] font-black uppercase text-blue-500">Dokumen Terkait</span>
+                                <div className="text-sm font-black text-blue-800">{linkedOrder.label}</div>
+                            </div>
+                            <Link
+                                href={linkedOrder.href}
+                                className="text-[9px] font-black uppercase tracking-wider px-3 py-1.5 border-2 border-black bg-white hover:bg-zinc-50 flex items-center gap-1"
+                            >
+                                Buka <ArrowRight className="h-3 w-3" />
+                            </Link>
+                        </div>
+                    )}
+
+                    {/* Issue Alert */}
+                    {issueInfo && task.status === "BLOCKED" && (
+                        <div className="bg-red-50 border-2 border-red-400 p-3">
+                            <div className="flex items-center gap-2 mb-1">
+                                <AlertTriangle className="h-4 w-4 text-red-600" />
+                                <span className="text-[10px] font-black uppercase text-red-700">Laporan Kendala</span>
+                            </div>
+                            {issueInfo.category && (
+                                <div className="text-xs font-bold text-red-800 mb-1">Kategori: {issueInfo.category}</div>
+                            )}
+                            {issueInfo.description && (
+                                <div className="text-xs text-red-700">{issueInfo.description}</div>
+                            )}
+                            {issueInfo.reportedAt && (
+                                <div className="text-[9px] text-red-400 font-bold mt-1">
+                                    Dilaporkan: {new Date(issueInfo.reportedAt).toLocaleString("id-ID")}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Notes */}
+                    {task.notes && !task.notes.startsWith("ISSUE::") && (
+                        <div>
+                            <span className="text-[9px] font-black uppercase text-zinc-400 block mb-1">Catatan</span>
+                            <div className="p-3 border-2 border-black bg-zinc-50 text-sm font-medium text-zinc-700 whitespace-pre-line">
+                                {task.notes.split("\nISSUE::")[0]}
                             </div>
                         </div>
                     )}
                 </div>
 
-                <DialogFooter className="p-6 border-t border-black bg-zinc-50 flex-col sm:flex-row gap-3">
-                    {isApproval ? (
-                        <div className="flex w-full gap-3">
-                            <Button variant="outline" className="flex-1 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold">Reject</Button>
-                            <Button className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold">Approve</Button>
-                        </div>
-                    ) : (
-                        <Button onClick={onClose} className="w-full bg-black text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">Close Details</Button>
-                    )}
-                </DialogFooter>
+                <div className="p-4 border-t-2 border-black bg-zinc-50 flex justify-end">
+                    <button onClick={onClose} className={NB.cancelBtn}>Tutup</button>
+                </div>
             </DialogContent>
         </Dialog>
     )

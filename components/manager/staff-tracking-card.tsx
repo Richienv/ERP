@@ -8,69 +8,27 @@ import { User, Activity, CheckCircle2, AlertCircle } from "lucide-react"
 
 import Link from "next/link"
 
-export function StaffTrackingCard() {
-    // Mock data for factory staff
-    const staff = [
-        {
-            id: 1,
-            name: "Asep Sunandar",
-            role: "Operator Line 1",
-            status: "active", // active, break, offline
-            currentTask: "Running Weaving Machine #4",
-            efficiency: "94%",
-            shift: "Morning (07:00 - 15:00)",
-            avatar: "AS"
-        },
-        {
-            id: 2,
-            name: "Budi Santoso",
-            role: "Maintenance Technician",
-            status: "busy",
-            currentTask: "Repairing Dyeing Machine #2",
-            efficiency: "N/A",
-            shift: "Morning (07:00 - 15:00)",
-            avatar: "BS"
-        },
-        {
-            id: 3,
-            name: "Siti Aminah",
-            role: "QC Inspector",
-            status: "active",
-            currentTask: "Inspecting Batch #4567",
-            efficiency: "98%",
-            shift: "Morning (07:00 - 15:00)",
-            avatar: "SA"
-        },
-        {
-            id: 4,
-            name: "Doni Pratama",
-            role: "Forklift Driver",
-            status: "break",
-            currentTask: "On Break (12:00 - 13:00)",
-            efficiency: "88%",
-            shift: "Morning (07:00 - 15:00)",
-            avatar: "DP"
-        },
-        {
-            id: 5,
-            name: "Rina Wati",
-            role: "Operator Line 2",
-            status: "active",
-            currentTask: "Monitoring Knitting Patterns",
-            efficiency: "91%",
-            shift: "Morning (07:00 - 15:00)",
-            avatar: "RW"
-        },
-        {
-            id: 6,
-            name: "Joko Anwar",
-            role: "Operator Dyeing",
-            status: "active",
-            currentTask: "Mixing Chemicals",
-            efficiency: "95%",
-            shift: "Morning (07:00 - 15:00)",
-            avatar: "JA"
-        },
+interface StaffTrackingCardProps {
+    data?: {
+        id: string
+        name: string
+        role: string
+        status: string
+        currentTask: string
+        efficiency: string
+        shift: string
+        avatar: string
+    }[]
+}
+
+export function StaffTrackingCard({ data }: StaffTrackingCardProps) {
+    const staff = data && data.length > 0 ? data : [
+        { id: "1", name: "Asep Sunandar", role: "Operator Line 1", status: "active", currentTask: "Menjalankan Mesin Tenun #4", efficiency: "94%", shift: "Pagi (07:00 - 15:00)", avatar: "AS" },
+        { id: "2", name: "Budi Santoso", role: "Teknisi Perawatan", status: "busy", currentTask: "Perbaikan Mesin Celup #2", efficiency: "N/A", shift: "Pagi (07:00 - 15:00)", avatar: "BS" },
+        { id: "3", name: "Siti Aminah", role: "Inspektor QC", status: "active", currentTask: "Inspeksi Batch #4567", efficiency: "98%", shift: "Pagi (07:00 - 15:00)", avatar: "SA" },
+        { id: "4", name: "Doni Pratama", role: "Operator Forklift", status: "break", currentTask: "Istirahat (12:00 - 13:00)", efficiency: "88%", shift: "Pagi (07:00 - 15:00)", avatar: "DP" },
+        { id: "5", name: "Rina Wati", role: "Operator Line 2", status: "active", currentTask: "Monitoring Pola Rajut", efficiency: "91%", shift: "Pagi (07:00 - 15:00)", avatar: "RW" },
+        { id: "6", name: "Joko Anwar", role: "Operator Celup", status: "active", currentTask: "Mixing Bahan Kimia", efficiency: "95%", shift: "Pagi (07:00 - 15:00)", avatar: "JA" },
     ]
 
     return (
@@ -82,7 +40,7 @@ export function StaffTrackingCard() {
                         Aktivitas Terbaru
                     </CardTitle>
                     <Badge variant="outline" className="bg-white text-black border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                        142 Active
+                        {staff.filter(s => s.status === "active" || s.status === "busy").length} Aktif
                     </Badge>
                 </CardHeader>
                 <CardContent className="p-0 flex-1 min-h-[400px]">

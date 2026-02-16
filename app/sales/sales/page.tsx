@@ -1,38 +1,24 @@
 "use client"
 
 import { useState } from "react"
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle
-} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import {
     Search,
-    Filter,
     Download,
-    Store,
+    Receipt,
+    TrendingUp,
     ArrowUpRight,
-    Receipt
+    DollarSign,
+    AlertCircle,
+    Banknote,
+    Filter,
 } from "lucide-react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 // --- Mock Data ---
-
-const RECENT_WINS = [
-    { customer: "PT. Garment Indah", value: 150000000, time: "10:45 AM", type: "Big Win" },
-    { customer: "Boutique A", value: 25000000, time: "11:00 AM", type: "Regular" },
-    { customer: "CV. Tekstil Jaya", value: 85000000, time: "11:15 AM", type: "Win" },
-    { customer: "Fashion Nova", value: 12000000, time: "11:30 AM", type: "Walk-in" },
-    { customer: "Sport Wear ID", value: 200000000, time: "11:45 AM", type: "Mega Win" },
-]
 
 const INVOICES = [
     { id: '1', number: 'INV-2411-001', customer: 'PT. Garment Indah Jaya', date: '2024-11-20', due: '2024-12-20', total: 166500000, status: 'UNPAID' },
@@ -44,182 +30,245 @@ const INVOICES = [
 
 export default function SalesStreamPage() {
     const [searchTerm, setSearchTerm] = useState("")
+    const [filterStatus, setFilterStatus] = useState<string>("ALL")
 
-    const formatRupiah = (num: number) => {
-        return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
-    };
+    const formatRupiah = (num: number) =>
+        new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num)
+
+    const filteredInvoices = INVOICES.filter(inv => {
+        const matchesSearch = !searchTerm.trim() ||
+            inv.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            inv.customer.toLowerCase().includes(searchTerm.toLowerCase())
+        const matchesStatus = filterStatus === "ALL" || inv.status === filterStatus
+        return matchesSearch && matchesStatus
+    })
+
+    // Stats
+    const totalRevenue = INVOICES.reduce((sum, inv) => sum + inv.total, 0)
+    const paidAmount = INVOICES.filter(inv => inv.status === 'PAID').reduce((sum, inv) => sum + inv.total, 0)
+    const unpaidAmount = INVOICES.filter(inv => inv.status === 'UNPAID').reduce((sum, inv) => sum + inv.total, 0)
+    const overdueAmount = INVOICES.filter(inv => inv.status === 'OVERDUE').reduce((sum, inv) => sum + inv.total, 0)
+
+    const handleExport = () => {
+        const headers = ["No", "Number", "Customer", "Date", "Due", "Total", "Status"]
+        const rows = INVOICES.map((inv, i) => [
+            i + 1, inv.number, inv.customer, inv.date, inv.due, inv.total, inv.status,
+        ])
+        const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
+        const blob = new Blob([csv], { type: "text/csv" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `penjualan-${new Date().toISOString().slice(0, 10)}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+        toast.success("Data berhasil di-export")
+    }
 
     return (
-        <div className="flex flex-col min-h-[calc(100vh-4rem)] bg-zinc-50 dark:bg-zinc-950">
+        <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
 
-            {/* === TICKER TAPE === */}
-            <div className="h-10 bg-black text-white overflow-hidden flex items-center relative z-10 shadow-md">
-                <div className="font-black bg-red-600 px-4 h-full flex items-center z-20 shadow-[4px_0px_10px_rgba(0,0,0,0.5)] uppercase tracking-wide text-xs">
-                    Live Stream
-                </div>
-                <div className="flex animate-marquee whitespace-nowrap ml-4">
-                    {/* Duplicate specifically for marquee effect (usually handle via CSS) */}
-                    {[...RECENT_WINS, ...RECENT_WINS, ...RECENT_WINS].map((win, i) => (
-                        <div key={i} className="flex items-center gap-2 mx-6 text-sm">
-                            <span className="font-mono text-zinc-400">{win.time}</span>
-                            <span className="font-bold text-green-400">+{formatRupiah(win.value).replace(",00", "")}</span>
-                            <span className="font-medium text-zinc-300">from {win.customer}</span>
-                            {win.value > 100000000 && <span className="px-1.5 py-0.5 bg-yellow-500 text-black text-[10px] font-black rounded-sm uppercase">Big Win</span>}
+            {/* ═══════════════════════════════════════════ */}
+            {/* COMMAND HEADER                              */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-green-400">
+                    <div className="flex items-center gap-3">
+                        <DollarSign className="h-5 w-5 text-green-500" />
+                        <div>
+                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                                Penjualan
+                            </h1>
+                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
+                                Performa keuangan & metrik penjualan real-time
+                            </p>
                         </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="flex-1 p-4 md:p-8 pt-6 space-y-6">
-
-                {/* Header Section */}
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h2 className="text-4xl font-black tracking-tight uppercase">Revenue Stream</h2>
-                        <p className="text-muted-foreground font-medium mt-1">Real-time financial performance & closing metrics.</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
-                            className="border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
-                            onClick={() => {
-                                const headers = ["No", "Number", "Customer", "Date", "Due", "Total", "Status"]
-                                const rows = INVOICES.map((inv, i) => [
-                                    i + 1,
-                                    inv.number,
-                                    inv.customer,
-                                    inv.date,
-                                    inv.due,
-                                    inv.total,
-                                    inv.status,
-                                ])
-                                const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n")
-                                const blob = new Blob([csv], { type: "text/csv" })
-                                const url = URL.createObjectURL(blob)
-                                const a = document.createElement("a")
-                                a.href = url
-                                a.download = `revenue-stream-${new Date().toISOString().slice(0, 10)}.csv`
-                                a.click()
-                                URL.revokeObjectURL(url)
-                                toast.success("Data berhasil di-export")
-                            }}
+                            className="border-2 border-black font-black uppercase text-[10px] tracking-wider h-9 px-4 rounded-none"
+                            onClick={handleExport}
                         >
-                            <Download className="mr-2 h-4 w-4" /> Export
+                            <Download className="mr-2 h-3.5 w-3.5" /> Export
                         </Button>
-                        <Button asChild className="bg-black text-white hover:bg-zinc-800 border-2 border-black font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all">
+                        <Button asChild className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9 rounded-none">
                             <Link href="/finance/invoices">
                                 <Receipt className="mr-2 h-4 w-4" /> Buat Invoice
                             </Link>
                         </Button>
                     </div>
                 </div>
+            </div>
 
-                {/* === METRIC GRID (Bank Statement Style) === */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Daily Closing Card - The "Cash Register" */}
-                    <Card className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden bg-white dark:bg-zinc-900 group">
-                        <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Store className="h-24 w-24" />
+            {/* ═══════════════════════════════════════════ */}
+            {/* KPI PULSE STRIP                            */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="grid grid-cols-2 md:grid-cols-4">
+                    {/* Total Revenue */}
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-green-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Penjualan</span>
                         </div>
-                        <CardHeader className="pb-2">
-                            <CardDescription className="text-xs font-bold uppercase tracking-widest text-zinc-500">Daily Closing</CardDescription>
-                            <CardTitle className="text-3xl font-black tracking-tighter">
-                                {formatRupiah(255000000).replace(",00", "")}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardFooter className="pt-0">
-                            <div className="flex items-center gap-2 text-green-600 font-bold bg-green-50 px-2 py-1 rounded-md border border-green-200">
-                                <ArrowUpRight className="h-4 w-4" /> +12.5% vs Yesterday
-                            </div>
-                        </CardFooter>
-                        <div className="h-1.5 w-full bg-zinc-100 mt-4">
-                            <div className="h-full bg-black w-[75%]" /> {/* Progress toward daily target */}
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
+                            {formatRupiah(totalRevenue)}
                         </div>
-                    </Card>
-
-                    {/* Pending AR Card */}
-                    <Card className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-zinc-50 dark:bg-zinc-900">
-                        <CardHeader className="pb-2">
-                            <CardDescription className="text-xs font-bold uppercase tracking-widest text-zinc-500">Unpaid Invoices (AR)</CardDescription>
-                            <CardTitle className="text-3xl font-black tracking-tighter text-orange-600">
-                                {formatRupiah(133000000).replace(",00", "")}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardFooter className="pt-0 justify-between items-end">
-                            <div className="text-sm text-muted-foreground font-medium">5 Invoices Open</div>
-                            <Button size="sm" variant="ghost" className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 -mr-2">Nagih Sekarang <ArrowUpRight className="ml-1 h-3 w-3" /></Button>
-                        </CardFooter>
-                    </Card>
-
-                    {/* Cash In Hand */}
-                    <Card className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-zinc-900 text-white dark:bg-zinc-800">
-                        <CardHeader className="pb-2">
-                            <CardDescription className="text-xs font-bold uppercase tracking-widest text-zinc-400">Net Cash In</CardDescription>
-                            <CardTitle className="text-3xl font-black tracking-tighter text-green-400">
-                                {formatRupiah(57720000).replace(",00", "")}
-                            </CardTitle>
-                        </CardHeader>
-                        <CardFooter className="pt-0">
-                            <div className="text-zinc-400 text-sm">Realized revenue this month.</div>
-                        </CardFooter>
-                    </Card>
-                </div>
-
-
-                {/* === INVOICE STREAM (Ticker Style List) === */}
-                <div className="border-2 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                    <div className="p-4 border-b-2 border-black flex justify-between items-center bg-zinc-50 dark:bg-zinc-800">
-                        <h3 className="font-black text-lg uppercase flex items-center gap-2">
-                            <Filter className="h-5 w-5" /> Transaction Log
-                        </h3>
-                        <div className="relative w-64">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search ref or customer..."
-                                className="pl-9 bg-white border-2 border-zinc-200 focus-visible:border-black focus-visible:ring-0 rounded-lg font-medium"
-                            />
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <ArrowUpRight className="h-3 w-3 text-green-600" />
+                            <span className="text-[10px] font-bold text-green-600">+12.5% vs bulan lalu</span>
                         </div>
                     </div>
 
-                    <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                        {INVOICES.map((inv) => (
-                            <div key={inv.id} className="p-4 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer">
-                                <div className="flex items-center gap-4">
-                                    <div className={cn(
-                                        "h-12 w-12 rounded-lg border-2 border-black flex items-center justify-center font-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
-                                        inv.status === 'PAID' ? "bg-green-100 text-green-700" :
-                                            inv.status === 'OVERDUE' ? "bg-red-100 text-red-700" : "bg-white text-zinc-700"
-                                    )}>
-                                        {inv.status === 'PAID' ? 'PD' : inv.status === 'OVERDUE' ? 'OD' : 'OP'}
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-lg leading-none">{inv.customer}</div>
-                                        <div className="text-sm text-muted-foreground font-mono mt-1">{inv.number} • {inv.date}</div>
-                                    </div>
-                                </div>
+                    {/* Paid / Cash In */}
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <Banknote className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Terbayar</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
+                            {formatRupiah(paidAmount)}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-emerald-600">
+                                {INVOICES.filter(i => i.status === 'PAID').length} invoice lunas
+                            </span>
+                        </div>
+                    </div>
 
-                                <div className="text-right">
-                                    <div className="font-black text-lg">{formatRupiah(inv.total).replace(",00", "")}</div>
-                                    <div className={cn("text-xs font-bold uppercase",
-                                        inv.status === 'PAID' ? "text-green-600" :
-                                            inv.status === 'OVERDUE' ? "text-red-600" : "text-yellow-600"
-                                    )}>
-                                        {inv.status}
-                                    </div>
-                                </div>
+                    {/* Unpaid / AR */}
+                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <DollarSign className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Belum Bayar (AR)</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">
+                            {formatRupiah(unpaidAmount)}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-amber-600">
+                                {INVOICES.filter(i => i.status === 'UNPAID').length} invoice terbuka
+                            </span>
+                        </div>
+                    </div>
 
-                                <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <ArrowUpRight className="h-5 w-5" />
-                                </Button>
-                            </div>
+                    {/* Overdue */}
+                    <div className="relative p-4 md:p-5">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <AlertCircle className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jatuh Tempo</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">
+                            {formatRupiah(overdueAmount)}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-red-600">
+                                {INVOICES.filter(i => i.status === 'OVERDUE').length} perlu tindakan
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* SEARCH & FILTER BAR                        */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                <div className="px-4 py-3 flex items-center gap-3">
+                    <div className="relative flex-1 max-w-md">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                        <Input
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            placeholder="Cari nomor invoice, pelanggan..."
+                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
+                        />
+                    </div>
+                    <div className="flex border-2 border-black">
+                        {(["ALL", "PAID", "UNPAID", "OVERDUE"] as const).map((s) => (
+                            <button
+                                key={s}
+                                onClick={() => setFilterStatus(s)}
+                                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
+                                    filterStatus === s
+                                        ? "bg-black text-white"
+                                        : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                }`}
+                            >
+                                {s === "ALL" ? "Semua" : s === "PAID" ? "Lunas" : s === "UNPAID" ? "Belum" : "Jatuh Tempo"}
+                            </button>
                         ))}
                     </div>
-
-                    <div className="p-4 bg-zinc-50 dark:bg-zinc-800 border-t-2 border-black text-center">
-                        <Button variant="link" className="text-muted-foreground hover:text-black">View All Transactions</Button>
+                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hidden md:block">
+                        {filteredInvoices.length} transaksi
                     </div>
                 </div>
+            </div>
 
+            {/* ═══════════════════════════════════════════ */}
+            {/* TRANSACTION TABLE                          */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                {/* Table Header */}
+                <div className="px-5 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                    <Filter className="h-4 w-4 text-zinc-400" />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Transaction Log</span>
+                </div>
+
+                {/* Table Rows */}
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                    {filteredInvoices.map((inv) => (
+                        <div key={inv.id} className="px-5 py-4 flex items-center justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors group cursor-pointer">
+                            <div className="flex items-center gap-4">
+                                <div className={cn(
+                                    "h-10 w-10 border-2 border-black flex items-center justify-center font-black text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]",
+                                    inv.status === 'PAID' ? "bg-emerald-100 text-emerald-700" :
+                                        inv.status === 'OVERDUE' ? "bg-red-100 text-red-700" : "bg-amber-50 text-amber-700"
+                                )}>
+                                    {inv.status === 'PAID' ? 'PD' : inv.status === 'OVERDUE' ? 'OD' : 'OP'}
+                                </div>
+                                <div>
+                                    <div className="font-bold text-sm leading-none text-zinc-900 dark:text-white">{inv.customer}</div>
+                                    <div className="text-[10px] text-zinc-400 font-mono mt-1 tracking-wide">{inv.number} &bull; {inv.date}</div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-6">
+                                <div className="text-right">
+                                    <div className="font-black text-sm tracking-tight text-zinc-900 dark:text-white">{formatRupiah(inv.total)}</div>
+                                    <div className={cn(
+                                        "text-[10px] font-black uppercase tracking-widest mt-0.5",
+                                        inv.status === 'PAID' ? "text-emerald-600" :
+                                            inv.status === 'OVERDUE' ? "text-red-600" : "text-amber-600"
+                                    )}>
+                                        {inv.status === 'PAID' ? 'Lunas' : inv.status === 'OVERDUE' ? 'Jatuh Tempo' : 'Belum Bayar'}
+                                    </div>
+                                </div>
+
+                                <ArrowUpRight className="h-4 w-4 text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {filteredInvoices.length === 0 && (
+                    <div className="p-12 text-center">
+                        <Receipt className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
+                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tidak ada transaksi yang cocok</p>
+                    </div>
+                )}
+
+                {/* Footer */}
+                <div className="px-5 py-3 bg-zinc-50 dark:bg-zinc-800 border-t-2 border-black text-center">
+                    <Button variant="link" className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black">
+                        Lihat Semua Transaksi
+                    </Button>
+                </div>
             </div>
         </div>
     )

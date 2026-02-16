@@ -8,7 +8,6 @@ import { toast } from "sonner"
 
 import { OrderExecutionCard } from "@/components/sales/order-execution-card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -133,148 +132,197 @@ export default function SalesOrdersPage() {
   }, [orders, searchTerm, filterStatus])
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <div className="flex items-center justify-between space-y-2">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Pesanan Penjualan</h2>
-          <p className="text-muted-foreground">
-            Kelola sales order end-to-end dari konfirmasi sampai pengiriman.
-          </p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={loadOrders} disabled={refreshing}>
-            <RefreshCcw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
-          <Button asChild>
-            <Link href="/sales/orders/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Pesanan Baru
-            </Link>
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-6 p-4 md:p-8 pt-6 max-w-[1600px] mx-auto min-h-screen">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-zinc-900 text-white">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-zinc-400 font-bold uppercase tracking-wider text-xs">Total Pesanan</CardDescription>
-            <div className="flex justify-between items-end">
-              <CardTitle className="text-4xl font-black">{summary.totalOrders}</CardTitle>
-              <div className="h-8 w-8 rounded bg-zinc-800 border border-zinc-700 flex items-center justify-center">
-                <ShoppingBag className="h-4 w-4 text-white" />
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Order Value</CardDescription>
-            <div className="flex justify-between items-end">
-              <CardTitle className="text-3xl font-black text-green-600">{formatCurrencyCompact(summary.totalValue)}</CardTitle>
-              <div className="h-8 w-8 rounded bg-green-50 border border-green-200 flex items-center justify-center">
-                <IconTrendingUp className="h-4 w-4 text-green-600" />
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Dalam Proses</CardDescription>
-            <div className="flex justify-between items-end">
-              <CardTitle className="text-4xl font-black text-blue-600">{summary.confirmed + summary.inProgress}</CardTitle>
-              <div className="h-8 w-8 rounded bg-blue-50 border border-blue-200 flex items-center justify-center">
-                <Package className="h-4 w-4 text-blue-600" />
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-
-        <Card className="border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white">
-          <CardHeader className="pb-2">
-            <CardDescription className="text-muted-foreground font-bold uppercase tracking-wider text-xs">Terkirim/Selesai</CardDescription>
-            <div className="flex justify-between items-end">
-              <CardTitle className="text-3xl font-black text-purple-600">{summary.delivered + summary.completed}</CardTitle>
-              <div className="h-8 w-8 rounded bg-purple-50 border border-purple-200 flex items-center justify-center">
-                <Truck className="h-4 w-4 text-purple-600" />
-              </div>
-            </div>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border-0 shadow-none bg-transparent">
-        <CardHeader className="px-0 pt-0">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* ═══════════════════════════════════════════ */}
+      {/* COMMAND HEADER                              */}
+      {/* ═══════════════════════════════════════════ */}
+      <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900 rounded-none">
+        <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-blue-500">
+          <div className="flex items-center gap-3">
+            <ShoppingBag className="h-6 w-6 text-blue-500" />
             <div>
-              <CardTitle className="text-2xl font-black uppercase tracking-tight">Execution Command Center</CardTitle>
-              <CardDescription className="text-base font-medium text-black/60">Live feed produksi, WO generation, dan delivery progress</CardDescription>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <div className="relative w-full md:w-[320px]">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Cari order..."
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  className="pl-8 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                />
-              </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold">
-                    <Filter className="mr-2 h-4 w-4" /> Filter
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="border-black">
-                  <DropdownMenuLabel>Status</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => setFilterStatus("all")}>Semua</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setFilterStatus("DRAFT")}>Draft</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setFilterStatus("CONFIRMED")}>Confirmed</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setFilterStatus("IN_PROGRESS")}>In Progress</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setFilterStatus("DELIVERED")}>Delivered</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setFilterStatus("INVOICED")}>Invoiced</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setFilterStatus("COMPLETED")}>Completed</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setFilterStatus("CANCELLED")}>Cancelled</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                Manajemen Pesanan
+              </h1>
+              <p className="text-zinc-600 text-xs font-bold mt-0.5">
+                Pusat komando sales order, fulfillment status, dan pengiriman.
+              </p>
             </div>
           </div>
-        </CardHeader>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={loadOrders}
+              disabled={refreshing}
+              className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all rounded-none bg-white"
+            >
+              <RefreshCcw className={`mr-2 h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+            <Button asChild className="h-9 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all rounded-none px-4">
+              <Link href="/sales/orders/new">
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                Pesanan Baru
+              </Link>
+            </Button>
+          </div>
+        </div>
+      </div>
 
-        <CardContent className="px-0">
+      {/* ═══════════════════════════════════════════ */}
+      {/* KPI PULSE STRIP                            */}
+      {/* ═══════════════════════════════════════════ */}
+      <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden rounded-none">
+        <div className="grid grid-cols-2 md:grid-cols-4">
+
+          {/* Total Orders */}
+          <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800" />
+            <div className="flex items-center gap-2 mb-2">
+              <ShoppingBag className="h-4 w-4 text-zinc-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Pesanan</span>
+            </div>
+            <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900">
+              {summary.totalOrders}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase">Semua Status</span>
+            </div>
+          </div>
+
+          {/* Total Value */}
+          <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
+            <div className="flex items-center gap-2 mb-2">
+              <IconTrendingUp className="h-4 w-4 text-zinc-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Order Value</span>
+            </div>
+            <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
+              {formatCurrencyCompact(summary.totalValue)}
+            </div>
+            <div className="flex items-center gap-1 mt-1.5">
+              <span className="text-[10px] font-bold text-emerald-600 uppercase">Revenue Pipeline</span>
+            </div>
+          </div>
+
+          {/* In Progress */}
+          <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
+            <div className="flex items-center gap-2 mb-2">
+              <Package className="h-4 w-4 text-zinc-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dalam Proses</span>
+            </div>
+            <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
+              {summary.confirmed + summary.inProgress}
+            </div>
+            <div className="flex items-center gap-1 mt-1.5">
+              <span className="text-[10px] font-bold text-blue-600 uppercase">Production & Packing</span>
+            </div>
+          </div>
+
+          {/* Delivered */}
+          <div className="relative p-4 md:p-5">
+            <div className="absolute top-0 left-0 right-0 h-1 bg-purple-500" />
+            <div className="flex items-center gap-2 mb-2">
+              <Truck className="h-4 w-4 text-zinc-400" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Terkirim / Selesai</span>
+            </div>
+            <div className="text-2xl md:text-3xl font-black tracking-tighter text-purple-600">
+              {summary.delivered + summary.completed}
+            </div>
+            <div className="flex items-center gap-1 mt-1.5">
+              <span className="text-[10px] font-bold text-purple-600 uppercase">Fulfilled</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* MAIN CONTENT CONTAINER                      */}
+      {/* ═══════════════════════════════════════════ */}
+      <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-none flex flex-col min-h-[500px]">
+        {/* Toolbar */}
+        <div className="p-4 border-b-2 border-black flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-50">
+          <div>
+            <h2 className="text-lg font-black uppercase tracking-tight">Execution Command Center</h2>
+            <p className="text-xs font-bold text-zinc-500">Live feed produksi, WO generation, dan delivery progress</p>
+          </div>
+
+          <div className="flex items-center space-x-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-[320px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+              <Input
+                placeholder="Cari pesanan..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="pl-9 border-2 border-zinc-200 focus-visible:ring-0 focus-visible:border-black font-bold h-10 rounded-none bg-white transition-all"
+              />
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] font-black uppercase text-[10px] tracking-wider h-10 px-4 rounded-none bg-white">
+                  <Filter className="mr-2 h-4 w-4" /> Filter
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none min-w-[200px]">
+                <DropdownMenuLabel className="uppercase text-[10px] font-black tracking-widest text-zinc-500">Status</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-zinc-200" />
+                <DropdownMenuItem onClick={() => setFilterStatus("all")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Semua</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("DRAFT")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Draft</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("CONFIRMED")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Dikonfirmasi</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("IN_PROGRESS")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Dalam Proses</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("DELIVERED")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Terkirim</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("INVOICED")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Ditagih</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("COMPLETED")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none">Selesai</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setFilterStatus("CANCELLED")} className="font-bold cursor-pointer focus:bg-zinc-100 rounded-none text-red-600">Dibatalkan</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 bg-zinc-100/30 flex-1">
           {loading ? (
-            <div className="text-center py-12 border-2 border-dashed border-zinc-300 rounded-xl text-muted-foreground">
-              Memuat sales order...
+            <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-300 bg-white rounded-none">
+              <RefreshCcw className="h-10 w-10 text-zinc-300 animate-spin mb-4" />
+              <p className="font-bold text-zinc-400">Memuat pesanan penjualan...</p>
             </div>
           ) : (
             <>
-              <div className="space-y-1">
-                {filteredOrders.map((order) => (
-                  <OrderExecutionCard
-                    key={order.id}
-                    order={order}
-                    onWorkOrdersCreated={() => {
-                      void loadOrders()
-                    }}
-                  />
-                ))}
-              </div>
-
-              {filteredOrders.length === 0 && (
-                <div className="text-center py-12 border-2 border-dashed border-zinc-300 rounded-xl">
-                  <p className="text-muted-foreground font-medium text-lg">Tidak ada order yang cocok.</p>
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-20 border-2 border-dashed border-zinc-300 bg-white rounded-none">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-zinc-100 border-2 border-zinc-200 mb-4">
+                    <ShoppingBag className="h-8 w-8 text-zinc-400" />
+                  </div>
+                  <p className="text-zinc-500 font-bold text-lg">Tidak ada pesanan yang cocok.</p>
+                  <p className="text-zinc-400 text-sm max-w-sm mx-auto mt-2">Coba ubah filter pencarian atau buat pesanan baru.</p>
+                  <Button variant="outline" onClick={() => {
+                    setSearchTerm("")
+                    setFilterStatus("all")
+                  }} className="mt-6 border-2 border-black font-bold uppercase text-[10px] tracking-wider rounded-none hover:bg-black hover:text-white">
+                    Reset Filter
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                  {filteredOrders.map((order) => (
+                    <OrderExecutionCard
+                      key={order.id}
+                      order={order}
+                      onWorkOrdersCreated={() => {
+                        void loadOrders()
+                      }}
+                    />
+                  ))}
                 </div>
               )}
             </>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

@@ -279,3 +279,224 @@ export async function getJournalEntryById(entryId: string): Promise<JournalEntry
         return null
     }
 }
+
+// ==========================================
+// RECURRING JOURNAL ENTRIES
+// ==========================================
+
+import { calculateNextDate } from "@/lib/finance-gl-helpers"
+export type { RecurringPattern } from "@/lib/finance-gl-helpers"
+
+export interface RecurringTemplate {
+    id: string
+    description: string
+    reference: string | null
+    recurringPattern: string
+    nextRecurringDate: string
+    lines: {
+        accountCode: string
+        accountName: string
+        debit: number
+        credit: number
+    }[]
+    totalAmount: number
+}
+
+/**
+ * Create a recurring journal entry template.
+ */
+export async function createRecurringJournalTemplate(data: {
+    description: string
+    reference?: string
+    recurringPattern: RecurringPattern
+    startDate: Date
+    lines: {
+        accountCode: string
+        debit: number
+        credit: number
+        description?: string
+    }[]
+}): Promise<{ success: boolean; entryId?: string; error?: string }> {
+    try {
+        const totalDebit = data.lines.reduce((sum, l) => sum + l.debit, 0)
+        const totalCredit = data.lines.reduce((sum, l) => sum + l.credit, 0)
+
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            return { success: false, error: `Tidak seimbang: Debit (${totalDebit}) != Kredit (${totalCredit})` }
+        }
+
+        const entryId = await withPrismaAuth(async (prisma) => {
+            const codes = data.lines.map(l => l.accountCode)
+            const accounts = await prisma.gLAccount.findMany({
+                where: { code: { in: codes } }
+            })
+            const accountMap = new Map(accounts.map(a => [a.code, a]))
+
+            for (const line of data.lines) {
+                if (!accountMap.has(line.accountCode)) {
+                    throw new Error(`Kode akun tidak ditemukan: ${line.accountCode}`)
+                }
+            }
+
+            const entry = await prisma.journalEntry.create({
+                data: {
+                    date: data.startDate,
+                    description: data.description,
+                    reference: data.reference || null,
+                    status: 'DRAFT',
+                    isRecurring: true,
+                    recurringPattern: data.recurringPattern,
+                    nextRecurringDate: data.startDate,
+                    lines: {
+                        create: data.lines.map(line => ({
+                            accountId: accountMap.get(line.accountCode)!.id,
+                            debit: line.debit,
+                            credit: line.credit,
+                            description: line.description || data.description,
+                        })),
+                    },
+                },
+            })
+
+            return entry.id
+        })
+
+        return { success: true, entryId }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal membuat template jurnal berulang'
+        console.error("[createRecurringJournalTemplate] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Get all recurring journal templates.
+ */
+export async function getRecurringTemplates(): Promise<RecurringTemplate[]> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const entries = await prisma.journalEntry.findMany({
+                where: { isRecurring: true },
+                include: {
+                    lines: {
+                        include: {
+                            account: { select: { code: true, name: true } },
+                        },
+                    },
+                },
+                orderBy: { nextRecurringDate: 'asc' },
+            })
+
+            return entries.map((e) => ({
+                id: e.id,
+                description: e.description || '',
+                reference: e.reference,
+                recurringPattern: e.recurringPattern || 'MONTHLY',
+                nextRecurringDate: (e.nextRecurringDate || e.date).toISOString(),
+                lines: e.lines.map((l) => ({
+                    accountCode: l.account.code,
+                    accountName: l.account.name,
+                    debit: Number(l.debit),
+                    credit: Number(l.credit),
+                })),
+                totalAmount: e.lines.reduce((s, l) => s + Number(l.debit), 0),
+            }))
+        })
+    } catch (error) {
+        console.error("[getRecurringTemplates] Error:", error)
+        return []
+    }
+}
+
+/**
+ * Process all recurring entries that are due (nextRecurringDate <= today).
+ * Creates new posted journal entries and advances the next date.
+ */
+export async function processRecurringEntries(): Promise<{
+    success: boolean
+    processedCount: number
+    error?: string
+}> {
+    try {
+        const processedCount = await withPrismaAuth(async (prisma) => {
+            const now = new Date()
+            now.setHours(23, 59, 59, 999)
+
+            const dueEntries = await prisma.journalEntry.findMany({
+                where: {
+                    isRecurring: true,
+                    nextRecurringDate: { lte: now },
+                },
+                include: {
+                    lines: {
+                        include: {
+                            account: { select: { id: true, code: true, type: true } },
+                        },
+                    },
+                },
+            })
+
+            let count = 0
+
+            for (const template of dueEntries) {
+                await prisma.$transaction(async (tx) => {
+                    // Create the actual posted entry
+                    await tx.journalEntry.create({
+                        data: {
+                            date: template.nextRecurringDate || new Date(),
+                            description: `[Otomatis] ${template.description}`,
+                            reference: template.reference,
+                            status: 'POSTED',
+                            isRecurring: false,
+                            lines: {
+                                create: template.lines.map((l) => ({
+                                    accountId: l.accountId,
+                                    debit: l.debit,
+                                    credit: l.credit,
+                                    description: l.description,
+                                })),
+                            },
+                        },
+                    })
+
+                    // Update GL account balances
+                    for (const line of template.lines) {
+                        let balanceChange = 0
+                        if (['ASSET', 'EXPENSE'].includes(line.account.type)) {
+                            balanceChange = Number(line.debit) - Number(line.credit)
+                        } else {
+                            balanceChange = Number(line.credit) - Number(line.debit)
+                        }
+
+                        await tx.gLAccount.update({
+                            where: { id: line.accountId },
+                            data: { balance: { increment: balanceChange } },
+                        })
+                    }
+
+                    // Advance the next recurring date
+                    const pattern = (template.recurringPattern || 'MONTHLY') as RecurringPattern
+                    const nextDate = calculateNextDate(
+                        template.nextRecurringDate || new Date(),
+                        pattern
+                    )
+
+                    await tx.journalEntry.update({
+                        where: { id: template.id },
+                        data: { nextRecurringDate: nextDate },
+                    })
+                })
+
+                count++
+            }
+
+            return count
+        })
+
+        return { success: true, processedCount }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal memproses jurnal berulang'
+        console.error("[processRecurringEntries] Error:", error)
+        return { success: false, processedCount: 0, error: msg }
+    }
+}
