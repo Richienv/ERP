@@ -62,11 +62,13 @@ export async function GET(
         const print_decoration = format !== "cop"
 
         // Calculate values with fallback for legacy data.
-        // Keep explicit zero tax/net as valid values (for Non-PPN PO).
         const subtotal = Number(po.totalAmount || 0)
         const taxAmount = po.taxAmount == null ? (subtotal * 0.11) : Number(po.taxAmount)
         const netAmount = po.netAmount == null ? (subtotal + taxAmount) : Number(po.netAmount)
         const taxRate = subtotal > 0 ? Math.round((taxAmount / subtotal) * 10000) / 100 : 0
+
+        // Null-safe supplier and items
+        const supplier = po.supplier || { name: "Vendor Belum Dipilih", address: "-", email: "-", contactName: "-" }
 
         const templateData = {
             config: {
@@ -75,11 +77,11 @@ export async function GET(
             po_number: po.number,
             date: new Date(po.orderDate).toISOString().split('T')[0],
             vendor: {
-                name: po.supplier?.name || "Unknown Vendor",
-                address: po.supplier?.address || "No Address Provided",
+                name: supplier.name || "Unknown Vendor",
+                address: supplier.address || "No Address Provided",
                 tax_id: "00-000-000.0-000.000",
-                contact: po.supplier?.contactName || po.supplier?.name || "Unknown",
-                email: po.supplier?.email || "no-email@vendor.com"
+                contact: supplier.contactName || supplier.name || "Unknown",
+                email: supplier.email || "no-email@vendor.com"
             },
             ship_to: {
                 warehouse: "Main Warehouse",
@@ -122,6 +124,24 @@ export async function GET(
 
     } catch (error: any) {
         console.error("PDF Generation Error:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+
+        // Return a user-friendly HTML error page instead of raw JSON
+        const message = error?.message || "Unknown error"
+        const isTypstMissing = message.includes("Typst binary not found") || message.includes("ENOENT")
+        const userMessage = isTypstMissing
+            ? "PDF generator (Typst) belum terinstall di server. Hubungi administrator."
+            : `Gagal membuat dokumen PDF: ${message}`
+
+        const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Error</title>
+<style>body{font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#fafafa}
+.box{border:2px solid #000;padding:2rem 3rem;max-width:480px;text-align:center;background:#fff;box-shadow:4px 4px 0 #000}
+h2{margin:0 0 .5rem;font-size:1.1rem}p{color:#666;font-size:.9rem;margin:0}</style></head>
+<body><div class="box"><h2>&#9888; Gagal Generate PDF</h2><p>${userMessage}</p></div></body></html>`
+
+        return new NextResponse(html, {
+            status: 500,
+            headers: { "Content-Type": "text/html; charset=utf-8" }
+        })
     }
 }

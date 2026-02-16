@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+
+  // Include Typst binary and templates in Vercel serverless function bundles
+  outputFileTracingIncludes: {
+    "/api/documents/purchase-order/[id]": ["./bin/**/*", "./templates/**/*"],
+    "/api/documents/payroll/[period]": ["./bin/**/*", "./templates/**/*"],
+    "/api/documents/payslip/[period]/[employeeId]": ["./bin/**/*", "./templates/**/*"],
+  },
 };
 
 export default nextConfig;

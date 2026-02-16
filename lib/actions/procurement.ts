@@ -12,8 +12,8 @@ import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-
 const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
-const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR"]
-const PR_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR"]
+const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN", "ROLE_MANAGER"]
+const PR_APPROVER_ROLES = ["ROLE_MANAGER", "ROLE_CEO", "ROLE_DIRECTOR", "ROLE_PURCHASING", "ROLE_ADMIN"]
 const REQUESTER_OVERRIDE_ROLES = ["ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 
 type ProcurementRegistryQueryInput = {
@@ -141,107 +141,80 @@ export const getProcurementStats = unstable_cache(
             const prWhere = prQuery.status ? { status: prQuery.status as any } : {}
             const receivingWhere = receivingQuery.status ? { status: receivingQuery.status as any } : {}
 
+            // Batch queries into smaller groups to avoid exhausting DB connection pool
+            // Group 1: Lightweight counts + aggregates (6 queries)
             const [
-                currentMonthPOs,
-                previousMonthPOs,
                 pendingPOs,
                 pendingPRs,
                 incomingCount,
-                vendors,
-                recentPOs,
-                recentPRsRaw,
-                recentGRNsRaw,
-                productsWithStock,
                 poStatusRows,
                 prStatusRows,
                 grnStatusRows,
-                poFilteredTotal,
-                prFilteredTotal,
-                receivingFilteredTotal,
             ] = await Promise.all([
-                safe("current-month-pos", prisma.purchaseOrder.findMany({
-                    where: {
-                        status: { in: activeSpendStatuses },
-                        createdAt: {
-                            gte: startOfCurrentMonth,
-                            lt: startOfNextMonth,
-                        }
-                    },
-                    select: { totalAmount: true }
-                }), [] as Array<{ totalAmount: any }>),
-                safe("previous-month-pos", prisma.purchaseOrder.findMany({
-                    where: {
-                        status: { in: activeSpendStatuses },
-                        createdAt: {
-                            gte: startOfPreviousMonth,
-                            lt: startOfCurrentMonth,
-                        }
-                    },
-                    select: { totalAmount: true }
-                }), [] as Array<{ totalAmount: any }>),
                 safe("pending-po-count", prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }), 0),
                 safe("pending-pr-count", prisma.purchaseRequest.count({ where: { status: 'PENDING' } }), 0),
                 safe("incoming-po-count", prisma.purchaseOrder.count({ where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] } } }), 0),
+                safe("po-status-group", prisma.purchaseOrder.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
+                safe("pr-status-group", prisma.purchaseRequest.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
+                safe("grn-status-group", prisma.goodsReceivedNote.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
+            ])
+
+            // Group 2: Spend, vendors, urgentNeeds, filtered totals (6 queries)
+            const [
+                currentMonthPOs,
+                previousMonthPOs,
+                vendors,
+                urgentNeedsCount,
+                poFilteredTotal,
+                prFilteredTotal,
+            ] = await Promise.all([
+                safe("current-month-pos", prisma.purchaseOrder.findMany({
+                    where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfCurrentMonth, lt: startOfNextMonth } },
+                    select: { totalAmount: true }
+                }), [] as Array<{ totalAmount: any }>),
+                safe("previous-month-pos", prisma.purchaseOrder.findMany({
+                    where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfPreviousMonth, lt: startOfCurrentMonth } },
+                    select: { totalAmount: true }
+                }), [] as Array<{ totalAmount: any }>),
                 safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
+                safe("urgent-needs", prisma.$queryRaw<[{ count: bigint }]>`
+                    SELECT COUNT(DISTINCT p.id)::bigint as count
+                    FROM public."Product" p
+                    LEFT JOIN (SELECT "productId", SUM(quantity) as total_qty FROM public."StockLevel" GROUP BY "productId") sl ON sl."productId" = p.id
+                    WHERE p."isActive" = true AND p."minStock" > 0 AND COALESCE(sl.total_qty, 0) <= p."minStock"
+                `.then(rows => Number(rows[0]?.count || 0)), 0),
+                safe("po-filtered-total", prisma.purchaseOrder.count({ where: poWhere }), 0),
+                safe("pr-filtered-total", prisma.purchaseRequest.count({ where: prWhere }), 0),
+            ])
+
+            // Group 3: Registry lists (4 queries)
+            const [
+                recentPOs,
+                recentPRsRaw,
+                recentGRNsRaw,
+                receivingFilteredTotal,
+            ] = await Promise.all([
                 safe("recent-po", prisma.purchaseOrder.findMany({
                     where: poWhere,
                     orderBy: { createdAt: 'desc' },
                     skip: (poQuery.page - 1) * poQuery.pageSize,
                     take: poQuery.pageSize,
-                    include: {
-                        supplier: { select: { name: true } }
-                    }
+                    include: { supplier: { select: { name: true } } }
                 }), [] as Array<any>),
                 safe("recent-pr", prisma.purchaseRequest.findMany({
                     where: prWhere,
                     orderBy: { createdAt: 'desc' },
                     skip: (prQuery.page - 1) * prQuery.pageSize,
                     take: prQuery.pageSize,
-                    select: {
-                        id: true,
-                        number: true,
-                        status: true,
-                        requesterId: true,
-                        createdAt: true,
-                        priority: true
-                    }
+                    select: { id: true, number: true, status: true, requesterId: true, createdAt: true, priority: true }
                 }), [] as Array<any>),
                 safe("recent-grn", prisma.goodsReceivedNote.findMany({
                     where: receivingWhere,
                     orderBy: { receivedDate: 'desc' },
                     skip: (receivingQuery.page - 1) * receivingQuery.pageSize,
                     take: receivingQuery.pageSize,
-                    select: {
-                        id: true,
-                        number: true,
-                        status: true,
-                        receivedDate: true,
-                        purchaseOrder: { select: { number: true } },
-                        warehouse: { select: { name: true } }
-                    }
+                    select: { id: true, number: true, status: true, receivedDate: true, purchaseOrder: { select: { number: true } }, warehouse: { select: { name: true } } }
                 }), [] as Array<any>),
-                safe("products-stock", prisma.product.findMany({
-                    where: { isActive: true },
-                    select: {
-                        id: true,
-                        minStock: true,
-                        stockLevels: { select: { quantity: true } }
-                    }
-                }), [] as Array<{ id: string; minStock: number; stockLevels: Array<{ quantity: number }> }>),
-                safe("po-status-group", prisma.purchaseOrder.groupBy({
-                    by: ['status'],
-                    _count: { _all: true }
-                }), [] as Array<{ status: string; _count: { _all: number } }>),
-                safe("pr-status-group", prisma.purchaseRequest.groupBy({
-                    by: ['status'],
-                    _count: { _all: true }
-                }), [] as Array<{ status: string; _count: { _all: number } }>),
-                safe("grn-status-group", prisma.goodsReceivedNote.groupBy({
-                    by: ['status'],
-                    _count: { _all: true }
-                }), [] as Array<{ status: string; _count: { _all: number } }>),
-                safe("po-filtered-total", prisma.purchaseOrder.count({ where: poWhere }), 0),
-                safe("pr-filtered-total", prisma.purchaseRequest.count({ where: prWhere }), 0),
                 safe("receiving-filtered-total", prisma.goodsReceivedNote.count({ where: receivingWhere }), 0),
             ])
 
@@ -252,10 +225,7 @@ export const getProcurementStats = unstable_cache(
             const avgRating = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.rating || 0), 0) / vendors.length : 0
             const avgOnTime = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.onTimeRate || 0), 0) / vendors.length : 0
 
-            const urgentNeeds = productsWithStock.filter((p) => {
-                const totalQty = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
-                return totalQty <= (p.minStock || 0)
-            }).length
+            const urgentNeeds = urgentNeedsCount
 
             const requesterIds = [...new Set(recentPRsRaw.map((pr) => pr.requesterId))]
             const [requesters, prItemCounts] = await Promise.all([
@@ -955,6 +925,10 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
 
         revalidatePath('/procurement')
         revalidatePath('/dashboard')
+        revalidateTagSafe('procurement')
+        revalidateTagSafe('purchase-orders')
+        revalidateTagSafe('receiving')
+        revalidateTagSafe('stats')
         return { success: true }
     } catch (error) {
         console.error("Approval Error:", error)

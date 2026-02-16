@@ -283,7 +283,7 @@ export default function PosRevampPage() {
     const formatRupiah = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
 
     return (
-        <div className="flex h-[calc(100vh-2rem)] overflow-hidden bg-zinc-50 dark:bg-black font-sans text-zinc-900 dark:text-zinc-100 p-3 gap-4">
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-2rem)] overflow-hidden bg-zinc-50 dark:bg-black font-sans text-zinc-900 dark:text-zinc-100 p-2 md:p-3 gap-3 md:gap-4">
             <Toaster position="top-center" />
 
             {/* Payment Success Overlay */}
@@ -331,7 +331,7 @@ export default function PosRevampPage() {
                 {/* Header Bar with Shift Target */}
                 <div className="flex items-stretch gap-3">
                     {/* Shift Target Widget */}
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-4 min-w-[260px]">
+                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-3 flex items-center gap-4 min-w-0 w-[260px] shrink-0 hidden md:flex">
                         <div className="h-9 w-9 bg-black text-white flex items-center justify-center font-black">
                             <Target className="h-5 w-5" />
                         </div>
@@ -425,7 +425,7 @@ export default function PosRevampPage() {
 
                 {/* Product Grid */}
                 <ScrollArea className="flex-1 -mr-2 pr-2">
-                    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 pb-20">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2 md:gap-3 pb-20">
                         {filteredProducts.map(product => (
                             <motion.div
                                 key={product.id}
@@ -530,7 +530,7 @@ export default function PosRevampPage() {
             </div>
 
             {/* === RIGHT: REGISTER / CART === */}
-            <div className="w-full md:w-[360px] lg:w-[420px] flex flex-col h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden z-10 shrink-0">
+            <div className="w-full lg:w-[360px] xl:w-[420px] flex flex-col h-[50vh] lg:h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden z-10 lg:shrink-0">
 
                 {/* Customer Section Header */}
                 <div className="bg-zinc-50 dark:bg-zinc-800 p-3 border-b-2 border-black flex justify-between items-center">

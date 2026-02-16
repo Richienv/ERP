@@ -392,3 +392,24 @@ export async function getCuttingDashboard(): Promise<{
         return { totalDraft: 0, totalAllocated: 0, totalInCutting: 0, totalCompleted: 0, recentPlans: [] }
     }
 }
+
+// ==============================================================================
+// Fabric Products (for cut plan form dropdown)
+// ==============================================================================
+
+export async function getFabricProducts(): Promise<
+    { id: string; name: string; code: string }[]
+> {
+    try {
+        await requireAuth()
+        const products = await prisma.product.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true, code: true },
+            orderBy: { name: 'asc' },
+        })
+        return products
+    } catch (error) {
+        console.error("[getFabricProducts] Error:", error)
+        return []
+    }
+}

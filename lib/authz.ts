@@ -56,11 +56,15 @@ export async function getAuthzUser(): Promise<AuthzUser> {
     }
 }
 
+/** Strip ROLE_ prefix and uppercase for comparison */
+function normalizeRole(role: string): string {
+    return role.toUpperCase().replace(/^ROLE_/, '')
+}
+
 export function assertRole(user: AuthzUser, allowedRoles: string[]) {
-    const normalizedUserRole = user.role.toUpperCase()
-    const hasRole = allowedRoles.some(r => r.toUpperCase() === normalizedUserRole) ||
-        normalizedUserRole === 'ADMIN' ||
-        normalizedUserRole === 'ROLE_ADMIN'
+    const userRole = normalizeRole(user.role)
+    const hasRole = allowedRoles.some(r => normalizeRole(r) === userRole) ||
+        userRole === 'ADMIN'
 
     if (!hasRole) {
         throw new Error("Forbidden")

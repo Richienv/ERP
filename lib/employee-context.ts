@@ -110,6 +110,18 @@ export async function resolveEmployeeContext(
     }
 }
 
+/** Check if a role string indicates manager-level access */
+const isManagerRole = (role: string) => {
+    const r = normalizeRole(role).replace(/^ROLE_/, '')
+    return ['MANAGER', 'PURCHASING'].includes(r) || hasKeyword(role, MANAGER_KEYWORDS)
+}
+
+/** Purchasing roles can approve PRs from any department */
+const isPurchasingRole = (role: string) => {
+    const r = normalizeRole(role).replace(/^ROLE_/, '')
+    return r === 'PURCHASING'
+}
+
 export function canApproveForDepartment(params: {
     role: string
     actorDepartment?: string | null
@@ -117,10 +129,13 @@ export function canApproveForDepartment(params: {
     targetDepartment?: string | null
 }) {
     if (isSuperRole(params.role)) return true
+    // Purchasing roles can approve PRs cross-department
+    if (isPurchasingRole(params.role)) return true
     const actorDepartment = params.actorDepartment || ""
     const actorPosition = params.actorPosition || ""
     if (isHRPosition(actorDepartment, actorPosition)) return true
-    if (!isManagerPosition(actorPosition)) return false
+    // Check both employee position AND user role for manager-level access
+    if (!isManagerPosition(actorPosition) && !isManagerRole(params.role)) return false
     return sameDepartment(actorDepartment, params.targetDepartment || "")
 }
 

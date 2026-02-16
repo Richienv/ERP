@@ -243,6 +243,8 @@ export async function createInvoice(data: { customerId: string, items: { descrip
 
         try {
             revalidateTagSafe('dashboard-sales-stats')
+            revalidatePath('/sales')
+            revalidatePath('/finance/invoices')
         } catch (e) {
             console.log('Skipping revalidation (Script context)')
         }
@@ -303,6 +305,8 @@ export async function approveInvoice(id: string) {
 
         try {
             revalidateTagSafe('dashboard-sales-stats')
+            revalidatePath('/sales')
+            revalidatePath('/finance/invoices')
         } catch (e) {
             console.log('Skipping revalidation (Script context)')
         }
@@ -381,6 +385,8 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
 
         try {
             revalidateTagSafe('dashboard-sales-stats')
+            revalidatePath('/sales')
+            revalidatePath('/finance/invoices')
         } catch (e) {
             console.log('Skipping revalidation (Script context)')
         }

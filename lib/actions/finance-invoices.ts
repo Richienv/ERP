@@ -3,6 +3,12 @@
 import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
+import { revalidatePath } from "next/cache"
+
+function revalidateInvoicePaths() {
+    revalidatePath('/sales')
+    revalidatePath('/finance/invoices')
+}
 
 export interface InvoiceKanbanItem {
     id: string
@@ -214,6 +220,8 @@ export async function createCustomerInvoice(data: {
             })
 
 
+            revalidateInvoicePaths()
+
             return {
                 success: true,
                 invoiceId: invoice.id,
@@ -331,7 +339,7 @@ export async function createInvoiceFromSalesOrder(
     try {
         console.log("Creating Customer Invoice for Sales Order:", salesOrderId)
 
-        return await withPrismaAuth(async (prisma) => {
+        const result = await withPrismaAuth(async (prisma) => {
             // Get Sales Order with all details
             const salesOrder = await prisma.salesOrder.findUnique({
                 where: { id: salesOrderId },
@@ -421,52 +429,39 @@ export async function createInvoiceFromSalesOrder(
             })
 
             console.log("Customer Invoice Created:", invoice.number)
-
-            // Auto-post to General Ledger (DR Accounts Receivable, CR Revenue)
-            try {
-                // Get GL account codes from database (or use predefined codes)
-                const arAccount = await prisma.gLAccount.findFirst({
-                    where: { code: '1200' } // Accounts Receivable
-                })
-                const revenueAccount = await prisma.gLAccount.findFirst({
-                    where: { code: '4000' } // Sales Revenue
-                })
-
-                if (arAccount && revenueAccount) {
-                    // Post journal entry
-                    await postJournalEntry({
-                        description: `Customer Invoice ${invoice.number} - ${salesOrder.customer?.name}`,
-                        date: new Date(),
-                        reference: invoice.number,
-                        lines: [
-                            {
-                                accountCode: arAccount.code,
-                                debit: Number(salesOrder.total),
-                                credit: 0,
-                                description: `AR - ${salesOrder.customer?.name}`
-                            },
-                            {
-                                accountCode: revenueAccount.code,
-                                debit: 0,
-                                credit: Number(salesOrder.total),
-                                description: `Sales Revenue - SO ${salesOrder.number}`
-                            }
-                        ]
-                    })
-                    console.log("GL Entry Posted for Invoice:", invoice.number)
-                } else {
-                    console.warn("GL Accounts not found - skipping auto-posting")
-                }
-            } catch (glError) {
-                console.error("Failed to post GL entry (invoice still created):", glError)
-            }
+            revalidateInvoicePaths()
 
             return {
                 success: true as const,
                 invoiceId: invoice.id,
-                invoiceNumber: invoice.number
+                invoiceNumber: invoice.number,
+                _gl: {
+                    customerName: salesOrder.customer?.name,
+                    soNumber: salesOrder.number,
+                    total: Number(salesOrder.total),
+                }
             }
         })
+
+        // Post GL journal entry OUTSIDE the main transaction to avoid nested tx deadlock
+        if (result.success && result._gl) {
+            try {
+                await postJournalEntry({
+                    description: `Customer Invoice ${result.invoiceNumber} - ${result._gl.customerName}`,
+                    date: new Date(),
+                    reference: result.invoiceNumber,
+                    lines: [
+                        { accountCode: '1200', debit: result._gl.total, credit: 0, description: `AR - ${result._gl.customerName}` },
+                        { accountCode: '4000', debit: 0, credit: result._gl.total, description: `Sales Revenue - SO ${result._gl.soNumber}` }
+                    ]
+                })
+                console.log("GL Entry Posted for Invoice:", result.invoiceNumber)
+            } catch (glError) {
+                console.warn("Failed to post GL entry (invoice still created):", glError)
+            }
+        }
+
+        return result
     } catch (error) {
         console.error("Failed to create invoice from sales order:", error)
         return {
@@ -613,6 +608,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
 
             // Log activity or "send" message (mock for now)
             console.log(`Sending Invoice ${invoice.number} via ${method}: ${message}`)
+            revalidateInvoicePaths()
 
             return { success: true, dueDate, status: nextStatus }
         })
@@ -631,7 +627,8 @@ export async function recordInvoicePayment(data: {
     notes?: string
 }) {
     try {
-        return await withPrismaAuth(async (prisma) => {
+        // Step 1: Create payment + update invoice in a single transaction
+        const txResult = await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({
                 where: { id: data.invoiceId },
                 include: { customer: true, supplier: true }
@@ -639,10 +636,9 @@ export async function recordInvoicePayment(data: {
 
             if (!invoice) throw new Error("Invoice not found")
 
-            // Create Payment Record
             const payment = await prisma.payment.create({
                 data: {
-                    number: `PAY-${Date.now()}`, // Simple ID generation
+                    number: `PAY-${Date.now()}`,
                     date: data.paymentDate,
                     amount: data.amount,
                     method: data.paymentMethod === 'CREDIT_CARD' || data.paymentMethod === 'OTHER' ? 'TRANSFER' : data.paymentMethod,
@@ -654,51 +650,56 @@ export async function recordInvoicePayment(data: {
                 }
             })
 
-            // Update Invoice Status
             const newBalance = Number(invoice.balanceDue) - data.amount
             const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL'
 
             await prisma.invoice.update({
                 where: { id: invoice.id },
-                data: {
-                    status: newStatus,
-                    balanceDue: newBalance,
-                    // If fully paid, maybe set closing date?
-                }
+                data: { status: newStatus, balanceDue: newBalance }
             })
 
-            // Post Journal Entry (Cash Debit / AR Credit)
-            // Determine Accounts
-            const cashAccountCode = data.paymentMethod === 'CASH' ? '1000' : '1010' // Cash vs Bank
-            const arAccountCode = '1200' // Accounts Receivable
-            const apAccountCode = '2000' // Accounts Payable
+            return {
+                paymentNumber: payment.number,
+                invoiceNumber: invoice.number,
+                invoiceType: invoice.type,
+                customerName: invoice.customer?.name,
+                supplierName: invoice.supplier?.name,
+            }
+        })
 
-            if (invoice.type === 'INV_OUT') {
-                // Customer Payment: Debit Cash, Credit AR
+        // Step 2: Post journal entry OUTSIDE the main transaction to avoid nested tx deadlock
+        const cashAccountCode = data.paymentMethod === 'CASH' ? '1000' : '1010'
+        const arAccountCode = '1200'
+        const apAccountCode = '2000'
+
+        try {
+            if (txResult.invoiceType === 'INV_OUT') {
                 await postJournalEntry({
-                    description: `Payment for Invoice ${invoice.number}`,
+                    description: `Payment for Invoice ${txResult.invoiceNumber}`,
                     date: data.paymentDate,
-                    reference: payment.number,
+                    reference: txResult.paymentNumber,
                     lines: [
-                        { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Receipt from ${invoice.customer?.name}` },
-                        { accountCode: arAccountCode, debit: 0, credit: data.amount, description: `Payment for ${invoice.number}` }
+                        { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Receipt from ${txResult.customerName}` },
+                        { accountCode: arAccountCode, debit: 0, credit: data.amount, description: `Payment for ${txResult.invoiceNumber}` }
                     ]
                 })
             } else {
-                // Vendor Payment: Debit AP, Credit Cash
                 await postJournalEntry({
-                    description: `Payment for Bill ${invoice.number}`,
+                    description: `Payment for Bill ${txResult.invoiceNumber}`,
                     date: data.paymentDate,
-                    reference: payment.number,
+                    reference: txResult.paymentNumber,
                     lines: [
-                        { accountCode: apAccountCode, debit: data.amount, credit: 0, description: `Payment for ${invoice.supplier?.name}` },
-                        { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Payment for ${invoice.number}` }
+                        { accountCode: apAccountCode, debit: data.amount, credit: 0, description: `Payment for ${txResult.supplierName}` },
+                        { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Payment for ${txResult.invoiceNumber}` }
                     ]
                 })
             }
+        } catch (glError) {
+            console.warn("Journal entry failed (GL accounts may not exist):", glError)
+        }
 
-            return { success: true }
-        })
+        revalidateInvoicePaths()
+        return { success: true }
     } catch (error) {
         console.error("Failed to record payment:", error)
         return { success: false, error: "Failed to record payment" }

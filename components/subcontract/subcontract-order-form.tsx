@@ -76,37 +76,39 @@ export function SubcontractOrderForm({
     }
 
     const handleSubmit = async () => {
-        if (!subcontractorId) {
-            toast.error("Pilih subkontraktor")
-            return
-        }
-        if (!operation) {
-            toast.error("Pilih operasi")
-            return
-        }
-        if (items.length === 0) {
-            toast.error("Tambahkan minimal 1 item")
+        const errors: string[] = []
+        if (!subcontractorId) errors.push("Pilih subkontraktor")
+        if (!operation) errors.push("Pilih operasi")
+        if (items.length === 0) errors.push("Tambahkan minimal 1 item ke daftar")
+
+        if (errors.length > 0) {
+            errors.forEach((e) => toast.error(e))
             return
         }
 
         setLoading(true)
-        const result = await createSubcontractOrder({
-            subcontractorId,
-            operation,
-            expectedReturnDate: expectedReturnDate || undefined,
-            items: items.map((i) => ({ productId: i.productId, issuedQty: i.issuedQty })),
-        })
-        setLoading(false)
+        try {
+            const result = await createSubcontractOrder({
+                subcontractorId,
+                operation,
+                expectedReturnDate: expectedReturnDate || undefined,
+                items: items.map((i) => ({ productId: i.productId, issuedQty: i.issuedQty })),
+            })
 
-        if (result.success) {
-            toast.success("Order subkontrak berhasil dibuat")
-            onOpenChange(false)
-            setSubcontractorId("")
-            setOperation("")
-            setExpectedReturnDate("")
-            setItems([])
-        } else {
-            toast.error(result.error || "Gagal membuat order")
+            if (result.success) {
+                toast.success("Order subkontrak berhasil dibuat")
+                onOpenChange(false)
+                setSubcontractorId("")
+                setOperation("")
+                setExpectedReturnDate("")
+                setItems([])
+            } else {
+                toast.error(result.error || "Gagal membuat order")
+            }
+        } catch {
+            toast.error("Gagal membuat order subkontrak")
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -185,6 +187,11 @@ export function SubcontractOrderForm({
                                 <span className={NB.sectionTitle}>
                                     Item <span className={NB.labelRequired}>*</span>
                                 </span>
+                                {items.length > 0 && (
+                                    <span className="ml-2 text-[9px] font-black bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5">
+                                        {items.length} item
+                                    </span>
+                                )}
                             </div>
                             <div className={NB.sectionBody}>
                                 {/* Add item row */}
@@ -207,6 +214,7 @@ export function SubcontractOrderForm({
                                         placeholder="Qty"
                                         value={selectedQty}
                                         onChange={(e) => setSelectedQty(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addItem() } }}
                                     />
                                     <button
                                         type="button"
@@ -268,7 +276,7 @@ export function SubcontractOrderForm({
                                 disabled={loading}
                                 className={NB.submitBtn}
                             >
-                                {loading ? "Menyimpan..." : "Buat Order"}
+                                {loading ? "Menyimpan..." : `Buat Order (${items.length} item)`}
                             </button>
                         </div>
                     </div>

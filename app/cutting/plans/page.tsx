@@ -1,26 +1,25 @@
 import { Suspense } from "react"
-import { getCutPlans } from "@/lib/actions/cutting"
+import { getCutPlans, getFabricProducts } from "@/lib/actions/cutting"
 import { cutPlanStatusLabels, cutPlanStatusColors } from "@/lib/cut-plan-state-machine"
 import { Scissors } from "lucide-react"
+import Link from "next/link"
+import { CuttingHeader } from "@/components/cutting/cutting-header"
 
 export const dynamic = "force-dynamic"
 
 async function PlansContent() {
-    const plans = await getCutPlans()
+    const [plans, fabricProducts] = await Promise.all([
+        getCutPlans(),
+        getFabricProducts(),
+    ])
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Scissors className="h-5 w-5" />
-                    <h2 className="text-sm font-black uppercase tracking-widest">
-                        Daftar Cut Plan
-                    </h2>
-                    <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-100 border-2 border-black">
-                        {plans.length}
-                    </span>
-                </div>
-            </div>
+            <CuttingHeader title="Daftar Cut Plan" fabricProducts={fabricProducts}>
+                <span className="text-[9px] font-black px-2 py-0.5 bg-zinc-100 border-2 border-black">
+                    {plans.length}
+                </span>
+            </CuttingHeader>
 
             {plans.length === 0 ? (
                 <div className="bg-white border-2 border-black p-8 text-center">
@@ -61,10 +60,15 @@ async function PlansContent() {
                             {plans.map((p) => (
                                 <tr
                                     key={p.id}
-                                    className="border-b border-zinc-200 last:border-b-0 hover:bg-zinc-50"
+                                    className="border-b border-zinc-200 last:border-b-0 hover:bg-zinc-50 group"
                                 >
                                     <td className="px-3 py-2 text-xs font-black">
-                                        {p.number}
+                                        <Link
+                                            href={`/cutting/plans/${p.id}`}
+                                            className="text-blue-600 hover:underline"
+                                        >
+                                            {p.number}
+                                        </Link>
                                     </td>
                                     <td className="px-3 py-2">
                                         <div className="text-xs font-bold">{p.fabricProductName}</div>

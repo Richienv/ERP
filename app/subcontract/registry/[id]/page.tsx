@@ -7,6 +7,7 @@ import {
 } from "@/lib/subcontract-state-machine"
 import { ArrowLeft, Factory, TrendingUp, Clock, AlertTriangle, CheckCircle } from "lucide-react"
 import Link from "next/link"
+import { SubcontractorRatesTable } from "@/components/subcontract/subcontractor-rates-table"
 
 export const dynamic = "force-dynamic"
 
@@ -23,19 +24,9 @@ const CAPABILITY_COLORS: Record<string, string> = {
     FINISHING: "bg-emerald-100 text-emerald-700 border-emerald-300",
 }
 
-const OPERATION_LABELS: Record<string, string> = {
-    CUT: "Potong", SEW: "Jahit", WASH: "Cuci",
-    PRINT: "Cetak", EMBROIDERY: "Bordir", FINISHING: "Finishing",
-}
-
 async function DetailContent({ id }: { id: string }) {
     const data = await getSubcontractorDetail(id)
     if (!data) notFound()
-
-    const formatCurrency = (value: number) =>
-        new Intl.NumberFormat("id-ID", {
-            style: "currency", currency: "IDR", minimumFractionDigits: 0,
-        }).format(value)
 
     return (
         <div className="space-y-6">
@@ -121,37 +112,8 @@ async function DetailContent({ id }: { id: string }) {
                 </div>
             </div>
 
-            {/* Rates table */}
-            {data.rates.length > 0 && (
-                <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                    <div className="px-4 py-2.5 border-b-2 border-black bg-zinc-50">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tarif</span>
-                    </div>
-                    <table className="w-full">
-                        <thead className="bg-zinc-50 border-b border-zinc-200">
-                            <tr>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Operasi</th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Tipe Produk</th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Tarif/Unit</th>
-                                <th className="text-[10px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-left">Berlaku</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.rates.map((rate) => (
-                                <tr key={rate.id} className="border-b border-zinc-200 last:border-b-0">
-                                    <td className="px-3 py-2 text-xs font-black">{OPERATION_LABELS[rate.operation] || rate.operation}</td>
-                                    <td className="px-3 py-2 text-xs font-bold text-zinc-500">{rate.productType || "—"}</td>
-                                    <td className="px-3 py-2 text-xs font-mono font-bold text-right">{formatCurrency(rate.ratePerUnit)}</td>
-                                    <td className="px-3 py-2 text-[10px] font-bold text-zinc-500">
-                                        {new Date(rate.validFrom).toLocaleDateString("id-ID")}
-                                        {rate.validTo ? ` — ${new Date(rate.validTo).toLocaleDateString("id-ID")}` : " — Sekarang"}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+            {/* Rates table — with inline edit/delete */}
+            <SubcontractorRatesTable rates={data.rates} subcontractorId={data.id} />
 
             {/* Active orders */}
             {data.activeOrders.length > 0 && (

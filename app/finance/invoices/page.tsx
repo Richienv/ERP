@@ -87,6 +87,7 @@ export default function InvoicesPage() {
     const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0])
     const [payReference, setPayReference] = useState("")
     const [payAmount, setPayAmount] = useState("")
+    const [paying, setPaying] = useState(false)
 
     const [searchText, setSearchText] = useState("")
     const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'ALL' | 'INV_OUT' | 'INV_IN'>('ALL')
@@ -214,26 +215,34 @@ export default function InvoicesPage() {
     }
 
     const handleConfirmPayment = async () => {
-        if (!activeInvoice) return
-        setLoading(true)
+        if (!activeInvoice || paying) return
+        const amount = parseFloat(payAmount)
+        if (!amount || amount <= 0) {
+            toast.error("Masukkan jumlah pembayaran yang valid")
+            return
+        }
+        setPaying(true)
         try {
             const result: any = await recordInvoicePayment({
                 invoiceId: activeInvoice.id,
-                amount: parseFloat(payAmount),
+                amount,
                 paymentMethod: payMethod,
                 paymentDate: new Date(payDate),
                 reference: payReference,
                 notes: "Pembayaran dari Invoice Center"
             })
-            if (!result.success) throw new Error(result.error || "Gagal mencatat pembayaran")
+            if (!result.success) {
+                toast.error(result.error || "Gagal mencatat pembayaran")
+                return
+            }
             toast.success("Pembayaran berhasil dicatat")
             setIsPayDialogOpen(false)
-            await loadInvoices()
-        } catch {
-            toast.error("Gagal mencatat pembayaran")
-        } finally {
-            setLoading(false)
             setActiveInvoice(null)
+            await loadInvoices()
+        } catch (err: any) {
+            toast.error(err?.message || "Gagal mencatat pembayaran")
+        } finally {
+            setPaying(false)
         }
     }
 
@@ -619,8 +628,8 @@ export default function InvoicesPage() {
             </Dialog>
 
             {/* PAY DIALOG */}
-            <Dialog open={isPayDialogOpen} onOpenChange={setIsPayDialogOpen}>
-                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
+            <Dialog open={isPayDialogOpen} onOpenChange={(open) => { if (!paying) setIsPayDialogOpen(open) }}>
+                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-y-auto max-h-[90vh] bg-white">
                     <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
                         <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
                             <Banknote className="h-5 w-5" /> Catat Pembayaran {activeInvoice?.number}
@@ -662,12 +671,17 @@ export default function InvoicesPage() {
                         </div>
                     </div>
                     <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
-                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsPayDialogOpen(false)}>Batal</Button>
+                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsPayDialogOpen(false)} disabled={paying}>Batal</Button>
                         <Button
                             onClick={handleConfirmPayment}
-                            className="bg-emerald-500 hover:bg-emerald-600 border-2 border-emerald-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                            disabled={paying}
+                            className="bg-emerald-500 hover:bg-emerald-600 border-2 border-emerald-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all disabled:opacity-50"
                         >
-                            Konfirmasi Pembayaran
+                            {paying ? (
+                                <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Memproses...</>
+                            ) : (
+                                "Konfirmasi Pembayaran"
+                            )}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

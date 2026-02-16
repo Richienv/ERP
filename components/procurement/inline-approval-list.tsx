@@ -28,10 +28,14 @@ interface InlineApprovalListProps {
 
 export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
     const [processing, setProcessing] = useState<string | null>(null)
+    const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
     const [rejectTarget, setRejectTarget] = useState<PendingItem | null>(null)
     const [rejectReason, setRejectReason] = useState("")
     const [detailTarget, setDetailTarget] = useState<PendingItem | null>(null)
     const router = useRouter()
+
+    // Optimistically filter out removed items
+    const visibleItems = pendingItems.filter(item => !removedIds.has(item.id))
 
     const handleApprove = async (item: PendingItem) => {
         setProcessing(item.id)
@@ -40,6 +44,8 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 ? await approvePurchaseOrder(item.id)
                 : await approvePurchaseRequest(item.id)
             if (result.success) {
+                // Optimistically remove from list immediately
+                setRemovedIds(prev => new Set(prev).add(item.id))
                 toast.success(`${item.type} ${item.number} disetujui`)
                 router.refresh()
             } else {
@@ -63,6 +69,8 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 ? await rejectPurchaseOrder(rejectTarget.id, rejectReason)
                 : await rejectPurchaseRequest(rejectTarget.id, rejectReason)
             if (result.success) {
+                // Optimistically remove from list immediately
+                setRemovedIds(prev => new Set(prev).add(rejectTarget.id))
                 toast.success(`${rejectTarget.type} ${rejectTarget.number} ditolak`)
                 setRejectTarget(null)
                 setRejectReason("")
@@ -77,7 +85,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
         }
     }
 
-    if (pendingItems.length === 0) {
+    if (visibleItems.length === 0) {
         return (
             <div className="py-10 text-center text-zinc-400 text-xs font-bold uppercase tracking-widest flex flex-col items-center gap-2">
                 <CheckCircle className="h-6 w-6 text-emerald-400" />
@@ -89,7 +97,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
     return (
         <>
             <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                {pendingItems.map((item, idx) => (
+                {visibleItems.map((item, idx) => (
                     <div
                         key={`${item.type}-${item.id}`}
                         className={`px-5 py-3 flex items-center gap-4 ${idx % 2 === 0 ? '' : 'bg-zinc-50/50 dark:bg-zinc-800/10'}`}

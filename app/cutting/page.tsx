@@ -1,17 +1,22 @@
 import { Suspense } from "react"
-import { getCuttingDashboard } from "@/lib/actions/cutting"
+import { getCuttingDashboard, getFabricProducts } from "@/lib/actions/cutting"
 import { cutPlanStatusLabels, cutPlanStatusColors } from "@/lib/cut-plan-state-machine"
-import { Scissors, FileText, Layers, Clock, CheckCircle2, Plus } from "lucide-react"
+import { Scissors, FileText, Layers, Clock, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
+import { CuttingHeader } from "@/components/cutting/cutting-header"
 
 export const dynamic = "force-dynamic"
 
 async function DashboardContent() {
-    const data = await getCuttingDashboard()
+    const [data, fabricProducts] = await Promise.all([
+        getCuttingDashboard(),
+        getFabricProducts(),
+    ])
 
     return (
         <div className="space-y-6">
+            <CuttingHeader title="Pemotongan Kain" fabricProducts={fabricProducts} />
+
             {/* KPI Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4">
@@ -76,7 +81,11 @@ async function DashboardContent() {
                 ) : (
                     <div className="divide-y divide-zinc-200">
                         {data.recentPlans.map((plan) => (
-                            <div key={plan.id} className="px-4 py-3 flex items-center gap-4">
+                            <Link
+                                key={plan.id}
+                                href={`/cutting/plans/${plan.id}`}
+                                className="px-4 py-3 flex items-center gap-4 hover:bg-zinc-50 block"
+                            >
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-black">{plan.number}</span>
@@ -104,7 +113,7 @@ async function DashboardContent() {
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 )}
@@ -116,20 +125,6 @@ async function DashboardContent() {
 export default function CuttingPage() {
     return (
         <div className="p-6 space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <Scissors className="h-5 w-5" />
-                    <h1 className="text-sm font-black uppercase tracking-widest">
-                        Pemotongan Kain
-                    </h1>
-                </div>
-                <Button asChild className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider">
-                    <Link href="/cutting/plans/new">
-                        <Plus className="mr-2 h-4 w-4" /> Buat Cut Plan
-                    </Link>
-                </Button>
-            </div>
-
             <Suspense
                 fallback={
                     <div className="flex items-center gap-2 text-zinc-400">

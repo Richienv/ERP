@@ -131,32 +131,32 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                                 <MoreHorizontal className="h-3.5 w-3.5" />
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rounded-none">
-                            <DropdownMenuItem className="text-xs font-bold" onSelect={() => router.push(`/sales/quotations/${qt.id}`)}>
+                        <DropdownMenuContent align="end" className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rounded-none" onClick={(e) => e.stopPropagation()}>
+                            <DropdownMenuItem className="text-xs font-bold cursor-pointer" onSelect={() => router.push(`/sales/quotations/${qt.id}`)}>
                                 <Eye className="mr-2 h-3.5 w-3.5" /> Lihat Detail
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-xs font-bold" onSelect={() => router.push(`/sales/quotations/${qt.id}/edit`)}>
+                            <DropdownMenuItem className="text-xs font-bold cursor-pointer" onSelect={() => router.push(`/sales/quotations/${qt.id}/edit`)}>
                                 <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Penawaran
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuLabel className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Ubah Status</DropdownMenuLabel>
                             {qt.status === 'DRAFT' && (
-                                <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'SENT')} className="text-xs font-bold">
+                                <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'SENT')} className="text-xs font-bold cursor-pointer">
                                     <Send className="mr-2 h-3.5 w-3.5" /> Tandai Terkirim
                                 </DropdownMenuItem>
                             )}
                             {qt.status === 'SENT' && (
                                 <>
-                                    <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'ACCEPTED')} className="text-xs font-bold text-emerald-600">
+                                    <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'ACCEPTED')} className="text-xs font-bold text-emerald-600 cursor-pointer">
                                         <CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Tandai Diterima
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'REJECTED')} className="text-xs font-bold text-red-600">
+                                    <DropdownMenuItem onSelect={() => handleStatusChange(qt.id, 'REJECTED')} className="text-xs font-bold text-red-600 cursor-pointer">
                                         <XCircle className="mr-2 h-3.5 w-3.5" /> Tandai Ditolak
                                     </DropdownMenuItem>
                                 </>
                             )}
                             {qt.status === 'ACCEPTED' && (
-                                <DropdownMenuItem className="text-xs font-bold text-violet-600" onSelect={() => handleConvert()}>
+                                <DropdownMenuItem className="text-xs font-bold text-violet-600 cursor-pointer" onSelect={() => handleConvert()}>
                                     <ArrowRight className="mr-2 h-3.5 w-3.5" /> Konversi ke Sales Order
                                 </DropdownMenuItem>
                             )}
@@ -183,7 +183,7 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                 {/* ACCEPTED: Prominent Convert Button */}
                 {qt.status === 'ACCEPTED' && (
                     <Button
-                        onClick={handleConvert}
+                        onClick={(e) => { e.stopPropagation(); handleConvert() }}
                         disabled={converting}
                         className="mt-3 w-full h-8 bg-violet-600 text-white hover:bg-violet-700 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-y-[1px] transition-all text-[10px] font-black uppercase tracking-wider rounded-none"
                     >
