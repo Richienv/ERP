@@ -74,7 +74,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
         name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
 
     return (
-        <div className="p-4 md:p-8 pt-6 w-full max-w-[1600px] mx-auto space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -170,7 +170,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
             </div>
 
             {/* ═══ VENDOR GRID ═══ */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {filteredVendors.map((vendor) => (
                     <div key={vendor.id} className="group bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all overflow-hidden flex flex-col">
                         {/* Color stripe */}

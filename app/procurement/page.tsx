@@ -163,7 +163,7 @@ export default async function ProcurementPage({
 
   return (
     <ProcurementPerformanceProvider currentPath="/procurement">
-      <div className="flex-1 p-4 md:p-8 pt-6 max-w-7xl mx-auto space-y-4">
+      <div className="flex-1 p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4">
 
         {/* ── Page Header ─────────────────────────────────────────── */}
         <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
