@@ -241,14 +241,14 @@ export default function APBillsStackPage() {
 
     if (loading && bills.length === 0) {
         return (
-            <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto bg-zinc-50 dark:bg-black min-h-screen flex items-center justify-center">
+            <div className="p-4 md:p-6 lg:p-8 pt-6 w-full bg-zinc-50 dark:bg-black min-h-screen flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
             </div>
         )
     }
 
     return (
-        <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
