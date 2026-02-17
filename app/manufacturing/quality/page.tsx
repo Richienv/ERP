@@ -23,7 +23,7 @@ async function QualityContent() {
 
 export default function QualityControlPage() {
     return (
-        <div className="min-h-screen bg-background p-4 md:p-8 pb-24">
+        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
             <Suspense
                 fallback={
                     <div className="flex items-center gap-2 text-zinc-400 pt-8">
