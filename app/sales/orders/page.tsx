@@ -132,7 +132,7 @@ export default function SalesOrdersPage() {
   }, [orders, searchTerm, filterStatus])
 
   return (
-    <div className="space-y-6 p-4 md:p-8 pt-6 max-w-[1600px] mx-auto min-h-screen">
+    <div className="space-y-6 p-4 md:p-6 lg:p-8 pt-6 w-full min-h-screen">
 
       {/* ═══════════════════════════════════════════ */}
       {/* COMMAND HEADER                              */}
@@ -307,7 +307,7 @@ export default function SalesOrdersPage() {
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6">
                   {filteredOrders.map((order) => (
                     <OrderExecutionCard
                       key={order.id}

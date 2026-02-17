@@ -102,7 +102,7 @@ export default function LeadsPage() {
   }, [loadLeads])
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] space-y-4 p-4 md:p-8 pt-6 bg-zinc-50/50 dark:bg-black max-w-[1600px] mx-auto">
+    <div className="flex flex-col h-[calc(100vh-4rem)] space-y-4 p-4 md:p-6 lg:p-8 pt-6 bg-zinc-50/50 dark:bg-black w-full">
 
       {/* ═══════════════════════════════════════════ */}
       {/* COMMAND HEADER                              */}
@@ -227,14 +227,12 @@ export default function LeadsPage() {
       {/* ═══════════════════════════════════════════ */}
       {/* KANBAN BOARD                                */}
       {/* ═══════════════════════════════════════════ */}
-      <div className="flex-1 overflow-hidden border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] bg-zinc-100 rounded-none relative">
-        <div className="absolute inset-0 overflow-hidden">
-          <LeadKanban
-            leads={filteredLeads}
-            isLoading={loading}
-            onStatusChange={handleStatusChange}
-          />
-        </div>
+      <div className="flex-1 min-h-0 overflow-hidden border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] bg-zinc-100 rounded-none">
+        <LeadKanban
+          leads={filteredLeads}
+          isLoading={loading}
+          onStatusChange={handleStatusChange}
+        />
       </div>
     </div>
   )

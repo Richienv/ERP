@@ -46,7 +46,7 @@ export function PriceBookGallery({ priceLists, onOpenBook }: PriceBookGalleryPro
     }
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-5">
             {priceLists.map((pl, index) => (
                 <PriceListCard
                     key={pl.id}

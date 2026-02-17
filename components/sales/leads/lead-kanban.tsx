@@ -10,10 +10,10 @@ import {
   DroppableStateSnapshot
 } from "@hello-pangea/dnd"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
+// Card removed — using custom neo-brutalist cards
 import { Skeleton } from "@/components/ui/skeleton"
 import { Calendar, Flame, User, Building2 } from "lucide-react"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+// ScrollArea removed — columns now flex-fill the container width
 import { cn } from "@/lib/utils"
 
 export type LeadStage =
@@ -173,9 +173,9 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4">
-        {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="space-y-3">
+      <div className="flex gap-3 p-4 h-full">
+        {Array.from({ length: 7 }).map((_, index) => (
+          <div key={index} className="flex-1 min-w-[180px] space-y-3">
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-32 w-full" />
             <Skeleton className="h-32 w-full" />
@@ -187,15 +187,15 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <ScrollArea className="h-full w-full whitespace-nowrap bg-zinc-100/50">
-        <div className="flex space-x-4 p-4">
+      <div className="h-full w-full bg-zinc-100/50 overflow-x-auto overflow-y-hidden">
+        <div className="flex gap-3 p-4 h-full min-w-0">
           {STATUS_ORDER.map((status) => {
             const meta = STATUS_META[status]
             const statusLeads = grouped[status]
             const totalValue = statusLeads.reduce((sum, lead) => sum + lead.estimatedValue, 0)
 
             return (
-              <div key={status} className="w-[300px] flex-shrink-0 flex flex-col space-y-3">
+              <div key={status} className="flex-1 min-w-[180px] max-w-[280px] 2xl:max-w-none flex flex-col space-y-3">
                 {/* Column Header */}
                 <div className="p-3 border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden rounded-none">
                   <div className={cn("absolute top-0 left-0 w-full h-1.5", meta.accent)} />
@@ -212,7 +212,7 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={cn(
-                        "min-h-[500px] p-2 border-2 border-dashed transition-colors rounded-none",
+                        "flex-1 min-h-[200px] p-2 border-2 border-dashed transition-colors rounded-none overflow-y-auto",
                         snapshot.isDraggingOver ? "border-black bg-zinc-200/50" : "border-zinc-300 bg-zinc-50"
                       )}
                     >
@@ -241,8 +241,8 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
                                       {lead.title}
                                     </p>
                                     <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-500">
-                                      <Building2 className="h-3 w-3" />
-                                      <span className="truncate max-w-[180px]">{lead.company || "No Company"}</span>
+                                      <Building2 className="h-3 w-3 flex-shrink-0" />
+                                      <span className="truncate">{lead.company || "No Company"}</span>
                                     </div>
                                   </div>
 
@@ -284,8 +284,7 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
             )
           })}
         </div>
-        <ScrollBar orientation="horizontal" className="h-2.5" />
-      </ScrollArea>
+      </div>
     </DragDropContext>
   )
 }

@@ -58,7 +58,7 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
     }
 
     return (
-        <div className="space-y-6 p-4 md:p-8 pt-6 max-w-[1600px] mx-auto min-h-screen bg-zinc-50/50 dark:bg-black">
+        <div className="space-y-6 p-4 md:p-6 lg:p-8 pt-6 w-full min-h-screen bg-zinc-50/50 dark:bg-black">
 
             {/* ═══════════════════════════════════════════ */}
             {/* COMMAND HEADER                              */}
