@@ -93,6 +93,26 @@ model VerificationToken {
 }
 
 // ================================
+// Tenant Configuration (Multi-Tenant)
+// ================================
+
+model TenantConfig {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  tenantSlug     String   @unique
+  tenantName     String
+  enabledModules String[] // e.g. ["INVENTORY", "SALES", "PROCUREMENT"]
+  maxUsers       Int      @default(5)
+  planType       String   @default("STARTER") // STARTER, PRO, ENTERPRISE
+  logoUrl        String?
+  primaryColor   String?  @default("#000000")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tenant_config")
+}
+
+// ================================
 // Product Categories
 // ================================
 

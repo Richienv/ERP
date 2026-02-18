@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
     Plus,
     Download,
@@ -25,33 +25,28 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { getJournalEntries, postJournalEntry, getGLAccountsList, type JournalEntryItem } from "@/lib/actions/finance"
+import { postJournalEntry, type JournalEntryItem } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
+import { useJournal } from "@/hooks/use-journal"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 export default function GeneralLedgerPage() {
-    const [entries, setEntries] = useState<JournalEntryItem[]>([])
-    const [glAccounts, setGlAccounts] = useState<Array<{ id: string; code: string; name: string; type: string }>>([])
+    const { data, isLoading: loading } = useJournal()
+    const queryClient = useQueryClient()
+    const entries = data?.entries ?? []
+    const glAccounts = data?.accounts ?? []
     const [lines, setLines] = useState([
         { accountId: "", debit: 0, credit: 0 },
         { accountId: "", debit: 0, credit: 0 }
     ])
     const [desc, setDesc] = useState("")
     const [ref, setRef] = useState("")
-    const [loading, setLoading] = useState(true)
     const [posting, setPosting] = useState(false)
     const [exportOpen, setExportOpen] = useState(false)
     const [showForm, setShowForm] = useState(false)
-
-    useEffect(() => { loadData() }, [])
-
-    async function loadData() {
-        setLoading(true)
-        const [jeData, accData] = await Promise.all([getJournalEntries(50), getGLAccountsList()])
-        setEntries(jeData)
-        setGlAccounts(accData)
-        setLoading(false)
-    }
 
     const totalDebit = lines.reduce((acc, curr) => acc + (Number(curr.debit) || 0), 0)
     const totalCredit = lines.reduce((acc, curr) => acc + (Number(curr.credit) || 0), 0)
@@ -86,8 +81,7 @@ export default function GeneralLedgerPage() {
                 setDesc("")
                 setRef("")
                 setShowForm(false)
-                const updatedEntries = await getJournalEntries(50)
-                setEntries(updatedEntries)
+                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal posting entry") || "Gagal posting entry")
             }
@@ -129,7 +123,7 @@ export default function GeneralLedgerPage() {
     const latestEntry = entries.length > 0 ? new Date(entries[0].date).toLocaleDateString("id-ID") : "-"
 
     return (
-        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="mf-page">
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">

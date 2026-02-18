@@ -1,12 +1,13 @@
-import { getPendingApprovalPOs } from "@/lib/actions/procurement"
+"use client"
+
+import { useApprovals } from "@/hooks/use-approvals"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { ApprovalsView } from "./approvals-view"
 
-// Force dynamic rendering for real-time updates
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export default function ApprovalsPage() {
+    const { data, isLoading } = useApprovals()
 
-export default async function ApprovalsPage() {
-    const pendingPOs = await getPendingApprovalPOs()
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-red-400" />
 
-    return <ApprovalsView pendingPOs={pendingPOs} />
+    return <ApprovalsView pendingPOs={data.pendingPOs} />
 }

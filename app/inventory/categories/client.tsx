@@ -28,6 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { createCategory, getNextCategoryCode, getProductsByCategory, getProductsNotInCategory, assignProductToCategory, removeProductFromCategory } from "@/app/actions/inventory"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { useInvalidateCategories } from "@/hooks/use-categories"
 import { NB } from "@/lib/dialog-styles"
 
 interface CategoryWithChildren {
@@ -64,6 +65,7 @@ export function CategoriesClient({ categories, allCategories }: CategoriesClient
     const [isCreateOpen, setIsCreateOpen] = useState(false)
     const [search, setSearch] = useState("")
     const router = useRouter()
+    const invalidateCategories = useInvalidateCategories()
 
     const uiCategories = useMemo(() => {
         return categories.filter(c => !c.parentId).map(cat => ({
@@ -229,7 +231,7 @@ export function CategoriesClient({ categories, allCategories }: CategoriesClient
                 onOpenChange={setIsCreateOpen}
                 parents={allCategories}
                 onSuccess={() => {
-                    router.refresh()
+                    invalidateCategories()
                     setIsCreateOpen(false)
                 }}
             />
@@ -488,6 +490,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
     const [selectedProductId, setSelectedProductId] = useState("")
     const [adding, setAdding] = useState(false)
     const router = useRouter()
+    const invalidateCategories = useInvalidateCategories()
 
     const loadProducts = async () => {
         setLoadingProducts(true)
@@ -522,7 +525,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
             setSelectedProductId("")
             setShowAddRow(false)
             await loadProducts()
-            router.refresh()
+            invalidateCategories()
         } else {
             toast.error(result.error || "Gagal menambahkan produk")
         }
@@ -534,7 +537,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
         if (result.success) {
             toast.success("Produk dihapus dari kategori")
             await loadProducts()
-            router.refresh()
+            invalidateCategories()
         } else {
             toast.error(result.error || "Gagal menghapus produk")
         }

@@ -1,11 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
 import { AlertCircle, Building2, Filter, Plus, RefreshCcw, Search, ShoppingBag, User, Users } from "lucide-react"
 import { IconTrendingUp } from "@tabler/icons-react"
-import { toast } from "sonner"
 
+import { useCustomers } from "@/hooks/use-customers"
 import { CustomerRolodexCard } from "@/components/sales/customer-rolodex-card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -17,83 +17,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Progress } from "@/components/ui/progress"
-
-interface CustomerItem {
-  id: string
-  code: string
-  name: string
-  customerType: string
-  city: string
-  phone: string
-  email: string
-  creditStatus: string
-  totalOrderValue: number
-  lastOrderDate: string | null
-  isActive: boolean
-  isProspect: boolean
-}
-
-interface CustomerSummary {
-  totalCustomers: number
-  totalProspects: number
-  activeCustomers: number
-  creditWatch: number
-  totalRevenue: number
-}
-
-interface CustomersResponse {
-  success: boolean
-  data: CustomerItem[]
-  summary?: CustomerSummary
-  error?: string
-}
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<CustomerItem[]>([])
-  const [summary, setSummary] = useState<CustomerSummary>({
-    totalCustomers: 0,
-    totalProspects: 0,
-    activeCustomers: 0,
-    creditWatch: 0,
-    totalRevenue: 0,
-  })
+  const { data, isLoading, isFetching, refetch } = useCustomers()
+  const customers = data?.customers ?? []
+  const summary = data?.summary ?? { totalCustomers: 0, totalProspects: 0, activeCustomers: 0, creditWatch: 0, totalRevenue: 0 }
+
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
   const [filterStatus, setFilterStatus] = useState("all")
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const loadCustomers = useCallback(async () => {
-    setRefreshing(true)
-    try {
-      const response = await fetch("/api/sales/customers", {
-        cache: "no-store",
-      })
-      const payload: CustomersResponse = await response.json()
-      if (!payload.success) {
-        throw new Error(payload.error || "Failed to load customers")
-      }
-
-      setCustomers(payload.data || [])
-      setSummary(payload.summary || {
-        totalCustomers: 0,
-        totalProspects: 0,
-        activeCustomers: 0,
-        creditWatch: 0,
-        totalRevenue: 0,
-      })
-    } catch (error: any) {
-      toast.error(error?.message || "Gagal memuat data pelanggan")
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadCustomers()
-  }, [loadCustomers])
 
   const filteredCustomers = useMemo(() => {
     return customers.filter((customer) => {
@@ -127,9 +59,7 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6 p-4 md:p-8 pt-6 max-w-[1600px] mx-auto min-h-screen">
 
-      {/* ═══════════════════════════════════════════ */}
-      {/* COMMAND HEADER                              */}
-      {/* ═══════════════════════════════════════════ */}
+      {/* COMMAND HEADER */}
       <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900 rounded-none">
         <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-rose-500">
           <div className="flex items-center gap-3">
@@ -146,11 +76,11 @@ export default function CustomersPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={loadCustomers}
-              disabled={refreshing}
+              onClick={() => refetch()}
+              disabled={isFetching}
               className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all rounded-none bg-white"
             >
-              <RefreshCcw className={`mr-2 h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCcw className={`mr-2 h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
             <Button asChild className="h-9 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all rounded-none px-4">
@@ -163,13 +93,9 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════ */}
-      {/* KPI PULSE STRIP                            */}
-      {/* ═══════════════════════════════════════════ */}
+      {/* KPI PULSE STRIP */}
       <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden rounded-none">
         <div className="grid grid-cols-2 md:grid-cols-4">
-
-          {/* Total Customers */}
           <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
             <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-800" />
             <div className="flex items-center gap-2 mb-2">
@@ -185,7 +111,6 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          {/* Prospects */}
           <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
             <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
             <div className="flex items-center gap-2 mb-2">
@@ -201,7 +126,6 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          {/* Credit Watch */}
           <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
             <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
             <div className="flex items-center gap-2 mb-2">
@@ -216,7 +140,6 @@ export default function CustomersPage() {
             </div>
           </div>
 
-          {/* Total Revenue */}
           <div className="relative p-4 md:p-5">
             <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
             <div className="flex items-center gap-2 mb-2">
@@ -230,15 +153,11 @@ export default function CustomersPage() {
               <span className="text-[10px] font-bold text-zinc-400 uppercase">Akumulasi Order</span>
             </div>
           </div>
-
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════ */}
-      {/* MAIN CONTENT CONTAINER                      */}
-      {/* ═══════════════════════════════════════════ */}
+      {/* MAIN CONTENT CONTAINER */}
       <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white rounded-none flex flex-col min-h-[500px]">
-        {/* Toolbar */}
         <div className="p-4 border-b-2 border-black flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-50">
           <div>
             <h2 className="text-lg font-black uppercase tracking-tight">Customer Database</h2>
@@ -281,9 +200,8 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        {/* Content */}
         <div className="p-6 bg-zinc-100/30 flex-1">
-          {loading ? (
+          {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 border-2 border-dashed border-zinc-300 bg-white rounded-none">
               <RefreshCcw className="h-10 w-10 text-zinc-300 animate-spin mb-4" />
               <p className="font-bold text-zinc-400">Memuat data pelanggan...</p>

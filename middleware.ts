@@ -1,5 +1,21 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import modulesCatalog from '@/config/modules-catalog.json'
+
+// Build route → moduleId mapping from catalog at startup
+const ROUTE_MODULE_MAP: Record<string, string> = {}
+for (const mod of modulesCatalog.modules) {
+    for (const route of mod.routes) {
+        ROUTE_MODULE_MAP[route] = mod.id
+    }
+}
+
+// Parse enabled modules from env (set per-tenant container)
+function getEnabledModules(): string[] | null {
+    const raw = process.env.ENABLED_MODULES
+    if (!raw) return null // No restriction — all modules enabled
+    return raw.split(',').map(m => m.trim().toUpperCase()).filter(Boolean)
+}
 
 export async function middleware(request: NextRequest) {
     let response = NextResponse.next({
@@ -84,6 +100,24 @@ export async function middleware(request: NextRequest) {
         // Also clear auth cookies on the redirect response to prevent loops
         clearAuthCookies(redirectResponse, request)
         return redirectResponse
+    }
+
+    // Module-based route protection (multi-tenant)
+    if (user && isProtectedRoute) {
+        const enabledModules = getEnabledModules()
+        if (enabledModules) {
+            // Find which module this route belongs to
+            const matchedRoute = Object.keys(ROUTE_MODULE_MAP).find(route => pathname.startsWith(route))
+            if (matchedRoute) {
+                const requiredModule = ROUTE_MODULE_MAP[matchedRoute]
+                const isAllowed = enabledModules.includes('ALL') || enabledModules.includes(requiredModule)
+                if (!isAllowed) {
+                    const url = request.nextUrl.clone()
+                    url.pathname = '/dashboard'
+                    return NextResponse.redirect(url)
+                }
+            }
+        }
     }
 
     // If user is logged in but trying to access login page, redirect to dashboard

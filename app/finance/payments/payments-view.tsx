@@ -266,7 +266,7 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
     const currentStep = selectedPayment && selectedInvoice ? 3 : selectedPayment ? 2 : 1
 
     return (
-        <div className="flex-1 p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4">
+        <div className="mf-page">
 
             {/* ═══════════════════════════════════════════ */}
             {/* COMMAND HEADER                              */}

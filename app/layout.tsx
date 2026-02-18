@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Outfit, Playfair_Display } from "next/font/google";
 import { GlobalLayout } from "@/components/global-layout";
 import { ThemeProvider } from "next-themes";
 import { WorkflowConfigProvider } from "@/components/workflow/workflow-config-context";
+import { QueryProvider } from "@/lib/query-client";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -47,9 +48,11 @@ export default function RootLayout({
           disableTransitionOnChange
           themes={["light", "dark", "claude", "autumn", "earth", "ritchie", "ritchie-minimal"]}
         >
-          <WorkflowConfigProvider>
-            <GlobalLayout>{children}</GlobalLayout>
-          </WorkflowConfigProvider>
+          <QueryProvider>
+            <WorkflowConfigProvider>
+              <GlobalLayout>{children}</GlobalLayout>
+            </WorkflowConfigProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

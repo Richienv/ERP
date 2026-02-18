@@ -1,15 +1,22 @@
-import { Suspense } from "react"
-import { Loader2 } from "lucide-react"
-import { ReceivingWrapper } from "./receiving-wrapper"
+"use client"
+
+import { useReceiving } from "@/hooks/use-receiving"
+import { ReceivingView } from "./receiving-view"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 export default function ReceivingPage() {
+    const { data, isLoading } = useReceiving()
+
+    if (isLoading || !data) {
+        return <TablePageSkeleton accentColor="bg-blue-400" />
+    }
+
     return (
-        <Suspense fallback={
-            <div className="flex items-center justify-center h-[50vh]">
-                <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-            </div>
-        }>
-            <ReceivingWrapper />
-        </Suspense>
+        <ReceivingView
+            pendingPOs={data.pendingPOs}
+            grns={data.grns}
+            warehouses={data.warehouses}
+            employees={data.employees}
+        />
     )
 }

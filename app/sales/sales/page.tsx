@@ -1,7 +1,7 @@
+"use client"
+
 import Link from "next/link"
 import {
-    Search,
-    Download,
     Receipt,
     TrendingUp,
     ArrowUpRight,
@@ -12,54 +12,20 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { prisma } from "@/lib/prisma"
-
-export const dynamic = "force-dynamic"
+import { useSalesDashboard } from "@/hooks/use-sales-dashboard"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 const formatRupiah = (num: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num)
 
-const toNumber = (value: unknown, fallback = 0) => {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : fallback
-}
+export default function SalesStreamPage() {
+    const { data, isLoading } = useSalesDashboard()
 
-export default async function SalesStreamPage() {
-    const [invoices, paidAgg, unpaidAgg, overdueAgg, totalAgg] = await Promise.all([
-        prisma.invoice.findMany({
-            where: { type: "INV_OUT" },
-            orderBy: { issueDate: "desc" },
-            take: 20,
-            include: { customer: { select: { name: true } } },
-        }),
-        prisma.invoice.aggregate({
-            _sum: { totalAmount: true },
-            _count: { _all: true },
-            where: { type: "INV_OUT", status: "PAID" },
-        }),
-        prisma.invoice.aggregate({
-            _sum: { totalAmount: true },
-            _count: { _all: true },
-            where: { type: "INV_OUT", status: { in: ["ISSUED", "PARTIAL", "DRAFT"] } },
-        }),
-        prisma.invoice.aggregate({
-            _sum: { totalAmount: true },
-            _count: { _all: true },
-            where: { type: "INV_OUT", status: "OVERDUE" },
-        }),
-        prisma.invoice.aggregate({
-            _sum: { totalAmount: true },
-            where: { type: "INV_OUT", status: { notIn: ["CANCELLED", "VOID"] } },
-        }),
-    ])
+    if (isLoading || !data) {
+        return <TablePageSkeleton accentColor="bg-green-400" />
+    }
 
-    const totalRevenue = toNumber(totalAgg._sum.totalAmount)
-    const paidAmount = toNumber(paidAgg._sum.totalAmount)
-    const paidCount = paidAgg._count._all
-    const unpaidAmount = toNumber(unpaidAgg._sum.totalAmount)
-    const unpaidCount = unpaidAgg._count._all
-    const overdueAmount = toNumber(overdueAgg._sum.totalAmount)
-    const overdueCount = overdueAgg._count._all
+    const { invoices, stats } = data
 
     const getDisplayStatus = (status: string) => {
         if (status === "PAID") return "PAID"
@@ -68,7 +34,7 @@ export default async function SalesStreamPage() {
     }
 
     return (
-        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="mf-page">
 
             {/* COMMAND HEADER */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -105,7 +71,7 @@ export default async function SalesStreamPage() {
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Penjualan</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                            {formatRupiah(totalRevenue)}
+                            {formatRupiah(stats.totalRevenue)}
                         </div>
                     </div>
 
@@ -117,11 +83,11 @@ export default async function SalesStreamPage() {
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Terbayar</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
-                            {formatRupiah(paidAmount)}
+                            {formatRupiah(stats.paidAmount)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
                             <span className="text-[10px] font-bold text-emerald-600">
-                                {paidCount} invoice lunas
+                                {stats.paidCount} invoice lunas
                             </span>
                         </div>
                     </div>
@@ -134,11 +100,11 @@ export default async function SalesStreamPage() {
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Belum Bayar (AR)</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">
-                            {formatRupiah(unpaidAmount)}
+                            {formatRupiah(stats.unpaidAmount)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
                             <span className="text-[10px] font-bold text-amber-600">
-                                {unpaidCount} invoice terbuka
+                                {stats.unpaidCount} invoice terbuka
                             </span>
                         </div>
                     </div>
@@ -151,11 +117,11 @@ export default async function SalesStreamPage() {
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jatuh Tempo</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">
-                            {formatRupiah(overdueAmount)}
+                            {formatRupiah(stats.overdueAmount)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
                             <span className="text-[10px] font-bold text-red-600">
-                                {overdueCount} perlu tindakan
+                                {stats.overdueCount} perlu tindakan
                             </span>
                         </div>
                     </div>
@@ -177,7 +143,7 @@ export default async function SalesStreamPage() {
 
                 {/* Table Rows */}
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {invoices.map((inv) => {
+                    {invoices.map((inv: any) => {
                         const displayStatus = getDisplayStatus(inv.status)
                         return (
                             <Link
@@ -195,7 +161,7 @@ export default async function SalesStreamPage() {
                                     </div>
                                     <div>
                                         <div className="font-bold text-sm leading-none text-zinc-900 dark:text-white">
-                                            {inv.customer?.name || "—"}
+                                            {inv.customerName}
                                         </div>
                                         <div className="text-[10px] text-zinc-400 font-mono mt-1 tracking-wide">
                                             {inv.number} &bull; {new Date(inv.issueDate).toLocaleDateString("id-ID")}
@@ -206,7 +172,7 @@ export default async function SalesStreamPage() {
                                 <div className="flex items-center gap-6">
                                     <div className="text-right">
                                         <div className="font-black text-sm tracking-tight text-zinc-900 dark:text-white">
-                                            {formatRupiah(toNumber(inv.totalAmount))}
+                                            {formatRupiah(inv.totalAmount)}
                                         </div>
                                         <div className={cn(
                                             "text-[10px] font-black uppercase tracking-widest mt-0.5",

@@ -1,0 +1,68 @@
+# ================================
+# ERP Multi-Tenant Docker Compose
+# ================================
+# Usage:
+#   docker compose up -d postgres nginx
+#   # Then add tenant services via provision-tenant.sh
+#
+# Tenant services are added dynamically by the provisioning script.
+# See docker-compose.override.yml for tenant definitions.
+
+services:
+  # --------------------------------
+  # Shared PostgreSQL (single server, multi-DB)
+  # --------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-erp_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: erp_main
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-erp_admin}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --------------------------------
+  # Nginx Reverse Proxy (wildcard subdomain → tenant port)
+  # --------------------------------
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/tenants:/etc/nginx/conf.d:ro
+      - ./infra/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - postgres
+
+  # --------------------------------
+  # Example tenant (uncomment or copy for new tenants)
+  # --------------------------------
+  # tenant-garmen:
+  #   build: .
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3001:3000"
+  #   environment:
+  #     - TENANT_SLUG=garmen-sejahtera
+  #     - ENABLED_MODULES=INVENTORY,SALES,PROCUREMENT,FINANCE,MANUFACTURING,SUBCONTRACT,CUTTING
+  #     - DATABASE_URL=postgresql://erp_admin:${POSTGRES_PASSWORD}@postgres:5432/erp_client_garmen_sejahtera
+  #     - DIRECT_URL=postgresql://erp_admin:${POSTGRES_PASSWORD}@postgres:5432/erp_client_garmen_sejahtera
+  #     - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+  #     - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+volumes:
+  pgdata:

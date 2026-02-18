@@ -1,21 +1,15 @@
-export const dynamic = 'force-dynamic'
+"use client"
 
-import { getAllCategories, getCategories } from "@/app/actions/inventory"
+import { useCategories } from "@/hooks/use-categories"
 import { CategoriesClient } from "./client"
+import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
-/** Race a promise against a timeout — returns fallback on timeout */
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
-  ])
-}
+export default function CategoriesPage() {
+    const { data, isLoading } = useCategories()
 
-export default async function CategoriesPage() {
-  const [categories, dropdownCategories] = await Promise.all([
-    withTimeout(getAllCategories(), 8000, []),
-    withTimeout(getCategories(), 5000, [])
-  ])
+    if (isLoading || !data) {
+        return <CardPageSkeleton accentColor="bg-emerald-400" />
+    }
 
-  return <CategoriesClient categories={categories} allCategories={dropdownCategories} />
+    return <CategoriesClient categories={data.categories} allCategories={data.allCategories} />
 }

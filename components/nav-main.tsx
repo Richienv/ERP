@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { IconChevronRight, IconLock, type Icon } from "@tabler/icons-react"
+import { useNavPrefetch } from "@/hooks/use-nav-prefetch"
 
 import {
   Collapsible,
@@ -35,6 +36,7 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
+  const { prefetchRoute } = useNavPrefetch()
 
   return (
     <SidebarGroup>
@@ -97,7 +99,7 @@ export function NavMain({
                                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-none text-[12px] font-medium"
                                 }
                               >
-                                <Link href={subItem.url} prefetch>
+                                <Link href={subItem.url} prefetch onMouseEnter={() => prefetchRoute(subItem.url)}>
                                   <span>{subItem.title}</span>
                                 </Link>
                               </SidebarMenuSubButton>
@@ -122,7 +124,7 @@ export function NavMain({
                       : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
                   }
                 >
-                  <Link href={item.url} prefetch>
+                  <Link href={item.url} prefetch onMouseEnter={() => prefetchRoute(item.url)}>
                     {item.icon && <item.icon className="!size-4" />}
                     <span className="text-[13px] tracking-tight">{item.title}</span>
                   </Link>

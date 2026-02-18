@@ -1,0 +1,84 @@
+{
+  "modules": [
+    {
+      "id": "INVENTORY",
+      "name": "Inventori & Gudang",
+      "routes": ["/inventory"],
+      "tier": "STARTER",
+      "permissionKeys": ["INVENTORY", "STOCK", "WAREHOUSE", "PRODUCT", "STOCK_OPNAME"]
+    },
+    {
+      "id": "SALES",
+      "name": "Penjualan & CRM",
+      "routes": ["/sales", "/dashboard/pos"],
+      "tier": "STARTER",
+      "permissionKeys": ["SALES", "CRM", "QUOTATION", "LEAD", "ORDER"]
+    },
+    {
+      "id": "PROCUREMENT",
+      "name": "Pengadaan",
+      "routes": ["/procurement"],
+      "tier": "STARTER",
+      "permissionKeys": ["PURCHASING", "PURCHASE", "VENDOR", "PO", "PR", "RECEIVING"]
+    },
+    {
+      "id": "FINANCE",
+      "name": "Keuangan",
+      "routes": ["/finance", "/accountant"],
+      "tier": "PRO",
+      "permissionKeys": ["FINANCE", "ACCOUNTING", "INVOICE", "PAYMENT", "BILL"]
+    },
+    {
+      "id": "MANUFACTURING",
+      "name": "Manufaktur",
+      "routes": ["/manufacturing"],
+      "tier": "PRO",
+      "permissionKeys": ["MANUFACTURING", "PRODUCTION", "MO", "SPK", "BOM", "ROUTING", "WORK_ORDER"]
+    },
+    {
+      "id": "SUBCONTRACT",
+      "name": "Subkontrak / CMT",
+      "routes": ["/subcontract"],
+      "tier": "PRO",
+      "permissionKeys": ["SUBCONTRACT", "CMT"]
+    },
+    {
+      "id": "CUTTING",
+      "name": "Pemotongan Kain",
+      "routes": ["/cutting"],
+      "tier": "PRO",
+      "permissionKeys": ["CUTTING", "CUT_PLAN"]
+    },
+    {
+      "id": "HCM",
+      "name": "SDM & Penggajian",
+      "routes": ["/hcm", "/hr"],
+      "tier": "ENTERPRISE",
+      "permissionKeys": ["HR", "SDM", "PAYROLL", "EMPLOYEE", "ATTENDANCE"]
+    },
+    {
+      "id": "COSTING",
+      "name": "Kalkulasi Biaya",
+      "routes": ["/costing"],
+      "tier": "ENTERPRISE",
+      "permissionKeys": ["COSTING"]
+    }
+  ],
+  "plans": {
+    "STARTER": {
+      "includes": ["INVENTORY", "SALES", "PROCUREMENT"],
+      "maxUsers": 5,
+      "priceIDR": 999000
+    },
+    "PRO": {
+      "includes": ["INVENTORY", "SALES", "PROCUREMENT", "FINANCE", "MANUFACTURING", "SUBCONTRACT", "CUTTING"],
+      "maxUsers": 15,
+      "priceIDR": 1999000
+    },
+    "ENTERPRISE": {
+      "includes": ["ALL"],
+      "maxUsers": -1,
+      "priceIDR": 3999000
+    }
+  }
+}

@@ -1,10 +1,13 @@
-export const dynamic = "force-dynamic"
+"use client"
 
-import { getAllPriceLists } from "@/lib/actions/sales"
+import { usePriceLists } from "@/hooks/use-price-lists"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { PriceListsClient } from "./client-view"
 
-export default async function PriceListsPage() {
-    const priceLists = await getAllPriceLists()
+export default function PriceListsPage() {
+    const { data, isLoading } = usePriceLists()
 
-    return <PriceListsClient initialPriceLists={priceLists} />
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-blue-400" />
+
+    return <PriceListsClient initialPriceLists={data.initialPriceLists} />
 }

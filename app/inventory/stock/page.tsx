@@ -1,28 +1,22 @@
-import { getProductsForKanban, getWarehouses } from "@/app/actions/inventory";
-import { StockClient } from "./stock-client";
-import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider";
+"use client"
 
-export const dynamic = 'force-dynamic';
+import { useProductsPage } from "@/hooks/use-products-query"
+import { StockClient } from "./stock-client"
+import { InventoryPerformanceProvider } from "@/components/inventory/inventory-performance-provider"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
-/** Race a promise against a timeout — returns fallback on timeout */
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
-  ])
-}
+export default function StockLevelPage() {
+    const { data, isLoading } = useProductsPage()
 
-export default async function StockLevelPage() {
-  const [products, warehouses] = await Promise.all([
-    withTimeout(getProductsForKanban(), 8000, []),
-    withTimeout(getWarehouses(), 5000, [])
-  ]);
+    if (isLoading || !data) {
+        return <TablePageSkeleton accentColor="bg-emerald-400" />
+    }
 
-  return (
-    <InventoryPerformanceProvider currentPath="/inventory/stock">
-      <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto min-h-screen">
-        <StockClient products={products} warehouses={warehouses} />
-      </div>
-    </InventoryPerformanceProvider>
-  );
+    return (
+        <InventoryPerformanceProvider currentPath="/inventory/stock">
+            <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto min-h-screen">
+                <StockClient products={data.products} warehouses={data.warehouses} />
+            </div>
+        </InventoryPerformanceProvider>
+    )
 }

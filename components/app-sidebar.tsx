@@ -500,7 +500,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     }
   ]
 
-  const { activeModules } = useWorkflowConfig();
+  const { activeModules, tenantBranding } = useWorkflowConfig();
 
   const isSectionActive = (title: string, _items: any[]) => {
     if (!activeModules) return true; // Show all if no config
@@ -577,7 +577,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         if (!cancelled) {
           router.prefetch(url)
         }
-      }, 120 + index * 90)
+      }, 50 + index * 20)
       timers.push(timer)
     })
 
@@ -598,9 +598,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="/dashboard">
                 <div className="flex items-center justify-center h-6 w-6 bg-zinc-900 dark:bg-white">
-                  <span className="text-[10px] font-black text-white dark:text-zinc-900 leading-none">EP</span>
+                  <span className="text-[10px] font-black text-white dark:text-zinc-900 leading-none">
+                    {tenantBranding.tenantName ? tenantBranding.tenantName.slice(0, 2).toUpperCase() : "EP"}
+                  </span>
                 </div>
-                <span className="text-[14px] font-black uppercase tracking-tight">Sistem ERP</span>
+                <span className="text-[14px] font-black uppercase tracking-tight">
+                  {tenantBranding.tenantName || "Sistem ERP"}
+                </span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>

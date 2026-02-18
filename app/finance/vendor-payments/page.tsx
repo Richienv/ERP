@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useRef, useState, useMemo, type PointerEvent as ReactPointerEvent } from "react"
 import Image from "next/image"
 import {
     Banknote,
@@ -28,10 +28,12 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { getVendorPayments, recordVendorPayment, type VendorPayment } from "@/lib/actions/finance"
-import { getVendors } from "@/lib/actions/procurement"
+import { recordVendorPayment, type VendorPayment } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
+import { useVendorPayments } from "@/hooks/use-vendor-payments"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 type PaymentMethod = "TRANSFER" | "CHECK" | "CASH"
 
@@ -54,8 +56,10 @@ const parsePaymentMeta = (notes?: string): PaymentMeta => {
 }
 
 export default function APCheckbookPage() {
-    const [payments, setPayments] = useState<VendorPayment[]>([])
-    const [vendors, setVendors] = useState<any[]>([])
+    const { data, isLoading: loading } = useVendorPayments()
+    const queryClient = useQueryClient()
+    const payments = data?.payments ?? []
+    const vendors = data?.vendors ?? []
     const [showForm, setShowForm] = useState(false)
 
     const [selectedVendorId, setSelectedVendorId] = useState("")
@@ -69,7 +73,6 @@ export default function APCheckbookPage() {
     const [isSigned, setIsSigned] = useState(false)
     const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
     const [confirmOpen, setConfirmOpen] = useState(false)
-    const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
     const [signedBy, setSignedBy] = useState("")
     const [signatureDataUrl, setSignatureDataUrl] = useState("")
@@ -98,8 +101,6 @@ export default function APCheckbookPage() {
         resetSignatureState()
     }
 
-    useEffect(() => { loadData() }, [])
-
     useEffect(() => {
         if (!signatureDialogOpen) return
         const canvas = canvasRef.current
@@ -118,14 +119,6 @@ export default function APCheckbookPage() {
         ctx.lineJoin = "round"
         setHasInk(false)
     }, [signatureDialogOpen])
-
-    async function loadData() {
-        setLoading(true)
-        const [payData, venData] = await Promise.all([getVendorPayments(), getVendors()])
-        setPayments(payData)
-        setVendors(venData)
-        setLoading(false)
-    }
 
     const handleSign = () => {
         if (!selectedVendorId || !amount) {
@@ -228,8 +221,7 @@ export default function APCheckbookPage() {
                 toast.success(`Payment ${"paymentNumber" in result ? result.paymentNumber : ""} recorded`)
                 resetPaymentForm()
                 setShowForm(false)
-                const updatedPayments = await getVendorPayments()
-                setPayments(updatedPayments)
+                queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             } else {
                 toast.error(("error" in result ? result.error : "Failed to record payment") || "Failed to record payment")
             }
@@ -248,14 +240,14 @@ export default function APCheckbookPage() {
 
     if (loading && payments.length === 0) {
         return (
-            <div className="p-4 md:p-6 lg:p-8 pt-6 w-full bg-zinc-50 dark:bg-black min-h-screen flex items-center justify-center">
+            <div className="mf-page flex items-center justify-center">
                 <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 animate-pulse">Loading...</div>
             </div>
         )
     }
 
     return (
-        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="mf-page">
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">

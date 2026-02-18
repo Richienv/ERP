@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Standalone output for Docker deployment
+  output: "standalone",
 
   typescript: {
     // Warning: This allows production builds to successfully complete even if

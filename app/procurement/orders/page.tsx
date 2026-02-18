@@ -1,19 +1,21 @@
-import { Suspense } from "react"
-import { Loader2 } from "lucide-react"
-import { OrdersWrapper } from "./orders-wrapper"
+"use client"
 
-// Force dynamic rendering for real-time updates
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
+import { OrdersView } from "@/app/procurement/orders/orders-view"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 export default function PurchaseOrdersPage() {
+    const { data, isLoading } = usePurchaseOrders()
+
+    if (isLoading || !data) {
+        return <TablePageSkeleton accentColor="bg-blue-400" />
+    }
+
     return (
-        <Suspense fallback={
-            <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            </div>
-        }>
-            <OrdersWrapper />
-        </Suspense>
+        <OrdersView
+            initialOrders={data.orders}
+            vendors={data.vendors}
+            products={data.products}
+        />
     )
 }

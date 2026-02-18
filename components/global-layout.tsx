@@ -13,6 +13,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 import { AuthProvider } from "@/lib/auth-context"
 import { RouteGuard } from "@/components/route-guard"
+import { CacheWarmingOverlay } from "@/components/cache-warming-overlay"
 
 interface GlobalLayoutProps {
   children: React.ReactNode
@@ -46,6 +47,7 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
             </SidebarProvider>
           )}
         </RouteGuard>
+        <CacheWarmingOverlay />
       </AIProvider>
     </AuthProvider >
   )

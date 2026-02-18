@@ -272,7 +272,7 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
             {/* ═══ SEARCH & FILTER BAR ═══ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                 <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
-                    <div className="relative flex-1 min-w-[200px] max-w-md">
+                    <div className="relative flex-1 min-w-[200px] max-w-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
                             placeholder="Cari batch # atau produk..."

@@ -1,10 +1,19 @@
-
-import { getProcurementInsights } from "@/app/actions/inventory"
 import Link from "next/link"
 import { AlertCircle, Truck, ArrowRight, ShoppingCart } from "lucide-react"
 
-export async function ProcurementInsights() {
-    const data = await getProcurementInsights()
+interface ProcurementInsightsProps {
+    data: {
+        summary: {
+            totalRestockCost: number
+            itemsCriticalCount: number
+            totalIncoming: number
+            totalPending?: number
+            pendingApproval?: number
+        }
+    }
+}
+
+export function ProcurementInsights({ data }: ProcurementInsightsProps) {
 
     const formatCurrency = (val: number) => {
         if (val === 0) return "Rp 0"

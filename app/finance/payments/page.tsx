@@ -1,50 +1,37 @@
-import { getARPaymentRegistry, getARPaymentStats } from "@/lib/actions/finance"
+"use client"
+
+import { useSearchParams } from "next/navigation"
+import { useARPayments } from "@/hooks/use-ar-payments"
 import { ARPaymentsView } from "./payments-view"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
-type SearchParamsValue = string | string[] | undefined
+export default function ARPaymentsPage() {
+    const searchParams = useSearchParams()
 
-const readSearchParam = (params: Record<string, SearchParamsValue>, key: string) => {
-    const value = params[key]
-    if (Array.isArray(value)) return value[0]
-    return value
-}
+    const paymentPage = Number(searchParams.get("pay_page")) || undefined
+    const invoicePage = Number(searchParams.get("inv_page")) || undefined
+    const pageSize = Number(searchParams.get("size")) || undefined
 
-const readSearchParamInt = (params: Record<string, SearchParamsValue>, key: string) => {
-    const value = Number(readSearchParam(params, key))
-    if (!Number.isFinite(value)) return undefined
-    return Math.trunc(value)
-}
+    const { data, isLoading } = useARPayments({
+        paymentsQ: searchParams.get("pay_q") ?? undefined,
+        invoicesQ: searchParams.get("inv_q") ?? undefined,
+        customerId: searchParams.get("customer") ?? undefined,
+        paymentPage: Number.isFinite(paymentPage) ? paymentPage : undefined,
+        invoicePage: Number.isFinite(invoicePage) ? invoicePage : undefined,
+        pageSize: Number.isFinite(pageSize) ? pageSize : undefined,
+    })
 
-export default async function ARPaymentsPage({
-    searchParams,
-}: {
-    searchParams?: Promise<Record<string, SearchParamsValue>> | Record<string, SearchParamsValue>
-}) {
-    const resolvedSearchParams = searchParams
-        ? (typeof (searchParams as Promise<Record<string, SearchParamsValue>>).then === "function"
-            ? await (searchParams as Promise<Record<string, SearchParamsValue>>)
-            : (searchParams as Record<string, SearchParamsValue>))
-        : {}
-
-    const [registry, stats] = await Promise.all([
-        getARPaymentRegistry({
-            paymentsQ: readSearchParam(resolvedSearchParams, "pay_q"),
-            invoicesQ: readSearchParam(resolvedSearchParams, "inv_q"),
-            customerId: readSearchParam(resolvedSearchParams, "customer"),
-            paymentPage: readSearchParamInt(resolvedSearchParams, "pay_page"),
-            invoicePage: readSearchParamInt(resolvedSearchParams, "inv_page"),
-            pageSize: readSearchParamInt(resolvedSearchParams, "size"),
-        }),
-        getARPaymentStats()
-    ])
+    if (isLoading || !data) {
+        return <TablePageSkeleton accentColor="bg-green-400" />
+    }
 
     return (
         <ARPaymentsView
-            unallocated={registry.unallocated}
-            openInvoices={registry.openInvoices}
-            stats={stats}
-            registryMeta={registry.meta}
-            registryQuery={registry.query}
+            unallocated={data.registry.unallocated}
+            openInvoices={data.registry.openInvoices}
+            stats={data.stats}
+            registryMeta={data.registry.meta}
+            registryQuery={data.registry.query}
         />
     )
 }

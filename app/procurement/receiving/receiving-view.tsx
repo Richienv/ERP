@@ -124,7 +124,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
     }
 
     return (
-        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="mf-page">
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">

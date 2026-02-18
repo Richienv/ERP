@@ -1,15 +1,15 @@
-import { Suspense } from "react"
-import { Loader2 } from "lucide-react"
-import { VendorsWrapper } from "./vendors-wrapper"
+"use client"
+
+import { useVendorsList } from "@/hooks/use-vendors"
+import { VendorsView } from "./vendors-view"
+import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
 export default function VendorsPage() {
-    return (
-        <Suspense fallback={
-            <div className="flex items-center justify-center h-[50vh]">
-                <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-            </div>
-        }>
-            <VendorsWrapper />
-        </Suspense>
-    )
+    const { data, isLoading } = useVendorsList()
+
+    if (isLoading || !data) {
+        return <CardPageSkeleton accentColor="bg-indigo-400" />
+    }
+
+    return <VendorsView initialVendors={data} />
 }

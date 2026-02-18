@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,14 +25,11 @@ import Link from "next/link";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { getGLAccountsList, postJournalEntry } from "@/lib/actions/finance";
-
-type GLAccountOption = {
-    id: string
-    code: string
-    name: string
-    type: string
-}
+import { postJournalEntry } from "@/lib/actions/finance";
+import { useGLAccounts } from "@/hooks/use-gl-accounts";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
+import { TablePageSkeleton } from "@/components/ui/page-skeleton";
 
 type JournalLine = {
     id: number;
@@ -44,8 +41,8 @@ type JournalLine = {
 
 export default function NewJournalEntryPage() {
     const router = useRouter();
-    const [accounts, setAccounts] = useState<GLAccountOption[]>([]);
-    const [loadingAccounts, setLoadingAccounts] = useState(true);
+    const queryClient = useQueryClient();
+    const { data: accounts = [], isLoading: loadingAccounts } = useGLAccounts();
     const [isLoading, setIsLoading] = useState(false);
     const [transactionDate, setTransactionDate] = useState(new Date().toISOString().slice(0, 10));
     const [reference, setReference] = useState("");
@@ -58,22 +55,6 @@ export default function NewJournalEntryPage() {
     const totalDebit = lines.reduce((sum, line) => sum + (line.debit || 0), 0);
     const totalCredit = lines.reduce((sum, line) => sum + (line.credit || 0), 0);
     const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
-
-    useEffect(() => {
-        const loadAccounts = async () => {
-            setLoadingAccounts(true);
-            try {
-                const accountData = await getGLAccountsList();
-                setAccounts(accountData);
-            } catch {
-                toast.error("Gagal memuat daftar akun");
-            } finally {
-                setLoadingAccounts(false);
-            }
-        };
-
-        loadAccounts();
-    }, []);
 
     const addLine = () => {
         setLines([
@@ -152,6 +133,7 @@ export default function NewJournalEntryPage() {
             }
 
             toast.success("Jurnal berhasil diposting");
+            queryClient.invalidateQueries({ queryKey: queryKeys.journal.all });
             router.push("/finance/journal");
         } catch (error: any) {
             toast.error(error?.message || "Terjadi kesalahan saat menyimpan jurnal");
@@ -161,7 +143,7 @@ export default function NewJournalEntryPage() {
     };
 
     return (
-        <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <div className="mf-page">
             <div className="flex items-center justify-between space-y-2">
                 <div className="flex items-center space-x-4">
                     <Button variant="outline" size="icon" asChild>

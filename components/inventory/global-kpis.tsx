@@ -1,4 +1,3 @@
-import { getInventoryKPIs } from "@/app/actions/inventory";
 import {
     Wallet, ArrowRightLeft, Hourglass, Activity,
     TrendingUp, TrendingDown, ArrowUpRight, ArrowDownLeft, Package, AlertTriangle
@@ -24,8 +23,19 @@ interface PulseMetric {
     accentColor: string
 }
 
-export async function GlobalKPIs() {
-    const kpiData = await getInventoryKPIs()
+interface GlobalKPIsProps {
+    kpiData: {
+        totalValue: number
+        totalProducts: number
+        lowStock: number
+        inventoryAccuracy?: number
+        inboundToday?: number
+        outboundToday?: number
+        [key: string]: any
+    }
+}
+
+export function GlobalKPIs({ kpiData }: GlobalKPIsProps) {
 
     const metrics: PulseMetric[] = [
         {

@@ -1,25 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import Link from "next/link"
-import { Flame, Plus, RefreshCcw, Search, TrendingUp, Trophy, UserMinus } from "lucide-react"
+import { Flame, Plus, RefreshCcw, Search, TrendingUp, Trophy } from "lucide-react"
 import { toast } from "sonner"
 
-import { LeadKanban, LeadKanbanItem, LeadStage } from "@/components/sales/leads/lead-kanban"
+import { useLeads, useLeadStatusMutation } from "@/hooks/use-leads"
+import { LeadKanban, type LeadStage } from "@/components/sales/leads/lead-kanban"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-
-interface LeadsResponse {
-  success: boolean
-  data: LeadKanbanItem[]
-  summary?: {
-    totalLeads: number
-    pipelineValue: number
-    hotLeads: number
-    statusCounts: Record<string, number>
-  }
-  error?: string
-}
 
 const formatIDR = (value: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -31,46 +20,12 @@ const formatIDR = (value: number) => {
 }
 
 export default function LeadsPage() {
-  const [leads, setLeads] = useState<LeadKanbanItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const { data, isLoading, isFetching, refetch } = useLeads()
+  const leads = data?.leads ?? []
+  const summary = data?.summary ?? { totalLeads: 0, pipelineValue: 0, hotLeads: 0, statusCounts: {} }
+  const statusMutation = useLeadStatusMutation()
+
   const [searchTerm, setSearchTerm] = useState("")
-  const [summary, setSummary] = useState<LeadsResponse["summary"]>({
-    totalLeads: 0,
-    pipelineValue: 0,
-    hotLeads: 0,
-    statusCounts: {},
-  })
-
-  const loadLeads = useCallback(async () => {
-    setRefreshing(true)
-    try {
-      const response = await fetch("/api/sales/leads", {
-        cache: "no-store",
-      })
-      const payload: LeadsResponse = await response.json()
-      if (!payload.success) {
-        throw new Error(payload.error || "Failed to load leads")
-      }
-
-      setLeads(payload.data || [])
-      setSummary(payload.summary || {
-        totalLeads: 0,
-        pipelineValue: 0,
-        hotLeads: 0,
-        statusCounts: {},
-      })
-    } catch (error: any) {
-      toast.error(error?.message || "Gagal memuat data lead")
-    } finally {
-      setRefreshing(false)
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadLeads()
-  }, [loadLeads])
 
   const filteredLeads = useMemo(() => {
     if (!searchTerm.trim()) return leads
@@ -85,21 +40,14 @@ export default function LeadsPage() {
     })
   }, [leads, searchTerm])
 
-  const handleStatusChange = useCallback(async (leadId: string, status: LeadStage) => {
-    const response = await fetch(`/api/sales/leads/${leadId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ status }),
-    })
-
-    const payload = await response.json()
-    if (!payload.success) {
-      throw new Error(payload.error || "Gagal mengubah status lead")
+  const handleStatusChange = async (leadId: string, status: LeadStage) => {
+    try {
+      await statusMutation.mutateAsync({ leadId, status })
+    } catch (error: any) {
+      toast.error(error?.message || "Gagal mengubah status lead")
+      throw error
     }
-    await loadLeads()
-  }, [loadLeads])
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] space-y-4 p-4 md:p-6 lg:p-8 pt-6 bg-zinc-50/50 dark:bg-black w-full">
@@ -123,11 +71,11 @@ export default function LeadsPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              onClick={loadLeads}
-              disabled={refreshing}
+              onClick={() => refetch()}
+              disabled={isFetching}
               className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all rounded-none bg-white"
             >
-              <RefreshCcw className={`mr-2 h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCcw className={`mr-2 h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
               Refresh
             </Button>
             <Button asChild className="h-9 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all rounded-none px-4">
@@ -230,7 +178,7 @@ export default function LeadsPage() {
       <div className="flex-1 min-h-0 overflow-hidden border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] bg-zinc-100 rounded-none">
         <LeadKanban
           leads={filteredLeads}
-          isLoading={loading}
+          isLoading={isLoading}
           onStatusChange={handleStatusChange}
         />
       </div>

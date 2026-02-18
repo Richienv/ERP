@@ -342,7 +342,7 @@ export function WorkOrdersClient({ initialOrders }: Props) {
 
     return (
         <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
-            <div className="flex flex-col gap-6 p-4 md:p-6 max-w-[1600px] mx-auto">
+            <div className="mf-page">
 
                 {/* Header */}
                 <div className="flex-none flex items-center justify-between">

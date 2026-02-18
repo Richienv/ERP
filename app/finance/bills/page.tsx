@@ -39,29 +39,40 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getVendorBillsRegistry, disputeBill, type VendorBill } from "@/lib/actions/finance"
-import { processXenditPayout, getAvailableBanks } from "@/lib/actions/xendit"
+import { disputeBill, type VendorBill } from "@/lib/actions/finance"
+import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
-
-interface BankOption {
-    key: string
-    code: string
-    name: string
-    isEwallet: boolean
-}
+import { useBills, useBanks } from "@/hooks/use-bills"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 export default function APBillsStackPage() {
-    const [bills, setBills] = useState<VendorBill[]>([])
-    const [billMeta, setBillMeta] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 })
-    const [queryState, setQueryState] = useState({ q: "", status: "__all__" })
+    const router = useRouter()
+    const pathname = usePathname()
+    const searchParams = useSearchParams()
+    const queryClient = useQueryClient()
+
+    const queryParams = {
+        q: searchParams.get("q"),
+        status: searchParams.get("status"),
+        page: Number(searchParams.get("page") || "1"),
+        pageSize: Number(searchParams.get("size") || "20"),
+    }
+
+    const { data: billsData, isLoading } = useBills(queryParams)
+    const { data: banksData } = useBanks()
+
+    const bills = billsData?.rows ?? []
+    const billMeta = billsData?.meta ?? { page: 1, pageSize: 20, total: 0, totalPages: 1 }
+    const banks = banksData?.banks ?? []
+    const ewallets = banksData?.ewallets ?? []
+
+    const [queryState, setQueryState] = useState({ q: searchParams.get("q") || "", status: searchParams.get("status") || "__all__" })
     const [activeBill, setActiveBill] = useState<VendorBill | null>(null)
     const [stamped, setStamped] = useState(false)
-    const [loading, setLoading] = useState(true)
     const [processing, setProcessing] = useState(false)
-
-    const [banks, setBanks] = useState<BankOption[]>([])
-    const [ewallets, setEwallets] = useState<BankOption[]>([])
 
     const [isDetailOpen, setIsDetailOpen] = useState(false)
     const [isPayOpen, setIsPayOpen] = useState(false)
@@ -74,12 +85,6 @@ export default function APBillsStackPage() {
         accountHolderName: "",
         description: ""
     })
-    const router = useRouter()
-    const pathname = usePathname()
-    const searchParams = useSearchParams()
-
-    useEffect(() => { loadBills() }, [searchParams.toString()])
-    useEffect(() => { loadBanks() }, [])
 
     useEffect(() => {
         if (activeBill && activeBill.vendor) {
@@ -91,30 +96,6 @@ export default function APBillsStackPage() {
             })
         }
     }, [activeBill])
-
-    async function loadBills() {
-        setLoading(true)
-        try {
-            const query = {
-                q: searchParams.get("q"),
-                status: searchParams.get("status"),
-                page: Number(searchParams.get("page") || "1"),
-                pageSize: Number(searchParams.get("size") || "20"),
-            }
-            const data = await getVendorBillsRegistry(query)
-            setBills(data.rows)
-            setBillMeta(data.meta)
-            setQueryState({
-                q: data.query.q || "",
-                status: data.query.status || "__all__",
-            })
-        } catch (error) {
-            console.error("Failed to load bills:", error)
-            toast.error("Failed to load bills")
-        } finally {
-            setLoading(false)
-        }
-    }
 
     const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
         const next = new URLSearchParams(searchParams.toString())
@@ -140,14 +121,8 @@ export default function APBillsStackPage() {
         })
     }
 
-    async function loadBanks() {
-        try {
-            const data = await getAvailableBanks()
-            setBanks(data.banks)
-            setEwallets(data.ewallets)
-        } catch (error) {
-            console.error("Failed to load banks:", error)
-        }
+    const invalidateBills = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
     }
 
     const handleDisputeSubmit = async () => {
@@ -162,7 +137,7 @@ export default function APBillsStackPage() {
                 toast.success("Bill disputed successfully")
                 setIsDisputeOpen(false)
                 setDisputeReason("")
-                loadBills()
+                invalidateBills()
             } else {
                 toast.error("Failed to dispute bill")
             }
@@ -193,7 +168,7 @@ export default function APBillsStackPage() {
                 setStamped(true)
                 toast.success('message' in result ? result.message : "Payment initiated successfully")
                 setIsPayOpen(false)
-                setTimeout(() => { setStamped(false); loadBills() }, 2000)
+                setTimeout(() => { setStamped(false); invalidateBills() }, 2000)
             } else {
                 toast.error('error' in result ? result.error : "Failed to process payment")
             }
@@ -239,16 +214,12 @@ export default function APBillsStackPage() {
         }
     }
 
-    if (loading && bills.length === 0) {
-        return (
-            <div className="p-4 md:p-6 lg:p-8 pt-6 w-full bg-zinc-50 dark:bg-black min-h-screen flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-zinc-400" />
-            </div>
-        )
+    if (isLoading) {
+        return <TablePageSkeleton accentColor="bg-red-400" />
     }
 
     return (
-        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="mf-page">
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -315,7 +286,7 @@ export default function APBillsStackPage() {
             {/* ═══ SEARCH & FILTER BAR ═══ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                 <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
-                    <div className="relative flex-1 min-w-[200px] max-w-md">
+                    <div className="relative flex-1 min-w-[200px] max-w-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
                             value={queryState.q}

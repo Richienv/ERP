@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import {
     Search,
     Plus,
@@ -18,9 +18,11 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getChartOfAccountsTree, createGLAccount, type GLAccountNode } from "@/lib/actions/finance"
+import { createGLAccount, type GLAccountNode } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
+import { useChartOfAccounts, useInvalidateChartAccounts } from "@/hooks/use-chart-accounts"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 const AccountNode = ({ node, level }: { node: GLAccountNode, level: number }) => {
     const [isOpen, setIsOpen] = useState(true)
@@ -64,8 +66,8 @@ const AccountNode = ({ node, level }: { node: GLAccountNode, level: number }) =>
 }
 
 export default function CoALedgerPage() {
-    const [accounts, setAccounts] = useState<GLAccountNode[]>([])
-    const [loading, setLoading] = useState(true)
+    const { data: accounts = [], isLoading: loading } = useChartOfAccounts()
+    const invalidateChartAccounts = useInvalidateChartAccounts()
     const [search, setSearch] = useState("")
     const [filterType, setFilterType] = useState<"ALL" | "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE">("ALL")
     const [createOpen, setCreateOpen] = useState(false)
@@ -73,15 +75,6 @@ export default function CoALedgerPage() {
     const [newCode, setNewCode] = useState("")
     const [newName, setNewName] = useState("")
     const [newType, setNewType] = useState<"ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE">("ASSET")
-
-    useEffect(() => { loadAccounts() }, [])
-
-    async function loadAccounts() {
-        setLoading(true)
-        const data = await getChartOfAccountsTree()
-        setAccounts(data)
-        setLoading(false)
-    }
 
     const filteredAccounts = accounts.filter((acc) => {
         const matchesSearch = acc.name.toLowerCase().includes(search.toLowerCase()) || acc.code.includes(search)
@@ -113,7 +106,7 @@ export default function CoALedgerPage() {
             setNewName("")
             setNewType("ASSET")
             setCreateOpen(false)
-            await loadAccounts()
+            invalidateChartAccounts()
         } finally {
             setSubmitting(false)
         }
@@ -130,7 +123,7 @@ export default function CoALedgerPage() {
     }
 
     return (
-        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="mf-page">
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -235,7 +228,7 @@ export default function CoALedgerPage() {
             {/* ═══ SEARCH & FILTER BAR ═══ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                 <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
-                    <div className="relative flex-1 min-w-[200px] max-w-md">
+                    <div className="relative flex-1 min-w-[200px] max-w-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
                             value={search}

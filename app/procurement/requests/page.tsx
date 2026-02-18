@@ -1,17 +1,20 @@
-export const dynamic = 'force-dynamic'
+"use client"
 
-import { getPurchaseRequests } from "@/lib/actions/procurement"
+import { usePurchaseRequests } from "@/hooks/use-purchase-requests"
 import { RequestList } from "@/components/procurement/request-list"
 import { ClipboardList } from "lucide-react"
-import Link from "next/link"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
-export default async function PurchaseRequestsPage() {
-    const requests = await getPurchaseRequests()
+export default function PurchaseRequestsPage() {
+    const { data, isLoading } = usePurchaseRequests()
+
+    if (isLoading || !data) {
+        return <TablePageSkeleton accentColor="bg-amber-400" />
+    }
 
     return (
-        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
-
-            {/* ═══ COMMAND HEADER ═══ */}
+        <div className="mf-page">
+            {/* COMMAND HEADER */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-amber-400">
                     <div className="flex items-center gap-3">
@@ -28,7 +31,7 @@ export default async function PurchaseRequestsPage() {
                 </div>
             </div>
 
-            <RequestList data={requests} />
+            <RequestList data={data} />
         </div>
     )
 }

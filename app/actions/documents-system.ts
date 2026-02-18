@@ -660,6 +660,43 @@ export async function getActiveModulesForCurrentUser() {
     try {
         const authUser = await getAuthzUser()
         return await withPrismaAuth(async (prisma) => {
+            // 1) Check TenantConfig first (multi-tenant mode)
+            const tenantSlug = process.env.TENANT_SLUG
+            if (tenantSlug) {
+                try {
+                    const tenant = await (prisma as any).tenantConfig.findUnique({
+                        where: { tenantSlug },
+                        select: { enabledModules: true, tenantName: true, planType: true },
+                    })
+                    if (tenant && tenant.enabledModules?.length > 0) {
+                        // Expand module IDs to permission keys using catalog
+                        const catalog = await import("@/config/modules-catalog.json")
+                        const allPermKeys: string[] = []
+                        for (const modId of tenant.enabledModules) {
+                            const modDef = catalog.modules.find((m: any) => m.id === modId)
+                            if (modDef) {
+                                allPermKeys.push(...modDef.permissionKeys)
+                            }
+                            allPermKeys.push(modId) // Also add the module ID itself
+                        }
+                        const permissions = dedupeTokens(allPermKeys)
+                        return {
+                            success: true,
+                            data: {
+                                appRole: authUser.role,
+                                systemRoleCode: null,
+                                permissions,
+                                tenantName: tenant.tenantName,
+                                planType: tenant.planType,
+                            },
+                        }
+                    }
+                } catch {
+                    // TenantConfig table may not exist yet — fall through to role-based
+                }
+            }
+
+            // 2) Fallback: existing SystemRole-based logic
             const roles = await prisma.systemRole.findMany({
                 select: { code: true, permissions: true },
             })

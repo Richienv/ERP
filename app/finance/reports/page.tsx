@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
     Calendar as CalendarIcon,
     Download,
@@ -28,17 +28,13 @@ import {
     TableCell,
     TableRow,
 } from "@/components/ui/table"
-import { getProfitLossStatement, getBalanceSheet, getCashFlowStatement } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
+import { useFinanceReports } from "@/hooks/use-finance-reports"
 
 export default function FinancialReportsPage() {
     const [reportType, setReportType] = useState<"pnl" | "bs" | "cf">("pnl")
-    const [loading, setLoading] = useState(false)
-    const [pnlData, setPnlData] = useState<any>(null)
-    const [balanceSheetData, setBalanceSheetData] = useState<any>(null)
-    const [cashFlowData, setCashFlowData] = useState<any>(null)
     const [dateDialogOpen, setDateDialogOpen] = useState(false)
     const [exportDialogOpen, setExportDialogOpen] = useState(false)
     const [exportFormat, setExportFormat] = useState<"CSV" | "XLS">("CSV")
@@ -49,24 +45,10 @@ export default function FinancialReportsPage() {
     const [draftStartDate, setDraftStartDate] = useState(new Date(currentYear, 0, 1).toISOString().slice(0, 10))
     const [draftEndDate, setDraftEndDate] = useState(new Date().toISOString().slice(0, 10))
 
-    useEffect(() => { loadFinancialData() }, [startDate, endDate])
-
-    async function loadFinancialData() {
-        setLoading(true)
-        try {
-            const [pnl, bs, cf] = await Promise.all([
-                getProfitLossStatement(startDate.toISOString(), endDate.toISOString()),
-                getBalanceSheet(endDate.toISOString()),
-                getCashFlowStatement(startDate.toISOString(), endDate.toISOString())
-            ])
-            setPnlData(pnl)
-            setBalanceSheetData(bs)
-            setCashFlowData(cf)
-        } catch (error) {
-            console.error("Error loading financial data:", error)
-        }
-        setLoading(false)
-    }
+    const { data, isLoading: loading } = useFinanceReports(startDate, endDate)
+    const pnlData = data?.pnl ?? null
+    const balanceSheetData = data?.bs ?? null
+    const cashFlowData = data?.cf ?? null
 
     function applyDateRange() {
         const nextStart = new Date(draftStartDate)
@@ -145,7 +127,7 @@ export default function FinancialReportsPage() {
     const kpiLabel = reportType === "pnl" ? "Net Income" : reportType === "bs" ? "Total Assets" : "Net Cash Change"
 
     return (
-        <div className="p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4 bg-zinc-50 dark:bg-black min-h-screen">
+        <div className="mf-page">
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">

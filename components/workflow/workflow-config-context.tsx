@@ -2,11 +2,17 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 
+interface TenantBranding {
+    tenantName: string | null;
+    planType: string | null;
+}
+
 interface WorkflowConfigContextType {
     activeModules: string[] | null; // null = Show All
     setActiveModules: (modules: string[] | null) => void;
     isModuleActive: (moduleName: string) => boolean;
     refreshFromServer: () => Promise<void>;
+    tenantBranding: TenantBranding;
 }
 
 const WorkflowConfigContext = createContext<WorkflowConfigContextType | undefined>(undefined);
@@ -24,6 +30,7 @@ const normalizeModules = (modules: string[]) =>
 export function WorkflowConfigProvider({ children }: { children: React.ReactNode }) {
     const [activeModules, setActiveModulesState] = useState<string[] | null>(null);
     const [hasLocalOverride, setHasLocalOverride] = useState(false);
+    const [tenantBranding, setTenantBranding] = useState<TenantBranding>({ tenantName: null, planType: null });
 
     const refreshFromServer = async () => {
         try {
@@ -42,6 +49,14 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
             const systemRoleCode = typeof payload?.data?.systemRoleCode === "string"
                 ? payload.data.systemRoleCode.trim().toUpperCase()
                 : null
+
+            // Capture tenant branding if present
+            if (payload?.data?.tenantName) {
+                setTenantBranding({
+                    tenantName: payload.data.tenantName,
+                    planType: payload.data.planType || null,
+                })
+            }
 
             if (permissions.includes("ALL")) {
                 setActiveModulesState(null)
@@ -115,7 +130,7 @@ export function WorkflowConfigProvider({ children }: { children: React.ReactNode
     };
 
     return (
-        <WorkflowConfigContext.Provider value={{ activeModules, setActiveModules, isModuleActive, refreshFromServer }}>
+        <WorkflowConfigContext.Provider value={{ activeModules, setActiveModules, isModuleActive, refreshFromServer, tenantBranding }}>
             {children}
         </WorkflowConfigContext.Provider>
     );

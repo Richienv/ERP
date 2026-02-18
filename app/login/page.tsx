@@ -20,6 +20,17 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [rememberMe, setRememberMe] = useState(false)
+    const [tenantName, setTenantName] = useState<string | null>(null)
+
+    // Load tenant branding
+    useEffect(() => {
+        fetch("/api/tenant")
+            .then(res => res.json())
+            .then(data => {
+                if (data?.tenantName) setTenantName(data.tenantName)
+            })
+            .catch(() => {})
+    }, [])
 
     // Load saved credentials on component mount
     useEffect(() => {
@@ -105,11 +116,16 @@ export default function LoginPage() {
             <div className="w-full max-w-[350px] md:max-w-[400px] space-y-6 md:space-y-8">
                 {/* Header */}
                 <div className="text-center space-y-2">
+                    {tenantName && (
+                        <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-1">
+                            {tenantName}
+                        </p>
+                    )}
                     <h1 className="text-4xl md:text-5xl font-serif font-medium tracking-tight text-black">
                         Masuk
                     </h1>
                     <p className="text-zinc-500 text-sm md:text-lg">
-                        Sistem ERP Cerdas Era AI
+                        {tenantName ? `Portal ${tenantName}` : "Sistem ERP Cerdas Era AI"}
                     </p>
                 </div>
 

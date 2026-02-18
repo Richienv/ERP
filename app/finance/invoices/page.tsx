@@ -1,9 +1,8 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import {
-    AlertTriangle,
     ChevronLeft,
     ChevronRight,
     FileText,
@@ -33,39 +32,25 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import {
-    getInvoiceKanbanData,
-    getInvoiceCustomers,
     type InvoiceKanbanData,
     type InvoiceKanbanItem,
-    createCustomerInvoice,
-    getPendingSalesOrders,
-    getPendingPurchaseOrders,
-    createInvoiceFromSalesOrder,
-    createBillFromPOId,
     moveInvoiceToSent,
     recordInvoicePayment,
 } from "@/lib/actions/finance-invoices"
 
+import { useInvoiceKanban } from "@/hooks/use-invoices"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { CreateInvoiceDialog } from "@/components/finance/create-invoice-dialog"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 const emptyKanban: InvoiceKanbanData = { draft: [], sent: [], overdue: [], paid: [] }
 const PAGE_SIZE = 15
 
 type StatusTab = 'ALL' | 'DRAFT' | 'SENT' | 'OVERDUE' | 'PAID'
 
-const parseDateInput = (value: string) => {
-    if (!value) return undefined
-    const parts = value.split("-").map(Number)
-    if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return undefined
-    const [year, month, day] = parts
-    return new Date(year, month - 1, day, 12, 0, 0, 0)
-}
-
 export default function InvoicesPage() {
-    const [invoices, setInvoices] = useState<InvoiceKanbanData>(emptyKanban)
-    const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState<StatusTab>('ALL')
     const [page, setPage] = useState(1)
 
@@ -88,12 +73,18 @@ export default function InvoicesPage() {
     const [payReference, setPayReference] = useState("")
     const [payAmount, setPayAmount] = useState("")
     const [paying, setPaying] = useState(false)
+    const [sending, setSending] = useState(false)
 
     const [searchText, setSearchText] = useState("")
     const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'ALL' | 'INV_OUT' | 'INV_IN'>('ALL')
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
+    const queryClient = useQueryClient()
+
+    const q = (searchParams.get("q") || "").trim()
+    const type = (searchParams.get("type") as 'ALL' | 'INV_OUT' | 'INV_IN' | null) || "ALL"
+    const { data: invoices = emptyKanban, isLoading: loading } = useInvoiceKanban({ q: q || undefined, type: type !== "ALL" ? type : undefined })
 
     const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
         const next = new URLSearchParams(searchParams.toString())
@@ -102,46 +93,9 @@ export default function InvoicesPage() {
         router.replace(qs ? `${pathname}?${qs}` : pathname)
     }
 
-    const loadInvoices = useCallback(async () => {
-        const q = (searchParams.get("q") || "").trim()
-        const type = (searchParams.get("type") as 'ALL' | 'INV_OUT' | 'INV_IN' | null) || "ALL"
-        setSearchText(q)
-        setInvoiceTypeFilter(type)
-
-        const kanban = await getInvoiceKanbanData({ q: q || null, type })
-        setInvoices(kanban)
-    }, [searchParams])
-
-    useEffect(() => {
-        let active = true
-        async function load() {
-            setLoading(true)
-            try {
-                if (!active) return
-                await loadInvoices()
-            } catch {
-                // ignore
-            } finally {
-                if (active) setLoading(false)
-            }
-        }
-        load()
-        return () => { active = false }
-    }, [loadInvoices])
-
-    useEffect(() => {
-        const refresh = () => {
-            if (document.visibilityState === "visible") void loadInvoices()
-        }
-        const id = window.setInterval(refresh, 15000)
-        window.addEventListener("focus", refresh)
-        document.addEventListener("visibilitychange", refresh)
-        return () => {
-            window.clearInterval(id)
-            window.removeEventListener("focus", refresh)
-            document.removeEventListener("visibilitychange", refresh)
-        }
-    }, [loadInvoices])
+    const invalidateInvoices = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+    }
 
     // Flatten all invoices for the table
     const allInvoices = useMemo(() => {
@@ -199,17 +153,17 @@ export default function InvoicesPage() {
             const text = encodeURIComponent(sendMessage)
             window.open(`https://wa.me/${phone}?text=${text}`, '_blank')
         }
-        setLoading(true)
+        setSending(true)
         try {
             const result: any = await moveInvoiceToSent(activeInvoice.id, sendMessage, sendMethod)
             if (!result.success) throw new Error(result.error || "Gagal mengirim invoice")
             toast.success(result.status === 'OVERDUE' ? "Invoice dipindahkan ke Jatuh Tempo." : "Invoice terkirim!")
             setIsSendDialogOpen(false)
-            await loadInvoices()
+            invalidateInvoices()
         } catch {
             toast.error("Gagal mengirim invoice")
         } finally {
-            setLoading(false)
+            setSending(false)
             setActiveInvoice(null)
         }
     }
@@ -238,7 +192,7 @@ export default function InvoicesPage() {
             toast.success("Pembayaran berhasil dicatat")
             setIsPayDialogOpen(false)
             setActiveInvoice(null)
-            await loadInvoices()
+            invalidateInvoices()
         } catch (err: any) {
             toast.error(err?.message || "Gagal mencatat pembayaran")
         } finally {
@@ -282,7 +236,7 @@ export default function InvoicesPage() {
     ]
 
     return (
-        <div className="flex-1 p-4 md:p-6 lg:p-8 pt-6 w-full space-y-4">
+        <div className="mf-page">
             {/* Page Header */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-400">

@@ -1,4 +1,5 @@
-import { Suspense, cache } from "react"
+"use client"
+
 import { DashboardView } from "@/components/dashboard/dashboard-view"
 import { CompanyPulseBar } from "@/components/dashboard/company-pulse-bar"
 import { CeoActionCenter } from "@/components/dashboard/ceo-action-center"
@@ -7,234 +8,27 @@ import { AiSearchCard } from "@/components/dashboard/ai-search-card"
 import { OperationsStrip } from "@/components/dashboard/operations-strip"
 import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
 import { TrendingWidget } from "@/components/dashboard/trending-widget"
-import {
-    getDashboardFinancials,
-    getDashboardOperations,
-    getDashboardActivity,
-    getDashboardCharts,
-} from "@/app/actions/dashboard"
-import { getSalesStats } from "@/lib/actions/sales"
-import { getOEEMetrics, getRecentShiftNotes, getRecentDowntimeLogs } from "@/lib/actions/dashboard-textile"
 import { OEEGauge } from "@/components/dashboard/oee-gauge"
 import { ShiftHandoverWidget } from "@/components/dashboard/shift-handover-widget"
 import { MachineDowntimeWidget } from "@/components/dashboard/machine-downtime-widget"
+import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
+import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
-// Force dynamic rendering so data is always fresh
-export const dynamic = 'force-dynamic'
-export const revalidate = 0
+export default function DashboardPage() {
+    const { data, isLoading } = useExecutiveDashboard()
 
-// =============================================================================
-// Timeout helper — ensures no data fetch can hang forever
-// =============================================================================
+    if (isLoading || !data) {
+        return <CardPageSkeleton accentColor="bg-zinc-700" />
+    }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-    return Promise.race([
-        promise,
-        new Promise<T>((resolve) => setTimeout(() => {
-            console.warn(`[Dashboard] Data fetch timed out after ${ms}ms, using fallback`)
-            resolve(fallback)
-        }, ms))
-    ])
-}
-
-// Fallback data shapes
-const FALLBACK_FINANCIALS = {
-    cashBalance: 0, revenue: 0, netMargin: 0, burnRate: 0,
-    receivables: 0, payables: 0, overdueInvoices: [] as any[], upcomingPayables: [] as any[],
-    recentInvoices: [] as any[], netCashIn: 0,
-}
-const FALLBACK_OPERATIONS = {
-    procurement: { activeCount: 0, delays: [], pendingApproval: [], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} },
-    prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
-    materialStatus: [] as any[],
-    qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
-    workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
-    leaves: 0,
-    inventoryValue: { value: 0, itemCount: 0, warehouses: [] },
-}
-const FALLBACK_SALES = { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] as any[] }
-const FALLBACK_CHARTS = { dataCash7d: [] as any[], dataReceivables: [] as any[], dataPayables: [] as any[], dataProfit: [] as any[] }
-const FALLBACK_ACTIVITY = { activityFeed: [] as any[], executiveAlerts: [] as any[] }
-const FALLBACK_OEE = { oee: 0, availability: 0, performance: 0, quality: 0, totalScheduledMinutes: 0, totalDowntimeMinutes: 0, totalProduced: 0, totalDefects: 0 }
-
-// React.cache() deduplicates calls within a single render request.
-// Each cached function also has a 8s timeout so it never hangs.
-const cachedFinancials = cache(() =>
-    withTimeout(getDashboardFinancials().catch((e) => { console.error("Financials error:", e); return FALLBACK_FINANCIALS }), 8000, FALLBACK_FINANCIALS)
-)
-const cachedOperations = cache(() =>
-    withTimeout(getDashboardOperations().catch((e) => { console.error("Operations error:", e); return FALLBACK_OPERATIONS }), 8000, FALLBACK_OPERATIONS)
-)
-const cachedSalesStats = cache(() =>
-    withTimeout(getSalesStats().catch((e) => { console.error("Sales error:", e); return FALLBACK_SALES }), 8000, FALLBACK_SALES)
-)
-
-// =============================================================================
-// Skeleton components for Suspense fallbacks
-// =============================================================================
-
-function PulseBarSkeleton() {
-    return (
-        <div className="bg-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] h-[100px] animate-pulse">
-            <div className="grid grid-cols-5 h-full">
-                {[...Array(5)].map((_, i) => (
-                    <div key={i} className={`p-5 ${i < 4 ? "border-r-2 border-white/10" : ""}`}>
-                        <div className="h-3 w-12 bg-white/10 rounded mb-3" />
-                        <div className="h-7 w-24 bg-white/10 rounded mb-2" />
-                        <div className="h-2 w-16 bg-white/10 rounded" />
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
-
-function CardSkeleton() {
-    return (
-        <div className="h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
-            <div className="h-12 bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black" />
-            <div className="p-4 space-y-3">
-                <div className="h-4 w-3/4 bg-zinc-100 dark:bg-zinc-800 rounded" />
-                <div className="h-4 w-1/2 bg-zinc-100 dark:bg-zinc-800 rounded" />
-                <div className="h-20 bg-zinc-100 dark:bg-zinc-800 rounded" />
-            </div>
-        </div>
-    )
-}
-
-function StripSkeleton() {
-    return (
-        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
-            <div className="grid grid-cols-5 h-[100px]">
-                {[...Array(5)].map((_, i) => (
-                    <div key={i} className={`p-4 ${i < 4 ? "border-r-2 border-black" : ""}`}>
-                        <div className="h-3 w-16 bg-zinc-100 dark:bg-zinc-800 rounded mb-3" />
-                        <div className="h-6 w-12 bg-zinc-100 dark:bg-zinc-800 rounded mb-2" />
-                        <div className="h-2 w-14 bg-zinc-100 dark:bg-zinc-800 rounded" />
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
-
-function FeedSkeleton() {
-    return (
-        <div className="h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
-            <div className="h-10 bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black" />
-            <div className="p-3 space-y-3">
-                {[...Array(4)].map((_, i) => (
-                    <div key={i} className="flex gap-3">
-                        <div className="h-4 w-4 bg-zinc-100 dark:bg-zinc-800 rounded" />
-                        <div className="flex-1 space-y-1">
-                            <div className="h-3 w-3/4 bg-zinc-100 dark:bg-zinc-800 rounded" />
-                            <div className="h-2 w-1/2 bg-zinc-100 dark:bg-zinc-800 rounded" />
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </div>
-    )
-}
-
-// =============================================================================
-// Async Server Components — each fetches its own data (true React streaming)
-// =============================================================================
-
-/** PulseBar: Financial KPIs + inventory value */
-async function PulseBarSection() {
-    const [financials, sales, ops] = await Promise.all([
-        cachedFinancials(),
-        cachedSalesStats(),
-        cachedOperations(),
-    ])
-
-    return (
-        <CompanyPulseBar
-            cashBalance={financials.cashBalance}
-            revenueMTD={sales.totalRevenue}
-            netMargin={financials.netMargin}
-            inventoryValue={ops.inventoryValue?.value ?? 0}
-            inventoryItems={ops.inventoryValue?.itemCount ?? 0}
-            burnRate={financials.burnRate}
-        />
-    )
-}
-
-/** ActionCenter: Procurement approvals + alerts — Prisma Group B */
-async function ActionCenterSection() {
-    const ops = await cachedOperations()
-
-    return (
-        <CeoActionCenter
-            pendingApproval={ops.procurement?.pendingApproval ?? ops.procurement?.delays ?? []}
-            activeCount={ops.procurement?.activeCount ?? 0}
-            alerts={[]}
-            pendingLeaves={ops.leaves ?? 0}
-            totalPRs={ops.procurement?.totalPRs ?? 0}
-            pendingPRs={ops.procurement?.pendingPRs ?? 0}
-            totalPOs={ops.procurement?.totalPOs ?? 0}
-            totalPOValue={ops.procurement?.totalPOValue ?? 0}
-            poByStatus={ops.procurement?.poByStatus ?? {}}
-        />
-    )
-}
-
-/** FinancialHealth: Cash flow chart + AR/AP + Revenue Stream — Supabase + Prisma */
-async function FinancialHealthSection() {
-    const [financials, charts, sales] = await Promise.all([
-        cachedFinancials(),
-        withTimeout(getDashboardCharts().catch(() => FALLBACK_CHARTS), 8000, FALLBACK_CHARTS),
-        cachedSalesStats(),
-    ])
+    const { financials, operations, activity, charts, sales, oee, shiftNotes, downtimeLogs } = data
 
     const cashFlowData = (charts?.dataCash7d ?? []).map((d: any) => ({
         date: d.name ?? d.date ?? d.day ?? "",
         balance: Number(d.val ?? d.balance ?? d.value ?? 0)
     }))
 
-    return (
-        <FinancialHealthCard
-            cashFlowData={cashFlowData}
-            accountsReceivable={financials.receivables}
-            accountsPayable={financials.payables}
-            overdueInvoices={financials.overdueInvoices}
-            upcomingPayables={financials.upcomingPayables}
-            recentInvoices={financials.recentInvoices ?? []}
-            netCashIn={financials.netCashIn ?? 0}
-            revenueMTD={sales.totalRevenue}
-        />
-    )
-}
-
-/** OperationsStrip: Production/Inventory/Sales/HR/Quality tiles — Prisma Group B */
-async function OperationsStripSection() {
-    const [ops, sales] = await Promise.all([
-        cachedOperations(),
-        cachedSalesStats(),
-    ])
-
-    return (
-        <OperationsStrip
-            activeWorkOrders={ops.prodMetrics?.activeWorkOrders ?? 0}
-            lowStockCount={Array.isArray(ops.materialStatus) ? ops.materialStatus.length : 0}
-            salesRevenueMTD={sales.totalRevenue}
-            attendanceRate={ops.workforceStatus?.attendanceRate ?? 0}
-            totalStaff={ops.workforceStatus?.totalStaff ?? 0}
-            qualityPassRate={ops.qualityStatus?.passRate ?? 0}
-        />
-    )
-}
-
-/** ActivityFeed: Recent events — Prisma Group C (lightweight) */
-async function ActivityFeedSection() {
-    const activity = await withTimeout(
-        getDashboardActivity().catch(() => FALLBACK_ACTIVITY),
-        8000,
-        FALLBACK_ACTIVITY
-    )
-
-    const activities = (activity.activityFeed ?? []).map((a: any, i: number) => ({
+    const activities = (activity?.activityFeed ?? []).map((a: any, i: number) => ({
         id: a.id ?? `activity-${i}`,
         type: a.type ?? "general",
         title: a.title ?? a.message ?? "",
@@ -242,130 +36,84 @@ async function ActivityFeedSection() {
         timestamp: a.timestamp ?? a.time ?? a.createdAt ?? new Date().toISOString(),
     }))
 
-    return <CompactActivityFeed activities={activities} />
-}
-
-/** TextileStrip: OEE + Shift Handover + Machine Downtime */
-async function TextileStripSection() {
-    const [oee, shiftNotes, downtimeLogs] = await Promise.all([
-        withTimeout(getOEEMetrics().catch((e) => { console.error("OEE error:", e); return FALLBACK_OEE }), 8000, FALLBACK_OEE),
-        withTimeout(getRecentShiftNotes(5).catch(() => []), 8000, []),
-        withTimeout(getRecentDowntimeLogs(8).catch(() => []), 8000, []),
-    ])
-
-    return (
-        <>
-            <div className="md:col-span-3 min-h-0 overflow-hidden">
-                <OEEGauge
-                    oee={oee.oee}
-                    availability={oee.availability}
-                    performance={oee.performance}
-                    quality={oee.quality}
-                />
-            </div>
-            <div className="md:col-span-4 min-h-0 overflow-hidden">
-                <ShiftHandoverWidget notes={shiftNotes} />
-            </div>
-            <div className="md:col-span-5 min-h-0 overflow-hidden">
-                <MachineDowntimeWidget logs={downtimeLogs} />
-            </div>
-        </>
-    )
-}
-
-function TextileStripSkeleton() {
-    return (
-        <>
-            <div className="md:col-span-3">
-                <div className="h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
-                    <div className="h-10 bg-zinc-50 border-b-2 border-black" />
-                    <div className="p-6 flex flex-col items-center gap-3">
-                        <div className="h-24 w-24 bg-zinc-100 rounded-full" />
-                        <div className="h-4 w-16 bg-zinc-100" />
-                    </div>
-                </div>
-            </div>
-            <div className="md:col-span-4">
-                <div className="h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
-                    <div className="h-10 bg-zinc-50 border-b-2 border-black" />
-                    <div className="p-4 space-y-3">
-                        {[...Array(3)].map((_, i) => <div key={i} className="h-12 bg-zinc-100" />)}
-                    </div>
-                </div>
-            </div>
-            <div className="md:col-span-5">
-                <div className="h-full bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
-                    <div className="h-10 bg-zinc-50 border-b-2 border-black" />
-                    <div className="p-4 space-y-3">
-                        {[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-zinc-100" />)}
-                    </div>
-                </div>
-            </div>
-        </>
-    )
-}
-
-/** TrendingWidget: Summary counts — uses cached operations + sales */
-async function TrendingSection() {
-    const [ops, sales] = await Promise.all([
-        cachedOperations(),
-        cachedSalesStats(),
-    ])
-
-    return (
-        <TrendingWidget
-            activePOs={ops.procurement?.activeCount ?? 0}
-            lowStockAlerts={Array.isArray(ops.materialStatus) ? ops.materialStatus.length : 0}
-            pendingLeaves={ops.leaves ?? 0}
-            activeOrders={sales.activeOrders}
-            totalPRs={ops.procurement?.totalPRs ?? 0}
-            pendingPRs={ops.procurement?.pendingPRs ?? 0}
-        />
-    )
-}
-
-// =============================================================================
-// Main page — renders the shell instantly, streams each section independently
-// =============================================================================
-
-export default function DashboardPage() {
     return (
         <DashboardView
             pulseBarSlot={
-                <Suspense fallback={<PulseBarSkeleton />}>
-                    <PulseBarSection />
-                </Suspense>
+                <CompanyPulseBar
+                    cashBalance={financials?.cashBalance ?? 0}
+                    revenueMTD={sales?.totalRevenue ?? 0}
+                    netMargin={financials?.netMargin ?? 0}
+                    inventoryValue={operations?.inventoryValue?.value ?? 0}
+                    inventoryItems={operations?.inventoryValue?.itemCount ?? 0}
+                    burnRate={financials?.burnRate ?? 0}
+                />
             }
             actionCenterSlot={
-                <Suspense fallback={<CardSkeleton />}>
-                    <ActionCenterSection />
-                </Suspense>
+                <CeoActionCenter
+                    pendingApproval={operations?.procurement?.pendingApproval ?? operations?.procurement?.delays ?? []}
+                    activeCount={operations?.procurement?.activeCount ?? 0}
+                    alerts={[]}
+                    pendingLeaves={operations?.leaves ?? 0}
+                    totalPRs={operations?.procurement?.totalPRs ?? 0}
+                    pendingPRs={operations?.procurement?.pendingPRs ?? 0}
+                    totalPOs={operations?.procurement?.totalPOs ?? 0}
+                    totalPOValue={operations?.procurement?.totalPOValue ?? 0}
+                    poByStatus={operations?.procurement?.poByStatus ?? {}}
+                />
             }
             financialHealthSlot={
-                <Suspense fallback={<CardSkeleton />}>
-                    <FinancialHealthSection />
-                </Suspense>
+                <FinancialHealthCard
+                    cashFlowData={cashFlowData}
+                    accountsReceivable={financials?.receivables ?? 0}
+                    accountsPayable={financials?.payables ?? 0}
+                    overdueInvoices={financials?.overdueInvoices ?? []}
+                    upcomingPayables={financials?.upcomingPayables ?? []}
+                    recentInvoices={financials?.recentInvoices ?? []}
+                    netCashIn={financials?.netCashIn ?? 0}
+                    revenueMTD={sales?.totalRevenue ?? 0}
+                />
             }
             aiSearchSlot={<AiSearchCard />}
             operationsStripSlot={
-                <Suspense fallback={<StripSkeleton />}>
-                    <OperationsStripSection />
-                </Suspense>
+                <OperationsStrip
+                    activeWorkOrders={operations?.prodMetrics?.activeWorkOrders ?? 0}
+                    lowStockCount={Array.isArray(operations?.materialStatus) ? operations.materialStatus.length : 0}
+                    salesRevenueMTD={sales?.totalRevenue ?? 0}
+                    attendanceRate={operations?.workforceStatus?.attendanceRate ?? 0}
+                    totalStaff={operations?.workforceStatus?.totalStaff ?? 0}
+                    qualityPassRate={operations?.qualityStatus?.passRate ?? 0}
+                />
             }
             textileStripSlot={
-                <Suspense fallback={<TextileStripSkeleton />}>
-                    <TextileStripSection />
-                </Suspense>
+                <>
+                    <div className="md:col-span-3 min-h-0 overflow-hidden">
+                        <OEEGauge
+                            oee={oee?.oee ?? 0}
+                            availability={oee?.availability ?? 0}
+                            performance={oee?.performance ?? 0}
+                            quality={oee?.quality ?? 0}
+                        />
+                    </div>
+                    <div className="md:col-span-4 min-h-0 overflow-hidden">
+                        <ShiftHandoverWidget notes={shiftNotes ?? []} />
+                    </div>
+                    <div className="md:col-span-5 min-h-0 overflow-hidden">
+                        <MachineDowntimeWidget logs={downtimeLogs ?? []} />
+                    </div>
+                </>
             }
             activityFeedSlot={
-                <Suspense fallback={<FeedSkeleton />}>
-                    <ActivityFeedSection />
-                </Suspense>
+                <CompactActivityFeed activities={activities} />
             }
             trendingSlot={
-                <Suspense fallback={<FeedSkeleton />}>
-                    <TrendingSection />
-                </Suspense>
+                <TrendingWidget
+                    activePOs={operations?.procurement?.activeCount ?? 0}
+                    lowStockAlerts={Array.isArray(operations?.materialStatus) ? operations.materialStatus.length : 0}
+                    pendingLeaves={operations?.leaves ?? 0}
+                    activeOrders={sales?.activeOrders ?? 0}
+                    totalPRs={operations?.procurement?.totalPRs ?? 0}
+                    pendingPRs={operations?.procurement?.pendingPRs ?? 0}
+                />
             }
         />
     )

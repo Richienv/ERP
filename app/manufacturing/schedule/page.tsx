@@ -1,46 +1,19 @@
-import { Suspense } from "react"
-import { Skeleton } from "@/components/ui/skeleton"
-import { getSchedulableWorkOrders, getMachinesForScheduling, getRoutingsForScheduling } from "@/lib/actions/manufacturing-garment"
+"use client"
+
+import { useMfgSchedule } from "@/hooks/use-mfg-schedule"
 import { SchedulePageClient } from "./schedule-page-client"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
-export const dynamic = "force-dynamic"
+export default function ManufacturingSchedulePage() {
+    const { data, isLoading } = useMfgSchedule()
 
-async function ScheduleData() {
-    const [workOrders, machines, routings] = await Promise.all([
-        getSchedulableWorkOrders(),
-        getMachinesForScheduling(),
-        getRoutingsForScheduling(),
-    ])
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-cyan-400" />
 
     return (
         <SchedulePageClient
-            workOrders={workOrders}
-            machines={machines}
-            routings={routings}
+            workOrders={data.workOrders}
+            machines={data.machines}
+            routings={data.routings}
         />
-    )
-}
-
-function ScheduleSkeleton() {
-    return (
-        <div className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-[400px] w-full" />
-        </div>
-    )
-}
-
-export default function ManufacturingSchedulePage() {
-    return (
-        <div className="mf-page">
-            <div>
-                <h2 className="mf-title">Jadwal Produksi</h2>
-                <p className="text-muted-foreground">Gantt view jadwal work order produksi.</p>
-            </div>
-
-            <Suspense fallback={<ScheduleSkeleton />}>
-                <ScheduleData />
-            </Suspense>
-        </div>
     )
 }
