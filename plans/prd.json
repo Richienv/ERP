@@ -1,0 +1,182 @@
+{
+  "features": [
+    {
+      "id": "F-001",
+      "title": "Audit Inventori module — all buttons, CRUD, shared entities",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "Dashboard Inventori (/inventory) loads with correct KPIs matching actual product/stock data",
+        "Kelola Produk (/inventory/products): Create, Edit, Delete product buttons work. New product appears on categories page, dashboard KPIs, and any module referencing products",
+        "Kategori Produk (/inventory/categories): Create/Edit/Delete category works. Products linked to categories update correctly. Inline category creation from product form reflects here",
+        "Pergerakan Stok (/inventory/movements): Movement history shows all transactions from PO receiving, SO shipment, adjustments, transfers",
+        "Gudang & Lokasi (/inventory/warehouses): Create/Edit warehouse works. Stock levels per warehouse match total product stock",
+        "Stock Opname (/inventory/adjustments): Create adjustment updates product stock, movement history, and dashboard KPIs",
+        "Fabric Rolls (/inventory/fabric-rolls): Create/Edit fabric roll works. Links to correct product entity (shared, not duplicate)",
+        "Transfer Stok (/inventory/transfers): Transfer between warehouses updates both source and destination warehouse stock levels",
+        "All mutations invalidate ALL connected query keys across modules",
+        "No new test failures (baseline: 296/301)",
+        "No new TypeScript errors"
+      ],
+      "notes": "First module. Products are the core shared entity — used by Sales, Procurement, Manufacturing, Costing. Every product mutation must propagate everywhere."
+    },
+    {
+      "id": "F-002",
+      "title": "Audit Penjualan & CRM module — all buttons, shared customer/product entities",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "Dashboard Sales (/sales) loads with correct metrics",
+        "Kelola Pelanggan (/sales/customers): Create/Edit/Delete customer works. Customer entity shared with quotations, orders, invoices (not duplicated)",
+        "Penawaran (/sales/quotations): Create quotation using existing products and customers. Edit/status change reflects on dashboard and orders",
+        "Pesanan Penjualan (/sales/orders): Create order from quotation. Order status changes reflect on dashboard, manufacturing work orders, and invoice module",
+        "Penjualan (/sales/sales): Sales records reference shared order/customer entities",
+        "Lead & Pipeline (/sales/leads): Create/move/convert lead works. Converting lead to customer creates shared customer entity used across modules",
+        "Daftar Harga (/sales/pricelists): Create/Edit pricelist works. Products referenced are shared inventory products (not copies)",
+        "All mutations invalidate connected query keys (customers → invoices → AR, orders → manufacturing → inventory)",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "Customer and Product are shared entities. Order → WorkOrder → Invoice chain must be consistent."
+    },
+    {
+      "id": "F-003",
+      "title": "Audit Pengadaan module — all buttons, shared vendor/product entities",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "Dashboard Pengadaan (/procurement) loads with correct pipeline metrics",
+        "Pemasok/Vendor (/procurement/vendors): Create/Edit/Delete vendor works. Vendor entity shared with POs, bills, vendor payments",
+        "Pesanan Pembelian (/procurement/orders): Create/Edit PO works. PO status transitions (Draft→Approved→Ordered→Received) update dashboard, inventory alerts, and finance module",
+        "Permintaan Pembelian (/procurement/requests): Create PR works. PR→PO conversion links correctly. Products referenced are shared inventory products",
+        "Penerimaan Barang/GRN (/procurement/receiving): Receiving goods updates inventory stock levels, product quantities, movement history, and PO status",
+        "All mutations invalidate connected query keys (PO confirm → inventory alerts, GRN → stock levels → dashboard KPIs)",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "GRN is the critical cross-module touchpoint: receiving goods must update inventory stock, PO status, and trigger AP entries."
+    },
+    {
+      "id": "F-004",
+      "title": "Audit Keuangan module — all buttons, shared invoice/payment entities",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "Invoicing (/finance/invoices): Create/Edit invoice works. Invoice references shared customer and order entities",
+        "Penerimaan/AR (/finance/payments): Record payment works. Payment updates invoice status (Partial/Paid), customer balance, dashboard",
+        "Tagihan Vendor/AP (/finance/bills): Create bill from PO/GRN. Bill references shared vendor entity",
+        "Pembayaran AP (/finance/vendor-payments): Record vendor payment updates bill status and vendor balance",
+        "Chart of Accounts (/finance/chart-accounts): View/Edit accounts. COA is shared reference data for journal entries",
+        "Jurnal Umum (/finance/journal): Create journal entry works. GL postings reference shared COA accounts",
+        "Laporan Keuangan (/finance/reports): Reports pull from shared GL data, not separate copies",
+        "All mutations invalidate connected query keys (payment → invoice status → customer balance → dashboard)",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "Finance touches every module. Invoice↔Order, Bill↔PO, Payment↔Customer balance must all be consistent."
+    },
+    {
+      "id": "F-005",
+      "title": "Audit Manufaktur module — all buttons, shared BOM/product/machine entities",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "Dashboard Manufaktur (/manufacturing) loads with correct production metrics",
+        "Pusat Kerja/Mesin (/manufacturing/work-centers): Create/Edit machine works. Machine entity shared with routing and scheduling",
+        "Grup Pusat Kerja (/manufacturing/groups): Create/Edit group works. Groups reference shared machines",
+        "Bill of Materials (/manufacturing/bom): Create/Edit BOM works. BOM references shared inventory products (materials and finished goods)",
+        "Routing Proses (/manufacturing/routing): Create/Edit routing works. References shared work centers/machines",
+        "Perencanaan/MPS (/manufacturing/planning): Planning references shared orders, BOMs, and capacity data",
+        "Order Produksi/MO (/manufacturing/orders): Create MO from sales order. MO completion updates inventory stock (consume materials, produce finished goods)",
+        "Kontrol Kualitas/QC (/manufacturing/quality): QC inspection references shared MO and product entities",
+        "All mutations invalidate connected query keys (MO complete → inventory stock → dashboard KPIs)",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "Manufacturing consumes inventory (materials) and produces inventory (finished goods). BOM explosion must use shared product entities."
+    },
+    {
+      "id": "F-006",
+      "title": "Audit Subkontrak module — all buttons, shared partner/order entities",
+      "priority": "medium",
+      "passes": false,
+      "acceptance_criteria": [
+        "Dashboard CMT (/subcontract) loads correctly",
+        "Registri Mitra (/subcontract/registry): Create/Edit subcontractor works. Subcontractor entity referenced in orders",
+        "Order Subkontrak (/subcontract/orders): Create/Edit order works. References shared products and subcontractors (not duplicates)",
+        "Order status changes reflect on dashboard and connected modules",
+        "All mutations invalidate connected query keys",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "Subcontract orders reference shared products from inventory and may affect stock levels."
+    },
+    {
+      "id": "F-007",
+      "title": "Audit Pemotongan module — all buttons, shared product entities",
+      "priority": "medium",
+      "passes": false,
+      "acceptance_criteria": [
+        "Dashboard Potong (/cutting) loads correctly",
+        "Daftar Cut Plan (/cutting/plans): Create/Edit cut plan works. References shared fabric products from inventory",
+        "Cut plan completion updates fabric roll quantities in inventory",
+        "All mutations invalidate connected query keys",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "Cutting plans consume fabric rolls from inventory. Must use shared product entities."
+    },
+    {
+      "id": "F-008",
+      "title": "Audit Kalkulasi Biaya module — all buttons, shared product/BOM entities",
+      "priority": "medium",
+      "passes": false,
+      "acceptance_criteria": [
+        "Dashboard Biaya (/costing) loads correctly",
+        "Daftar Cost Sheet (/costing/sheets): Create/Edit cost sheet works. References shared products and BOMs from manufacturing",
+        "Cost calculations use current material prices from inventory (not stale copies)",
+        "All mutations invalidate connected query keys",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "Costing sheets reference shared BOMs and product prices. Must pull live data, not cached copies."
+    },
+    {
+      "id": "F-009",
+      "title": "Audit SDM module — all buttons, employee entity",
+      "priority": "medium",
+      "passes": false,
+      "acceptance_criteria": [
+        "Data Karyawan (/hcm/employee-master): Create/Edit employee works. Employee entity shared with attendance and payroll",
+        "Penggajian (/hcm/payroll): Payroll references shared employee data",
+        "Absensi (/hcm/attendance): Attendance records reference shared employee entities",
+        "All mutations invalidate connected query keys",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "Employee is a shared entity across HCM sub-modules."
+    },
+    {
+      "id": "F-010",
+      "title": "Audit Dokumen & Sistem module — all buttons, shared reference data",
+      "priority": "medium",
+      "passes": false,
+      "acceptance_criteria": [
+        "Data Master (/documents/master): Displays shared master data correctly. Any master data updates reflect across all modules",
+        "Laporan Sistem (/documents/reports): Reports pull from shared live data, not stale snapshots",
+        "Dokumentasi (/documents/docs): Document management works correctly",
+        "All mutations invalidate connected query keys",
+        "No new test failures, no new TypeScript errors"
+      ],
+      "notes": "Documents module is read-heavy but master data edits must propagate to all consumers."
+    },
+    {
+      "id": "F-011",
+      "title": "Cross-module entity consistency verification",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "Product created in Inventory appears in Sales (quotation product picker), Procurement (PR product picker), Manufacturing (BOM material picker), Costing (cost sheet product picker)",
+        "Customer created in Sales appears in Finance (invoice customer picker)",
+        "Vendor created in Procurement appears in Finance (bill vendor picker, vendor payment picker)",
+        "Stock quantity is identical across: Inventory dashboard, product detail, warehouse detail, procurement alerts, manufacturing planning",
+        "Order status is consistent across: Sales orders page, Manufacturing MO list, Finance invoice reference",
+        "Write integration tests verifying at least 5 critical cross-module data paths",
+        "All existing tests still pass (baseline: 296/301)"
+      ],
+      "notes": "Final verification. This is the 'if inventory says 7, procurement must say 7' test. Shared entities must be references, not copies."
+    }
+  ]
+}

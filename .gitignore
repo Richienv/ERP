@@ -82,3 +82,9 @@ uploads/
 # Ignore Typst binary
 bin/
 *.tar.gz
+
+# Ralph Loop runtime files (not committed)
+.claude/ralph-loop.local.md
+.claude/ralph-state.local.md
+.claude/ralph-status.local.json
+scripts/ralph/runs/
