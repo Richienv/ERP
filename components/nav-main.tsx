@@ -32,6 +32,7 @@ export function NavMain({
     items?: {
       title: string
       url: string
+      locked?: boolean
     }[]
   }[]
 }) {
@@ -88,6 +89,18 @@ export function NavMain({
                     <CollapsibleContent>
                       <SidebarMenuSub className="border-l-2 border-zinc-200 dark:border-zinc-700 ml-4 pl-2.5 mr-0 py-0.5">
                         {item.items!.map((subItem) => {
+                          if (subItem.locked) {
+                            return (
+                              <SidebarMenuSubItem key={subItem.title}>
+                                <SidebarMenuSubButton
+                                  className="opacity-40 cursor-not-allowed pointer-events-none text-[12px] font-medium"
+                                >
+                                  <span>{subItem.title}</span>
+                                  <IconLock className="ml-auto !size-3 text-zinc-400" />
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            )
+                          }
                           const isSubActive = pathname === subItem.url
                           return (
                             <SidebarMenuSubItem key={subItem.title}>

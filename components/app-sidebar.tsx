@@ -40,7 +40,7 @@ type SidebarNavItem = {
   url: string
   icon?: React.ComponentType<any>
   locked?: boolean
-  items?: { title: string; url: string }[]
+  items?: { title: string; url: string; locked?: boolean }[]
 }
 
 const data = {
@@ -121,6 +121,7 @@ const data = {
         {
           title: "Point of Sale (POS)",
           url: "/dashboard/pos",
+          locked: true,
         },
         {
           title: "Daftar Harga",
