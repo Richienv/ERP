@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +37,7 @@ interface Props {
 }
 
 export function AddRoutingStepDialog({ open, onOpenChange, routingId, routingName, nextSequence = 1, onSaved }: Props) {
+  const queryClient = useQueryClient();
   const [machines, setMachines] = useState<MachineOption[]>([]);
   const [materials, setMaterials] = useState<ProductOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
@@ -154,6 +157,7 @@ export function AddRoutingStepDialog({ open, onOpenChange, routingId, routingNam
 
       toast.success("Routing step berhasil ditambahkan", { className: "font-bold border-2 border-black rounded-none" });
       onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.mfgRouting.all });
       if (onSaved) await onSaved();
     } catch (error) {
       console.error(error);

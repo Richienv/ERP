@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
     Plus,
     Search,
@@ -56,6 +58,7 @@ interface Props {
 }
 
 export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
+    const queryClient = useQueryClient();
     const [machines, setMachines] = useState<Machine[]>(initialMachines);
     const [summary, setSummary] = useState<Summary>(initialSummary);
     const [refreshing, setRefreshing] = useState(false);
@@ -139,6 +142,8 @@ export function WorkCentersClient({ initialMachines, initialSummary }: Props) {
                 return;
             }
             toast.success('Mesin berhasil dihapus');
+            queryClient.invalidateQueries({ queryKey: queryKeys.machines.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
             await fetchMachines();
         } catch (err) {
             console.error(err);

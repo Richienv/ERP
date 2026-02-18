@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
     Plus,
     Search,
@@ -75,6 +77,7 @@ function getStatusBadge(status: string) {
 }
 
 export function GroupsClient({ initialGroups }: Props) {
+    const queryClient = useQueryClient();
     const [groups, setGroups] = useState<WorkCenterGroup[]>(initialGroups);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -144,6 +147,9 @@ export function GroupsClient({ initialGroups }: Props) {
                 return;
             }
             toast.success('Grup berhasil dihapus');
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgGroups.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.machines.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
             setSheetOpen(false);
             setSelectedGroup(null);
             await fetchGroups();

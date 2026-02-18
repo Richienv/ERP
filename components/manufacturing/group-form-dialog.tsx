@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +29,7 @@ interface Props {
 }
 
 export function GroupFormDialog({ open, onOpenChange, initialData, onSaved }: Props) {
+  const queryClient = useQueryClient();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -78,6 +81,8 @@ export function GroupFormDialog({ open, onOpenChange, initialData, onSaved }: Pr
 
       toast.success(isEdit ? "Group updated" : "Group created");
       onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.mfgGroups.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
       if (onSaved) await onSaved();
     } catch (error) {
       console.error(error);

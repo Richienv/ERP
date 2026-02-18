@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -30,6 +32,7 @@ interface ScheduleWorkOrderDialogProps {
 }
 
 export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSchedule, trigger }: ScheduleWorkOrderDialogProps) {
+    const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -73,6 +76,8 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
 
         if (result.success) {
             toast.success(`${workOrder.number} berhasil dijadwalkan`)
+            queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all })
             setOpen(false)
         } else {
             toast.error(result.error || "Gagal menjadwalkan")

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
     Plus,
     Search,
@@ -80,6 +82,7 @@ interface Props {
 }
 
 export function BOMClient({ initialBoms }: Props) {
+    const queryClient = useQueryClient();
     const [boms, setBoms] = useState<BOM[]>(initialBoms);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -211,6 +214,7 @@ export function BOMClient({ initialBoms }: Props) {
                 return;
             }
             toast.success('BOM duplicated successfully');
+            queryClient.invalidateQueries({ queryKey: queryKeys.bom.all });
             setDetailOpen(false);
             await fetchBOMs();
         } catch (error) {
@@ -237,6 +241,7 @@ export function BOMClient({ initialBoms }: Props) {
                 return;
             }
             toast.success('BOM deleted successfully');
+            queryClient.invalidateQueries({ queryKey: queryKeys.bom.all });
             setDetailOpen(false);
             setSelectedBOM(null);
             await fetchBOMs();

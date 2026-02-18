@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,7 @@ interface Props {
 }
 
 export function RoutingFormDialog({ open, onOpenChange, initialData, onSaved }: Props) {
+  const queryClient = useQueryClient();
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -83,6 +86,7 @@ export function RoutingFormDialog({ open, onOpenChange, initialData, onSaved }: 
         className: "font-bold border-2 border-black rounded-none"
       });
       onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.mfgRouting.all });
       if (onSaved) await onSaved();
     } catch (error) {
       console.error(error);

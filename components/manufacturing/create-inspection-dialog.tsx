@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +53,7 @@ const makeDefaultBatch = () => {
 };
 
 export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props) {
+  const queryClient = useQueryClient();
   const [materials, setMaterials] = useState<ProductOption[]>([]);
   const [inspectors, setInspectors] = useState<InspectorOption[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrderOption[]>([]);
@@ -163,6 +166,8 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
       }
 
       toast.success("Inspection created");
+      queryClient.invalidateQueries({ queryKey: queryKeys.mfgQuality.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
       onOpenChange(false);
       if (onCreated) await onCreated();
     } catch (error) {

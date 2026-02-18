@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,6 +46,7 @@ interface Props {
 }
 
 export function MachineFormDialog({ open, onOpenChange, initialData, onSaved }: Props) {
+  const queryClient = useQueryClient();
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -160,6 +163,8 @@ export function MachineFormDialog({ open, onOpenChange, initialData, onSaved }: 
 
       toast.success(isEdit ? "Machine updated" : "Machine created");
       onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.machines.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
       if (onSaved) await onSaved();
     } catch (error) {
       console.error(error);

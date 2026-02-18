@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
     Plus,
     Search,
@@ -99,6 +101,7 @@ function statusLabel(status: string) {
 }
 
 export function OrdersClient({ initialOrders, initialSummary }: Props) {
+    const queryClient = useQueryClient();
     const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialOrders);
     const [summary, setSummary] = useState<Summary>(initialSummary);
     const [refreshing, setRefreshing] = useState(false);
@@ -194,6 +197,8 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                 return;
             }
             toast.success(`Work order moved to ${toStatus}`);
+            queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
             await refreshSelectedOrder();
         } catch (err) {
             console.error(err);
@@ -233,6 +238,11 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                 return;
             }
             toast.success('Production reported. Inventory and finance entries posted.')
+            queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all });
             setProgressDialogOpen(false);
             setReportQty("");
             await refreshSelectedOrder();

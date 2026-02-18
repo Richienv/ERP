@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
     Plus,
     Search,
@@ -96,6 +98,7 @@ interface Props {
 }
 
 export function WorkOrdersClient({ initialOrders }: Props) {
+    const queryClient = useQueryClient();
     const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialOrders);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -232,6 +235,8 @@ export function WorkOrdersClient({ initialOrders }: Props) {
                 return;
             }
             toast.success(`Status SPK diubah ke ${toStatus}`, { className: "font-bold border-2 border-black rounded-none" });
+            queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
             await refreshSelectedWorkOrder();
         } catch (err) {
             console.error(err);
@@ -271,6 +276,11 @@ export function WorkOrdersClient({ initialOrders }: Props) {
                 return;
             }
             toast.success('Produksi berhasil dilaporkan. Inventory & Finance terupdate.', { className: "font-bold border-2 border-black rounded-none" })
+            queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all });
             setProgressDialogOpen(false);
             setReportQty("");
             await refreshSelectedWorkOrder();

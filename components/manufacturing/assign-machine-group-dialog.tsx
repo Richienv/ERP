@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +27,7 @@ interface Props {
 }
 
 export function AssignMachineGroupDialog({ open, onOpenChange, groupId, groupName, onAssigned }: Props) {
+  const queryClient = useQueryClient();
   const [machines, setMachines] = useState<MachineOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -84,6 +87,8 @@ export function AssignMachineGroupDialog({ open, onOpenChange, groupId, groupNam
       }
 
       toast.success("Machine assigned to group");
+      queryClient.invalidateQueries({ queryKey: queryKeys.machines.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.mfgGroups.all });
       onOpenChange(false);
       if (onAssigned) await onAssigned();
     } catch (error) {

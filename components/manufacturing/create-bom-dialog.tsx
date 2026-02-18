@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +49,7 @@ interface Props {
 }
 
 export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create", initialBOM = null }: Props) {
+  const queryClient = useQueryClient();
   const [products, setProducts] = useState<ProductOption[]>([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -189,6 +192,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated, mode = "create"
       });
       resetForm();
       onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: queryKeys.bom.all });
       if (onCreated) await onCreated();
     } catch (error) {
       console.error(error);

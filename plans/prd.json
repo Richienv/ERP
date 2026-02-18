@@ -58,7 +58,7 @@
       "id": "F-004",
       "title": "Audit Keuangan module — all buttons, shared invoice/payment entities",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Invoicing (/finance/invoices): Create/Edit invoice works. Invoice references shared customer and order entities",
         "Penerimaan/AR (/finance/payments): Record payment works. Payment updates invoice status (Partial/Paid), customer balance, dashboard",

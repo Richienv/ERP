@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
     Plus,
     Search,
@@ -75,6 +77,7 @@ interface Props {
 }
 
 export function RoutingClient({ initialRoutings }: Props) {
+    const queryClient = useQueryClient();
     const [routings, setRoutings] = useState<Routing[]>(initialRoutings);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -200,6 +203,7 @@ export function RoutingClient({ initialRoutings }: Props) {
                 return;
             }
             toast.success('Routing berhasil dihapus');
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgRouting.all });
             setSheetOpen(false);
             setSelectedRouting(null);
             await fetchRoutings();
