@@ -142,6 +142,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 resetForm()
                 onOpenChange(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal membuat invoice") || "Gagal membuat invoice")
             }

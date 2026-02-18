@@ -159,7 +159,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         },
     },
     "/procurement/receiving": {
-        queryKey: ["receiving", "list"],
+        queryKey: queryKeys.receiving.list(),
         queryFn: async () => {
             const [pendingPOs, grns, warehouses, employees] = await Promise.all([
                 getPendingPOsForReceiving(),

@@ -23,6 +23,8 @@ import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { useChartOfAccounts, useInvalidateChartAccounts } from "@/hooks/use-chart-accounts"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 const AccountNode = ({ node, level }: { node: GLAccountNode, level: number }) => {
     const [isOpen, setIsOpen] = useState(true)
@@ -68,6 +70,7 @@ const AccountNode = ({ node, level }: { node: GLAccountNode, level: number }) =>
 export default function CoALedgerPage() {
     const { data: accounts = [], isLoading: loading } = useChartOfAccounts()
     const invalidateChartAccounts = useInvalidateChartAccounts()
+    const queryClient = useQueryClient()
     const [search, setSearch] = useState("")
     const [filterType, setFilterType] = useState<"ALL" | "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE">("ALL")
     const [createOpen, setCreateOpen] = useState(false)
@@ -107,6 +110,8 @@ export default function CoALedgerPage() {
             setNewType("ASSET")
             setCreateOpen(false)
             invalidateChartAccounts()
+            queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
         } finally {
             setSubmitting(false)
         }

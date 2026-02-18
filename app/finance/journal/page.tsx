@@ -82,6 +82,8 @@ export default function GeneralLedgerPage() {
                 setRef("")
                 setShowForm(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal posting entry") || "Gagal posting entry")
             }

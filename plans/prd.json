@@ -42,7 +42,7 @@
       "id": "F-003",
       "title": "Audit Pengadaan module — all buttons, shared vendor/product entities",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Dashboard Pengadaan (/procurement) loads with correct pipeline metrics",
         "Pemasok/Vendor (/procurement/vendors): Create/Edit/Delete vendor works. Vendor entity shared with POs, bills, vendor payments",

@@ -222,6 +222,10 @@ export default function APCheckbookPage() {
                 resetPaymentForm()
                 setShowForm(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
             } else {
                 toast.error(("error" in result ? result.error : "Failed to record payment") || "Failed to record payment")
             }

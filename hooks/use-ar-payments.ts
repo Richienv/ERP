@@ -1,6 +1,7 @@
 "use client"
 
 import { useQuery } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { getARPaymentRegistry, getARPaymentStats } from "@/lib/actions/finance"
 
 interface ARPaymentsParams {
@@ -14,7 +15,7 @@ interface ARPaymentsParams {
 
 export function useARPayments(params: ARPaymentsParams = {}) {
     return useQuery({
-        queryKey: ["arPayments", params],
+        queryKey: queryKeys.arPayments.all,
         queryFn: async () => {
             const [registry, stats] = await Promise.all([
                 getARPaymentRegistry({

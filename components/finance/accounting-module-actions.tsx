@@ -119,6 +119,10 @@ export function AccountingModuleActions() {
       setApReference("")
       setApOpen(false)
       queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
     } finally {
       setApSubmitting(false)
     }
@@ -149,6 +153,8 @@ export function AccountingModuleActions() {
       setCoaType("ASSET")
       setCoaOpen(false)
       queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
     } finally {
       setCoaSubmitting(false)
     }
@@ -198,6 +204,8 @@ export function AccountingModuleActions() {
       setJournalAmount("")
       setJournalOpen(false)
       queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
     } finally {
       setJournalSubmitting(false)
     }

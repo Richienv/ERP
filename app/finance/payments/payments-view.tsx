@@ -183,6 +183,8 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                 setSelectedInvoiceId(null)
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
             } else {
                 toast.error("error" in result ? String(result.error) : "Gagal mengalokasikan pembayaran")
             }
@@ -234,6 +236,8 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
             })
             queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
         } catch {
             toast.error("Terjadi kesalahan saat mencatat penerimaan")
         } finally {
@@ -295,6 +299,8 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                             onClick={() => {
                                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
                                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+                                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
                             }}
                             className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
                         >

@@ -134,6 +134,8 @@ export default function NewJournalEntryPage() {
 
             toast.success("Jurnal berhasil diposting");
             queryClient.invalidateQueries({ queryKey: queryKeys.journal.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all });
             router.push("/finance/journal");
         } catch (error: any) {
             toast.error(error?.message || "Terjadi kesalahan saat menyimpan jurnal");

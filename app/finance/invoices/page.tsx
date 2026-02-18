@@ -97,6 +97,18 @@ export default function InvoicesPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
     }
 
+    const invalidateAfterSend = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+    }
+
+    const invalidateAfterPayment = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+    }
+
     // Flatten all invoices for the table
     const allInvoices = useMemo(() => {
         const tag = (items: InvoiceKanbanItem[], status: string) => items.map(i => ({ ...i, _tab: status }))
@@ -159,7 +171,7 @@ export default function InvoicesPage() {
             if (!result.success) throw new Error(result.error || "Gagal mengirim invoice")
             toast.success(result.status === 'OVERDUE' ? "Invoice dipindahkan ke Jatuh Tempo." : "Invoice terkirim!")
             setIsSendDialogOpen(false)
-            invalidateInvoices()
+            invalidateAfterSend()
         } catch {
             toast.error("Gagal mengirim invoice")
         } finally {
@@ -192,7 +204,7 @@ export default function InvoicesPage() {
             toast.success("Pembayaran berhasil dicatat")
             setIsPayDialogOpen(false)
             setActiveInvoice(null)
-            invalidateInvoices()
+            invalidateAfterPayment()
         } catch (err: any) {
             toast.error(err?.message || "Gagal mencatat pembayaran")
         } finally {

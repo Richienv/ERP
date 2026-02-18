@@ -125,6 +125,19 @@ export default function APBillsStackPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
     }
 
+    const invalidateAfterDispute = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+    }
+
+    const invalidateAfterPayout = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+    }
+
     const handleDisputeSubmit = async () => {
         if (!activeBill || !disputeReason.trim()) {
             toast.error("Please enter a dispute reason")
@@ -137,7 +150,7 @@ export default function APBillsStackPage() {
                 toast.success("Bill disputed successfully")
                 setIsDisputeOpen(false)
                 setDisputeReason("")
-                invalidateBills()
+                invalidateAfterDispute()
             } else {
                 toast.error("Failed to dispute bill")
             }
@@ -168,7 +181,7 @@ export default function APBillsStackPage() {
                 setStamped(true)
                 toast.success('message' in result ? result.message : "Payment initiated successfully")
                 setIsPayOpen(false)
-                setTimeout(() => { setStamped(false); invalidateBills() }, 2000)
+                setTimeout(() => { setStamped(false); invalidateAfterPayout() }, 2000)
             } else {
                 toast.error('error' in result ? result.error : "Failed to process payment")
             }
