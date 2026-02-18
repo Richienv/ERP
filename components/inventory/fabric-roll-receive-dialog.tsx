@@ -11,6 +11,14 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { NB } from "@/lib/dialog-styles"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -26,6 +34,8 @@ export function FabricRollReceiveDialog({ products, warehouses, trigger }: Fabri
     const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+
+    const productOptions = products.map(p => ({ value: p.id, label: p.name, subtitle: p.code }))
 
     const [rollNumber, setRollNumber] = useState("")
     const [productId, setProductId] = useState("")
@@ -123,21 +133,27 @@ export function FabricRollReceiveDialog({ products, warehouses, trigger }: Fabri
                                 </div>
                                 <div>
                                     <label className={NB.label}>Produk Kain <span className={NB.labelRequired}>*</span></label>
-                                    <select className={NB.select} value={productId} onChange={(e) => setProductId(e.target.value)}>
-                                        <option value="">Pilih kain...</option>
-                                        {products.map((p) => (
-                                            <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                                        ))}
-                                    </select>
+                                    <ComboboxWithCreate
+                                        options={productOptions}
+                                        value={productId}
+                                        onChange={setProductId}
+                                        placeholder="Pilih kain..."
+                                        searchPlaceholder="Cari produk kain..."
+                                        emptyMessage="Produk tidak ditemukan."
+                                    />
                                 </div>
                                 <div>
                                     <label className={NB.label}>Gudang <span className={NB.labelRequired}>*</span></label>
-                                    <select className={NB.select} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-                                        <option value="">Pilih gudang...</option>
-                                        {warehouses.map((w) => (
-                                            <option key={w.id} value={w.id}>{w.code} — {w.name}</option>
-                                        ))}
-                                    </select>
+                                    <Select value={warehouseId} onValueChange={setWarehouseId}>
+                                        <SelectTrigger className={NB.select}>
+                                            <SelectValue placeholder="Pilih gudang..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {warehouses.map((w) => (
+                                                <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                             </div>
                         </div>
@@ -164,12 +180,16 @@ export function FabricRollReceiveDialog({ products, warehouses, trigger }: Fabri
                                 </div>
                                 <div>
                                     <label className={NB.label}>Grade</label>
-                                    <select className={NB.select} value={grade} onChange={(e) => setGrade(e.target.value)}>
-                                        <option value="">—</option>
-                                        <option value="A">A — Premium</option>
-                                        <option value="B">B — Standar</option>
-                                        <option value="C">C — Inferior</option>
-                                    </select>
+                                    <Select value={grade} onValueChange={setGrade}>
+                                        <SelectTrigger className={NB.select}>
+                                            <SelectValue placeholder="—" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="A">A — Premium</SelectItem>
+                                            <SelectItem value="B">B — Standar</SelectItem>
+                                            <SelectItem value="C">C — Inferior</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div>
                                     <label className={NB.label}>Lokasi Bin</label>

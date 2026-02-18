@@ -44,6 +44,7 @@ export const queryKeys = {
     categories: {
         all: ["categories"] as const,
         list: () => [...queryKeys.categories.all, "list"] as const,
+        master: () => [...queryKeys.categories.all, "master"] as const,
     },
     bom: {
         all: ["bom"] as const,
@@ -226,5 +227,21 @@ export const queryKeys = {
     inventoryAudit: {
         all: ["inventoryAudit"] as const,
         list: () => [...queryKeys.inventoryAudit.all, "list"] as const,
+    },
+    units: {
+        all: ["units"] as const,
+        list: () => [...queryKeys.units.all, "list"] as const,
+    },
+    brands: {
+        all: ["brands"] as const,
+        list: () => [...queryKeys.brands.all, "list"] as const,
+    },
+    colors: {
+        all: ["colors"] as const,
+        list: () => [...queryKeys.colors.all, "list"] as const,
+    },
+    suppliers: {
+        all: ["suppliers"] as const,
+        list: () => [...queryKeys.suppliers.all, "list"] as const,
     },
 } as const

@@ -21,26 +21,22 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
 import { Plus, Package, DollarSign, BarChart3, Save, Loader2, Tag, Barcode, Factory, ShoppingCart, Boxes, Layers } from "lucide-react"
 import { createProduct } from "@/app/actions/inventory"
 import { createProductSchema, type CreateProductInput } from "@/lib/validations"
 import {
-    INDONESIAN_UNITS,
     generateBarcode,
     CODE_CATEGORIES,
     CODE_PRODUCT_TYPES,
-    CODE_BRANDS,
-    CODE_COLORS,
     CATEGORY_TO_PRODUCT_TYPE,
     buildStructuredCode,
 } from "@/lib/inventory-utils"
+import { createUnit, createBrand, createColor, createCategory } from "@/lib/actions/master-data"
+import { useBrands, useColors, useUnits, useMasterCategories, useInvalidateMasterData } from "@/hooks/use-master-data"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-
-interface ProductCreateDialogProps {
-    categories: { id: string; name: string; code: string }[]
-}
 
 const CATEGORY_STYLE: Record<string, { icon: typeof Factory; bg: string; border: string; text: string }> = {
     MFG: { icon: Factory, bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700' },
@@ -56,10 +52,27 @@ const WORKFLOW_HINTS: Record<string, { borderColor: string; bgColor: string; tex
     WIP: { borderColor: 'border-l-violet-400', bgColor: 'bg-violet-50', textColor: 'text-violet-700', text: 'Intermediate — dibuat oleh proses produksi, dikonsumsi oleh proses berikutnya.' },
 }
 
-export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
+export function ProductCreateDialog() {
     const [open, setOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const queryClient = useQueryClient()
+
+    // DB-backed master data
+    const { data: dbBrands = [], isLoading: brandsLoading } = useBrands()
+    const { data: dbColors = [], isLoading: colorsLoading } = useColors()
+    const { data: dbUnits = [], isLoading: unitsLoading } = useUnits()
+    const { data: dbCategories = [], isLoading: categoriesLoading } = useMasterCategories()
+    const { invalidateBrands, invalidateColors, invalidateUnits, invalidateCategories } = useInvalidateMasterData()
+
+    // Map DB data to combobox options
+    const brandOptions: ComboboxOption[] = useMemo(() =>
+        dbBrands.map((b: { code: string; name: string }) => ({ value: b.code, label: b.name, subtitle: b.code })), [dbBrands])
+    const colorOptions: ComboboxOption[] = useMemo(() =>
+        dbColors.map((c: { code: string; name: string }) => ({ value: c.code, label: c.name, subtitle: c.code })), [dbColors])
+    const unitOptions: ComboboxOption[] = useMemo(() =>
+        dbUnits.map((u: { code: string; name: string }) => ({ value: u.code, label: u.name, subtitle: u.code })), [dbUnits])
+    const categoryOptions: ComboboxOption[] = useMemo(() =>
+        dbCategories.map((c: { id: string; code: string; name: string }) => ({ value: c.id, label: c.name, subtitle: c.code })), [dbCategories])
 
     const form = useForm<CreateProductInput>({
         resolver: zodResolver(createProductSchema),
@@ -80,17 +93,13 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
     const watchBrand = form.watch("codeBrand") || "XX"
     const watchColor = form.watch("codeColor") || "NAT"
 
-    // Available product types depend on category
     const availableTypes = useMemo(() => CODE_PRODUCT_TYPES[watchCat] || [], [watchCat])
 
-    // Reset type when category changes and current type is invalid
     const currentTypeValid = availableTypes.some(t => t.code === watchType)
     if (!currentTypeValid && availableTypes.length > 0) {
-        // Use queueMicrotask to avoid setting state during render
         queueMicrotask(() => form.setValue("codeType", availableTypes[0].code))
     }
 
-    // Build preview code
     const effectiveType = currentTypeValid ? watchType : (availableTypes[0]?.code || "OTR")
     const previewCode = buildStructuredCode(watchCat, effectiveType, watchBrand, watchColor, 1)
     const previewBarcode = generateBarcode(previewCode.replace(/-001$/, '-XXX'))
@@ -110,6 +119,7 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                 form.reset()
                 setOpen(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
             } else {
                 toast.error((result as any).error || "Gagal membuat produk")
             }
@@ -123,6 +133,39 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
     const watchCost = form.watch("costPrice") ?? 0
     const watchSell = form.watch("sellingPrice") ?? 0
     const margin = watchCost > 0 ? ((watchSell - watchCost) / watchCost) * 100 : 0
+
+    // Create handlers for inline creation
+    const handleCreateBrand = async (name: string) => {
+        const code = name.substring(0, 2).toUpperCase()
+        const brand = await createBrand(code, name)
+        await invalidateBrands()
+        toast.success(`Brand "${name}" berhasil dibuat`)
+        return brand.code
+    }
+
+    const handleCreateColor = async (name: string) => {
+        const code = name.substring(0, 3).toUpperCase()
+        const color = await createColor(code, name)
+        await invalidateColors()
+        toast.success(`Warna "${name}" berhasil dibuat`)
+        return color.code
+    }
+
+    const handleCreateUnit = async (name: string) => {
+        const code = name.toLowerCase().replace(/\s+/g, '')
+        const unit = await createUnit(code, name)
+        await invalidateUnits()
+        toast.success(`Satuan "${name}" berhasil dibuat`)
+        return unit.code
+    }
+
+    const handleCreateCategory = async (name: string) => {
+        const code = name.substring(0, 3).toUpperCase()
+        const category = await createCategory(code, name)
+        await invalidateCategories()
+        toast.success(`Kategori "${name}" berhasil dibuat`)
+        return category.id
+    }
 
     return (
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) form.reset() }}>
@@ -153,10 +196,9 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                                 <span className="text-xs font-black uppercase tracking-widest">Kode Produk Terstruktur</span>
                             </div>
 
-                            {/* 4 Segment Dropdowns */}
                             <div className="p-4 space-y-3">
                                 <div className="grid grid-cols-4 gap-3">
-                                    {/* Segment 1: Category */}
+                                    {/* Segment 1: Category (fixed list — code builder categories) */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Kategori</label>
                                         <Select
@@ -180,7 +222,7 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                                         </Select>
                                     </div>
 
-                                    {/* Segment 2: Product Type */}
+                                    {/* Segment 2: Product Type (depends on category) */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Tipe Produk</label>
                                         <Select
@@ -201,46 +243,36 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                                         </Select>
                                     </div>
 
-                                    {/* Segment 3: Brand */}
+                                    {/* Segment 3: Brand — DB-backed with create */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Brand</label>
-                                        <Select
+                                        <ComboboxWithCreate
+                                            options={brandOptions}
                                             value={watchBrand}
-                                            onValueChange={v => form.setValue("codeBrand", v)}
-                                        >
-                                            <SelectTrigger className="border-2 border-black font-mono font-black text-xs h-9 w-full">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {CODE_BRANDS.map(b => (
-                                                    <SelectItem key={b.code} value={b.code}>
-                                                        <span className="font-mono font-bold">{b.code}</span>
-                                                        <span className="text-zinc-400 ml-1.5 text-[10px]">{b.label}</span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                            onChange={v => form.setValue("codeBrand", v)}
+                                            placeholder="Pilih brand..."
+                                            searchPlaceholder="Cari brand..."
+                                            emptyMessage="Brand tidak ditemukan."
+                                            createLabel="+ Buat Brand Baru"
+                                            onCreate={handleCreateBrand}
+                                            isLoading={brandsLoading}
+                                        />
                                     </div>
 
-                                    {/* Segment 4: Color */}
+                                    {/* Segment 4: Color — DB-backed with create */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Warna</label>
-                                        <Select
+                                        <ComboboxWithCreate
+                                            options={colorOptions}
                                             value={watchColor}
-                                            onValueChange={v => form.setValue("codeColor", v)}
-                                        >
-                                            <SelectTrigger className="border-2 border-black font-mono font-black text-xs h-9 w-full">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {CODE_COLORS.map(c => (
-                                                    <SelectItem key={c.code} value={c.code}>
-                                                        <span className="font-mono font-bold">{c.code}</span>
-                                                        <span className="text-zinc-400 ml-1.5 text-[10px]">{c.label}</span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                            onChange={v => form.setValue("codeColor", v)}
+                                            placeholder="Pilih warna..."
+                                            searchPlaceholder="Cari warna..."
+                                            emptyMessage="Warna tidak ditemukan."
+                                            createLabel="+ Buat Warna Baru"
+                                            onCreate={handleCreateColor}
+                                            isLoading={colorsLoading}
+                                        />
                                     </div>
                                 </div>
 
@@ -300,36 +332,33 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Kategori Inventori</label>
-                                        <Select
-                                            value={form.watch("categoryId") || "none"}
-                                            onValueChange={v => form.setValue("categoryId", v === "none" ? "" : v)}
-                                        >
-                                            <SelectTrigger className="border-2 border-black font-bold h-10 w-full truncate">
-                                                <SelectValue placeholder="Pilih kategori" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="none">Tanpa Kategori</SelectItem>
-                                                {categories.map(c => (
-                                                    <SelectItem key={c.id} value={c.id}>{c.code} — {c.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <ComboboxWithCreate
+                                            options={categoryOptions}
+                                            value={form.watch("categoryId") || ""}
+                                            onChange={v => form.setValue("categoryId", v)}
+                                            placeholder="Pilih kategori..."
+                                            searchPlaceholder="Cari kategori..."
+                                            emptyMessage="Kategori tidak ditemukan."
+                                            createLabel="+ Buat Kategori Baru"
+                                            onCreate={handleCreateCategory}
+                                            isLoading={categoriesLoading}
+                                        />
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
                                             Satuan <span className="text-red-500">*</span>
                                         </label>
-                                        <Select
+                                        <ComboboxWithCreate
+                                            options={unitOptions}
                                             value={form.watch("unit") || "pcs"}
-                                            onValueChange={v => form.setValue("unit", v)}
-                                        >
-                                            <SelectTrigger className="border-2 border-black font-bold h-10 w-full">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {INDONESIAN_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
+                                            onChange={v => form.setValue("unit", v)}
+                                            placeholder="Pilih satuan..."
+                                            searchPlaceholder="Cari satuan..."
+                                            emptyMessage="Satuan tidak ditemukan."
+                                            createLabel="+ Buat Satuan Baru"
+                                            onCreate={handleCreateUnit}
+                                            isLoading={unitsLoading}
+                                        />
                                     </div>
                                 </div>
                             </div>

@@ -19,20 +19,43 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { Plus, Package, Tag, Barcode, AlertTriangle, Loader2, Boxes, DollarSign } from "lucide-react"
 import {
     CODE_CATEGORIES,
     CODE_PRODUCT_TYPES,
-    CODE_BRANDS,
-    CODE_COLORS,
     buildStructuredCode,
     generateBarcode,
+    CATEGORY_TO_PRODUCT_TYPE,
 } from "@/lib/inventory-utils"
+import { createProduct } from "@/app/actions/inventory"
+import { createUnit, createBrand, createColor } from "@/lib/actions/master-data"
+import { useBrands, useColors, useUnits, useSuppliers, useInvalidateMasterData } from "@/hooks/use-master-data"
+import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { NB } from "@/lib/dialog-styles"
 
 export function MaterialInputForm() {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    const queryClient = useQueryClient()
+
+    // DB-backed master data
+    const { data: dbBrands = [], isLoading: brandsLoading } = useBrands()
+    const { data: dbColors = [], isLoading: colorsLoading } = useColors()
+    const { data: dbUnits = [], isLoading: unitsLoading } = useUnits()
+    const { data: dbSuppliers = [] } = useSuppliers()
+    const { invalidateBrands, invalidateColors, invalidateUnits } = useInvalidateMasterData()
+
+    const brandOptions = useMemo(() =>
+        dbBrands.map((b: { code: string; name: string }) => ({ value: b.code, label: b.name, subtitle: b.code })), [dbBrands])
+    const colorOptions = useMemo(() =>
+        dbColors.map((c: { code: string; name: string }) => ({ value: c.code, label: c.name, subtitle: c.code })), [dbColors])
+    const unitOptions = useMemo(() =>
+        dbUnits.map((u: { code: string; name: string }) => ({ value: u.code, label: u.name, subtitle: u.code })), [dbUnits])
+    const supplierOptions = useMemo(() =>
+        dbSuppliers.map((s: { id: string; name: string; code: string | null }) => ({ value: s.id, label: s.name, subtitle: s.code || '' })), [dbSuppliers])
 
     // Form state
     const [name, setName] = useState("")
@@ -40,7 +63,7 @@ export function MaterialInputForm() {
     const [costPrice, setCostPrice] = useState("")
     const [initialStock, setInitialStock] = useState("")
     const [minStock, setMinStock] = useState("10")
-    const [supplier, setSupplier] = useState("")
+    const [supplierId, setSupplierId] = useState("")
     const [notes, setNotes] = useState("")
 
     // Code builder state
@@ -49,40 +72,78 @@ export function MaterialInputForm() {
     const [codeBrand, setCodeBrand] = useState("XX")
     const [codeColor, setCodeColor] = useState("NAT")
 
-    // Available types depend on category
     const availableTypes = useMemo(() => CODE_PRODUCT_TYPES[codeCat] || [], [codeCat])
-
-    // Reset type when category changes
     const currentTypeValid = availableTypes.some(t => t.code === codeType)
     const effectiveType = currentTypeValid ? codeType : (availableTypes[0]?.code || "OTR")
 
-    // Live preview
     const previewCode = buildStructuredCode(codeCat, effectiveType, codeBrand, codeColor, 1)
     const previewBarcode = generateBarcode(previewCode.replace(/-001$/, '-XXX'))
 
     const handleReset = () => {
-        setName("")
-        setUnit("")
-        setCostPrice("")
-        setInitialStock("")
-        setMinStock("10")
-        setSupplier("")
-        setNotes("")
-        setCodeCat("RAW")
-        setCodeType("YRN")
-        setCodeBrand("XX")
-        setCodeColor("NAT")
+        setName(""); setUnit(""); setCostPrice(""); setInitialStock("")
+        setMinStock("10"); setSupplierId(""); setNotes("")
+        setCodeCat("RAW"); setCodeType("YRN"); setCodeBrand("XX"); setCodeColor("NAT")
     }
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!name.trim()) return
         setLoading(true)
-        // TODO: Wire to actual server action
-        setTimeout(() => {
+        try {
+            const result = await createProduct({
+                name,
+                code: "",
+                description: notes,
+                categoryId: "",
+                productType: CATEGORY_TO_PRODUCT_TYPE[codeCat] as any || "RAW_MATERIAL",
+                codeCategory: codeCat as any,
+                codeType: effectiveType,
+                codeBrand,
+                codeColor,
+                unit: unit || "pcs",
+                costPrice: Number(costPrice) || 0,
+                sellingPrice: 0,
+                minStock: Number(minStock) || 10,
+                maxStock: 0,
+                reorderLevel: Number(minStock) || 10,
+                barcode: "",
+            })
+            if (result.success) {
+                toast.success("Material berhasil ditambahkan", {
+                    description: `Kode: ${result.data?.code || previewCode}`,
+                })
+                handleReset()
+                setOpen(false)
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+            } else {
+                toast.error((result as any).error || "Gagal menyimpan material")
+            }
+        } catch {
+            toast.error("Terjadi kesalahan saat menyimpan")
+        } finally {
             setLoading(false)
-            setOpen(false)
-            handleReset()
-        }, 500)
+        }
+    }
+
+    const handleCreateBrand = async (n: string) => {
+        const brand = await createBrand(n.substring(0, 2).toUpperCase(), n)
+        await invalidateBrands()
+        toast.success(`Brand "${n}" berhasil dibuat`)
+        return brand.code
+    }
+
+    const handleCreateColor = async (n: string) => {
+        const color = await createColor(n.substring(0, 3).toUpperCase(), n)
+        await invalidateColors()
+        toast.success(`Warna "${n}" berhasil dibuat`)
+        return color.code
+    }
+
+    const handleCreateUnit = async (n: string) => {
+        const u = await createUnit(n.toLowerCase().replace(/\s+/g, ''), n)
+        await invalidateUnits()
+        toast.success(`Satuan "${n}" berhasil dibuat`)
+        return u.code
     }
 
     return (
@@ -111,7 +172,6 @@ export function MaterialInputForm() {
                             </div>
 
                             <div className="p-4 space-y-3">
-                                {/* 4 Segment Dropdowns */}
                                 <div className="grid grid-cols-4 gap-3">
                                     {/* Segment 1: Category */}
                                     <div>
@@ -161,40 +221,36 @@ export function MaterialInputForm() {
                                         </Select>
                                     </div>
 
-                                    {/* Segment 3: Brand */}
+                                    {/* Segment 3: Brand — DB-backed */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Brand</label>
-                                        <Select value={codeBrand} onValueChange={setCodeBrand}>
-                                            <SelectTrigger className="border-2 border-black font-mono font-black text-xs h-9 w-full rounded-none">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {CODE_BRANDS.map(b => (
-                                                    <SelectItem key={b.code} value={b.code}>
-                                                        <span className="font-mono font-bold">{b.code}</span>
-                                                        <span className="text-zinc-400 ml-1.5 text-[10px]">{b.label}</span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <ComboboxWithCreate
+                                            options={brandOptions}
+                                            value={codeBrand}
+                                            onChange={setCodeBrand}
+                                            placeholder="Pilih brand..."
+                                            searchPlaceholder="Cari brand..."
+                                            emptyMessage="Brand tidak ditemukan."
+                                            createLabel="+ Buat Brand Baru"
+                                            onCreate={handleCreateBrand}
+                                            isLoading={brandsLoading}
+                                        />
                                     </div>
 
-                                    {/* Segment 4: Color */}
+                                    {/* Segment 4: Color — DB-backed */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Warna</label>
-                                        <Select value={codeColor} onValueChange={setCodeColor}>
-                                            <SelectTrigger className="border-2 border-black font-mono font-black text-xs h-9 w-full rounded-none">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {CODE_COLORS.map(c => (
-                                                    <SelectItem key={c.code} value={c.code}>
-                                                        <span className="font-mono font-bold">{c.code}</span>
-                                                        <span className="text-zinc-400 ml-1.5 text-[10px]">{c.label}</span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <ComboboxWithCreate
+                                            options={colorOptions}
+                                            value={codeColor}
+                                            onChange={setCodeColor}
+                                            placeholder="Pilih warna..."
+                                            searchPlaceholder="Cari warna..."
+                                            emptyMessage="Warna tidak ditemukan."
+                                            createLabel="+ Buat Warna Baru"
+                                            onCreate={handleCreateColor}
+                                            isLoading={colorsLoading}
+                                        />
                                     </div>
                                 </div>
 
@@ -235,20 +291,27 @@ export function MaterialInputForm() {
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className={NB.label}>Satuan (Unit) <span className={NB.labelRequired}>*</span></label>
-                                        <Input
+                                        <ComboboxWithCreate
+                                            options={unitOptions}
                                             value={unit}
-                                            onChange={(e) => setUnit(e.target.value)}
-                                            placeholder="Pcs / Kg / Roll / Meter"
-                                            className={NB.input}
+                                            onChange={setUnit}
+                                            placeholder="Pilih satuan..."
+                                            searchPlaceholder="Cari satuan..."
+                                            emptyMessage="Satuan tidak ditemukan."
+                                            createLabel="+ Buat Satuan Baru"
+                                            onCreate={handleCreateUnit}
+                                            isLoading={unitsLoading}
                                         />
                                     </div>
                                     <div>
                                         <label className={NB.label}>Supplier Utama</label>
-                                        <Input
-                                            value={supplier}
-                                            onChange={(e) => setSupplier(e.target.value)}
-                                            placeholder="Nama Vendor"
-                                            className={NB.input}
+                                        <ComboboxWithCreate
+                                            options={supplierOptions}
+                                            value={supplierId}
+                                            onChange={setSupplierId}
+                                            placeholder="Pilih supplier..."
+                                            searchPlaceholder="Cari supplier..."
+                                            emptyMessage="Supplier tidak ditemukan."
                                         />
                                     </div>
                                 </div>

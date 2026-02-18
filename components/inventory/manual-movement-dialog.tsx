@@ -25,6 +25,8 @@ import { Loader2, ArrowRightLeft, Plus, Minus, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { NB } from "@/lib/dialog-styles";
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create";
+import { useMemo } from "react";
 
 interface ManualMovementDialogProps {
   products: { id: string; name: string; code: string }[];
@@ -36,6 +38,9 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const queryClient = useQueryClient();
+
+  const productOptions = useMemo(() =>
+    products.map(p => ({ value: p.id, label: p.name, subtitle: p.code })), [products]);
 
   const [type, setType] = useState<"ADJUSTMENT_IN" | "ADJUSTMENT_OUT" | "TRANSFER" | "SCRAP">("ADJUSTMENT_IN");
   const [productId, setProductId] = useState("");
@@ -154,18 +159,14 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
                   </div>
                   <div>
                     <label className={NB.label}>Product <span className={NB.labelRequired}>*</span></label>
-                    <Select value={productId} onValueChange={setProductId}>
-                      <SelectTrigger className={NB.select}>
-                        <SelectValue placeholder="Select Product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            <span className="font-bold">{p.code}</span> - {p.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <ComboboxWithCreate
+                      options={productOptions}
+                      value={productId}
+                      onChange={setProductId}
+                      placeholder="Pilih produk..."
+                      searchPlaceholder="Cari produk..."
+                      emptyMessage="Produk tidak ditemukan."
+                    />
                   </div>
                 </div>
               </div>

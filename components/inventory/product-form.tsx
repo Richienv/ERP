@@ -1,19 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Form,
   FormControl,
@@ -24,14 +16,12 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { toast } from "sonner"
 import { createProductSchema, type CreateProductInput } from "@/lib/validations"
-import { INDONESIAN_UNITS } from "@/lib/inventory-utils"
+import { createUnit, createCategory } from "@/lib/actions/master-data"
+import { useUnits, useMasterCategories, useInvalidateMasterData } from "@/hooks/use-master-data"
 import { Save, X, Package, DollarSign, BarChart3 } from "lucide-react"
-
-
 
 interface ProductFormProps {
   initialData?: Partial<CreateProductInput>
@@ -39,7 +29,6 @@ interface ProductFormProps {
   onCancel?: () => void
   isLoading?: boolean
   isEdit?: boolean
-  categories: { id: string; name: string; code: string }[]
 }
 
 export function ProductForm({
@@ -48,9 +37,18 @@ export function ProductForm({
   onCancel,
   isLoading = false,
   isEdit = false,
-  categories
 }: ProductFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // DB-backed master data
+  const { data: dbUnits = [], isLoading: unitsLoading } = useUnits()
+  const { data: dbCategories = [], isLoading: categoriesLoading } = useMasterCategories()
+  const { invalidateUnits, invalidateCategories } = useInvalidateMasterData()
+
+  const unitOptions = useMemo(() =>
+    dbUnits.map((u: { code: string; name: string }) => ({ value: u.code, label: u.name, subtitle: u.code })), [dbUnits])
+  const categoryOptions = useMemo(() =>
+    dbCategories.map((c: { id: string; code: string; name: string }) => ({ value: c.id, label: c.name, subtitle: c.code })), [dbCategories])
 
   const form = useForm<CreateProductInput>({
     resolver: zodResolver(createProductSchema),
@@ -88,6 +86,22 @@ export function ProductForm({
   const watchedCostPrice = form.watch("costPrice") ?? 0
   const watchedSellingPrice = form.watch("sellingPrice") ?? 0
   const margin = watchedCostPrice > 0 ? ((watchedSellingPrice - watchedCostPrice) / watchedCostPrice) * 100 : 0
+
+  const handleCreateUnit = async (name: string) => {
+    const code = name.toLowerCase().replace(/\s+/g, '')
+    const unit = await createUnit(code, name)
+    await invalidateUnits()
+    toast.success(`Satuan "${name}" berhasil dibuat`)
+    return unit.code
+  }
+
+  const handleCreateCategory = async (name: string) => {
+    const code = name.substring(0, 3).toUpperCase()
+    const category = await createCategory(code, name)
+    await invalidateCategories()
+    toast.success(`Kategori "${name}" berhasil dibuat`)
+    return category.id
+  }
 
   return (
     <div className="space-y-6">
@@ -177,24 +191,19 @@ export function ProductForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Kategori</FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
-                        defaultValue={field.value || "none"}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih kategori produk" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">Tanpa Kategori</SelectItem>
-                          {categories.map((category) => (
-                            <SelectItem key={category.id} value={category.id}>
-                              {category.code} - {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <ComboboxWithCreate
+                          options={categoryOptions}
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Pilih kategori..."
+                          searchPlaceholder="Cari kategori..."
+                          emptyMessage="Kategori tidak ditemukan."
+                          createLabel="+ Buat Kategori Baru"
+                          onCreate={handleCreateCategory}
+                          isLoading={categoriesLoading}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -206,20 +215,19 @@ export function ProductForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Satuan *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Pilih satuan" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {INDONESIAN_UNITS.map((unit) => (
-                            <SelectItem key={unit} value={unit}>
-                              {unit}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <ComboboxWithCreate
+                          options={unitOptions}
+                          value={field.value || "pcs"}
+                          onChange={field.onChange}
+                          placeholder="Pilih satuan..."
+                          searchPlaceholder="Cari satuan..."
+                          emptyMessage="Satuan tidak ditemukan."
+                          createLabel="+ Buat Satuan Baru"
+                          onCreate={handleCreateUnit}
+                          isLoading={unitsLoading}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

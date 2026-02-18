@@ -38,6 +38,7 @@ import { id as idLocale } from "date-fns/locale";
 import { getRecentAudits, submitSpotAudit, getProductsForKanban, getWarehouses } from "@/app/actions/inventory";
 import { queryKeys } from "@/lib/query-keys";
 import { NB } from "@/lib/dialog-styles";
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create";
 
 // Type based on our server action return
 type AuditLog = {
@@ -79,6 +80,8 @@ export default function InventoryAuditPage() {
     const auditLogs = data?.auditLogs ?? []
     const products = data?.products ?? []
     const warehouses = data?.warehouses ?? []
+    const productOptions = useMemo(() =>
+        products.map((p: any) => ({ value: p.id, label: p.name, subtitle: p.code })), [products])
 
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | "MATCH" | "DISCREPANCY">("ALL");
@@ -440,16 +443,14 @@ export default function InventoryAuditPage() {
                                             </div>
                                             <div>
                                                 <label className={NB.label}>Produk <span className={NB.labelRequired}>*</span></label>
-                                                <Select value={formProduct} onValueChange={setFormProduct}>
-                                                    <SelectTrigger className={NB.select}>
-                                                        <SelectValue placeholder="Pilih Produk..." />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {products.map(p => (
-                                                            <SelectItem key={p.id} value={p.id}>{p.code} - {p.name}</SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
+                                                <ComboboxWithCreate
+                                                    options={productOptions}
+                                                    value={formProduct}
+                                                    onChange={setFormProduct}
+                                                    placeholder="Pilih produk..."
+                                                    searchPlaceholder="Cari produk..."
+                                                    emptyMessage="Produk tidak ditemukan."
+                                                />
                                             </div>
                                         </div>
                                     </div>

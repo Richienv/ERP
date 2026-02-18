@@ -267,6 +267,41 @@ model Product {
 }
 
 // ================================
+// Master Data (Units, Brands, Colors)
+// ================================
+
+model Unit {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code      String   @unique // pcs, kg, m, yard
+  name      String // Pieces, Kilogram, Meter, Yard
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("units")
+}
+
+model Brand {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code      String   @unique // BR, ZR, XX
+  name      String // Brodo, Zara, Unbranded
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("brands")
+}
+
+model Color {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code      String   @unique // BLK, WHT, RED
+  name      String // Hitam, Putih, Merah
+  hexCode   String? // #000000
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@map("colors")
+}
+
+// ================================
 // Stock Management
 // ================================
 

@@ -3,19 +3,24 @@
 import { useRouter } from "next/navigation"
 import { ProductForm } from "@/components/inventory/product-form"
 import { type CreateProductInput } from "@/lib/validations"
+import { createProduct } from "@/app/actions/inventory"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
+import { toast } from "sonner"
 
 export default function NewProductPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const handleSubmit = async (data: CreateProductInput) => {
-    // Here you would typically call your API
-    console.log("Creating product:", data)
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    // Redirect to products list
-    router.push("/inventory/products")
+    const result = await createProduct(data)
+    if (result.success) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+      router.push("/inventory/products")
+    } else {
+      throw new Error((result as any).error || "Gagal membuat produk")
+    }
   }
 
   const handleCancel = () => {
@@ -23,8 +28,8 @@ export default function NewProductPage() {
   }
 
   return (
-    <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-      <ProductForm 
+    <div className="mf-page">
+      <ProductForm
         onSubmit={handleSubmit}
         onCancel={handleCancel}
       />

@@ -12,6 +12,14 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { NB } from "@/lib/dialog-styles"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { ArrowRightLeft } from "lucide-react"
 import { toast } from "sonner"
 import { createStockTransfer } from "@/lib/actions/stock-transfers"
@@ -28,6 +36,8 @@ export function CreateTransferDialog({ warehouses, products, trigger }: CreateTr
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const queryClient = useQueryClient()
+
+    const productOptions = products.map(p => ({ value: p.id, label: p.name, subtitle: p.code }))
 
     const [fromWarehouseId, setFromWarehouseId] = useState("")
     const [toWarehouseId, setToWarehouseId] = useState("")
@@ -107,30 +117,40 @@ export function CreateTransferDialog({ warehouses, products, trigger }: CreateTr
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className={NB.label}>Gudang Asal <span className={NB.labelRequired}>*</span></label>
-                                    <select className={NB.select} value={fromWarehouseId} onChange={(e) => setFromWarehouseId(e.target.value)}>
-                                        <option value="">Pilih gudang...</option>
-                                        {warehouses.map((w) => (
-                                            <option key={w.id} value={w.id}>{w.code} — {w.name}</option>
-                                        ))}
-                                    </select>
+                                    <Select value={fromWarehouseId} onValueChange={setFromWarehouseId}>
+                                        <SelectTrigger className={NB.select}>
+                                            <SelectValue placeholder="Pilih gudang..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {warehouses.map((w) => (
+                                                <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div>
                                     <label className={NB.label}>Gudang Tujuan <span className={NB.labelRequired}>*</span></label>
-                                    <select className={NB.select} value={toWarehouseId} onChange={(e) => setToWarehouseId(e.target.value)}>
-                                        <option value="">Pilih gudang...</option>
-                                        {warehouses.filter((w) => w.id !== fromWarehouseId).map((w) => (
-                                            <option key={w.id} value={w.id}>{w.code} — {w.name}</option>
-                                        ))}
-                                    </select>
+                                    <Select value={toWarehouseId} onValueChange={setToWarehouseId}>
+                                        <SelectTrigger className={NB.select}>
+                                            <SelectValue placeholder="Pilih gudang..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {warehouses.filter((w) => w.id !== fromWarehouseId).map((w) => (
+                                                <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div>
                                     <label className={NB.label}>Produk <span className={NB.labelRequired}>*</span></label>
-                                    <select className={NB.select} value={productId} onChange={(e) => setProductId(e.target.value)}>
-                                        <option value="">Pilih produk...</option>
-                                        {products.map((p) => (
-                                            <option key={p.id} value={p.id}>{p.code} — {p.name}</option>
-                                        ))}
-                                    </select>
+                                    <ComboboxWithCreate
+                                        options={productOptions}
+                                        value={productId}
+                                        onChange={setProductId}
+                                        placeholder="Pilih produk..."
+                                        searchPlaceholder="Cari produk..."
+                                        emptyMessage="Produk tidak ditemukan."
+                                    />
                                 </div>
                                 <div>
                                     <label className={NB.label}>Jumlah <span className={NB.labelRequired}>*</span></label>

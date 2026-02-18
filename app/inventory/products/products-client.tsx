@@ -77,7 +77,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                                 Tabel
                             </button>
                         </div>
-                        <ProductCreateDialog categories={categories} />
+                        <ProductCreateDialog />
                     </div>
                 </div>
             </div>

@@ -13,22 +13,37 @@ import {
 } from "@/components/ui/select"
 import { createManualMovement } from "@/app/actions/inventory"
 import { toast } from "sonner"
-import { Loader2, ArrowRightLeft, Plus, Minus, Box, CheckCircle2 } from "lucide-react"
+import { Loader2, ArrowRightLeft, Plus, Minus, Box } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { useTransition } from "react"
+import { useTransition, useMemo } from "react"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 
 interface AdjustmentFormProps {
     products: { id: string, name: string, code: string, unit: string }[]
     warehouses: { id: string, name: string }[]
 }
 
+const ADJUSTMENT_REASONS = [
+    "Stok Opname (Selisih)",
+    "Barang Rusak / Cacat",
+    "Barang Kadaluarsa",
+    "Hadiah / Promosi",
+    "Retur dari Pelanggan",
+    "Kesalahan Input Sebelumnya",
+    "Sample / Testing",
+    "Lainnya",
+]
+
 export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     const [loading, setLoading] = useState(false)
     const queryClient = useQueryClient()
 
     const [isPending, startTransition] = useTransition()
+
+    const productOptions = useMemo(() =>
+        products.map(p => ({ value: p.id, label: p.name, subtitle: p.code })), [products])
 
     // Form States
     const [type, setType] = useState<'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER'>('ADJUSTMENT_IN')
@@ -38,7 +53,6 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     const [quantity, setQuantity] = useState("")
     const [reason, setReason] = useState("")
     const [notes, setNotes] = useState("")
-    const [searchQuery, setSearchQuery] = useState("")
 
     const handleSubmit = async () => {
         if (!productId || !warehouseId || !quantity) {
@@ -79,7 +93,6 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 setQuantity("")
                 setReason("")
                 setNotes("")
-                setSearchQuery("")
 
                 startTransition(() => {
                     queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
@@ -95,19 +108,6 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
         } finally {
             setLoading(false)
         }
-    }
-
-    const [openProduct, setOpenProduct] = useState(false)
-
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.code.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-
-    const handleSelectProduct = (product: { id: string, name: string, code: string }) => {
-        setProductId(product.id)
-        setSearchQuery(`${product.code} - ${product.name}`)
-        setOpenProduct(false)
     }
 
     return (
@@ -150,56 +150,19 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 </Select>
             </div>
 
-            {/* Product Search */}
-            <div className="relative">
+            {/* Product — Searchable Combobox */}
+            <div>
                 <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
                     Produk <span className="text-red-500">*</span>
                 </label>
-                <div className="relative">
-                    <Input
-                        value={searchQuery}
-                        onChange={(e) => {
-                            setSearchQuery(e.target.value)
-                            setOpenProduct(true)
-                            if (productId) setProductId("")
-                        }}
-                        onFocus={() => setOpenProduct(true)}
-                        onBlur={() => setTimeout(() => setOpenProduct(false), 200)}
-                        placeholder="Cari kode atau nama produk..."
-                        className="border-2 border-black font-bold h-10 pr-10 rounded-none"
-                    />
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-400">
-                        <Box className="h-4 w-4" />
-                    </div>
-                </div>
-
-                {/* Suggestions Dropdown */}
-                {openProduct && (
-                    <div className="absolute top-full left-0 w-full z-50 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] max-h-[240px] overflow-auto mt-1 rounded-none">
-                        {filteredProducts.length === 0 ? (
-                            <div className="p-4 text-center">
-                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Produk tidak ditemukan</p>
-                            </div>
-                        ) : (
-                            filteredProducts.map(p => (
-                                <div
-                                    key={p.id}
-                                    onMouseDown={(e) => {
-                                        e.preventDefault()
-                                        handleSelectProduct(p)
-                                    }}
-                                    className="px-3 py-2.5 hover:bg-zinc-100 cursor-pointer border-b border-zinc-100 last:border-0 flex items-center justify-between transition-colors"
-                                >
-                                    <div>
-                                        <div className="font-bold text-sm text-zinc-900">{p.name}</div>
-                                        <div className="text-[10px] text-zinc-500 font-mono font-bold">{p.code}</div>
-                                    </div>
-                                    {productId === p.id && <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-                                </div>
-                            ))
-                        )}
-                    </div>
-                )}
+                <ComboboxWithCreate
+                    options={productOptions}
+                    value={productId}
+                    onChange={setProductId}
+                    placeholder="Pilih produk..."
+                    searchPlaceholder="Cari kode atau nama produk..."
+                    emptyMessage="Produk tidak ditemukan."
+                />
             </div>
 
             {/* Warehouse(s) */}
@@ -263,12 +226,16 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
                     Alasan
                 </label>
-                <Input
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="Rusak, Kadaluarsa, Hadiah, dll."
-                    className="border-2 border-black font-bold h-10 rounded-none"
-                />
+                <Select value={reason} onValueChange={setReason}>
+                    <SelectTrigger className="border-2 border-black font-bold h-10 w-full rounded-none">
+                        <SelectValue placeholder="Pilih alasan..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {ADJUSTMENT_REASONS.map(r => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Notes */}
