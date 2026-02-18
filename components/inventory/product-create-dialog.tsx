@@ -120,6 +120,7 @@ export function ProductCreateDialog() {
                 setOpen(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
             } else {
                 toast.error((result as any).error || "Gagal membuat produk")
             }

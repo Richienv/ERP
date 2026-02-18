@@ -84,6 +84,9 @@ export function CreateTransferDialog({ warehouses, products, trigger }: CreateTr
             toast.success("Transfer berhasil dibuat")
             queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
             resetForm()
             setOpen(false)
         } else {

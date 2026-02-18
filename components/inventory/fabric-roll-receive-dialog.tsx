@@ -22,6 +22,7 @@ import {
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { receiveFabricRoll } from "@/lib/actions/fabric-rolls"
 
 interface FabricRollReceiveDialogProps {
@@ -90,7 +91,10 @@ export function FabricRollReceiveDialog({ products, warehouses, trigger }: Fabri
 
         if (result.success) {
             toast.success(`Roll ${rollNumber} berhasil diterima`)
-            queryClient.invalidateQueries({ queryKey: ["fabricRolls", "list"] })
+            queryClient.invalidateQueries({ queryKey: queryKeys.fabricRolls.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
             resetForm()
             setOpen(false)
         } else {
