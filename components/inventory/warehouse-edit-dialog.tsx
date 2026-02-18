@@ -44,9 +44,10 @@ export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
     try {
       const result = await updateWarehouse(warehouse.id, formData);
       if (result.success) {
-        toast.success("Warehouse updated successfully");
+        toast.success("Gudang berhasil diperbarui");
         setOpen(false);
         queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
       } else {
         toast.error("Failed to update", { description: result.error });
       }

@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
 import { ArrowRightLeft, ArrowRight, Check, X, Truck } from "lucide-react"
 import { toast } from "sonner"
@@ -33,6 +35,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 export function StockTransferList({ transfers, warehouses, products }: StockTransferListProps) {
     const [statusFilter, setStatusFilter] = useState("")
     const [transitioning, setTransitioning] = useState<string | null>(null)
+    const queryClient = useQueryClient()
 
     const filtered = statusFilter
         ? transfers.filter((t) => t.status === statusFilter)
@@ -45,6 +48,11 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
 
         if (result.success) {
             toast.success(`Transfer berhasil diubah ke ${TRANSFER_STATUS_LABELS[newStatus]}`)
+            queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
         } else {
             toast.error(result.error || "Gagal mengubah status")
         }

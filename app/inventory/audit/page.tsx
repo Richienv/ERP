@@ -147,6 +147,10 @@ export default function InventoryAuditPage() {
                 setFormAuditor("");
                 // Invalidate query so the table refreshes with new audit log
                 queryClient.invalidateQueries({ queryKey: queryKeys.inventoryAudit.all });
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+                queryClient.invalidateQueries({ queryKey: queryKeys.adjustments.all });
+                queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all });
             } else {
                 toast.error("Gagal menyimpan audit");
             }

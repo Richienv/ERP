@@ -29,7 +29,9 @@ import { createCategory, getNextCategoryCode, getProductsByCategory, getProducts
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
 import { useInvalidateCategories } from "@/hooks/use-categories"
+import { queryKeys } from "@/lib/query-keys"
 import { NB } from "@/lib/dialog-styles"
 
 interface CategoryWithChildren {
@@ -359,6 +361,7 @@ function CreateCategoryDialog({ open, onOpenChange, parents, onSuccess }: Create
     const [name, setName] = useState("")
     const [parentId, setParentId] = useState("root")
     const [description, setDescription] = useState("")
+    const queryClient = useQueryClient()
 
     useEffect(() => {
         if (open) {
@@ -385,6 +388,8 @@ function CreateCategoryDialog({ open, onOpenChange, parents, onSuccess }: Create
         if (result.success) {
             toast.success("Kategori berhasil dibuat")
             onSuccess()
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
         } else {
             setError(result.error as string)
             toast.error(result.error as string)
@@ -491,6 +496,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
     const [selectedProductId, setSelectedProductId] = useState("")
     const [adding, setAdding] = useState(false)
     const router = useRouter()
+    const queryClient = useQueryClient()
     const invalidateCategories = useInvalidateCategories()
 
     const loadProducts = async () => {
@@ -532,6 +538,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
             setShowAddRow(false)
             await loadProducts()
             invalidateCategories()
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
         } else {
             toast.error(result.error || "Gagal menambahkan produk")
         }
@@ -544,6 +551,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
             toast.success("Produk dihapus dari kategori")
             await loadProducts()
             invalidateCategories()
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
         } else {
             toast.error(result.error || "Gagal menghapus produk")
         }

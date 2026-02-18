@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -24,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { requestPurchase } from "@/app/actions/inventory";
+import { queryKeys } from "@/lib/query-keys";
 import { Loader2, ShoppingBag, Box, Tag, CreditCard } from "lucide-react";
 import { NB } from "@/lib/dialog-styles";
 
@@ -50,6 +52,7 @@ interface PurchaseRequestDialogProps {
 }
 
 export function PurchaseRequestDialog({ item, onSuccess }: PurchaseRequestDialogProps) {
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -76,6 +79,10 @@ export function PurchaseRequestDialog({ item, onSuccess }: PurchaseRequestDialog
         toast.success("Purchase Request Sent", {
           description: `Requested ${values.quantity} ${item.unit} for ${item.name}`,
         });
+        queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
         setOpen(false);
         form.reset();
         if (onSuccess) {

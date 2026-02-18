@@ -59,6 +59,7 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
           setFormData({ name: "", code: "", address: "", capacity: 10000 });
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
       } else {
         toast.error("Operation failed", { description: result.error });
       }

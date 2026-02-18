@@ -297,6 +297,9 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                         description: "Product flagged as Critical."
                     })
                     queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
                 } else {
                     throw new Error((result as any).error)
                 }
@@ -330,6 +333,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                 toast.dismiss()
                 toast.success("Manual Alert removed")
                 queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
             } else {
                 toast.dismiss()
                 toast.error("Failed to update status")

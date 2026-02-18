@@ -17,6 +17,7 @@ export default function NewProductPage() {
     if (result.success) {
       queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
       router.push("/inventory/products")
     } else {
       throw new Error((result as any).error || "Gagal membuat produk")

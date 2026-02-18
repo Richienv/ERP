@@ -191,6 +191,8 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                 setEditing(false)
                 loadData()
                 queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
             } else {
                 toast.error(result.error || "Gagal memperbarui")
             }
@@ -209,6 +211,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
             setDeleteDialogOpen(false)
             onOpenChange(false)
             queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
         } else {
             toast.error(result.error || "Gagal menghapus")
         }
