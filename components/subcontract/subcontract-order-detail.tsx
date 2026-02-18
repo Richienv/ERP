@@ -36,6 +36,7 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
             toast.success(`Status diubah ke ${subcontractStatusLabels[newStatus]}`)
             queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
         } else {
             toast.error(result.error || "Gagal mengubah status")
         }
@@ -52,6 +53,7 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
             toast.success("Qty pengembalian diperbarui")
             queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
         } else {
             toast.error(result.error || "Gagal memperbarui")
         }

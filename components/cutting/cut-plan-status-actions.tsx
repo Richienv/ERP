@@ -38,6 +38,7 @@ export function CutPlanStatusActions({
             if (result.success) {
                 toast.success(`Status diubah ke "${cutPlanStatusLabels[newStatus]}"`)
                 queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.cuttingDashboard.all })
             } else {
                 toast.error(result.error || "Gagal mengubah status")
             }

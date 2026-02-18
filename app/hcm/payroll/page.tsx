@@ -3,6 +3,8 @@
 import * as React from "react"
 import { IconCalculator, IconDownload, IconCheck, IconRefresh } from "@tabler/icons-react"
 import * as XLSX from "xlsx"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -136,6 +138,7 @@ const toCsv = (lines: PayrollLine[]) => {
 }
 
 export default function PayrollPage() {
+  const queryClient = useQueryClient()
   const [selectedPeriod, setSelectedPeriod] = React.useState(currentPeriod())
   const [run, setRun] = React.useState<PayrollRunData | null>(null)
   const [compliance, setCompliance] = React.useState<PayrollComplianceReport | null>(null)
@@ -200,6 +203,7 @@ export default function PayrollPage() {
       }
 
       toast.success("message" in result ? result.message : "Payroll draft berhasil dihitung")
+      queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
       await loadRun()
       await loadCompliance()
     } catch {
@@ -221,6 +225,8 @@ export default function PayrollPage() {
       }
 
       toast.success("message" in result ? result.message : "Payroll berhasil diposting")
+      queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
       await loadRun()
       await loadCompliance()
     } catch {
@@ -346,6 +352,9 @@ export default function PayrollPage() {
         return
       }
       toast.success("message" in result ? result.message : "Batch disbursement payroll berhasil dibuat")
+      queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
       await loadRun()
       await loadCompliance()
     } catch {

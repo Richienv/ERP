@@ -65,6 +65,8 @@ export function LayerBuilder({
         if (result.success) {
             toast.success(`Layer ${nextLayerNumber} ditambahkan`)
             queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.cuttingDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.fabricRolls.all })
             setSelectedRoll("")
             setMetersUsed("")
         } else {
@@ -77,6 +79,8 @@ export function LayerBuilder({
         if (result.success) {
             toast.success(`Layer ${layerNum} dihapus`)
             queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.cuttingDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.fabricRolls.all })
         } else {
             toast.error(result.error || "Gagal menghapus layer")
         }

@@ -54,6 +54,7 @@ export function ShiftCalendar({
         if (result.success) {
             toast.success("Shift berhasil diubah")
             queryClient.invalidateQueries({ queryKey: queryKeys.hcmShifts.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.employees.all })
         } else {
             toast.error(result.error || "Gagal mengubah shift")
         }

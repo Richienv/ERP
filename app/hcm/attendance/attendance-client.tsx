@@ -220,6 +220,8 @@ export function AttendanceClient({
             toast.success("message" in result ? result.message : "Absensi berhasil dicatat")
             setClockOpen(false)
             setClockForm({ employeeId: "", mode: "CLOCK_IN" })
+            queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
             handleFilter()
         } catch {
             toast.error("Terjadi kesalahan")
@@ -264,6 +266,7 @@ export function AttendanceClient({
         }
         toast.success("Pengajuan cuti disetujui")
         queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
     }
 
     const handleReject = async (id: string) => {
@@ -274,6 +277,7 @@ export function AttendanceClient({
         }
         toast.success("Pengajuan cuti ditolak")
         queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
     }
 
     const getStatusKey = (status: string, isLate: boolean) => {

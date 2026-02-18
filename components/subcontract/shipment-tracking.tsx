@@ -119,6 +119,8 @@ export function ShipmentTracking({
                     : "Pengembalian dari CMT dicatat"
             )
             queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
             setShowDialog(false)
             setDeliveryNote("")
             setWarehouseId("")

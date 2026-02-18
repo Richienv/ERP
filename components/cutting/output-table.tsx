@@ -130,6 +130,7 @@ function OutputRowView({
         if (result.success) {
             toast.success("Output diperbarui")
             queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.cuttingDashboard.all })
         } else {
             toast.error(result.error || "Gagal memperbarui")
         }

@@ -102,6 +102,8 @@ export function EditSubcontractorDialog({
         if (result.success) {
             toast.success("Data subkontraktor berhasil diperbarui")
             queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
             onOpenChange(false)
         } else {
             toast.error(result.error || "Gagal memperbarui data")

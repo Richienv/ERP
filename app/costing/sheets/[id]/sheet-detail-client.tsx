@@ -135,6 +135,7 @@ export function SheetDetailClient({ sheet }: Props) {
             setAddOpen(false)
             setAddForm({ category: "FABRIC", description: "", quantity: "", unitCost: "" })
             queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
         } else {
             toast.error(result.error || "Gagal menambah item")
         }
@@ -153,6 +154,7 @@ export function SheetDetailClient({ sheet }: Props) {
             toast.success("Item berhasil diperbarui")
             setEditItem(null)
             queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
         } else {
             toast.error(result.error || "Gagal memperbarui item")
         }
@@ -165,6 +167,7 @@ export function SheetDetailClient({ sheet }: Props) {
         if (result.success) {
             toast.success("Item berhasil dihapus")
             queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
         } else {
             toast.error(result.error || "Gagal menghapus item")
         }
@@ -183,6 +186,7 @@ export function SheetDetailClient({ sheet }: Props) {
             toast.success("Biaya aktual berhasil diperbarui")
             setActualItem(null)
             queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
         } else {
             toast.error(result.error || "Gagal memperbarui biaya aktual")
         }
@@ -195,6 +199,7 @@ export function SheetDetailClient({ sheet }: Props) {
         if (result.success) {
             toast.success("Status berhasil diubah")
             queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
         } else {
             toast.error(result.error || "Gagal mengubah status")
         }
@@ -206,6 +211,8 @@ export function SheetDetailClient({ sheet }: Props) {
         setLoading(false)
         if (result.success && result.newId) {
             toast.success("Cost sheet berhasil diduplikasi")
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
             router.push(`/costing/sheets/${result.newId}`)
         } else {
             toast.error(result.error || "Gagal menduplikasi")
@@ -240,6 +247,7 @@ export function SheetDetailClient({ sheet }: Props) {
             toast.success(`${result.itemsAdded} item berhasil diimpor dari BOM`)
             setBomOpen(false)
             queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
         } else {
             toast.error(result.error || "Gagal mengimpor dari BOM")
         }

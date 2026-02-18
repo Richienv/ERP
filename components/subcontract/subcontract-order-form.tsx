@@ -119,6 +119,7 @@ export function SubcontractOrderForm({
                 toast.success("Order subkontrak berhasil dibuat")
                 queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
                 onOpenChange(false)
                 setSubcontractorId("")
                 setOperation("")

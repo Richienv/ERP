@@ -689,6 +689,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
             toast.success(editingCategory ? "Kategori berhasil diperbarui" : "Kategori berhasil dibuat")
             setCategoryModalOpen(false)
             queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
         })
     }
 
@@ -733,6 +734,8 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
             toast.success(editingWarehouse ? "Gudang berhasil diperbarui" : "Gudang berhasil dibuat")
             setWarehouseModalOpen(false)
             queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
         })
     }
 

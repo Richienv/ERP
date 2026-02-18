@@ -2,6 +2,8 @@
 
 import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import {
     Users,
     UserPlus,
@@ -108,6 +110,7 @@ interface Props {
 
 export function EmployeeMasterClient({ initialEmployees }: Props) {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const [isPending, startTransition] = useTransition()
 
     // Data
@@ -241,6 +244,8 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
             }
             toast.success(editing ? "Data karyawan berhasil diperbarui" : "Karyawan berhasil ditambahkan")
             setDialogOpen(false)
+            queryClient.invalidateQueries({ queryKey: queryKeys.employees.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
             handleReload()
         } catch {
             toast.error("Terjadi kesalahan saat menyimpan data")
@@ -257,6 +262,8 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
             return
         }
         toast.success(`${emp.name} berhasil dinonaktifkan`)
+        queryClient.invalidateQueries({ queryKey: queryKeys.employees.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
         handleReload()
     }
 
@@ -274,6 +281,8 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
             toast.success(`${cnt} karyawan berhasil dinonaktifkan`)
             setSelectedIds(new Set())
             setConfirmOpen(false)
+            queryClient.invalidateQueries({ queryKey: queryKeys.employees.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
             handleReload()
         } catch {
             toast.error("Terjadi kesalahan")

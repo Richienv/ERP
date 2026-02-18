@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import Link from "next/link"
 import {
     DollarSign,
@@ -35,6 +37,7 @@ interface Props {
 
 export function SheetsClient({ initialSheets, products }: Props) {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const [createOpen, setCreateOpen] = useState(false)
     const [search, setSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState("all")
@@ -60,6 +63,8 @@ export function SheetsClient({ initialSheets, products }: Props) {
         setDuplicating(null)
         if (result.success && result.newId) {
             toast.success("Cost sheet berhasil diduplikasi")
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
             router.push(`/costing/sheets/${result.newId}`)
         } else {
             toast.error(result.error || "Gagal menduplikasi")

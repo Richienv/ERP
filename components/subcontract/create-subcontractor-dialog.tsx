@@ -85,6 +85,8 @@ export function CreateSubcontractorDialog({
         if (result.success) {
             toast.success("Subkontraktor berhasil ditambahkan")
             queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
             onOpenChange(false)
             setForm({
                 name: "",
