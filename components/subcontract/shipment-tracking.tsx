@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Truck, ArrowUpRight, ArrowDownLeft, Plus } from "lucide-react"
 import {
     Dialog,
@@ -14,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { recordShipment } from "@/lib/actions/subcontract"
 import type { WarehouseOption } from "@/lib/actions/subcontract"
+import { queryKeys } from "@/lib/query-keys"
 
 interface Shipment {
     id: string
@@ -64,6 +66,7 @@ export function ShipmentTracking({
     const [deliveryNote, setDeliveryNote] = useState("")
     const [loading, setLoading] = useState(false)
     const [items, setItems] = useState<ShipmentItem[]>([])
+    const queryClient = useQueryClient()
 
     const openDialog = () => {
         // Pre-populate items from order items
@@ -115,6 +118,7 @@ export function ShipmentTracking({
                     ? "Pengiriman ke CMT dicatat"
                     : "Pengembalian dari CMT dicatat"
             )
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
             setShowDialog(false)
             setDeliveryNote("")
             setWarehouseId("")

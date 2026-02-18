@@ -1,7 +1,7 @@
 'use server'
 
 import { withPrismaAuth, prisma } from "@/lib/db"
-import { revalidatePath, unstable_cache } from "next/cache"
+import { unstable_cache } from "next/cache"
 import { FALLBACK_PRODUCTS } from "@/lib/db-fallbacks"
 import { createClient } from "@/lib/supabase/server"
 
@@ -117,7 +117,6 @@ export async function createPurchaseOrder(data: {
             return purchaseOrder
         })
 
-        revalidatePath('/procurement/orders')
         return { success: true, poId: po.id, number: po.number }
 
     } catch (error: any) {

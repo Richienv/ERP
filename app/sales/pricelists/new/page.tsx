@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,6 +48,7 @@ const defaultValues: PriceListFormValues = {
 
 export default function NewPriceListPage() {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const [isLoading, setIsLoading] = useState(false)
 
     const form = useForm<PriceListFormValues>({
@@ -65,6 +68,7 @@ export default function NewPriceListPage() {
 
             if (result.success) {
                 toast.success("Daftar harga berhasil dibuat")
+                queryClient.invalidateQueries({ queryKey: queryKeys.priceLists.all })
                 router.push("/sales/pricelists")
             } else {
                 toast.error(result.error || "Gagal membuat daftar harga")
@@ -78,7 +82,8 @@ export default function NewPriceListPage() {
     }
 
     return (
-        <div className="flex-1 p-4 md:p-8 pt-6 max-w-3xl mx-auto">
+        <div className="mf-page">
+            <div className="max-w-3xl">
             {/* Back Button */}
             <Link
                 href="/sales/pricelists"
@@ -232,6 +237,7 @@ export default function NewPriceListPage() {
                     </div>
                 </form>
             </Form>
+            </div>
         </div>
     )
 }

@@ -15,6 +15,8 @@ import { NB } from "@/lib/dialog-styles"
 import { ArrowRightLeft } from "lucide-react"
 import { toast } from "sonner"
 import { createStockTransfer } from "@/lib/actions/stock-transfers"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface CreateTransferDialogProps {
     warehouses: { id: string; name: string; code: string }[]
@@ -25,6 +27,7 @@ interface CreateTransferDialogProps {
 export function CreateTransferDialog({ warehouses, products, trigger }: CreateTransferDialogProps) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
+    const queryClient = useQueryClient()
 
     const [fromWarehouseId, setFromWarehouseId] = useState("")
     const [toWarehouseId, setToWarehouseId] = useState("")
@@ -69,6 +72,8 @@ export function CreateTransferDialog({ warehouses, products, trigger }: CreateTr
 
         if (result.success) {
             toast.success("Transfer berhasil dibuat")
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
             resetForm()
             setOpen(false)
         } else {

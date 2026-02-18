@@ -17,15 +17,15 @@ function decodeJwtPayload(token: string): Record<string, any> {
 }
 
 // Append connection_limit to DATABASE_URL for Supabase session-mode pooler compatibility.
-// Session-mode poolers limit concurrent connections to pool_size. Without this,
-// Prisma opens multiple connections per instance and exhausts the pool.
+// Supabase free tier allows ~15 pooler connections. We use 5 per Prisma instance
+// to allow concurrent queries (dashboard loads, cache warming) without exhaustion.
 function getDatasourceUrl(): string | undefined {
     const url = process.env.DATABASE_URL
     if (!url) return undefined
     const separator = url.includes('?') ? '&' : '?'
     // If already has connection_limit, don't add another
     if (url.includes('connection_limit=')) return url
-    return `${url}${separator}connection_limit=1`
+    return `${url}${separator}connection_limit=5`
 }
 
 // Base Prisma client (without auth context)

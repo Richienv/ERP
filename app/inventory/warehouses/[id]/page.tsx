@@ -1,3 +1,6 @@
+"use client"
+
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import {
     ArrowLeft,
@@ -10,22 +13,20 @@ import {
     DollarSign,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { getWarehouseDetails } from "@/app/actions/inventory"
+import { useWarehouseDetail } from "@/hooks/use-warehouse-detail"
 import { WarehouseEditDialog } from "@/components/inventory/warehouse-edit-dialog"
+import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
-export const dynamic = 'force-dynamic'
+const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
 
-/** Race a promise against a timeout — returns fallback on timeout */
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
-  ])
-}
+export default function WarehousePage() {
+    const { id } = useParams<{ id: string }>()
+    const { data: warehouse, isLoading } = useWarehouseDetail(id)
 
-export default async function WarehousePage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params
-    const warehouse = await withTimeout(getWarehouseDetails(id), 8000, null)
+    if (isLoading) {
+        return <CardPageSkeleton accentColor="bg-amber-400" />
+    }
 
     if (!warehouse) {
         return (
@@ -39,16 +40,13 @@ export default async function WarehousePage({ params }: { params: Promise<{ id: 
         )
     }
 
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
-
-    const totalUnits = warehouse.categories.reduce((a, b) => a + b.stockCount, 0)
-    const totalValue = warehouse.categories.reduce((a, b) => a + b.value, 0)
+    const totalUnits = warehouse.categories.reduce((a: number, b: any) => a + b.stockCount, 0)
+    const totalValue = warehouse.categories.reduce((a: number, b: any) => a + b.value, 0)
     const cap = warehouse.capacity ?? 0
     const pct = cap > 0 ? parseFloat(((totalUnits / cap) * 100).toFixed(1)) : 0
 
     return (
-        <div className="p-4 md:p-8 pt-6 w-full space-y-4">
+        <div className="mf-page">
 
             {/* COMMAND HEADER */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
@@ -169,7 +167,7 @@ export default async function WarehousePage({ params }: { params: Promise<{ id: 
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                        {warehouse.categories.map((cat, idx) => {
+                        {warehouse.categories.map((cat: any, idx: number) => {
                             const isLast = idx === warehouse.categories.length - 1
                             const catPct = cap > 0 ? parseFloat(((cat.stockCount / cap) * 100).toFixed(1)) : 0
                             return (

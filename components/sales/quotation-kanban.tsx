@@ -26,6 +26,8 @@ import {
 import { updateQuotationStatus, convertQuotationToSalesOrder } from "@/lib/actions/sales"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 const formatCompact = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', notation: 'compact', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
@@ -48,12 +50,14 @@ interface QuotationKanbanProps {
 
 export function QuotationKanban({ quotations }: QuotationKanbanProps) {
     const router = useRouter()
+    const queryClient = useQueryClient()
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
             const result = await updateQuotationStatus(id, newStatus)
             if (result.success) {
                 toast.success(`Status berhasil diubah ke ${newStatus}`)
+                queryClient.invalidateQueries({ queryKey: queryKeys.quotations.all })
             } else {
                 toast.error("Gagal mengubah status")
             }
@@ -98,6 +102,9 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                 const result = await convertQuotationToSalesOrder(qt.id)
                 if (result.success) {
                     toast.success(`Sales Order ${result.orderNumber} berhasil dibuat`)
+                    queryClient.invalidateQueries({ queryKey: queryKeys.quotations.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
                     router.push(`/sales/orders/${result.orderId}`)
                 } else {
                     toast.error(result.error || 'Gagal konversi ke Sales Order')

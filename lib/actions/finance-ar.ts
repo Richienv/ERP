@@ -500,9 +500,19 @@ type ARRegistryQueryInput = {
     pageSize?: number | null
 }
 
+export interface RecentAllocatedPayment {
+    id: string
+    amount: number
+    method: string
+    reference: string | null
+    createdAt: Date
+    invoice: { id: string; number: string; status: string } | null
+}
+
 export interface ARPaymentRegistryResult {
     unallocated: UnallocatedPayment[]
     openInvoices: OpenInvoice[]
+    recentPayments: RecentAllocatedPayment[]
     meta: {
         payments: { page: number; pageSize: number; total: number; totalPages: number }
         invoices: { page: number; pageSize: number; total: number; totalPages: number }
@@ -570,7 +580,7 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                 ]
             }
 
-            const [payments, invoices, paymentsTotal, invoicesTotal] = await Promise.all([
+            const [payments, invoices, paymentsTotal, invoicesTotal, recentPayments] = await Promise.all([
                 prisma.payment.findMany({
                     where: paymentWhere,
                     include: { customer: { select: { id: true, name: true } } },
@@ -587,6 +597,18 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                 }),
                 prisma.payment.count({ where: paymentWhere }),
                 prisma.invoice.count({ where: invoiceWhere }),
+                prisma.payment.findMany({
+                    where: {
+                        invoiceId: { not: null },
+                        customerId: { not: null },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    take: 20,
+                    select: {
+                        id: true, amount: true, method: true, reference: true, createdAt: true,
+                        invoice: { select: { id: true, number: true, status: true } },
+                    },
+                }),
             ])
 
             const now = new Date()
@@ -609,6 +631,14 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     balanceDue: Number(inv.balanceDue),
                     dueDate: inv.dueDate,
                     isOverdue: inv.dueDate < now
+                })),
+                recentPayments: recentPayments.map((p) => ({
+                    id: p.id,
+                    amount: Number(p.amount),
+                    method: p.method,
+                    reference: p.reference,
+                    createdAt: p.createdAt,
+                    invoice: p.invoice ? { id: p.invoice.id, number: p.invoice.number, status: p.invoice.status } : null,
                 })),
                 meta: {
                     payments: {
@@ -636,6 +666,7 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
         return {
             unallocated: [],
             openInvoices: [],
+            recentPayments: [],
             meta: {
                 payments: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
                 invoices: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },

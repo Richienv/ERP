@@ -3,8 +3,6 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, ProcurementStatus } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
-
 // Pure functions moved to helper file for "use server" compatibility
 import {
     calculateDaysOfStock,
@@ -339,8 +337,6 @@ export async function createAutoReorderPR(
             return [pr.id]
         })
 
-        revalidatePath('/procurement')
-        revalidatePath('/procurement/requests')
         return { success: true, prIds }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat PR otomatis'

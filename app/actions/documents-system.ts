@@ -1,6 +1,5 @@
 'use server'
 
-import { revalidatePath } from "next/cache"
 import { z } from "zod"
 import MODULES_CONFIG from "@/config/modules.json"
 import { withPrismaAuth } from "@/lib/db"
@@ -271,17 +270,6 @@ const parsePayrollTask = (notes?: string | null) => {
     } catch {
         return null
     }
-}
-
-const revalidateDocumentSystemPages = () => {
-    revalidatePath("/documents")
-    revalidatePath("/documents/master")
-    revalidatePath("/documents/reports")
-    revalidatePath("/documents/docs")
-    revalidatePath("/dashboard")
-    revalidatePath("/inventory")
-    revalidatePath("/inventory/categories")
-    revalidatePath("/inventory/warehouses")
 }
 
 export async function getDocumentSystemOverview(input?: DocumentsOverviewInput) {
@@ -736,7 +724,6 @@ export async function createDocumentCategory(input: z.input<typeof categorySchem
                     isActive: data.isActive,
                 },
             })
-            revalidateDocumentSystemPages()
             return { success: true, data: category }
         })
     } catch (error: any) {
@@ -771,7 +758,6 @@ export async function updateDocumentCategory(categoryId: string, input: z.input<
                     isActive: data.isActive,
                 },
             })
-            revalidateDocumentSystemPages()
             return { success: true, data: category }
         })
     } catch (error: any) {
@@ -802,7 +788,6 @@ export async function createDocumentWarehouse(input: z.input<typeof warehouseSch
                     isActive: data.isActive,
                 },
             })
-            revalidateDocumentSystemPages()
             return { success: true, data: warehouse }
         })
     } catch (error: any) {
@@ -840,7 +825,6 @@ export async function updateDocumentWarehouse(warehouseId: string, input: z.inpu
                     isActive: data.isActive,
                 },
             })
-            revalidateDocumentSystemPages()
             return { success: true, data: warehouse }
         })
     } catch (error: any) {
@@ -878,7 +862,6 @@ export async function createDocumentSystemRole(input: z.input<typeof roleSchema>
                 beforePermissions: [],
                 afterPermissions: permissions,
             })
-            revalidateDocumentSystemPages()
             return { success: true, data: role }
         })
     } catch (error: any) {
@@ -928,7 +911,6 @@ export async function updateDocumentSystemRole(roleId: string, input: z.input<ty
                 beforePermissions: dedupeTokens(previous.permissions || []),
                 afterPermissions: permissions,
             })
-            revalidateDocumentSystemPages()
             return { success: true, data: role }
         })
     } catch (error: any) {
@@ -964,7 +946,6 @@ export async function updateRolePermissionsFromDocuments(roleId: string, input: 
                 beforePermissions: dedupeTokens(previous.permissions || []),
                 afterPermissions: permissions,
             })
-            revalidateDocumentSystemPages()
             return { success: true, data: role }
         })
     } catch (error: any) {

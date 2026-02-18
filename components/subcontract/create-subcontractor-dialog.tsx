@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
     DialogContent,
@@ -14,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Factory } from "lucide-react"
 import { toast } from "sonner"
 import { createSubcontractor } from "@/lib/actions/subcontract"
+import { queryKeys } from "@/lib/query-keys"
 
 const CAPABILITIES = [
     { value: "CUT", label: "Potong" },
@@ -34,6 +36,7 @@ export function CreateSubcontractorDialog({
     onOpenChange,
 }: CreateSubcontractorDialogProps) {
     const [loading, setLoading] = useState(false)
+    const queryClient = useQueryClient()
     const [form, setForm] = useState({
         name: "",
         npwp: "",
@@ -81,6 +84,7 @@ export function CreateSubcontractorDialog({
 
         if (result.success) {
             toast.success("Subkontraktor berhasil ditambahkan")
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
             onOpenChange(false)
             setForm({
                 name: "",

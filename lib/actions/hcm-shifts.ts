@@ -3,8 +3,6 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, ShiftType } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
-
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -194,7 +192,6 @@ export async function assignEmployeeShift(
             })
         })
 
-        revalidatePath('/hcm/shifts')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah shift'
@@ -226,7 +223,6 @@ export async function batchAssignShifts(
             return updated
         })
 
-        revalidatePath('/hcm/shifts')
         return { success: true, count }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal batch assign shift'

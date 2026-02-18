@@ -12,10 +12,6 @@ export interface SalesStats {
     recentOrders: any[]
 }
 
-import { revalidateTag, revalidatePath } from "next/cache"
-
-const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
-
 export async function getSalesStats(): Promise<SalesStats> {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -174,8 +170,6 @@ export async function createQuotation(data: any) {
             return { success: true, message: "Quotation created", id: quote.id }
         })
 
-        revalidateTagSafe('dashboard-sales-stats')
-        revalidatePath('/sales/quotations')
         return result
     } catch (error) {
         console.error("Error creating quotation:", error)
@@ -192,7 +186,6 @@ export async function updateQuotationStatus(id: string, newStatus: string) {
                 data: { status: newStatus as any }
             })
         })
-        revalidateTagSafe('dashboard-sales-stats')
         return { success: true }
     } catch (error) {
         return { success: false, error: "Failed to update status" }
@@ -241,13 +234,6 @@ export async function createInvoice(data: { customerId: string, items: { descrip
             return { success: true, invoiceId: invoice.id }
         })
 
-        try {
-            revalidateTagSafe('dashboard-sales-stats')
-            revalidatePath('/sales')
-            revalidatePath('/finance/invoices')
-        } catch (e) {
-            console.log('Skipping revalidation (Script context)')
-        }
         return result
     } catch (error: any) {
         console.error("Create Invoice Error:", error)
@@ -303,13 +289,6 @@ export async function approveInvoice(id: string) {
             ]
         })
 
-        try {
-            revalidateTagSafe('dashboard-sales-stats')
-            revalidatePath('/sales')
-            revalidatePath('/finance/invoices')
-        } catch (e) {
-            console.log('Skipping revalidation (Script context)')
-        }
         return { success: true }
     } catch (error: any) {
         console.error("Approve Invoice Error:", error)
@@ -383,13 +362,6 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
             ]
         })
 
-        try {
-            revalidateTagSafe('dashboard-sales-stats')
-            revalidatePath('/sales')
-            revalidatePath('/finance/invoices')
-        } catch (e) {
-            console.log('Skipping revalidation (Script context)')
-        }
         return { success: true }
     } catch (error: any) {
         console.error("Payment Error:", error)
@@ -457,8 +429,6 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
             return { orderId: salesOrder.id, orderNumber: salesOrder.number }
         })
 
-        revalidatePath('/sales/quotations')
-        revalidatePath('/sales/orders')
         return { success: true, orderId: result.orderId, orderNumber: result.orderNumber }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengkonversi quotation ke Sales Order'
@@ -610,7 +580,6 @@ export async function createPriceList(data: {
             return { success: true as const, data: priceList }
         })
 
-        revalidatePath('/sales/pricelists')
         return result
     } catch (error: any) {
         console.error("Error creating pricelist:", error)
@@ -635,7 +604,6 @@ export async function updatePriceList(id: string, data: {
             })
         })
 
-        revalidatePath('/sales/pricelists')
         return { success: true as const }
     } catch (error) {
         console.error("Error updating pricelist:", error)
@@ -649,7 +617,6 @@ export async function deletePriceList(id: string) {
             await prisma.priceList.delete({ where: { id } })
         })
 
-        revalidatePath('/sales/pricelists')
         return { success: true as const }
     } catch (error) {
         console.error("Error deleting pricelist:", error)
@@ -680,7 +647,6 @@ export async function addPriceListItem(data: {
             })
         })
 
-        revalidatePath('/sales/pricelists')
         return { success: true as const }
     } catch (error: any) {
         console.error("Error adding price item:", error)
@@ -697,7 +663,6 @@ export async function removePriceListItem(id: string) {
             await prisma.priceListItem.delete({ where: { id } })
         })
 
-        revalidatePath('/sales/pricelists')
         return { success: true as const }
     } catch (error) {
         console.error("Error removing price item:", error)
@@ -818,7 +783,6 @@ export async function createQuotationRevision(
             return revision.id
         })
 
-        revalidatePath('/sales/quotations')
         return { success: true, newQuotationId: newId }
     } catch (error) {
         console.error("[createQuotationRevision] Error:", error)
@@ -1006,7 +970,6 @@ export async function recordPartialShipment(
             }
         })
 
-        revalidatePath('/sales/orders')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mencatat pengiriman'
@@ -1051,10 +1014,6 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
                 data: { status: 'INVOICED' }
             })
         })
-
-        // Revalidate relevant caches
-        revalidatePath('/finance/invoices')
-        revalidatePath('/sales')
 
         return {
             success: true,

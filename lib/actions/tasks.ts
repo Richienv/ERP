@@ -9,8 +9,6 @@ import {
     isManagerPosition,
     isSuperRole,
 } from "@/lib/employee-context"
-import { revalidatePath } from "next/cache"
-
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -278,8 +276,6 @@ export async function startTask(taskId: string): Promise<{ success: boolean; err
             data: { status: "IN_PROGRESS" },
         })
 
-        revalidatePath("/staff")
-        revalidatePath("/manager")
         return { success: true }
     })
 }
@@ -300,8 +296,6 @@ export async function completeTask(taskId: string): Promise<{ success: boolean; 
             data: { status: "COMPLETED", completedAt: new Date() },
         })
 
-        revalidatePath("/staff")
-        revalidatePath("/manager")
         return { success: true }
     })
 }
@@ -337,8 +331,6 @@ export async function reportTaskIssue(
             data: { status: "BLOCKED", notes: newNotes },
         })
 
-        revalidatePath("/staff")
-        revalidatePath("/manager")
         return { success: true }
     })
 }
@@ -559,8 +551,6 @@ export async function createTask(data: {
             },
         })
 
-        revalidatePath("/staff")
-        revalidatePath("/manager")
         return { success: true }
     })
 }

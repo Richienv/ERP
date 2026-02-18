@@ -10,12 +10,10 @@ import {
     TaskStatus,
     TaskType,
 } from '@prisma/client'
-import { revalidatePath, revalidateTag } from 'next/cache'
 import { withPrismaAuth } from '@/lib/db'
 import { assertRole, getAuthzUser } from '@/lib/authz'
 import { postJournalEntry } from '@/lib/actions/finance'
 
-const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 const LEAVE_APPROVAL_PREFIX = 'LEAVE_APPROVAL::'
 const PAYROLL_RUN_PREFIX = 'PAYROLL_RUN::'
 
@@ -685,12 +683,6 @@ export async function createEmployee(data: {
                 },
             })
 
-            revalidateTagSafe('employee')
-            revalidateTagSafe('hr')
-            revalidatePath('/hcm')
-            revalidatePath('/hcm/employee-master')
-            revalidatePath('/dashboard')
-
             return {
                 success: true,
                 employee: {
@@ -761,12 +753,6 @@ export async function updateEmployee(
                 },
             })
 
-            revalidateTagSafe('employee')
-            revalidateTagSafe('hr')
-            revalidatePath('/hcm')
-            revalidatePath('/hcm/employee-master')
-            revalidatePath('/dashboard')
-
             return { success: true }
         })
     } catch (error: any) {
@@ -788,12 +774,6 @@ export async function deactivateEmployee(employeeId: string) {
                 data: { status: 'INACTIVE' },
             })
 
-            revalidateTagSafe('employee')
-            revalidateTagSafe('hr')
-            revalidatePath('/hcm')
-            revalidatePath('/hcm/employee-master')
-            revalidatePath('/dashboard')
-
             return { success: true }
         })
     } catch (error: any) {
@@ -811,12 +791,6 @@ export async function bulkDeactivateEmployees(employeeIds: string[]) {
                 where: { id: { in: employeeIds }, status: { not: 'INACTIVE' } },
                 data: { status: 'INACTIVE' },
             })
-
-            revalidateTagSafe('employee')
-            revalidateTagSafe('hr')
-            revalidatePath('/hcm')
-            revalidatePath('/hcm/employee-master')
-            revalidatePath('/dashboard')
 
             return { success: true, count: result.count }
         })
@@ -1011,11 +985,6 @@ export async function recordAttendanceEvent(data: {
                 })
             }
 
-            revalidateTagSafe('hr')
-            revalidatePath('/hcm')
-            revalidatePath('/hcm/attendance')
-            revalidatePath('/dashboard')
-
             return {
                 success: true,
                 message: `${toEmployeeName(employee.firstName, employee.lastName)} berhasil ${
@@ -1115,11 +1084,6 @@ export async function submitLeaveRequest(data: {
                     },
                 })
             }
-
-            revalidateTagSafe('hr')
-            revalidatePath('/hcm')
-            revalidatePath('/hcm/attendance')
-            revalidatePath('/dashboard')
 
             return { success: true, leaveId: leave.id }
         })
@@ -1280,11 +1244,6 @@ export async function approveLeaveRequest(leaveId: string) {
     } catch (error: any) {
         console.error('Failed to approve leave request:', error)
         return { success: false, error: error?.message || 'Gagal menyetujui cuti' }
-    } finally {
-        revalidateTagSafe('hr')
-        revalidatePath('/hcm')
-        revalidatePath('/hcm/attendance')
-        revalidatePath('/dashboard')
     }
 }
 
@@ -1342,11 +1301,6 @@ export async function rejectLeaveRequest(leaveId: string, reason?: string) {
     } catch (error: any) {
         console.error('Failed to reject leave request:', error)
         return { success: false, error: error?.message || 'Gagal menolak cuti' }
-    } finally {
-        revalidateTagSafe('hr')
-        revalidatePath('/hcm')
-        revalidatePath('/hcm/attendance')
-        revalidatePath('/dashboard')
     }
 }
 
@@ -1688,12 +1642,6 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
                 },
             })
 
-            revalidateTagSafe('hr')
-            revalidateTagSafe('finance')
-            revalidatePath('/hcm/payroll')
-            revalidatePath('/finance/vendor-payments')
-            revalidatePath('/dashboard')
-
             return {
                 success: true,
                 paymentNumber,
@@ -1771,13 +1719,6 @@ export async function generatePayrollDraft(period: string) {
                     },
                 })
             }
-
-            revalidateTagSafe('hr')
-            revalidateTagSafe('finance')
-            revalidatePath('/hcm')
-            revalidatePath('/hcm/payroll')
-            revalidatePath('/finance')
-            revalidatePath('/dashboard')
 
             return {
                 success: true,
@@ -1898,14 +1839,6 @@ export async function approvePayrollRun(period: string) {
                     notes: `${PAYROLL_RUN_PREFIX}${JSON.stringify(updatedPayload)}`,
                 },
             })
-
-            revalidateTagSafe('hr')
-            revalidateTagSafe('finance')
-            revalidatePath('/hcm')
-            revalidatePath('/hcm/payroll')
-            revalidatePath('/finance')
-            revalidatePath('/finance/journal')
-            revalidatePath('/dashboard')
 
             return {
                 success: true,

@@ -45,6 +45,7 @@ interface SalesOrder {
     paymentTerm?: string
     notes?: string
     quotationNumber?: string | null
+    workOrders?: { id: string; status: string; woNumber: string }[]
 }
 
 interface OrderExecutionCardProps {
@@ -102,7 +103,8 @@ function getProgress(status: string) {
 
 export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutionCardProps) {
     const [isCreatingWO, setIsCreatingWO] = useState(false)
-    const [woCreated, setWoCreated] = useState(false)
+    const hasExistingWOs = order.workOrders && order.workOrders.length > 0
+    const [woCreated, setWoCreated] = useState(hasExistingWOs)
     const [woError, setWoError] = useState<string | null>(null)
 
     const progress = getProgress(order.status)

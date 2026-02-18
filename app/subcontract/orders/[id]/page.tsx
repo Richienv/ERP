@@ -1,32 +1,22 @@
-import { Suspense } from "react"
-import { notFound } from "next/navigation"
-import { getSubcontractOrderDetail, getWarehousesForSubcontract } from "@/lib/actions/subcontract"
+"use client"
+
+import { useParams } from "next/navigation"
+import { useSubcontractOrderDetail } from "@/hooks/use-subcontract-order-detail"
 import { SubcontractOrderDetailView } from "@/components/subcontract/subcontract-order-detail"
 import { ArrowLeft, ClipboardList } from "lucide-react"
 import Link from "next/link"
+import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
-export const dynamic = "force-dynamic"
+export default function SubcontractOrderDetailPage() {
+    const { id } = useParams<{ id: string }>()
+    const { data, isLoading } = useSubcontractOrderDetail(id)
 
-async function OrderDetailContent({ id }: { id: string }) {
-    const [order, warehouses] = await Promise.all([
-        getSubcontractOrderDetail(id),
-        getWarehousesForSubcontract(),
-    ])
-
-    if (!order) notFound()
-
-    return <SubcontractOrderDetailView order={order} warehouses={warehouses} />
-}
-
-export default async function SubcontractOrderDetailPage({
-    params,
-}: {
-    params: Promise<{ id: string }>
-}) {
-    const { id } = await params
+    if (isLoading || !data || !data.order) {
+        return <CardPageSkeleton accentColor="bg-orange-400" />
+    }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="mf-page">
             <div className="flex items-center gap-3">
                 <Link
                     href="/subcontract/orders"
@@ -44,18 +34,7 @@ export default async function SubcontractOrderDetailPage({
                 </div>
             </div>
 
-            <Suspense
-                fallback={
-                    <div className="flex items-center gap-2 text-zinc-400">
-                        <ClipboardList className="h-5 w-5 animate-pulse" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">
-                            Memuat detail order...
-                        </span>
-                    </div>
-                }
-            >
-                <OrderDetailContent id={id} />
-            </Suspense>
+            <SubcontractOrderDetailView order={data.order} warehouses={data.warehouses} />
         </div>
     )
 }

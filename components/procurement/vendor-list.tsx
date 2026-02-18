@@ -168,7 +168,7 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
                             </div>
                         </CardHeader>
 
-                        <CardContent className="space-y-4 flex-1">
+                        <CardContent className="space-y-4 flex-1 min-h-[200px]">
                             <div className="text-sm space-y-2 py-2 border-y border-dashed border-zinc-200">
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                     <MapPin className="h-3.5 w-3.5 shrink-0" />

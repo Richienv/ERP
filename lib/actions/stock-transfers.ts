@@ -4,7 +4,6 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, TransferStatus } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertTransferTransition } from "@/lib/stock-transfer-machine"
-import { revalidatePath } from "next/cache"
 import { getAuthzUser } from "@/lib/authz"
 import { resolveEmployeeContext } from "@/lib/employee-context"
 
@@ -155,7 +154,6 @@ export async function createStockTransfer(data: {
             return transfer.id
         })
 
-        revalidatePath('/inventory/transfers')
         return { success: true, transferId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat transfer'
@@ -194,7 +192,6 @@ export async function transitionStockTransfer(
             })
         })
 
-        revalidatePath('/inventory/transfers')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah status transfer'

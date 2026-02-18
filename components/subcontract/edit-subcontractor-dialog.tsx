@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
     DialogContent,
@@ -15,6 +16,7 @@ import { Factory } from "lucide-react"
 import { toast } from "sonner"
 import { updateSubcontractor } from "@/lib/actions/subcontract"
 import type { SubcontractorSummary } from "@/lib/actions/subcontract"
+import { queryKeys } from "@/lib/query-keys"
 
 const CAPABILITIES = [
     { value: "CUT", label: "Potong" },
@@ -37,6 +39,7 @@ export function EditSubcontractorDialog({
     subcontractor,
 }: EditSubcontractorDialogProps) {
     const [loading, setLoading] = useState(false)
+    const queryClient = useQueryClient()
     const [form, setForm] = useState({
         name: "",
         npwp: "",
@@ -98,6 +101,7 @@ export function EditSubcontractorDialog({
 
         if (result.success) {
             toast.success("Data subkontraktor berhasil diperbarui")
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
             onOpenChange(false)
         } else {
             toast.error(result.error || "Gagal memperbarui data")

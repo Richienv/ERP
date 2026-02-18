@@ -3,8 +3,6 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
-
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -229,7 +227,6 @@ export async function createReconciliation(data: {
             return rec.id
         })
 
-        revalidatePath('/finance/reconciliation')
         return { success: true, reconciliationId: recId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat rekonsiliasi'
@@ -273,7 +270,6 @@ export async function importBankStatementRows(
             return result.count
         })
 
-        revalidatePath('/finance/reconciliation')
         return { success: true, importedCount: count }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengimpor laporan bank'
@@ -305,7 +301,6 @@ export async function matchReconciliationItem(
             })
         })
 
-        revalidatePath('/finance/reconciliation')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mencocokkan item'
@@ -333,7 +328,6 @@ export async function unmatchReconciliationItem(
             })
         })
 
-        revalidatePath('/finance/reconciliation')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membatalkan pencocokan'
@@ -409,7 +403,6 @@ export async function autoMatchReconciliation(
             return count
         })
 
-        revalidatePath('/finance/reconciliation')
         return { success: true, matchedCount }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal auto-match'
@@ -439,7 +432,6 @@ export async function closeReconciliation(
             })
         })
 
-        revalidatePath('/finance/reconciliation')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menutup rekonsiliasi'

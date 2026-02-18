@@ -58,6 +58,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                 toast.success(`Order ${action}ed successfully`)
                 onClose()
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
                 toast.error("Action failed")
             }

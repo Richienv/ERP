@@ -23,6 +23,8 @@ import { getWeeklyShiftSchedule, getEmployeeShifts } from "@/lib/actions/hcm-shi
 import { getOnboardingTemplates } from "@/lib/actions/hcm-onboarding"
 import { getReconciliations, getBankAccounts } from "@/lib/actions/finance-reconciliation"
 import { getDocumentSystemOverview } from "@/app/actions/documents-system"
+import { getHCMDashboardData } from "@/app/actions/hcm"
+import { getRecentAudits, getProductsForKanban, getWarehouses } from "@/app/actions/inventory"
 
 /**
  * Maps sidebar routes to their data prefetch config.
@@ -252,7 +254,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/inventory": {
         queryKey: queryKeys.inventoryDashboard.list(),
-        queryFn: () => fetch("/api/inventory/dashboard").then((r) => r.json()).then((p) => p.data ?? {}),
+        queryFn: () => fetch("/api/inventory/dashboard").then((r) => r.json()),
     },
     "/procurement": {
         queryKey: queryKeys.procurementDashboard.list(),
@@ -400,6 +402,25 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             const result = await getDocumentSystemOverview({ registryQuery: {} })
             if (!result.success || !("data" in result) || !result.data) throw new Error(("error" in result ? result.error : undefined) || "Failed")
             return result.data
+        },
+    },
+    "/hcm": {
+        queryKey: queryKeys.hcmDashboard.list(),
+        queryFn: async () => {
+            return await getHCMDashboardData()
+        },
+    },
+    "/inventory/audit": {
+        queryKey: queryKeys.inventoryAudit.list(),
+        queryFn: async () => {
+            const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> =>
+                Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))])
+            const [logs, prods, whs] = await Promise.all([
+                withTimeout(getRecentAudits(), 8000, []),
+                withTimeout(getProductsForKanban(), 8000, []),
+                withTimeout(getWarehouses(), 5000, []),
+            ])
+            return { auditLogs: logs, products: prods, warehouses: whs }
         },
     },
 }

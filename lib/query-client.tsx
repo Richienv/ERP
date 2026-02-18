@@ -8,8 +8,8 @@ function makeQueryClient() {
     return new QueryClient({
         defaultOptions: {
             queries: {
-                staleTime: 2 * 60 * 1000,   // 2 minutes — revisits within this window are instant
-                gcTime: 5 * 60 * 1000,      // 5 minutes — cache kept in memory
+                staleTime: 30 * 60 * 1000,  // 30 minutes — SAP-style: long TTL, invalidate on write
+                gcTime: 60 * 60 * 1000,     // 60 minutes — cache kept in memory for session
                 retry: 1,
                 refetchOnWindowFocus: false, // ERP data doesn't change that fast
                 placeholderData: keepPreviousData,

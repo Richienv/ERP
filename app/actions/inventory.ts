@@ -2,7 +2,7 @@
 
 import { withPrismaAuth, safeQuery, withRetry, prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import { unstable_cache, revalidateTag, revalidatePath } from "next/cache"
+import { unstable_cache } from "next/cache"
 import { calculateProductStatus } from "@/lib/inventory-logic"
 import { approvePurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
 import {
@@ -14,8 +14,6 @@ import {
 import { createProductSchema, createCategorySchema, type CreateProductInput, type CreateCategoryInput } from "@/lib/validations"
 import { generateBarcode } from "@/lib/inventory-utils"
 import { z } from "zod"
-
-const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 export async function getNextCategoryCode(): Promise<string> {
     const last = await prisma.category.findFirst({
@@ -50,7 +48,6 @@ export async function assignProductToCategory(productId: string, categoryId: str
             where: { id: productId },
             data: { categoryId },
         })
-        revalidatePath('/inventory/categories')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menambahkan produk'
@@ -64,7 +61,6 @@ export async function removeProductFromCategory(productId: string) {
             where: { id: productId },
             data: { categoryId: null },
         })
-        revalidatePath('/inventory/categories')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menghapus produk dari kategori'
@@ -109,11 +105,6 @@ export async function createCategory(input: CreateCategoryInput) {
                 isActive: true
             }
         })
-
-            // Invalidate cache global tag for categories
-            ; (revalidateTag as any)('categories')
-        revalidatePath('/inventory/categories')
-        revalidatePath('/inventory/products')
 
         return { success: true, data: category }
     } catch (error) {
@@ -642,7 +633,6 @@ export async function setProductManualAlert(productId: string, isAlert: boolean)
                 where: { id: productId },
                 data: { manualAlert: isAlert }
             })
-            revalidateTagSafe('inventory')
             return { success: true }
         })
     } catch (e) {
@@ -711,11 +701,6 @@ export async function createWarehouse(data: { name: string, code: string, addres
                     capacity: data.capacity
                 }
             })
-                // Invalidate cache global tag for warehouses
-                ; (revalidateTag as any)('warehouses')
-                ; (revalidateTag as any)('inventory')
-            revalidatePath('/inventory/warehouses')
-
             return { success: true }
         })
     } catch (e: any) {
@@ -826,13 +811,7 @@ export async function createRestockRequest(data: {
             })
         })
 
-            // Revalidate relevant paths
-            ; (revalidateTag as any)('inventory')
-            ; (revalidateTag as any)('procurement')
-        revalidatePath('/inventory/products')
-        revalidatePath('/procurement/requests')
-
-        return result
+            return result
 
     } catch (e: any) {
         console.error("Failed to create restock request", e)
@@ -940,9 +919,6 @@ export async function receiveGoodsFromPO(data: {
                 }
             }
 
-            revalidateTagSafe('inventory')
-            revalidateTagSafe('procurement')
-
             return { success: true, message: `Successfully received ${data.receivedQty} units.` }
         }, { maxWait: 5000, timeout: 20000 })
 
@@ -1025,9 +1001,6 @@ export async function requestPurchase(data: {
                 },
                 include: { items: true } // Include items to get IDs for conversion
             })
-
-            revalidateTagSafe('inventory')
-            revalidateTagSafe('procurement')
 
             return {
                 success: true,
@@ -1202,12 +1175,6 @@ export async function createManualMovement(data: {
                 }
             }
 
-            // Revalidate
-            ; (revalidateTag as any)('inventory')
-            revalidatePath('/inventory/movements')
-            revalidatePath('/inventory/products')
-            revalidatePath('/inventory/warehouses')
-
             return { success: true }
         })
 
@@ -1229,8 +1196,6 @@ export async function updateWarehouse(id: string, data: { name: string, code: st
                     capacity: data.capacity
                 }
             })
-            revalidateTagSafe('inventory')
-            revalidateTagSafe('warehouse-details')
             return { success: true }
         })
     } catch (e: any) {
@@ -1289,10 +1254,6 @@ export async function submitSpotAudit(data: {
                     notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
                 }
             });
-
-            revalidateTagSafe('inventory')
-            revalidateTagSafe('warehouse-details')
-            // revalidatePath('/inventory/audit') // Optional: Explicitly refresh the calling page
 
             return { success: true };
         })
@@ -1417,10 +1378,6 @@ export async function createProduct(input: CreateProductInput) {
                 }
             })
         })
-
-        revalidateTagSafe('inventory')
-        revalidateTagSafe('products')
-        revalidatePath('/inventory/products')
 
         const safeProduct = JSON.parse(JSON.stringify(product))
         return { success: true, data: safeProduct }
@@ -1548,8 +1505,6 @@ export async function updateProduct(productId: string, data: {
             data: updateData,
         })
 
-        revalidateTagSafe('inventory')
-        revalidatePath('/inventory/products')
         return { success: true }
     } catch (error) {
         console.error("Failed to update product:", error)
@@ -1575,8 +1530,6 @@ export async function deleteProduct(productId: string) {
             data: { isActive: false },
         })
 
-        revalidateTagSafe('inventory')
-        revalidatePath('/inventory/products')
         return { success: true }
     } catch (error) {
         console.error("Failed to delete product:", error)
@@ -1653,8 +1606,6 @@ export async function assignWarehouseManager(warehouseId: string, managerId: str
             })
         })
 
-        revalidateTagSafe('inventory')
-        revalidatePath('/inventory/warehouses')
         return { success: true }
     } catch (error) {
         console.error("Failed to assign warehouse manager:", error)

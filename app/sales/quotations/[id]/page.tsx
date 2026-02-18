@@ -1,10 +1,12 @@
+"use client"
+
+import { useParams } from "next/navigation"
+import { useQuotationDetail } from "@/hooks/use-quotation-detail"
 import Link from "next/link"
 import { ArrowLeft, Package, FileText, Users, Calendar, CreditCard, Sparkles, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { prisma } from "@/lib/prisma"
-
-export const dynamic = "force-dynamic"
+import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
 const formatIDR = (value: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value)
@@ -18,27 +20,11 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     CONVERTED: { label: "Dikonversi", color: "bg-violet-100 text-violet-700" },
 }
 
-export default async function QuotationDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params
+export default function QuotationDetailPage() {
+    const { id } = useParams<{ id: string }>()
+    const { data: quotation, isLoading } = useQuotationDetail(id)
 
-    let quotation: any = null
-    try {
-        quotation = await prisma.quotation.findUnique({
-            where: { id },
-            include: {
-                customer: { select: { name: true, code: true, email: true, phone: true } },
-                items: {
-                    include: {
-                        product: { select: { name: true, code: true, unit: true } },
-                    },
-                    orderBy: { createdAt: "asc" },
-                },
-                salesOrders: { select: { id: true, number: true, status: true } },
-            },
-        })
-    } catch (e) {
-        console.error("[QuotationDetail] Error:", e)
-    }
+    if (isLoading) return <CardPageSkeleton accentColor="bg-amber-400" />
 
     if (!quotation) {
         return (
@@ -54,7 +40,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
     const sc = statusConfig[quotation.status] || statusConfig.DRAFT
 
     return (
-        <div className="p-4 md:p-8 pt-6 w-full space-y-4 font-sans max-w-5xl mx-auto">
+        <div className="mf-page">
             {/* Header */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-amber-400">

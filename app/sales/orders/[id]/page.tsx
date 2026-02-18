@@ -1,10 +1,12 @@
+"use client"
+
+import { useParams } from "next/navigation"
+import { useSalesOrderDetail } from "@/hooks/use-sales-order-detail"
 import Link from "next/link"
 import { ArrowLeft, Package, FileText, Users, Calendar, CreditCard } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { prisma } from "@/lib/prisma"
-
-export const dynamic = "force-dynamic"
+import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
 const formatIDR = (value: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value)
@@ -19,28 +21,11 @@ const statusConfig: Record<string, { label: string; color: string }> = {
     CANCELLED: { label: "Dibatalkan", color: "bg-red-100 text-red-700" },
 }
 
-export default async function SalesOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = await params
+export default function SalesOrderDetailPage() {
+    const { id } = useParams<{ id: string }>()
+    const { data: order, isLoading } = useSalesOrderDetail(id)
 
-    let order: any = null
-    try {
-        order = await prisma.salesOrder.findUnique({
-            where: { id },
-            include: {
-                customer: { select: { name: true, code: true, email: true, phone: true } },
-                quotation: { select: { number: true, id: true } },
-                items: {
-                    include: {
-                        product: { select: { name: true, code: true, unit: true } },
-                    },
-                    orderBy: { createdAt: "asc" },
-                },
-                invoices: { select: { id: true, number: true, status: true, totalAmount: true } },
-            },
-        })
-    } catch (e) {
-        console.error("[SalesOrderDetail] Error:", e)
-    }
+    if (isLoading) return <CardPageSkeleton accentColor="bg-blue-400" />
 
     if (!order) {
         return (
@@ -56,7 +41,7 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
     const sc = statusConfig[order.status] || statusConfig.DRAFT
 
     return (
-        <div className="p-4 md:p-8 pt-6 w-full space-y-4 font-sans">
+        <div className="mf-page">
             {/* Header */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-blue-500">

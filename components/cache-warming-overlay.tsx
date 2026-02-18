@@ -97,44 +97,42 @@ export function CacheWarmingOverlay() {
     const [routeStatuses, setRouteStatuses] = useState<Record<string, RouteStatus>>({})
     const hasStarted = useRef(false)
 
-    // Check if cache is cold (no queries cached yet)
-    const isCacheCold = useCallback(() => {
-        const allRoutes = Object.keys(routePrefetchMap)
-        const cachedCount = allRoutes.filter((route) => {
-            const config = routePrefetchMap[route]
-            return queryClient.getQueryData(config.queryKey) !== undefined
-        }).length
-        return cachedCount < allRoutes.length * 0.5 // cold if <50% cached
-    }, [queryClient])
-
     useEffect(() => {
         if (authLoading || !isAuthenticated || hasStarted.current) return
 
-        // Check sessionStorage — don't show overlay again in same session
+        // Check sessionStorage — don't show overlay again in same browser session
+        // The flag is cleared on login (see login/page.tsx), so after fresh login it always shows
         if (sessionStorage.getItem(SESSION_KEY) === "true") {
             // Still warm cache silently in background
             silentWarm()
             return
         }
 
-        if (!isCacheCold()) {
-            sessionStorage.setItem(SESSION_KEY, "true")
-            silentWarm()
-            return
-        }
-
+        // Always show visual overlay after login (flag was cleared by login page)
         hasStarted.current = true
         setShow(true)
         startVisualWarm()
     }, [authLoading, isAuthenticated]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    const silentWarm = useCallback(() => {
-        Object.values(routePrefetchMap).forEach((config) => {
-            queryClient.prefetchQuery({
-                queryKey: config.queryKey,
-                queryFn: config.queryFn,
-            })
-        })
+    const silentWarm = useCallback(async () => {
+        const entries = Object.entries(routePrefetchMap)
+        const BATCH_SIZE = 4
+        for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+            const batch = entries.slice(i, i + BATCH_SIZE)
+            await Promise.all(batch.map(async ([, config]) => {
+                try {
+                    await queryClient.prefetchQuery({
+                        queryKey: config.queryKey,
+                        queryFn: config.queryFn,
+                    })
+                } catch {
+                    // silently ignore
+                }
+            }))
+            if (i + BATCH_SIZE < entries.length) {
+                await new Promise(r => setTimeout(r, 100))
+            }
+        }
     }, [queryClient])
 
     const startVisualWarm = useCallback(async () => {
@@ -145,24 +143,27 @@ export function CacheWarmingOverlay() {
         routes.forEach((r) => { initial[r] = "pending" })
         setRouteStatuses(initial)
 
-        // Fetch all in parallel, updating status individually
-        const promises = routes.map(async (route) => {
-            const config = routePrefetchMap[route]
-
-            setRouteStatuses((prev) => ({ ...prev, [route]: "loading" }))
-
-            try {
-                await queryClient.prefetchQuery({
-                    queryKey: config.queryKey,
-                    queryFn: config.queryFn,
-                })
-                setRouteStatuses((prev) => ({ ...prev, [route]: "done" }))
-            } catch {
-                setRouteStatuses((prev) => ({ ...prev, [route]: "error" }))
+        // Fetch in batches of 4 to avoid exhausting the connection pool
+        const entries = Object.entries(routePrefetchMap).filter(([route]) => routes.includes(route))
+        const BATCH_SIZE = 4
+        for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+            const batch = entries.slice(i, i + BATCH_SIZE)
+            await Promise.all(batch.map(async ([route, config]) => {
+                setRouteStatuses((prev) => ({ ...prev, [route]: "loading" }))
+                try {
+                    await queryClient.prefetchQuery({
+                        queryKey: config.queryKey,
+                        queryFn: config.queryFn,
+                    })
+                    setRouteStatuses((prev) => ({ ...prev, [route]: "done" }))
+                } catch {
+                    setRouteStatuses((prev) => ({ ...prev, [route]: "error" }))
+                }
+            }))
+            if (i + BATCH_SIZE < entries.length) {
+                await new Promise(r => setTimeout(r, 100))
             }
-        })
-
-        await Promise.allSettled(promises)
+        }
 
         // Mark session as warmed
         sessionStorage.setItem(SESSION_KEY, "true")

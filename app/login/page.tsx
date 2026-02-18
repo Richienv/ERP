@@ -64,6 +64,9 @@ export default function LoginPage() {
                 return
             }
 
+            // Clear cache warming flag so overlay shows after fresh login
+            sessionStorage.removeItem("erp_cache_warmed")
+
             // Save credentials if "Remember Me" is checked
             if (rememberMe) {
                 localStorage.setItem('rememberedEmail', email)

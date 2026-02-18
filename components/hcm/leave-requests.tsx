@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Check, X } from "lucide-react"
 import { toast } from "sonner"
 import { approveLeaveRequest, rejectLeaveRequest } from "@/app/actions/hcm"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface LeaveRequestItem {
     id: string
@@ -25,6 +27,7 @@ interface LeaveRequestWidgetProps {
 
 export function LeaveRequestWidget({ requests = [], pendingCount = 0, onChanged }: LeaveRequestWidgetProps) {
     const [isPending, startTransition] = useTransition()
+    const queryClient = useQueryClient()
 
     const runAction = (requestId: string, mode: "APPROVE" | "REJECT") => {
         startTransition(async () => {
@@ -40,6 +43,7 @@ export function LeaveRequestWidget({ requests = [], pendingCount = 0, onChanged 
                 }
 
                 toast.success("message" in result ? result.message : "Pengajuan cuti berhasil diproses")
+                queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
                 onChanged?.()
             } catch {
                 toast.error("Terjadi kesalahan saat memproses cuti")

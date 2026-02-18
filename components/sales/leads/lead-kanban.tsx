@@ -195,7 +195,7 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
             const totalValue = statusLeads.reduce((sum, lead) => sum + lead.estimatedValue, 0)
 
             return (
-              <div key={status} className="flex-1 min-w-[180px] max-w-[280px] 2xl:max-w-none flex flex-col space-y-3">
+              <div key={status} className="flex-1 min-w-[160px] flex flex-col space-y-3">
                 {/* Column Header */}
                 <div className="p-3 border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden rounded-none">
                   <div className={cn("absolute top-0 left-0 w-full h-1.5", meta.accent)} />

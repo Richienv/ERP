@@ -14,8 +14,8 @@ const inventoryModules = [
 
 export function InventoryQuickActions() {
     return (
-        <div className="bg-zinc-50 dark:bg-zinc-800/50 overflow-hidden h-full flex items-center">
-            <div className="flex items-center gap-2 px-4 py-2.5 w-full justify-center">
+        <div className="bg-zinc-50 dark:bg-zinc-800/50 overflow-x-auto h-full flex items-center">
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2 px-4 py-2.5 w-full">
                 {inventoryModules.map((mod) => {
                     const Icon = mod.icon
                     return (

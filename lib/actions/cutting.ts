@@ -4,7 +4,6 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, CutPlanStatus } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertCutPlanTransition } from "@/lib/cut-plan-state-machine"
-import { revalidatePath } from "next/cache"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -215,7 +214,6 @@ export async function createCutPlan(data: {
             return plan.id
         })
 
-        revalidatePath('/cutting')
         return { success: true, id }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat cut plan'
@@ -242,7 +240,6 @@ export async function updateCutPlanStatus(
             })
         })
 
-        revalidatePath('/cutting')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah status'
@@ -269,7 +266,6 @@ export async function addCutPlanLayer(data: {
             })
         })
 
-        revalidatePath('/cutting')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menambah layer'
@@ -286,7 +282,6 @@ export async function removeCutPlanLayer(
             await prisma.cutPlanLayer.delete({ where: { id: layerId } })
         })
 
-        revalidatePath('/cutting')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menghapus layer'
@@ -327,7 +322,6 @@ export async function setCutPlanOutput(data: {
             }
         })
 
-        revalidatePath('/cutting')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menyimpan output'

@@ -1,7 +1,7 @@
 "use server"
 
 import { prisma, safeQuery, withRetry, withPrismaAuth } from "@/lib/db"
-import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
+import { unstable_cache } from "next/cache"
 import { ProcurementStatus } from "@prisma/client"
 import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition } from "@/lib/po-state-machine"
@@ -13,7 +13,6 @@ import {
 } from "@/lib/db-fallbacks"
 
 const prismaAny = prisma as any
-const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 const RECEIVING_ROLES = ["ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR", "ROLE_MANAGER", "ROLE_PURCHASING"]
 
@@ -310,12 +309,6 @@ export async function createGRN(data: CreateGRNInput) {
             })
         })
 
-        revalidateTagSafe('procurement')
-        revalidateTagSafe('grn')
-        revalidateTagSafe('receiving')
-        revalidateTagSafe('purchase-orders')
-        revalidatePath('/procurement/receiving')
-
         return { success: true, grnId: grn.id, grnNumber: grn.number }
     } catch (error: any) {
         console.error("Error creating GRN:", error)
@@ -506,15 +499,6 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             })
         })
 
-        revalidateTagSafe('procurement')
-        revalidateTagSafe('grn')
-        revalidateTagSafe('receiving')
-        revalidateTagSafe('purchase-orders')
-        revalidateTagSafe('inventory')
-        revalidatePath('/procurement/receiving')
-        revalidatePath('/procurement/orders')
-        revalidatePath('/inventory')
-
         return result
     } catch (error: any) {
         console.error("Error accepting GRN:", error)
@@ -545,10 +529,6 @@ export async function rejectGRN(grnId: string, reason: string) {
                 }
             })
         })
-
-        revalidateTagSafe('grn')
-        revalidateTagSafe('receiving')
-        revalidatePath('/procurement/receiving')
 
         return { success: true }
     } catch (error: any) {

@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Package } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
 import { setCutPlanOutput } from "@/lib/actions/cutting"
+import { queryKeys } from "@/lib/query-keys"
 
 interface OutputRow {
     id: string
@@ -109,6 +111,7 @@ function OutputRowView({
     cutPlanId: string
     editable: boolean
 }) {
+    const queryClient = useQueryClient()
     const [actualQty, setActualQty] = useState(row.actualQty)
     const [defectQty, setDefectQty] = useState(row.defectQty)
     const [dirty, setDirty] = useState(false)
@@ -126,6 +129,7 @@ function OutputRowView({
         setDirty(false)
         if (result.success) {
             toast.success("Output diperbarui")
+            queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
         } else {
             toast.error(result.error || "Gagal memperbarui")
         }

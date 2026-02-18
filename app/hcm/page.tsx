@@ -1,11 +1,11 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Users, UserPlus, Download, RefreshCw } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { AttendanceWidget } from "@/components/hcm/attendance-widget"
 import { PayrollSummaryWidget } from "@/components/hcm/payroll-summary"
@@ -14,7 +14,7 @@ import { LeaveRequestWidget } from "@/components/hcm/leave-requests"
 import { DetailedStaffActivity } from "@/components/hcm/detailed-staff-activity"
 import { DetailedPerformanceTable } from "@/components/hcm/detailed-performance-table"
 import { getHCMDashboardData } from "@/app/actions/hcm"
-import { toast } from "sonner"
+import { queryKeys } from "@/lib/query-keys"
 
 interface HCMDashboardData {
   attendance: {
@@ -50,7 +50,7 @@ interface HCMDashboardData {
   }
 }
 
-const initialData: HCMDashboardData = {
+const fallbackData: HCMDashboardData = {
   attendance: {
     present: 0,
     total: 0,
@@ -78,24 +78,22 @@ const initialData: HCMDashboardData = {
 }
 
 export default function HCMPage() {
-  const [loading, setLoading] = useState(false)
-  const [dashboardData, setDashboardData] = useState<HCMDashboardData>(initialData)
+  const queryClient = useQueryClient()
 
-  const loadDashboard = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true)
-    try {
-      const data = await getHCMDashboardData()
-      setDashboardData(data as HCMDashboardData)
-    } catch {
-      toast.error("Gagal memuat dashboard SDM")
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [])
+  const { data, isLoading, isRefetching } = useQuery({
+    queryKey: queryKeys.hcmDashboard.list(),
+    queryFn: async () => {
+      const result = await getHCMDashboardData()
+      return result as HCMDashboardData
+    },
+  })
 
-  useEffect(() => {
-    loadDashboard()
-  }, [loadDashboard])
+  const dashboardData = data ?? fallbackData
+  const refreshing = isLoading || isRefetching
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
+  }
 
   return (
     <div className="flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-black md:p-8">
@@ -107,8 +105,8 @@ export default function HCMPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => loadDashboard()} disabled={loading}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Muat Ulang
+          <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Muat Ulang
           </Button>
           <Button variant="outline" asChild>
             <Link href="/hcm/employee-master">
@@ -160,7 +158,7 @@ export default function HCMPage() {
         <LeaveRequestWidget
           requests={dashboardData.leaves.requests}
           pendingCount={dashboardData.leaves.pendingCount}
-          onChanged={() => loadDashboard(true)}
+          onChanged={handleRefresh}
         />
         <PerformanceWidget />
       </div>

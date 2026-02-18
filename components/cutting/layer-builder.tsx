@@ -1,11 +1,13 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Layers, Plus, Trash2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
 import { addCutPlanLayer, removeCutPlanLayer } from "@/lib/actions/cutting"
+import { queryKeys } from "@/lib/query-keys"
 
 interface Layer {
     id: string
@@ -34,6 +36,7 @@ export function LayerBuilder({
     availableRolls,
     editable,
 }: LayerBuilderProps) {
+    const queryClient = useQueryClient()
     const [selectedRoll, setSelectedRoll] = useState("")
     const [metersUsed, setMetersUsed] = useState("")
     const [loading, setLoading] = useState(false)
@@ -61,6 +64,7 @@ export function LayerBuilder({
 
         if (result.success) {
             toast.success(`Layer ${nextLayerNumber} ditambahkan`)
+            queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
             setSelectedRoll("")
             setMetersUsed("")
         } else {
@@ -72,6 +76,7 @@ export function LayerBuilder({
         const result = await removeCutPlanLayer(layerId)
         if (result.success) {
             toast.success(`Layer ${layerNum} dihapus`)
+            queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
         } else {
             toast.error(result.error || "Gagal menghapus layer")
         }

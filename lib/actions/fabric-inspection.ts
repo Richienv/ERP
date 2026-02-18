@@ -3,7 +3,6 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
 
 // Pure functions and types moved to helper file for "use server" compatibility
 import { calculate4PointScore } from "@/lib/fabric-inspection-helpers"
@@ -60,7 +59,6 @@ export async function createFabricInspection(data: {
             })
         })
 
-        revalidatePath('/manufacturing/quality')
         return { success: true, result }
     } catch (error) {
         console.error("[createFabricInspection] Error:", error)

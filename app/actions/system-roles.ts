@@ -1,7 +1,6 @@
 'use server'
 
 import { withPrismaAuth } from '@/lib/db'
-import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 
 // Validation Schema
@@ -47,7 +46,6 @@ export async function createSystemRole(data: z.infer<typeof roleSchema>) {
                 data: result.data
             })
 
-            revalidatePath('/admin/roles')
             return { success: true, data: role }
         })
     } catch (error) {
@@ -63,7 +61,6 @@ export async function updateSystemRole(id: string, data: Partial<z.infer<typeof 
                 where: { id },
                 data: data
             })
-            revalidatePath('/admin/roles')
             return { success: true, data: role }
         })
     } catch (error) {
@@ -83,7 +80,6 @@ export async function deleteSystemRole(id: string) {
             await prisma.systemRole.delete({
                 where: { id }
             })
-            revalidatePath('/admin/roles')
             return { success: true, message: 'Role deleted' }
         })
     } catch (error) {

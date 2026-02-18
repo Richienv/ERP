@@ -3,7 +3,6 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, CostSheetStatus, CostCategory } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -195,7 +194,6 @@ export async function createCostSheet(data: {
             return sheet.id
         })
 
-        revalidatePath('/costing')
         return { success: true, id }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat cost sheet'
@@ -238,7 +236,6 @@ export async function addCostSheetItem(data: {
             })
         })
 
-        revalidatePath('/costing')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menambah item biaya'
@@ -294,7 +291,6 @@ export async function updateCostSheetItem(data: {
             })
         })
 
-        revalidatePath('/costing')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal memperbarui item biaya'
@@ -321,7 +317,6 @@ export async function updateCostSheetStatus(
             })
         })
 
-        revalidatePath('/costing')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah status'
@@ -583,7 +578,6 @@ export async function importBOMToCostSheet(
             return items.length
         })
 
-        revalidatePath('/costing')
         return { success: true, itemsAdded: count }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengimpor dari BOM'
@@ -615,7 +609,6 @@ export async function deleteCostSheetItem(itemId: string): Promise<{ success: bo
             })
         })
 
-        revalidatePath('/costing')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menghapus item'
@@ -668,7 +661,6 @@ export async function duplicateCostSheet(sheetId: string): Promise<{ success: bo
             return newSheet.id
         })
 
-        revalidatePath('/costing')
         return { success: true, newId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menduplikasi cost sheet'

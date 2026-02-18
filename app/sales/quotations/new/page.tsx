@@ -47,7 +47,8 @@ export default async function NewQuotationPage({
   const initialCustomerId = readSearchParam(resolvedSearchParams, "customerId") || undefined
 
   return (
-    <div className="flex-1 p-4 md:p-8 pt-6 max-w-5xl mx-auto">
+    <div className="mf-page">
+      <div className="max-w-5xl">
       {/* Back Button */}
       <Link
         href="/sales/quotations"
@@ -76,6 +77,7 @@ export default async function NewQuotationPage({
       <Suspense fallback={<FormSkeleton />}>
         <QuotationForm initialCustomerId={initialCustomerId} />
       </Suspense>
+      </div>
     </div>
   )
 }

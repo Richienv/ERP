@@ -3,7 +3,6 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, FabricRollStatus } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
 import { calculateRemainingMeters, determineRollStatus } from "@/lib/fabric-roll-helpers"
 
 async function requireAuth() {
@@ -252,7 +251,6 @@ export async function receiveFabricRoll(data: {
             return roll.id
         })
 
-        revalidatePath('/inventory/fabric-rolls')
         return { success: true, rollId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menerima fabric roll'
@@ -309,7 +307,6 @@ export async function recordRollTransaction(data: {
             }
         })
 
-        revalidatePath('/inventory/fabric-rolls')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mencatat transaksi roll'

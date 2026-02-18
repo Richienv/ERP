@@ -33,6 +33,8 @@ import { receiveGoodsFromPO } from "@/app/actions/inventory";
 import { Loader2, PackagePlus, Box, CheckCircle2, Truck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { NB } from "@/lib/dialog-styles";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 const formSchema = z.object({
   poId: z.string().min(1, "Purchase Order is required"),
@@ -66,6 +68,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
   const [loading, setLoading] = useState(false);
   const [selectedPO, setSelectedPO] = useState<OpenPO | null>(null);
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema) as any,
@@ -109,6 +112,10 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
           description: `Added ${values.receivedQty} ${item.unit} to inventory.`,
           icon: <CheckCircle2 className="h-5 w-5 text-green-600" />,
         });
+        queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all });
         setOpen(false);
         form.reset();
         setSelectedPO(null);

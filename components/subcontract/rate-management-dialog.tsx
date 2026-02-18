@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
     DialogContent,
@@ -18,6 +19,7 @@ import {
     deleteSubcontractorRate,
 } from "@/lib/actions/subcontract"
 import type { SubcontractorRateData } from "@/lib/actions/subcontract"
+import { queryKeys } from "@/lib/query-keys"
 
 const OPERATIONS = [
     { value: "CUT", label: "Potong" },
@@ -44,6 +46,7 @@ export function RateManagementDialog({
     const [rates, setRates] = useState<SubcontractorRateData[]>([])
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
+    const queryClient = useQueryClient()
 
     // New rate form
     const [newRate, setNewRate] = useState({
@@ -90,6 +93,7 @@ export function RateManagementDialog({
 
         if (result.success) {
             toast.success("Tarif berhasil ditambahkan")
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
             setNewRate({
                 operation: "",
                 productType: "",
@@ -115,6 +119,7 @@ export function RateManagementDialog({
         const result = await deleteSubcontractorRate(rateId)
         if (result.success) {
             toast.success("Tarif berhasil dihapus")
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
             loadRates()
         } else {
             toast.error(result.error || "Gagal menghapus tarif")

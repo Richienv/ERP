@@ -3,8 +3,6 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
-
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -103,7 +101,6 @@ export async function createOnboardingTemplate(data: {
             return template.id
         })
 
-        revalidatePath('/hcm/onboarding')
         return { success: true, templateId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat template'
@@ -153,7 +150,6 @@ export async function startOnboarding(
             }
         })
 
-        revalidatePath('/hcm/onboarding')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal memulai onboarding'
@@ -270,7 +266,6 @@ export async function toggleOnboardingTask(
             })
         })
 
-        revalidatePath('/hcm/onboarding')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah status tugas'

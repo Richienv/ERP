@@ -56,6 +56,7 @@ export const queryKeys = {
     quotations: {
         all: ["quotations"] as const,
         list: () => [...queryKeys.quotations.all, "list"] as const,
+        detail: (id: string) => [...queryKeys.quotations.all, id] as const,
     },
     salesDashboard: {
         all: ["salesDashboard"] as const,
@@ -152,6 +153,7 @@ export const queryKeys = {
     cutPlans: {
         all: ["cutPlans"] as const,
         list: () => [...queryKeys.cutPlans.all, "list"] as const,
+        detail: (id: string) => [...queryKeys.cutPlans.all, id] as const,
     },
     subcontractDashboard: {
         all: ["subcontractDashboard"] as const,
@@ -160,10 +162,12 @@ export const queryKeys = {
     subcontractOrders: {
         all: ["subcontractOrders"] as const,
         list: () => [...queryKeys.subcontractOrders.all, "list"] as const,
+        detail: (id: string) => [...queryKeys.subcontractOrders.all, id] as const,
     },
     subcontractRegistry: {
         all: ["subcontractRegistry"] as const,
         list: () => [...queryKeys.subcontractRegistry.all, "list"] as const,
+        detail: (id: string) => [...queryKeys.subcontractRegistry.all, id] as const,
     },
     hcmAttendance: {
         all: ["hcmAttendance"] as const,
@@ -184,6 +188,16 @@ export const queryKeys = {
     costSheets: {
         all: ["costSheets"] as const,
         list: () => [...queryKeys.costSheets.all, "list"] as const,
+        detail: (id: string) => [...queryKeys.costSheets.all, id] as const,
+    },
+    warehouses: {
+        all: ["warehouses"] as const,
+        list: () => [...queryKeys.warehouses.all, "list"] as const,
+        detail: (id: string) => [...queryKeys.warehouses.all, id] as const,
+    },
+    procurementRequestForm: {
+        all: ["procurementRequestForm"] as const,
+        list: () => [...queryKeys.procurementRequestForm.all, "list"] as const,
     },
     approvals: {
         all: ["approvals"] as const,
@@ -204,5 +218,13 @@ export const queryKeys = {
     salesPage: {
         all: ["salesPage"] as const,
         list: () => [...queryKeys.salesPage.all, "list"] as const,
+    },
+    hcmDashboard: {
+        all: ["hcmDashboard"] as const,
+        list: () => [...queryKeys.hcmDashboard.all, "list"] as const,
+    },
+    inventoryAudit: {
+        all: ["inventoryAudit"] as const,
+        list: () => [...queryKeys.inventoryAudit.all, "list"] as const,
     },
 } as const

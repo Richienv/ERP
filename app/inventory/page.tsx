@@ -71,7 +71,7 @@ export default function InventoryPage() {
                     </div>
                 }
                 bottomLeftSlot={<InventoryQuickActions />}
-                bottomRightSlot={<ProcurementInsights data={procurement} />}
+                bottomRightSlot={procurement?.summary ? <ProcurementInsights data={procurement} /> : null}
             />
         </InventoryPerformanceProvider>
     )

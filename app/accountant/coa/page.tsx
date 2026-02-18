@@ -1,12 +1,14 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { getGLAccounts } from "@/lib/actions/finance"
+import { queryKeys } from "@/lib/query-keys"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, Wallet, Building, ArrowUpRight, ArrowDownRight, Layers } from "lucide-react"
+import { Search, Layers } from "lucide-react"
 
 interface GLAccount {
     id: string
@@ -18,22 +20,15 @@ interface GLAccount {
 }
 
 export default function ChartOfAccountsPage() {
-    const [accounts, setAccounts] = useState<GLAccount[]>([])
     const [search, setSearch] = useState("")
-    const [isLoading, setIsLoading] = useState(true)
 
-    useEffect(() => {
-        loadAccounts()
-    }, [])
-
-    async function loadAccounts() {
-        setIsLoading(true)
-        const res = await getGLAccounts()
-        if (res.success) {
-            setAccounts(res.data as any)
-        }
-        setIsLoading(false)
-    }
+    const { data: accounts = [], isLoading } = useQuery({
+        queryKey: queryKeys.glAccounts.list(),
+        queryFn: async () => {
+            const res = await getGLAccounts()
+            return (res.success ? res.data : []) as GLAccount[]
+        },
+    })
 
     const filteredAccounts = accounts.filter(acc =>
         acc.name.toLowerCase().includes(search.toLowerCase()) ||

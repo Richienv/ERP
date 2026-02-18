@@ -4,8 +4,6 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, GarmentStage } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertStageTransition, STAGE_ORDER } from "@/lib/garment-stage-machine"
-import { revalidatePath } from "next/cache"
-
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -175,7 +173,6 @@ export async function transitionWorkOrderStage(
             })
         })
 
-        revalidatePath('/manufacturing/orders')
         return { success: true }
     } catch (error: unknown) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah stage'
@@ -236,8 +233,6 @@ export async function scheduleWorkOrder(
             })
         })
 
-        revalidatePath('/manufacturing/schedule')
-        revalidatePath('/manufacturing/orders')
         return { success: true }
     } catch (error) {
         console.error("[scheduleWorkOrder] Error:", error)

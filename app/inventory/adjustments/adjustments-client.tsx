@@ -25,7 +25,7 @@ export function AdjustmentsClient({ products, warehouses, movements }: Adjustmen
     const totalTransfer = filteredMovements.filter((m: any) => m.type === "TRANSFER").length
 
     return (
-        <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto space-y-4">
+        <div className="mf-page">
             {/* COMMAND HEADER */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-400">

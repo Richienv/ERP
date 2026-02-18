@@ -1,15 +1,13 @@
 "use server"
 
 import { withPrismaAuth, prisma } from "@/lib/db"
-import { revalidateTag, revalidatePath, unstable_cache } from "next/cache"
+import { unstable_cache } from "next/cache"
 import { ProcurementStatus, PrismaClient } from "@prisma/client"
 import { recordPendingBillFromPO } from "@/lib/actions/finance"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
 import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition } from "@/lib/po-state-machine"
 import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
-
-const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN", "ROLE_MANAGER"]
@@ -519,9 +517,6 @@ export async function createPurchaseRequest(data: {
             return pr
         })
 
-        revalidateTagSafe('procurement')
-        revalidateTagSafe('requests')
-        revalidatePath('/procurement')
         return { success: true, prId: created.id }
     } catch (e: any) {
         console.error("Failed to create PR", e)
@@ -573,7 +568,6 @@ export async function approvePurchaseRequest(id: string, _approverId?: string) {
                 }
             })
         })
-        revalidateTagSafe('procurement')
         return { success: true }
     } catch (error) {
         console.error("Error approving PR:", error)
@@ -689,7 +683,6 @@ export async function rejectPurchaseRequest(id: string, reason: string) {
                 }
             })
         })
-        revalidateTagSafe('procurement')
         return { success: true }
     } catch (error) {
         console.error("Error rejecting PR:", error)
@@ -833,15 +826,6 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
             return { success: true, poIds: createdPOs }
         })
 
-        revalidateTagSafe('procurement')
-        revalidateTagSafe('purchase-orders')
-        revalidateTagSafe('receiving')
-        revalidateTagSafe('stats')
-        revalidatePath('/procurement')
-        revalidatePath('/procurement/orders')
-        revalidatePath('/procurement/requests')
-        revalidatePath('/dashboard')
-
         return result
 
     } catch (error: any) {
@@ -879,8 +863,6 @@ export async function submitPOForApproval(poId: string) {
             })
         })
 
-        revalidateTagSafe('purchase-orders')
-        revalidatePath('/procurement')
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Submit failed" }
@@ -923,12 +905,6 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
         // TRIGGER FINANCE (Bill Creation)
         await recordPendingBillFromPO(po)
 
-        revalidatePath('/procurement')
-        revalidatePath('/dashboard')
-        revalidateTagSafe('procurement')
-        revalidateTagSafe('purchase-orders')
-        revalidateTagSafe('receiving')
-        revalidateTagSafe('stats')
         return { success: true }
     } catch (error) {
         console.error("Approval Error:", error)
@@ -967,8 +943,6 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
             })
         })
 
-        revalidatePath('/procurement')
-        revalidatePath('/dashboard')
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Rejection failed" }
@@ -1007,7 +981,6 @@ export async function markAsOrdered(poId: string) {
             })
         })
 
-        revalidatePath('/procurement')
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Update failed" }
@@ -1046,8 +1019,6 @@ export async function markAsVendorConfirmed(poId: string, notes?: string) {
             })
         })
 
-        revalidateTagSafe('purchase-orders')
-        revalidatePath('/procurement')
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Update failed" }
@@ -1085,8 +1056,6 @@ export async function markAsShipped(poId: string, trackingNumber?: string) {
             })
         })
 
-        revalidateTagSafe('purchase-orders')
-        revalidatePath('/procurement')
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Update failed" }
@@ -1129,7 +1098,6 @@ export async function confirmPurchaseOrder(id: string) {
             })
         })
 
-        revalidateTagSafe('procurement')
         return { success: true }
 
     } catch (error: any) {
@@ -1213,7 +1181,6 @@ export async function updatePurchaseOrderVendor(poId: string, supplierId: string
             })
         })
 
-        revalidatePath('/procurement/orders')
         return { success: true }
     } catch (error) {
         console.error("Error updating PO Vendor:", error)
@@ -1267,10 +1234,6 @@ export async function updatePurchaseOrderTaxMode(poId: string, taxMode: "PPN" | 
             })
         })
 
-        revalidateTagSafe('purchase-orders')
-        revalidateTagSafe('procurement')
-        revalidatePath('/procurement/orders')
-        revalidatePath('/procurement')
         return { success: true }
     } catch (error) {
         return { success: false, error: (error as any)?.message || "Update failed" }
@@ -1383,10 +1346,6 @@ export async function createVendor(data: {
                 }
             })
 
-            revalidateTagSafe('procurement')
-            revalidateTagSafe('vendors')
-            revalidatePath('/procurement/vendors')
-
             return {
                 success: true,
                 message: "Vendor created successfully",
@@ -1438,7 +1397,6 @@ export async function savePOAsTemplate(
             })
         })
 
-        revalidatePath('/procurement/orders')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menyimpan template'
@@ -1579,7 +1537,6 @@ export async function createPOFromTemplate(
             return po.id
         })
 
-        revalidatePath('/procurement/orders')
         return { success: true, poId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat PO dari template'
@@ -1611,7 +1568,6 @@ export async function saveLandedCost(
             })
         })
 
-        revalidatePath('/procurement/orders')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menyimpan landed cost'

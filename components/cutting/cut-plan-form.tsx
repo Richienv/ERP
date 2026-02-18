@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
     DialogContent,
@@ -13,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Scissors } from "lucide-react"
 import { toast } from "sonner"
 import { createCutPlan } from "@/lib/actions/cutting"
+import { queryKeys } from "@/lib/query-keys"
 
 interface CutPlanFormProps {
     open: boolean
@@ -21,6 +23,7 @@ interface CutPlanFormProps {
 }
 
 export function CutPlanForm({ open, onOpenChange, fabricProducts }: CutPlanFormProps) {
+    const queryClient = useQueryClient()
     const [loading, setLoading] = useState(false)
     const [form, setForm] = useState({
         fabricProductId: "",
@@ -50,6 +53,8 @@ export function CutPlanForm({ open, onOpenChange, fabricProducts }: CutPlanFormP
 
         if (result.success) {
             toast.success("Cut plan berhasil dibuat")
+            queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.cuttingDashboard.all })
             onOpenChange(false)
             setForm({
                 fabricProductId: "",

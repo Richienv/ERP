@@ -3,9 +3,6 @@
 import { withPrismaAuth } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { ProcurementStatus } from "@prisma/client"
-import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
-
-const revalidateTagSafe = (tag: string) => (revalidateTag as any)(tag, 'default')
 
 // ==========================================
 // GET ALL VENDORS
@@ -89,10 +86,6 @@ export async function createVendor(data: {
                     isActive: true
                 }
             })
-
-            revalidateTagSafe('procurement')
-            revalidateTagSafe('vendors')
-            revalidatePath('/procurement/vendors')
 
             return {
                 success: true,

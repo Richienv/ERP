@@ -346,6 +346,7 @@ export const INDONESIAN_UNITS = [
   'ml', // mililiter
   'm', // meter
   'cm', // centimeter
+  'yard', // yard
   'm²', // meter persegi
   'm³', // meter kubik
   'rim',

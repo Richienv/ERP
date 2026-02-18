@@ -31,6 +31,9 @@ export async function GET() {
         ])
 
         // Transform products (same logic as getProductsForKanban)
+        // Collect product IDs where manualAlert should be auto-cleared
+        const idsToResetAlert: string[] = []
+
         const products = rawProducts.map((p) => {
             const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
             const status = calculateProductStatus({
@@ -40,6 +43,12 @@ export async function GET() {
                 manualAlert: p.manualAlert,
                 createdAt: p.createdAt,
             })
+
+            // Auto-clear manualAlert when stock is healthy
+            if (p.manualAlert && status === "HEALTHY") {
+                idsToResetAlert.push(p.id)
+            }
+
             return {
                 id: p.id,
                 code: p.code,
@@ -92,8 +101,16 @@ export async function GET() {
             total: products.length,
             healthy: products.filter((p) => p.status === "HEALTHY").length,
             lowStock: products.filter((p) => p.status === "LOW_STOCK").length,
-            critical: products.filter((p) => p.status === "CRITICAL" || p.manualAlert).length,
+            critical: products.filter((p) => p.status === "CRITICAL").length,
             totalValue: products.reduce((sum, p) => sum + (p.totalStock * p.costPrice), 0),
+        }
+
+        // Fire-and-forget: auto-clear manualAlert for products that are now healthy
+        if (idsToResetAlert.length > 0) {
+            prisma.product.updateMany({
+                where: { id: { in: idsToResetAlert } },
+                data: { manualAlert: false },
+            }).catch(() => {}) // Non-blocking, don't fail the response
         }
 
         return NextResponse.json({

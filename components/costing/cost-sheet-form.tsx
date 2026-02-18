@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
     DialogContent,
@@ -13,6 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { DollarSign } from "lucide-react"
 import { toast } from "sonner"
 import { createCostSheet } from "@/lib/actions/costing"
+import { queryKeys } from "@/lib/query-keys"
 
 interface CostSheetFormProps {
     open: boolean
@@ -21,6 +23,7 @@ interface CostSheetFormProps {
 }
 
 export function CostSheetForm({ open, onOpenChange, products }: CostSheetFormProps) {
+    const queryClient = useQueryClient()
     const [loading, setLoading] = useState(false)
     const [form, setForm] = useState({
         productId: "",
@@ -44,6 +47,8 @@ export function CostSheetForm({ open, onOpenChange, products }: CostSheetFormPro
 
         if (result.success) {
             toast.success("Cost sheet berhasil dibuat")
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.costingDashboard.all })
             onOpenChange(false)
             setForm({ productId: "", targetPrice: "", targetMargin: "" })
         } else {

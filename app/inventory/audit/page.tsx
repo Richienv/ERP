@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -35,6 +36,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import { getRecentAudits, submitSpotAudit, getProductsForKanban, getWarehouses } from "@/app/actions/inventory";
+import { queryKeys } from "@/lib/query-keys";
 import { NB } from "@/lib/dialog-styles";
 
 // Type based on our server action return
@@ -52,11 +54,31 @@ type AuditLog = {
 
 const PAGE_SIZE = 10;
 
+const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> =>
+    Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))])
+
 export default function InventoryAuditPage() {
-    const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-    const [products, setProducts] = useState<any[]>([]);
-    const [warehouses, setWarehouses] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+    const queryClient = useQueryClient()
+
+    const { data, isLoading } = useQuery({
+        queryKey: queryKeys.inventoryAudit.list(),
+        queryFn: async () => {
+            const [logs, prods, whs] = await Promise.all([
+                withTimeout(getRecentAudits(), 8000, []),
+                withTimeout(getProductsForKanban(), 8000, []),
+                withTimeout(getWarehouses(), 5000, [])
+            ]);
+            return {
+                auditLogs: logs as AuditLog[],
+                products: prods as any[],
+                warehouses: whs as any[],
+            };
+        },
+    })
+
+    const auditLogs = data?.auditLogs ?? []
+    const products = data?.products ?? []
+    const warehouses = data?.warehouses ?? []
 
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<"ALL" | "MATCH" | "DISCREPANCY">("ALL");
@@ -69,30 +91,6 @@ export default function InventoryAuditPage() {
     const [formQty, setFormQty] = useState("");
     const [formAuditor, setFormAuditor] = useState("");
     const [submitting, setSubmitting] = useState(false);
-
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> =>
-        Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))])
-
-    const loadData = async () => {
-        try {
-            const [logs, prods, whs] = await Promise.all([
-                withTimeout(getRecentAudits(), 8000, []),
-                withTimeout(getProductsForKanban(), 8000, []),
-                withTimeout(getWarehouses(), 5000, [])
-            ]);
-            setAuditLogs(logs);
-            setProducts(prods);
-            setWarehouses(whs);
-        } catch {
-            toast.error("Gagal memuat data audit");
-        } finally {
-            setLoading(false);
-        }
-    };
 
     // Stats
     const matchCount = auditLogs.filter(l => l.status === "MATCH").length;
@@ -117,9 +115,6 @@ export default function InventoryAuditPage() {
 
     const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     const pagedLogs = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-
-    // Reset page on filter change
-    useEffect(() => { setPage(0); }, [search, statusFilter]);
 
     const handleConfirmInput = async () => {
         if (!formWarehouse || !formProduct || !formQty) {
@@ -147,7 +142,8 @@ export default function InventoryAuditPage() {
                 setFormProduct("");
                 setFormQty("");
                 setFormAuditor("");
-                await loadData();
+                // Invalidate query so the table refreshes with new audit log
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryAudit.all });
             } else {
                 toast.error("Gagal menyimpan audit");
             }
@@ -200,7 +196,7 @@ export default function InventoryAuditPage() {
                                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Audit</span>
                             </div>
                             <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                                {loading ? "—" : auditLogs.length}
+                                {isLoading ? "—" : auditLogs.length}
                             </div>
                             <div className="flex items-center gap-1 mt-1.5">
                                 <span className="text-[10px] font-bold text-emerald-600">Semua catatan</span>
@@ -215,7 +211,7 @@ export default function InventoryAuditPage() {
                                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Sesuai</span>
                             </div>
                             <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
-                                {loading ? "—" : matchCount}
+                                {isLoading ? "—" : matchCount}
                             </div>
                             <div className="flex items-center gap-1 mt-1.5">
                                 <span className="text-[10px] font-bold text-blue-600">Fisik = Sistem</span>
@@ -230,7 +226,7 @@ export default function InventoryAuditPage() {
                                 <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Selisih</span>
                             </div>
                             <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">
-                                {loading ? "—" : discrepancyCount}
+                                {isLoading ? "—" : discrepancyCount}
                             </div>
                             <div className="flex items-center gap-1 mt-1.5">
                                 <span className="text-[10px] font-bold text-red-600">Perlu investigasi</span>
@@ -258,7 +254,7 @@ export default function InventoryAuditPage() {
                             {(["ALL", "MATCH", "DISCREPANCY"] as const).map((s) => (
                                 <button
                                     key={s}
-                                    onClick={() => setStatusFilter(s)}
+                                    onClick={() => { setStatusFilter(s); setPage(0); }}
                                     className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${statusFilter === s
                                             ? "bg-black text-white"
                                             : "bg-white text-zinc-400 hover:bg-zinc-50"
@@ -301,7 +297,7 @@ export default function InventoryAuditPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {loading ? (
+                                {isLoading ? (
                                     <tr>
                                         <td colSpan={4} className="p-12 text-center">
                                             <Loader2 className="h-6 w-6 animate-spin mx-auto text-zinc-400 mb-2" />
@@ -382,7 +378,7 @@ export default function InventoryAuditPage() {
                     </div>
 
                     {/* Pagination */}
-                    {!loading && filtered.length > PAGE_SIZE && (
+                    {!isLoading && filtered.length > PAGE_SIZE && (
                         <div className="border-t-2 border-black px-4 py-2.5 flex items-center justify-between bg-zinc-50">
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
                                 Halaman {page + 1} dari {pageCount}

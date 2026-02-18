@@ -57,7 +57,7 @@ export default function CustomersPage() {
   }, [filteredCustomers])
 
   return (
-    <div className="space-y-6 p-4 md:p-8 pt-6 max-w-[1600px] mx-auto min-h-screen">
+    <div className="mf-page min-h-screen">
 
       {/* COMMAND HEADER */}
       <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900 rounded-none">

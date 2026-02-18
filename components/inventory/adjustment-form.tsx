@@ -84,6 +84,8 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 startTransition(() => {
                     queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
                     queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+                    queryClient.invalidateQueries({ queryKey: ["adjustments", "list"] })
+                    queryClient.invalidateQueries({ queryKey: ["stockMovements", "list"] })
                 })
             } else {
                 toast.error("Gagal menyimpan", { description: ("error" in result && result.error) ? String(result.error) : "Kesalahan tidak diketahui" })
@@ -248,7 +250,7 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                         value={quantity}
                         onChange={(e) => setQuantity(e.target.value)}
                         placeholder="0"
-                        className="border-2 border-black font-mono font-bold h-10 text-lg rounded-none"
+                        className="border-2 border-black font-mono font-bold h-10 text-lg rounded-none pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-400 uppercase">
                         UNIT

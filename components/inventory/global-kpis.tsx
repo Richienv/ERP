@@ -36,6 +36,7 @@ interface GlobalKPIsProps {
 }
 
 export function GlobalKPIs({ kpiData }: GlobalKPIsProps) {
+    if (!kpiData) return null
 
     const metrics: PulseMetric[] = [
         {
@@ -58,11 +59,11 @@ export function GlobalKPIs({ kpiData }: GlobalKPIsProps) {
         },
         {
             label: "AKURASI",
-            value: `${kpiData.inventoryAccuracy}%`,
+            value: `${kpiData.inventoryAccuracy ?? 0}%`,
             icon: <Activity className="h-5 w-5" />,
             href: "/inventory/audit",
-            trend: kpiData.inventoryAccuracy >= 95 ? "up" : kpiData.inventoryAccuracy >= 80 ? "neutral" : "down",
-            trendLabel: kpiData.inventoryAccuracy >= 95 ? "Excellent" : kpiData.inventoryAccuracy >= 80 ? "Cukup" : "Perlu audit",
+            trend: (kpiData.inventoryAccuracy ?? 0) >= 95 ? "up" : (kpiData.inventoryAccuracy ?? 0) >= 80 ? "neutral" : "down",
+            trendLabel: (kpiData.inventoryAccuracy ?? 0) >= 95 ? "Excellent" : (kpiData.inventoryAccuracy ?? 0) >= 80 ? "Cukup" : "Perlu audit",
             accentColor: "bg-blue-400"
         },
         {

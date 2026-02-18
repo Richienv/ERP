@@ -283,7 +283,7 @@ export default function PosRevampPage() {
     const formatRupiah = (num: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(num);
 
     return (
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-2rem)] overflow-hidden bg-zinc-50 dark:bg-black font-sans text-zinc-900 dark:text-zinc-100 p-2 md:p-3 gap-3 md:gap-4">
+        <div className="flex flex-col lg:flex-row min-h-[calc(100vh-2rem)] lg:h-[calc(100vh-2rem)] overflow-y-auto lg:overflow-hidden bg-zinc-50 dark:bg-black font-sans text-zinc-900 dark:text-zinc-100 p-2 md:p-3 gap-3 md:gap-4">
             <Toaster position="top-center" />
 
             {/* Payment Success Overlay */}

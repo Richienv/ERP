@@ -4,8 +4,6 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, SubcontractOrderStatus, SubcontractShipmentDirection } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertSubcontractTransition } from "@/lib/subcontract-state-machine"
-import { revalidatePath } from "next/cache"
-
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -342,7 +340,6 @@ export async function createSubcontractor(data: {
             return sub.id
         })
 
-        revalidatePath('/subcontract')
         return { success: true, id }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat subkontraktor'
@@ -383,7 +380,6 @@ export async function updateSubcontractor(
             })
         })
 
-        revalidatePath('/subcontract')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah data subkontraktor'
@@ -457,7 +453,6 @@ export async function upsertSubcontractorRate(data: {
             }
         })
 
-        revalidatePath('/subcontract')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menyimpan tarif'
@@ -476,7 +471,6 @@ export async function deleteSubcontractorRate(
             })
         })
 
-        revalidatePath('/subcontract')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menghapus tarif'
@@ -666,7 +660,6 @@ export async function createSubcontractOrder(data: {
             return order.id
         })
 
-        revalidatePath('/subcontract')
         return { success: true, id }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat order subkontrak'
@@ -693,7 +686,6 @@ export async function updateSubcontractOrderStatus(
             })
         })
 
-        revalidatePath('/subcontract')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah status'
@@ -863,7 +855,6 @@ export async function recordShipment(data: {
             })
         })
 
-        revalidatePath('/subcontract')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mencatat pengiriman'
@@ -886,7 +877,6 @@ export async function updateItemReturnQty(
             })
         })
 
-        revalidatePath('/subcontract')
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal mengubah qty pengembalian'

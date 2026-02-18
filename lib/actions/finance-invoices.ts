@@ -3,12 +3,6 @@
 import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
-import { revalidatePath } from "next/cache"
-
-function revalidateInvoicePaths() {
-    revalidatePath('/sales')
-    revalidatePath('/finance/invoices')
-}
 
 export interface InvoiceKanbanItem {
     id: string
@@ -220,8 +214,6 @@ export async function createCustomerInvoice(data: {
             })
 
 
-            revalidateInvoicePaths()
-
             return {
                 success: true,
                 invoiceId: invoice.id,
@@ -429,7 +421,6 @@ export async function createInvoiceFromSalesOrder(
             })
 
             console.log("Customer Invoice Created:", invoice.number)
-            revalidateInvoicePaths()
 
             return {
                 success: true as const,
@@ -608,7 +599,6 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
 
             // Log activity or "send" message (mock for now)
             console.log(`Sending Invoice ${invoice.number} via ${method}: ${message}`)
-            revalidateInvoicePaths()
 
             return { success: true, dueDate, status: nextStatus }
         })
@@ -698,7 +688,6 @@ export async function recordInvoicePayment(data: {
             console.warn("Journal entry failed (GL accounts may not exist):", glError)
         }
 
-        revalidateInvoicePaths()
         return { success: true }
     } catch (error) {
         console.error("Failed to record payment:", error)

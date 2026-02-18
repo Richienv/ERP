@@ -14,7 +14,7 @@ export default function StockLevelPage() {
 
     return (
         <InventoryPerformanceProvider currentPath="/inventory/stock">
-            <div className="p-4 md:p-8 pt-6 max-w-[1600px] mx-auto min-h-screen">
+            <div className="mf-page min-h-screen">
                 <StockClient products={data.products} warehouses={data.warehouses} />
             </div>
         </InventoryPerformanceProvider>

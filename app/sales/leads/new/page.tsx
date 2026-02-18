@@ -126,7 +126,8 @@ export default function NewLeadPage() {
   }
 
   return (
-    <div className="flex-1 p-4 md:p-8 pt-6 max-w-5xl mx-auto">
+    <div className="mf-page">
+      <div className="max-w-5xl">
       {/* Back Button */}
       <Link
         href="/sales/leads"
@@ -400,6 +401,7 @@ export default function NewLeadPage() {
           </div>
         </div>
       </form>
+      </div>
     </div>
   )
 }

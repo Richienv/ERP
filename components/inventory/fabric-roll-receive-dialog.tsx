@@ -13,6 +13,7 @@ import {
 import { NB } from "@/lib/dialog-styles"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
 import { receiveFabricRoll } from "@/lib/actions/fabric-rolls"
 
 interface FabricRollReceiveDialogProps {
@@ -22,6 +23,7 @@ interface FabricRollReceiveDialogProps {
 }
 
 export function FabricRollReceiveDialog({ products, warehouses, trigger }: FabricRollReceiveDialogProps) {
+    const queryClient = useQueryClient()
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
 
@@ -78,6 +80,7 @@ export function FabricRollReceiveDialog({ products, warehouses, trigger }: Fabri
 
         if (result.success) {
             toast.success(`Roll ${rollNumber} berhasil diterima`)
+            queryClient.invalidateQueries({ queryKey: ["fabricRolls", "list"] })
             resetForm()
             setOpen(false)
         } else {

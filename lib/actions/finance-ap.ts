@@ -464,7 +464,7 @@ export async function getAPStats() {
             const payables = await prisma.invoice.aggregate({
                 where: {
                     type: 'INV_IN',
-                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] }
+                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED'] }
                 },
                 _sum: { balanceDue: true },
                 _count: true
@@ -474,7 +474,7 @@ export async function getAPStats() {
             const overdue = await prisma.invoice.aggregate({
                 where: {
                     type: 'INV_IN',
-                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
+                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED'] },
                     dueDate: { lt: now }
                 },
                 _sum: { balanceDue: true },

@@ -16,6 +16,8 @@ import { Plus, Trash2, Search, CheckCircle2, XCircle } from "lucide-react"
 import { createFabricInspection } from "@/lib/actions/fabric-inspection"
 import { calculate4PointScore, type FabricDefectEntry, type FabricInspectionResult } from "@/lib/fabric-inspection-helpers"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface FabricInspectionDialogProps {
     products: { id: string; name: string; code: string }[]
@@ -27,6 +29,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [preview, setPreview] = useState<FabricInspectionResult | null>(null)
+    const queryClient = useQueryClient()
 
     // Form fields
     const [batchNumber, setBatchNumber] = useState("")
@@ -88,6 +91,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
 
         if (result.success && result.result) {
             toast.success(`Inspeksi selesai — Grade ${result.result.grade} (${result.result.pointsPer100Yards} pts/100yd)`)
+            queryClient.invalidateQueries({ queryKey: queryKeys.mfgQuality.all })
             setOpen(false)
             resetForm()
         } else {

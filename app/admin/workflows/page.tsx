@@ -105,7 +105,7 @@ export default function WorkflowPage() {
     };
 
     return (
-        <div className="container mx-auto py-10 space-y-8">
+        <div className="mf-page">
             <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold tracking-tight">Workflow Engine</h1>
                 <p className="text-muted-foreground">

@@ -3,7 +3,6 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, ShiftType, DowntimeCategory } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { revalidatePath } from "next/cache"
 import { calculateOEE, type OEEMetrics } from "@/lib/dashboard-textile-helpers"
 export type { OEEMetrics } from "@/lib/dashboard-textile-helpers"
 
@@ -345,7 +344,6 @@ export async function createShiftNote(data: {
             })
         })
 
-        revalidatePath('/dashboard')
         return { success: true }
     } catch (error) {
         console.error("[createShiftNote] Error:", error)
@@ -375,7 +373,6 @@ export async function logMachineDowntime(data: {
             })
         })
 
-        revalidatePath('/dashboard')
         return { success: true }
     } catch (error) {
         console.error("[logMachineDowntime] Error:", error)

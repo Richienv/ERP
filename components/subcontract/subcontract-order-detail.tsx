@@ -1,10 +1,12 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { ClipboardList, ArrowRight, DollarSign } from "lucide-react"
 import { toast } from "sonner"
 import type { SubcontractOrderDetail, WarehouseOption } from "@/lib/actions/subcontract"
 import { updateSubcontractOrderStatus, updateItemReturnQty } from "@/lib/actions/subcontract"
+import { queryKeys } from "@/lib/query-keys"
 import {
     subcontractStatusLabels,
     subcontractStatusColors,
@@ -23,6 +25,7 @@ interface SubcontractOrderDetailViewProps {
 
 export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrderDetailViewProps) {
     const [loading, setLoading] = useState(false)
+    const queryClient = useQueryClient()
 
     const handleStatusChange = async (newStatus: SubcontractOrderStatus) => {
         setLoading(true)
@@ -31,6 +34,8 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
 
         if (result.success) {
             toast.success(`Status diubah ke ${subcontractStatusLabels[newStatus]}`)
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
         } else {
             toast.error(result.error || "Gagal mengubah status")
         }
@@ -45,6 +50,8 @@ export function SubcontractOrderDetailView({ order, warehouses }: SubcontractOrd
         const result = await updateItemReturnQty(itemId, returnedQty, defectQty, wastageQty)
         if (result.success) {
             toast.success("Qty pengembalian diperbarui")
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
         } else {
             toast.error(result.error || "Gagal memperbarui")
         }

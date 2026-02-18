@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
     DialogContent,
@@ -14,6 +15,7 @@ import { ClipboardList, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { createSubcontractOrder } from "@/lib/actions/subcontract"
 import type { SubcontractorSummary } from "@/lib/actions/subcontract"
+import { queryKeys } from "@/lib/query-keys"
 
 const OPERATIONS = [
     { value: "CUT", label: "Potong" },
@@ -44,6 +46,7 @@ export function SubcontractOrderForm({
     products,
 }: SubcontractOrderFormProps) {
     const [loading, setLoading] = useState(false)
+    const queryClient = useQueryClient()
     const [subcontractorId, setSubcontractorId] = useState("")
     const [operation, setOperation] = useState("")
     const [expectedReturnDate, setExpectedReturnDate] = useState("")
@@ -97,6 +100,8 @@ export function SubcontractOrderForm({
 
             if (result.success) {
                 toast.success("Order subkontrak berhasil dibuat")
+                queryClient.invalidateQueries({ queryKey: queryKeys.subcontractOrders.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.subcontractDashboard.all })
                 onOpenChange(false)
                 setSubcontractorId("")
                 setOperation("")
