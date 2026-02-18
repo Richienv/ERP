@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import {
     FolderOpen,
     FolderPlus,
@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { createCategory, getNextCategoryCode, getProductsByCategory, getProductsNotInCategory, assignProductToCategory, removeProductFromCategory } from "@/app/actions/inventory"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { useInvalidateCategories } from "@/hooks/use-categories"
@@ -513,6 +514,11 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
         setAvailableProducts(available)
     }
 
+    const availableProductOptions = useMemo(
+        () => availableProducts.map((p) => ({ value: p.id, label: p.name, subtitle: p.code })),
+        [availableProducts]
+    )
+
     const handleAddProduct = async () => {
         if (!selectedProductId) {
             toast.error("Pilih produk terlebih dahulu")
@@ -602,18 +608,16 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                             {showAddRow && (
                                 <div className="px-4 py-3 bg-violet-50 border-b-2 border-black">
                                     <div className="flex gap-2 items-center">
-                                        <select
-                                            className="flex-1 border-2 border-black bg-white text-xs font-bold h-9 px-2 rounded-none"
-                                            value={selectedProductId}
-                                            onChange={(e) => setSelectedProductId(e.target.value)}
-                                        >
-                                            <option value="">Pilih produk...</option>
-                                            {availableProducts.map((p) => (
-                                                <option key={p.id} value={p.id}>
-                                                    [{p.code}] {p.name}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <div className="flex-1">
+                                            <ComboboxWithCreate
+                                                options={availableProductOptions}
+                                                value={selectedProductId}
+                                                onChange={setSelectedProductId}
+                                                placeholder="Pilih produk..."
+                                                searchPlaceholder="Cari produk..."
+                                                emptyMessage="Produk tidak ditemukan."
+                                            />
+                                        </div>
                                         <button
                                             type="button"
                                             onClick={handleAddProduct}

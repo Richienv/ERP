@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { NB } from "@/lib/dialog-styles"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { Scissors } from "lucide-react"
 import { toast } from "sonner"
 import { createCutPlan } from "@/lib/actions/cutting"
@@ -24,6 +25,10 @@ interface CutPlanFormProps {
 
 export function CutPlanForm({ open, onOpenChange, fabricProducts }: CutPlanFormProps) {
     const queryClient = useQueryClient()
+    const fabricOptions = useMemo(
+        () => fabricProducts.map((p) => ({ value: p.id, label: p.name, subtitle: p.code })),
+        [fabricProducts]
+    )
     const [loading, setLoading] = useState(false)
     const [form, setForm] = useState({
         fabricProductId: "",
@@ -91,20 +96,14 @@ export function CutPlanForm({ open, onOpenChange, fabricProducts }: CutPlanFormP
                                     <label className={NB.label}>
                                         Produk Kain <span className={NB.labelRequired}>*</span>
                                     </label>
-                                    <select
-                                        className={NB.select}
+                                    <ComboboxWithCreate
+                                        options={fabricOptions}
                                         value={form.fabricProductId}
-                                        onChange={(e) =>
-                                            setForm((f) => ({ ...f, fabricProductId: e.target.value }))
-                                        }
-                                    >
-                                        <option value="">Pilih kain...</option>
-                                        {fabricProducts.map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                [{p.code}] {p.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setForm((f) => ({ ...f, fabricProductId: val }))}
+                                        placeholder="Pilih kain..."
+                                        searchPlaceholder="Cari produk kain..."
+                                        emptyMessage="Produk kain tidak ditemukan."
+                                    />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">

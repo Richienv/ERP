@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -11,7 +11,15 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { NB } from "@/lib/dialog-styles"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { Plus, Trash2, Search, CheckCircle2, XCircle } from "lucide-react"
 import { createFabricInspection } from "@/lib/actions/fabric-inspection"
 import { calculate4PointScore, type FabricDefectEntry, type FabricInspectionResult } from "@/lib/fabric-inspection-helpers"
@@ -30,6 +38,15 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
     const [loading, setLoading] = useState(false)
     const [preview, setPreview] = useState<FabricInspectionResult | null>(null)
     const queryClient = useQueryClient()
+
+    const productOptions = useMemo(
+        () => products.map((p) => ({ value: p.id, label: p.name, subtitle: p.code })),
+        [products]
+    )
+    const inspectorOptions = useMemo(
+        () => inspectors.map((i) => ({ value: i.id, label: i.name })),
+        [inspectors]
+    )
 
     // Form fields
     const [batchNumber, setBatchNumber] = useState("")
@@ -144,17 +161,25 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                 </div>
                                 <div>
                                     <label className={NB.label}>Produk Kain <span className={NB.labelRequired}>*</span></label>
-                                    <select className={NB.select} value={productId} onChange={(e) => setProductId(e.target.value)}>
-                                        <option value="">Pilih kain...</option>
-                                        {products.map((p) => <option key={p.id} value={p.id}>{p.code} — {p.name}</option>)}
-                                    </select>
+                                    <ComboboxWithCreate
+                                        options={productOptions}
+                                        value={productId}
+                                        onChange={setProductId}
+                                        placeholder="Pilih kain..."
+                                        searchPlaceholder="Cari produk kain..."
+                                        emptyMessage="Produk kain tidak ditemukan."
+                                    />
                                 </div>
                                 <div>
                                     <label className={NB.label}>Inspektor <span className={NB.labelRequired}>*</span></label>
-                                    <select className={NB.select} value={inspectorId} onChange={(e) => setInspectorId(e.target.value)}>
-                                        <option value="">Pilih inspektor...</option>
-                                        {inspectors.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
-                                    </select>
+                                    <ComboboxWithCreate
+                                        options={inspectorOptions}
+                                        value={inspectorId}
+                                        onChange={setInspectorId}
+                                        placeholder="Pilih inspektor..."
+                                        searchPlaceholder="Cari inspektor..."
+                                        emptyMessage="Inspektor tidak ditemukan."
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -175,14 +200,19 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                     <label className={NB.label}>Jenis Defect</label>
                                     <Input className={NB.input} value={defType} onChange={(e) => setDefType(e.target.value)} placeholder="Lubang, Noda, dll" />
                                 </div>
-                                <div className="w-24">
+                                <div className="w-28">
                                     <label className={NB.label}>Poin</label>
-                                    <select className={NB.select} value={defPoints} onChange={(e) => setDefPoints(Number(e.target.value) as 1 | 2 | 3 | 4)}>
-                                        <option value={1}>1 - Minor</option>
-                                        <option value={2}>2 - Sedang</option>
-                                        <option value={3}>3 - Major</option>
-                                        <option value={4}>4 - Kritis</option>
-                                    </select>
+                                    <Select value={String(defPoints)} onValueChange={(v) => setDefPoints(Number(v) as 1 | 2 | 3 | 4)}>
+                                        <SelectTrigger className={NB.select}>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="1">1 - Minor</SelectItem>
+                                            <SelectItem value="2">2 - Sedang</SelectItem>
+                                            <SelectItem value="3">3 - Major</SelectItem>
+                                            <SelectItem value="4">4 - Kritis</SelectItem>
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <Button onClick={addDefect} className={NB.submitBtn + " h-10"}>
                                     <Plus className="h-4 w-4" />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -11,6 +11,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { NB } from "@/lib/dialog-styles"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { CalendarClock } from "lucide-react"
 import { toast } from "sonner"
 import type { WorkOrderWithStage } from "@/lib/actions/manufacturing-garment"
@@ -40,6 +41,15 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
     )
     const [machineId, setMachineId] = useState("")
     const [routingId, setRoutingId] = useState("")
+
+    const machineOptions = useMemo(
+        () => machines.map((m) => ({ value: m.id, label: `${m.name} (${m.status})`, subtitle: m.code })),
+        [machines]
+    )
+    const routingOptions = useMemo(
+        () => routings.map((r) => ({ value: r.id, label: r.name, subtitle: r.code })),
+        [routings]
+    )
 
     const handleSubmit = async () => {
         if (!scheduledStart || !scheduledEnd) {
@@ -154,25 +164,25 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className={NB.label}>Mesin</label>
-                                    <select className={NB.select} value={machineId} onChange={(e) => setMachineId(e.target.value)}>
-                                        <option value="">— Tidak ditentukan —</option>
-                                        {machines.map((m) => (
-                                            <option key={m.id} value={m.id}>
-                                                {m.code} — {m.name} ({m.status})
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <ComboboxWithCreate
+                                        options={machineOptions}
+                                        value={machineId}
+                                        onChange={setMachineId}
+                                        placeholder="— Tidak ditentukan —"
+                                        searchPlaceholder="Cari mesin..."
+                                        emptyMessage="Mesin tidak ditemukan."
+                                    />
                                 </div>
                                 <div>
                                     <label className={NB.label}>Routing</label>
-                                    <select className={NB.select} value={routingId} onChange={(e) => setRoutingId(e.target.value)}>
-                                        <option value="">— Tidak ditentukan —</option>
-                                        {routings.map((r) => (
-                                            <option key={r.id} value={r.id}>
-                                                {r.code} — {r.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <ComboboxWithCreate
+                                        options={routingOptions}
+                                        value={routingId}
+                                        onChange={setRoutingId}
+                                        placeholder="— Tidak ditentukan —"
+                                        searchPlaceholder="Cari routing..."
+                                        emptyMessage="Routing tidak ditemukan."
+                                    />
                                 </div>
                             </div>
                         </div>

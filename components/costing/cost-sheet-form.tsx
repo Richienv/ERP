@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
@@ -11,6 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { NB } from "@/lib/dialog-styles"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { DollarSign } from "lucide-react"
 import { toast } from "sonner"
 import { createCostSheet } from "@/lib/actions/costing"
@@ -24,6 +25,10 @@ interface CostSheetFormProps {
 
 export function CostSheetForm({ open, onOpenChange, products }: CostSheetFormProps) {
     const queryClient = useQueryClient()
+    const productOptions = useMemo(
+        () => products.map((p) => ({ value: p.id, label: p.name, subtitle: p.code })),
+        [products]
+    )
     const [loading, setLoading] = useState(false)
     const [form, setForm] = useState({
         productId: "",
@@ -78,20 +83,14 @@ export function CostSheetForm({ open, onOpenChange, products }: CostSheetFormPro
                                     <label className={NB.label}>
                                         Produk <span className={NB.labelRequired}>*</span>
                                     </label>
-                                    <select
-                                        className={NB.select}
+                                    <ComboboxWithCreate
+                                        options={productOptions}
                                         value={form.productId}
-                                        onChange={(e) =>
-                                            setForm((f) => ({ ...f, productId: e.target.value }))
-                                        }
-                                    >
-                                        <option value="">Pilih produk...</option>
-                                        {products.map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                [{p.code}] {p.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        onChange={(val) => setForm((f) => ({ ...f, productId: val }))}
+                                        placeholder="Pilih produk..."
+                                        searchPlaceholder="Cari produk..."
+                                        emptyMessage="Produk tidak ditemukan."
+                                    />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">

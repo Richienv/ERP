@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
     Dialog,
@@ -9,8 +9,16 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { NB } from "@/lib/dialog-styles"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { ClipboardList, Plus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { createSubcontractOrder } from "@/lib/actions/subcontract"
@@ -53,6 +61,15 @@ export function SubcontractOrderForm({
     const [items, setItems] = useState<OrderItem[]>([])
     const [selectedProduct, setSelectedProduct] = useState("")
     const [selectedQty, setSelectedQty] = useState("")
+
+    const subcontractorOptions = useMemo(
+        () => subcontractors.filter((s) => s.isActive).map((s) => ({ value: s.id, label: s.name })),
+        [subcontractors]
+    )
+    const productOptions = useMemo(
+        () => products.map((p) => ({ value: p.id, label: p.name, subtitle: p.code })),
+        [products]
+    )
 
     const addItem = () => {
         if (!selectedProduct) {
@@ -141,37 +158,31 @@ export function SubcontractOrderForm({
                                         <label className={NB.label}>
                                             Subkontraktor <span className={NB.labelRequired}>*</span>
                                         </label>
-                                        <select
-                                            className={NB.select}
+                                        <ComboboxWithCreate
+                                            options={subcontractorOptions}
                                             value={subcontractorId}
-                                            onChange={(e) => setSubcontractorId(e.target.value)}
-                                        >
-                                            <option value="">Pilih subkontraktor...</option>
-                                            {subcontractors
-                                                .filter((s) => s.isActive)
-                                                .map((s) => (
-                                                    <option key={s.id} value={s.id}>
-                                                        {s.name}
-                                                    </option>
-                                                ))}
-                                        </select>
+                                            onChange={setSubcontractorId}
+                                            placeholder="Pilih subkontraktor..."
+                                            searchPlaceholder="Cari subkontraktor..."
+                                            emptyMessage="Subkontraktor tidak ditemukan."
+                                        />
                                     </div>
                                     <div>
                                         <label className={NB.label}>
                                             Operasi <span className={NB.labelRequired}>*</span>
                                         </label>
-                                        <select
-                                            className={NB.select}
-                                            value={operation}
-                                            onChange={(e) => setOperation(e.target.value)}
-                                        >
-                                            <option value="">Pilih operasi...</option>
-                                            {OPERATIONS.map((op) => (
-                                                <option key={op.value} value={op.value}>
-                                                    {op.label}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        <Select value={operation} onValueChange={setOperation}>
+                                            <SelectTrigger className={NB.select}>
+                                                <SelectValue placeholder="Pilih operasi..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {OPERATIONS.map((op) => (
+                                                    <SelectItem key={op.value} value={op.value}>
+                                                        {op.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                                 <div>
@@ -201,18 +212,16 @@ export function SubcontractOrderForm({
                             <div className={NB.sectionBody}>
                                 {/* Add item row */}
                                 <div className="flex gap-2">
-                                    <select
-                                        className={`${NB.select} flex-1`}
-                                        value={selectedProduct}
-                                        onChange={(e) => setSelectedProduct(e.target.value)}
-                                    >
-                                        <option value="">Pilih produk...</option>
-                                        {products.map((p) => (
-                                            <option key={p.id} value={p.id}>
-                                                [{p.code}] {p.name}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="flex-1">
+                                        <ComboboxWithCreate
+                                            options={productOptions}
+                                            value={selectedProduct}
+                                            onChange={setSelectedProduct}
+                                            placeholder="Pilih produk..."
+                                            searchPlaceholder="Cari produk..."
+                                            emptyMessage="Produk tidak ditemukan."
+                                        />
+                                    </div>
                                     <Input
                                         className={`${NB.inputMono} w-28`}
                                         type="number"
