@@ -76,7 +76,7 @@
       "id": "F-005",
       "title": "Audit Manufaktur module — all buttons, shared BOM/product/machine entities",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Dashboard Manufaktur (/manufacturing) loads with correct production metrics",
         "Pusat Kerja/Mesin (/manufacturing/work-centers): Create/Edit machine works. Machine entity shared with routing and scheduling",
@@ -95,7 +95,7 @@
       "id": "F-006",
       "title": "Audit Subkontrak module — all buttons, shared partner/order entities",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Dashboard CMT (/subcontract) loads correctly",
         "Registri Mitra (/subcontract/registry): Create/Edit subcontractor works. Subcontractor entity referenced in orders",
@@ -110,7 +110,7 @@
       "id": "F-007",
       "title": "Audit Pemotongan module — all buttons, shared product entities",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Dashboard Potong (/cutting) loads correctly",
         "Daftar Cut Plan (/cutting/plans): Create/Edit cut plan works. References shared fabric products from inventory",
@@ -124,7 +124,7 @@
       "id": "F-008",
       "title": "Audit Kalkulasi Biaya module — all buttons, shared product/BOM entities",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Dashboard Biaya (/costing) loads correctly",
         "Daftar Cost Sheet (/costing/sheets): Create/Edit cost sheet works. References shared products and BOMs from manufacturing",
@@ -138,7 +138,7 @@
       "id": "F-009",
       "title": "Audit SDM module — all buttons, employee entity",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Data Karyawan (/hcm/employee-master): Create/Edit employee works. Employee entity shared with attendance and payroll",
         "Penggajian (/hcm/payroll): Payroll references shared employee data",
@@ -152,7 +152,7 @@
       "id": "F-010",
       "title": "Audit Dokumen & Sistem module — all buttons, shared reference data",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Data Master (/documents/master): Displays shared master data correctly. Any master data updates reflect across all modules",
         "Laporan Sistem (/documents/reports): Reports pull from shared live data, not stale snapshots",
