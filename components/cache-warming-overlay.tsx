@@ -22,16 +22,33 @@ const MODULE_CONFIG: Record<ModuleKey, { icon: typeof IconPackage; color: string
     SDM: { icon: IconUsers, color: "text-teal-600" },
 }
 
-const ROUTE_META: Record<string, { label: string; module: ModuleKey }> = {
+type ModuleKey2 = ModuleKey | "Dashboard" | "Pemotongan" | "Subkontrak" | "Dokumen" | "Biaya"
+
+const MODULE_CONFIG_EXT: Record<string, { icon: typeof IconPackage; color: string }> = {
+    ...MODULE_CONFIG,
+    Dashboard: { icon: IconPackage, color: "text-zinc-600" },
+    Pemotongan: { icon: IconPackage, color: "text-amber-600" },
+    Subkontrak: { icon: IconPackage, color: "text-orange-600" },
+    Dokumen: { icon: IconPackage, color: "text-indigo-600" },
+    Biaya: { icon: IconCoin, color: "text-rose-600" },
+}
+
+const ROUTE_META: Record<string, { label: string; module: string }> = {
+    "/dashboard": { label: "Dashboard Eksekutif", module: "Dashboard" },
+    "/dashboard/approvals": { label: "Persetujuan", module: "Dashboard" },
+    "/inventory": { label: "Dashboard Inventori", module: "Inventori" },
     "/inventory/products": { label: "Data Produk", module: "Inventori" },
     "/inventory/categories": { label: "Kategori", module: "Inventori" },
     "/inventory/fabric-rolls": { label: "Gulungan Kain", module: "Inventori" },
     "/inventory/transfers": { label: "Transfer Stok", module: "Inventori" },
+    "/sales": { label: "Dashboard Sales", module: "Penjualan" },
     "/sales/customers": { label: "Pelanggan", module: "Penjualan" },
     "/sales/orders": { label: "Pesanan", module: "Penjualan" },
     "/sales/leads": { label: "Prospek", module: "Penjualan" },
     "/sales/quotations": { label: "Penawaran", module: "Penjualan" },
-    "/sales/sales": { label: "Dashboard Penjualan", module: "Penjualan" },
+    "/sales/sales": { label: "Analitik Penjualan", module: "Penjualan" },
+    "/sales/pricelists": { label: "Daftar Harga", module: "Penjualan" },
+    "/procurement": { label: "Dashboard Pengadaan", module: "Pengadaan" },
     "/procurement/orders": { label: "Purchase Order", module: "Pengadaan" },
     "/procurement/requests": { label: "Permintaan Pembelian", module: "Pengadaan" },
     "/procurement/vendors": { label: "Vendor", module: "Pengadaan" },
@@ -41,6 +58,7 @@ const ROUTE_META: Record<string, { label: string; module: ModuleKey }> = {
     "/finance/chart-accounts": { label: "Bagan Akun", module: "Keuangan" },
     "/finance/vendor-payments": { label: "Pembayaran Vendor", module: "Keuangan" },
     "/finance/bills": { label: "Tagihan", module: "Keuangan" },
+    "/finance/reconciliation": { label: "Rekonsiliasi Bank", module: "Keuangan" },
     "/manufacturing": { label: "Dashboard Manufaktur", module: "Manufaktur" },
     "/manufacturing/bom": { label: "Bill of Materials", module: "Manufaktur" },
     "/manufacturing/orders": { label: "Manufacturing Order", module: "Manufaktur" },
@@ -52,6 +70,19 @@ const ROUTE_META: Record<string, { label: string; module: ModuleKey }> = {
     "/manufacturing/schedule": { label: "Jadwal Produksi", module: "Manufaktur" },
     "/manufacturing/quality": { label: "Quality Control", module: "Manufaktur" },
     "/hcm/employee-master": { label: "Data Karyawan", module: "SDM" },
+    "/hcm/attendance": { label: "Kehadiran", module: "SDM" },
+    "/hcm/shifts": { label: "Jadwal Shift", module: "SDM" },
+    "/hcm/onboarding": { label: "Onboarding", module: "SDM" },
+    "/cutting": { label: "Dashboard Potong", module: "Pemotongan" },
+    "/cutting/plans": { label: "Cut Plan", module: "Pemotongan" },
+    "/subcontract": { label: "Dashboard CMT", module: "Subkontrak" },
+    "/subcontract/orders": { label: "Order Subkontrak", module: "Subkontrak" },
+    "/subcontract/registry": { label: "Mitra CMT", module: "Subkontrak" },
+    "/costing": { label: "Dashboard Biaya", module: "Biaya" },
+    "/costing/sheets": { label: "Cost Sheet", module: "Biaya" },
+    "/staff": { label: "Tugas Staff", module: "SDM" },
+    "/manager": { label: "Dashboard Manajer", module: "SDM" },
+    "/documents": { label: "Dokumen & Sistem", module: "Dokumen" },
 }
 
 type RouteStatus = "pending" | "loading" | "done" | "error"
@@ -151,13 +182,12 @@ export function CacheWarmingOverlay() {
     const doneCount = routes.filter((r) => routeStatuses[r] === "done" || routeStatuses[r] === "error").length
     const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
 
-    const moduleGroups: Record<ModuleKey, { route: string; label: string; status: RouteStatus }[]> = {
-        Inventori: [], Penjualan: [], Pengadaan: [], Keuangan: [], Manufaktur: [], SDM: [],
-    }
+    const moduleGroups: Record<string, { route: string; label: string; status: RouteStatus }[]> = {}
 
     routes.forEach((route) => {
         const meta = ROUTE_META[route]
         if (meta) {
+            if (!moduleGroups[meta.module]) moduleGroups[meta.module] = []
             moduleGroups[meta.module].push({
                 route,
                 label: meta.label,
@@ -165,6 +195,9 @@ export function CacheWarmingOverlay() {
             })
         }
     })
+
+    // Ordered module list for display
+    const moduleOrder = ["Dashboard", "Inventori", "Penjualan", "Pengadaan", "Keuangan", "Manufaktur", "SDM", "Pemotongan", "Subkontrak", "Biaya", "Dokumen"]
 
     return (
         <div
@@ -201,10 +234,10 @@ export function CacheWarmingOverlay() {
 
                 {/* Module groups */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto pr-1">
-                    {(Object.keys(moduleGroups) as ModuleKey[]).map((moduleName) => {
+                    {moduleOrder.map((moduleName) => {
                         const items = moduleGroups[moduleName]
-                        if (items.length === 0) return null
-                        const moduleConf = MODULE_CONFIG[moduleName]
+                        if (!items || items.length === 0) return null
+                        const moduleConf = MODULE_CONFIG_EXT[moduleName] || MODULE_CONFIG_EXT["Dashboard"]
                         const ModIcon = moduleConf.icon
                         const moduleDone = items.filter((i) => i.status === "done" || i.status === "error").length
 

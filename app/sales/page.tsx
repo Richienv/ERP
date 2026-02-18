@@ -1,3 +1,5 @@
+"use client"
+
 import Link from "next/link"
 import {
   ArrowRight,
@@ -15,10 +17,8 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { prisma } from "@/lib/prisma"
-
-export const dynamic = "force-dynamic"
-export const revalidate = 0
+import { useSalesPage } from "@/hooks/use-sales-page"
+import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
 const formatIDR = (value: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -32,8 +32,14 @@ const toNumber = (value: unknown, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback
 }
 
-export default async function SalesDashboardPage() {
-  const [
+export default function SalesDashboardPage() {
+  const { data: raw, isLoading } = useSalesPage()
+
+  if (isLoading || !raw) {
+    return <CardPageSkeleton accentColor="bg-blue-400" />
+  }
+
+  const {
     monthlyRevenue,
     orderStats,
     quotationStats,
@@ -42,77 +48,28 @@ export default async function SalesDashboardPage() {
     recentOrders,
     recentQuotations,
     recentInvoices,
-  ] = await Promise.all([
-    prisma.invoice.aggregate({
-      _sum: { totalAmount: true },
-      where: {
-        type: "INV_OUT",
-        status: { notIn: ["CANCELLED", "VOID"] },
-        issueDate: {
-          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-        },
-      },
-    }),
-    prisma.salesOrder.groupBy({
-      by: ["status"],
-      _count: { _all: true },
-      _sum: { total: true },
-    }),
-    prisma.quotation.groupBy({
-      by: ["status"],
-      _count: { _all: true },
-      _sum: { total: true },
-    }),
-    prisma.lead.groupBy({
-      by: ["status"],
-      _count: { _all: true },
-      _sum: { estimatedValue: true },
-    }),
-    prisma.invoice.aggregate({
-      _sum: { balanceDue: true },
-      where: {
-        type: "INV_OUT",
-        status: { in: ["ISSUED", "PARTIAL", "OVERDUE"] },
-      },
-    }),
-    prisma.salesOrder.findMany({
-      take: 5,
-      orderBy: { orderDate: "desc" },
-      include: { customer: { select: { name: true } } },
-    }),
-    prisma.quotation.findMany({
-      take: 4,
-      orderBy: { quotationDate: "desc" },
-      include: { customer: { select: { name: true } } },
-    }),
-    prisma.invoice.findMany({
-      take: 5,
-      where: { type: "INV_OUT" },
-      orderBy: { issueDate: "desc" },
-      include: { customer: { select: { name: true } } },
-    }),
-  ])
+  } = raw
 
-  const totalOrders = orderStats.reduce((s, r) => s + (r._count._all || 0), 0)
-  const totalOrderValue = orderStats.reduce((s, r) => s + toNumber(r._sum.total), 0)
-  const activeOrders = orderStats
-    .filter((r) => ["CONFIRMED", "IN_PROGRESS", "DELIVERED", "INVOICED"].includes(r.status))
-    .reduce((s, r) => s + (r._count._all || 0), 0)
+  const totalOrders = (orderStats ?? []).reduce((s: number, r: any) => s + (r._count._all || 0), 0)
+  const totalOrderValue = (orderStats ?? []).reduce((s: number, r: any) => s + toNumber(r._sum.total), 0)
+  const activeOrders = (orderStats ?? [])
+    .filter((r: any) => ["CONFIRMED", "IN_PROGRESS", "DELIVERED", "INVOICED"].includes(r.status))
+    .reduce((s: number, r: any) => s + (r._count._all || 0), 0)
 
-  const activeQuotes = quotationStats
-    .filter((r) => ["DRAFT", "SENT", "ACCEPTED"].includes(r.status))
-    .reduce((s, r) => s + (r._count._all || 0), 0)
-  const quotePipelineValue = quotationStats
-    .filter((r) => ["DRAFT", "SENT", "ACCEPTED"].includes(r.status))
-    .reduce((s, r) => s + toNumber(r._sum.total), 0)
+  const activeQuotes = (quotationStats ?? [])
+    .filter((r: any) => ["DRAFT", "SENT", "ACCEPTED"].includes(r.status))
+    .reduce((s: number, r: any) => s + (r._count._all || 0), 0)
+  const quotePipelineValue = (quotationStats ?? [])
+    .filter((r: any) => ["DRAFT", "SENT", "ACCEPTED"].includes(r.status))
+    .reduce((s: number, r: any) => s + toNumber(r._sum.total), 0)
 
-  const totalLeads = leadStats.reduce((s, r) => s + (r._count._all || 0), 0)
-  const openLeadValue = leadStats
-    .filter((r) => !["WON", "LOST"].includes(r.status))
-    .reduce((s, r) => s + toNumber(r._sum.estimatedValue), 0)
+  const totalLeads = (leadStats ?? []).reduce((s: number, r: any) => s + (r._count._all || 0), 0)
+  const openLeadValue = (leadStats ?? [])
+    .filter((r: any) => !["WON", "LOST"].includes(r.status))
+    .reduce((s: number, r: any) => s + toNumber(r._sum.estimatedValue), 0)
 
-  const revenueMTD = toNumber(monthlyRevenue._sum.totalAmount)
-  const arOutstanding = toNumber(openAR._sum.balanceDue)
+  const revenueMTD = toNumber(monthlyRevenue?._sum?.totalAmount)
+  const arOutstanding = toNumber(openAR?._sum?.balanceDue)
 
   // KPI strip data
   const kpis = [
@@ -296,13 +253,13 @@ export default async function SalesDashboardPage() {
                 </Link>
               </div>
               <div className="flex-1 overflow-y-auto">
-                {recentOrders.length === 0 ? (
+                {(recentOrders ?? []).length === 0 ? (
                   <div className="flex items-center justify-center h-full">
                     <p className="text-sm text-zinc-400 font-medium">Belum ada sales order.</p>
                   </div>
                 ) : (
                   <div className="divide-y-2 divide-black">
-                    {recentOrders.map((order) => (
+                    {(recentOrders ?? []).map((order: any) => (
                       <Link
                         key={order.id}
                         href={`/sales/orders/${order.id}`}
@@ -315,7 +272,7 @@ export default async function SalesDashboardPage() {
                               {order.number}
                             </p>
                             <p className="text-[10px] font-mono text-zinc-400 truncate">
-                              {order.customer.name} • {new Date(order.orderDate).toLocaleDateString("id-ID")}
+                              {order.customer?.name} • {new Date(order.orderDate).toLocaleDateString("id-ID")}
                             </p>
                           </div>
                         </div>
@@ -381,11 +338,11 @@ export default async function SalesDashboardPage() {
                   <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-2 border-b border-black/10 pb-1">
                     Quotation Terbaru
                   </p>
-                  {recentQuotations.length === 0 ? (
+                  {(recentQuotations ?? []).length === 0 ? (
                     <p className="text-xs text-zinc-400">Belum ada quotation.</p>
                   ) : (
                     <div className="space-y-2">
-                      {recentQuotations.map((quote) => (
+                      {(recentQuotations ?? []).map((quote: any) => (
                         <Link
                           key={quote.id}
                           href={`/sales/quotations/${quote.id}`}
@@ -393,7 +350,7 @@ export default async function SalesDashboardPage() {
                         >
                           <div className="min-w-0">
                             <p className="text-xs font-bold truncate">{quote.number}</p>
-                            <p className="text-[10px] text-zinc-400 truncate">{quote.customer.name}</p>
+                            <p className="text-[10px] text-zinc-400 truncate">{quote.customer?.name}</p>
                           </div>
                           <span className={`
                             text-[9px] font-black uppercase px-1.5 py-0.5 flex-shrink-0 border bg-white border-black
@@ -438,7 +395,7 @@ export default async function SalesDashboardPage() {
         </div>
 
         {/* Row 4: Recent Invoices */}
-        {recentInvoices.length > 0 && (
+        {(recentInvoices ?? []).length > 0 && (
           <div className="flex-none bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 border-b-2 border-black">
               <div className="flex items-center gap-2">
@@ -450,7 +407,7 @@ export default async function SalesDashboardPage() {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-5 divide-y md:divide-y-0 md:divide-x-2 divide-black">
-              {recentInvoices.map((inv) => (
+              {(recentInvoices ?? []).map((inv: any) => (
                 <Link key={inv.id} href="/finance/invoices" className="px-4 py-3 hover:bg-zinc-50 transition-colors">
                   <p className="text-xs font-black uppercase">{inv.number}</p>
                   <p className="text-[10px] text-zinc-400 truncate">{inv.customer?.name || "-"}</p>

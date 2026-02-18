@@ -5,17 +5,24 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { getAllCategories, getCategories } from "@/app/actions/inventory"
-import { getEmployees } from "@/app/actions/hcm"
-import { getQuotations } from "@/lib/actions/sales"
-import { getAllPurchaseOrders, getVendors } from "@/lib/actions/procurement"
+import { getEmployees, getAttendanceSnapshot, getLeaveRequests } from "@/app/actions/hcm"
+import { getQuotations, getAllPriceLists } from "@/lib/actions/sales"
+import { getAllPurchaseOrders, getVendors, getPurchaseRequests, getPendingApprovalPOs } from "@/lib/actions/procurement"
 import { getProductsForPO } from "@/app/actions/purchase-order"
 import { getFabricRolls, getWarehousesForRolls, getFabricProducts } from "@/lib/actions/fabric-rolls"
 import { getStockTransfers, getTransferFormData } from "@/lib/actions/stock-transfers"
 import { getFinancialMetrics, getFinanceDashboardData, getJournalEntries, getGLAccountsList, getChartOfAccountsTree, getVendorPayments, getVendorBillsRegistry } from "@/lib/actions/finance"
-import { getPurchaseRequests } from "@/lib/actions/procurement"
 import { getVendors as getVendorsList } from "@/app/actions/vendor"
 import { getPendingPOsForReceiving, getAllGRNs, getWarehousesForGRN, getEmployeesForGRN } from "@/lib/actions/grn"
 import { getSchedulableWorkOrders, getMachinesForScheduling, getRoutingsForScheduling } from "@/lib/actions/manufacturing-garment"
+import { getStaffTasks, getManagerTasks, getDepartmentEmployees, getAssignableOrders, getManagerDashboardStats } from "@/lib/actions/tasks"
+import { getSubcontractOrders, getSubcontractors, getProductsForSubcontract, getSubcontractDashboard } from "@/lib/actions/subcontract"
+import { getCostingDashboard, getProductsForCostSheet, getCostSheets } from "@/lib/actions/costing"
+import { getCuttingDashboard, getCutPlans, getFabricProducts as getCuttingFabricProducts } from "@/lib/actions/cutting"
+import { getWeeklyShiftSchedule, getEmployeeShifts } from "@/lib/actions/hcm-shifts"
+import { getOnboardingTemplates } from "@/lib/actions/hcm-onboarding"
+import { getReconciliations, getBankAccounts } from "@/lib/actions/finance-reconciliation"
+import { getDocumentSystemOverview } from "@/app/actions/documents-system"
 
 /**
  * Maps sidebar routes to their data prefetch config.
@@ -238,6 +245,162 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             pendingQueue: p.success ? (p.pendingQueue || []) : [],
             summary: p.success ? p.summary : { passRate: 100, defectCount: 0, pendingCount: 0, todayCount: 0 },
         })),
+    },
+    "/dashboard": {
+        queryKey: queryKeys.executiveDashboard.list(),
+        queryFn: () => fetch("/api/dashboard").then((r) => r.json()).then((p) => p.data ?? {}),
+    },
+    "/inventory": {
+        queryKey: queryKeys.inventoryDashboard.list(),
+        queryFn: () => fetch("/api/inventory/dashboard").then((r) => r.json()).then((p) => p.data ?? {}),
+    },
+    "/procurement": {
+        queryKey: queryKeys.procurementDashboard.list(),
+        queryFn: () => fetch("/api/procurement/dashboard").then((r) => r.json()).then((p) => p.data ?? {}),
+    },
+    "/sales": {
+        queryKey: queryKeys.salesPage.list(),
+        queryFn: () => fetch("/api/sales/page-data").then((r) => r.json()).then((p) => p.data),
+    },
+    "/staff": {
+        queryKey: queryKeys.staffTasks.list(),
+        queryFn: async () => await getStaffTasks(),
+    },
+    "/manager": {
+        queryKey: queryKeys.managerDashboard.list(),
+        queryFn: async () => {
+            const tasks = await getManagerTasks()
+            const employees = await getDepartmentEmployees()
+            const orders = await getAssignableOrders()
+            const dashboard = await getManagerDashboardStats()
+            return { tasks, employees, orders, dashboard }
+        },
+    },
+    "/subcontract": {
+        queryKey: queryKeys.subcontractDashboard.list(),
+        queryFn: async () => await getSubcontractDashboard(),
+    },
+    "/subcontract/orders": {
+        queryKey: queryKeys.subcontractOrders.list(),
+        queryFn: async () => {
+            const [orders, subcontractors, products] = await Promise.all([
+                getSubcontractOrders(),
+                getSubcontractors(),
+                getProductsForSubcontract(),
+            ])
+            return { orders, subcontractors, products }
+        },
+    },
+    "/subcontract/registry": {
+        queryKey: queryKeys.subcontractRegistry.list(),
+        queryFn: async () => {
+            const subcontractors = await getSubcontractors()
+            return { subcontractors }
+        },
+    },
+    "/hcm/attendance": {
+        queryKey: queryKeys.hcmAttendance.list(),
+        queryFn: async () => {
+            const today = new Date().toISOString().slice(0, 10)
+            const snapshot = await getAttendanceSnapshot({ date: today })
+            const employees = await getEmployees({ includeInactive: false })
+            const leaveRequests = await getLeaveRequests({ status: "ALL", limit: 30 })
+            return { initialSnapshot: snapshot, initialEmployees: employees, initialLeaveRequests: leaveRequests }
+        },
+    },
+    "/hcm/shifts": {
+        queryKey: queryKeys.hcmShifts.list(),
+        queryFn: async () => {
+            const today = new Date()
+            const dayOfWeek = today.getDay()
+            const monday = new Date(today)
+            monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7))
+            const weekStart = monday.toISOString().split("T")[0]
+            const [schedule, employees] = await Promise.all([
+                getWeeklyShiftSchedule(weekStart),
+                getEmployeeShifts(),
+            ])
+            return { schedule, employees, currentWeekStart: weekStart }
+        },
+    },
+    "/hcm/onboarding": {
+        queryKey: queryKeys.hcmOnboarding.list(),
+        queryFn: async () => {
+            const templates = await getOnboardingTemplates()
+            return { templates }
+        },
+    },
+    "/costing": {
+        queryKey: queryKeys.costingDashboard.list(),
+        queryFn: async () => {
+            const [data, products] = await Promise.all([
+                getCostingDashboard(),
+                getProductsForCostSheet(),
+            ])
+            return { data, products }
+        },
+    },
+    "/costing/sheets": {
+        queryKey: queryKeys.costSheets.list(),
+        queryFn: async () => {
+            const [sheets, products] = await Promise.all([
+                getCostSheets(),
+                getProductsForCostSheet(),
+            ])
+            return { initialSheets: sheets, products }
+        },
+    },
+    "/dashboard/approvals": {
+        queryKey: queryKeys.approvals.list(),
+        queryFn: async () => {
+            const pendingPOs = await getPendingApprovalPOs()
+            return { pendingPOs }
+        },
+    },
+    "/sales/pricelists": {
+        queryKey: queryKeys.priceLists.list(),
+        queryFn: async () => {
+            const priceLists = await getAllPriceLists()
+            return { initialPriceLists: priceLists }
+        },
+    },
+    "/cutting": {
+        queryKey: queryKeys.cuttingDashboard.list(),
+        queryFn: async () => {
+            const [data, fabricProducts] = await Promise.all([
+                getCuttingDashboard(),
+                getCuttingFabricProducts(),
+            ])
+            return { data, fabricProducts }
+        },
+    },
+    "/cutting/plans": {
+        queryKey: queryKeys.cutPlans.list(),
+        queryFn: async () => {
+            const [plans, fabricProducts] = await Promise.all([
+                getCutPlans(),
+                getCuttingFabricProducts(),
+            ])
+            return { plans, fabricProducts }
+        },
+    },
+    "/finance/reconciliation": {
+        queryKey: queryKeys.reconciliation.list(),
+        queryFn: async () => {
+            const [reconciliations, bankAccounts] = await Promise.all([
+                getReconciliations(),
+                getBankAccounts(),
+            ])
+            return { reconciliations, bankAccounts }
+        },
+    },
+    "/documents": {
+        queryKey: queryKeys.documents.list(),
+        queryFn: async () => {
+            const result = await getDocumentSystemOverview({ registryQuery: {} })
+            if (!result.success || !("data" in result) || !result.data) throw new Error(("error" in result ? result.error : undefined) || "Failed")
+            return result.data
+        },
     },
 }
 
