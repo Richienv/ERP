@@ -2,10 +2,11 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { getStockTransfers, getTransferFormData } from "@/lib/actions/stock-transfers"
+import { queryKeys } from "@/lib/query-keys"
 
 export function useStockTransfers() {
     return useQuery({
-        queryKey: ["stockTransfers", "list"],
+        queryKey: queryKeys.stockTransfers.list(),
         queryFn: async () => {
             const [transfers, formData] = await Promise.all([
                 getStockTransfers(),

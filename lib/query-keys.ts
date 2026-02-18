@@ -244,4 +244,20 @@ export const queryKeys = {
         all: ["suppliers"] as const,
         list: () => [...queryKeys.suppliers.all, "list"] as const,
     },
+    adjustments: {
+        all: ["adjustments"] as const,
+        list: () => [...queryKeys.adjustments.all, "list"] as const,
+    },
+    stockMovements: {
+        all: ["stockMovements"] as const,
+        list: () => [...queryKeys.stockMovements.all, "list"] as const,
+    },
+    fabricRolls: {
+        all: ["fabricRolls"] as const,
+        list: () => [...queryKeys.fabricRolls.all, "list"] as const,
+    },
+    stockTransfers: {
+        all: ["stockTransfers"] as const,
+        list: () => [...queryKeys.stockTransfers.all, "list"] as const,
+    },
 } as const

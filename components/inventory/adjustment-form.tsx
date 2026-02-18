@@ -97,8 +97,10 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 startTransition(() => {
                     queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
                     queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
-                    queryClient.invalidateQueries({ queryKey: ["adjustments", "list"] })
-                    queryClient.invalidateQueries({ queryKey: ["stockMovements", "list"] })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.adjustments.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
                 })
             } else {
                 toast.error("Gagal menyimpan", { description: ("error" in result && result.error) ? String(result.error) : "Kesalahan tidak diketahui" })

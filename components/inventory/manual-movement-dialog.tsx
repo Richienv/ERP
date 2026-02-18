@@ -84,6 +84,10 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
         setNotes("");
         queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.adjustments.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all });
       } else {
         toast.error("error" in result && result.error ? String(result.error) : "Failed to record movement");
       }

@@ -116,6 +116,9 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
         queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all });
         setOpen(false);
         form.reset();
         setSelectedPO(null);

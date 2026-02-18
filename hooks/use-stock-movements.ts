@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { getStockMovements } from "@/app/actions/inventory"
+import { queryKeys } from "@/lib/query-keys"
 
 async function fetchProductsAndWarehouses() {
     const res = await fetch("/api/inventory/page-data")
@@ -12,7 +13,7 @@ async function fetchProductsAndWarehouses() {
 
 export function useStockMovements() {
     return useQuery({
-        queryKey: ["stockMovements", "list"],
+        queryKey: queryKeys.stockMovements.list(),
         queryFn: async () => {
             const [{ products, warehouses }, movements] = await Promise.all([
                 fetchProductsAndWarehouses(),
@@ -25,7 +26,7 @@ export function useStockMovements() {
 
 export function useAdjustmentsData() {
     return useQuery({
-        queryKey: ["adjustments", "list"],
+        queryKey: queryKeys.adjustments.list(),
         queryFn: async () => {
             const [{ products, warehouses }, movements] = await Promise.all([
                 fetchProductsAndWarehouses(),
