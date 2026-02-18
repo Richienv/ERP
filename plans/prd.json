@@ -166,7 +166,7 @@
       "id": "F-011",
       "title": "Cross-module entity consistency verification",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Product created in Inventory appears in Sales (quotation product picker), Procurement (PR product picker), Manufacturing (BOM material picker), Costing (cost sheet product picker)",
         "Customer created in Sales appears in Finance (invoice customer picker)",
