@@ -4,7 +4,7 @@
       "id": "F-001",
       "title": "Audit Inventori module — all buttons, CRUD, shared entities",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Dashboard Inventori (/inventory) loads with correct KPIs matching actual product/stock data",
         "Kelola Produk (/inventory/products): Create, Edit, Delete product buttons work. New product appears on categories page, dashboard KPIs, and any module referencing products",

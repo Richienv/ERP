@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import Link from "next/link"
 import {
   ArrowLeft, Save, Loader2, Target,
@@ -33,6 +35,7 @@ interface SalesOptionsResponse {
 
 export default function NewLeadPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [isLoading, setIsLoading] = useState(false)
   const [customers, setCustomers] = useState<OptionRecord[]>([])
   const [users, setUsers] = useState<OptionRecord[]>([])
@@ -117,6 +120,9 @@ export default function NewLeadPage() {
       }
 
       toast.success("Prospek berhasil dibuat")
+      queryClient.invalidateQueries({ queryKey: queryKeys.leads.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesPage.all })
       router.push("/sales/leads")
     } catch (error: any) {
       toast.error(error?.message || "Gagal membuat prospek")

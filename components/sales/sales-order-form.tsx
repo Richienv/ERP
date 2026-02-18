@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import {
   Calculator, Plus, Save, Trash2, User, FileText,
   CalendarDays, StickyNote, Loader2
@@ -72,6 +74,7 @@ const formatCurrency = (amount: number) => {
 
 export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFormProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const [loadingOptions, setLoadingOptions] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -324,6 +327,11 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
       }
 
       toast.success(`Sales order ${payload.data?.number || "baru"} berhasil dibuat`)
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.quotations.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesPage.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.all })
       router.push("/sales/orders")
     } catch (error: any) {
       toast.error(error?.message || "Gagal membuat sales order")

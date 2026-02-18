@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import {
   Calculator, Plus, Save, Trash2, User, FileText,
   CalendarDays, StickyNote, Loader2
@@ -69,6 +71,7 @@ interface QuotationFormProps {
 
 export function QuotationForm({ initialCustomerId, initialData }: QuotationFormProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [products, setProducts] = useState<ProductOption[]>([])
@@ -262,6 +265,9 @@ export function QuotationForm({ initialCustomerId, initialData }: QuotationFormP
       }
 
       toast.success(isEdit ? `Quotation ${initialData.number} berhasil diperbarui` : `Quotation ${payload.data?.number || "baru"} berhasil dibuat`)
+      queryClient.invalidateQueries({ queryKey: queryKeys.quotations.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesPage.all })
       router.push("/sales/quotations")
     } catch (error: any) {
       toast.error(error?.message || `Gagal ${initialData?.id ? 'memperbarui' : 'membuat'} quotation`)

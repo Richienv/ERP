@@ -58,6 +58,8 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
             if (result.success) {
                 toast.success(`Status berhasil diubah ke ${newStatus}`)
                 queryClient.invalidateQueries({ queryKey: queryKeys.quotations.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.salesPage.all })
             } else {
                 toast.error("Gagal mengubah status")
             }
@@ -105,6 +107,8 @@ export function QuotationKanban({ quotations }: QuotationKanbanProps) {
                     queryClient.invalidateQueries({ queryKey: queryKeys.quotations.all })
                     queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders.all })
                     queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.salesPage.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.customers.all })
                     router.push(`/sales/orders/${result.orderId}`)
                 } else {
                     toast.error(result.error || 'Gagal konversi ke Sales Order')

@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import Link from "next/link"
 import { ArrowLeft, Building2, CreditCard, FileText, Phone, Save, Loader2, Users } from "lucide-react"
 import { toast } from "sonner"
@@ -67,6 +69,7 @@ const defaultValues: CustomerFormValues = {
 
 export default function NewCustomerPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<CustomerFormValues>({
@@ -98,6 +101,9 @@ export default function NewCustomerPage() {
       }
 
       toast.success("Pelanggan berhasil dibuat")
+      queryClient.invalidateQueries({ queryKey: queryKeys.customers.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.salesPage.all })
       router.push("/sales/customers")
     } catch (error: any) {
       toast.error(error?.message || "Gagal membuat pelanggan")

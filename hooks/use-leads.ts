@@ -80,7 +80,9 @@ export function useLeadStatusMutation() {
             }
         },
         onSettled: () => {
-            queryClient.invalidateQueries({ queryKey: queryKeys.leads.list() })
+            queryClient.invalidateQueries({ queryKey: queryKeys.leads.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.salesPage.all })
         },
     })
 }

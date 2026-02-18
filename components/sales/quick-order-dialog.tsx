@@ -167,6 +167,9 @@ export function QuickOrderDialog({
             toast.success(`Sales Order ${payload.data?.number || "baru"} berhasil dibuat`)
             onOpenChange(false)
             queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.salesPage.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.customers.all })
         } catch (error: any) {
             toast.error(error?.message || "Gagal membuat sales order")
         } finally {

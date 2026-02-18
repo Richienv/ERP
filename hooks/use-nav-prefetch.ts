@@ -109,7 +109,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         },
     },
     "/inventory/fabric-rolls": {
-        queryKey: ["fabricRolls", "list"],
+        queryKey: queryKeys.fabricRolls.list(),
         queryFn: async () => {
             const [rolls, warehouses, products] = await Promise.all([
                 getFabricRolls(),
@@ -120,7 +120,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         },
     },
     "/inventory/transfers": {
-        queryKey: ["stockTransfers", "list"],
+        queryKey: queryKeys.stockTransfers.list(),
         queryFn: async () => {
             const [transfers, formData] = await Promise.all([
                 getStockTransfers(),

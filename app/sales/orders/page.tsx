@@ -4,8 +4,10 @@ import { useMemo, useState } from "react"
 import Link from "next/link"
 import { Filter, Package, Plus, RefreshCcw, Search, ShoppingBag, Truck } from "lucide-react"
 import { IconTrendingUp } from "@tabler/icons-react"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { useSalesOrders } from "@/hooks/use-sales-orders"
+import { queryKeys } from "@/lib/query-keys"
 import { OrderExecutionCard } from "@/components/sales/order-execution-card"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,6 +30,7 @@ const formatCurrencyCompact = (value: number) => {
 }
 
 export default function SalesOrdersPage() {
+  const queryClient = useQueryClient()
   const { data, isLoading, isFetching, refetch } = useSalesOrders()
   const orders = data?.orders ?? []
   const summary = data?.summary ?? {
@@ -234,7 +237,10 @@ export default function SalesOrdersPage() {
                       key={order.id}
                       order={order}
                       onWorkOrdersCreated={() => {
-                        void refetch()
+                        queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders.all })
+                        queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all })
+                        queryClient.invalidateQueries({ queryKey: queryKeys.mfgDashboard.all })
+                        queryClient.invalidateQueries({ queryKey: queryKeys.salesDashboard.all })
                       }}
                     />
                   ))}

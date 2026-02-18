@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +30,7 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
     const [selectedIndex, setSelectedIndex] = useState(0)
     const [isViewerOpen, setIsViewerOpen] = useState(false)
     const [refreshing, setRefreshing] = useState(false)
+    const queryClient = useQueryClient()
 
     const filtered = useMemo(() => {
         return initialPriceLists.filter(pl => {
@@ -54,7 +57,8 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
 
     const handleRefresh = () => {
         setRefreshing(true)
-        window.location.reload()
+        queryClient.invalidateQueries({ queryKey: queryKeys.priceLists.all })
+        setRefreshing(false)
     }
 
     return (
