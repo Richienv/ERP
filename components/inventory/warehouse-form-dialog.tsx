@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { createWarehouse, updateWarehouse } from "@/app/actions/inventory";
 import { toast } from "sonner";
 import { Edit, Loader2, Plus, Save, Warehouse } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { NB } from "@/lib/dialog-styles";
 
 interface WarehouseFormDialogProps {
@@ -31,7 +32,7 @@ interface WarehouseFormDialogProps {
 export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
     name: warehouse?.name || "",
@@ -57,7 +58,7 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
         if (mode === "create") {
           setFormData({ name: "", code: "", address: "", capacity: 10000 });
         }
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
       } else {
         toast.error("Operation failed", { description: result.error });
       }

@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { formatIDR } from "@/lib/utils"
 import {
     getInvoiceCustomers,
@@ -28,7 +30,6 @@ import {
     createInvoiceFromSalesOrder,
     createBillFromPOId,
 } from "@/lib/actions/finance"
-import { useRouter } from "next/navigation"
 import { NB } from "@/lib/dialog-styles"
 
 interface CreateInvoiceDialogProps {
@@ -45,7 +46,7 @@ const parseDateInput = (value: string) => {
 }
 
 export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogProps) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [customers, setCustomers] = useState<Array<{ id: string; name: string; type?: string }>>([])
     const [pendingOrders, setPendingOrders] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
@@ -140,7 +141,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 toast.success("Dokumen berhasil dibuat")
                 resetForm()
                 onOpenChange(false)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal membuat invoice") || "Gagal membuat invoice")
             }

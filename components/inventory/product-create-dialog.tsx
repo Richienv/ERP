@@ -35,7 +35,8 @@ import {
     buildStructuredCode,
 } from "@/lib/inventory-utils"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface ProductCreateDialogProps {
     categories: { id: string; name: string; code: string }[]
@@ -58,7 +59,7 @@ const WORKFLOW_HINTS: Record<string, { borderColor: string; bgColor: string; tex
 export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
     const [open, setOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const form = useForm<CreateProductInput>({
         resolver: zodResolver(createProductSchema),
@@ -108,7 +109,7 @@ export function ProductCreateDialog({ categories }: ProductCreateDialogProps) {
                 })
                 form.reset()
                 setOpen(false)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
             } else {
                 toast.error((result as any).error || "Gagal membuat produk")
             }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Users, UserCog, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,6 +21,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { assignWarehouseManager, getWarehouseStaffing } from "@/app/actions/inventory";
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { NB } from "@/lib/dialog-styles";
 
 type StaffingPayload = Awaited<ReturnType<typeof getWarehouseStaffing>>;
@@ -39,7 +40,7 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
   const [data, setData] = useState<StaffingPayload | null>(null);
   const [selectedManager, setSelectedManager] = useState("");
   const { user } = useAuth();
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const canManageManager = useMemo(
     () => ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN"].includes(user?.role || ""),
@@ -76,7 +77,7 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
         return;
       }
       toast.success("Manager gudang berhasil diperbarui");
-      router.refresh();
+      queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
       setOpen(false);
     } finally {
       setSubmitting(false);

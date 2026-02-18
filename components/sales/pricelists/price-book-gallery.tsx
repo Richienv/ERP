@@ -22,6 +22,8 @@ import {
 } from "lucide-react"
 import { updatePriceList, deletePriceList } from "@/lib/actions/sales"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -81,6 +83,7 @@ function PriceListCard({
 }) {
     const accent = CARD_ACCENTS[colorIndex % CARD_ACCENTS.length]
     const router = useRouter()
+    const queryClient = useQueryClient()
 
     async function handleToggleActive() {
         const res = await updatePriceList(priceList.id, { isActive: !priceList.isActive })
@@ -88,7 +91,7 @@ function PriceListCard({
             toast.success(priceList.isActive ? "Daftar harga dinonaktifkan" : "Daftar harga diaktifkan", {
                 className: "font-bold border-2 border-black"
             })
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.priceLists.all })
         } else {
             toast.error(res.error)
         }
@@ -101,7 +104,7 @@ function PriceListCard({
             toast.success("Daftar harga dihapus", {
                 className: "font-bold border-2 border-black"
             })
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.priceLists.all })
         } else {
             toast.error(res.error)
         }

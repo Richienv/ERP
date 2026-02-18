@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { CheckCircle2, XCircle, Package, Loader2, Calendar, User, Warehouse } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -58,7 +58,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
     const [rejectReason, setRejectReason] = useState("")
     const [sodMode, setSodMode] = useState(false)
     const [sodReason, setSodReason] = useState("")
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     if (!grn) return null
 
@@ -92,7 +92,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 setSodMode(false)
                 setSodReason("")
                 onClose()
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: ["receiving", "list"] })
             } else if ('sodViolation' in result && result.sodViolation) {
                 setSodMode(true)
                 toast.warning(result.error || "Peringatan SoD: Konfirmasi diperlukan")
@@ -119,7 +119,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 toast.success("GRN ditolak")
                 setRejectMode(false)
                 onClose()
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: ["receiving", "list"] })
             } else {
                 toast.error(result.error || "Gagal menolak GRN")
             }

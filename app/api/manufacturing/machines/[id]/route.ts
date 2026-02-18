@@ -11,8 +11,36 @@ export async function GET(
 
         const machine = await prisma.machine.findUnique({
             where: { id },
-            include: {
+            select: {
+                id: true,
+                code: true,
+                name: true,
+                brand: true,
+                model: true,
+                serialNumber: true,
+                groupId: true,
+                status: true,
+                healthScore: true,
+                lastMaintenance: true,
+                nextMaintenance: true,
+                capacityPerHour: true,
+                standardHoursPerDay: true,
+                overheadTimePerHour: true,
+                overheadMaterialCostPerHour: true,
+                isActive: true,
+                createdAt: true,
+                updatedAt: true,
                 logs: {
+                    select: {
+                        id: true,
+                        type: true,
+                        description: true,
+                        cost: true,
+                        startTime: true,
+                        endTime: true,
+                        performedBy: true,
+                        createdAt: true,
+                    },
                     orderBy: { startTime: 'desc' },
                     take: 10,
                 },

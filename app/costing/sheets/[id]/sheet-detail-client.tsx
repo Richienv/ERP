@@ -2,6 +2,8 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import Link from "next/link"
 import {
     ArrowLeft,
@@ -64,6 +66,7 @@ interface Props {
 
 export function SheetDetailClient({ sheet }: Props) {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const isDraft = sheet.status === "CS_DRAFT"
     const isFinalized = sheet.status === "CS_FINALIZED"
 
@@ -131,7 +134,7 @@ export function SheetDetailClient({ sheet }: Props) {
             toast.success("Item berhasil ditambahkan")
             setAddOpen(false)
             setAddForm({ category: "FABRIC", description: "", quantity: "", unitCost: "" })
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
         } else {
             toast.error(result.error || "Gagal menambah item")
         }
@@ -149,7 +152,7 @@ export function SheetDetailClient({ sheet }: Props) {
         if (result.success) {
             toast.success("Item berhasil diperbarui")
             setEditItem(null)
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
         } else {
             toast.error(result.error || "Gagal memperbarui item")
         }
@@ -161,7 +164,7 @@ export function SheetDetailClient({ sheet }: Props) {
         setLoading(false)
         if (result.success) {
             toast.success("Item berhasil dihapus")
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
         } else {
             toast.error(result.error || "Gagal menghapus item")
         }
@@ -179,7 +182,7 @@ export function SheetDetailClient({ sheet }: Props) {
         if (result.success) {
             toast.success("Biaya aktual berhasil diperbarui")
             setActualItem(null)
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
         } else {
             toast.error(result.error || "Gagal memperbarui biaya aktual")
         }
@@ -191,7 +194,7 @@ export function SheetDetailClient({ sheet }: Props) {
         setLoading(false)
         if (result.success) {
             toast.success("Status berhasil diubah")
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
         } else {
             toast.error(result.error || "Gagal mengubah status")
         }
@@ -236,7 +239,7 @@ export function SheetDetailClient({ sheet }: Props) {
         if (result.success) {
             toast.success(`${result.itemsAdded} item berhasil diimpor dari BOM`)
             setBomOpen(false)
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.costSheets.all })
         } else {
             toast.error(result.error || "Gagal mengimpor dari BOM")
         }

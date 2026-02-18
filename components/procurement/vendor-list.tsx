@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label"
 import { createVendor } from "@/lib/actions/procurement"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface Vendor {
     id: string
@@ -33,7 +34,7 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
     const [searchTerm, setSearchTerm] = useState("")
     const [isCreateOpen, setIsCreateOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     // New Vendor Form State
     const [newVendor, setNewVendor] = useState({
@@ -63,7 +64,7 @@ export function VendorList({ initialData }: { initialData: Vendor[] }) {
                 toast.success("Vendor Created")
                 setIsCreateOpen(false)
                 setNewVendor({ name: "", code: "", contactName: "", email: "", phone: "", address: "" }) // Reset
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
             } else {
                 toast.error(result.error || "Failed to create vendor")
             }

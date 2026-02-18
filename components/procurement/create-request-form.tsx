@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Plus, Loader2, UserCheck, StickyNote, Package, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { createPurchaseRequest } from "@/lib/actions/procurement";
 import { NB } from "@/lib/dialog-styles";
 
@@ -38,6 +40,7 @@ interface Props {
 
 export function CreateRequestForm({ products, employees }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [newItem, setNewItem] = useState<{ productId: string; quantity: number; notes: string }>({
@@ -90,7 +93,7 @@ export function CreateRequestForm({ products, employees }: Props) {
       if (result.success) {
         toast.success("Purchase Request berhasil dibuat");
         router.push("/procurement/requests");
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all });
       } else {
         toast.error(result.error || "Gagal membuat request");
       }

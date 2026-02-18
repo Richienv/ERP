@@ -22,7 +22,8 @@ import {
 import { cn } from "@/lib/utils"
 import { AlertCircle, CheckCircle2, Package, Calculator, Truck, Eye } from 'lucide-react'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { ProductQuickView } from '@/components/inventory/product-quick-view'
 
 interface Product {
@@ -206,7 +207,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
         notes: ""
     })
 
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const handleDrop = async (productId: string, newStatus: string) => {
         const product = products.find(p => p.id === productId)
@@ -295,7 +296,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
                     toast.success(`Restock Request Created! PR #${prNum}`, {
                         description: "Product flagged as Critical."
                     })
-                    router.refresh()
+                    queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
                 } else {
                     throw new Error((result as any).error)
                 }
@@ -328,7 +329,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
             if (result.success) {
                 toast.dismiss()
                 toast.success("Manual Alert removed")
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
             } else {
                 toast.dismiss()
                 toast.error("Failed to update status")

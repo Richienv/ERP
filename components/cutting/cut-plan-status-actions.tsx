@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { updateCutPlanStatus } from "@/lib/actions/cutting"
@@ -27,7 +28,7 @@ export function CutPlanStatusActions({
     currentStatus,
     nextStatuses,
 }: CutPlanStatusActionsProps) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [loading, setLoading] = useState<CutPlanStatus | null>(null)
 
     const handleTransition = async (newStatus: CutPlanStatus) => {
@@ -36,7 +37,7 @@ export function CutPlanStatusActions({
             const result = await updateCutPlanStatus(planId, newStatus)
             if (result.success) {
                 toast.success(`Status diubah ke "${cutPlanStatusLabels[newStatus]}"`)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.cutPlans.all })
             } else {
                 toast.error(result.error || "Gagal mengubah status")
             }

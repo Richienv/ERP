@@ -10,7 +10,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { formatIDR } from "@/lib/utils"
 import { rejectPurchaseOrder, submitPOForApproval, approvePurchaseOrder, markAsOrdered, markAsVendorConfirmed, markAsShipped } from "@/lib/actions/procurement"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface PODetailsSheetProps {
     order: any
@@ -27,7 +28,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
     const [shipMode, setShipMode] = useState(false)
     const [trackingNumber, setTrackingNumber] = useState("")
     const [processing, setProcessing] = useState(false)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     if (!order) return null
 
@@ -56,7 +57,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
             if (res?.success) {
                 toast.success(`Order ${action}ed successfully`)
                 onClose()
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
             } else {
                 toast.error("Action failed")
             }

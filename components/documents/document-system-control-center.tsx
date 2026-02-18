@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -241,6 +243,7 @@ const downloadCsv = (filename: string, headers: string[], rows: Array<Array<stri
 
 export function DocumentSystemControlCenter({ initialData }: { initialData: DocumentsSystemData }) {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const { refreshFromServer } = useWorkflowConfig()
@@ -685,7 +688,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
 
             toast.success(editingCategory ? "Kategori berhasil diperbarui" : "Kategori berhasil dibuat")
             setCategoryModalOpen(false)
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
         })
     }
 
@@ -729,7 +732,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
 
             toast.success(editingWarehouse ? "Gudang berhasil diperbarui" : "Gudang berhasil dibuat")
             setWarehouseModalOpen(false)
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
         })
     }
 
@@ -768,7 +771,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
 
             toast.success(editingRole ? "Role berhasil diperbarui" : "Role baru berhasil dibuat")
             setRoleModalOpen(false)
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
         })
     }
 
@@ -801,7 +804,7 @@ export function DocumentSystemControlCenter({ initialData }: { initialData: Docu
             if (data.currentSystemRoleCode && permissionRole.code === data.currentSystemRoleCode) {
                 await refreshFromServer()
             }
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.documents.all })
         })
     }
 

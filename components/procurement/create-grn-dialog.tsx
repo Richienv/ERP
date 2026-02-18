@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { Package, Plus, Minus, Loader2, Warehouse, ClipboardList } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import {
     Dialog,
@@ -84,7 +84,7 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
     const [loading, setLoading] = useState(false)
     const [warehouseId, setWarehouseId] = useState("")
     const [notes, setNotes] = useState("")
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const [items, setItems] = useState<ReceivingItem[]>(
         purchaseOrder.items
@@ -157,7 +157,7 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
             if (result.success) {
                 toast.success(`GRN ${result.grnNumber} berhasil dibuat`)
                 setOpen(false)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: ["receiving", "list"] })
             } else {
                 toast.error(result.error || "Gagal membuat GRN")
             }

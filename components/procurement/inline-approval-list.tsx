@@ -8,7 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { formatIDR } from "@/lib/utils"
 import { approvePurchaseOrder, rejectPurchaseOrder, approvePurchaseRequest, rejectPurchaseRequest } from "@/lib/actions/procurement"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface PendingItem {
     id: string
@@ -32,7 +33,7 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
     const [rejectTarget, setRejectTarget] = useState<PendingItem | null>(null)
     const [rejectReason, setRejectReason] = useState("")
     const [detailTarget, setDetailTarget] = useState<PendingItem | null>(null)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     // Optimistically filter out removed items
     const visibleItems = pendingItems.filter(item => !removedIds.has(item.id))
@@ -47,7 +48,8 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 // Optimistically remove from list immediately
                 setRemovedIds(prev => new Set(prev).add(item.id))
                 toast.success(`${item.type} ${item.number} disetujui`)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
             } else {
                 toast.error(result.error || "Gagal menyetujui")
             }
@@ -74,7 +76,8 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 toast.success(`${rejectTarget.type} ${rejectTarget.number} ditolak`)
                 setRejectTarget(null)
                 setRejectReason("")
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
             } else {
                 toast.error(result.error || "Gagal menolak")
             }

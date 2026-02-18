@@ -24,8 +24,34 @@ export async function GET(request: NextRequest) {
 
         const machines = await prisma.machine.findMany({
             where: whereClause,
-            include: {
+            select: {
+                id: true,
+                code: true,
+                name: true,
+                brand: true,
+                model: true,
+                serialNumber: true,
+                groupId: true,
+                status: true,
+                healthScore: true,
+                lastMaintenance: true,
+                nextMaintenance: true,
+                capacityPerHour: true,
+                standardHoursPerDay: true,
+                overheadTimePerHour: true,
+                overheadMaterialCostPerHour: true,
+                isActive: true,
+                createdAt: true,
+                updatedAt: true,
                 logs: {
+                    select: {
+                        id: true,
+                        type: true,
+                        description: true,
+                        startTime: true,
+                        endTime: true,
+                        performedBy: true,
+                    },
                     orderBy: { startTime: 'desc' },
                     take: 1,
                 },
@@ -93,6 +119,7 @@ export async function POST(request: NextRequest) {
         // Check if machine code already exists
         const existingMachine = await prisma.machine.findUnique({
             where: { code },
+            select: { id: true },
         })
 
         if (existingMachine) {

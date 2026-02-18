@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import {
     ClipboardList,
     BarChart3,
@@ -136,7 +137,7 @@ export function AttendanceClient({
     initialEmployees,
     initialLeaveRequests,
 }: AttendanceClientProps) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [isPending, startTransition] = useTransition()
 
     // State
@@ -198,7 +199,7 @@ export function AttendanceClient({
     }
 
     const handleRefresh = () => {
-        startTransition(() => router.refresh())
+        queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
     }
 
     const handleClockSubmit = async () => {
@@ -247,7 +248,7 @@ export function AttendanceClient({
             }
             toast.success("Pengajuan cuti berhasil dibuat")
             setLeaveForm({ employeeId: "", type: "ANNUAL", startDate: todayInput(), endDate: todayInput(), reason: "" })
-            startTransition(() => router.refresh())
+            queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
         } catch {
             toast.error("Terjadi kesalahan")
         } finally {
@@ -262,7 +263,7 @@ export function AttendanceClient({
             return
         }
         toast.success("Pengajuan cuti disetujui")
-        startTransition(() => router.refresh())
+        queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
     }
 
     const handleReject = async (id: string) => {
@@ -272,7 +273,7 @@ export function AttendanceClient({
             return
         }
         toast.success("Pengajuan cuti ditolak")
-        startTransition(() => router.refresh())
+        queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
     }
 
     const getStatusKey = (status: string, isLate: boolean) => {

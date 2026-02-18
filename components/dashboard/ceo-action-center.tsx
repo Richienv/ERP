@@ -13,7 +13,8 @@ import Link from "next/link"
 import { formatIDR } from "@/lib/utils"
 import { approvePurchaseOrder, rejectPurchaseOrder } from "@/lib/actions/procurement"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { NewPurchaseOrderDialog } from "@/components/procurement/new-po-dialog"
 import { CreateWorkOrderDialog } from "@/components/manufacturing/create-work-order-dialog"
 import { CreateInvoiceDialog } from "@/components/finance/create-invoice-dialog"
@@ -67,7 +68,7 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
     const [rejectMode, setRejectMode] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
     const [processing, setProcessing] = useState(false)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     // Quick Action dialog states
     const [showPODialog, setShowPODialog] = useState(false)
@@ -83,7 +84,7 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
             if (result.success) {
                 toast.success(`PO ${po.number} disetujui`)
                 setSelectedPO(null)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.executiveDashboard.all })
             } else {
                 toast.error(result.error || "Gagal menyetujui")
             }
@@ -107,7 +108,7 @@ export function CeoActionCenter({ pendingApproval, activeCount, alerts, pendingL
                 setSelectedPO(null)
                 setRejectMode(false)
                 setRejectReason("")
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.executiveDashboard.all })
             } else {
                 toast.error(result.error || "Gagal menolak")
             }

@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -24,7 +25,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
     const [processing, setProcessing] = useState(false)
     const [poData, setPoData] = useState<any>(null)
     const [selectedVendor, setSelectedVendor] = useState<string>("")
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     useEffect(() => {
         if (isOpen && poId) {
@@ -71,7 +72,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
             window.open(`/api/documents/purchase-order/${poData.id}?disposition=inline`, '_blank')
             toast.success("PO Difinalisasi & PDF Dibuat")
             onClose()
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
         } catch (error: any) {
             toast.error(error.message || "Gagal finalisasi PO")
         } finally {

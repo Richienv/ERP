@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Plus, Loader2, Truck, Building2, User, Mail, Phone, MapPin } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -40,7 +41,7 @@ const formSchema = z.object({
 
 export function NewVendorDialog() {
     const [open, setOpen] = useState(false)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -64,7 +65,7 @@ export function NewVendorDialog() {
                 toast.success(result.message)
                 setOpen(false)
                 form.reset()
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
             } else {
                 toast.error(result.error)
             }

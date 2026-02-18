@@ -1,6 +1,6 @@
 "use client"
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { QueryClient, QueryClientProvider, keepPreviousData } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { useState, type ReactNode } from "react"
 
@@ -12,6 +12,14 @@ function makeQueryClient() {
                 gcTime: 5 * 60 * 1000,      // 5 minutes — cache kept in memory
                 retry: 1,
                 refetchOnWindowFocus: false, // ERP data doesn't change that fast
+                placeholderData: keepPreviousData,
+                refetchOnMount: true,
+                networkMode: "offlineFirst",
+            },
+            mutations: {
+                retry: 2,
+                retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 10000),
+                networkMode: "offlineFirst",
             },
         },
     })

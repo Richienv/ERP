@@ -14,6 +14,10 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AuthProvider } from "@/lib/auth-context"
 import { RouteGuard } from "@/components/route-guard"
 import { CacheWarmingOverlay } from "@/components/cache-warming-overlay"
+import { PageTransition } from "@/components/page-transition"
+import { OfflineIndicator } from "@/components/offline-indicator"
+import { ServiceWorkerRegister } from "@/components/service-worker-register"
+import { PerformanceTracker } from "@/components/performance-tracker"
 
 interface GlobalLayoutProps {
   children: React.ReactNode
@@ -38,7 +42,9 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
               <SidebarInset className="max-h-svh overflow-hidden">
                 <SiteHeader />
                 <div className="flex-1 overflow-auto p-4 pt-0 gap-4 flex flex-col">
-                  {children}
+                  <PageTransition>
+                    {children}
+                  </PageTransition>
                 </div>
                 {/* <AIFloatingButton /> */}
                 <AISidebar />
@@ -47,6 +53,9 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
             </SidebarProvider>
           )}
         </RouteGuard>
+        <OfflineIndicator />
+        <ServiceWorkerRegister />
+        <PerformanceTracker />
         <CacheWarmingOverlay />
       </AIProvider>
     </AuthProvider >

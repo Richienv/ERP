@@ -261,6 +261,8 @@ model Product {
   cutPlans              CutPlan[]              @relation("CutPlanFabric")
   garmentCostSheets     GarmentCostSheet[]
 
+  @@index([categoryId])
+  @@index([updatedAt])
   @@map("products")
 }
 
@@ -285,6 +287,9 @@ model StockLevel {
   updatedAt DateTime @updatedAt
 
   @@unique([productId, warehouseId, locationId])
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([productId, warehouseId])
   @@map("stock_levels")
 }
 
@@ -457,6 +462,8 @@ model Customer {
   Invoice   Invoice[]
   Payment   Payment[]
 
+  @@index([customerType])
+  @@index([updatedAt])
   @@map("customers")
 }
 
@@ -596,6 +603,9 @@ model Quotation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
+  @@index([customerId])
+  @@index([updatedAt])
   @@map("quotations")
 }
 
@@ -665,6 +675,10 @@ model SalesOrder {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
+  @@index([customerId])
+  @@index([orderDate])
+  @@index([updatedAt])
   @@map("sales_orders")
 }
 
@@ -696,6 +710,8 @@ model SalesOrderItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([salesOrderId])
+  @@index([productId])
   @@map("sales_order_items")
 }
 
@@ -732,6 +748,8 @@ model Lead {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
+  @@index([updatedAt])
   @@map("leads")
 }
 
@@ -954,6 +972,7 @@ model Supplier {
   Invoice   Invoice[]
   Payment   Payment[]
 
+  @@index([updatedAt])
   @@map("suppliers")
 }
 
@@ -1031,6 +1050,9 @@ model PurchaseOrder {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
+  @@index([supplierId])
+  @@index([updatedAt])
   @@map("purchase_orders")
 }
 
@@ -1069,6 +1091,7 @@ model PurchaseOrderItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([productId])
   @@map("purchase_order_items")
 }
 
@@ -1116,6 +1139,8 @@ model PurchaseRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
+  @@index([updatedAt])
   @@map("purchase_requests")
 }
 
@@ -1279,6 +1304,8 @@ model Employee {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
+  @@index([department])
   @@map("employees")
 }
 
@@ -1299,6 +1326,9 @@ model Attendance {
   updatedAt DateTime @updatedAt
 
   @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+  @@index([employeeId, date])
   @@map("attendance")
 }
 
@@ -1417,6 +1447,8 @@ model QualityInspection {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([workOrderId])
+  @@index([status])
   @@map("quality_inspections")
 }
 
@@ -1663,6 +1695,7 @@ model Payment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([invoiceId])
   @@map("payments")
 }
 
@@ -1726,6 +1759,7 @@ model Machine {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
   @@map("machines")
 }
 
@@ -1764,6 +1798,7 @@ model BillOfMaterials {
   updatedAt DateTime @updatedAt
 
   @@unique([productId, version])
+  @@index([productId])
   @@map("bill_of_materials")
 }
 
@@ -1879,6 +1914,8 @@ model GLAccount {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([type])
+  @@index([code])
   @@map("gl_accounts")
 }
 

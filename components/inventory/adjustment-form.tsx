@@ -14,7 +14,8 @@ import {
 import { createManualMovement } from "@/app/actions/inventory"
 import { toast } from "sonner"
 import { Loader2, ArrowRightLeft, Plus, Minus, Box, CheckCircle2 } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useTransition } from "react"
 
@@ -25,7 +26,7 @@ interface AdjustmentFormProps {
 
 export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     const [loading, setLoading] = useState(false)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const [isPending, startTransition] = useTransition()
 
@@ -81,7 +82,8 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 setSearchQuery("")
 
                 startTransition(() => {
-                    router.refresh()
+                    queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                    queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
                 })
             } else {
                 toast.error("Gagal menyimpan", { description: ("error" in result && result.error) ? String(result.error) : "Kesalahan tidak diketahui" })

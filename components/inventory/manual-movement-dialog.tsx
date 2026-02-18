@@ -22,7 +22,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { createManualMovement } from "@/app/actions/inventory";
 import { toast } from "sonner";
 import { Loader2, ArrowRightLeft, Plus, Minus, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { NB } from "@/lib/dialog-styles";
 
 interface ManualMovementDialogProps {
@@ -34,7 +35,7 @@ interface ManualMovementDialogProps {
 export function ManualMovementDialog({ products, warehouses, userId = "system-user" }: ManualMovementDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [type, setType] = useState<"ADJUSTMENT_IN" | "ADJUSTMENT_OUT" | "TRANSFER" | "SCRAP">("ADJUSTMENT_IN");
   const [productId, setProductId] = useState("");
@@ -76,7 +77,8 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
         setOpen(false);
         setQuantity("");
         setNotes("");
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
       } else {
         toast.error("error" in result && result.error ? String(result.error) : "Failed to record movement");
       }

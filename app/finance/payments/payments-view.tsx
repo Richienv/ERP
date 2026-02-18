@@ -40,6 +40,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { NB } from "@/lib/dialog-styles"
 import { matchPaymentToInvoice, recordARPayment } from "@/lib/actions/finance"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "CARD"
 
@@ -97,6 +99,7 @@ const todayAsInput = () => new Date().toISOString().slice(0, 10)
 
 export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta, registryQuery }: ARPaymentsViewProps) {
     const router = useRouter()
+    const queryClient = useQueryClient()
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const [processing, setProcessing] = useState<string | null>(null)
@@ -178,7 +181,8 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                 toast.success("message" in result ? result.message : "Pembayaran berhasil dialokasikan")
                 setSelectedPaymentId(null)
                 setSelectedInvoiceId(null)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             } else {
                 toast.error("error" in result ? String(result.error) : "Gagal mengalokasikan pembayaran")
             }
@@ -228,7 +232,8 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                 notes: "",
                 invoiceId: ""
             })
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
         } catch {
             toast.error("Terjadi kesalahan saat mencatat penerimaan")
         } finally {
@@ -287,7 +292,10 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                     <div className="flex items-center gap-2">
                         <Button
                             variant="outline"
-                            onClick={() => router.refresh()}
+                            onClick={() => {
+                                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+                                queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
+                            }}
                             className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
                         >
                             <RefreshCcw className="mr-1.5 h-3.5 w-3.5" /> Segarkan

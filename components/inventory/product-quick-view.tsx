@@ -35,7 +35,8 @@ import {
     Loader2, AlertTriangle, Warehouse
 } from "lucide-react"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { getProductById, getProductMovements, updateProduct, deleteProduct } from "@/app/actions/inventory"
 import { INDONESIAN_UNITS } from "@/lib/inventory-utils"
 
@@ -127,7 +128,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
     const [product, setProduct] = useState<ProductData | null>(null)
     const [movements, setMovements] = useState<Movement[]>([])
     const [editForm, setEditForm] = useState<Partial<ProductData>>({})
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const loadData = useCallback(async () => {
         if (!productId) return
@@ -189,7 +190,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                 toast.success("Produk berhasil diperbarui")
                 setEditing(false)
                 loadData()
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
             } else {
                 toast.error(result.error || "Gagal memperbarui")
             }
@@ -207,7 +208,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
             toast.success("Produk berhasil dihapus")
             setDeleteDialogOpen(false)
             onOpenChange(false)
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
         } else {
             toast.error(result.error || "Gagal menghapus")
         }

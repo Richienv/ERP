@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useTransition, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { TaskCard } from "@/components/staff/task-card"
 import type { StaffTaskDTO } from "@/lib/actions/tasks"
 import { startTask, completeTask, reportTaskIssue } from "@/lib/actions/tasks"
@@ -38,7 +39,7 @@ interface StaffTasksClientProps {
 }
 
 export function StaffTasksClient({ tasks: initialTasks, employee }: StaffTasksClientProps) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [isPending, startTransition] = useTransition()
     const [activeTab, setActiveTab] = useState<string>("production")
 
@@ -58,7 +59,7 @@ export function StaffTasksClient({ tasks: initialTasks, employee }: StaffTasksCl
         const result = await startTask(id)
         if (result.success) {
             toast.success("Tugas dimulai")
-            startTransition(() => router.refresh())
+            queryClient.invalidateQueries({ queryKey: queryKeys.staffTasks.all })
         } else {
             toast.error(result.error || "Gagal memulai tugas")
         }
@@ -68,7 +69,7 @@ export function StaffTasksClient({ tasks: initialTasks, employee }: StaffTasksCl
         const result = await completeTask(id)
         if (result.success) {
             toast.success("Tugas selesai")
-            startTransition(() => router.refresh())
+            queryClient.invalidateQueries({ queryKey: queryKeys.staffTasks.all })
         } else {
             toast.error(result.error || "Gagal menyelesaikan tugas")
         }
@@ -82,7 +83,7 @@ export function StaffTasksClient({ tasks: initialTasks, employee }: StaffTasksCl
         })
         if (result.success) {
             toast.success("Kendala dilaporkan")
-            startTransition(() => router.refresh())
+            queryClient.invalidateQueries({ queryKey: queryKeys.staffTasks.all })
         } else {
             toast.error(result.error || "Gagal melaporkan kendala")
         }

@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -48,7 +49,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
     const [rejectMode, setRejectMode] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
     const [processing, setProcessing] = useState(false)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const handleApprove = async (po: PendingPO) => {
         setProcessing(true)
@@ -57,7 +58,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
             if (result.success) {
                 toast.success(`PO ${po.number} approved & signed`)
                 setSelectedPO(null)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
             } else {
                 toast.error(result.error || "Failed to approve")
             }
@@ -82,7 +83,7 @@ export function ApprovalsView({ pendingPOs }: ApprovalsViewProps) {
                 setSelectedPO(null)
                 setRejectMode(false)
                 setRejectReason("")
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
             } else {
                 toast.error(result.error || "Failed to reject")
             }

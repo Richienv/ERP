@@ -5,7 +5,8 @@ import { Pencil, Trash2, Loader2, X, Check } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { upsertSubcontractorRate, deleteSubcontractorRate } from "@/lib/actions/subcontract"
 
 const OPERATION_LABELS: Record<string, string> = {
@@ -28,7 +29,7 @@ interface SubcontractorRatesTableProps {
 }
 
 export function SubcontractorRatesTable({ rates, subcontractorId }: SubcontractorRatesTableProps) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [editingId, setEditingId] = useState<string | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [processing, setProcessing] = useState(false)
@@ -77,7 +78,7 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
             if (result.success) {
                 toast.success("Tarif berhasil diperbarui")
                 setEditingId(null)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
             } else {
                 toast.error(result.error || "Gagal memperbarui tarif")
             }
@@ -95,7 +96,7 @@ export function SubcontractorRatesTable({ rates, subcontractorId }: Subcontracto
             const result = await deleteSubcontractorRate(rateId)
             if (result.success) {
                 toast.success("Tarif berhasil dihapus")
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.subcontractRegistry.all })
             } else {
                 toast.error(result.error || "Gagal menghapus tarif")
             }

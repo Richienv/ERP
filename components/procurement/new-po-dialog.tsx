@@ -5,7 +5,8 @@ import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { Plus, Loader2, Trash2, CalendarIcon, Check, ChevronsUpDown, FileText, Download, Eye, Share2, ShoppingCart, Truck, Receipt } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
 import { format } from "date-fns"
 
@@ -119,7 +120,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
 
     const [step, setStep] = useState<DialogStep>('form')
     const [createdPO, setCreatedPO] = useState<{ id: string, number: string } | null>(null)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const form = useForm<FormValues>({
         resolver: zodResolver(formSchema) as any,
@@ -179,7 +180,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
         setStep('form')
         setCreatedPO(null)
         form.reset()
-        router.refresh()
+        queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
     }
 
     const handleShare = async () => {

@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea"
 import { approveAndCreatePOFromPR, rejectPurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface PurchaseRequest {
     id: string
@@ -41,7 +42,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
     const [selectedReq, setSelectedReq] = useState<PurchaseRequest | null>(null)
     const [rejectReason, setRejectReason] = useState("")
 
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'completed'>('pending')
 
@@ -85,7 +86,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
             if (result.success) {
                 toast.success("Request Rejected")
                 setRejectOpen(false)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
             } else {
                 toast.error("Failed to reject")
             }
@@ -108,7 +109,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                     toast.success((result as any).message || "Request approved")
                 }
                 setApproveOpen(false)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
             } else {
                 toast.error((result as any).error || "Failed to approve")
             }
@@ -128,7 +129,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                 const poIds = (result as any).poIds
                 toast.success(`Created ${poIds?.length} Purchase Order(s)`)
                 setPOOpen(false)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
             } else {
                 toast.error((result as any).error || "Failed to create PO")
             }

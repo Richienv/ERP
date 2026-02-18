@@ -11,7 +11,8 @@ import {
 } from "@/components/ui/select"
 import { ChevronLeft, ChevronRight, Calendar, Sun, Moon, Sunset, Users } from "lucide-react"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { assignEmployeeShift } from "@/lib/actions/hcm-shifts"
 import type { ShiftScheduleDay, EmployeeShiftSummary } from "@/lib/actions/hcm-shifts"
 import type { ShiftType } from "@prisma/client"
@@ -43,7 +44,7 @@ export function ShiftCalendar({
     employees,
     currentWeekStart,
 }: ShiftCalendarProps) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [loading, setLoading] = useState<string | null>(null)
 
     const handleShiftChange = async (employeeId: string, shiftType: string) => {
@@ -52,7 +53,7 @@ export function ShiftCalendar({
         setLoading(null)
         if (result.success) {
             toast.success("Shift berhasil diubah")
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.hcmShifts.all })
         } else {
             toast.error(result.error || "Gagal mengubah shift")
         }
@@ -62,7 +63,7 @@ export function ShiftCalendar({
         const d = new Date(currentWeekStart)
         d.setDate(d.getDate() + direction * 7)
         // Navigate by updating URL or refreshing — no callback needed
-        router.refresh()
+        queryClient.invalidateQueries({ queryKey: queryKeys.hcmShifts.all })
     }
 
     const formatDate = (dateStr: string) => {

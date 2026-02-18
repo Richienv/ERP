@@ -3,6 +3,8 @@
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { PlusCircle, Receipt, BookOpenText, FileSpreadsheet, FileBarChart } from "lucide-react"
 import { toast } from "sonner"
 
@@ -23,6 +25,7 @@ interface VendorOption {
 
 export function AccountingModuleActions() {
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const [vendors, setVendors] = useState<VendorOption[]>([])
   const [bills, setBills] = useState<VendorBill[]>([])
@@ -115,7 +118,7 @@ export function AccountingModuleActions() {
       setApMethod("TRANSFER")
       setApReference("")
       setApOpen(false)
-      router.refresh()
+      queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
     } finally {
       setApSubmitting(false)
     }
@@ -145,7 +148,7 @@ export function AccountingModuleActions() {
       setCoaName("")
       setCoaType("ASSET")
       setCoaOpen(false)
-      router.refresh()
+      queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
     } finally {
       setCoaSubmitting(false)
     }
@@ -194,7 +197,7 @@ export function AccountingModuleActions() {
       setJournalCreditAccount("")
       setJournalAmount("")
       setJournalOpen(false)
-      router.refresh()
+      queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
     } finally {
       setJournalSubmitting(false)
     }

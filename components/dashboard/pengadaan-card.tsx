@@ -11,7 +11,8 @@ import Link from "next/link"
 import { formatIDR } from "@/lib/utils"
 import { approvePurchaseOrder, rejectPurchaseOrder } from "@/lib/actions/procurement"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface PendingPO {
     id: string
@@ -98,7 +99,7 @@ export function PengadaanCard({
     const [rejectMode, setRejectMode] = useState(false)
     const [rejectReason, setRejectReason] = useState("")
     const [processing, setProcessing] = useState(false)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const handleApprove = async (po: PendingPO) => {
         setProcessing(true)
@@ -107,7 +108,7 @@ export function PengadaanCard({
             if (result.success) {
                 toast.success(`PO ${po.number} approved`)
                 setSelectedPO(null)
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
                 toast.error(result.error || "Failed to approve")
             }
@@ -132,7 +133,7 @@ export function PengadaanCard({
                 setSelectedPO(null)
                 setRejectMode(false)
                 setRejectReason("")
-                router.refresh()
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
                 toast.error(result.error || "Failed to reject")
             }

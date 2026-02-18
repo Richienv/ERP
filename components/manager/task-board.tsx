@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Plus, Filter, AlertTriangle, Clock, CheckCircle, Ban, Calendar, User, FileText, ArrowRight } from "lucide-react"
 import {
     Dialog,
@@ -226,7 +227,7 @@ function NewTaskDialog({
     employees: AssignableEmployee[]
     orders: AssignableOrder[]
 }) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [loading, setLoading] = useState(false)
     const [title, setTitle] = useState("")
     const [employeeId, setEmployeeId] = useState("")
@@ -266,7 +267,7 @@ function NewTaskDialog({
             setNotes("")
             setDeadline("")
             setOrderId("")
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.managerDashboard.all })
         } else {
             toast.error(result.error || "Gagal membuat tugas")
         }

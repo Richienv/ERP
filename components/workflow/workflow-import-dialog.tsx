@@ -10,7 +10,7 @@ import { validateWorkflow } from "@/lib/workflow-validator";
 import { WorkflowDefinition } from "@/types/workflow";
 import { useWorkflowConfig } from "@/components/workflow/workflow-config-context";
 import { provisionRoles } from "@/actions/workflow-actions";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface WorkflowImportDialogProps {
     open: boolean;
@@ -19,7 +19,7 @@ interface WorkflowImportDialogProps {
 
 export function WorkflowImportDialog({ open, onOpenChange }: WorkflowImportDialogProps) {
     const { setActiveModules } = useWorkflowConfig();
-    const router = useRouter();
+    const queryClient = useQueryClient();
     const [workflow, setWorkflow] = useState<WorkflowDefinition | null>(null);
     const [errors, setErrors] = useState<string[]>([]);
     const [mermaidUrl, setMermaidUrl] = useState<string>("");
@@ -264,7 +264,7 @@ export function WorkflowImportDialog({ open, onOpenChange }: WorkflowImportDialo
 
                                                 // 4. Close Dialog & Refresh
                                                 onOpenChange(false);
-                                                router.refresh();
+                                                queryClient.invalidateQueries();
 
                                             } catch (err) {
                                                 console.error("Provisioning failed", err);

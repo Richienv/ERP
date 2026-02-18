@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import {
     Search,
     ArrowRight,
@@ -56,7 +57,7 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
     const [searchTerm, setSearchTerm] = useState("")
     const [filterStatus, setFilterStatus] = useState<string>("ALL")
     const [sendingOrderId, setSendingOrderId] = useState<string | null>(null)
-    const router = useRouter()
+    const queryClient = useQueryClient()
 
     const filteredOrders = initialOrders.filter(order => {
         const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -119,7 +120,7 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
             }
 
             toast.success("PO marked as ORDERED and vendor message prepared")
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
         } catch (error: any) {
             toast.error(error?.message || "Failed to send PO to vendor")
         } finally {

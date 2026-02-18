@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { InventoryKanbanBoard } from "@/components/inventory/inventory-kanban-board"
 import { ProductDataTable } from "@/components/inventory/product-data-table"
@@ -26,6 +28,7 @@ export function InventoryProductsTabs({ initialProducts, warehouses, initialQuer
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     setProducts(initialProducts)
@@ -60,7 +63,7 @@ export function InventoryProductsTabs({ initialProducts, warehouses, initialQuer
   useEffect(() => {
     const refreshFromServer = () => {
       if (document.visibilityState === "visible") {
-        router.refresh()
+        queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
       }
     }
 
@@ -73,7 +76,7 @@ export function InventoryProductsTabs({ initialProducts, warehouses, initialQuer
       window.removeEventListener("focus", refreshFromServer)
       document.removeEventListener("visibilitychange", refreshFromServer)
     }
-  }, [router])
+  }, [queryClient])
 
   return (
     <Tabs defaultValue="kanban" className="w-full space-y-4">
@@ -113,7 +116,7 @@ export function InventoryProductsTabs({ initialProducts, warehouses, initialQuer
           <Badge variant="outline">Low: {summary.lowStock}</Badge>
           <Badge variant="outline">Critical: {summary.critical}</Badge>
           <Badge variant="outline">New: {summary.newItems}</Badge>
-          <Button variant="ghost" size="sm" className="ml-auto h-7 px-2" onClick={() => router.refresh()}>
+          <Button variant="ghost" size="sm" className="ml-auto h-7 px-2" onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.products.all })}>
             <RefreshCw className="mr-1 h-3.5 w-3.5" /> Sync
           </Button>
         </div>

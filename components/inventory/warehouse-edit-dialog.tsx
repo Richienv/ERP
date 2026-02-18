@@ -13,7 +13,8 @@ import { Input } from "@/components/ui/input";
 import { updateWarehouse } from "@/app/actions/inventory";
 import { toast } from "sonner";
 import { Edit, Loader2, Save, Warehouse } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { NB } from "@/lib/dialog-styles";
 
 interface WarehouseEditDialogProps {
@@ -29,7 +30,7 @@ interface WarehouseEditDialogProps {
 export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
     name: warehouse.name,
@@ -45,7 +46,7 @@ export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
       if (result.success) {
         toast.success("Warehouse updated successfully");
         setOpen(false);
-        router.refresh();
+        queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
       } else {
         toast.error("Failed to update", { description: result.error });
       }

@@ -11,6 +11,19 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
 
+  // Bundle optimization — tree-shake heavy libraries
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "@tabler/icons-react",
+      "@tanstack/react-table",
+      "date-fns",
+      "recharts",
+      "framer-motion",
+      "@radix-ui/react-icons",
+    ],
+  },
+
   // Include Typst binary and templates in Vercel serverless function bundles
   outputFileTracingIncludes: {
     "/api/documents/purchase-order/[id]": ["./bin/**/*", "./templates/**/*"],

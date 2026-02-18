@@ -25,13 +25,58 @@ export async function GET(
         const { id } = await params
         const quotation = await prisma.quotation.findUnique({
             where: { id },
-            include: {
+            select: {
+                id: true,
+                number: true,
+                customerId: true,
+                customerRef: true,
+                quotationDate: true,
+                validUntil: true,
+                paymentTerm: true,
+                deliveryTerm: true,
+                subtotal: true,
+                taxAmount: true,
+                discountAmount: true,
+                total: true,
+                status: true,
+                version: true,
+                parentQuotationId: true,
+                notes: true,
+                internalNotes: true,
+                createdAt: true,
+                updatedAt: true,
                 items: {
-                    include: {
-                        product: true
-                    }
-                }
-            }
+                    select: {
+                        id: true,
+                        quotationId: true,
+                        productId: true,
+                        description: true,
+                        quantity: true,
+                        unitPrice: true,
+                        discount: true,
+                        taxRate: true,
+                        lineTotal: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        product: {
+                            select: {
+                                id: true,
+                                code: true,
+                                name: true,
+                                description: true,
+                                unit: true,
+                                costPrice: true,
+                                sellingPrice: true,
+                                productType: true,
+                                color: true,
+                                size: true,
+                                composition: true,
+                                isActive: true,
+                            },
+                        },
+                    },
+                },
+            },
         })
 
         if (!quotation) {

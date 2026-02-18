@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import {
     Calculator, Plus, Save, Trash2, Loader2, ShoppingCart, Package
 } from "lucide-react"
@@ -62,7 +63,7 @@ export function QuickOrderDialog({
     customerName,
     customerCode,
 }: QuickOrderDialogProps) {
-    const router = useRouter()
+    const queryClient = useQueryClient()
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
     const [products, setProducts] = useState<ProductOption[]>([])
@@ -165,7 +166,7 @@ export function QuickOrderDialog({
 
             toast.success(`Sales Order ${payload.data?.number || "baru"} berhasil dibuat`)
             onOpenChange(false)
-            router.refresh()
+            queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders.all })
         } catch (error: any) {
             toast.error(error?.message || "Gagal membuat sales order")
         } finally {
