@@ -24,7 +24,7 @@
       "id": "F-002",
       "title": "Audit Penjualan & CRM module — all buttons, shared customer/product entities",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Dashboard Sales (/sales) loads with correct metrics",
         "Kelola Pelanggan (/sales/customers): Create/Edit/Delete customer works. Customer entity shared with quotations, orders, invoices (not duplicated)",

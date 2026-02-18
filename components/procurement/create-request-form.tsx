@@ -94,6 +94,7 @@ export function CreateRequestForm({ products, employees }: Props) {
         toast.success("Purchase Request berhasil dibuat");
         router.push("/procurement/requests");
         queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all });
+        queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all });
       } else {
         toast.error(result.error || "Gagal membuat request");
       }

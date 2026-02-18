@@ -260,4 +260,8 @@ export const queryKeys = {
         all: ["stockTransfers"] as const,
         list: () => [...queryKeys.stockTransfers.all, "list"] as const,
     },
+    receiving: {
+        all: ["receiving"] as const,
+        list: () => [...queryKeys.receiving.all, "list"] as const,
+    },
 } as const

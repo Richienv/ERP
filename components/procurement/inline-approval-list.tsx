@@ -50,6 +50,8 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 toast.success(`${item.type} ${item.number} disetujui`)
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
                 toast.error(result.error || "Gagal menyetujui")
             }
@@ -78,6 +80,8 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 setRejectReason("")
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
                 toast.error(result.error || "Gagal menolak")
             }

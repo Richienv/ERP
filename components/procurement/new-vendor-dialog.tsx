@@ -66,6 +66,7 @@ export function NewVendorDialog() {
                 setOpen(false)
                 form.reset()
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
                 toast.error(result.error)
             }

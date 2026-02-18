@@ -17,6 +17,7 @@ import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
 import { acceptGRN, rejectGRN } from "@/lib/actions/grn"
+import { queryKeys } from "@/lib/query-keys"
 
 interface GRNItem {
     id: string
@@ -92,7 +93,13 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 setSodMode(false)
                 setSodReason("")
                 onClose()
-                queryClient.invalidateQueries({ queryKey: ["receiving", "list"] })
+                queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
             } else if ('sodViolation' in result && result.sodViolation) {
                 setSodMode(true)
                 toast.warning(result.error || "Peringatan SoD: Konfirmasi diperlukan")
@@ -119,7 +126,8 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 toast.success("GRN ditolak")
                 setRejectMode(false)
                 onClose()
-                queryClient.invalidateQueries({ queryKey: ["receiving", "list"] })
+                queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
                 toast.error(result.error || "Gagal menolak GRN")
             }

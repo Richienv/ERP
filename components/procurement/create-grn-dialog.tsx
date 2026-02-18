@@ -25,6 +25,7 @@ import { toast } from "sonner"
 import { createGRN } from "@/lib/actions/grn"
 import { useAuth } from "@/lib/auth-context"
 import { NB } from "@/lib/dialog-styles"
+import { queryKeys } from "@/lib/query-keys"
 
 interface POItem {
     id: string
@@ -157,7 +158,9 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
             if (result.success) {
                 toast.success(`GRN ${result.grnNumber} berhasil dibuat`)
                 setOpen(false)
-                queryClient.invalidateQueries({ queryKey: ["receiving", "list"] })
+                queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
                 toast.error(result.error || "Gagal membuat GRN")
             }

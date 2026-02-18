@@ -181,6 +181,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
         setCreatedPO(null)
         form.reset()
         queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
     }
 
     const handleShare = async () => {

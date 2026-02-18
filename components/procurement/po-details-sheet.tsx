@@ -59,6 +59,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                 onClose()
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
             } else {
                 toast.error("Action failed")
             }

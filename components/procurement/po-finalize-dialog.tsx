@@ -73,6 +73,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
             toast.success("PO Difinalisasi & PDF Dibuat")
             onClose()
             queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
         } catch (error: any) {
             toast.error(error.message || "Gagal finalisasi PO")
         } finally {

@@ -121,6 +121,7 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
 
             toast.success("PO marked as ORDERED and vendor message prepared")
             queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
         } catch (error: any) {
             toast.error(error?.message || "Failed to send PO to vendor")
         } finally {
