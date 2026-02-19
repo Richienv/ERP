@@ -24,13 +24,18 @@ Project: ERP Textile (Indonesian SME)
 
 ---
 
-<!-- Sessions will be appended below in structured format:
-## Session YYYY-MM-DDTHH:MM:SSZ
-- **Task:** F-XXX — Title
-- **Iterations:** N/max
-- **Status:** complete | partial | blocked
-- **Completed:** [list]
-- **Blocked:** [what's blocking]
-- **Learned:** [patterns → may become new SIGN-XXX]
-- **Files changed:** [key files]
--->
+## Session 2026-02-19T06:00:00Z — Ralph Loop Audit (F-001 to F-011)
+- **Status:** COMPLETE — All 11 features pass
+- **Completed:** 63 mutation points audited and fixed across all modules
+- **Key fix:** Removed all unstable_cache wrappers (caused stale data on TanStack Query refetch)
+- **Key fix:** Auth redirect race condition in middleware.ts (cache warming killed sessions)
+- **Key fix:** Login page race condition (router.push before cookies sync)
+- **Key fix:** Added inline supplier creation in material-input-form.tsx
+- **Key fix:** Added SupplierCategory model + vendor categories multi-select
+- **Key fix:** Added 10s refetchInterval to vendor list for real-time multi-user sync
+
+## Session 2026-02-19 — Meeting Bug List (T-001 to T-010)
+- **Source:** bug-list-meeting-19feb2026.md
+- **Already fixed from prior work:** BUG-001, BUG-002, BUG-003, BUG-007, FEAT-001 (categories), FEAT-004 (supplier inline)
+- **Remaining:** T-001 to T-009 (T-010 skipped — needs human review)
+- **Approach:** Parallel agents via dispatching-parallel-agents skill
