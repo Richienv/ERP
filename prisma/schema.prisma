@@ -984,7 +984,12 @@ model Supplier {
   contactName String?
   email       String?
   phone       String?
-  address     String?
+  address       String?
+  address2      String?    // Secondary/branch address
+  officePhone   String?    // Office landline
+  picPhone      String?    // PIC mobile (separate from office)
+  contactTitle  String?    // Mr/Mrs/etc title for contact person
+  paymentTerm   PaymentTerm @default(CASH) // Terms of payment
 
   // Performance
   rating         Int      @default(0) // 1-5 stars

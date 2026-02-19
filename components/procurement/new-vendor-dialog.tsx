@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Plus, Loader2, Truck, Building2, User, Mail, Phone, MapPin, Tag, X } from "lucide-react"
+import { Plus, Loader2, Truck, Building2, User, Mail, Phone, MapPin, Tag, X, AlertTriangle, CreditCard, PhoneCall } from "lucide-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
@@ -27,16 +27,33 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { createVendor, getSupplierCategories, createSupplierCategory } from "@/app/actions/vendor"
+import { createVendor, getSupplierCategories, createSupplierCategory, checkDuplicateVendor } from "@/app/actions/vendor"
 import { NB } from "@/lib/dialog-styles"
+
+const PAYMENT_TERM_OPTIONS = [
+    { value: "CASH", label: "CASH" },
+    { value: "NET_15", label: "NET 15" },
+    { value: "NET_30", label: "NET 30" },
+    { value: "NET_45", label: "NET 45" },
+    { value: "NET_60", label: "NET 60" },
+    { value: "NET_90", label: "NET 90" },
+    { value: "COD", label: "COD" },
+] as const
+
+const CONTACT_TITLE_OPTIONS = ["Bpk", "Ibu", "Dr", "Ir"] as const
 
 const formSchema = z.object({
     code: z.string().min(1, "Vendor Code is required"),
     name: z.string().min(2, "Company Name must be at least 2 characters"),
+    contactTitle: z.string().optional(),
     contactName: z.string().optional(),
     email: z.string().email("Invalid email address").optional().or(z.literal("")),
     phone: z.string().optional(),
+    picPhone: z.string().optional(),
     address: z.string().optional(),
+    address2: z.string().optional(),
+    officePhone: z.string().optional(),
+    paymentTerm: z.string().optional(),
     categoryIds: z.array(z.string()).optional(),
 })
 
@@ -45,6 +62,7 @@ export function NewVendorDialog() {
     const queryClient = useQueryClient()
     const [newCatName, setNewCatName] = useState("")
     const [creatingCat, setCreatingCat] = useState(false)
+    const [duplicateWarning, setDuplicateWarning] = useState<{id: string, code: string, name: string}[]>([])
 
     const { data: categories = [] } = useQuery({
         queryKey: queryKeys.supplierCategories.list(),
@@ -73,17 +91,35 @@ export function NewVendorDialog() {
     }
 
     const form = useForm<z.infer<typeof formSchema>>({
-        resolver: zodResolver(formSchema),
+        resolver: zodResolver(formSchema) as any,
         defaultValues: {
             code: "",
             name: "",
+            contactTitle: "",
             contactName: "",
             email: "",
             phone: "",
+            picPhone: "",
             address: "",
+            address2: "",
+            officePhone: "",
+            paymentTerm: "CASH",
             categoryIds: [],
         },
     })
+
+    const nameValue = form.watch("name")
+    useEffect(() => {
+        if (!nameValue || nameValue.length < 2) {
+            setDuplicateWarning([])
+            return
+        }
+        const timer = setTimeout(async () => {
+            const result = await checkDuplicateVendor(nameValue)
+            setDuplicateWarning((result as any).duplicates || [])
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [nameValue])
 
     const { isSubmitting } = form.formState
 
@@ -171,6 +207,19 @@ export function NewVendorDialog() {
                                                     <Input placeholder="PT..." {...field} className={NB.input} />
                                                 </FormControl>
                                                 <FormMessage className={NB.error} />
+                                                {duplicateWarning.length > 0 && (
+                                                    <div className="p-2 bg-amber-50 border-2 border-amber-300 text-amber-800 text-xs font-bold mt-1">
+                                                        <p className="flex items-center gap-1 mb-1">
+                                                            <AlertTriangle className="h-3 w-3" />
+                                                            Mungkin duplikat:
+                                                        </p>
+                                                        <ul className="ml-4 space-y-0.5">
+                                                            {duplicateWarning.map(v => (
+                                                                <li key={v.id}>{v.code} — {v.name}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                )}
                                             </FormItem>
                                         )}
                                     />
@@ -268,20 +317,40 @@ export function NewVendorDialog() {
                                     <span className={NB.sectionTitle}>Kontak</span>
                                 </div>
                                 <div className={NB.sectionBody}>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-3 gap-4">
                                         <FormField
                                             control={form.control}
-                                            name="contactName"
+                                            name="contactTitle"
                                             render={({ field }) => (
                                                 <FormItem>
-                                                    <label className={NB.label}>Kontak Person</label>
+                                                    <label className={NB.label}>Titel</label>
                                                     <FormControl>
-                                                        <Input placeholder="Bpk/Ibu..." {...field} className={NB.input} />
+                                                        <select {...field} className={NB.select}>
+                                                            <option value="">-- Pilih --</option>
+                                                            {CONTACT_TITLE_OPTIONS.map(t => (
+                                                                <option key={t} value={t}>{t}</option>
+                                                            ))}
+                                                        </select>
                                                     </FormControl>
                                                     <FormMessage className={NB.error} />
                                                 </FormItem>
                                             )}
                                         />
+                                        <FormField
+                                            control={form.control}
+                                            name="contactName"
+                                            render={({ field }) => (
+                                                <FormItem className="col-span-2">
+                                                    <label className={NB.label}>Kontak Person</label>
+                                                    <FormControl>
+                                                        <Input placeholder="Nama PIC..." {...field} className={NB.input} />
+                                                    </FormControl>
+                                                    <FormMessage className={NB.error} />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
                                         <FormField
                                             control={form.control}
                                             name="email"
@@ -290,6 +359,19 @@ export function NewVendorDialog() {
                                                     <label className={NB.label}><Mail className="h-3 w-3 inline mr-1" />Email</label>
                                                     <FormControl>
                                                         <Input placeholder="email@vendor.com" {...field} className={NB.input} />
+                                                    </FormControl>
+                                                    <FormMessage className={NB.error} />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="picPhone"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <label className={NB.label}><PhoneCall className="h-3 w-3 inline mr-1" />HP PIC</label>
+                                                    <FormControl>
+                                                        <Input placeholder="08xx..." {...field} className={NB.input} />
                                                     </FormControl>
                                                     <FormMessage className={NB.error} />
                                                 </FormItem>
@@ -311,9 +393,62 @@ export function NewVendorDialog() {
                                         name="address"
                                         render={({ field }) => (
                                             <FormItem>
-                                                <label className={NB.label}>Alamat Lengkap</label>
+                                                <label className={NB.label}>Alamat Utama</label>
                                                 <FormControl>
                                                     <Textarea placeholder="Alamat lengkap..." {...field} className={NB.textarea} />
+                                                </FormControl>
+                                                <FormMessage className={NB.error} />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="address2"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <label className={NB.label}>Alamat Cabang / Gudang</label>
+                                                <FormControl>
+                                                    <Textarea placeholder="Alamat sekunder (opsional)..." {...field} className={NB.textarea} />
+                                                </FormControl>
+                                                <FormMessage className={NB.error} />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="officePhone"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <label className={NB.label}><Phone className="h-3 w-3 inline mr-1" />Telepon Kantor</label>
+                                                <FormControl>
+                                                    <Input placeholder="021-xxx..." {...field} className={NB.input} />
+                                                </FormControl>
+                                                <FormMessage className={NB.error} />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Pembayaran */}
+                            <div className={NB.section}>
+                                <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                    <CreditCard className="h-4 w-4" />
+                                    <span className={NB.sectionTitle}>Pembayaran</span>
+                                </div>
+                                <div className={NB.sectionBody}>
+                                    <FormField
+                                        control={form.control}
+                                        name="paymentTerm"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <label className={NB.label}>Termin Pembayaran</label>
+                                                <FormControl>
+                                                    <select {...field} className={NB.select}>
+                                                        {PAYMENT_TERM_OPTIONS.map(opt => (
+                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                        ))}
+                                                    </select>
                                                 </FormControl>
                                                 <FormMessage className={NB.error} />
                                             </FormItem>

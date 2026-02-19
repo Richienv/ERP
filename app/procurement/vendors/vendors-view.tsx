@@ -14,6 +14,8 @@ import {
     Users,
     AlertCircle,
     Tag,
+    PhoneCall,
+    CreditCard,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,9 +30,14 @@ type Vendor = {
     code: string
     name: string
     contactName: string | null
+    contactTitle: string | null
     email: string | null
     phone: string | null
+    picPhone: string | null
+    officePhone: string | null
     address: string | null
+    address2: string | null
+    paymentTerm: string | null
     rating: number
     onTimeRate: number
     isActive: boolean
@@ -216,8 +223,13 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                 <AvatarFallback className="font-black bg-zinc-100 dark:bg-zinc-800 text-xs">{getInitials(vendor.name)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <Badge variant="outline" className="text-[9px] font-black uppercase border-black bg-zinc-50 dark:bg-zinc-800 tracking-widest">{vendor.code}</Badge>
+                                    {vendor.paymentTerm && vendor.paymentTerm !== "CASH" && (
+                                        <Badge className="text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 border border-emerald-300 hover:bg-emerald-100">
+                                            {vendor.paymentTerm.replace("_", " ")}
+                                        </Badge>
+                                    )}
                                     {vendor.rating >= 4 && <BadgeCheck className="h-3.5 w-3.5 text-blue-500" />}
                                     {!vendor.isActive && <span className="text-[9px] font-black uppercase tracking-widest text-red-500">Nonaktif</span>}
                                 </div>
@@ -254,10 +266,26 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                 <Phone className="h-3 w-3 shrink-0" />
                                 <span className="truncate">{vendor.phone || "-"}</span>
                             </div>
+                            {vendor.officePhone && (
+                                <div className="flex items-center gap-2 text-zinc-500">
+                                    <Building2 className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{vendor.officePhone}</span>
+                                    <span className="text-[8px] font-black uppercase text-zinc-400">kantor</span>
+                                </div>
+                            )}
                             {vendor.contactName && (
                                 <div className="flex items-center gap-2 text-zinc-500">
                                     <span className="text-[9px] font-black bg-zinc-100 dark:bg-zinc-800 px-1 border border-black">PIC</span>
-                                    <span className="truncate">{vendor.contactName}</span>
+                                    <span className="truncate">
+                                        {vendor.contactTitle ? `${vendor.contactTitle} ` : ""}{vendor.contactName}
+                                    </span>
+                                </div>
+                            )}
+                            {vendor.picPhone && (
+                                <div className="flex items-center gap-2 text-zinc-500">
+                                    <PhoneCall className="h-3 w-3 shrink-0" />
+                                    <span className="truncate">{vendor.picPhone}</span>
+                                    <span className="text-[8px] font-black uppercase text-zinc-400">HP PIC</span>
                                 </div>
                             )}
                         </div>
