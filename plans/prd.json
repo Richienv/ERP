@@ -5,7 +5,7 @@
       "id": "T-001",
       "title": "BUG-004: Fix inventory dashboard data mismatch",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Dashboard KPIs (total products, low stock count, total value) match actual product table data",
         "Stock level numbers on dashboard match sum of stock levels across all warehouses for each product",
@@ -19,7 +19,7 @@
       "id": "T-002",
       "title": "BUG-005: Fix inventory dashboard action buttons",
       "priority": "high",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "All action buttons at bottom of inventory dashboard product section trigger correct operations",
         "Restock button creates PR and refreshes procurement + inventory dashboards",
@@ -34,7 +34,7 @@
       "id": "T-003",
       "title": "FEAT-001: Extend vendor form with missing fields",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Vendor form has: contact title (Bpk/Ibu dropdown), address2 (secondary), office phone, PIC phone (separate fields), payment terms (TOP dropdown: CASH, DP, NET_15, NET_30, NET_45, NET_60, NET_90, COD)",
         "New fields saved to DB via Prisma schema update (add columns to Supplier model)",
@@ -48,7 +48,7 @@
       "id": "T-004",
       "title": "FEAT-002: Add vendor deactivate/reactivate button",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Each vendor card has a toggle/button to deactivate (set isActive=false) or reactivate (set isActive=true)",
         "Deactivated vendors show visual indication (greyed out, 'Nonaktif' badge)",
@@ -63,7 +63,7 @@
       "id": "T-005",
       "title": "FEAT-003: Vendor duplicate detection with fuzzy matching",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "When typing vendor name in create form, system checks for exact match (case-insensitive) and shows warning",
         "System also checks for similar names (Levenshtein distance <= 2) and shows 'Mungkin duplikat' warning with list of similar vendors",
@@ -77,7 +77,7 @@
       "id": "T-006",
       "title": "FEAT-004: Complete inline entity creation across all forms",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "PO form: supplier/vendor selector has '+ Tambah Vendor Baru' inline create option",
         "Product form: category, brand, unit, color selectors have inline create (already done for category — verify others)",
@@ -94,7 +94,7 @@
       "id": "T-007",
       "title": "FEAT-005: Incomplete data warning badges on entity cards",
       "priority": "low",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Vendor cards show orange 'Data Belum Lengkap' warning badge if missing: phone AND email AND address",
         "Product cards show warning badge if missing: costPrice or category",
@@ -109,7 +109,7 @@
       "id": "T-008",
       "title": "BUG-006: Complete TanStack Query caching rollout to all pages",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "All pages use TanStack Query useQuery hooks (no useEffect+fetch+useState pattern remaining)",
         "All pages have entries in hooks/use-nav-prefetch.ts routePrefetchMap for sidebar hover prefetch",
@@ -123,7 +123,7 @@
       "id": "T-009",
       "title": "BUG-008: Mobile web view optimization for key pages",
       "priority": "low",
-      "passes": false,
+      "passes": true,
       "acceptance_criteria": [
         "Vendor list: cards stack vertically, text not truncated on important fields",
         "Inventory dashboard: KPI strip wraps to 2 rows on mobile, kanban scrollable horizontally",
