@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -16,82 +16,13 @@ import {
   TrendingUp,
   User,
 } from "lucide-react"
-import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-
-interface CustomerTransaction {
-  id: string
-  type: "quotation" | "salesOrder" | "invoice"
-  number: string
-  date: string
-  status: string
-  amount: number
-}
-
-interface CustomerDetail {
-  id: string
-  code: string
-  name: string
-  legalName: string | null
-  customerType: string
-  category?: {
-    id: string
-    code: string
-    name: string
-  } | null
-  npwp: string | null
-  nik: string | null
-  taxStatus: string
-  isTaxable: boolean
-  phone: string | null
-  email: string | null
-  website: string | null
-  creditLimit: number
-  creditTerm: number
-  paymentTerm: string
-  creditStatus: string
-  totalOrderValue: number
-  lastOrderDate: string | null
-  currency: string
-  isActive: boolean
-  isProspect: boolean
-  createdAt: string
-  updatedAt: string
-  addresses: Array<{
-    id: string
-    type: string
-    address1: string
-    address2: string | null
-    kelurahan: string | null
-    kecamatan: string | null
-    kabupaten: string
-    provinsi: string
-    postalCode: string
-    isPrimary: boolean
-  }>
-  contacts: Array<{
-    id: string
-    name: string
-    title: string | null
-    department: string | null
-    phone: string | null
-    mobile: string | null
-    email: string | null
-    isPrimary: boolean
-  }>
-  transactions: CustomerTransaction[]
-}
-
-interface CustomerDetailResponse {
-  success: boolean
-  data?: CustomerDetail
-  error?: string
-}
+import { useCustomerDetail } from "@/hooks/use-customer-detail"
 
 interface CustomerDetailPageProps {
   params: {
@@ -143,37 +74,12 @@ const getTransactionStatusBadge = (status: string) => {
 
 export default function CustomerDetailPage({ params }: CustomerDetailPageProps) {
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [customer, setCustomer] = useState<CustomerDetail | null>(null)
-
-  useEffect(() => {
-    const loadCustomer = async () => {
-      setLoading(true)
-      try {
-        const response = await fetch(`/api/sales/customers/${params.id}`, {
-          cache: "no-store",
-        })
-
-        const payload: CustomerDetailResponse = await response.json()
-        if (!payload.success || !payload.data) {
-          throw new Error(payload.error || "Customer tidak ditemukan")
-        }
-
-        setCustomer(payload.data)
-      } catch (error: any) {
-        toast.error(error?.message || "Gagal memuat detail customer")
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadCustomer()
-  }, [params.id])
+  const { data: customer, isLoading } = useCustomerDetail(params.id)
 
   const primaryAddress = useMemo(() => customer?.addresses.find((item) => item.isPrimary) || customer?.addresses[0], [customer])
   const primaryContact = useMemo(() => customer?.contacts.find((item) => item.isPrimary) || customer?.contacts[0], [customer])
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex-1 p-6 md:p-8">
         <div className="text-muted-foreground">Memuat detail customer...</div>

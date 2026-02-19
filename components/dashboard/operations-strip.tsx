@@ -104,7 +104,7 @@ export function OperationsStrip({
                         href={tile.href}
                         className={`
                             group relative p-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50 active:scale-[0.98]
-                            ${i < tiles.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : "border-b-2 md:border-b-0 border-black"}
+                            ${i < tiles.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : ""}
                         `}
                     >
                         {/* Header row: Icon + Label + Health dot */}

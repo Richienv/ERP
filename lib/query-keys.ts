@@ -272,4 +272,21 @@ export const queryKeys = {
         all: ["arPayments"] as const,
         list: () => [...queryKeys.arPayments.all, "list"] as const,
     },
+    salesOptions: {
+        all: ["salesOptions"] as const,
+        list: () => [...queryKeys.salesOptions.all, "list"] as const,
+    },
+    payroll: {
+        all: ["payroll"] as const,
+        run: (period: string) => [...queryKeys.payroll.all, "run", period] as const,
+        compliance: (period: string) => [...queryKeys.payroll.all, "compliance", period] as const,
+    },
+    documentNumbering: {
+        all: ["documentNumbering"] as const,
+        list: () => [...queryKeys.documentNumbering.all, "list"] as const,
+    },
+    permissionMatrix: {
+        all: ["permissionMatrix"] as const,
+        list: () => [...queryKeys.permissionMatrix.all, "list"] as const,
+    },
 } as const

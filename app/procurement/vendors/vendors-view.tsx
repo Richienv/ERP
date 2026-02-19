@@ -96,7 +96,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
 
             {/* ═══ COMMAND HEADER ═══ */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-indigo-400">
+                <div className="px-4 md:px-6 py-4 flex flex-wrap items-center justify-between gap-3 border-l-[6px] border-l-indigo-400">
                     <div className="flex items-center gap-3">
                         <Building2 className="h-5 w-5 text-indigo-500" />
                         <div>
@@ -156,8 +156,8 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
 
             {/* ═══ SEARCH & FILTER BAR ═══ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="px-4 py-3 flex items-center gap-3">
-                    <div className="relative flex-1 max-w-lg">
+                <div className="px-4 py-3 flex flex-wrap items-center gap-3">
+                    <div className="relative w-full md:w-auto md:flex-1 md:max-w-lg">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
                             value={searchTerm}
@@ -182,7 +182,7 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                         ))}
                     </div>
                     {allCategories.length > 0 && (
-                        <div className="flex border-2 border-black">
+                        <div className="flex flex-wrap border-2 border-black">
                             <button
                                 onClick={() => setFilterCategory("ALL")}
                                 className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black ${

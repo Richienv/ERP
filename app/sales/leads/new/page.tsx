@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -16,29 +16,15 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-interface OptionRecord {
-  id: string
-  code?: string
-  name: string
-  email?: string | null
-}
-
-interface SalesOptionsResponse {
-  success: boolean
-  data?: {
-    customers?: OptionRecord[]
-    users?: OptionRecord[]
-  }
-  error?: string
-}
+import { useSalesOptions } from "@/hooks/use-sales-options"
 
 export default function NewLeadPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [isLoading, setIsLoading] = useState(false)
-  const [customers, setCustomers] = useState<OptionRecord[]>([])
-  const [users, setUsers] = useState<OptionRecord[]>([])
+  const { data: salesOptions } = useSalesOptions()
+  const customers = salesOptions?.customers ?? []
+  const users = salesOptions?.users ?? []
 
   const [form, setForm] = useState({
     title: "",
@@ -55,25 +41,6 @@ export default function NewLeadPage() {
     assignedTo: "",
     customerId: "",
   })
-
-  useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        const response = await fetch("/api/sales/options", {
-          cache: "no-store",
-        })
-        const payload: SalesOptionsResponse = await response.json()
-        if (!payload.success || !payload.data) return
-
-        setCustomers(payload.data.customers || [])
-        setUsers(payload.data.users || [])
-      } catch (error) {
-        console.error(error)
-      }
-    }
-
-    loadOptions()
-  }, [])
 
   const updateField = (key: keyof typeof form, value: string) => {
     setForm((current) => ({

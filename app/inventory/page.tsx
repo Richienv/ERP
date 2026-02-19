@@ -25,7 +25,7 @@ export default function InventoryPage() {
         <InventoryPerformanceProvider currentPath="/inventory">
             <InventoryDashboardView
                 headerSlot={
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <h1 className="text-2xl md:text-3xl font-black text-zinc-900 dark:text-white tracking-tighter uppercase flex items-center gap-2">
                                 Logistik Command Center

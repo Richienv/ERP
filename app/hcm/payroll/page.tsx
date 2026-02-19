@@ -13,76 +13,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { approvePayrollRun, createPayrollDisbursementBatch, generatePayrollDraft, getPayrollComplianceReport, getPayrollExportData, getPayrollRun } from "@/app/actions/hcm"
+import { approvePayrollRun, createPayrollDisbursementBatch, generatePayrollDraft, getPayrollComplianceReport, getPayrollExportData } from "@/app/actions/hcm"
 import { toast } from "sonner"
-
-interface PayrollLine {
-  employeeId: string
-  employeeCode: string
-  employeeName: string
-  department: string
-  position: string
-  attendanceDays: number
-  leaveDays: number
-  lateCount: number
-  overtimeHours: number
-  basicSalary: number
-  transportAllowance: number
-  mealAllowance: number
-  positionAllowance: number
-  overtimePay: number
-  bpjsKesehatan: number
-  bpjsKetenagakerjaan: number
-  pph21: number
-  grossSalary: number
-  totalDeductions: number
-  netSalary: number
-}
-
-interface PayrollRunData {
-  period: string
-  periodLabel: string
-  status: "PENDING_APPROVAL" | "POSTED"
-  generatedAt: string
-  generatedBy: string
-  postedAt: string | null
-  postedBy: string | null
-  postedJournalReference: string | null
-  disbursementStatus?: "PENDING" | "PAID" | null
-  disbursedAt?: string | null
-  disbursementReference?: string | null
-  disbursementMethod?: string | null
-  approverName: string
-  summary: {
-    gross: number
-    deductions: number
-    net: number
-    employees: number
-    overtimeHours: number
-  }
-  lines: PayrollLine[]
-}
-
-interface PayrollComplianceReport {
-  period: string
-  periodLabel: string
-  employeeCount: number
-  totals: {
-    bpjsKesehatan: number
-    bpjsKetenagakerjaan: number
-    bpjsTotal: number
-    pph21: number
-  }
-  rows?: Array<{
-    employeeCode: string
-    employeeName: string
-    department: string
-    bpjsKesehatan: number
-    bpjsKetenagakerjaan: number
-    pph21: number
-    netSalary: number
-  }>
-}
+import { usePayrollRun, usePayrollCompliance, type PayrollLine, type PayrollRunData } from "@/hooks/use-payroll"
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat("id-ID", {
@@ -140,58 +73,18 @@ const toCsv = (lines: PayrollLine[]) => {
 export default function PayrollPage() {
   const queryClient = useQueryClient()
   const [selectedPeriod, setSelectedPeriod] = React.useState(currentPeriod())
-  const [run, setRun] = React.useState<PayrollRunData | null>(null)
-  const [compliance, setCompliance] = React.useState<PayrollComplianceReport | null>(null)
-  const [loading, setLoading] = React.useState(false)
   const [processing, setProcessing] = React.useState(false)
   const [exporting, setExporting] = React.useState(false)
 
   const periodOptions = React.useMemo(() => buildPeriodOptions(), [])
 
-  const loadRun = React.useCallback(async () => {
-    setLoading(true)
-    try {
-      const result = await getPayrollRun(selectedPeriod)
-      if (!result.success) {
-        toast.error("error" in result ? String(result.error) : "Gagal memuat payroll")
-        setRun(null)
-        return
-      }
+  const { data: run = null, isLoading: loading, refetch: refetchRun } = usePayrollRun(selectedPeriod)
+  const { data: compliance = null, refetch: refetchCompliance } = usePayrollCompliance(selectedPeriod)
 
-      if ("exists" in result && !result.exists) {
-        setRun(null)
-        return
-      }
-
-      if ("run" in result) {
-        setRun(result.run as PayrollRunData)
-      } else {
-        setRun(null)
-      }
-    } catch {
-      toast.error("Terjadi kesalahan saat memuat payroll")
-      setRun(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [selectedPeriod])
-
-  React.useEffect(() => {
-    loadRun()
-  }, [loadRun])
-
-  const loadCompliance = React.useCallback(async () => {
-    const result = await getPayrollComplianceReport(selectedPeriod)
-    if (!result.success || !("report" in result) || !result.report) {
-      setCompliance(null)
-      return
-    }
-    setCompliance(result.report as PayrollComplianceReport)
-  }, [selectedPeriod])
-
-  React.useEffect(() => {
-    loadCompliance()
-  }, [loadCompliance])
+  const invalidatePayroll = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.payroll.run(selectedPeriod) })
+    queryClient.invalidateQueries({ queryKey: queryKeys.payroll.compliance(selectedPeriod) })
+  }
 
   const handleGenerate = async () => {
     setProcessing(true)
@@ -204,8 +97,7 @@ export default function PayrollPage() {
 
       toast.success("message" in result ? result.message : "Payroll draft berhasil dihitung")
       queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
-      await loadRun()
-      await loadCompliance()
+      invalidatePayroll()
     } catch {
       toast.error("Terjadi kesalahan saat menghitung payroll")
     } finally {
@@ -227,8 +119,7 @@ export default function PayrollPage() {
       toast.success("message" in result ? result.message : "Payroll berhasil diposting")
       queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
-      await loadRun()
-      await loadCompliance()
+      invalidatePayroll()
     } catch {
       toast.error("Terjadi kesalahan saat posting payroll")
     } finally {
@@ -355,8 +246,7 @@ export default function PayrollPage() {
       queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
-      await loadRun()
-      await loadCompliance()
+      invalidatePayroll()
     } catch {
       toast.error("Terjadi kesalahan saat membuat disbursement payroll")
     } finally {
@@ -462,7 +352,7 @@ export default function PayrollPage() {
             <IconDownload className="mr-2 h-4 w-4" />
             PDF Payroll
           </Button>
-          <Button variant="outline" onClick={loadRun} disabled={loading || processing}>
+          <Button variant="outline" onClick={() => { refetchRun(); refetchCompliance() }} disabled={loading || processing}>
             <IconRefresh className="mr-2 h-4 w-4" />
             Muat Ulang
           </Button>

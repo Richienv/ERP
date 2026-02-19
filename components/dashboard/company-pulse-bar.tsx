@@ -105,7 +105,7 @@ export function CompanyPulseBar({
                         href={metric.href}
                         className={`
                                 group relative p-4 md:p-5 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800
-                                ${i < metrics.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800" : "border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800"}
+                                ${i < metrics.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800" : ""}
                             `}
                     >
                         {/* Accent top line */}

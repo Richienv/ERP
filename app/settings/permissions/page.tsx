@@ -14,24 +14,23 @@ import {
 import { cn } from "@/lib/utils"
 import { toast, Toaster } from "sonner"
 import {
-    getPermissionMatrix,
     MODULE_PERMISSIONS,
     type PermissionMatrixEntry,
 } from "@/lib/actions/settings"
+import { usePermissionMatrix } from "@/hooks/use-permission-matrix"
 
 export const dynamic = "force-dynamic"
 
 export default function PermissionsPage() {
+    const { data: initialRoles, isLoading: loading } = usePermissionMatrix()
     const [roles, setRoles] = useState<PermissionMatrixEntry[]>([])
-    const [loading, setLoading] = useState(true)
     const [dirty, setDirty] = useState(false)
 
     useEffect(() => {
-        getPermissionMatrix().then(res => {
-            if (res.success && res.data) setRoles(res.data)
-            setLoading(false)
-        })
-    }, [])
+        if (initialRoles && initialRoles.length > 0 && roles.length === 0) {
+            setRoles(initialRoles)
+        }
+    }, [initialRoles, roles.length])
 
     const togglePermission = (roleCode: string, moduleKey: string) => {
         setRoles(prev => prev.map(r => {

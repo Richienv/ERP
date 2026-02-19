@@ -95,7 +95,7 @@ export function GlobalKPIs({ kpiData }: GlobalKPIsProps) {
                         href={metric.href}
                         className={`
                             group relative p-4 md:p-5 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800
-                            ${i < metrics.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : "border-b-2 md:border-b-0 border-black"}
+                            ${i < metrics.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : ""}
                         `}
                     >
                         {/* Accent top line */}

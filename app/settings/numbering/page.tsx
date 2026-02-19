@@ -19,10 +19,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import {
-    getDocumentNumbering,
-    type DocumentNumberingConfig,
-} from "@/lib/actions/settings"
+import { type DocumentNumberingConfig } from "@/lib/actions/settings"
+import { useDocumentNumbering } from "@/hooks/use-document-numbering"
 
 export const dynamic = "force-dynamic"
 
@@ -48,16 +46,15 @@ function generateExample(prefix: string, sep: string, dateFormat: string, digitC
 }
 
 export default function NumberingPage() {
+    const { data: initialConfigs, isLoading: loading } = useDocumentNumbering()
     const [configs, setConfigs] = useState<DocumentNumberingConfig[]>([])
-    const [loading, setLoading] = useState(true)
     const [dirty, setDirty] = useState(false)
 
     useEffect(() => {
-        getDocumentNumbering().then(res => {
-            if (res.success && res.data) setConfigs(res.data)
-            setLoading(false)
-        })
-    }, [])
+        if (initialConfigs && initialConfigs.length > 0 && configs.length === 0) {
+            setConfigs(initialConfigs)
+        }
+    }, [initialConfigs, configs.length])
 
     const updateConfig = (index: number, field: keyof DocumentNumberingConfig, value: string | number) => {
         setConfigs(prev => {

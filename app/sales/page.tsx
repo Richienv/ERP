@@ -166,7 +166,7 @@ export default function SalesDashboardPage() {
       <div className="flex flex-col gap-4 p-4 md:p-5 lg:p-6 min-h-[calc(100svh-theme(spacing.16))]">
 
         {/* Row 1: Header */}
-        <div className="flex-none flex items-center justify-between">
+        <div className="flex-none flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-black uppercase tracking-widest text-zinc-900 dark:text-white">
               Penjualan & CRM
@@ -207,7 +207,7 @@ export default function SalesDashboardPage() {
                 href={kpi.href}
                 className={`
                   group relative p-4 transition-all hover:bg-zinc-50 dark:hover:bg-zinc-800/50 active:scale-[0.98]
-                  ${i < kpis.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : "border-b-2 md:border-b-0 border-black"}
+                  ${i < kpis.length - 1 ? "md:border-r-2 border-b-2 md:border-b-0 border-black" : ""}
                 `}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -438,15 +438,15 @@ export default function SalesDashboardPage() {
                   {group.title}
                 </h4>
               </div>
-              <div className="p-3 flex gap-2">
+              <div className="p-3 flex flex-wrap gap-2">
                 {group.links.map((link) => (
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-black ${group.linkBg} font-black text-xs uppercase tracking-wide transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] active:scale-[0.97] rounded-none`}
+                    className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 px-3 py-2.5 border-2 border-black ${group.linkBg} font-black text-xs uppercase tracking-wide transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] active:scale-[0.97] rounded-none`}
                   >
                     {link.icon}
-                    {link.label}
+                    <span className="truncate">{link.label}</span>
                   </Link>
                 ))}
               </div>

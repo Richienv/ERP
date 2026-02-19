@@ -80,7 +80,7 @@ export default function ProcurementPage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Link href="/procurement/requests">
                 <Button variant="outline" className="border-2 border-zinc-300 dark:border-zinc-600 font-bold uppercase text-[10px] tracking-wide h-10 px-4 hover:border-zinc-500 transition-colors">
                   <FileText className="mr-1.5 h-3.5 w-3.5" /> Requests
