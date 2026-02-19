@@ -212,11 +212,20 @@ const columns: ColumnDef<Customer>[] = [
     header: "Nama Pelanggan",
     cell: ({ row }) => {
       const customer = row.original
+      const hasNoAddress = !customer.addresses || customer.addresses.length === 0
+      const isIncomplete = !customer.phone && !customer.email && hasNoAddress
       return (
         <div className="flex items-center space-x-2">
           {getCustomerTypeIcon(customer.customerType)}
           <div>
-            <div className="font-medium">{customer.name}</div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium">{customer.name}</span>
+              {isIncomplete && (
+                <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-amber-100 border border-amber-400 text-amber-700 shrink-0">
+                  Data Belum Lengkap
+                </span>
+              )}
+            </div>
             <div className="text-xs text-muted-foreground">
               {getCustomerTypeName(customer.customerType)}
               {customer.isProspect && (

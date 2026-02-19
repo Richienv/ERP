@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
+import { createCustomerQuick } from "@/lib/actions/master-data"
 
 interface CustomerOption {
   id: string
@@ -291,18 +293,24 @@ export function QuotationForm({ initialCustomerId, initialData }: QuotationFormP
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <div className="space-y-1.5">
               <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Customer *</Label>
-              <Select value={form.customerId} onValueChange={(value) => updateForm("customerId", value)} disabled={loadingOptions}>
-                <SelectTrigger className="border-2 border-black h-10 font-medium">
-                  <SelectValue placeholder="Pilih customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      <span className="font-mono text-xs text-zinc-400 mr-1">{customer.code}</span> {customer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ComboboxWithCreate
+                options={customers.map((c) => ({ value: c.id, label: c.name, subtitle: c.code }))}
+                value={form.customerId}
+                onChange={(value) => updateForm("customerId", value)}
+                placeholder="Pilih customer..."
+                searchPlaceholder="Cari customer..."
+                emptyMessage="Customer tidak ditemukan."
+                createLabel="+ Tambah Customer Baru"
+                onCreate={async (name) => {
+                  const customer = await createCustomerQuick(name)
+                  setCustomers((prev) => [...prev, { id: customer.id, code: customer.code, name: customer.name }])
+                  queryClient.invalidateQueries({ queryKey: queryKeys.customers.all })
+                  toast.success(`Customer "${name}" berhasil dibuat`)
+                  return customer.id
+                }}
+                isLoading={loadingOptions}
+                disabled={loadingOptions}
+              />
             </div>
 
             <div className="space-y-1.5">

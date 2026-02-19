@@ -48,9 +48,11 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
 import { cn, formatIDR } from "@/lib/utils"
 import { createPurchaseOrder, getProductsForPO } from "@/app/actions/purchase-order"
 import { getVendors } from "@/lib/actions/procurement"
+import { createSupplier } from "@/lib/actions/master-data"
 import { Calendar } from "@/components/ui/calendar"
 import { NB } from "@/lib/dialog-styles"
 
@@ -319,40 +321,27 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                             render={({ field }) => (
                                                 <FormItem className="flex flex-col">
                                                     <label className={NB.label}>Vendor <span className={NB.labelRequired}>*</span></label>
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <FormControl>
-                                                                <Button variant="outline" role="combobox" className={cn(NB.select + " justify-between", !field.value && "text-muted-foreground")}>
-                                                                    {field.value
-                                                                        ? vendors.find((v) => v.id === field.value)?.name
-                                                                        : "Pilih vendor"}
-                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                                </Button>
-                                                            </FormControl>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-[300px] p-0">
-                                                            <Command>
-                                                                <CommandInput placeholder="Cari vendor..." />
-                                                                <CommandList>
-                                                                    <CommandEmpty>Vendor tidak ditemukan.</CommandEmpty>
-                                                                    <CommandGroup>
-                                                                        {vendors.map((vendor) => (
-                                                                            <CommandItem
-                                                                                value={vendor.name}
-                                                                                key={vendor.id}
-                                                                                onSelect={() => {
-                                                                                    form.setValue("supplierId", vendor.id)
-                                                                                }}
-                                                                            >
-                                                                                <Check className={cn("mr-2 h-4 w-4", vendor.id === field.value ? "opacity-100" : "opacity-0")} />
-                                                                                {vendor.name}
-                                                                            </CommandItem>
-                                                                        ))}
-                                                                    </CommandGroup>
-                                                                </CommandList>
-                                                            </Command>
-                                                        </PopoverContent>
-                                                    </Popover>
+                                                    <ComboboxWithCreate
+                                                        options={vendors.map((v) => ({ value: v.id, label: v.name }))}
+                                                        value={field.value}
+                                                        onChange={(val) => form.setValue("supplierId", val)}
+                                                        placeholder="Pilih vendor..."
+                                                        searchPlaceholder="Cari vendor..."
+                                                        emptyMessage="Vendor tidak ditemukan."
+                                                        createLabel="+ Tambah Vendor Baru"
+                                                        onCreate={async (name) => {
+                                                            const code = name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X') + '-' + Date.now().toString().slice(-4)
+                                                            const supplier = await createSupplier(code, name)
+                                                            // Refresh vendors list
+                                                            const vendorData = await getVendors()
+                                                            setFetchedVendors(vendorData.map((v: any) => ({ id: v.id, name: v.name })))
+                                                            queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
+                                                            queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all })
+                                                            toast.success(`Vendor "${name}" berhasil dibuat`)
+                                                            return supplier.id
+                                                        }}
+                                                        isLoading={loadingData}
+                                                    />
                                                     <FormMessage className={NB.error} />
                                                 </FormItem>
                                             )}

@@ -89,6 +89,27 @@ export async function createCategory(code: string, name: string) {
     return category
 }
 
+// ─── Customers (quick inline create) ────────────────────
+
+export async function createCustomerQuick(name: string) {
+    await requireAuth()
+    // Generate code from name: first 3 chars + timestamp suffix
+    const prefix = name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X')
+    const suffix = Date.now().toString().slice(-4)
+    const code = `CUST-${prefix}-${suffix}`
+    const customer = await prisma.customer.create({
+        data: {
+            code,
+            name,
+            customerType: 'COMPANY',
+            isTaxable: true,
+            taxStatus: 'PKP',
+        },
+        select: { id: true, code: true, name: true },
+    })
+    return customer
+}
+
 // ─── Suppliers (existing model) ──────────────────────────
 
 export async function getSuppliers() {

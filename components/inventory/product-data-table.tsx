@@ -157,9 +157,17 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     header: "Nama Produk",
     cell: ({ row }) => {
       const product = row.original
+      const isIncomplete = product.costPrice === 0 || !product.category
       return (
         <div>
-          <div className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{product.name}</div>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{product.name}</span>
+            {isIncomplete && (
+              <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-amber-100 border border-amber-400 text-amber-700 shrink-0">
+                Data Belum Lengkap
+              </span>
+            )}
+          </div>
           {product.description && (
             <div className="text-[10px] text-zinc-400 font-medium line-clamp-1 mt-0.5">
               {product.description}

@@ -225,6 +225,11 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <Badge variant="outline" className="text-[9px] font-black uppercase border-black bg-zinc-50 dark:bg-zinc-800 tracking-widest">{vendor.code}</Badge>
+                                    {(!vendor.phone && !vendor.email && !vendor.address) && (
+                                        <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-amber-100 border border-amber-400 text-amber-700">
+                                            Data Belum Lengkap
+                                        </span>
+                                    )}
                                     {vendor.paymentTerm && vendor.paymentTerm !== "CASH" && (
                                         <Badge className="text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 border border-emerald-300 hover:bg-emerald-100">
                                             {vendor.paymentTerm.replace("_", " ")}
