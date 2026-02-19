@@ -9,6 +9,7 @@ import {
     ClipboardCheck,
     Calendar,
     FileText,
+    Printer,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -133,7 +134,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                         <ClipboardCheck className="h-5 w-5 text-emerald-500" />
                         <div>
                             <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
-                                Penerimaan Barang (GRN)
+                                Surat Jalan Masuk
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
                                 Terima dan verifikasi barang masuk dari supplier
@@ -159,10 +160,10 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                         <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">GRN Draft</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">SJ Masuk Draft</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{draftGRNs.length}</div>
-                        <div className="text-[10px] font-bold text-amber-600 mt-1">Pending acceptance</div>
+                        <div className="text-[10px] font-bold text-amber-600 mt-1">Menunggu verifikasi</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
@@ -171,7 +172,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Diterima</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{acceptedGRNs.length}</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-1">GRN selesai</div>
+                        <div className="text-[10px] font-bold text-emerald-600 mt-1">SJ diterima</div>
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400" />
@@ -193,7 +194,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                         <Input
-                            placeholder="Cari No. PO, GRN, atau Vendor..."
+                            placeholder="Cari No. PO, SJ Masuk, atau Vendor..."
                             className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -214,7 +215,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                                 activeTab === "grns" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
                             }`}
                         >
-                            Riwayat GRN <span className={`text-[9px] px-1 ${activeTab === "grns" ? "bg-white/20" : "bg-zinc-200"} rounded-full`}>{filteredGRNs.length}</span>
+                            Riwayat Surat Jalan <span className={`text-[9px] px-1 ${activeTab === "grns" ? "bg-white/20" : "bg-zinc-200"} rounded-full`}>{filteredGRNs.length}</span>
                         </button>
                     </div>
                 </div>
@@ -287,7 +288,7 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                         <table className="w-full text-sm text-left">
                             <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
                                 <tr>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">GRN Number</th>
+                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">No. Surat Jalan</th>
                                     <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">PO</th>
                                     <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor</th>
                                     <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Gudang</th>
@@ -323,14 +324,26 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                                             )}
                                         </td>
                                         <td className="p-4 text-right">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7"
-                                                onClick={(e) => { e.stopPropagation(); setSelectedGRN(grn); }}
-                                            >
-                                                Detail
-                                            </Button>
+                                            <div className="flex items-center justify-end gap-1.5">
+                                                {grn.status === 'ACCEPTED' && (
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                                                        onClick={(e) => { e.stopPropagation(); window.open(`/api/documents/surat-jalan-masuk/${grn.id}?disposition=inline`, '_blank'); }}
+                                                    >
+                                                        <Printer className="h-3 w-3 mr-1" /> Cetak
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7"
+                                                    onClick={(e) => { e.stopPropagation(); setSelectedGRN(grn); }}
+                                                >
+                                                    Detail
+                                                </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}

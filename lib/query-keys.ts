@@ -289,4 +289,8 @@ export const queryKeys = {
         all: ["permissionMatrix"] as const,
         list: () => [...queryKeys.permissionMatrix.all, "list"] as const,
     },
+    sidebarActions: {
+        all: ["sidebarActions"] as const,
+        list: () => [...queryKeys.sidebarActions.all, "list"] as const,
+    },
 } as const

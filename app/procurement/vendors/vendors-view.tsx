@@ -17,13 +17,17 @@ import {
     PhoneCall,
     CreditCard,
 } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { NewVendorDialog } from "@/components/procurement/new-vendor-dialog"
+import { EditVendorDialog } from "@/components/procurement/edit-vendor-dialog"
 import { VendorActions } from "@/components/procurement/vendor-actions"
 import { cn } from "@/lib/utils"
+import { getSupplierCategories } from "@/app/actions/vendor"
 
 type Vendor = {
     id: string
@@ -54,12 +58,13 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
     const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL")
     const [filterCategory, setFilterCategory] = useState<string>("ALL")
+    const [editingVendor, setEditingVendor] = useState<Vendor | null>(null)
 
-    const allCategories = Array.from(
-        new Map(
-            initialVendors.flatMap(v => v.categories || []).map(c => [c.id, c])
-        ).values()
-    )
+    // Fetch ALL supplier categories independently — so newly created ones show immediately
+    const { data: allCategories = [] } = useQuery({
+        queryKey: queryKeys.supplierCategories.list(),
+        queryFn: () => getSupplierCategories(),
+    })
 
     const filteredVendors = initialVendors.filter(vendor => {
         const matchesSearch = vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -213,9 +218,19 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
             {/* ═══ VENDOR GRID ═══ */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                 {filteredVendors.map((vendor) => (
-                    <div key={vendor.id} className="group bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all overflow-hidden flex flex-col">
+                    <div key={vendor.id} className={cn("group relative border-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all overflow-hidden flex flex-col cursor-pointer", vendor.isActive ? "bg-white dark:bg-zinc-900 border-black" : "bg-zinc-100 dark:bg-zinc-800 border-zinc-400 opacity-60")} onClick={() => setEditingVendor(vendor)}>
                         {/* Color stripe */}
                         <div className={cn("h-1 w-full", getVendorColor(vendor.name))} />
+
+                        {/* Red dot indicator for incomplete data */}
+                        {(!vendor.phone && !vendor.email && !vendor.address) && (
+                            <div className="absolute top-2 right-2 z-10 group/dot" title="Data belum lengkap: telepon, email, alamat">
+                                <span className="flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500" />
+                                </span>
+                            </div>
+                        )}
 
                         {/* Header */}
                         <div className="px-4 py-3 flex items-start gap-3">
@@ -225,11 +240,6 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <Badge variant="outline" className="text-[9px] font-black uppercase border-black bg-zinc-50 dark:bg-zinc-800 tracking-widest">{vendor.code}</Badge>
-                                    {(!vendor.phone && !vendor.email && !vendor.address) && (
-                                        <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-amber-100 border border-amber-400 text-amber-700">
-                                            Data Belum Lengkap
-                                        </span>
-                                    )}
                                     {vendor.paymentTerm && vendor.paymentTerm !== "CASH" && (
                                         <Badge className="text-[9px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 border border-emerald-300 hover:bg-emerald-100">
                                             {vendor.paymentTerm.replace("_", " ")}
@@ -295,22 +305,36 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                             )}
                         </div>
 
-                        {/* Stats */}
-                        <div className="px-4 py-3 grid grid-cols-2 gap-2">
-                            <div className="p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total Orders</p>
-                                <p className="text-lg font-black">{vendor.totalOrders}</p>
+                        {/* Stats + Actions pinned to bottom */}
+                        <div className="mt-auto">
+                            <div className="px-4 py-3 grid grid-cols-2 gap-2">
+                                <div className="p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total Orders</p>
+                                    <p className="text-lg font-black">{vendor.totalOrders}</p>
+                                </div>
+                                <div className="p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Active Orders</p>
+                                    <p className="text-lg font-black">{vendor.activeOrders}</p>
+                                </div>
                             </div>
-                            <div className="p-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Active Orders</p>
-                                <p className="text-lg font-black">{vendor.activeOrders}</p>
+
+                            {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
+                            <div onClick={(e) => e.stopPropagation()}>
+                                <VendorActions vendor={vendor} />
                             </div>
                         </div>
-
-                        <VendorActions vendor={vendor} />
                     </div>
                 ))}
             </div>
+
+            {/* Edit Vendor Dialog */}
+            {editingVendor && (
+                <EditVendorDialog
+                    vendor={editingVendor}
+                    open={!!editingVendor}
+                    onOpenChange={(open) => { if (!open) setEditingVendor(null) }}
+                />
+            )}
 
             {filteredVendors.length === 0 && (
                 <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 p-12 text-center">

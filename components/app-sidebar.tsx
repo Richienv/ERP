@@ -25,6 +25,7 @@ import { useWorkflowConfig } from "@/components/workflow/workflow-config-context
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
+import { useSidebarActions } from "@/hooks/use-sidebar-actions"
 import {
   Sidebar,
   SidebarContent,
@@ -40,7 +41,8 @@ type SidebarNavItem = {
   url: string
   icon?: React.ComponentType<any>
   locked?: boolean
-  items?: { title: string; url: string; locked?: boolean }[]
+  badge?: number
+  items?: { title: string; url: string; locked?: boolean; badge?: number }[]
 }
 
 const data = {
@@ -163,7 +165,7 @@ const data = {
           url: "/procurement/requests",
         },
         {
-          title: "Penerimaan Barang (GRN)",
+          title: "Surat Jalan Masuk",
           url: "/procurement/receiving",
         },
       ],
@@ -502,6 +504,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   ]
 
   const { activeModules, tenantBranding } = useWorkflowConfig();
+  const { data: actionCounts } = useSidebarActions();
 
   const isSectionActive = (title: string, _items: any[]) => {
     if (!activeModules) return true; // Show all if no config
@@ -533,7 +536,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   };
 
 
-  let filteredNavMain = data.navMain
+  let filteredNavMain: SidebarNavItem[] = data.navMain as SidebarNavItem[]
   if (isStaff) {
     filteredNavMain = staffNav
   } else if (isAccountant) {
@@ -546,6 +549,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   if (activeModules) {
     filteredNavMain = filteredNavMain.filter(item => isSectionActive(item.title, item.items || []));
   }
+
+  // Map action counts to sub-item URLs for badge display
+  const subItemBadgeMap: Record<string, number> = React.useMemo(() => {
+    if (!actionCounts) return {}
+    const map: Record<string, number> = {}
+    if (actionCounts.vendorsIncomplete > 0) map["/procurement/vendors"] = actionCounts.vendorsIncomplete
+    if (actionCounts.productsIncomplete > 0) map["/inventory/products"] = actionCounts.productsIncomplete
+    if (actionCounts.customersIncomplete > 0) map["/sales/customers"] = actionCounts.customersIncomplete
+    if (actionCounts.lowStockProducts > 0) map["/inventory"] = actionCounts.lowStockProducts
+    if (actionCounts.pendingPurchaseRequests > 0) map["/procurement/requests"] = actionCounts.pendingPurchaseRequests
+    if (actionCounts.pendingApprovals > 0) map["/procurement/orders"] = actionCounts.pendingApprovals
+    return map
+  }, [actionCounts])
+
+  // Inject badges into nav items
+  const injectBadges = (items: SidebarNavItem[]): SidebarNavItem[] => {
+    return items.map(item => {
+      const subItems = item.items?.map(sub => ({
+        ...sub,
+        badge: subItemBadgeMap[sub.url] || 0,
+      }))
+      const parentBadge = subItems?.reduce((sum, s) => sum + (s.badge || 0), 0) || subItemBadgeMap[item.url] || 0
+      return { ...item, items: subItems, badge: parentBadge }
+    })
+  }
+
+  filteredNavMain = injectBadges(filteredNavMain)
 
   const filteredNavSecondary = (isStaff || isAccountant || user?.role === "ROLE_MANAGER") ? [] : data.navSecondary
 
@@ -612,7 +642,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={filteredNavMain} />
+        <NavMain items={filteredNavMain as any} />
         {!isStaff && <NavSecondary items={filteredNavSecondary} className="mt-auto" />}
       </SidebarContent>
       <SidebarFooter className="p-0">

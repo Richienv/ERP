@@ -337,6 +337,7 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                                             setFetchedVendors(vendorData.map((v: any) => ({ id: v.id, name: v.name })))
                                                             queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
                                                             queryClient.invalidateQueries({ queryKey: queryKeys.suppliers.all })
+                                                            queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
                                                             toast.success(`Vendor "${name}" berhasil dibuat`)
                                                             return supplier.id
                                                         }}

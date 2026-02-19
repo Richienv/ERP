@@ -14,8 +14,7 @@ export async function getVendors() {
     try {
         return await withPrismaAuth(async (prisma) => {
             const vendors = await prisma.supplier.findMany({
-                where: { isActive: true },
-                orderBy: { name: 'asc' },
+                orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
                 include: {
                     _count: {
                         select: { purchaseOrders: true }
@@ -115,6 +114,81 @@ export async function createVendor(data: {
     } catch (error: any) {
         console.error("Error creating vendor:", error)
         return { success: false, error: error.message || "Failed to create vendor" }
+    }
+}
+
+// ==========================================
+// UPDATE VENDOR
+// ==========================================
+export async function updateVendor(vendorId: string, data: {
+    code: string
+    name: string
+    contactName?: string
+    contactTitle?: string
+    email?: string
+    phone?: string
+    picPhone?: string
+    officePhone?: string
+    address?: string
+    address2?: string
+    paymentTerm?: string
+    categoryIds?: string[]
+}) {
+    try {
+        // Validate required fields
+        if (!data.code || !data.name) {
+            return { success: false, error: "Code and Name are required" }
+        }
+
+        return await withPrismaAuth(async (prisma) => {
+            // Check vendor exists
+            const existing = await prisma.supplier.findUnique({
+                where: { id: vendorId }
+            })
+
+            if (!existing) {
+                return { success: false, error: "Vendor tidak ditemukan" }
+            }
+
+            // Check for duplicate code (if code changed)
+            if (data.code.toUpperCase() !== existing.code) {
+                const duplicateCode = await prisma.supplier.findUnique({
+                    where: { code: data.code.toUpperCase() }
+                })
+                if (duplicateCode) {
+                    return { success: false, error: `Vendor code "${data.code}" already exists` }
+                }
+            }
+
+            // Update vendor
+            const vendor = await prisma.supplier.update({
+                where: { id: vendorId },
+                data: {
+                    code: data.code.toUpperCase(),
+                    name: data.name,
+                    contactName: data.contactName || null,
+                    contactTitle: data.contactTitle || null,
+                    email: data.email || null,
+                    phone: data.phone || null,
+                    picPhone: data.picPhone || null,
+                    officePhone: data.officePhone || null,
+                    address: data.address || null,
+                    address2: data.address2 || null,
+                    paymentTerm: (data.paymentTerm as PaymentTerm) || "CASH",
+                    categories: {
+                        set: (data.categoryIds || []).map(id => ({ id }))
+                    }
+                }
+            })
+
+            return {
+                success: true,
+                vendor: { id: vendor.id, name: vendor.name }
+            }
+        })
+    } catch (error: any) {
+        console.error("Error updating vendor:", error)
+        return { success: false, error: error.message || "Failed to update vendor" }
     }
 }
 

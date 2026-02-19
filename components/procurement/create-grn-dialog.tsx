@@ -156,13 +156,13 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
             })
 
             if (result.success) {
-                toast.success(`GRN ${result.grnNumber} berhasil dibuat`)
+                toast.success(`Surat Jalan Masuk ${result.grnNumber} berhasil dibuat`)
                 setOpen(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
-                toast.error(result.error || "Gagal membuat GRN")
+                toast.error(result.error || "Gagal membuat Surat Jalan Masuk")
             }
         } catch (error) {
             toast.error("Terjadi kesalahan")
@@ -181,7 +181,7 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
             <DialogContent className={NB.contentWide}>
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}>
-                        <Package className="h-5 w-5" /> Penerimaan Barang — {purchaseOrder.number}
+                        <Package className="h-5 w-5" /> Surat Jalan Masuk — {purchaseOrder.number}
                     </DialogTitle>
                     <p className={NB.subtitle}>Vendor: {purchaseOrder.vendorName}</p>
                 </DialogHeader>
@@ -348,7 +348,7 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
                                 {loading ? (
                                     <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Memproses...</>
                                 ) : (
-                                    <><Package className="h-4 w-4 mr-2" /> Buat GRN</>
+                                    <><Package className="h-4 w-4 mr-2" /> Buat Surat Jalan</>
                                 )}
                             </Button>
                         </div>

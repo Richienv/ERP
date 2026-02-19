@@ -14,6 +14,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -29,10 +30,12 @@ export function NavMain({
     url: string
     icon?: Icon
     locked?: boolean
+    badge?: number
     items?: {
       title: string
       url: string
       locked?: boolean
+      badge?: number
     }[]
   }[]
 }) {
@@ -83,7 +86,12 @@ export function NavMain({
                       >
                         {item.icon && <item.icon className="!size-4" />}
                         <span className="text-[13px] tracking-tight">{item.title}</span>
-                        <IconChevronRight className="ml-auto !size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        {item.badge && item.badge > 0 ? (
+                          <span className="ml-auto mr-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white tabular-nums">
+                            {item.badge > 99 ? "99+" : item.badge}
+                          </span>
+                        ) : null}
+                        <IconChevronRight className={`!size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 ${item.badge && item.badge > 0 ? "" : "ml-auto"}`} />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -112,8 +120,13 @@ export function NavMain({
                                     : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-none text-[12px] font-medium"
                                 }
                               >
-                                <Link href={subItem.url} prefetch onMouseEnter={() => prefetchRoute(subItem.url)}>
+                                <Link href={subItem.url} prefetch onMouseEnter={() => prefetchRoute(subItem.url)} className="flex items-center w-full">
                                   <span>{subItem.title}</span>
+                                  {subItem.badge && subItem.badge > 0 ? (
+                                    <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white tabular-nums">
+                                      {subItem.badge > 99 ? "99+" : subItem.badge}
+                                    </span>
+                                  ) : null}
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>

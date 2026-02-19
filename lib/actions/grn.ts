@@ -261,7 +261,7 @@ export async function createGRN(data: CreateGRNInput) {
         const year = date.getFullYear()
         const month = String(date.getMonth() + 1).padStart(2, '0')
         const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-        const number = `GRN-${year}${month}-${random}`
+        const number = `SJM-${year}${month}-${random}`
 
         // Create GRN with items in a transaction
         const grn = await withPrismaAuth(async (prisma) => {
@@ -269,6 +269,28 @@ export async function createGRN(data: CreateGRNInput) {
                 const txAny = tx as any
                 const po = await txAny.purchaseOrder.findUnique({ where: { id: data.purchaseOrderId } })
                 if (!po) throw new Error("Purchase Order not found")
+
+                // Auto-transition APPROVED → ORDERED (factories often receive same day as approval)
+                if (po.status === 'APPROVED') {
+                    assertPOTransition('APPROVED' as ProcurementStatus, 'ORDERED' as ProcurementStatus)
+                    await txAny.purchaseOrder.update({
+                        where: { id: po.id },
+                        data: {
+                            previousStatus: po.status,
+                            status: 'ORDERED',
+                            sentToVendorAt: new Date(),
+                        }
+                    })
+                    await createPurchaseOrderEvent(tx as any, {
+                        purchaseOrderId: po.id,
+                        status: 'ORDERED' as ProcurementStatus,
+                        changedBy: user.id,
+                        action: 'AUTO_ORDERED_VIA_GRN',
+                        notes: 'PO otomatis ditandai sebagai Ordered saat penerimaan barang',
+                    })
+                    po.status = 'ORDERED'
+                }
+
                 if (!["ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"].includes(po.status)) {
                     throw new Error("Purchase Order is not eligible for receiving")
                 }

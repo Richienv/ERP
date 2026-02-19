@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Plus, Loader2, Truck, Building2, User, Mail, Phone, MapPin, Tag, X, AlertTriangle, CreditCard, PhoneCall } from "lucide-react"
+import { Loader2, Truck, Building2, User, Mail, Phone, MapPin, Tag, X, CreditCard, PhoneCall, Plus } from "lucide-react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
@@ -15,7 +15,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog"
 import {
     Form,
@@ -27,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { createVendor, getSupplierCategories, createSupplierCategory, checkDuplicateVendor } from "@/app/actions/vendor"
+import { updateVendor, getSupplierCategories, createSupplierCategory } from "@/app/actions/vendor"
 import { NB } from "@/lib/dialog-styles"
 
 const PAYMENT_TERM_OPTIONS = [
@@ -57,12 +56,30 @@ const formSchema = z.object({
     categoryIds: z.array(z.string()).optional(),
 })
 
-export function NewVendorDialog() {
-    const [open, setOpen] = useState(false)
+interface EditVendorDialogProps {
+    vendor: {
+        id: string
+        code: string
+        name: string
+        contactName: string | null
+        contactTitle: string | null
+        email: string | null
+        phone: string | null
+        picPhone: string | null
+        officePhone: string | null
+        address: string | null
+        address2: string | null
+        paymentTerm: string | null
+        categories: { id: string; code: string; name: string }[]
+    }
+    open: boolean
+    onOpenChange: (open: boolean) => void
+}
+
+export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialogProps) {
     const queryClient = useQueryClient()
     const [newCatName, setNewCatName] = useState("")
     const [creatingCat, setCreatingCat] = useState(false)
-    const [duplicateWarning, setDuplicateWarning] = useState<{id: string, code: string, name: string}[]>([])
 
     const { data: categories = [] } = useQuery({
         queryKey: queryKeys.supplierCategories.list(),
@@ -93,50 +110,34 @@ export function NewVendorDialog() {
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema) as any,
         defaultValues: {
-            code: "",
-            name: "",
-            contactTitle: "",
-            contactName: "",
-            email: "",
-            phone: "",
-            picPhone: "",
-            address: "",
-            address2: "",
-            officePhone: "",
-            paymentTerm: "CASH",
-            categoryIds: [],
+            code: vendor.code,
+            name: vendor.name,
+            contactTitle: vendor.contactTitle || "",
+            contactName: vendor.contactName || "",
+            email: vendor.email || "",
+            phone: vendor.phone || "",
+            picPhone: vendor.picPhone || "",
+            address: vendor.address || "",
+            address2: vendor.address2 || "",
+            officePhone: vendor.officePhone || "",
+            paymentTerm: vendor.paymentTerm || "CASH",
+            categoryIds: vendor.categories.map(c => c.id),
         },
     })
-
-    const nameValue = form.watch("name")
-    useEffect(() => {
-        if (!nameValue || nameValue.length < 2) {
-            setDuplicateWarning([])
-            return
-        }
-        const timer = setTimeout(async () => {
-            const result = await checkDuplicateVendor(nameValue)
-            setDuplicateWarning((result as any).duplicates || [])
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [nameValue])
 
     const { isSubmitting } = form.formState
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const result = await createVendor(values) as any
+            const result = await updateVendor(vendor.id, values) as any
 
             if (result.success) {
-                toast.success(result.message || "Vendor berhasil dibuat")
-                setOpen(false)
-                form.reset()
+                toast.success("Vendor berhasil diperbarui")
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.supplierCategories.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
+                onOpenChange(false)
             } else {
-                toast.error(result.error || "Gagal membuat vendor")
+                toast.error(result.error || "Gagal memperbarui vendor")
             }
         } catch (error) {
             toast.error("An unexpected error occurred")
@@ -145,18 +146,13 @@ export function NewVendorDialog() {
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button className={NB.triggerBtn}>
-                    <Plus className="mr-2 h-4 w-4" /> Vendor Baru
-                </Button>
-            </DialogTrigger>
+        <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className={NB.contentNarrow}>
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}>
-                        <Truck className="h-5 w-5" /> Tambah Vendor
+                        <Truck className="h-5 w-5" /> Edit Vendor
                     </DialogTitle>
-                    <p className={NB.subtitle}>Masukkan detail vendor baru untuk ditambahkan ke database</p>
+                    <p className={NB.subtitle}>Ubah detail vendor yang sudah ada</p>
                 </DialogHeader>
 
                 <ScrollArea className={NB.scroll}>
@@ -177,7 +173,12 @@ export function NewVendorDialog() {
                                                 <FormItem>
                                                     <label className={NB.label}>Kode Vendor <span className={NB.labelRequired}>*</span></label>
                                                     <FormControl>
-                                                        <Input placeholder="VND-001" {...field} className={NB.inputMono} />
+                                                        <Input
+                                                            placeholder="VND-001"
+                                                            {...field}
+                                                            disabled
+                                                            className={`${NB.inputMono} bg-zinc-100 text-zinc-500 cursor-not-allowed`}
+                                                        />
                                                     </FormControl>
                                                     <FormMessage className={NB.error} />
                                                 </FormItem>
@@ -208,19 +209,6 @@ export function NewVendorDialog() {
                                                     <Input placeholder="PT..." {...field} className={NB.input} />
                                                 </FormControl>
                                                 <FormMessage className={NB.error} />
-                                                {duplicateWarning.length > 0 && (
-                                                    <div className="p-2 bg-amber-50 border-2 border-amber-300 text-amber-800 text-xs font-bold mt-1">
-                                                        <p className="flex items-center gap-1 mb-1">
-                                                            <AlertTriangle className="h-3 w-3" />
-                                                            Mungkin duplikat:
-                                                        </p>
-                                                        <ul className="ml-4 space-y-0.5">
-                                                            {duplicateWarning.map(v => (
-                                                                <li key={v.id}>{v.code} — {v.name}</li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                )}
                                             </FormItem>
                                         )}
                                     />
@@ -440,7 +428,7 @@ export function NewVendorDialog() {
 
                             {/* Footer */}
                             <div className={NB.footer}>
-                                <Button type="button" variant="outline" onClick={() => setOpen(false)} className={NB.cancelBtn}>
+                                <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className={NB.cancelBtn}>
                                     Batal
                                 </Button>
                                 <Button type="submit" disabled={isSubmitting} className={NB.submitBtn}>
@@ -450,7 +438,7 @@ export function NewVendorDialog() {
                                             Menyimpan...
                                         </>
                                     ) : (
-                                        "Simpan Vendor"
+                                        "Simpan Perubahan"
                                     )}
                                 </Button>
                             </div>

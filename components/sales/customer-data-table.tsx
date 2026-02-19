@@ -221,9 +221,7 @@ const columns: ColumnDef<Customer>[] = [
             <div className="flex items-center gap-2">
               <span className="font-medium">{customer.name}</span>
               {isIncomplete && (
-                <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 bg-amber-100 border border-amber-400 text-amber-700 shrink-0">
-                  Data Belum Lengkap
-                </span>
+                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-red-500 ml-1 shrink-0" title="Data belum lengkap: telepon, email" />
               )}
             </div>
             <div className="text-xs text-muted-foreground">

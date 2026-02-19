@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle2, XCircle, Package, Loader2, Calendar, User, Warehouse } from "lucide-react"
+import { CheckCircle2, XCircle, Package, Loader2, Calendar, User, Warehouse, Printer } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import {
@@ -89,7 +89,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
             const result = await acceptGRN(grn.id, sodMode ? sodReason : undefined)
             
             if (result.success) {
-                toast.success("GRN berhasil diterima dan stok diperbarui")
+                toast.success("Surat Jalan Masuk diterima dan stok diperbarui")
                 setSodMode(false)
                 setSodReason("")
                 onClose()
@@ -104,7 +104,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                 setSodMode(true)
                 toast.warning(result.error || "Peringatan SoD: Konfirmasi diperlukan")
             } else {
-                toast.error('error' in result ? result.error : "Gagal menerima GRN")
+                toast.error('error' in result ? result.error : "Gagal menerima Surat Jalan")
             }
         } catch {
             toast.error("Terjadi kesalahan")
@@ -123,13 +123,13 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
         try {
             const result = await rejectGRN(grn.id, rejectReason)
             if (result.success) {
-                toast.success("GRN ditolak")
+                toast.success("Surat Jalan Masuk ditolak")
                 setRejectMode(false)
                 onClose()
                 queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
             } else {
-                toast.error(result.error || "Gagal menolak GRN")
+                toast.error(result.error || "Gagal menolak Surat Jalan")
             }
         } catch {
             toast.error("Terjadi kesalahan")
@@ -144,10 +144,23 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-3xl border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
-                    <DialogTitle className="font-black uppercase flex items-center gap-2">
-                        <Package className="h-5 w-5 text-emerald-600" />
-                        {grn.number}
-                    </DialogTitle>
+                    <div className="flex items-center justify-between">
+                        <DialogTitle className="font-black uppercase flex items-center gap-2">
+                            <Package className="h-5 w-5 text-emerald-600" />
+                            {grn.number}
+                        </DialogTitle>
+                        {(grn.status === 'DRAFT' || grn.status === 'ACCEPTED') && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-8 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                                onClick={() => window.open(`/api/documents/surat-jalan-masuk/${grn.id}?disposition=inline`, '_blank')}
+                            >
+                                <Printer className="h-3.5 w-3.5 mr-1.5" />
+                                Cetak Surat Jalan
+                            </Button>
+                        )}
+                    </div>
                     <DialogDescription>
                         PO: <span className="font-bold text-blue-600">{grn.poNumber}</span>
                     </DialogDescription>
@@ -269,7 +282,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                                 Alasan Penolakan *
                             </label>
                             <Textarea
-                                placeholder="Mengapa GRN ini ditolak?"
+                                placeholder="Mengapa Surat Jalan ini ditolak?"
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
                                 className="bg-white"
@@ -344,7 +357,7 @@ export function GRNDetailsSheet({ grn, isOpen, onClose }: Props) {
                             className="w-full"
                         >
                             <XCircle className="h-4 w-4 mr-2" />
-                            Tolak GRN
+                            Tolak Surat Jalan
                         </Button>
                     </DialogFooter>
                 )}

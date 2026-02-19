@@ -368,6 +368,7 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
                   const customer = await createCustomerQuick(name)
                   setCustomers((prev) => [...prev, { id: customer.id, code: customer.code, name: customer.name, paymentTerm: 'NET_30' }])
                   queryClient.invalidateQueries({ queryKey: queryKeys.customers.all })
+                  queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
                   toast.success(`Customer "${name}" berhasil dibuat`)
                   return customer.id
                 }}

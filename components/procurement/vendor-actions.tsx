@@ -44,6 +44,7 @@ export function VendorActions({ vendor }: VendorActionsProps) {
                 toast.success(result.message)
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
             } else {
                 toast.error(("error" in result ? result.error : null) || "Gagal mengubah status vendor")
             }
