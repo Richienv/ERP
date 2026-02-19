@@ -29,7 +29,7 @@ import {
     CATEGORY_TO_PRODUCT_TYPE,
 } from "@/lib/inventory-utils"
 import { createProduct } from "@/app/actions/inventory"
-import { createUnit, createBrand, createColor } from "@/lib/actions/master-data"
+import { createUnit, createBrand, createColor, createSupplier } from "@/lib/actions/master-data"
 import { useBrands, useColors, useUnits, useSuppliers, useInvalidateMasterData } from "@/hooks/use-master-data"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -46,7 +46,7 @@ export function MaterialInputForm() {
     const { data: dbColors = [], isLoading: colorsLoading } = useColors()
     const { data: dbUnits = [], isLoading: unitsLoading } = useUnits()
     const { data: dbSuppliers = [] } = useSuppliers()
-    const { invalidateBrands, invalidateColors, invalidateUnits } = useInvalidateMasterData()
+    const { invalidateBrands, invalidateColors, invalidateUnits, invalidateSuppliers } = useInvalidateMasterData()
 
     const brandOptions = useMemo(() =>
         dbBrands.map((b: { code: string; name: string }) => ({ value: b.code, label: b.name, subtitle: b.code })), [dbBrands])
@@ -145,6 +145,15 @@ export function MaterialInputForm() {
         await invalidateUnits()
         toast.success(`Satuan "${n}" berhasil dibuat`)
         return u.code
+    }
+
+    const handleCreateSupplier = async (n: string) => {
+        const code = "SUP-" + n.substring(0, 3).toUpperCase() + "-" + Date.now().toString().slice(-4)
+        const supplier = await createSupplier(code, n)
+        await invalidateSuppliers()
+        queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
+        toast.success(`Supplier "${n}" berhasil dibuat`)
+        return supplier.id
     }
 
     return (
@@ -313,6 +322,8 @@ export function MaterialInputForm() {
                                             placeholder="Pilih supplier..."
                                             searchPlaceholder="Cari supplier..."
                                             emptyMessage="Supplier tidak ditemukan."
+                                            createLabel="+ Tambah Supplier Baru"
+                                            onCreate={handleCreateSupplier}
                                         />
                                     </div>
                                 </div>

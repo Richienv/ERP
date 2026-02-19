@@ -1,47 +1,42 @@
 'use server'
 
 import { withPrismaAuth, prisma } from "@/lib/db"
-import { unstable_cache } from "next/cache"
 import { FALLBACK_PRODUCTS } from "@/lib/db-fallbacks"
 import { createClient } from "@/lib/supabase/server"
 
 // ==========================================
 // GET PRODUCTS FOR PO CREATION
 // ==========================================
-export const getProductsForPO = unstable_cache(
-    async () => {
-        try {
-            // Prisma Client
-            const products = await prisma.product.findMany({
-                where: { isActive: true },
-                orderBy: { name: 'asc' },
-                include: {
-                    supplierItems: {
-                        select: {
-                            price: true,
-                            supplierId: true
-                        }
+export async function getProductsForPO() {
+    try {
+        // Prisma Client
+        const products = await prisma.product.findMany({
+            where: { isActive: true },
+            orderBy: { name: 'asc' },
+            include: {
+                supplierItems: {
+                    select: {
+                        price: true,
+                        supplierId: true
                     }
                 }
-            })
+            }
+        })
 
-            if (!products) return []
+        if (!products) return []
 
-            return products.map((p) => ({
-                id: p.id,
-                name: p.name,
-                code: p.code,
-                unit: p.unit,
-                defaultPrice: p.supplierItems?.[0]?.price ? Number(p.supplierItems[0].price) : Number(p.costPrice)
-            }))
-        } catch (error: any) {
-            console.error("Error fetching products for PO:", error.message)
-            return FALLBACK_PRODUCTS
-        }
-    },
-    ['po-products'],
-    { revalidate: 300, tags: ['inventory', 'products', 'procurement'] }
-)
+        return products.map((p) => ({
+            id: p.id,
+            name: p.name,
+            code: p.code,
+            unit: p.unit,
+            defaultPrice: p.supplierItems?.[0]?.price ? Number(p.supplierItems[0].price) : Number(p.costPrice)
+        }))
+    } catch (error: any) {
+        console.error("Error fetching products for PO:", error.message)
+        return FALLBACK_PRODUCTS
+    }
+}
 
 // ==========================================
 // CREATE PURCHASE ORDER

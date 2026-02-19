@@ -57,15 +57,16 @@ export async function middleware(request: NextRequest) {
 
         if (result && 'data' in result && !result.error) {
             user = result.data?.user ?? null
-        } else if (result && 'error' in result) {
-            // Auth returned an error (e.g., invalid token) — clear auth cookies
-            clearAuthCookies(response, request)
         }
-        // If timeout won (result is null), user stays null — treated as unauthenticated
+        // On auth error or timeout: user stays null, treated as unauthenticated.
+        // Do NOT clear cookies here — concurrent requests (e.g. cache warming)
+        // can cause transient refresh token race conditions where one request
+        // consumes the refresh token before others finish. Clearing cookies
+        // would wipe a valid session. Cookies are only cleared when redirecting
+        // to /login on protected routes (below).
     } catch (err) {
-        // getUser() threw an exception — clear auth cookies
-        console.error("Middleware: auth.getUser() threw, clearing cookies:", err)
-        clearAuthCookies(response, request)
+        // getUser() threw — user stays null, no cookie clearing
+        console.error("Middleware: auth.getUser() threw:", err)
     }
 
     // Define protected routes

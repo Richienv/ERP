@@ -2,7 +2,7 @@
 
 import { withPrismaAuth, safeQuery, withRetry, prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import { unstable_cache } from "next/cache"
+
 import { calculateProductStatus } from "@/lib/inventory-logic"
 import { approvePurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
 import {
@@ -115,96 +115,76 @@ export async function createCategory(input: CreateCategoryInput) {
     }
 }
 
-export const getAllCategories = unstable_cache(
-    async () => {
-        const categories = await prisma.category.findMany({
-            where: { isActive: true },
-            include: {
-                children: true,
-                _count: {
-                    select: { products: true }
-                }
-            },
-            orderBy: { name: 'asc' }
-        })
-
-        // Transform to match UI structure if needed, or just return as is
-        // The UI expects a tree or we can build it on client
-        return categories
-    },
-    ['categories-full'],
-    { revalidate: 3600, tags: ['categories'] }
-)
-
-export const getCategories = unstable_cache(
-    async () => {
-        return await prisma.category.findMany({
-            where: { isActive: true },
-            select: { id: true, name: true, code: true },
-            orderBy: { name: 'asc' }
-        })
-    },
-    ['categories-list'],
-    { revalidate: 3600, tags: ['categories'] }
-)
-
-export const getWarehouses = unstable_cache(
-    async () => {
-        const warehouses = await prisma.warehouse.findMany({
-            include: {
-                stockLevels: true,
-                _count: {
-                    select: { stockLevels: true }
-                }
+export async function getAllCategories() {
+    const categories = await prisma.category.findMany({
+        where: { isActive: true },
+        include: {
+            children: true,
+            _count: {
+                select: { products: true }
             }
-        })
+        },
+        orderBy: { name: 'asc' }
+    })
 
-        // Fetch details for Managers
-        const managerIds = warehouses.map(w => w.managerId).filter(Boolean) as string[]
-        const managers = await prisma.employee.findMany({
-            where: { id: { in: managerIds } },
-            select: { id: true, firstName: true, lastName: true, phone: true }
-        })
+    return categories
+}
 
-        // In a real app, you'd relate employees to warehouses. 
-        // For now, we assume a static staff count per warehouse or fetch generally.
-        // Let's just pretend we have 5-15 staff per warehouse.
+export async function getCategories() {
+    return await prisma.category.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, code: true },
+        orderBy: { name: 'asc' }
+    })
+}
 
-        return warehouses.map(w => {
-            const manager = managers.find(m => m.id === w.managerId)
-            const managerName = manager ? `${manager.firstName} ${manager.lastName || ''}`.trim() : 'Unassigned'
-            const managerPhone = manager?.phone || '-'
-
-            const totalItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
-            const capacity = w.capacity || 50000 // Default if missing
-            const utilization = capacity > 0 ? Math.min(parseFloat(((totalItems / capacity) * 100).toFixed(1)), 100) : 0
-
-            return {
-                id: w.id,
-                name: w.name,
-                code: w.code,
-                location: [w.city, w.province].filter(Boolean).join(', ') || w.address || 'Unknown Location',
-                type: 'Warehouse',
-                capacity: capacity,
-                utilization: utilization,
-                manager: managerName,
-                status: w.isActive ? 'Active' : 'Inactive',
-                totalValue: 0,
-                activePOs: 0,
-                pendingTasks: 0,
-                items: totalItems,
-                staff: Math.floor(Math.random() * (15 - 5 + 1) + 5), // Mock for UI aesthetics until relation exists
-                phone: managerPhone
+export async function getWarehouses() {
+    const warehouses = await prisma.warehouse.findMany({
+        include: {
+            stockLevels: true,
+            _count: {
+                select: { stockLevels: true }
             }
-        })
-    },
-    ['warehouses-list'],
-    { revalidate: 300, tags: ['inventory', 'warehouses'] }
-)
+        }
+    })
 
-export const getInventoryKPIs = unstable_cache(
-    async () => {
-        const totalProducts = await prisma.product.count({ where: { isActive: true } })
+    const managerIds = warehouses.map(w => w.managerId).filter(Boolean) as string[]
+    const managers = await prisma.employee.findMany({
+        where: { id: { in: managerIds } },
+        select: { id: true, firstName: true, lastName: true, phone: true }
+    })
+
+    return warehouses.map(w => {
+        const manager = managers.find(m => m.id === w.managerId)
+        const managerName = manager ? `${manager.firstName} ${manager.lastName || ''}`.trim() : 'Unassigned'
+        const managerPhone = manager?.phone || '-'
+
+        const totalItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const capacity = w.capacity || 50000
+        const utilization = capacity > 0 ? Math.min(parseFloat(((totalItems / capacity) * 100).toFixed(1)), 100) : 0
+
+        return {
+            id: w.id,
+            name: w.name,
+            code: w.code,
+            location: [w.city, w.province].filter(Boolean).join(', ') || w.address || 'Unknown Location',
+            type: 'Warehouse',
+            capacity: capacity,
+            utilization: utilization,
+            manager: managerName,
+            status: w.isActive ? 'Active' : 'Inactive',
+            totalValue: 0,
+            activePOs: 0,
+            pendingTasks: 0,
+            items: totalItems,
+            staff: Math.floor(Math.random() * (15 - 5 + 1) + 5),
+            phone: managerPhone
+        }
+    })
+}
+
+export async function getInventoryKPIs() {
+    const totalProducts = await prisma.product.count({ where: { isActive: true } })
 
         // Count low stock using same logic as Material Gap Analysis
         const products = await prisma.product.findMany({
@@ -263,20 +243,16 @@ export const getInventoryKPIs = unstable_cache(
             if (gap > 0) lowStock++
         }
 
-        return {
-            totalProducts,
-            lowStock,
-            totalValue,
-            inventoryAccuracy: 98 // Mock
-        }
-    },
-    ['inventory-kpis'],
-    { revalidate: 300, tags: ['inventory', 'kpis'] }
-)
+    return {
+        totalProducts,
+        lowStock,
+        totalValue,
+        inventoryAccuracy: 98 // Mock
+    }
+}
 
-export const getMaterialGapAnalysis = unstable_cache(
-    async () => {
-        const [products, pendingTasks] = await Promise.all([
+export async function getMaterialGapAnalysis() {
+    const [products, pendingTasks] = await Promise.all([
             prisma.product.findMany({
                 where: { isActive: true },
                 include: {
@@ -466,14 +442,10 @@ export const getMaterialGapAnalysis = unstable_cache(
                 openPOs
             }
         })
-    },
-    ['material-gap-analysis'],
-    { revalidate: 120, tags: ['inventory', 'gap-analysis'] }
-)
+}
 
-export const getProcurementInsights = unstable_cache(
-    async () => {
-        try {
+export async function getProcurementInsights() {
+    try {
             // 1. Get Active Purchase Orders (Actual Inbound Data)
             const activePOs = await prisma.purchaseOrder.findMany({
                 where: {
@@ -573,23 +545,20 @@ export const getProcurementInsights = unstable_cache(
                     itemsCriticalList: restockItems
                 }
             }
-        } catch (error) {
-            console.error("Error fetching procurement insights:", error)
-            return {
-                activePOs: [],
-                restockItems: [],
-                summary: {
-                    totalIncoming: 0,
-                    totalRestockCost: 0,
-                    itemsCriticalCount: 0,
-                    itemsCriticalList: []
-                }
+    } catch (error) {
+        console.error("Error fetching procurement insights:", error)
+        return {
+            activePOs: [],
+            restockItems: [],
+            summary: {
+                totalIncoming: 0,
+                totalRestockCost: 0,
+                itemsCriticalCount: 0,
+                itemsCriticalList: []
             }
         }
-    },
-    ['procurement-insights'],
-    { revalidate: 300, tags: ['inventory', 'procurement'] }
-)
+    }
+}
 
 export async function getProductsForKanban() {
     return withPrismaAuth(async (prisma) => {
@@ -641,8 +610,7 @@ export async function setProductManualAlert(productId: string, isAlert: boolean)
     }
 }
 
-export const getWarehouseDetails = unstable_cache(
-    async (id: string) => {
+export async function getWarehouseDetails(id: string) {
         const warehouse = await prisma.warehouse.findUnique({
             where: { id },
             include: {
@@ -682,10 +650,7 @@ export const getWarehouseDetails = unstable_cache(
             capacity: warehouse.capacity,
             categories: Array.from(categoryMap.values())
         }
-    },
-    ['warehouse-details'],
-    { revalidate: 300, tags: ['inventory', 'warehouse-details'] }
-)
+}
 
 // ==========================================
 // GOODS RECEIPT ACTION
@@ -1022,8 +987,7 @@ export async function requestPurchase(data: {
 // STOCK MOVEMENT ACTIONS
 // ==========================================
 
-export const getStockMovements = unstable_cache(
-    async (limit = 50) => {
+export async function getStockMovements(limit = 50) {
         const movements = await prisma.inventoryTransaction.findMany({
             take: limit,
             orderBy: { createdAt: 'desc' },
@@ -1051,10 +1015,7 @@ export const getStockMovements = unstable_cache(
             reference: mv.purchaseOrder?.number || mv.salesOrder?.number || mv.workOrder?.number || '-',
             user: mv.performedBy || 'System'
         }))
-    },
-    ['inventory-movements'],
-    { revalidate: 120, tags: ['inventory', 'movements'] }
-)
+}
 
 export async function createManualMovement(data: {
     type: 'ADJUSTMENT_IN' | 'ADJUSTMENT_OUT' | 'TRANSFER' | 'SCRAP',

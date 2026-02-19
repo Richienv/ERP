@@ -1,7 +1,6 @@
 "use server"
 
 import { withPrismaAuth, prisma } from "@/lib/db"
-import { unstable_cache } from "next/cache"
 import { ProcurementStatus, PrismaClient } from "@prisma/client"
 import { recordPendingBillFromPO } from "@/lib/actions/finance"
 import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
@@ -73,53 +72,48 @@ async function createPurchaseOrderEvent(tx: typeof prisma, params: {
     })
 }
 
-export const getVendors = unstable_cache(
-    async () => {
-        try {
-            const vendors = await prisma.supplier.findMany({
-                where: { isActive: true },
-                orderBy: { name: 'asc' },
-                include: {
-                    _count: {
-                        select: { purchaseOrders: true }
-                    }
+export async function getVendors() {
+    try {
+        const vendors = await prisma.supplier.findMany({
+            where: { isActive: true },
+            orderBy: { name: 'asc' },
+            include: {
+                _count: {
+                    select: { purchaseOrders: true }
                 }
-            })
+            }
+        })
 
-            if (!vendors) return []
+        if (!vendors) return []
 
-            return vendors.map((v) => ({
-                id: v.id,
-                name: v.name,
-                code: v.code,
-                category: v.code?.startsWith('IMP') ? "Import" : "General",
-                status: v.isActive ? "Active" : "Inactive",
-                rating: v.rating,
-                contact: v.contactName || "-",
-                phone: v.phone || "-",
-                email: v.email || "-",
-                address: v.address || "-",
-                totalSpend: "0", // Fallback for now as calculation might be heavy
-                activeOrders: v._count.purchaseOrders,
-                color: "bg-zinc-500",
-                logo: v.name?.substring(0, 2).toUpperCase() || "??"
-            }))
-        } catch (error) {
-            console.error("Prisma Error fetching vendors:", error)
-            return FALLBACK_VENDORS
-        }
-    },
-    ['procurement-vendors'],
-    { revalidate: 3600, tags: ['procurement', 'vendors'] }
-)
+        return vendors.map((v) => ({
+            id: v.id,
+            name: v.name,
+            code: v.code,
+            category: v.code?.startsWith('IMP') ? "Import" : "General",
+            status: v.isActive ? "Active" : "Inactive",
+            rating: v.rating,
+            contact: v.contactName || "-",
+            phone: v.phone || "-",
+            email: v.email || "-",
+            address: v.address || "-",
+            totalSpend: "0", // Fallback for now as calculation might be heavy
+            activeOrders: v._count.purchaseOrders,
+            color: "bg-zinc-500",
+            logo: v.name?.substring(0, 2).toUpperCase() || "??"
+        }))
+    } catch (error) {
+        console.error("Prisma Error fetching vendors:", error)
+        return FALLBACK_VENDORS
+    }
+}
 
 // ==========================================
 // DASHBOARD STATS
 // ==========================================
 
-export const getProcurementStats = unstable_cache(
-    async (input?: ProcurementStatsInput) => {
-        try {
+export async function getProcurementStats(input?: ProcurementStatsInput) {
+    try {
             const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> =>
                 promise.catch((error) => {
                     console.error(`Procurement stats segment failed: ${label}`, error)
@@ -401,11 +395,8 @@ export const getProcurementStats = unstable_cache(
                     receiving: { status: null, page: 1, pageSize: 6 },
                 }
             }
-        }
-    },
-    ['procurement-stats-v2'],
-    { revalidate: 180, tags: ['procurement', 'stats', 'dashboard'] }
-)
+    }
+}
 
 // ==========================================
 // PURCHASE REQUEST ACTIONS

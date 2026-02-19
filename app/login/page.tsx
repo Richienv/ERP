@@ -84,28 +84,19 @@ export default function LoginPage() {
             const role = user?.user_metadata?.role as string
 
             toast.success("Login berhasil!")
-            router.refresh()
 
-            // Dynamic Redirect
+            // Use hard navigation (window.location) instead of router.push()
+            // to ensure cookies are fully committed and middleware processes
+            // the request with valid auth state. router.refresh() + router.push()
+            // has a race condition where the push fires before cookies sync.
+            let targetPath = "/dashboard"
             switch (role) {
-                case "ROLE_CEO":
-                    router.push("/dashboard")
-                    break
-                case "ROLE_MANAGER":
-                    router.push("/manager")
-                    break
-                case "ROLE_ACCOUNTANT":
-                    router.push("/finance")
-                    break
-                case "ROLE_SALES":
-                    router.push("/sales")
-                    break
-                case "ROLE_STAFF":
-                    router.push("/staff")
-                    break
-                default:
-                    router.push("/dashboard")
+                case "ROLE_MANAGER": targetPath = "/manager"; break
+                case "ROLE_ACCOUNTANT": targetPath = "/finance"; break
+                case "ROLE_SALES": targetPath = "/sales"; break
+                case "ROLE_STAFF": targetPath = "/staff"; break
             }
+            window.location.href = targetPath
         } catch (err) {
             console.error("Login Error:", err)
             setError("Terjadi kesalahan sistem")

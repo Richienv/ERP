@@ -98,3 +98,12 @@ export async function getSuppliers() {
         select: { id: true, name: true, code: true },
     })
 }
+
+export async function createSupplier(code: string, name: string) {
+    await requireAuth()
+    const supplier = await prisma.supplier.create({
+        data: { code: code.toUpperCase(), name, isActive: true },
+        select: { id: true, code: true, name: true },
+    })
+    return supplier
+}
