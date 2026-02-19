@@ -19,7 +19,8 @@ export async function getVendors() {
                 include: {
                     _count: {
                         select: { purchaseOrders: true }
-                    }
+                    },
+                    categories: true
                 }
             })
 
@@ -36,7 +37,8 @@ export async function getVendors() {
                 isActive: v.isActive,
                 totalOrders: v._count.purchaseOrders,
                 activeOrders: 0, // Simplified for list view
-                createdAt: v.createdAt
+                createdAt: v.createdAt,
+                categories: v.categories.map(c => ({ id: c.id, code: c.code, name: c.name }))
             }))
         })
     } catch (error) {
@@ -55,6 +57,7 @@ export async function createVendor(data: {
     email?: string
     phone?: string
     address?: string
+    categoryIds?: string[]
 }) {
     try {
         // Validate required fields
@@ -83,7 +86,8 @@ export async function createVendor(data: {
                     address: data.address || null,
                     rating: 0,
                     onTimeRate: 0,
-                    isActive: true
+                    isActive: true,
+                    categories: data.categoryIds?.length ? { connect: data.categoryIds.map(id => ({ id })) } : undefined
                 }
             })
 
@@ -125,5 +129,42 @@ export async function getVendorHistory(vendorId: string) {
     } catch (error) {
         console.error("Error fetching vendor history:", error)
         return []
+    }
+}
+
+// ==========================================
+// SUPPLIER CATEGORIES
+// ==========================================
+export async function getSupplierCategories() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            return prisma.supplierCategory.findMany({
+                where: { isActive: true },
+                orderBy: { name: 'asc' },
+                select: { id: true, code: true, name: true },
+            })
+        })
+    } catch (error) {
+        console.error("Error fetching supplier categories:", error)
+        return []
+    }
+}
+
+export async function createSupplierCategory(name: string) {
+    try {
+        if (!name || name.trim().length < 2) {
+            return { success: false, error: "Nama kategori minimal 2 karakter" }
+        }
+        return await withPrismaAuth(async (prisma) => {
+            const code = "SC-" + name.trim().substring(0, 3).toUpperCase() + "-" + Date.now().toString().slice(-4)
+            const category = await prisma.supplierCategory.create({
+                data: { code, name: name.trim() },
+                select: { id: true, code: true, name: true },
+            })
+            return { success: true, category }
+        })
+    } catch (error: any) {
+        console.error("Error creating supplier category:", error)
+        return { success: false, error: error.message || "Gagal membuat kategori" }
     }
 }

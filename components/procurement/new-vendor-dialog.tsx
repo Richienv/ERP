@@ -4,8 +4,8 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { Plus, Loader2, Truck, Building2, User, Mail, Phone, MapPin } from "lucide-react"
-import { useQueryClient } from "@tanstack/react-query"
+import { Plus, Loader2, Truck, Building2, User, Mail, Phone, MapPin, Tag, X } from "lucide-react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
 
@@ -27,7 +27,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { createVendor } from "@/app/actions/vendor"
+import { createVendor, getSupplierCategories, createSupplierCategory } from "@/app/actions/vendor"
 import { NB } from "@/lib/dialog-styles"
 
 const formSchema = z.object({
@@ -37,11 +37,40 @@ const formSchema = z.object({
     email: z.string().email("Invalid email address").optional().or(z.literal("")),
     phone: z.string().optional(),
     address: z.string().optional(),
+    categoryIds: z.array(z.string()).optional(),
 })
 
 export function NewVendorDialog() {
     const [open, setOpen] = useState(false)
     const queryClient = useQueryClient()
+    const [newCatName, setNewCatName] = useState("")
+    const [creatingCat, setCreatingCat] = useState(false)
+
+    const { data: categories = [] } = useQuery({
+        queryKey: queryKeys.supplierCategories.list(),
+        queryFn: () => getSupplierCategories(),
+    })
+
+    async function handleCreateCategory() {
+        if (newCatName.trim().length < 2) return
+        setCreatingCat(true)
+        try {
+            const result = await createSupplierCategory(newCatName.trim()) as any
+            if (result.success && result.category) {
+                queryClient.invalidateQueries({ queryKey: queryKeys.supplierCategories.all })
+                const current = form.getValues("categoryIds") || []
+                form.setValue("categoryIds", [...current, result.category.id])
+                setNewCatName("")
+                toast.success(`Kategori "${result.category.name}" berhasil dibuat`)
+            } else {
+                toast.error(result.error || "Gagal membuat kategori")
+            }
+        } catch {
+            toast.error("Gagal membuat kategori")
+        } finally {
+            setCreatingCat(false)
+        }
+    }
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -52,6 +81,7 @@ export function NewVendorDialog() {
             email: "",
             phone: "",
             address: "",
+            categoryIds: [],
         },
     })
 
@@ -59,16 +89,17 @@ export function NewVendorDialog() {
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const result = await createVendor(values)
+            const result = await createVendor(values) as any
 
             if (result.success) {
-                toast.success(result.message)
+                toast.success(result.message || "Vendor berhasil dibuat")
                 setOpen(false)
                 form.reset()
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendors.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.supplierCategories.all })
             } else {
-                toast.error(result.error)
+                toast.error(result.error || "Gagal membuat vendor")
             }
         } catch (error) {
             toast.error("An unexpected error occurred")
@@ -143,6 +174,90 @@ export function NewVendorDialog() {
                                             </FormItem>
                                         )}
                                     />
+                                </div>
+                            </div>
+
+                            {/* Kategori Pemasok */}
+                            <div className={NB.section}>
+                                <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50`}>
+                                    <Tag className="h-4 w-4" />
+                                    <span className={NB.sectionTitle}>Kategori Pemasok</span>
+                                </div>
+                                <div className={NB.sectionBody}>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">
+                                        Pilih jenis barang yang disuplai
+                                    </p>
+                                    {/* Selected tags */}
+                                    <div className="flex flex-wrap gap-1.5 mb-3 min-h-[28px]">
+                                        {(form.watch("categoryIds") || []).map((catId: string) => {
+                                            const cat = categories.find((c: any) => c.id === catId)
+                                            if (!cat) return null
+                                            return (
+                                                <span key={catId} className="inline-flex items-center gap-1 px-2 py-0.5 bg-violet-100 border border-violet-300 text-violet-800 text-xs font-bold rounded-sm">
+                                                    {cat.name}
+                                                    <button type="button" onClick={() => {
+                                                        const current = form.getValues("categoryIds") || []
+                                                        form.setValue("categoryIds", current.filter((id: string) => id !== catId))
+                                                    }}>
+                                                        <X className="h-3 w-3" />
+                                                    </button>
+                                                </span>
+                                            )
+                                        })}
+                                    </div>
+                                    {/* Category buttons */}
+                                    <div className="flex flex-wrap gap-1.5 mb-3">
+                                        {categories.map((cat: any) => {
+                                            const selected = (form.watch("categoryIds") || []).includes(cat.id)
+                                            return (
+                                                <button
+                                                    key={cat.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const current = form.getValues("categoryIds") || []
+                                                        if (selected) {
+                                                            form.setValue("categoryIds", current.filter((id: string) => id !== cat.id))
+                                                        } else {
+                                                            form.setValue("categoryIds", [...current, cat.id])
+                                                        }
+                                                    }}
+                                                    className={`px-2.5 py-1 text-xs font-bold border-2 transition-all ${
+                                                        selected
+                                                            ? "border-violet-500 bg-violet-500 text-white"
+                                                            : "border-zinc-200 bg-white text-zinc-600 hover:border-violet-300"
+                                                    }`}
+                                                >
+                                                    {cat.name}
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                    {/* Add new category inline */}
+                                    <div className="flex gap-2">
+                                        <Input
+                                            value={newCatName}
+                                            onChange={(e) => setNewCatName(e.target.value)}
+                                            placeholder="Tambah kategori baru..."
+                                            className={`${NB.input} flex-1 h-8 text-xs`}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") {
+                                                    e.preventDefault()
+                                                    if (newCatName.trim().length >= 2) {
+                                                        handleCreateCategory()
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            disabled={creatingCat || newCatName.trim().length < 2}
+                                            onClick={handleCreateCategory}
+                                            className="h-8 px-3 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold"
+                                        >
+                                            {creatingCat ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
 

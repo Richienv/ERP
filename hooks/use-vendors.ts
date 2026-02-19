@@ -11,5 +11,6 @@ export function useVendorsList() {
             const vendors = await getVendors()
             return vendors
         },
+        refetchInterval: 10_000, // Auto-refresh every 10s for real-time multi-user sync
     })
 }

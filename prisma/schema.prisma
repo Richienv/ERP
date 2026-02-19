@@ -1001,6 +1001,7 @@ model Supplier {
 
   purchaseOrders PurchaseOrder[]
   supplierItems  SupplierProduct[]
+  categories     SupplierCategory[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1009,6 +1010,21 @@ model Supplier {
 
   @@index([updatedAt])
   @@map("suppliers")
+}
+
+// Supplier Categories (Kategori Pemasok - what they sell: kain, kardus, benang, etc.)
+model SupplierCategory {
+  id       String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code     String  @unique
+  name     String
+  isActive Boolean @default(true)
+
+  suppliers Supplier[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("supplier_categories")
 }
 
 // Multi-Vendor Sourcing

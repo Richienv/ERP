@@ -13,6 +13,7 @@ import {
     ShoppingCart,
     Users,
     AlertCircle,
+    Tag,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -35,6 +36,7 @@ type Vendor = {
     isActive: boolean
     totalOrders: number
     activeOrders: number
+    categories: { id: string; code: string; name: string }[]
 }
 
 interface VendorsViewProps {
@@ -44,6 +46,13 @@ interface VendorsViewProps {
 export function VendorsView({ initialVendors }: VendorsViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
     const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL")
+    const [filterCategory, setFilterCategory] = useState<string>("ALL")
+
+    const allCategories = Array.from(
+        new Map(
+            initialVendors.flatMap(v => v.categories || []).map(c => [c.id, c])
+        ).values()
+    )
 
     const filteredVendors = initialVendors.filter(vendor => {
         const matchesSearch = vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,7 +60,9 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
         const matchesStatus = filterStatus === "ALL" ||
             (filterStatus === "ACTIVE" && vendor.isActive) ||
             (filterStatus === "INACTIVE" && !vendor.isActive)
-        return matchesSearch && matchesStatus
+        const matchesCategory = filterCategory === "ALL" ||
+            (vendor.categories || []).some(c => c.id === filterCategory)
+        return matchesSearch && matchesStatus && matchesCategory
     })
 
     // Stats
@@ -163,6 +174,29 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                             </button>
                         ))}
                     </div>
+                    {allCategories.length > 0 && (
+                        <div className="flex border-2 border-black">
+                            <button
+                                onClick={() => setFilterCategory("ALL")}
+                                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black ${
+                                    filterCategory === "ALL" ? "bg-violet-600 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                }`}
+                            >
+                                Semua Kategori
+                            </button>
+                            {allCategories.map((cat) => (
+                                <button
+                                    key={cat.id}
+                                    onClick={() => setFilterCategory(cat.id)}
+                                    className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
+                                        filterCategory === cat.id ? "bg-violet-600 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                    }`}
+                                >
+                                    {cat.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hidden md:block">
                         {filteredVendors.length} vendor
                     </div>
@@ -193,6 +227,16 @@ export function VendorsView({ initialVendors }: VendorsViewProps) {
                                         <Star key={i} className={cn("h-3 w-3", i < vendor.rating ? "fill-amber-400 text-amber-400" : "fill-zinc-200 text-zinc-200")} />
                                     ))}
                                 </div>
+                                {vendor.categories && vendor.categories.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                        {vendor.categories.map(cat => (
+                                            <span key={cat.id} className="inline-flex items-center gap-0.5 px-1.5 py-0 bg-violet-100 text-violet-700 text-[9px] font-black uppercase tracking-wider border border-violet-200">
+                                                <Tag className="h-2.5 w-2.5" />
+                                                {cat.name}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
