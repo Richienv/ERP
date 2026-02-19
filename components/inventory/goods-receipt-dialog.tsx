@@ -31,7 +31,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { receiveGoodsFromPO } from "@/app/actions/inventory";
 import { Loader2, PackagePlus, Box, CheckCircle2, Truck } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { NB } from "@/lib/dialog-styles";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
@@ -67,7 +66,6 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [selectedPO, setSelectedPO] = useState<OpenPO | null>(null);
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -123,9 +121,8 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
         form.reset();
         setSelectedPO(null);
         if (onSuccess) onSuccess();
-        if (onSuccess) onSuccess();
       } else {
-        toast.error(result.error);
+        toast.error((result as any).error || "Gagal menerima barang");
       }
     } catch {
       toast.error("An error occurred");

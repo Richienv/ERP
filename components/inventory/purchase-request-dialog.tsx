@@ -86,11 +86,12 @@ export function PurchaseRequestDialog({ item, onSuccess }: PurchaseRequestDialog
         setOpen(false);
         form.reset();
         if (onSuccess) {
-          const callbackData = result.pendingTask ? { pendingTask: result.pendingTask } : { newPO: result.newPO };
+          const r = result as any;
+          const callbackData = r.pendingTask ? { pendingTask: r.pendingTask } : { newPO: r.newPO };
           onSuccess(callbackData);
         }
       } else {
-        toast.error(result.error || "Failed to request");
+        toast.error((result as any).error || "Failed to request");
       }
     } catch {
       toast.error("An error occurred");

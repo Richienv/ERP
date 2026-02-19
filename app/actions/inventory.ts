@@ -184,70 +184,41 @@ export async function getWarehouses() {
 }
 
 export async function getInventoryKPIs() {
-    const totalProducts = await prisma.product.count({ where: { isActive: true } })
+    // Use the same query & status logic as the product table / kanban
+    // so KPI numbers match what users see in the product list.
+    const products = await prisma.product.findMany({
+        where: { isActive: true },
+        include: { stockLevels: true },
+    })
 
-        // Count low stock using same logic as Material Gap Analysis
-        const products = await prisma.product.findMany({
-            where: { isActive: true },
-            include: {
-                stockLevels: true,
-                BOMItem: {
-                    include: {
-                        bom: {
-                            include: {
-                                product: {
-                                    include: {
-                                        workOrders: {
-                                            where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    let lowStock = 0
+    let critical = 0
+    let totalValue = 0
+
+    for (const p of products) {
+        const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+
+        // Accumulate inventory value (same formula as /api/inventory/page-data)
+        totalValue += totalStock * Number(p.costPrice)
+
+        // Use the SINGLE source-of-truth status function
+        const status = calculateProductStatus({
+            totalStock,
+            minStock: p.minStock,
+            reorderLevel: p.reorderLevel,
+            manualAlert: p.manualAlert,
+            createdAt: p.createdAt,
         })
 
-        let lowStock = 0
-        let totalValue = 0
-
-        for (const p of products) {
-            const currentStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
-
-            // Accumulate inventory value
-            totalValue += currentStock * Number(p.costPrice)
-
-            // Calculate WO demand
-            let woDemandQty = 0
-            p.BOMItem.forEach(bomItem => {
-                const fg = bomItem.bom.product
-                if (fg && fg.workOrders.length > 0) {
-                    fg.workOrders.forEach(wo => {
-                        woDemandQty += Number(bomItem.quantity) * wo.plannedQty
-                    })
-                }
-            })
-
-            // Planning parameters
-            const safetyStock = p.safetyStock || 0
-            const burnRate = Number(p.manualBurnRate) || 0
-            const leadTime = p.leadTime || 7
-            const calculatedROP = (burnRate * leadTime) + safetyStock
-            const reorderPoint = Math.max(calculatedROP, p.minStock || 0)
-
-            // Gap calculation (same as getMaterialGapAnalysis)
-            let gap = (woDemandQty + reorderPoint) - currentStock
-            if (p.manualAlert && gap <= 0) gap = 1
-
-            if (gap > 0) lowStock++
-        }
+        if (status === 'LOW_STOCK') lowStock++
+        if (status === 'CRITICAL') critical++
+    }
 
     return {
-        totalProducts,
-        lowStock,
+        totalProducts: products.length,
+        lowStock: lowStock + critical, // KPI "low stock" includes both LOW_STOCK and CRITICAL
         totalValue,
-        inventoryAccuracy: 98 // Mock
+        inventoryAccuracy: 98, // Mock
     }
 }
 

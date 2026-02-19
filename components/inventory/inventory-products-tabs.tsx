@@ -128,7 +128,7 @@ export function InventoryProductsTabs({ initialProducts, warehouses, initialQuer
       </TabsList>
 
       <TabsContent value="kanban" className="mt-0">
-        <InventoryKanbanBoard products={products} warehouses={warehouses} onProductsChange={setProducts} />
+        <InventoryKanbanBoard products={products} warehouses={warehouses} />
       </TabsContent>
 
       <TabsContent value="list" className="mt-0">
