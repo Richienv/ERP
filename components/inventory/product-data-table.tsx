@@ -157,18 +157,28 @@ export const columns: ColumnDef<ProductWithStock>[] = [
     header: "Nama Produk",
     cell: ({ row }) => {
       const product = row.original
-      const isIncomplete = product.costPrice === 0 || !product.category
       return (
         <div>
           <div className="flex items-center gap-2">
             <span className="font-bold text-sm text-zinc-900 dark:text-zinc-100">{product.name}</span>
-            {isIncomplete && (
-              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-red-500 ml-1 shrink-0" title="Data belum lengkap: harga atau kategori" />
-            )}
           </div>
           {product.description && (
             <div className="text-[10px] text-zinc-400 font-medium line-clamp-1 mt-0.5">
               {product.description}
+            </div>
+          )}
+          {(product.costPrice === 0 || !product.category) && (
+            <div className="flex items-center gap-1 mt-0.5">
+              {!product.category && (
+                <span className="inline-flex items-center px-1.5 py-0 text-[9px] font-black uppercase bg-red-100 text-red-600 border border-red-200">
+                  Kategori kosong
+                </span>
+              )}
+              {product.costPrice === 0 && (
+                <span className="inline-flex items-center px-1.5 py-0 text-[9px] font-black uppercase bg-red-100 text-red-600 border border-red-200">
+                  HPP kosong
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -234,36 +244,28 @@ export const columns: ColumnDef<ProductWithStock>[] = [
   {
     id: "status",
     header: "Status",
-    cell: ({ row }) => {
-      const product = row.original
-
-      // Use server status if available, otherwise calculate
-      let stockStatus: any = 'normal'
-
-      if (product.status) {
-        // Map server status (HEALTHY, LOW_STOCK, CRITICAL, NEW) to badge status (normal, low, critical, out)
-        switch (product.status) {
+    accessorFn: (row) => {
+      // Compute display status for both rendering and filtering
+      if (row.status) {
+        switch (row.status) {
           case 'CRITICAL':
-            // If stock is 0, show 'out', otherwise 'critical'
-            // But if it's manual alert, it's critical even if stock > 0
-            stockStatus = product.currentStock === 0 ? 'out' : 'critical'
-            break
+            return row.currentStock === 0 ? 'out' : 'critical'
           case 'LOW_STOCK':
-            stockStatus = 'low'
-            break
-          case 'HEALTHY':
+            return 'low'
           case 'NEW':
+            // NEW with stock 0 = out of stock, not normal
+            return row.currentStock === 0 ? 'out' : 'normal'
+          case 'HEALTHY':
           default:
-            stockStatus = 'normal'
+            return 'normal'
         }
-      } else {
-        // Fallback to client calculation
-        stockStatus = getStockStatus(product.currentStock, product.minStock, product.maxStock)
       }
-
+      return getStockStatus(row.currentStock, row.minStock, row.maxStock)
+    },
+    cell: ({ getValue }) => {
       return (
         <div className="text-center">
-          <StockStatusBadge status={stockStatus} />
+          <StockStatusBadge status={getValue() as any} />
         </div>
       )
     },

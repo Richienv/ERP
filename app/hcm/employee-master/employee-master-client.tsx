@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useTransition } from "react"
+import React, { useState, useEffect, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -41,7 +41,10 @@ import {
     deactivateEmployee,
     bulkDeactivateEmployees,
     getEmployees,
+    getDistinctDepartments,
+    getDistinctPositions,
 } from "@/app/actions/hcm"
+import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
 
 // ==============================================================================
 // Types
@@ -136,6 +139,18 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
     // Confirm delete dialog
     const [confirmOpen, setConfirmOpen] = useState(false)
     const [bulkDeleting, setBulkDeleting] = useState(false)
+
+    const [departmentOptions, setDepartmentOptions] = useState<ComboboxOption[]>([])
+    const [positionOptions, setPositionOptions] = useState<ComboboxOption[]>([])
+
+    useEffect(() => {
+        getDistinctDepartments().then(deps => {
+            setDepartmentOptions(deps.map(d => ({ value: d, label: d })))
+        }).catch(() => {})
+        getDistinctPositions().then(pos => {
+            setPositionOptions(pos.map(p => ({ value: p, label: p })))
+        }).catch(() => {})
+    }, [])
 
     // Derived
     const departments = useMemo(
@@ -710,22 +725,36 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                         <label className={NB.label}>
                                             Departemen <span className={NB.labelRequired}>*</span>
                                         </label>
-                                        <Input
-                                            className={NB.input}
+                                        <ComboboxWithCreate
+                                            options={departmentOptions}
                                             value={form.department}
-                                            onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))}
-                                            placeholder="Contoh: Produksi"
+                                            onChange={(v) => setForm((p) => ({ ...p, department: v }))}
+                                            placeholder="Pilih departemen..."
+                                            searchPlaceholder="Cari departemen..."
+                                            emptyMessage="Departemen tidak ditemukan."
+                                            createLabel="+ Tambah Departemen"
+                                            onCreate={async (name) => {
+                                                setDepartmentOptions(prev => [...prev, { value: name, label: name }].sort((a, b) => a.label.localeCompare(b.label)))
+                                                return name
+                                            }}
                                         />
                                     </div>
                                     <div>
                                         <label className={NB.label}>
                                             Posisi <span className={NB.labelRequired}>*</span>
                                         </label>
-                                        <Input
-                                            className={NB.input}
+                                        <ComboboxWithCreate
+                                            options={positionOptions}
                                             value={form.position}
-                                            onChange={(e) => setForm((p) => ({ ...p, position: e.target.value }))}
-                                            placeholder="Contoh: Supervisor Produksi"
+                                            onChange={(v) => setForm((p) => ({ ...p, position: v }))}
+                                            placeholder="Pilih posisi..."
+                                            searchPlaceholder="Cari posisi..."
+                                            emptyMessage="Posisi tidak ditemukan."
+                                            createLabel="+ Tambah Posisi"
+                                            onCreate={async (name) => {
+                                                setPositionOptions(prev => [...prev, { value: name, label: name }].sort((a, b) => a.label.localeCompare(b.label)))
+                                                return name
+                                            }}
                                         />
                                     </div>
                                     <div>

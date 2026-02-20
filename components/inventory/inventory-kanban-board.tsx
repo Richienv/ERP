@@ -127,6 +127,26 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: K
                                 product.manualAlert && "border-red-600 shadow-red-900/20"
                             )}
                         >
+                            {/* Red dot indicator for incomplete data */}
+                            {(() => {
+                                const categoryName = typeof product.category === 'object' ? product.category?.name : product.category
+                                const hasNoCategory = !categoryName || categoryName === 'Uncategorized' || categoryName === 'UNCATEGORIZED'
+                                const hasNoCost = !product.costPrice || product.costPrice === 0
+                                const isIncomplete = hasNoCategory || hasNoCost
+                                if (!isIncomplete) return null
+                                const warnings: string[] = []
+                                if (hasNoCategory) warnings.push('Kategori kosong')
+                                if (hasNoCost) warnings.push('HPP kosong')
+                                return (
+                                    <div className="absolute -top-1.5 -right-1.5 z-10 flex items-center gap-1" title={warnings.join(', ')}>
+                                        <span className="relative flex h-3.5 w-3.5">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-red-500 border-2 border-white" />
+                                        </span>
+                                    </div>
+                                )
+                            })()}
+
                             <div className="flex justify-between items-start mb-2">
                                 <span className="text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border-2 border-black bg-zinc-100 text-zinc-700">
                                     {product.code}
@@ -141,9 +161,20 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: K
                             <h4 className="font-black text-sm leading-tight mb-1 text-zinc-900 dark:text-zinc-100 line-clamp-2 uppercase">
                                 {product.name}
                             </h4>
-                            <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-bold mb-3">
-                                {typeof product.category === 'object' ? product.category?.name || 'Uncategorized' : product.category}
-                            </p>
+
+                            {/* Category with warning styling if missing */}
+                            {(() => {
+                                const categoryName = typeof product.category === 'object' ? product.category?.name : product.category
+                                const hasNoCategory = !categoryName || categoryName === 'Uncategorized' || categoryName === 'UNCATEGORIZED'
+                                return (
+                                    <p className={cn(
+                                        "text-[10px] uppercase tracking-widest font-bold mb-3",
+                                        hasNoCategory ? "text-red-500" : "text-zinc-400"
+                                    )}>
+                                        {hasNoCategory ? 'Kategori kosong' : categoryName}
+                                    </p>
+                                )
+                            })()}
 
                             <div className="flex items-center justify-between pt-3 border-t-2 border-zinc-100 dark:border-zinc-700">
                                 <div>
@@ -163,6 +194,22 @@ function KanbanColumn({ title, status, products, color, onDrop, onCardClick }: K
                                     </span>
                                 )}
                             </div>
+
+                            {/* Incomplete data warning strip */}
+                            {(() => {
+                                const categoryName = typeof product.category === 'object' ? product.category?.name : product.category
+                                const hasNoCategory = !categoryName || categoryName === 'Uncategorized' || categoryName === 'UNCATEGORIZED'
+                                const hasNoCost = !product.costPrice || product.costPrice === 0
+                                if (!hasNoCategory && !hasNoCost) return null
+                                return (
+                                    <div className="mt-2 pt-2 border-t-2 border-dashed border-red-200 dark:border-red-800 flex items-center gap-1.5">
+                                        <AlertCircle className="h-3 w-3 text-red-500 flex-shrink-0" />
+                                        <span className="text-[8px] font-black uppercase tracking-wide text-red-500">
+                                            {[hasNoCategory && 'Kategori', hasNoCost && 'HPP'].filter(Boolean).join(' & ')} belum diisi
+                                        </span>
+                                    </div>
+                                )
+                            })()}
 
                             {/* Click hint */}
                             <div className="mt-2 pt-2 border-t border-dashed border-zinc-200 dark:border-zinc-700 text-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -357,7 +404,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
             <KanbanColumn
                 title="New Arrivals"
                 status="NEW"
-                products={products.filter(p => !p.manualAlert && p.status === 'NEW')}
+                products={products.filter(p => p.status === 'NEW')}
                 color="bg-blue-50"
                 onDrop={handleDrop}
                 onCardClick={handleCardClick}
@@ -365,7 +412,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
             <KanbanColumn
                 title="Healthy Stock"
                 status="HEALTHY"
-                products={products.filter(p => !p.manualAlert && p.status === 'HEALTHY')}
+                products={products.filter(p => p.status === 'HEALTHY')}
                 color="bg-emerald-50"
                 onDrop={handleDrop}
                 onCardClick={handleCardClick}
@@ -373,7 +420,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
             <KanbanColumn
                 title="Low Stock"
                 status="LOW_STOCK"
-                products={products.filter(p => !p.manualAlert && p.status === 'LOW_STOCK')}
+                products={products.filter(p => p.status === 'LOW_STOCK')}
                 color="bg-amber-50"
                 onDrop={handleDrop}
                 onCardClick={handleCardClick}
@@ -381,7 +428,7 @@ export function InventoryKanbanBoard({ products: initialProducts, warehouses, ca
             <KanbanColumn
                 title="Critical / Alert"
                 status="CRITICAL"
-                products={products.filter(p => p.manualAlert || p.status === 'CRITICAL')}
+                products={products.filter(p => p.status === 'CRITICAL')}
                 color="bg-red-50"
                 onDrop={handleDrop}
                 onCardClick={handleCardClick}

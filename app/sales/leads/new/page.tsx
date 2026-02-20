@@ -236,10 +236,7 @@ export default function NewLeadPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="NEW">Baru</SelectItem>
-                    <SelectItem value="CONTACTED">Dihubungi</SelectItem>
-                    <SelectItem value="QUALIFIED">Terkualifikasi</SelectItem>
-                    <SelectItem value="PROPOSAL">Proposal</SelectItem>
-                    <SelectItem value="NEGOTIATION">Negosiasi</SelectItem>
+                    <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

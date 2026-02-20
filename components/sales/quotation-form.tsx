@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import {
-  Calculator, Plus, Save, Trash2, User, FileText,
+  AlertTriangle, Calculator, Plus, Save, Trash2, User, FileText,
   CalendarDays, StickyNote, Loader2
 } from "lucide-react"
 import { toast } from "sonner"
@@ -22,6 +22,8 @@ interface CustomerOption {
   id: string
   code: string
   name: string
+  creditLimit?: number
+  creditStatus?: string
 }
 
 interface ProductOption {
@@ -222,6 +224,23 @@ export function QuotationForm({ initialCustomerId, initialData }: QuotationFormP
       grandTotal: 0,
     })
   }, [lines])
+
+  const creditWarning = useMemo(() => {
+    if (!form.customerId) return null
+    const selected = customers.find(c => c.id === form.customerId)
+    if (!selected) return null
+    if (selected.creditStatus === 'HOLD' || selected.creditStatus === 'BLOCKED') {
+      return { type: 'blocked' as const, message: `Customer ini memiliki status kredit ${selected.creditStatus}. Tidak bisa membuat penawaran.` }
+    }
+    const limit = selected.creditLimit || 0
+    if (limit > 0 && totals.grandTotal > limit) {
+      return { type: 'over' as const, message: `Total ${formatCurrency(totals.grandTotal)} melebihi limit kredit ${formatCurrency(limit)}. Penawaran akan ditolak.` }
+    }
+    if (limit > 0 && totals.grandTotal > limit * 0.8) {
+      return { type: 'warn' as const, message: `Total mendekati limit kredit (${formatCurrency(limit)}). Sisa: ${formatCurrency(limit - totals.grandTotal)}.` }
+    }
+    return null
+  }, [form.customerId, customers, totals.grandTotal])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -598,6 +617,19 @@ export function QuotationForm({ initialCustomerId, initialData }: QuotationFormP
             </div>
           </div>
 
+          {creditWarning && (
+            <div className={`mt-4 p-3 border-2 rounded-none flex items-start gap-2.5 ${
+              creditWarning.type === 'blocked' ? 'border-red-600 bg-red-50 text-red-800' :
+              creditWarning.type === 'over' ? 'border-red-600 bg-red-50 text-red-800' :
+              'border-amber-500 bg-amber-50 text-amber-800'
+            }`}>
+              <AlertTriangle className={`h-4 w-4 shrink-0 mt-0.5 ${
+                creditWarning.type === 'warn' ? 'text-amber-600' : 'text-red-600'
+              }`} />
+              <p className="text-xs font-bold">{creditWarning.message}</p>
+            </div>
+          )}
+
           <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-zinc-200 dark:border-zinc-700">
             <Button
               type="button"
@@ -609,7 +641,7 @@ export function QuotationForm({ initialCustomerId, initialData }: QuotationFormP
             </Button>
             <Button
               type="submit"
-              disabled={submitting || loadingOptions}
+              disabled={submitting || loadingOptions || creditWarning?.type === 'blocked' || creditWarning?.type === 'over'}
               className="bg-blue-500 text-white hover:bg-blue-600 border-2 border-blue-600 font-black uppercase text-xs tracking-wide h-11 px-8 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] transition-all active:scale-[0.98]"
             >
               {submitting ? (

@@ -25,6 +25,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
+import { CustomerEditDialog } from "@/components/sales/customer-edit-dialog"
 
 interface Customer {
     id: string
@@ -46,6 +47,8 @@ interface CustomerRolodexCardProps {
 }
 
 export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
+    const [editOpen, setEditOpen] = useState(false)
+
     const buildWhatsappPhone = (rawPhone: string) => {
         const digits = rawPhone.replace(/\D/g, "")
         if (!digits) return ""
@@ -60,11 +63,12 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
         window.open(`https://wa.me/${phone}?text=${text}`, "_blank", "noopener,noreferrer")
     }
 
-    // Determine Tier based on Total Value (Mock Logic)
+    // Customer tier based on total order value
     const getTier = (value: number) => {
-        if (value > 2000000000) return { label: "PLATINUM", color: "bg-zinc-900 text-white border-zinc-900" } // > 2M
-        if (value > 500000000) return { label: "GOLD", color: "bg-amber-100 text-amber-800 border-amber-200" } // > 500k
-        return { label: "SILVER", color: "bg-zinc-100 text-zinc-800 border-zinc-200" }
+        if (value > 2000000000) return { label: "PLATINUM", subtitle: "> Rp 2M", color: "bg-zinc-900 text-white border-zinc-900" }
+        if (value > 500000000) return { label: "GOLD", subtitle: "> Rp 500jt", color: "bg-amber-100 text-amber-800 border-amber-200" }
+        if (value > 0) return { label: "REGULAR", subtitle: "Ada transaksi", color: "bg-blue-100 text-blue-800 border-blue-200" }
+        return { label: "BARU", subtitle: "Belum transaksi", color: "bg-zinc-100 text-zinc-800 border-zinc-200" }
     }
 
     const tier = getTier(customer.totalOrderValue)
@@ -107,6 +111,7 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
     }
 
     return (
+        <>
         <Card className="group relative overflow-hidden border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all bg-white rounded-none flex flex-col justify-between">
             {/* Top Stripe */}
             <div className={`absolute top-0 left-0 w-full h-1.5 ${tier.color.includes('bg-zinc-900') ? 'bg-zinc-900' : tier.color.includes('bg-amber') ? 'bg-amber-400' : 'bg-zinc-300'}`} />
@@ -150,9 +155,14 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                                 <DropdownMenuLabel className="font-black uppercase text-xs">Aksi Cepat</DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-black" />
                                 <DropdownMenuItem asChild className="focus:bg-zinc-100 focus:font-bold cursor-pointer rounded-none">
-                                    <Link href={`/sales/customers/${customer.id}`}>View Profile</Link>
+                                    <Link href={`/sales/customers/${customer.id}`}>Lihat Profil</Link>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="focus:bg-zinc-100 focus:font-bold cursor-pointer rounded-none">Edit Data</DropdownMenuItem>
+                                <DropdownMenuItem
+                                    className="focus:bg-zinc-100 focus:font-bold cursor-pointer rounded-none"
+                                    onSelect={() => setEditOpen(true)}
+                                >
+                                    Edit Data
+                                </DropdownMenuItem>
                                 <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-700 font-bold cursor-pointer rounded-none">Suspend Account</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
@@ -229,5 +239,11 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                 </Button>
             </CardFooter>
         </Card>
+        <CustomerEditDialog
+            customerId={customer.id}
+            open={editOpen}
+            onOpenChange={setEditOpen}
+        />
+        </>
     )
 }

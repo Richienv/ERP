@@ -45,6 +45,15 @@ export async function GET(
                 internalNotes: true,
                 createdAt: true,
                 updatedAt: true,
+                customer: {
+                    select: {
+                        id: true,
+                        code: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                    },
+                },
                 items: {
                     select: {
                         id: true,
@@ -74,6 +83,16 @@ export async function GET(
                                 isActive: true,
                             },
                         },
+                    },
+                },
+                salesOrders: {
+                    select: {
+                        id: true,
+                        number: true,
+                        status: true,
+                    },
+                    orderBy: {
+                        createdAt: 'desc',
                     },
                 },
             },

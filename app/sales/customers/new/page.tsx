@@ -302,9 +302,22 @@ export default function NewCustomerPage() {
                   render={({ field }) => (
                     <FormItem>
                       <label className={NB.label}>Mata Uang</label>
-                      <FormControl>
-                        <Input className={NB.inputMono} {...field} />
-                      </FormControl>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className={NB.inputMono}>
+                            <SelectValue placeholder="Pilih mata uang" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="IDR">IDR — Rupiah Indonesia</SelectItem>
+                          <SelectItem value="USD">USD — US Dollar</SelectItem>
+                          <SelectItem value="EUR">EUR — Euro</SelectItem>
+                          <SelectItem value="SGD">SGD — Singapore Dollar</SelectItem>
+                          <SelectItem value="MYR">MYR — Malaysian Ringgit</SelectItem>
+                          <SelectItem value="JPY">JPY — Japanese Yen</SelectItem>
+                          <SelectItem value="CNY">CNY — Chinese Yuan</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </FormItem>
                   )}
                 />

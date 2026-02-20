@@ -396,7 +396,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
                                                     <div>
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">Harga Beli (Rp)</label>
+                                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500">HPP (Rp)</label>
                                                         <Input
                                                             type="number"
                                                             value={editForm.costPrice || 0}
@@ -480,7 +480,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                             <div className="border-2 border-black divide-y-2 divide-black">
                                                 {[
                                                     { label: "Deskripsi", value: product.description || "-" },
-                                                    { label: "Harga Beli", value: `Rp ${(product.costPrice || 0).toLocaleString('id-ID')}` },
+                                                    { label: "HPP", value: `Rp ${(product.costPrice || 0).toLocaleString('id-ID')}` },
                                                     { label: "Harga Jual", value: `Rp ${(product.sellingPrice || 0).toLocaleString('id-ID')}` },
                                                     { label: "Min / Max / Reorder", value: `${product.minStock} / ${product.maxStock} / ${product.reorderLevel}` },
                                                     { label: "Barcode", value: product.barcode || "-" },

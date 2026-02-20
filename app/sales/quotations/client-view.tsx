@@ -19,11 +19,6 @@ import { QuotationKanban } from "@/components/sales/quotation-kanban"
 const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
 
-const isExpiringSoon = (validUntil: string) => {
-    const diffDays = Math.ceil((new Date(validUntil).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    return diffDays <= 3 && diffDays > 0
-}
-
 interface QuotationsClientProps {
     initialQuotations: any[]
 }
@@ -49,7 +44,7 @@ export default function QuotationsClient({ initialQuotations }: QuotationsClient
         ? Math.round((initialQuotations.filter(q => q.status === 'ACCEPTED' || q.status === 'CONVERTED').length / initialQuotations.length) * 100)
         : 0
     const activeDeals = initialQuotations.filter(q => q.status === 'SENT' || q.status === 'DRAFT').length
-    const stalledCount = initialQuotations.filter(q => q.status === 'EXPIRED' || isExpiringSoon(q.validUntil)).length
+    const stalledCount = initialQuotations.filter(q => q.status === 'EXPIRED').length
 
     return (
         <div className="mf-page">

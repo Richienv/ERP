@@ -151,7 +151,6 @@ export const CODE_CATEGORIES: CodeSegment[] = [
   { code: 'MFG', label: 'Manufactured', desc: 'Produksi via BOM + Work Order' },
   { code: 'TRD', label: 'Trading', desc: 'Beli dari vendor, jual langsung (PR→PO→GRN)' },
   { code: 'RAW', label: 'Raw Material', desc: 'Bahan baku input manufaktur' },
-  { code: 'WIP', label: 'Work In Process', desc: 'Intermediate: greige, dyed, printed' },
 ]
 
 /** Map 3-char category code → Prisma ProductType enum */
@@ -159,7 +158,6 @@ export const CATEGORY_TO_PRODUCT_TYPE: Record<string, string> = {
   MFG: 'MANUFACTURED',
   TRD: 'TRADING',
   RAW: 'RAW_MATERIAL',
-  WIP: 'WIP',
 }
 
 /** Segment 2 — Product Type (material/item classification) */

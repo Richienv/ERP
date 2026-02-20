@@ -375,7 +375,7 @@ export function ProductCreateDialog() {
                             <div className="p-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Harga Beli (Rp)</label>
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">HPP (Harga Pokok) (Rp)</label>
                                         <Input
                                             type="number"
                                             placeholder="0"

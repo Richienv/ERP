@@ -1,10 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
 
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+async function requireAuth() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error('Unauthorized')
+  return user
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    await requireAuth()
+    const { id } = await params
+    const body = await request.json()
+
+    const existing = await prisma.customer.findUnique({ where: { id } })
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'Customer not found' }, { status: 404 })
+    }
+
+    const updated = await prisma.customer.update({
+      where: { id },
+      data: {
+        name: body.name ?? existing.name,
+        legalName: body.legalName !== undefined ? body.legalName : existing.legalName,
+        customerType: body.customerType ?? existing.customerType,
+        npwp: body.npwp !== undefined ? body.npwp : existing.npwp,
+        nik: body.nik !== undefined ? body.nik : existing.nik,
+        taxAddress: body.taxAddress !== undefined ? body.taxAddress : existing.taxAddress,
+        isTaxable: body.isTaxable !== undefined ? body.isTaxable : existing.isTaxable,
+        taxStatus: body.taxStatus ?? existing.taxStatus,
+        phone: body.phone !== undefined ? body.phone : existing.phone,
+        email: body.email !== undefined ? body.email : existing.email,
+        website: body.website !== undefined ? body.website : existing.website,
+        creditLimit: body.creditLimit !== undefined ? body.creditLimit : existing.creditLimit,
+        creditTerm: body.creditTerm !== undefined ? body.creditTerm : existing.creditTerm,
+        paymentTerm: body.paymentTerm ?? existing.paymentTerm,
+        creditStatus: body.creditStatus ?? existing.creditStatus,
+        currency: body.currency ?? existing.currency,
+        isActive: body.isActive !== undefined ? body.isActive : existing.isActive,
+        isProspect: body.isProspect !== undefined ? body.isProspect : existing.isProspect,
+      },
+    })
+
+    return NextResponse.json({ success: true, data: updated })
+  } catch (error: any) {
+    console.error('Error updating customer:', error)
+    if (error.message === 'Unauthorized') {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.json({ success: false, error: 'Failed to update customer' }, { status: 500 })
+  }
 }
 
 export async function GET(

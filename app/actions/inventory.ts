@@ -196,7 +196,7 @@ export async function getWarehouses() {
             activePOs: 0,
             pendingTasks: 0,
             items: totalItems,
-            staff: Math.floor(Math.random() * (15 - 5 + 1) + 5),
+            staff: 0,
             phone: managerPhone
         }
     })

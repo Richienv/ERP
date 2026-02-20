@@ -52,18 +52,18 @@ export function GlobalKPIs({ kpiData }: GlobalKPIsProps) {
             label: "LOW STOCK",
             value: `${kpiData.lowStock}`,
             icon: <AlertTriangle className="h-5 w-5" />,
-            href: "/inventory/alerts",
+            href: "/inventory/stock",
             trend: kpiData.lowStock > 0 ? "down" : "up",
             trendLabel: kpiData.lowStock > 0 ? "Perlu restock" : "Semua aman",
             accentColor: kpiData.lowStock > 0 ? "bg-red-400" : "bg-emerald-400"
         },
         {
-            label: "AKURASI",
+            label: "STOCK OPNAME",
             value: `${kpiData.inventoryAccuracy ?? 0}%`,
             icon: <Activity className="h-5 w-5" />,
             href: "/inventory/audit",
             trend: (kpiData.inventoryAccuracy ?? 0) >= 95 ? "up" : (kpiData.inventoryAccuracy ?? 0) >= 80 ? "neutral" : "down",
-            trendLabel: (kpiData.inventoryAccuracy ?? 0) >= 95 ? "Excellent" : (kpiData.inventoryAccuracy ?? 0) >= 80 ? "Cukup" : "Perlu audit",
+            trendLabel: "Audit & verifikasi stok",
             accentColor: "bg-blue-400"
         },
         {

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customerId') || undefined
 
-    const [customers, products, quotations, users, customerCategories] = await Promise.all([
+    const [customers, products, quotations, employees, customerCategories] = await Promise.all([
       prisma.customer.findMany({
         where: {
           isActive: true,
@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
           isProspect: true,
           paymentTerm: true,
           creditStatus: true,
+          creditLimit: true,
+          totalOrderValue: true,
         },
         orderBy: {
           name: 'asc',
@@ -69,16 +71,30 @@ export async function GET(request: NextRequest) {
         },
         take: 200,
       }),
-      prisma.user.findMany({
+      prisma.employee.findMany({
+        where: {
+          status: { in: ['ACTIVE', 'ON_LEAVE'] },
+          OR: [
+            { position: { contains: 'sales', mode: 'insensitive' } },
+            { department: { contains: 'sales', mode: 'insensitive' } },
+            { position: { contains: 'marketing', mode: 'insensitive' } },
+            { department: { contains: 'marketing', mode: 'insensitive' } },
+            { position: { contains: 'account manager', mode: 'insensitive' } },
+            { position: { contains: 'business dev', mode: 'insensitive' } },
+          ],
+        },
         select: {
           id: true,
-          name: true,
+          firstName: true,
+          lastName: true,
           email: true,
-          role: true,
+          position: true,
+          department: true,
         },
-        orderBy: {
-          name: 'asc',
-        },
+        orderBy: [
+          { firstName: 'asc' },
+          { lastName: 'asc' },
+        ],
       }),
       prisma.customerCategory.findMany({
         where: {
@@ -110,13 +126,30 @@ export async function GET(request: NextRequest) {
       total: toNumber(quotation.total),
     }))
 
+    const mappedUsers = employees.map((emp) => ({
+      id: emp.id,
+      name: [emp.firstName, emp.lastName].filter(Boolean).join(' '),
+      email: emp.email,
+    }))
+
+    const mappedCustomers = customers.map((c) => ({
+      id: c.id,
+      code: c.code,
+      name: c.name,
+      isProspect: c.isProspect,
+      paymentTerm: c.paymentTerm,
+      creditStatus: c.creditStatus,
+      creditLimit: toNumber(c.creditLimit),
+      totalOrderValue: toNumber(c.totalOrderValue),
+    }))
+
     return NextResponse.json({
       success: true,
       data: {
-        customers,
+        customers: mappedCustomers,
         products: mappedProducts,
         quotations: mappedQuotations,
-        users,
+        users: mappedUsers,
         customerCategories,
       },
     })

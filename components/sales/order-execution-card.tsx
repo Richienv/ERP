@@ -45,7 +45,7 @@ interface SalesOrder {
     paymentTerm?: string
     notes?: string
     quotationNumber?: string | null
-    workOrders?: { id: string; status: string; woNumber: string }[]
+    workOrders?: { id: string; status: string; number: string }[]
 }
 
 interface OrderExecutionCardProps {

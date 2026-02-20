@@ -12,6 +12,8 @@ import {
     Package,
     ChevronRight,
     X,
+    Pencil,
+    Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +27,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { createCategory, getNextCategoryCode, getProductsByCategory, getProductsNotInCategory, assignProductToCategory, removeProductFromCategory } from "@/app/actions/inventory"
+import { createCategory, updateCategory, getNextCategoryCode, getProductsByCategory, getProductsNotInCategory, assignProductToCategory, removeProductFromCategory } from "@/app/actions/inventory"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -495,6 +497,14 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
     const [availableProducts, setAvailableProducts] = useState<Array<{ id: string; code: string; name: string }>>([])
     const [selectedProductId, setSelectedProductId] = useState("")
     const [adding, setAdding] = useState(false)
+
+    // Edit mode state
+    const [isEditMode, setIsEditMode] = useState(false)
+    const [editName, setEditName] = useState(category.name)
+    const [editCode, setEditCode] = useState(category.code)
+    const [editDescription, setEditDescription] = useState(category.description || "")
+    const [isSaving, setIsSaving] = useState(false)
+
     const router = useRouter()
     const queryClient = useQueryClient()
     const invalidateCategories = useInvalidateCategories()
@@ -511,8 +521,54 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
             loadProducts()
             setShowAddRow(false)
             setSelectedProductId("")
+            // Reset edit state when dialog opens
+            setIsEditMode(false)
+            setEditName(category.name)
+            setEditCode(category.code)
+            setEditDescription(category.description || "")
         }
     }, [open, category?.id])
+
+    const handleEnterEditMode = () => {
+        setEditName(category.name)
+        setEditCode(category.code)
+        setEditDescription(category.description || "")
+        setIsEditMode(true)
+    }
+
+    const handleCancelEdit = () => {
+        setEditName(category.name)
+        setEditCode(category.code)
+        setEditDescription(category.description || "")
+        setIsEditMode(false)
+    }
+
+    const handleSaveEdit = async () => {
+        if (!editName.trim()) {
+            toast.error("Nama kategori tidak boleh kosong")
+            return
+        }
+        if (!editCode.trim()) {
+            toast.error("Kode kategori tidak boleh kosong")
+            return
+        }
+        setIsSaving(true)
+        const result = await updateCategory(category.id, {
+            name: editName,
+            code: editCode,
+            description: editDescription,
+        })
+        if (result.success) {
+            toast.success("Kategori berhasil diperbarui")
+            setIsEditMode(false)
+            invalidateCategories()
+            queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+        } else {
+            toast.error(result.error || "Gagal memperbarui kategori")
+        }
+        setIsSaving(false)
+    }
 
     const handleOpenAddRow = async () => {
         setShowAddRow(true)
@@ -539,6 +595,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
             await loadProducts()
             invalidateCategories()
             queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
         } else {
             toast.error(result.error || "Gagal menambahkan produk")
         }
@@ -552,6 +609,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
             await loadProducts()
             invalidateCategories()
             queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
         } else {
             toast.error(result.error || "Gagal menghapus produk")
         }
@@ -564,16 +622,98 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className={NB.contentWide}>
                 <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <FolderOpen className="h-5 w-5" /> {category.name}
-                    </DialogTitle>
-                    <p className={NB.subtitle}>
-                        <span className="font-mono">{category.code}</span> — {category.description || "Tidak ada deskripsi."}
-                    </p>
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                            <DialogTitle className={NB.title}>
+                                <FolderOpen className="h-5 w-5 shrink-0" />
+                                <span>{isEditMode ? editName || "..." : category.name}</span>
+                            </DialogTitle>
+                            <p className={NB.subtitle}>
+                                <span className="font-mono">{isEditMode ? editCode : category.code}</span>
+                                {(isEditMode ? editDescription : category.description)
+                                    ? ` — ${isEditMode ? editDescription : category.description}`
+                                    : ""}
+                            </p>
+                        </div>
+
+                        {/* Edit toggle button */}
+                        {!isEditMode && (
+                            <button
+                                type="button"
+                                onClick={handleEnterEditMode}
+                                title="Edit kategori"
+                                className="flex items-center gap-1.5 bg-zinc-700 text-zinc-200 hover:bg-zinc-600 hover:text-white border-2 border-zinc-600 font-black uppercase text-[9px] tracking-wider px-3 h-7 shrink-0 transition-colors"
+                            >
+                                <Pencil className="h-3 w-3" /> Edit
+                            </button>
+                        )}
+                    </div>
                 </DialogHeader>
 
                 <ScrollArea className={NB.scroll}>
                     <div className="p-5 space-y-4">
+
+                        {/* Edit Form Section — only visible in edit mode */}
+                        {isEditMode && (
+                            <div className={NB.section}>
+                                <div className={`${NB.sectionHead} border-l-4 border-l-amber-400 bg-amber-50`}>
+                                    <Pencil className="h-4 w-4" />
+                                    <span className={NB.sectionTitle}>Edit Kategori</span>
+                                </div>
+                                <div className={NB.sectionBody}>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={NB.label}>Kode Kategori <span className={NB.labelRequired}>*</span></label>
+                                            <Input
+                                                value={editCode}
+                                                onChange={(e) => setEditCode(e.target.value)}
+                                                placeholder="CAT-001"
+                                                className={NB.inputMono}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className={NB.label}>Nama Kategori <span className={NB.labelRequired}>*</span></label>
+                                            <Input
+                                                value={editName}
+                                                onChange={(e) => setEditName(e.target.value)}
+                                                placeholder="e.g. Raw Material"
+                                                className={NB.input}
+                                                autoFocus
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={NB.label}>Deskripsi</label>
+                                        <Textarea
+                                            value={editDescription}
+                                            onChange={(e) => setEditDescription(e.target.value)}
+                                            placeholder="Jelaskan item apa yang masuk kategori ini..."
+                                            className={NB.textarea + " min-h-[60px]"}
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveEdit}
+                                            disabled={isSaving}
+                                            className="flex items-center gap-1.5 bg-black text-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-[10px] tracking-wider px-4 h-8"
+                                        >
+                                            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                                            {isSaving ? "Menyimpan..." : "Simpan Perubahan"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleCancelEdit}
+                                            disabled={isSaving}
+                                            className="border-2 border-black bg-white hover:bg-zinc-100 font-black uppercase text-[10px] tracking-wider px-4 h-8 transition-colors"
+                                        >
+                                            Batal
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Stats */}
                         <div className={NB.section}>
                             <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>

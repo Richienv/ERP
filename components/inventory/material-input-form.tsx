@@ -372,7 +372,7 @@ export function MaterialInputForm() {
                                 </div>
                                 <div className={NB.sectionBody}>
                                     <div>
-                                        <label className={NB.label}>Harga Beli (Satuan)</label>
+                                        <label className={NB.label}>HPP (Harga Pokok) per Satuan</label>
                                         <div className="relative">
                                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-400">Rp</span>
                                             <Input

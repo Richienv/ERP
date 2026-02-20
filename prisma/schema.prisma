@@ -892,10 +892,7 @@ enum LeadSource {
 
 enum LeadStatus {
   NEW // Baru
-  CONTACTED // Dihubungi
-  QUALIFIED // Terkualifikasi
-  PROPOSAL // Proposal
-  NEGOTIATION // Negosiasi
+  FOLLOW_UP // Follow Up (gabungan: dihubungi, kualifikasi, proposal, negosiasi)
   WON // Menang
   LOST // Kalah
 }

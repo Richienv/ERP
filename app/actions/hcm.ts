@@ -1852,6 +1852,30 @@ export async function approvePayrollRun(period: string) {
     }
 }
 
+export async function getDistinctDepartments(): Promise<string[]> {
+    return withPrismaAuth(async (prisma) => {
+        const results = await prisma.employee.findMany({
+            where: { status: { in: ['ACTIVE', 'ON_LEAVE'] } },
+            select: { department: true },
+            distinct: ['department'],
+            orderBy: { department: 'asc' },
+        })
+        return results.map(r => r.department).filter(Boolean)
+    })
+}
+
+export async function getDistinctPositions(): Promise<string[]> {
+    return withPrismaAuth(async (prisma) => {
+        const results = await prisma.employee.findMany({
+            where: { status: { in: ['ACTIVE', 'ON_LEAVE'] } },
+            select: { position: true },
+            distinct: ['position'],
+            orderBy: { position: 'asc' },
+        })
+        return results.map(r => r.position).filter(Boolean)
+    })
+}
+
 export async function getHCMDashboardData() {
     try {
         return await withPrismaAuth(async (prisma) => {

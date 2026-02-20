@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const supabase = await createClient()
-        const { data: { user }, error } = await supabase.auth.getUser()
-        if (error || !user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-        }
-
         const { id } = await params
 
         const order = await prisma.salesOrder.findUnique({
@@ -27,7 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
                 },
                 invoices: { select: { id: true, number: true, status: true, totalAmount: true } },
                 workOrders: {
-                    select: { id: true, status: true, woNumber: true },
+                    select: { id: true, status: true, number: true },
                 },
             },
         })

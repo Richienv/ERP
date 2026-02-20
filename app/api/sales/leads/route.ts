@@ -101,10 +101,7 @@ export async function GET(request: NextRequest) {
       hotLeads: mapped.filter((lead) => lead.probability >= 80 && !closedStatuses.has(lead.status as LeadStatus)).length,
       statusCounts: {
         NEW: mapped.filter((lead) => lead.status === LeadStatus.NEW).length,
-        CONTACTED: mapped.filter((lead) => lead.status === LeadStatus.CONTACTED).length,
-        QUALIFIED: mapped.filter((lead) => lead.status === LeadStatus.QUALIFIED).length,
-        PROPOSAL: mapped.filter((lead) => lead.status === LeadStatus.PROPOSAL).length,
-        NEGOTIATION: mapped.filter((lead) => lead.status === LeadStatus.NEGOTIATION).length,
+        FOLLOW_UP: mapped.filter((lead) => lead.status === LeadStatus.FOLLOW_UP).length,
         WON: mapped.filter((lead) => lead.status === LeadStatus.WON).length,
         LOST: mapped.filter((lead) => lead.status === LeadStatus.LOST).length,
       },

@@ -10,18 +10,13 @@ import {
   DroppableStateSnapshot
 } from "@hello-pangea/dnd"
 import { Badge } from "@/components/ui/badge"
-// Card removed — using custom neo-brutalist cards
 import { Skeleton } from "@/components/ui/skeleton"
 import { Calendar, Flame, User, Building2 } from "lucide-react"
-// ScrollArea removed — columns now flex-fill the container width
 import { cn } from "@/lib/utils"
 
 export type LeadStage =
   | "NEW"
-  | "CONTACTED"
-  | "QUALIFIED"
-  | "PROPOSAL"
-  | "NEGOTIATION"
+  | "FOLLOW_UP"
   | "WON"
   | "LOST"
 
@@ -50,29 +45,11 @@ const STATUS_META: Record<LeadStage, { title: string; accent: string; badgeClass
     badgeClass: "bg-sky-100 text-sky-800 border-sky-200",
     borderColor: "border-sky-200"
   },
-  CONTACTED: {
-    title: "Dihubungi",
+  FOLLOW_UP: {
+    title: "Follow Up",
     accent: "bg-indigo-500",
     badgeClass: "bg-indigo-100 text-indigo-800 border-indigo-200",
     borderColor: "border-indigo-200"
-  },
-  QUALIFIED: {
-    title: "Terkualifikasi",
-    accent: "bg-violet-500",
-    badgeClass: "bg-violet-100 text-violet-800 border-violet-200",
-    borderColor: "border-violet-200"
-  },
-  PROPOSAL: {
-    title: "Proposal",
-    accent: "bg-amber-500",
-    badgeClass: "bg-amber-100 text-amber-800 border-amber-200",
-    borderColor: "border-amber-200"
-  },
-  NEGOTIATION: {
-    title: "Negosiasi",
-    accent: "bg-orange-500",
-    badgeClass: "bg-orange-100 text-orange-800 border-orange-200",
-    borderColor: "border-orange-200"
   },
   WON: {
     title: "Menang",
@@ -90,10 +67,7 @@ const STATUS_META: Record<LeadStage, { title: string; accent: string; badgeClass
 
 const STATUS_ORDER: LeadStage[] = [
   "NEW",
-  "CONTACTED",
-  "QUALIFIED",
-  "PROPOSAL",
-  "NEGOTIATION",
+  "FOLLOW_UP",
   "WON",
   "LOST",
 ]
@@ -134,10 +108,7 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
       return acc
     }, {
       NEW: [],
-      CONTACTED: [],
-      QUALIFIED: [],
-      PROPOSAL: [],
-      NEGOTIATION: [],
+      FOLLOW_UP: [],
       WON: [],
       LOST: [],
     })
@@ -174,7 +145,7 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
   if (isLoading) {
     return (
       <div className="flex gap-3 p-4 h-full">
-        {Array.from({ length: 7 }).map((_, index) => (
+        {Array.from({ length: 4 }).map((_, index) => (
           <div key={index} className="flex-1 min-w-[180px] space-y-3">
             <Skeleton className="h-20 w-full" />
             <Skeleton className="h-32 w-full" />
@@ -195,7 +166,7 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
             const totalValue = statusLeads.reduce((sum, lead) => sum + lead.estimatedValue, 0)
 
             return (
-              <div key={status} className="flex-1 min-w-[160px] flex flex-col space-y-3">
+              <div key={status} className="flex-1 min-w-[200px] flex flex-col space-y-3">
                 {/* Column Header */}
                 <div className="p-3 border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden rounded-none">
                   <div className={cn("absolute top-0 left-0 w-full h-1.5", meta.accent)} />

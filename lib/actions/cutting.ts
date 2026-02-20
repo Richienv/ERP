@@ -397,7 +397,15 @@ export async function getFabricProducts(): Promise<
     try {
         await requireAuth()
         const products = await prisma.product.findMany({
-            where: { isActive: true },
+            where: {
+                isActive: true,
+                OR: [
+                    { code: { contains: '-FAB-' } },  // Kain mentah (raw/trading fabric)
+                    { code: { contains: '-GRY-' } },  // Greige (kain belum finishing)
+                    { code: { contains: '-DYD-' } },  // Dyed (kain sudah dicelup)
+                    { code: { contains: '-PRT-' } },  // Printed (kain sudah dicetak)
+                ],
+            },
             select: { id: true, name: true, code: true },
             orderBy: { name: 'asc' },
         })

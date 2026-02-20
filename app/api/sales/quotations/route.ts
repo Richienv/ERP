@@ -171,7 +171,13 @@ export async function POST(request: NextRequest) {
 
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
-      select: { id: true },
+      select: {
+        id: true,
+        creditLimit: true,
+        creditStatus: true,
+        totalOrderValue: true,
+        name: true,
+      },
     })
 
     if (!customer) {
@@ -183,6 +189,17 @@ export async function POST(request: NextRequest) {
         {
           status: 404,
         }
+      )
+    }
+
+    // Credit status check
+    if (customer.creditStatus === 'HOLD' || customer.creditStatus === 'BLOCKED') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Customer ${customer.name} memiliki status kredit ${customer.creditStatus}. Tidak bisa membuat penawaran baru.`,
+        },
+        { status: 400 }
       )
     }
 
@@ -242,6 +259,19 @@ export async function POST(request: NextRequest) {
     const discountAmount = normalizedItems.reduce((sum, item) => sum + item.discountAmount, 0)
     const taxAmount = normalizedItems.reduce((sum, item) => sum + item.taxAmount, 0)
     const total = normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0)
+
+    // Credit limit validation
+    const creditLimit = toNumber(customer.creditLimit)
+    if (creditLimit > 0 && total > creditLimit) {
+      const formatIDR = (v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v)
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Total penawaran ${formatIDR(total)} melebihi limit kredit customer ${formatIDR(creditLimit)}. Harap kurangi jumlah atau hubungi manager untuk menaikkan limit.`,
+        },
+        { status: 400 }
+      )
+    }
 
     const number = await generateQuotationNumber()
     const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTerm))
