@@ -25,14 +25,14 @@ import { createSubcontractOrder } from "@/lib/actions/subcontract"
 import type { SubcontractorSummary } from "@/lib/actions/subcontract"
 import { queryKeys } from "@/lib/query-keys"
 
-const OPERATIONS = [
-    { value: "CUT", label: "Potong" },
-    { value: "SEW", label: "Jahit" },
-    { value: "WASH", label: "Cuci" },
-    { value: "PRINT", label: "Cetak" },
-    { value: "EMBROIDERY", label: "Bordir" },
-    { value: "FINISHING", label: "Finishing" },
-]
+const ALL_OPERATIONS: Record<string, string> = {
+    CUT: "Potong",
+    SEW: "Jahit",
+    WASH: "Cuci",
+    PRINT: "Cetak",
+    EMBROIDERY: "Bordir",
+    FINISHING: "Finishing",
+}
 
 interface OrderItem {
     productId: string
@@ -62,8 +62,40 @@ export function SubcontractOrderForm({
     const [selectedProduct, setSelectedProduct] = useState("")
     const [selectedQty, setSelectedQty] = useState("")
 
+    // Get the selected subcontractor's capabilities to filter operations
+    const selectedSubcontractor = useMemo(
+        () => subcontractors.find((s) => s.id === subcontractorId),
+        [subcontractors, subcontractorId]
+    )
+
+    const availableOperations = useMemo(() => {
+        if (!selectedSubcontractor) return []
+        return selectedSubcontractor.capabilities
+            .filter((cap) => cap in ALL_OPERATIONS)
+            .map((cap) => ({ value: cap, label: ALL_OPERATIONS[cap] }))
+    }, [selectedSubcontractor])
+
+    // When subcontractor changes, auto-set operation if only 1 capability, or clear if invalid
+    const handleSubcontractorChange = (id: string) => {
+        setSubcontractorId(id)
+        const sub = subcontractors.find((s) => s.id === id)
+        if (!sub) {
+            setOperation("")
+            return
+        }
+        if (sub.capabilities.length === 1) {
+            setOperation(sub.capabilities[0])
+        } else if (!sub.capabilities.includes(operation)) {
+            setOperation("")
+        }
+    }
+
     const subcontractorOptions = useMemo(
-        () => subcontractors.filter((s) => s.isActive).map((s) => ({ value: s.id, label: s.name })),
+        () => subcontractors.filter((s) => s.isActive).map((s) => ({
+            value: s.id,
+            label: s.name,
+            subtitle: s.capabilities.map((c) => ALL_OPERATIONS[c] || c).join(", "),
+        })),
         [subcontractors]
     )
     const productOptions = useMemo(
@@ -96,10 +128,22 @@ export function SubcontractOrderForm({
     }
 
     const handleSubmit = async () => {
+        // Auto-add pending item if user filled product + qty but forgot to click "+"
+        let finalItems = [...items]
+        if (selectedProduct && selectedQty && parseInt(selectedQty) > 0) {
+            const product = products.find((p) => p.id === selectedProduct)
+            if (product) {
+                finalItems.push({ productId: product.id, productName: product.name, issuedQty: parseInt(selectedQty) })
+                setItems(finalItems)
+                setSelectedProduct("")
+                setSelectedQty("")
+            }
+        }
+
         const errors: string[] = []
         if (!subcontractorId) errors.push("Pilih subkontraktor")
         if (!operation) errors.push("Pilih operasi")
-        if (items.length === 0) errors.push("Tambahkan minimal 1 item ke daftar")
+        if (finalItems.length === 0) errors.push("Tambahkan minimal 1 item ke daftar")
 
         if (errors.length > 0) {
             errors.forEach((e) => toast.error(e))
@@ -112,7 +156,7 @@ export function SubcontractOrderForm({
                 subcontractorId,
                 operation,
                 expectedReturnDate: expectedReturnDate || undefined,
-                items: items.map((i) => ({ productId: i.productId, issuedQty: i.issuedQty })),
+                items: finalItems.map((i) => ({ productId: i.productId, issuedQty: i.issuedQty })),
             })
 
             if (result.success) {
@@ -162,7 +206,7 @@ export function SubcontractOrderForm({
                                         <ComboboxWithCreate
                                             options={subcontractorOptions}
                                             value={subcontractorId}
-                                            onChange={setSubcontractorId}
+                                            onChange={handleSubcontractorChange}
                                             placeholder="Pilih subkontraktor..."
                                             searchPlaceholder="Cari subkontraktor..."
                                             emptyMessage="Subkontraktor tidak ditemukan."
@@ -172,18 +216,28 @@ export function SubcontractOrderForm({
                                         <label className={NB.label}>
                                             Operasi <span className={NB.labelRequired}>*</span>
                                         </label>
-                                        <Select value={operation} onValueChange={setOperation}>
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue placeholder="Pilih operasi..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {OPERATIONS.map((op) => (
-                                                    <SelectItem key={op.value} value={op.value}>
-                                                        {op.label}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        {!subcontractorId ? (
+                                            <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 h-10 flex items-center px-3 rounded-none">
+                                                <span className="text-xs text-zinc-400 font-bold">Pilih subkontraktor dulu</span>
+                                            </div>
+                                        ) : availableOperations.length === 1 ? (
+                                            <div className="border-2 border-black bg-emerald-50 h-10 flex items-center px-3 rounded-none">
+                                                <span className="text-sm font-black text-emerald-700">{availableOperations[0].label}</span>
+                                            </div>
+                                        ) : (
+                                            <Select value={operation} onValueChange={setOperation}>
+                                                <SelectTrigger className={NB.select}>
+                                                    <SelectValue placeholder="Pilih operasi..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {availableOperations.map((op) => (
+                                                        <SelectItem key={op.value} value={op.value}>
+                                                            {op.label}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        )}
                                     </div>
                                 </div>
                                 <div>

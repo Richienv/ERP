@@ -94,6 +94,25 @@ export async function getProductsByCategory(categoryId: string) {
     }))
 }
 
+export async function updateCategory(id: string, data: { name?: string; code?: string; description?: string }) {
+    try {
+        const updateData: any = {}
+        if (data.name !== undefined) updateData.name = data.name.trim()
+        if (data.code !== undefined) updateData.code = data.code.trim()
+        if (data.description !== undefined) updateData.description = data.description.trim() || null
+
+        await prisma.category.update({
+            where: { id },
+            data: updateData,
+        })
+
+        return { success: true }
+    } catch (error) {
+        console.error("Failed to update category:", error)
+        return { success: false, error: "Gagal memperbarui kategori" }
+    }
+}
+
 export async function createCategory(input: CreateCategoryInput) {
     try {
         const data = createCategorySchema.parse(input)
@@ -1542,5 +1561,234 @@ export async function assignWarehouseManager(warehouseId: string, managerId: str
     } catch (error) {
         console.error("Failed to assign warehouse manager:", error)
         return { success: false, error: "Gagal assign manager gudang" }
+    }
+}
+
+// ==========================================
+// BULK IMPORT PRODUCTS ACTION
+// ==========================================
+
+export interface BulkImportProductRow {
+    name: string
+    code?: string
+    categoryName?: string
+    unit?: string
+    costPrice?: number
+    sellingPrice?: number
+    description?: string
+}
+
+export async function bulkImportProducts(rows: BulkImportProductRow[]): Promise<{
+    success: boolean
+    imported: number
+    errors: string[]
+}> {
+    const errors: string[] = []
+    let imported = 0
+
+    try {
+        // Pre-fetch all categories so we can match by name
+        const allCategories = await prisma.category.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true },
+        })
+        const categoryMap = new Map(allCategories.map(c => [c.name.toLowerCase().trim(), c.id]))
+
+        // Pre-fetch last product codes to generate sequences without conflicts
+        // We'll batch the sequence lookups up front for each prefix we'll need
+        const prefixCounts = new Map<string, number>()
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i]
+            const rowNum = i + 2 // 1-indexed, row 1 is header
+
+            if (!row.name || !row.name.trim()) {
+                errors.push(`Baris ${rowNum}: Nama Produk wajib diisi`)
+                continue
+            }
+
+            try {
+                // Build code or auto-generate
+                let finalCode: string
+                if (row.code && row.code.trim()) {
+                    // Check for duplicate code
+                    const existing = await prisma.product.findFirst({ where: { code: row.code.trim() } })
+                    if (existing) {
+                        errors.push(`Baris ${rowNum}: Kode "${row.code.trim()}" sudah digunakan`)
+                        continue
+                    }
+                    finalCode = row.code.trim()
+                } else {
+                    // Auto-generate: use TRD-OTR-XX-NAT prefix pattern
+                    const prefix = 'TRD-OTR-XX-NAT'
+                    const currentCount = prefixCounts.get(prefix) ?? 0
+
+                    // Get DB sequence only once per prefix
+                    if (currentCount === 0) {
+                        const seq = await generateNextSequence(prefix)
+                        prefixCounts.set(prefix, seq)
+                        finalCode = `${prefix}-${seq.toString().padStart(3, '0')}`
+                        prefixCounts.set(prefix, seq + 1)
+                    } else {
+                        finalCode = `${prefix}-${currentCount.toString().padStart(3, '0')}`
+                        prefixCounts.set(prefix, currentCount + 1)
+                    }
+                }
+
+                // Resolve category
+                const categoryNameKey = (row.categoryName ?? '').toLowerCase().trim()
+                const categoryId = categoryNameKey ? (categoryMap.get(categoryNameKey) ?? null) : null
+
+                // Generate barcode
+                const barcode = generateBarcode(finalCode)
+
+                // Resolve unit
+                const unit = (row.unit ?? '').trim() || 'PCS'
+
+                await prisma.product.create({
+                    data: {
+                        code: finalCode,
+                        name: row.name.trim(),
+                        description: row.description?.trim() || null,
+                        categoryId,
+                        productType: 'TRADING',
+                        unit,
+                        costPrice: row.costPrice ?? 0,
+                        sellingPrice: row.sellingPrice ?? 0,
+                        minStock: 0,
+                        maxStock: 0,
+                        reorderLevel: 0,
+                        barcode,
+                        isActive: true,
+                    },
+                })
+
+                imported++
+            } catch (rowErr: any) {
+                const msg = rowErr?.message || 'Unknown error'
+                errors.push(`Baris ${rowNum} (${row.name}): ${msg}`)
+            }
+        }
+
+        return { success: true, imported, errors }
+    } catch (err: any) {
+        console.error('bulkImportProducts fatal error:', err)
+        return { success: false, imported, errors: [...errors, `Fatal: ${err.message}`] }
+    }
+}
+
+// ─── Bulk Import Movements ──────────────────────────────────────────────────
+
+export interface BulkImportMovementRow {
+    productCode: string
+    warehouseName: string
+    type: string          // ADJUSTMENT_IN | ADJUSTMENT_OUT | TRANSFER | SCRAP
+    quantity: number
+    targetWarehouseName?: string  // Only for TRANSFER
+    notes?: string
+}
+
+const VALID_MOVEMENT_TYPES = new Set(['ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'TRANSFER', 'SCRAP'])
+
+export async function bulkImportMovements(rows: BulkImportMovementRow[]): Promise<{
+    success: boolean
+    imported: number
+    errors: string[]
+}> {
+    const errors: string[] = []
+    let imported = 0
+
+    try {
+        // Pre-fetch products and warehouses for lookup
+        const allProducts = await prisma.product.findMany({
+            where: { isActive: true },
+            select: { id: true, code: true, name: true },
+        })
+        const productByCode = new Map(allProducts.map(p => [p.code.toLowerCase().trim(), p]))
+
+        const allWarehouses = await prisma.warehouse.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true },
+        })
+        const warehouseByName = new Map(allWarehouses.map(w => [w.name.toLowerCase().trim(), w]))
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i]
+            const rowNum = i + 2 // 1-indexed, row 1 is header
+
+            try {
+                // Validate type
+                const type = (row.type ?? '').trim().toUpperCase()
+                if (!VALID_MOVEMENT_TYPES.has(type)) {
+                    errors.push(`Baris ${rowNum}: Tipe "${row.type}" tidak valid. Gunakan: ADJUSTMENT_IN, ADJUSTMENT_OUT, TRANSFER, atau SCRAP`)
+                    continue
+                }
+
+                // Validate quantity
+                const qty = Number(row.quantity)
+                if (!qty || qty <= 0) {
+                    errors.push(`Baris ${rowNum}: Jumlah harus lebih dari 0`)
+                    continue
+                }
+
+                // Resolve product
+                const productKey = (row.productCode ?? '').toLowerCase().trim()
+                const product = productByCode.get(productKey)
+                if (!product) {
+                    errors.push(`Baris ${rowNum}: Produk "${row.productCode}" tidak ditemukan`)
+                    continue
+                }
+
+                // Resolve warehouse
+                const warehouseKey = (row.warehouseName ?? '').toLowerCase().trim()
+                const warehouse = warehouseByName.get(warehouseKey)
+                if (!warehouse) {
+                    errors.push(`Baris ${rowNum}: Gudang "${row.warehouseName}" tidak ditemukan`)
+                    continue
+                }
+
+                // Resolve target warehouse for TRANSFER
+                let targetWarehouseId: string | undefined
+                if (type === 'TRANSFER') {
+                    const targetKey = (row.targetWarehouseName ?? '').toLowerCase().trim()
+                    const targetWarehouse = warehouseByName.get(targetKey)
+                    if (!targetWarehouse) {
+                        errors.push(`Baris ${rowNum}: Gudang tujuan "${row.targetWarehouseName}" tidak ditemukan`)
+                        continue
+                    }
+                    if (targetWarehouse.id === warehouse.id) {
+                        errors.push(`Baris ${rowNum}: Gudang asal dan tujuan tidak boleh sama`)
+                        continue
+                    }
+                    targetWarehouseId = targetWarehouse.id
+                }
+
+                // Execute the movement using existing action
+                const result = await createManualMovement({
+                    type: type as any,
+                    productId: product.id,
+                    warehouseId: warehouse.id,
+                    targetWarehouseId,
+                    quantity: qty,
+                    notes: row.notes?.trim() || `Bulk import baris ${rowNum}`,
+                    userId: 'system-user',
+                })
+
+                if (result.success) {
+                    imported++
+                } else {
+                    const errMsg = 'error' in result ? String(result.error) : 'Gagal'
+                    errors.push(`Baris ${rowNum} (${row.productCode}): ${errMsg}`)
+                }
+            } catch (rowErr: any) {
+                const msg = rowErr?.message || 'Unknown error'
+                errors.push(`Baris ${rowNum} (${row.productCode}): ${msg}`)
+            }
+        }
+
+        return { success: true, imported, errors }
+    } catch (err: any) {
+        console.error('bulkImportMovements fatal error:', err)
+        return { success: false, imported, errors: [...errors, `Fatal: ${err.message}`] }
     }
 }

@@ -633,8 +633,26 @@ export async function createSubcontractOrder(data: {
     if (!data.subcontractorId) {
         return { success: false, error: 'Subkontraktor wajib dipilih' }
     }
+    if (!data.operation) {
+        return { success: false, error: 'Operasi wajib dipilih' }
+    }
     if (data.items.length === 0) {
         return { success: false, error: 'Minimal 1 item diperlukan' }
+    }
+
+    // Validate operation matches subcontractor capabilities
+    const subcontractor = await prisma.subcontractor.findUnique({
+        where: { id: data.subcontractorId },
+        select: { capabilities: true, name: true },
+    })
+    if (!subcontractor) {
+        return { success: false, error: 'Subkontraktor tidak ditemukan' }
+    }
+    if (!(subcontractor.capabilities as string[]).includes(data.operation)) {
+        return {
+            success: false,
+            error: `Operasi "${data.operation}" tidak sesuai kapabilitas ${subcontractor.name} (${(subcontractor.capabilities as string[]).join(', ')})`,
+        }
     }
 
     try {

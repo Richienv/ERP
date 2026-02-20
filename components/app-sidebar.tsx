@@ -78,16 +78,8 @@ const data = {
           url: "/inventory/warehouses",
         },
         {
-          title: "Stock Opname",
-          url: "/inventory/adjustments",
-        },
-        {
           title: "Fabric Rolls",
           url: "/inventory/fabric-rolls",
-        },
-        {
-          title: "Transfer Stok",
-          url: "/inventory/transfers",
         },
       ],
     },

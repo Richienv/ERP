@@ -9,11 +9,21 @@ import {
     CheckCircle2,
     Boxes,
     Wallet,
+    Download,
+    ChevronDown,
 } from "lucide-react"
+import * as XLSX from "xlsx"
 import { Button } from "@/components/ui/button"
 import { InventoryKanbanBoard } from "@/components/inventory/inventory-kanban-board"
 import { ProductDataTable } from "@/components/inventory/product-data-table"
 import { ProductCreateDialog } from "@/components/inventory/product-create-dialog"
+import { ImportProductsDialog } from "@/components/inventory/import-products-dialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { formatIDR } from "@/lib/utils"
 
 interface ProductsPageClientProps {
@@ -26,6 +36,30 @@ interface ProductsPageClientProps {
         lowStock: number
         critical: number
         totalValue: number
+    }
+}
+
+function exportProducts(products: any[], format: "csv" | "xlsx") {
+    const rows = products.map((p: any) => ({
+        Kode: p.code || "",
+        Nama: p.name || "",
+        Kategori: p.category?.name || "",
+        Unit: p.unit?.name || p.unit || "",
+        "Harga Beli": p.costPrice ?? 0,
+        "Harga Jual": p.sellingPrice ?? 0,
+        Stok: p.currentStock ?? 0,
+        "Stok Minimum": p.minStock ?? 0,
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Produk")
+
+    const filename = `produk-${new Date().toISOString().slice(0, 10)}`
+    if (format === "csv") {
+        XLSX.writeFile(wb, `${filename}.csv`, { bookType: "csv" })
+    } else {
+        XLSX.writeFile(wb, `${filename}.xlsx`)
     }
 }
 
@@ -77,6 +111,27 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                                 Tabel
                             </button>
                         </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold text-xs uppercase tracking-wide h-9"
+                                >
+                                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                                    Export
+                                    <ChevronDown className="h-3 w-3 ml-1" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="border-2 border-black">
+                                <DropdownMenuItem onClick={() => exportProducts(products, "xlsx")} className="font-bold text-xs">
+                                    Export XLSX (Excel)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportProducts(products, "csv")} className="font-bold text-xs">
+                                    Export CSV
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <ImportProductsDialog />
                         <ProductCreateDialog />
                     </div>
                 </div>

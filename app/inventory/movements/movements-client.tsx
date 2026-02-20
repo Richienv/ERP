@@ -1,15 +1,36 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import {
     ArrowUpRight,
     ArrowDownRight,
     ArrowRightLeft,
     Activity,
     Calendar,
+    ClipboardEdit,
+    Download,
+    ChevronDown,
 } from "lucide-react"
+import Link from "next/link"
+import * as XLSX from "xlsx"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { ManualMovementDialog } from "@/components/inventory/manual-movement-dialog"
+import { AdjustmentForm } from "@/components/inventory/adjustment-form"
+import { ImportMovementsDialog } from "@/components/inventory/import-movements-dialog"
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { NB } from "@/lib/dialog-styles"
 import { cn } from "@/lib/utils"
 
 interface MovementsClientProps {
@@ -20,6 +41,16 @@ interface MovementsClientProps {
 
 const inboundTypes = new Set(["PO_RECEIVE", "PRODUCTION_IN", "RETURN_IN", "INITIAL", "ADJUSTMENT_IN"])
 const outboundTypes = new Set(["SO_SHIPMENT", "PRODUCTION_OUT", "RETURN_OUT", "SCRAP", "ADJUSTMENT_OUT"])
+
+type FilterTab = "all" | "inbound" | "outbound" | "adjustment" | "transfer"
+
+const FILTER_TABS: { key: FilterTab; label: string; color: string }[] = [
+    { key: "all", label: "Semua", color: "bg-zinc-900" },
+    { key: "inbound", label: "Masuk", color: "bg-emerald-500" },
+    { key: "outbound", label: "Keluar", color: "bg-blue-500" },
+    { key: "adjustment", label: "Penyesuaian", color: "bg-amber-500" },
+    { key: "transfer", label: "Transfer", color: "bg-violet-500" },
+]
 
 const BUSINESS_TZ = "Asia/Jakarta"
 
@@ -44,7 +75,46 @@ const getTypeConfig = (type: string, qty: number) => {
     return { icon: Activity, color: "text-zinc-600", bg: "bg-zinc-500", label: "ACTIVITY" }
 }
 
+function matchesFilter(move: any, filter: FilterTab): boolean {
+    if (filter === "all") return true
+    const type = move.type as string
+    const qty = Number(move.qty || 0)
+    if (filter === "inbound") return inboundTypes.has(type) || (type === "ADJUSTMENT" && qty > 0)
+    if (filter === "outbound") return outboundTypes.has(type) || (type === "ADJUSTMENT" && qty < 0)
+    if (filter === "adjustment") return ["ADJUSTMENT", "ADJUSTMENT_IN", "ADJUSTMENT_OUT", "SCRAP"].includes(type)
+    if (filter === "transfer") return type === "TRANSFER"
+    return true
+}
+
+function exportMovements(movements: any[], format: "csv" | "xlsx") {
+    const rows = movements.map((m: any) => ({
+        Tanggal: new Date(m.date).toLocaleDateString("id-ID"),
+        Waktu: new Date(m.date).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }),
+        Tipe: m.type,
+        Produk: m.item,
+        Kode: m.code,
+        Gudang: m.warehouse,
+        Jumlah: m.qty,
+        Unit: m.unit,
+        Pengguna: m.user,
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Pergerakan Stok")
+
+    const filename = `pergerakan-stok-${new Date().toISOString().slice(0, 10)}`
+    if (format === "csv") {
+        XLSX.writeFile(wb, `${filename}.csv`, { bookType: "csv" })
+    } else {
+        XLSX.writeFile(wb, `${filename}.xlsx`)
+    }
+}
+
 export function MovementsClient({ movements, products, warehouses }: MovementsClientProps) {
+    const [activeFilter, setActiveFilter] = useState<FilterTab>("all")
+    const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false)
+
     const todayKey = dateKey(new Date())
     const todaysMoves = useMemo(() => movements.filter((m) => dateKey(m.date) === todayKey), [movements, todayKey])
 
@@ -60,17 +130,46 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
 
     const transferCount = todaysMoves.filter((m) => m.type === "TRANSFER").length
 
+    const filteredMovements = useMemo(
+        () => movements.filter((m) => matchesFilter(m, activeFilter)),
+        [movements, activeFilter]
+    )
+
     const groupedMovements = useMemo(() => {
-        return movements.reduce((groups, move) => {
+        return filteredMovements.reduce((groups, move) => {
             const date = new Date(move.date).toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })
             if (!groups[date]) groups[date] = []
             groups[date].push(move)
             return groups
         }, {} as Record<string, typeof movements>)
-    }, [movements])
+    }, [filteredMovements])
+
+    const adjustmentProducts = useMemo(
+        () => products.map((p: any) => ({ id: p.id, name: p.name, code: p.code, unit: p.unit || "PCS" })),
+        [products]
+    )
+    const adjustmentWarehouses = useMemo(
+        () => warehouses.map((w: any) => ({ id: w.id, name: w.name })),
+        [warehouses]
+    )
 
     return (
-        <div className="p-4 md:p-8 pt-6 w-full space-y-4">
+        <div className="mf-page">
+            {/* ADJUSTMENT DIALOG */}
+            <Dialog open={adjustmentDialogOpen} onOpenChange={setAdjustmentDialogOpen}>
+                <DialogContent className={NB.content}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}>
+                            <ClipboardEdit className="h-5 w-5" /> Penyesuaian Stok
+                        </DialogTitle>
+                        <p className={NB.subtitle}>Buat penyesuaian stok manual atau transfer antar gudang.</p>
+                    </DialogHeader>
+                    <div className="p-5">
+                        <AdjustmentForm products={adjustmentProducts} warehouses={adjustmentWarehouses} />
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* COMMAND HEADER */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-violet-400">
@@ -78,14 +177,43 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
                         <ArrowRightLeft className="h-5 w-5 text-violet-500" />
                         <div>
                             <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
-                                Stock Movement
+                                Pergerakan Stok
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
-                                Real-time history of goods flow and adjustments
+                                Histori pergerakan barang, penyesuaian, dan transfer antar gudang
                             </p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <ImportMovementsDialog />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold text-xs uppercase tracking-wide h-9"
+                                >
+                                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                                    Export
+                                    <ChevronDown className="h-3 w-3 ml-1" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="border-2 border-black">
+                                <DropdownMenuItem onClick={() => exportMovements(filteredMovements, "xlsx")} className="font-bold text-xs">
+                                    Export XLSX (Excel)
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportMovements(filteredMovements, "csv")} className="font-bold text-xs">
+                                    Export CSV
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                            variant="outline"
+                            className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold text-xs uppercase tracking-wide h-9"
+                            onClick={() => setAdjustmentDialogOpen(true)}
+                        >
+                            <ClipboardEdit className="h-3.5 w-3.5 mr-1.5" />
+                            Penyesuaian Stok
+                        </Button>
                         <ManualMovementDialog
                             products={products.map((p: any) => ({ id: p.id, name: p.name, code: p.code }))}
                             warehouses={warehouses.map((w: any) => ({ id: w.id, name: w.name }))}
@@ -136,6 +264,32 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
                 </div>
             </div>
 
+            {/* FILTER TABS */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+                {FILTER_TABS.map((tab) => {
+                    const isActive = activeFilter === tab.key
+                    return (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveFilter(tab.key)}
+                            className={cn(
+                                "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-2 border-black transition-all",
+                                isActive
+                                    ? `${tab.color} text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`
+                                    : "bg-white text-zinc-500 hover:bg-zinc-50"
+                            )}
+                        >
+                            {tab.label}
+                            {tab.key !== "all" && (
+                                <span className={cn("ml-1.5 text-[9px]", isActive ? "text-white/70" : "text-zinc-400")}>
+                                    {movements.filter((m) => matchesFilter(m, tab.key)).length}
+                                </span>
+                            )}
+                        </button>
+                    )
+                })}
+            </div>
+
             {/* ACTIVITY TABLE */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
                 <div className="px-6 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
@@ -145,7 +299,7 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
                     </div>
                     <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400">
                         <Calendar className="h-3 w-3" />
-                        {movements.length} entries
+                        {filteredMovements.length} entries
                     </div>
                 </div>
 
@@ -197,7 +351,7 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
                         </div>
                     ))}
 
-                    {movements.length === 0 && (
+                    {filteredMovements.length === 0 && (
                         <div className="px-6 py-12 text-center">
                             <Activity className="h-8 w-8 text-zinc-300 mx-auto mb-3" />
                             <p className="text-sm font-bold text-zinc-400">Belum ada pergerakan stok tercatat.</p>
