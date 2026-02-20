@@ -107,6 +107,7 @@ export async function GET(request: NextRequest) {
         _count: {
           select: {
             items: true,
+            workOrders: true,
           },
         },
       },
@@ -131,6 +132,7 @@ export async function GET(request: NextRequest) {
       discountAmount: toNumber(order.discountAmount),
       total: toNumber(order.total),
       itemCount: order._count.items,
+      workOrderCount: order._count.workOrders,
       notes: order.notes || '',
       updatedAt: order.updatedAt,
     }))

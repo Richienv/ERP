@@ -66,7 +66,7 @@ export async function POST(
 
         // Generate work order number prefix
         const today = new Date()
-        const prefix = `WO-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`
+        const prefix = `MO-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`
 
         // Get the last work order number for this prefix
         const lastWO = await prisma.workOrder.findFirst({

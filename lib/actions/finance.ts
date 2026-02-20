@@ -1,7 +1,7 @@
 'use server'
 
 import { InvoiceStatus, InvoiceType } from "@prisma/client"
-import { withPrismaAuth } from "@/lib/db"
+import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 
 export interface FinancialMetrics {
@@ -43,143 +43,165 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         const startOfMonth = new Date()
         startOfMonth.setDate(1)
         startOfMonth.setHours(0, 0, 0, 0)
-        const startOfMonthIso = startOfMonth.toISOString()
 
         const thirtyDaysAgo = new Date()
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-        const thirtyDaysAgoIso = thirtyDaysAgo.toISOString()
 
-        const nowIso = new Date().toISOString()
+        const now = new Date()
 
-        // 1. Expense Accounts
-        const { data: expenseAccounts } = await supabase
-            .from('gl_accounts')
-            .select('id')
-            .eq('type', 'EXPENSE')
+        // Helper to convert Prisma Decimal to number
+        const toNum = (val: any): number => {
+            if (val == null) return 0
+            if (typeof val === 'number') return val
+            if (typeof val.toNumber === 'function') return val.toNumber()
+            return Number(val) || 0
+        }
 
-        const expenseAccountIds = expenseAccounts?.map(a => a.id) || []
+        // 1. Expense Account IDs (needed for burn rate query)
+        const expenseAccounts = await basePrisma.gLAccount.findMany({
+            where: { type: 'EXPENSE' },
+            select: { id: true },
+        })
+        const expenseAccountIds = expenseAccounts.map(a => a.id)
+
+        const openStatuses: InvoiceStatus[] = ['ISSUED', 'PARTIAL', 'OVERDUE']
 
         // Parallel Fetching
         const [
-            arResult,
-            overdueResult,
-            apResult,
-            upcomingResult,
-            cashResult,
-            burnResult,
-            revenueResult,
-            expenseResult,
-            paidInResult,
-            paidOutResult
+            arAgg,
+            overdueInvoices,
+            apAgg,
+            upcomingPayables,
+            cashAccounts,
+            burnLines,
+            revenueAgg,
+            expenseAgg,
+            paidInAgg,
+            paidOutAgg,
         ] = await Promise.all([
             // 1. Receivables (All OUT invoices that are OPEN)
-            supabase.from('invoices')
-                .select('balanceDue')
-                .eq('type', 'INV_OUT')
-                .in('status', ['ISSUED', 'PARTIAL', 'OVERDUE']),
+            basePrisma.invoice.aggregate({
+                _sum: { balanceDue: true },
+                where: { type: 'INV_OUT', status: { in: openStatuses } },
+            }),
 
-            // 2. Overdue Invoices
-            supabase.from('invoices')
-                .select('*, customer:customers(name)')
-                .eq('type', 'INV_OUT')
-                .in('status', ['ISSUED', 'PARTIAL', 'OVERDUE'])
-                .lt('dueDate', nowIso)
-                .order('dueDate', { ascending: true })
-                .limit(3),
+            // 2. Overdue Invoices (top 3)
+            basePrisma.invoice.findMany({
+                where: {
+                    type: 'INV_OUT',
+                    status: { in: openStatuses },
+                    dueDate: { lt: now },
+                },
+                include: { customer: { select: { name: true } } },
+                orderBy: { dueDate: 'asc' },
+                take: 3,
+            }),
 
             // 3. Payables
-            supabase.from('invoices')
-                .select('balanceDue')
-                .eq('type', 'INV_IN')
-                .in('status', ['ISSUED', 'PARTIAL', 'OVERDUE']),
+            basePrisma.invoice.aggregate({
+                _sum: { balanceDue: true },
+                where: { type: 'INV_IN', status: { in: openStatuses } },
+            }),
 
-            // 4. Upcoming Payables
-            supabase.from('invoices')
-                .select('*, supplier:suppliers(name)')
-                .eq('type', 'INV_IN')
-                .in('status', ['ISSUED', 'PARTIAL', 'OVERDUE'])
-                .gte('dueDate', nowIso)
-                .order('dueDate', { ascending: true })
-                .limit(3),
+            // 4. Upcoming Payables (top 3)
+            basePrisma.invoice.findMany({
+                where: {
+                    type: 'INV_IN',
+                    status: { in: openStatuses },
+                    dueDate: { gte: now },
+                },
+                include: { supplier: { select: { name: true } } },
+                orderBy: { dueDate: 'asc' },
+                take: 3,
+            }),
 
-            // 5. Cash Balance — query ALL cash/bank ASSET accounts (codes starting with 1)
-            supabase.from('gl_accounts')
-                .select('balance, code')
-                .eq('type', 'ASSET')
-                .like('code', '1%'),
+            // 5. Cash Balance — ALL cash/bank ASSET accounts (codes starting with 1)
+            basePrisma.gLAccount.findMany({
+                where: { type: 'ASSET', code: { startsWith: '1' } },
+                select: { balance: true, code: true },
+            }),
 
-            // 6. Burn Rate (Expenses last 30 days)
-            expenseAccountIds.length > 0 ? supabase.from('journal_lines')
-                .select('debit, journal_entries!inner(date)')
-                .in('accountId', expenseAccountIds)
-                .gte('journal_entries.date', thirtyDaysAgoIso) : Promise.resolve({ data: [] }),
+            // 6. Burn Rate (Expenses last 30 days) — journal lines with debit on expense accounts
+            expenseAccountIds.length > 0
+                ? basePrisma.journalLine.findMany({
+                    where: {
+                        accountId: { in: expenseAccountIds },
+                        entry: { date: { gte: thirtyDaysAgo } },
+                    },
+                    select: { debit: true },
+                })
+                : Promise.resolve([]),
 
             // 7. Revenue (This Month)
-            supabase.from('invoices')
-                .select('totalAmount')
-                .eq('type', 'INV_OUT')
-                .gte('issueDate', startOfMonthIso)
-                .neq('status', 'CANCELLED'),
+            basePrisma.invoice.aggregate({
+                _sum: { totalAmount: true },
+                where: {
+                    type: 'INV_OUT',
+                    issueDate: { gte: startOfMonth },
+                    status: { not: 'CANCELLED' },
+                },
+            }),
 
             // 8. Expenses (This Month)
-            supabase.from('invoices')
-                .select('totalAmount')
-                .eq('type', 'INV_IN')
-                .gte('issueDate', startOfMonthIso)
-                .neq('status', 'CANCELLED'),
+            basePrisma.invoice.aggregate({
+                _sum: { totalAmount: true },
+                where: {
+                    type: 'INV_IN',
+                    issueDate: { gte: startOfMonth },
+                    status: { not: 'CANCELLED' },
+                },
+            }),
 
             // 9. Paid IN (cash received from customers) — fallback for KAS when GL is empty
-            supabase.from('invoices')
-                .select('totalAmount')
-                .eq('type', 'INV_OUT')
-                .eq('status', 'PAID'),
+            basePrisma.invoice.aggregate({
+                _sum: { totalAmount: true },
+                where: { type: 'INV_OUT', status: 'PAID' },
+            }),
 
             // 10. Paid OUT (cash paid to suppliers) — fallback for KAS when GL is empty
-            supabase.from('invoices')
-                .select('totalAmount')
-                .eq('type', 'INV_IN')
-                .eq('status', 'PAID'),
+            basePrisma.invoice.aggregate({
+                _sum: { totalAmount: true },
+                where: { type: 'INV_IN', status: 'PAID' },
+            }),
         ])
 
-        // Aggregations (JS Side)
-        const calculateSum = (data: any[], field: string) => data?.reduce((sum, item) => sum + (Number(item[field]) || 0), 0) || 0
+        // Aggregations
+        const receivables = toNum(arAgg._sum.balanceDue)
+        const payables = toNum(apAgg._sum.balanceDue)
+        const cashFromGL = cashAccounts.reduce((sum, a) => sum + toNum(a.balance), 0)
 
-        const receivables = calculateSum(arResult.data || [], 'balanceDue')
-        const payables = calculateSum(apResult.data || [], 'balanceDue')
-        const cashFromGL = calculateSum(cashResult.data || [], 'balance')
-
-        // Revenue & Expenses (This Month) — calculate early so we can use in fallback
-        const revVal = calculateSum(revenueResult.data || [], 'totalAmount')
-        const expVal = calculateSum(expenseResult.data || [], 'totalAmount')
+        // Revenue & Expenses (This Month)
+        const revVal = toNum(revenueAgg._sum.totalAmount)
+        const expVal = toNum(expenseAgg._sum.totalAmount)
 
         // Fallback chain for KAS:
         // 1. GL accounts (proper accounting — preferred)
         // 2. Paid invoices (net cash = paid IN - paid OUT)
         // 3. Revenue MTD minus receivables (estimated realized cash)
-        const cashFromPaidIn = calculateSum(paidInResult.data || [], 'totalAmount')
-        const cashFromPaidOut = calculateSum(paidOutResult.data || [], 'totalAmount')
+        const cashFromPaidIn = toNum(paidInAgg._sum.totalAmount)
+        const cashFromPaidOut = toNum(paidOutAgg._sum.totalAmount)
         const cashFromPaid = cashFromPaidIn - cashFromPaidOut
         const cashBal = cashFromGL > 0 ? cashFromGL : cashFromPaid > 0 ? cashFromPaid : Math.max(0, revVal - receivables)
 
         // Burn Rate — try journal-based first, fallback to expense invoices (INV_IN) last 30 days
-        const burnFromJournals = (burnResult as any).data?.reduce((sum: number, item: any) => sum + (Number(item.debit) || 0), 0) || 0
+        const burnFromJournals = (burnLines as any[]).reduce((sum: number, item: any) => sum + toNum(item.debit), 0)
         // If no journal-based burn, compute from expense invoices (INV_IN)
-        const burnFromInvoices = calculateSum(expenseResult.data || [], 'totalAmount')
+        const burnFromInvoices = expVal
         const burnTotal = burnFromJournals > 0 ? burnFromJournals : burnFromInvoices
         const burnRate = burnTotal / 30
 
         const margin = revVal > 0 ? ((revVal - expVal) / revVal) * 100 : 0
 
-        // Mapping Lists
+        // Mapping Lists — convert Prisma Decimal fields to plain numbers
         const mapInvoice = (inv: any) => ({
             ...inv,
-            subtotal: Number(inv.subtotal || 0),
-            taxAmount: Number(inv.taxAmount || 0),
-            discountAmount: Number(inv.discountAmount || 0),
-            totalAmount: Number(inv.totalAmount || 0),
-            balanceDue: Number(inv.balanceDue || 0),
+            subtotal: toNum(inv.subtotal),
+            taxAmount: toNum(inv.taxAmount),
+            discountAmount: toNum(inv.discountAmount),
+            totalAmount: toNum(inv.totalAmount),
+            balanceDue: toNum(inv.balanceDue),
             customer: inv.customer,
-            supplier: inv.supplier
+            supplier: inv.supplier,
         })
 
         return {
@@ -189,12 +211,12 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             netMargin: Number(margin.toFixed(1)),
             revenue: revVal,
             burnRate,
-            overdueInvoices: overdueResult.data?.map(mapInvoice) || [],
-            upcomingPayables: upcomingResult.data?.map(mapInvoice) || [],
+            overdueInvoices: overdueInvoices.map(mapInvoice),
+            upcomingPayables: upcomingPayables.map(mapInvoice),
             status: {
                 cash: cashBal > 100000000 ? 'Healthy' : 'Low',
-                margin: margin > 10 ? 'Healthy' : 'Low'
-            }
+                margin: margin > 10 ? 'Healthy' : 'Low',
+            },
         }
 
     } catch (error) {
@@ -208,7 +230,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             burnRate: 0,
             overdueInvoices: [],
             upcomingPayables: [],
-            status: { cash: 'Critical', margin: 'Critical' }
+            status: { cash: 'Critical', margin: 'Critical' },
         }
     }
 }

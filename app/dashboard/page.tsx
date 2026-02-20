@@ -2,15 +2,12 @@
 
 import { DashboardView } from "@/components/dashboard/dashboard-view"
 import { CompanyPulseBar } from "@/components/dashboard/company-pulse-bar"
+import { KpiSummaryCards } from "@/components/dashboard/kpi-summary-cards"
 import { CeoActionCenter } from "@/components/dashboard/ceo-action-center"
 import { FinancialHealthCard } from "@/components/dashboard/financial-health-card"
-import { AiSearchCard } from "@/components/dashboard/ai-search-card"
-import { OperationsStrip } from "@/components/dashboard/operations-strip"
+import { WarehouseOverview } from "@/components/dashboard/warehouse-overview"
+import { StaffToday } from "@/components/dashboard/staff-today"
 import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
-import { TrendingWidget } from "@/components/dashboard/trending-widget"
-import { OEEGauge } from "@/components/dashboard/oee-gauge"
-import { ShiftHandoverWidget } from "@/components/dashboard/shift-handover-widget"
-import { MachineDowntimeWidget } from "@/components/dashboard/machine-downtime-widget"
 import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
@@ -21,7 +18,7 @@ export default function DashboardPage() {
         return <CardPageSkeleton accentColor="bg-zinc-700" />
     }
 
-    const { financials, operations, activity, charts, sales, oee, shiftNotes, downtimeLogs } = data
+    const { financials, operations, activity, charts, sales, hr, tax } = data
 
     const cashFlowData = (charts?.dataCash7d ?? []).map((d: any) => ({
         date: d.name ?? d.date ?? d.day ?? "",
@@ -46,6 +43,16 @@ export default function DashboardPage() {
                     inventoryValue={operations?.inventoryValue?.value ?? 0}
                     inventoryItems={operations?.inventoryValue?.itemCount ?? 0}
                     burnRate={financials?.burnRate ?? 0}
+                />
+            }
+            kpiCardsSlot={
+                <KpiSummaryCards
+                    totalPRValue={operations?.procurement?.totalPRValue ?? 0}
+                    totalPOValue={operations?.procurement?.totalPOValue ?? 0}
+                    totalSalary={hr?.totalSalary ?? 0}
+                    ppnNet={tax?.ppnNet ?? 0}
+                    totalPRs={operations?.procurement?.totalPRs ?? 0}
+                    totalPOs={operations?.procurement?.totalPOs ?? 0}
                 />
             }
             actionCenterSlot={
@@ -73,47 +80,20 @@ export default function DashboardPage() {
                     revenueMTD={sales?.totalRevenue ?? 0}
                 />
             }
-            aiSearchSlot={<AiSearchCard />}
-            operationsStripSlot={
-                <OperationsStrip
-                    activeWorkOrders={operations?.prodMetrics?.activeWorkOrders ?? 0}
-                    lowStockCount={Array.isArray(operations?.materialStatus) ? operations.materialStatus.length : 0}
-                    salesRevenueMTD={sales?.totalRevenue ?? 0}
-                    attendanceRate={operations?.workforceStatus?.attendanceRate ?? 0}
-                    totalStaff={operations?.workforceStatus?.totalStaff ?? 0}
-                    qualityPassRate={operations?.qualityStatus?.passRate ?? 0}
-                />
+            warehouseSlot={
+                <WarehouseOverview warehouses={operations?.inventoryValue?.warehouses ?? []} />
             }
-            textileStripSlot={
-                <>
-                    <div className="md:col-span-3 min-h-0 overflow-hidden">
-                        <OEEGauge
-                            oee={oee?.oee ?? 0}
-                            availability={oee?.availability ?? 0}
-                            performance={oee?.performance ?? 0}
-                            quality={oee?.quality ?? 0}
-                        />
-                    </div>
-                    <div className="md:col-span-4 min-h-0 overflow-hidden">
-                        <ShiftHandoverWidget notes={shiftNotes ?? []} />
-                    </div>
-                    <div className="md:col-span-5 min-h-0 overflow-hidden">
-                        <MachineDowntimeWidget logs={downtimeLogs ?? []} />
-                    </div>
-                </>
+            staffSlot={
+                <StaffToday
+                    totalStaff={operations?.workforceStatus?.totalStaff ?? 0}
+                    presentCount={operations?.workforceStatus?.presentCount ?? 0}
+                    lateCount={operations?.workforceStatus?.lateCount ?? 0}
+                    attendanceRate={operations?.workforceStatus?.attendanceRate ?? 0}
+                    topEmployees={operations?.workforceStatus?.topEmployees ?? []}
+                />
             }
             activityFeedSlot={
                 <CompactActivityFeed activities={activities} />
-            }
-            trendingSlot={
-                <TrendingWidget
-                    activePOs={operations?.procurement?.activeCount ?? 0}
-                    lowStockAlerts={Array.isArray(operations?.materialStatus) ? operations.materialStatus.length : 0}
-                    pendingLeaves={operations?.leaves ?? 0}
-                    activeOrders={sales?.activeOrders ?? 0}
-                    totalPRs={operations?.procurement?.totalPRs ?? 0}
-                    pendingPRs={operations?.procurement?.pendingPRs ?? 0}
-                />
             }
         />
     )

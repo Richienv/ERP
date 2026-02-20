@@ -1,6 +1,7 @@
 'use server'
 
-import { withPrismaAuth } from "@/lib/db"
+import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
+import { createClient } from "@/lib/supabase/server"
 import { formatIDR } from "@/lib/utils"
 
 import { InvoiceStatus, SalesOrderStatus } from "@prisma/client"
@@ -14,57 +15,58 @@ export interface SalesStats {
 
 export async function getSalesStats(): Promise<SalesStats> {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const startOfMonth = new Date()
-            startOfMonth.setDate(1)
-            startOfMonth.setHours(0, 0, 0, 0)
+        const supabase = await createClient()
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error || !user) throw new Error("Unauthorized")
 
+        const startOfMonth = new Date()
+        startOfMonth.setDate(1)
+        startOfMonth.setHours(0, 0, 0, 0)
+
+        const [revenueAgg, activeOrdersCount, totalOrdersCount, recentOrders] = await Promise.all([
             // 1. Total Revenue (This Month) - Based on Invoices to match GL
-            const revenueAgg = await prisma.invoice.aggregate({
+            basePrisma.invoice.aggregate({
                 _sum: { totalAmount: true },
                 where: {
                     type: 'INV_OUT',
                     issueDate: { gte: startOfMonth },
                     status: { notIn: [InvoiceStatus.CANCELLED, InvoiceStatus.VOID] }
                 }
-            })
-
+            }),
             // 2. Active Orders (Sales Orders that are confirmed but not completed)
-            const activeOrdersCount = await prisma.salesOrder.count({
+            basePrisma.salesOrder.count({
                 where: {
                     status: { in: [SalesOrderStatus.CONFIRMED, SalesOrderStatus.IN_PROGRESS, SalesOrderStatus.DELIVERED] }
                 }
-            })
-
+            }),
             // 3. Total Orders (This Month)
-            const totalOrdersCount = await prisma.salesOrder.count({
+            basePrisma.salesOrder.count({
                 where: {
                     orderDate: { gte: startOfMonth }
                 }
-            })
-
+            }),
             // 4. Recent Orders
-            const recentOrders = await prisma.salesOrder.findMany({
+            basePrisma.salesOrder.findMany({
                 take: 5,
                 orderBy: { orderDate: 'desc' },
                 include: {
                     customer: { select: { name: true } }
                 }
-            })
+            }),
+        ])
 
-            return {
-                totalRevenue: revenueAgg._sum.totalAmount?.toNumber() || 0,
-                totalOrders: totalOrdersCount,
-                activeOrders: activeOrdersCount,
-                recentOrders: recentOrders.map(o => ({
-                    id: o.id,
-                    customer: o.customer.name,
-                    amount: o.total.toNumber(),
-                    status: o.status,
-                    date: o.orderDate
-                }))
-            }
-        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+        return {
+            totalRevenue: revenueAgg._sum.totalAmount?.toNumber() || 0,
+            totalOrders: totalOrdersCount,
+            activeOrders: activeOrdersCount,
+            recentOrders: recentOrders.map(o => ({
+                id: o.id,
+                customer: o.customer.name,
+                amount: o.total.toNumber(),
+                status: o.status,
+                date: o.orderDate
+            }))
+        }
     } catch (error) {
         console.error("Failed to fetch sales stats", error)
         return { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] }

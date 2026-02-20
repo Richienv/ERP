@@ -5,14 +5,12 @@ import { motion } from "framer-motion"
 
 interface DashboardViewProps {
     pulseBarSlot: ReactNode
+    kpiCardsSlot: ReactNode
     actionCenterSlot: ReactNode
     financialHealthSlot: ReactNode
-    aiSearchSlot: ReactNode
-    operationsStripSlot: ReactNode
+    warehouseSlot: ReactNode
+    staffSlot: ReactNode
     activityFeedSlot: ReactNode
-    trendingSlot: ReactNode
-    // Textile upgrade slots (Phase 2)
-    textileStripSlot?: ReactNode
 }
 
 const fadeIn = {
@@ -22,13 +20,12 @@ const fadeIn = {
 
 export function DashboardView({
     pulseBarSlot,
+    kpiCardsSlot,
     actionCenterSlot,
     financialHealthSlot,
-    aiSearchSlot,
-    operationsStripSlot,
+    warehouseSlot,
+    staffSlot,
     activityFeedSlot,
-    trendingSlot,
-    textileStripSlot,
 }: DashboardViewProps) {
     return (
         <div className="w-full bg-zinc-50 dark:bg-black font-sans min-h-[calc(100svh-theme(spacing.16))]">
@@ -43,60 +40,54 @@ export function DashboardView({
                     {pulseBarSlot}
                 </motion.div>
 
-                {/* Row 2: Middle Row — Action Center + Financial Health + AI Search */}
+                {/* Row 2: KPI Summary Cards */}
                 <motion.div
-                    className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 min-h-0"
+                    className="flex-none"
                     {...fadeIn}
                     transition={{ duration: 0.3, delay: 0.05 }}
                 >
-                    {/* CEO Action Center */}
-                    <div className="md:col-span-3 min-h-0 overflow-hidden">
+                    {kpiCardsSlot}
+                </motion.div>
+
+                {/* Row 3: Action Center + Financial Health */}
+                <motion.div
+                    className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 min-h-0"
+                    {...fadeIn}
+                    transition={{ duration: 0.3, delay: 0.08 }}
+                >
+                    <div className="md:col-span-5 min-h-0 overflow-hidden">
                         {actionCenterSlot}
                     </div>
-                    {/* Financial Health */}
-                    <div className="md:col-span-5 min-h-0 overflow-hidden">
+                    <div className="md:col-span-7 min-h-0 overflow-hidden">
                         {financialHealthSlot}
-                    </div>
-                    {/* AI Search */}
-                    <div className="md:col-span-4 min-h-0 overflow-hidden">
-                        {aiSearchSlot}
                     </div>
                 </motion.div>
 
-                {/* Row 3: Operations Strip */}
+                {/* Row 4: Warehouse Overview */}
                 <motion.div
                     className="flex-none"
                     {...fadeIn}
                     transition={{ duration: 0.3, delay: 0.1 }}
                 >
-                    {operationsStripSlot}
+                    {warehouseSlot}
                 </motion.div>
 
-                {/* Row 3.5: Textile Strip (OEE + Shift Handover + Downtime) */}
-                {textileStripSlot && (
-                    <motion.div
-                        className="flex-none grid grid-cols-1 md:grid-cols-12 gap-4"
-                        style={{ minHeight: "220px" }}
-                        {...fadeIn}
-                        transition={{ duration: 0.3, delay: 0.12 }}
-                    >
-                        {textileStripSlot}
-                    </motion.div>
-                )}
-
-                {/* Row 4: Bottom Row — Activity Feed + Trending */}
+                {/* Row 5: Staff Today */}
                 <motion.div
-                    className="flex-none grid grid-cols-1 md:grid-cols-12 gap-4"
-                    style={{ minHeight: "180px" }}
+                    className="flex-none"
+                    {...fadeIn}
+                    transition={{ duration: 0.3, delay: 0.12 }}
+                >
+                    {staffSlot}
+                </motion.div>
+
+                {/* Row 6: Activity Feed */}
+                <motion.div
+                    className="flex-none"
                     {...fadeIn}
                     transition={{ duration: 0.3, delay: 0.15 }}
                 >
-                    <div className="md:col-span-8 min-h-0 overflow-hidden">
-                        {activityFeedSlot}
-                    </div>
-                    <div className="md:col-span-4 min-h-0 overflow-hidden">
-                        {trendingSlot}
-                    </div>
+                    {activityFeedSlot}
                 </motion.div>
 
             </div>

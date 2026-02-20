@@ -240,7 +240,7 @@ async function fetchDeadStockValue(prisma: PrismaClient) {
 
 async function fetchProcurementMetrics(prisma: PrismaClient) {
     // Run all queries in parallel for speed
-    const [activePO, delayedPOs, pendingApprovalPOs, totalPRs, pendingPRs, poSummary, poByStatusRaw] = await Promise.all([
+    const [activePO, delayedPOs, pendingApprovalPOs, totalPRs, pendingPRs, poSummary, poByStatusRaw, prItems] = await Promise.all([
         prisma.purchaseOrder.count({
             where: { status: { in: ['PO_DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED'] } }
         }),
@@ -276,6 +276,11 @@ async function fetchProcurementMetrics(prisma: PrismaClient) {
             _count: true,
             where: { status: { notIn: ['CANCELLED'] } }
         }),
+        // PR estimated value (quantity × product costPrice)
+        prisma.purchaseRequestItem.findMany({
+            where: { purchaseRequest: { status: { notIn: ['CANCELLED'] } } },
+            select: { quantity: true, product: { select: { costPrice: true } } }
+        }),
     ])
 
     const poByStatus: Record<string, number> = {}
@@ -283,12 +288,15 @@ async function fetchProcurementMetrics(prisma: PrismaClient) {
         poByStatus[g.status] = g._count
     }
 
+    const totalPRValue = prItems.reduce((sum: number, item: any) => sum + item.quantity * Number(item.product.costPrice), 0)
+
     return {
         activeCount: activePO,
         totalPRs,
         pendingPRs,
         totalPOs: poSummary._count,
         totalPOValue: Number(poSummary._sum?.totalAmount ?? 0),
+        totalPRValue,
         poByStatus,
         delays: delayedPOs.map(po => ({
             id: po.id,
@@ -767,6 +775,28 @@ async function fetchTotalInventoryValue(prisma: PrismaClient) {
     return { value, itemCount, warehouses }
 }
 
+async function fetchTaxMetrics(prisma: PrismaClient) {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+
+    const [ppnOutAgg, ppnInAgg] = await Promise.all([
+        prisma.invoice.aggregate({
+            _sum: { taxAmount: true },
+            where: { type: 'INV_OUT', issueDate: { gte: startOfMonth }, status: { notIn: ['CANCELLED', 'VOID'] } }
+        }),
+        prisma.invoice.aggregate({
+            _sum: { taxAmount: true },
+            where: { type: 'INV_IN', issueDate: { gte: startOfMonth }, status: { notIn: ['CANCELLED', 'VOID'] } }
+        }),
+    ])
+
+    const ppnOut = ppnOutAgg._sum?.taxAmount?.toNumber() || 0
+    const ppnIn = ppnInAgg._sum?.taxAmount?.toNumber() || 0
+
+    return { ppnOut, ppnIn, ppnNet: ppnOut - ppnIn }
+}
+
 // ==============================================================================
 // PUBLIC AGGREGATED ACTION (Fetch Everything in One Transaction)
 // ==============================================================================
@@ -793,7 +823,7 @@ export async function getDashboardData() {
         ] = await Promise.all([
             fetchFinancialChartData(prisma).catch(() => ({ dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] })),
             fetchDeadStockValue(prisma).catch(() => 0),
-            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> })),
+            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
             fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
             fetchPendingLeaves(prisma).catch(() => 0),
             fetchAuditStatus(prisma).catch(() => null),
@@ -829,7 +859,7 @@ export async function getDashboardData() {
         return {
             financialChart: { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] },
             deadStock: 0,
-            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> },
+            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> },
             hr: { totalSalary: 0, lateEmployees: [] },
             leaves: 0,
             audit: null,
@@ -914,26 +944,30 @@ export async function getDashboardOperations() {
     try {
         await requireAuth()
         const prisma = basePrisma
-        const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue] = await Promise.all([
-            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> })),
+        const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax] = await Promise.all([
+            fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
             fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
             fetchMaterialStatus(prisma).catch(() => []),
             fetchQualityStatus(prisma).catch(() => ({ passRate: -1, totalInspections: 0, recentInspections: [] })),
             fetchWorkforceStatus(prisma).catch(() => ({ attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] })),
             fetchPendingLeaves(prisma).catch(() => 0),
             fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
+            fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
+            fetchTaxMetrics(prisma).catch(() => ({ ppnOut: 0, ppnIn: 0, ppnNet: 0 })),
         ])
-        return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue }
+        return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax }
     } catch (error) {
         console.error("getDashboardOperations failed:", error)
         return {
-            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, poByStatus: {} as Record<string, number> },
+            procurement: { activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> },
             prodMetrics: { activeWorkOrders: 0, totalProduction: 0, efficiency: 0 },
             materialStatus: [],
             qualityStatus: { passRate: -1, totalInspections: 0, recentInspections: [] },
             workforceStatus: { attendanceRate: 0, presentCount: 0, lateCount: 0, totalStaff: 0, topEmployees: [] },
             leaves: 0,
             inventoryValue: { value: 0, itemCount: 0, warehouses: [] },
+            hr: { totalSalary: 0, lateEmployees: [] },
+            tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
         }
     }
 }
