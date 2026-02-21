@@ -41,9 +41,10 @@ interface CreateBOMDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
+  defaultProductId?: string;
 }
 
-export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDialogProps) {
+export function CreateBOMDialog({ open, onOpenChange, onCreated, defaultProductId }: CreateBOMDialogProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,12 +57,12 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
   useEffect(() => {
     if (open) {
       fetchProducts();
-      setProductId("");
+      setProductId(defaultProductId || "");
       setVersion("v1");
       setStatus("true");
       setLines([]);
     }
-  }, [open]);
+  }, [open, defaultProductId]);
 
   async function fetchProducts() {
     setLoadingProducts(true);

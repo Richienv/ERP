@@ -7,6 +7,7 @@ import {
     Plus,
     Search,
     ChevronRight,
+    ChevronLeft,
     Factory,
     User,
     Calendar,
@@ -16,24 +17,20 @@ import {
     Clock,
     CheckCircle,
     Pause,
+    Wrench,
+    Trash2,
+    Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-    SheetDescription,
-} from "@/components/ui/sheet";
-import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { NB } from "@/lib/dialog-styles";
 import {
     Select,
     SelectContent,
@@ -41,6 +38,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { CreateWorkOrderDialog } from "@/components/manufacturing/create-work-order-dialog";
 import Link from "next/link";
@@ -109,8 +107,16 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
-    const [sheetOpen, setSheetOpen] = useState(false);
+    const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+    const [dialogPage, setDialogPage] = useState<'detail' | 'bom'>('detail');
     const [progressDialogOpen, setProgressDialogOpen] = useState(false);
+    const [hasBom, setHasBom] = useState<boolean | null>(null);
+    // BOM inline form state
+    const [bomProducts, setBomProducts] = useState<{ id: string; code: string; name: string; unit: string }[]>([]);
+    const [bomProductId, setBomProductId] = useState("");
+    const [bomVersion, setBomVersion] = useState("v1");
+    const [bomLines, setBomLines] = useState<{ id: string; materialId: string; quantity: string; unit: string; wastePct: string }[]>([]);
+    const [bomSubmitting, setBomSubmitting] = useState(false);
     const [reportQty, setReportQty] = useState("");
     const [warehouseId, setWarehouseId] = useState("");
     const [performedBy, setPerformedBy] = useState("");
@@ -146,15 +152,23 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
 
     const handleRowClick = async (order: WorkOrder) => {
         setSelectedOrder(order);
-        setSheetOpen(true);
+        setDetailDialogOpen(true);
+        setDialogPage('detail');
+        setHasBom(null);
         try {
-            const response = await fetch(`/api/manufacturing/work-orders/${order.id}`);
-            const payload = await response.json();
-            if (payload.success) {
-                const options: WarehouseOption[] = payload.data.warehouseOptions || [];
+            const [woRes, bomRes] = await Promise.all([
+                fetch(`/api/manufacturing/work-orders/${order.id}`),
+                fetch(`/api/manufacturing/bom?productId=${order.productId}`),
+            ]);
+            const woPayload = await woRes.json();
+            if (woPayload.success) {
+                const options: WarehouseOption[] = woPayload.data.warehouseOptions || [];
                 setWarehouseOptions(options);
                 if (options.length > 0) setWarehouseId(options[0].id);
             }
+            const bomPayload = await bomRes.json();
+            const bomList = bomPayload.data || bomPayload.boms || [];
+            setHasBom(Array.isArray(bomList) && bomList.length > 0);
         } catch (err) {
             console.error('Failed to load work order detail', err);
         }
@@ -261,6 +275,70 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
             month: 'short',
             year: '2-digit'
         });
+    };
+
+    // ── BOM inline form helpers ──────────────────────────────
+    const openBomPage = async () => {
+        setDialogPage('bom');
+        setBomVersion("v1");
+        setBomLines([]);
+        setBomProductId(selectedOrder?.productId || "");
+        if (bomProducts.length === 0) {
+            try {
+                const res = await fetch("/api/products?limit=500&status=active");
+                const data = await res.json();
+                const list = data.data || data.products || data;
+                if (Array.isArray(list)) {
+                    setBomProducts(list.map((p: any) => ({ id: p.id, code: p.code, name: p.name, unit: p.unit })));
+                }
+            } catch { /* ignore */ }
+        }
+    };
+
+    const addBomLine = () => {
+        setBomLines(prev => [...prev, { id: crypto.randomUUID(), materialId: "", quantity: "1", unit: "", wastePct: "0" }]);
+    };
+
+    const removeBomLine = (id: string) => setBomLines(prev => prev.filter(l => l.id !== id));
+
+    const updateBomLine = (id: string, field: string, value: string) => {
+        setBomLines(prev => prev.map(l => {
+            if (l.id !== id) return l;
+            const updated = { ...l, [field]: value };
+            if (field === "materialId") {
+                const product = bomProducts.find(p => p.id === value);
+                if (product) updated.unit = product.unit;
+            }
+            return updated;
+        }));
+    };
+
+    const submitBom = async () => {
+        if (!bomProductId) { toast.error("Pilih produk jadi terlebih dahulu"); return; }
+        setBomSubmitting(true);
+        try {
+            const res = await fetch("/api/manufacturing/bom", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    productId: bomProductId,
+                    version: bomVersion,
+                    items: bomLines.filter(l => l.materialId).map(l => ({
+                        materialId: l.materialId, quantity: l.quantity, unit: l.unit || null, wastePct: l.wastePct,
+                    })),
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                toast.success("Bill of Materials berhasil dibuat");
+                setHasBom(true);
+                setDialogPage('detail');
+                queryClient.invalidateQueries({ queryKey: queryKeys.bom.all });
+            } else {
+                toast.error(data.error || "Gagal membuat BOM");
+            }
+        } catch { toast.error("Terjadi kesalahan jaringan"); }
+        finally { setBomSubmitting(false); }
     };
 
     const handleSearchChange = (value: string) => {
@@ -552,178 +630,353 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                 </div>
             )}
 
-            {/* ── Detail Sheet ─────────────────────────────────────────── */}
-            <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                <SheetContent className="sm:max-w-lg overflow-y-auto border-l-2 border-black rounded-none p-0">
+            {/* ── Detail Dialog (Neo-Brutalist, multi-page) ─────────── */}
+            <Dialog open={detailDialogOpen} onOpenChange={(open) => {
+                setDetailDialogOpen(open);
+                if (!open) setDialogPage('detail');
+            }}>
+                <DialogContent className={NB.contentWide}>
                     {selectedOrder && (
                         <>
-                            {/* Sheet Header */}
-                            <div className="px-6 py-4 border-b-2 border-black border-l-[5px] border-l-blue-400 bg-blue-50 dark:bg-blue-950/20">
-                                <SheetHeader className="space-y-0">
-                                    <SheetTitle className="flex items-center gap-2 text-sm font-black uppercase tracking-wide">
-                                        <Package className="h-4 w-4 text-blue-600" />
-                                        {selectedOrder.number}
-                                    </SheetTitle>
-                                    <SheetDescription className="text-[11px] text-zinc-400 ml-6">
-                                        {selectedOrder.product.name}
-                                    </SheetDescription>
-                                </SheetHeader>
-                            </div>
+                            {/* ═══ PAGE: DETAIL ═══ */}
+                            {dialogPage === 'detail' && (
+                                <>
+                                    <DialogHeader className={NB.header}>
+                                        <DialogTitle className={NB.title}>
+                                            <Package className="h-5 w-5" />
+                                            {selectedOrder.number}
+                                        </DialogTitle>
+                                        <p className={NB.subtitle}>{selectedOrder.product.name} ({selectedOrder.product.code})</p>
+                                    </DialogHeader>
 
-                            <div className="p-6 space-y-5">
-                                {/* Status + Progress */}
-                                <div className="flex items-center justify-between">
-                                    {(() => {
-                                        const cfg = statusLabel(selectedOrder.status);
-                                        return (
-                                            <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                                                {cfg.label}
-                                            </span>
-                                        );
-                                    })()}
-                                    <span className="text-2xl font-black text-zinc-900 dark:text-white">{selectedOrder.progress}%</span>
-                                </div>
-                                <div className="w-full h-3 bg-zinc-200 dark:bg-zinc-700 border border-black/10">
-                                    <div
-                                        className={`h-full transition-all ${selectedOrder.progress >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
-                                        style={{ width: `${Math.min(selectedOrder.progress, 100)}%` }}
-                                    />
-                                </div>
-
-                                {/* Info Grid */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="border-2 border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50 p-3">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Package className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Quantity</span>
-                                        </div>
-                                        <p className="text-sm font-black text-zinc-900 dark:text-white">
-                                            {selectedOrder.actualQty} / {selectedOrder.plannedQty} {selectedOrder.product.unit}
-                                        </p>
-                                    </div>
-                                    <div className="border-2 border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50 p-3">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Calendar className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Due Date</span>
-                                        </div>
-                                        <p className="text-sm font-black text-zinc-900 dark:text-white">{formatDate(selectedOrder.dueDate)}</p>
-                                    </div>
-                                    <div className="border-2 border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50 p-3">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Calendar className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Start Date</span>
-                                        </div>
-                                        <p className="text-sm font-black text-zinc-900 dark:text-white">{formatDate(selectedOrder.startDate)}</p>
-                                    </div>
-                                    <div className="border-2 border-zinc-200 bg-zinc-50 dark:bg-zinc-800/50 p-3">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <User className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Workers</span>
-                                        </div>
-                                        <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">
-                                            {selectedOrder.workers.length > 0 ? selectedOrder.workers.join(', ') : 'Belum ditugaskan'}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                {/* Actions */}
-                                <div className="pt-4 border-t-2 border-black/10 space-y-3">
-                                    <div className="flex gap-2">
-                                        <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
-                                            <DialogTrigger asChild>
-                                                <Button
-                                                    className="flex-1 bg-blue-500 text-white hover:bg-blue-600 border-2 border-blue-600 font-black uppercase text-[10px] tracking-wide h-10 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
-                                                    disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
-                                                >
-                                                    Update Progress
-                                                </Button>
-                                            </DialogTrigger>
-                                            <DialogContent className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                                                <DialogHeader>
-                                                    <DialogTitle className="text-sm font-black uppercase tracking-wide">Report Production</DialogTitle>
-                                                    <DialogDescription className="text-[11px] text-zinc-400">
-                                                        Post produksi aktual dan sinkronkan inventory + finance.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <div className="space-y-3 mt-2">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Quantity Produced</label>
-                                                        <Input
-                                                            type="number"
-                                                            min={1}
-                                                            max={Math.max(1, selectedOrder.plannedQty - selectedOrder.actualQty)}
-                                                            value={reportQty}
-                                                            onChange={(e) => setReportQty(e.target.value)}
-                                                            placeholder="Masukkan qty produksi"
-                                                            className="border-2 border-black"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Warehouse</label>
-                                                        <Select value={warehouseId} onValueChange={setWarehouseId}>
-                                                            <SelectTrigger className="border-2 border-black">
-                                                                <SelectValue placeholder="Pilih gudang" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {warehouseOptions.map((wh) => (
-                                                                    <SelectItem key={wh.id} value={wh.id}>{wh.code} - {wh.name}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Performed By (opsional)</label>
-                                                        <Input
-                                                            value={performedBy}
-                                                            onChange={(e) => setPerformedBy(e.target.value)}
-                                                            placeholder="Nama operator"
-                                                            className="border-2 border-black"
-                                                        />
+                                    <ScrollArea className={NB.scroll}>
+                                        <div className="p-5 space-y-5">
+                                            {/* BOM Warning */}
+                                            {hasBom === false && (
+                                                <div className="border-2 border-amber-400 bg-amber-50 p-3 flex items-center gap-3">
+                                                    <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-black text-amber-800 uppercase tracking-wide">BOM Belum Dibuat</p>
+                                                        <p className="text-[10px] text-amber-600 mt-0.5">Produk ini belum memiliki Bill of Materials. Buat BOM untuk melacak material.</p>
                                                     </div>
                                                     <Button
-                                                        onClick={reportProduction}
-                                                        disabled={updating}
-                                                        className="w-full bg-blue-500 text-white hover:bg-blue-600 border-2 border-blue-600 font-black uppercase text-[10px] tracking-wide h-10 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                                                        size="sm"
+                                                        className="bg-amber-500 text-white hover:bg-amber-600 border-2 border-amber-600 font-black uppercase text-[10px] tracking-wide h-8 px-4 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all shrink-0 rounded-none"
+                                                        onClick={openBomPage}
                                                     >
-                                                        {updating ? 'Posting...' : 'Post Production'}
+                                                        <Wrench className="h-3.5 w-3.5 mr-1" /> Buat BOM
                                                     </Button>
                                                 </div>
-                                            </DialogContent>
-                                        </Dialog>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1 border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 hover:border-zinc-500 transition-colors"
-                                            disabled={selectedOrder.status !== 'PLANNED' || updating}
-                                            onClick={() => runTransition('IN_PROGRESS')}
-                                        >
-                                            Mulai
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1 border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 hover:border-zinc-500 transition-colors"
-                                            disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
-                                            onClick={() => runTransition('ON_HOLD')}
-                                        >
-                                            Hold
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1 border-2 border-emerald-300 text-emerald-700 font-bold uppercase text-[10px] tracking-wide h-10 hover:bg-emerald-50 hover:border-emerald-400 transition-colors"
-                                            disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
-                                            onClick={() => runTransition('COMPLETED')}
-                                        >
-                                            Selesai
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
+                                            )}
+
+                                            {/* Status + Progress */}
+                                            <div className="flex items-center justify-between">
+                                                {(() => {
+                                                    const cfg = statusLabel(selectedOrder.status);
+                                                    return (
+                                                        <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
+                                                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                                                            {cfg.label}
+                                                        </span>
+                                                    );
+                                                })()}
+                                                <span className="text-2xl font-black text-zinc-900 dark:text-white">{selectedOrder.progress}%</span>
+                                            </div>
+                                            <div className="w-full h-3 bg-zinc-200 dark:bg-zinc-700 border-2 border-black">
+                                                <div
+                                                    className={`h-full transition-all ${selectedOrder.progress >= 100 ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                                                    style={{ width: `${Math.min(selectedOrder.progress, 100)}%` }}
+                                                />
+                                            </div>
+
+                                            {/* Info Grid */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="border-2 border-black bg-zinc-50 dark:bg-zinc-800/50 p-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Package className="h-3.5 w-3.5 text-zinc-400" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Quantity</span>
+                                                    </div>
+                                                    <p className="text-sm font-black text-zinc-900 dark:text-white">
+                                                        {selectedOrder.actualQty} / {selectedOrder.plannedQty} {selectedOrder.product.unit}
+                                                    </p>
+                                                </div>
+                                                <div className="border-2 border-black bg-zinc-50 dark:bg-zinc-800/50 p-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Due Date</span>
+                                                    </div>
+                                                    <p className="text-sm font-black text-zinc-900 dark:text-white">{formatDate(selectedOrder.dueDate)}</p>
+                                                </div>
+                                                <div className="border-2 border-black bg-zinc-50 dark:bg-zinc-800/50 p-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Start Date</span>
+                                                    </div>
+                                                    <p className="text-sm font-black text-zinc-900 dark:text-white">{formatDate(selectedOrder.startDate)}</p>
+                                                </div>
+                                                <div className="border-2 border-black bg-zinc-50 dark:bg-zinc-800/50 p-3">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <User className="h-3.5 w-3.5 text-zinc-400" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Workers</span>
+                                                    </div>
+                                                    <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">
+                                                        {selectedOrder.workers.length > 0 ? selectedOrder.workers.join(', ') : 'Belum ditugaskan'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="pt-4 border-t-2 border-black space-y-3">
+                                                <div className="flex gap-2">
+                                                    <Dialog open={progressDialogOpen} onOpenChange={setProgressDialogOpen}>
+                                                        <DialogTrigger asChild>
+                                                            <Button
+                                                                className={`flex-1 ${NB.submitBtn}`}
+                                                                disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
+                                                            >
+                                                                Update Progress
+                                                            </Button>
+                                                        </DialogTrigger>
+                                                        <DialogContent className={NB.contentNarrow}>
+                                                            <DialogHeader className={NB.header}>
+                                                                <DialogTitle className={NB.title}>Report Production</DialogTitle>
+                                                                <p className={NB.subtitle}>
+                                                                    Post produksi aktual dan sinkronkan inventory + finance.
+                                                                </p>
+                                                            </DialogHeader>
+                                                            <div className="p-5 space-y-3">
+                                                                <div className="space-y-1.5">
+                                                                    <label className={NB.label}>Quantity Produced</label>
+                                                                    <Input
+                                                                        type="number"
+                                                                        min={1}
+                                                                        max={Math.max(1, selectedOrder.plannedQty - selectedOrder.actualQty)}
+                                                                        value={reportQty}
+                                                                        onChange={(e) => setReportQty(e.target.value)}
+                                                                        placeholder="Masukkan qty produksi"
+                                                                        className={NB.input}
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-1.5">
+                                                                    <label className={NB.label}>Warehouse</label>
+                                                                    <Select value={warehouseId} onValueChange={setWarehouseId}>
+                                                                        <SelectTrigger className={NB.select}>
+                                                                            <SelectValue placeholder="Pilih gudang" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {warehouseOptions.map((wh) => (
+                                                                                <SelectItem key={wh.id} value={wh.id}>{wh.code} - {wh.name}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                                <div className="space-y-1.5">
+                                                                    <label className={NB.label}>Performed By (opsional)</label>
+                                                                    <Input
+                                                                        value={performedBy}
+                                                                        onChange={(e) => setPerformedBy(e.target.value)}
+                                                                        placeholder="Nama operator"
+                                                                        className={NB.input}
+                                                                    />
+                                                                </div>
+                                                                <div className={NB.footer}>
+                                                                    <Button variant="outline" className={NB.cancelBtn} onClick={() => setProgressDialogOpen(false)}>
+                                                                        Batal
+                                                                    </Button>
+                                                                    <Button
+                                                                        onClick={reportProduction}
+                                                                        disabled={updating}
+                                                                        className={NB.submitBtn}
+                                                                    >
+                                                                        {updating ? 'Posting...' : 'Post Production'}
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        </DialogContent>
+                                                    </Dialog>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="flex-1 border-2 border-black font-black uppercase text-[10px] tracking-wide h-10 hover:bg-zinc-100 transition-colors rounded-none"
+                                                        disabled={selectedOrder.status !== 'PLANNED' || updating}
+                                                        onClick={() => runTransition('IN_PROGRESS')}
+                                                    >
+                                                        Mulai
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="flex-1 border-2 border-black font-black uppercase text-[10px] tracking-wide h-10 hover:bg-zinc-100 transition-colors rounded-none"
+                                                        disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
+                                                        onClick={() => runTransition('ON_HOLD')}
+                                                    >
+                                                        Hold
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="flex-1 border-2 border-emerald-500 text-emerald-700 font-black uppercase text-[10px] tracking-wide h-10 hover:bg-emerald-50 transition-colors rounded-none"
+                                                        disabled={selectedOrder.status !== 'IN_PROGRESS' || updating}
+                                                        onClick={() => runTransition('COMPLETED')}
+                                                    >
+                                                        Selesai
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </ScrollArea>
+                                </>
+                            )}
+
+                            {/* ═══ PAGE: BOM CREATION ═══ */}
+                            {dialogPage === 'bom' && (
+                                <>
+                                    <DialogHeader className={NB.header}>
+                                        <DialogTitle className={NB.title}>
+                                            <button
+                                                onClick={() => setDialogPage('detail')}
+                                                className="p-1 -ml-1 mr-1 hover:bg-white/20 rounded-sm transition-colors"
+                                            >
+                                                <ChevronLeft className="h-5 w-5" />
+                                            </button>
+                                            <Wrench className="h-5 w-5" />
+                                            Buat Bill of Materials
+                                        </DialogTitle>
+                                        <p className={NB.subtitle}>
+                                            <span className="ml-8">Definisikan komponen material untuk {selectedOrder.product.name}</span>
+                                        </p>
+                                    </DialogHeader>
+
+                                    <ScrollArea className={NB.scroll}>
+                                        <div className="p-5 space-y-4">
+                                            {/* Product & Version */}
+                                            <div className={NB.section}>
+                                                <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+                                                    <Wrench className="h-4 w-4" />
+                                                    <span className={NB.sectionTitle}>Produk Jadi</span>
+                                                </div>
+                                                <div className={NB.sectionBody}>
+                                                    <div className="grid grid-cols-[1fr_auto] gap-3 items-end">
+                                                        <div>
+                                                            <label className={NB.label}>Produk Jadi</label>
+                                                            <div className="border-2 border-black bg-zinc-100 h-10 px-3 flex items-center rounded-none">
+                                                                <span className="font-mono text-[10px] text-zinc-400 mr-2 font-bold">{selectedOrder.product.code}</span>
+                                                                <span className="text-sm font-bold truncate">{selectedOrder.product.name}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <label className={NB.label}>Versi</label>
+                                                            <Input value={bomVersion} onChange={(e) => setBomVersion(e.target.value)} className={`${NB.inputMono} w-20 text-center`} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Material Lines */}
+                                            <div className={NB.section}>
+                                                <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
+                                                    <Package className="h-4 w-4" />
+                                                    <span className={NB.sectionTitle}>Material / Komponen</span>
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="ml-auto h-7 text-[10px] font-black uppercase tracking-wider border-2 border-black rounded-none"
+                                                        onClick={addBomLine}
+                                                    >
+                                                        <Plus className="h-3 w-3 mr-1" /> Tambah
+                                                    </Button>
+                                                </div>
+
+                                                {bomLines.length === 0 ? (
+                                                    <div className="border-t-0 p-8 text-center bg-zinc-50">
+                                                        <div className="h-14 w-14 mx-auto bg-zinc-100 border-2 border-black flex items-center justify-center mb-3">
+                                                            <Package className="h-7 w-7 text-zinc-400" />
+                                                        </div>
+                                                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Belum ada material</p>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={addBomLine}
+                                                            className="border-2 border-black text-[10px] font-black uppercase tracking-wider rounded-none"
+                                                        >
+                                                            <Plus className="mr-1.5 h-3.5 w-3.5" /> Tambah Material
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <div className="grid grid-cols-[1fr_80px_80px_80px_36px] gap-2 bg-black text-white p-3">
+                                                            <span className="text-[10px] font-black uppercase tracking-widest">Material</span>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest">Qty</span>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest">Satuan</span>
+                                                            <span className="text-[10px] font-black uppercase tracking-widest">Waste%</span>
+                                                            <span />
+                                                        </div>
+                                                        {bomLines.map((line, i) => (
+                                                            <div
+                                                                key={line.id}
+                                                                className={`grid grid-cols-[1fr_80px_80px_80px_36px] gap-2 items-center p-2 border-b-2 border-black ${i % 2 === 0 ? 'bg-white' : 'bg-zinc-50/50'}`}
+                                                            >
+                                                                <Select value={line.materialId} onValueChange={(v) => updateBomLine(line.id, "materialId", v)}>
+                                                                    <SelectTrigger className="text-xs border-2 border-black font-bold bg-white h-9 rounded-none">
+                                                                        <SelectValue placeholder="Pilih" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {bomProducts.filter(p => p.id !== bomProductId).map((p) => (
+                                                                            <SelectItem key={p.id} value={p.id}>
+                                                                                <span className="font-mono text-[10px] text-zinc-400 mr-1.5 font-bold">{p.code}</span>
+                                                                                {p.name}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                <Input
+                                                                    type="number" min="0" step="0.01"
+                                                                    value={line.quantity}
+                                                                    onChange={(e) => updateBomLine(line.id, "quantity", e.target.value)}
+                                                                    className="text-xs border-2 border-black font-bold text-center bg-white h-9 rounded-none"
+                                                                />
+                                                                <Input
+                                                                    value={line.unit}
+                                                                    className="text-xs border-2 border-black font-bold text-center bg-zinc-100 h-9 rounded-none"
+                                                                    readOnly
+                                                                />
+                                                                <Input
+                                                                    type="number" min="0" step="0.1"
+                                                                    value={line.wastePct}
+                                                                    onChange={(e) => updateBomLine(line.id, "wastePct", e.target.value)}
+                                                                    className="text-xs border-2 border-black font-bold text-center bg-white h-9 rounded-none"
+                                                                />
+                                                                <Button
+                                                                    type="button" variant="outline" size="icon"
+                                                                    className="h-9 w-9 border-2 border-red-300 text-red-600 hover:bg-red-50 rounded-none"
+                                                                    onClick={() => removeBomLine(line.id)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Footer */}
+                                            <div className={NB.footer}>
+                                                <Button variant="outline" className={NB.cancelBtn} onClick={() => setDialogPage('detail')} disabled={bomSubmitting}>
+                                                    <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Kembali
+                                                </Button>
+                                                <Button className={NB.submitBtn} onClick={submitBom} disabled={bomSubmitting || !bomProductId}>
+                                                    {bomSubmitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : "Buat BOM"}
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </ScrollArea>
+                                </>
+                            )}
                         </>
                     )}
-                </SheetContent>
-            </Sheet>
+                </DialogContent>
+            </Dialog>
 
             <CreateWorkOrderDialog
                 open={createOpen}
