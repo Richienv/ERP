@@ -1,10 +1,15 @@
 import { AlertCircle, ArrowRight, CheckCircle2, Clock, FileText, ShoppingCart } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export function ActionCenter() {
     return (
+        <div className="relative">
+            <Badge className="absolute -top-2 -right-2 z-10 bg-amber-100 text-amber-800 border border-amber-300 text-[8px] font-black uppercase tracking-widest rounded-none px-1.5 py-0.5">
+                Data Demo
+            </Badge>
         <Card className="col-span-1 md:col-span-3 lg:col-span-4 border-l-4 border-l-blue-500 shadow-sm">
             <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -12,7 +17,7 @@ export function ActionCenter() {
                         <FileText className="h-5 w-5 text-blue-600" />
                         Tugas Hari Ini (Action Items)
                     </CardTitle>
-                    <span className="text-sm text-muted-foreground">Senin, 14 Jan 2026</span>
+                    <span className="text-sm text-muted-foreground">{new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}</span>
                 </div>
             </CardHeader>
             <CardContent>
@@ -94,5 +99,6 @@ export function ActionCenter() {
                 </div>
             </CardContent>
         </Card>
+        </div>
     )
 }

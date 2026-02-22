@@ -52,8 +52,8 @@ export async function processXenditPayout(data: XenditPayoutRequest) {
             // 4. Calculate fees
             const fees = calculatePayoutFees(data.amount, channelCode)
 
-            // 5. Generate reference ID
-            const referenceId = `PAY-${bill.number}-${Date.now()}`
+            // 5. Generate deterministic reference ID (no Date.now() — must be stable for idempotent retries)
+            const referenceId = `erp-payout-${data.billId}`
 
             // 6. Update supplier bank details if different
             if (bill.supplierId) {
@@ -75,23 +75,8 @@ export async function processXenditPayout(data: XenditPayoutRequest) {
                 })
             }
 
-            // 8. Create Payment record
-            const payment = await prisma.payment.create({
-                data: {
-                    number: referenceId,
-                    amount: data.amount,
-                    method: 'TRANSFER',
-                    date: new Date(),
-                    invoiceId: data.billId,
-                    supplierId: bill.supplierId,
-                    reference: referenceId,
-                    notes: `Xendit payout to ${data.bankCode} - ${data.accountNumber}`
-                }
-            })
-
-            // 9. Try to call Xendit API
+            // 8. Try to call Xendit API FIRST (before creating any payment record)
             let xenditResult: any = null
-            let xenditError: string | null = null
 
             try {
                 const xendit = getXenditClient()
@@ -119,50 +104,45 @@ export async function processXenditPayout(data: XenditPayoutRequest) {
                     data: payoutData,
                     idempotencyKey: generateIdempotencyKey(referenceId)
                 })
-
-                // Update payment with xendit ID
-                await prisma.payment.update({
-                    where: { id: payment.id },
-                    data: {
-                        notes: `Xendit ID: ${xenditResult.id}\nStatus: ${xenditResult.status}\nBank: ${data.bankCode} - ${data.accountNumber}`
-                    }
-                })
-
             } catch (err: any) {
                 console.error('Xendit Payout API Error:', err)
-                xenditError = err.message || 'Xendit API call failed'
-
-                // Log error but don't fail - payment record was created
-                await prisma.payment.update({
-                    where: { id: payment.id },
-                    data: {
-                        notes: `Xendit Error: ${xenditError}\nManual transfer may be required.`
-                    }
-                })
+                // Xendit failed — do NOT create payment record
+                // Revert bill status if we changed it
+                if (bill.status === 'DRAFT' || bill.status === 'DISPUTED') {
+                    await prisma.invoice.update({
+                        where: { id: data.billId },
+                        data: { status: bill.status } // revert to original
+                    })
+                }
+                return {
+                    success: false,
+                    error: `Xendit API gagal: ${err.message || 'Unknown error'}. Tidak ada pembayaran yang dibuat.`
+                }
             }
 
-            // 10. Update invoice if Xendit call succeeded or mark for manual
-            if (xenditResult && xenditResult.status === 'ACCEPTED') {
-                // Xendit accepted - will update via webhook when complete
-                // For now, just mark as processing
-            } else if (!xenditError) {
-                // Xendit returned but not ACCEPTED status
-                // Still mark as pending
-            }
+            // 9. Xendit accepted — NOW create Payment record
+            const payment = await prisma.payment.create({
+                data: {
+                    number: referenceId,
+                    amount: data.amount,
+                    method: 'TRANSFER',
+                    date: new Date(),
+                    invoiceId: data.billId,
+                    supplierId: bill.supplierId,
+                    reference: referenceId,
+                    notes: `Xendit ID: ${xenditResult.id}\nStatus: ${xenditResult.status}\nBank: ${data.bankCode} - ${data.accountNumber}`
+                }
+            })
 
-            // 11. Post GL entry (Debit AP, Credit Bank)
-            // This happens regardless of Xendit status since payment intent is recorded
-
+            // 10. Return success
             return {
                 success: true,
                 paymentId: payment.id,
                 referenceId,
-                xenditStatus: xenditResult?.status || 'PENDING_MANUAL',
+                xenditStatus: xenditResult?.status || 'PENDING',
                 xenditId: xenditResult?.id,
                 fees,
-                message: xenditError
-                    ? `Payment recorded but Xendit call failed: ${xenditError}. Manual transfer may be required.`
-                    : 'Payment initiated successfully'
+                message: 'Payment initiated successfully'
             }
         })
     } catch (error: any) {

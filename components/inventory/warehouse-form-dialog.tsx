@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,6 +40,22 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
     address: warehouse?.address || "",
     capacity: warehouse?.capacity || 10000,
   });
+
+  // Reset form data when dialog opens or warehouse prop changes
+  useEffect(() => {
+    if (open) {
+      if (mode === "edit" && warehouse) {
+        setFormData({
+          name: warehouse.name,
+          code: warehouse.code,
+          address: warehouse.address,
+          capacity: warehouse.capacity || 10000,
+        });
+      } else if (mode === "create") {
+        setFormData({ name: "", code: "", address: "", capacity: 10000 });
+      }
+    }
+  }, [open, warehouse?.id, mode]);
 
   const handleSubmit = async () => {
     setLoading(true);

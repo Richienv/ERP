@@ -112,6 +112,8 @@ export default function CoALedgerPage() {
             invalidateChartAccounts()
             queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
         } finally {
             setSubmitting(false)
         }

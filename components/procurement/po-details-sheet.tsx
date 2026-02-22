@@ -60,6 +60,11 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
+                // Invalidate finance caches — PO approval/status changes affect vendor bills
+                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             } else {
                 toast.error("Action failed")
             }

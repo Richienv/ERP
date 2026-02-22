@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -38,6 +38,18 @@ export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
     address: warehouse.address,
     capacity: warehouse.capacity || 0,
   });
+
+  // Reset form data when dialog opens or warehouse prop changes
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        name: warehouse.name,
+        code: warehouse.code,
+        address: warehouse.address,
+        capacity: warehouse.capacity || 0,
+      });
+    }
+  }, [open, warehouse.id]);
 
   const handleSave = async () => {
     setLoading(true);

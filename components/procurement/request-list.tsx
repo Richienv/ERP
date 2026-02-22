@@ -88,6 +88,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                 setRejectOpen(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
             } else {
                 toast.error("Failed to reject")
@@ -114,6 +115,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
             } else {
                 toast.error((result as any).error || "Failed to approve")
@@ -137,6 +139,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
             } else {
                 toast.error((result as any).error || "Failed to create PO")

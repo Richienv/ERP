@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowUpRight, ArrowDownRight, AlertTriangle, CheckCircle2, DollarSign, Wallet, TrendingUp, Calendar, Sparkles, Send, X, Bot } from "lucide-react"
+import { toast } from "sonner"
 import { useState } from "react"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -178,6 +179,9 @@ export function FinancialCommandCenter() {
 
     return (
         <>
+            <div className="flex items-center gap-2 mb-2">
+                <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* 1. CASH POSITION */}
                 <Card
@@ -344,10 +348,10 @@ export function FinancialCommandCenter() {
                                         className="pr-40 rounded-full border-black/10 bg-white py-6 shadow-sm focus-visible:ring-black focus-visible:ring-offset-0"
                                     />
                                     <div className="absolute right-1.5 top-1.5 flex gap-1">
-                                        <Button className="rounded-full px-4 h-9 bg-white text-black border border-black/10 hover:bg-zinc-50 shadow-sm" variant="ghost">
+                                        <Button className="rounded-full px-4 h-9 bg-white text-black border border-black/10 hover:bg-zinc-50 shadow-sm" variant="ghost" onClick={() => toast.info("Fitur belum tersedia")}>
                                             <Send className="h-4 w-4" />
                                         </Button>
-                                        <Button className="rounded-full px-6 h-9 bg-black text-white hover:bg-zinc-800 shadow-md">
+                                        <Button className="rounded-full px-6 h-9 bg-black text-white hover:bg-zinc-800 shadow-md" onClick={() => setSelectedMetric(null)}>
                                             Selesai
                                         </Button>
                                     </div>

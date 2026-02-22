@@ -1,15 +1,13 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import Link from "next/link"
 import {
     Search,
-    LayoutGrid,
-    List,
     AlertTriangle,
     Package,
     ArrowUpRight,
     ArrowDownRight,
-    Filter,
     Layers
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -116,12 +114,16 @@ export function StockClient({ products, warehouses }: StockClientProps) {
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" className="border-2 border-black font-bold uppercase text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none">
-                            <AlertTriangle className="mr-2 h-3.5 w-3.5 text-amber-500" /> Alerts ({stats.lowStockCount})
-                        </Button>
-                        <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold text-[10px] tracking-wide hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none">
-                            <Package className="mr-2 h-3.5 w-3.5" /> Stock Opname
-                        </Button>
+                        <Link href="/inventory/alerts">
+                            <Button variant="outline" className="border-2 border-black font-bold uppercase text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none">
+                                <AlertTriangle className="mr-2 h-3.5 w-3.5 text-amber-500" /> Alerts ({stats.lowStockCount})
+                            </Button>
+                        </Link>
+                        <Link href="/inventory/audit">
+                            <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold text-[10px] tracking-wide hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none">
+                                <Package className="mr-2 h-3.5 w-3.5" /> Stock Opname
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             </div>
@@ -209,10 +211,6 @@ export function StockClient({ products, warehouses }: StockClientProps) {
                         </button>
                     ))}
                 </div>
-                <div className="ml-auto flex gap-2 border-l-2 border-zinc-100 pl-4">
-                    <Button size="icon" variant="ghost" className="h-9 w-9 border-2 border-zinc-200 hover:border-black hover:bg-zinc-50 rounded-none"><LayoutGrid className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" className="h-9 w-9 bg-black text-white hover:bg-zinc-800 border-2 border-black rounded-none"><List className="h-4 w-4" /></Button>
-                </div>
             </div>
 
             {/* ═══════════════════════════════════════════ */}
@@ -277,9 +275,11 @@ export function StockClient({ products, warehouses }: StockClientProps) {
                                         )}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="outline" size="sm" className="h-7 text-[9px] uppercase font-black border-2 border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] rounded-none">
-                                            History
-                                        </Button>
+                                        <Link href={`/inventory/movements?product=${item.productId}`}>
+                                            <Button variant="outline" size="sm" className="h-7 text-[9px] uppercase font-black border-2 border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] rounded-none">
+                                                History
+                                            </Button>
+                                        </Link>
                                     </TableCell>
                                 </TableRow>
                             ))

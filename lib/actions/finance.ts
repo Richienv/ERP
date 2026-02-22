@@ -965,6 +965,10 @@ export async function createCustomerInvoice(data: {
 // PROCUREMENT INTEGRATION
 // ==========================================
 
+/**
+ * @deprecated Use `recordPendingBillFromPO` from `@/lib/actions/finance-invoices` instead.
+ * That version has duplicate detection, force-create option, and incremented bill numbers.
+ */
 export async function recordPendingBillFromPO(po: any) {
     try {
         console.log("Creating/Updating Finance Bill for PO:", po.number)
@@ -990,10 +994,10 @@ export async function recordPendingBillFromPO(po: any) {
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-                    subtotal: po.netAmount || 0,
+                    subtotal: po.totalAmount || 0,
                     taxAmount: po.taxAmount || 0,
-                    totalAmount: po.totalAmount || 0,
-                    balanceDue: po.totalAmount || 0,
+                    totalAmount: po.netAmount || 0,
+                    balanceDue: po.netAmount || 0,
                     items: {
                         create: po.items.map((item: any) => ({
                             description: item.product?.name || 'Unknown Item',
@@ -1213,29 +1217,13 @@ export async function getPendingPurchaseOrders() {
 }
 
 /**
- * Create a Bill (INV_IN) from a Purchase Order ID
+ * @deprecated Use `createBillFromPOId` from `@/lib/actions/finance-invoices` instead.
+ * That version has duplicate detection, force-create option, and incremented bill numbers.
  */
 export async function createBillFromPOId(poId: string) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            const po = await prisma.purchaseOrder.findUnique({
-                where: { id: poId },
-                include: {
-                    items: {
-                        include: {
-                            product: true
-                        }
-                    }
-                }
-            })
-
-            if (!po) throw new Error("Purchase Order not found")
-            return await recordPendingBillFromPO(po)
-        })
-    } catch (error: any) {
-        console.error("Failed to create bill from PO:", error)
-        return { success: false, error: error.message }
-    }
+    // Delegate to the newer implementation in finance-invoices.ts
+    const { createBillFromPOId: newCreateBillFromPOId } = await import("@/lib/actions/finance-invoices")
+    return newCreateBillFromPOId(poId)
 }
 
 // ==========================================
@@ -2295,6 +2283,7 @@ export interface VendorPayment {
     amount: number
     method: string
     reference?: string
+    notes?: string
     billNumber?: string
 }
 
@@ -2324,6 +2313,7 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
                 amount: Number(p.amount),
                 method: p.method,
                 reference: p.reference || undefined,
+                notes: p.notes || undefined,
                 billNumber: p.invoice?.number
             }))
         })
@@ -2342,6 +2332,7 @@ export async function recordVendorPayment(data: {
     amount: number
     method?: 'CASH' | 'TRANSFER' | 'CHECK'
     reference?: string
+    notes?: string
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -2360,7 +2351,8 @@ export async function recordVendorPayment(data: {
                     amount: data.amount,
                     date: new Date(),
                     method: data.method || 'TRANSFER',
-                    reference: data.reference
+                    reference: data.reference,
+                    notes: data.notes || undefined
                 }
             })
 
@@ -2860,7 +2852,7 @@ export async function getFinanceDashboardData() {
                     if (!dayEntry) continue
 
                     for (const line of entry.lines) {
-                        if (line.account.code.startsWith('1')) {
+                        if (line.account?.code?.startsWith('1')) {
                             dayEntry.incoming += Number(line.debit)
                             dayEntry.outgoing += Number(line.credit)
                         }
@@ -2879,18 +2871,25 @@ export async function getFinanceDashboardData() {
                     orderBy: { date: 'desc' },
                     take: 5,
                     include: {
-                        lines: { take: 1, include: { account: { select: { name: true } } } }
+                        lines: { take: 2, include: { account: { select: { name: true, code: true, type: true } } } }
                     }
                 })
-                recentTransactions = entries.map(e => ({
-                    id: e.id,
-                    title: e.description || 'Jurnal Umum',
-                    subtitle: e.lines[0]?.account?.name || 'N/A',
-                    date: e.date.toISOString(),
-                    direction: 'out' as const,
-                    amount: Number(e.lines[0]?.debit || e.lines[0]?.credit || 0),
-                    href: `/finance/journal`
-                }))
+                recentTransactions = entries.map(e => {
+                    const firstLine = e.lines[0]
+                    const accountCode = firstLine?.account?.code || ''
+                    // Revenue (4xxx) and liability increases = incoming
+                    // Expense (5xxx, 6xxx) and asset decreases = outgoing
+                    const isIncoming = accountCode.startsWith('4') || (accountCode.startsWith('2') && Number(firstLine?.credit || 0) > 0)
+                    return {
+                        id: e.id,
+                        title: e.description || 'Jurnal Umum',
+                        subtitle: firstLine?.account?.name || 'N/A',
+                        date: e.date.toISOString(),
+                        direction: isIncoming ? 'in' as const : 'out' as const,
+                        amount: Math.max(Number(firstLine?.debit || 0), Number(firstLine?.credit || 0)),
+                        href: `/finance/journal`
+                    }
+                })
             })
         } catch (e) {
             console.error("Failed to get recent transactions:", e)
@@ -3067,10 +3066,10 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
         return await withPrismaAuth(async (prisma) => {
             const where: any = {
                 type: 'INV_IN',
-                status: { in: ['DRAFT', 'ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED'] }
+                status: { in: ['DRAFT', 'ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED', 'PAID', 'VOID', 'CANCELLED'] }
             }
 
-            if (query.status) where.status = query.status
+            if (query.status) where.status = { equals: query.status }
             if (query.q) {
                 where.OR = [
                     { number: { contains: query.q, mode: 'insensitive' } },

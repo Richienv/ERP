@@ -8,7 +8,11 @@ export async function POST(req: NextRequest) {
         const callbackToken = req.headers.get('x-callback-token');
         const expectedToken = process.env.XENDIT_WEBHOOK_TOKEN;
 
-        if (expectedToken && callbackToken !== expectedToken) {
+        if (!expectedToken) {
+            console.error('XENDIT_WEBHOOK_TOKEN not configured — rejecting webhook');
+            return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+        }
+        if (callbackToken !== expectedToken) {
             console.error('Invalid Xendit webhook token');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -43,6 +47,13 @@ export async function POST(req: NextRequest) {
             });
 
             if (payment) {
+                // Idempotency: skip if this exact status update was already processed
+                const statusMarker = `[Xendit:${status}:${id}]`
+                if (payment.notes?.includes(statusMarker)) {
+                    console.log(`Duplicate webhook for ${reference_id} status ${status} — skipping`)
+                    return NextResponse.json({ received: true, duplicate: true })
+                }
+
                 // Update based on status
                 switch (status) {
                     case 'SUCCEEDED':
@@ -61,7 +72,7 @@ export async function POST(req: NextRequest) {
                         await prisma.payment.update({
                             where: { id: payment.id },
                             data: {
-                                notes: `${payment.notes || ''}\n[Xendit] Payment completed at ${updated || new Date().toISOString()}`
+                                notes: `${statusMarker} ${payment.notes || ''}\n[Xendit] Payment completed at ${updated || new Date().toISOString()}`
                             }
                         });
 
@@ -81,7 +92,7 @@ export async function POST(req: NextRequest) {
                         await prisma.payment.update({
                             where: { id: payment.id },
                             data: {
-                                notes: `${payment.notes || ''}\n[Xendit] Payment FAILED: ${failure_code || 'Unknown error'}`
+                                notes: `${statusMarker} ${payment.notes || ''}\n[Xendit] Payment FAILED: ${failure_code || 'Unknown error'}`
                             }
                         });
 
@@ -100,7 +111,7 @@ export async function POST(req: NextRequest) {
                         await prisma.payment.update({
                             where: { id: payment.id },
                             data: {
-                                notes: `${payment.notes || ''}\n[Xendit] Payment voided`
+                                notes: `${statusMarker} ${payment.notes || ''}\n[Xendit] Payment voided`
                             }
                         });
 

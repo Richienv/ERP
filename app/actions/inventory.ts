@@ -16,6 +16,10 @@ import { generateBarcode } from "@/lib/inventory-utils"
 import { z } from "zod"
 
 export async function getNextCategoryCode(): Promise<string> {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     const last = await prisma.category.findFirst({
         where: { code: { startsWith: 'CAT-' } },
         orderBy: { code: 'desc' },
@@ -27,6 +31,10 @@ export async function getNextCategoryCode(): Promise<string> {
 }
 
 export async function getProductsNotInCategory(categoryId: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     const products = await prisma.product.findMany({
         where: {
             isActive: true,
@@ -43,6 +51,10 @@ export async function getProductsNotInCategory(categoryId: string) {
 }
 
 export async function assignProductToCategory(productId: string, categoryId: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     try {
         await prisma.product.update({
             where: { id: productId },
@@ -56,6 +68,10 @@ export async function assignProductToCategory(productId: string, categoryId: str
 }
 
 export async function removeProductFromCategory(productId: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     try {
         await prisma.product.update({
             where: { id: productId },
@@ -69,6 +85,10 @@ export async function removeProductFromCategory(productId: string) {
 }
 
 export async function getProductsByCategory(categoryId: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     const products = await prisma.product.findMany({
         where: { categoryId, isActive: true },
         select: {
@@ -95,6 +115,10 @@ export async function getProductsByCategory(categoryId: string) {
 }
 
 export async function updateCategory(id: string, data: { name?: string; code?: string; description?: string }) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     try {
         const updateData: any = {}
         if (data.name !== undefined) updateData.name = data.name.trim()
@@ -114,6 +138,10 @@ export async function updateCategory(id: string, data: { name?: string; code?: s
 }
 
 export async function createCategory(input: CreateCategoryInput) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     try {
         const data = createCategorySchema.parse(input)
         const category = await prisma.category.create({
@@ -135,10 +163,19 @@ export async function createCategory(input: CreateCategoryInput) {
 }
 
 export async function getAllCategories() {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     const categories = await prisma.category.findMany({
         where: { isActive: true },
         include: {
-            children: true,
+            children: {
+                include: {
+                    _count: { select: { products: true } }
+                },
+                where: { isActive: true }
+            },
             _count: {
                 select: { products: true }
             }
@@ -150,6 +187,10 @@ export async function getAllCategories() {
 }
 
 export async function getCategories() {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     return await prisma.category.findMany({
         where: { isActive: true },
         select: { id: true, name: true, code: true },
@@ -160,7 +201,11 @@ export async function getCategories() {
 export async function getWarehouses() {
     const warehouses = await prisma.warehouse.findMany({
         include: {
-            stockLevels: true,
+            stockLevels: {
+                include: {
+                    product: { select: { costPrice: true } }
+                }
+            },
             _count: {
                 select: { stockLevels: true }
             }
@@ -192,7 +237,7 @@ export async function getWarehouses() {
             utilization: utilization,
             manager: managerName,
             status: w.isActive ? 'Active' : 'Inactive',
-            totalValue: 0,
+            totalValue: Math.round(w.stockLevels.reduce((sum, sl) => sum + sl.quantity * Number(sl.product.costPrice), 0)),
             activePOs: 0,
             pendingTasks: 0,
             items: totalItems,
@@ -233,11 +278,44 @@ export async function getInventoryKPIs() {
         if (status === 'CRITICAL') critical++
     }
 
+    // Compute inventory accuracy from real audit data
+    // Audits are recorded as ADJUSTMENT transactions with "Audit" in notes
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
+    const [auditTransactions, todayTransactions] = await Promise.all([
+        prisma.inventoryTransaction.count({
+            where: { type: 'ADJUSTMENT', notes: { contains: 'Audit' } },
+        }).then(async (totalCount) => {
+            if (totalCount === 0) return { totalCount: 0, matchCount: 0 }
+            // MATCH audits = adjustments with quantity 0 (no discrepancy)
+            const matchCount = await prisma.inventoryTransaction.count({
+                where: { type: 'ADJUSTMENT', notes: { contains: 'Audit' }, quantity: 0 },
+            })
+            return { totalCount, matchCount }
+        }),
+        // Count today's inbound and outbound transactions
+        Promise.all([
+            prisma.inventoryTransaction.count({
+                where: { createdAt: { gte: todayStart }, quantity: { gt: 0 } },
+            }),
+            prisma.inventoryTransaction.count({
+                where: { createdAt: { gte: todayStart }, quantity: { lt: 0 } },
+            }),
+        ]),
+    ])
+
+    const inventoryAccuracy = auditTransactions.totalCount > 0
+        ? Math.round((auditTransactions.matchCount / auditTransactions.totalCount) * 100)
+        : 100 // No discrepancies found = perfect accuracy
+
     return {
         totalProducts: products.length,
         lowStock: lowStock + critical, // KPI "low stock" includes both LOW_STOCK and CRITICAL
         totalValue,
-        inventoryAccuracy: 98, // Mock
+        inventoryAccuracy,
+        inboundToday: todayTransactions[0],
+        outboundToday: todayTransactions[1],
     }
 }
 
@@ -551,38 +629,40 @@ export async function getProcurementInsights() {
 }
 
 export async function getProductsForKanban() {
-    return withPrismaAuth(async (prisma) => {
-        const products = await prisma.product.findMany({
-            where: { isActive: true },
-            include: {
-                category: true,
-                stockLevels: true
-            }
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error("Unauthorized")
+
+    const products = await prisma.product.findMany({
+        where: { isActive: true },
+        include: {
+            category: true,
+            stockLevels: true
+        }
+    })
+
+    return products.map(p => {
+        const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+
+        const status = calculateProductStatus({
+            totalStock,
+            minStock: p.minStock,
+            reorderLevel: p.reorderLevel,
+            manualAlert: p.manualAlert,
+            createdAt: p.createdAt
         })
 
-        return products.map(p => {
-            const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
-
-            const status = calculateProductStatus({
-                totalStock,
-                minStock: p.minStock,
-                reorderLevel: p.reorderLevel,
-                manualAlert: p.manualAlert,
-                createdAt: p.createdAt
-            })
-
-            return JSON.parse(JSON.stringify({
-                ...p,
-                costPrice: Number(p.costPrice),
-                sellingPrice: Number(p.sellingPrice),
-                category: p.category,
-                totalStock,
-                currentStock: totalStock,
-                status,
-                image: '/placeholder.png'
-            }))
-        })
-    }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+        return JSON.parse(JSON.stringify({
+            ...p,
+            costPrice: Number(p.costPrice),
+            sellingPrice: Number(p.sellingPrice),
+            category: p.category,
+            totalStock,
+            currentStock: totalStock,
+            status,
+            image: '/placeholder.png'
+        }))
+    })
 }
 
 export async function setProductManualAlert(productId: string, isAlert: boolean) {
@@ -795,6 +875,12 @@ export async function receiveGoodsFromPO(data: {
             const poItem = po.items.find(i => i.productId === data.itemId)
             if (!poItem) throw new Error("Item not found in this PO")
 
+            // 1b. Validate received quantity does not exceed remaining
+            const remainingQty = poItem.quantity - poItem.receivedQty
+            if (data.receivedQty > remainingQty) {
+                throw new Error(`Jumlah melebihi sisa yang belum diterima (${remainingQty})`)
+            }
+
             // 2. Validate/Fetch Warehouse
             let targetWarehouseId = data.warehouseId
 
@@ -827,29 +913,26 @@ export async function receiveGoodsFromPO(data: {
                 }
             })
 
-            // B. Update Stock Level (Upsert)
-            const existingLevel = await prisma.stockLevel.findFirst({
-                where: { productId: data.itemId, warehouseId: targetWarehouseId }
-            })
-
-            if (existingLevel) {
-                await prisma.stockLevel.update({
-                    where: { id: existingLevel.id },
-                    data: {
-                        quantity: { increment: data.receivedQty },
-                        availableQty: { increment: data.receivedQty }
-                    }
-                })
-            } else {
-                await prisma.stockLevel.create({
-                    data: {
+            // B. Update Stock Level (Atomic Upsert — no read-then-write race)
+            await prisma.stockLevel.upsert({
+                where: {
+                    productId_warehouseId_locationId: {
                         productId: data.itemId,
                         warehouseId: targetWarehouseId,
-                        quantity: data.receivedQty,
-                        availableQty: data.receivedQty
+                        locationId: null as unknown as string,
                     }
-                })
-            }
+                },
+                update: {
+                    quantity: { increment: data.receivedQty },
+                    availableQty: { increment: data.receivedQty },
+                },
+                create: {
+                    productId: data.itemId,
+                    warehouseId: targetWarehouseId,
+                    quantity: data.receivedQty,
+                    availableQty: data.receivedQty,
+                },
+            })
 
             // C. Update PO Item
             await prisma.purchaseOrderItem.update({
@@ -865,7 +948,7 @@ export async function receiveGoodsFromPO(data: {
 
             if (updatedPO) {
                 const allReceived = updatedPO.items.every(i => i.receivedQty >= i.quantity)
-                const newStatus = allReceived ? 'RECEIVED' : 'SHIPPED'
+                const newStatus = allReceived ? 'RECEIVED' : 'PARTIAL_RECEIVED'
                 if (updatedPO.status !== newStatus && updatedPO.status !== 'RECEIVED') {
                     await prisma.purchaseOrder.update({
                         where: { id: data.poId },
@@ -1014,12 +1097,18 @@ export async function createManualMovement(data: {
     targetWarehouseId?: string, // Only for TRANSFER
     quantity: number,
     notes?: string,
-    userId: string
+    userId?: string, // Deprecated: ignored, user is resolved from auth context
 }) {
     try {
         if (data.quantity <= 0) throw new Error("Quantity must be positive")
         if (data.type === 'TRANSFER' && !data.targetWarehouseId) throw new Error("Target warehouse required for transfer")
         if (data.type === 'TRANSFER' && data.warehouseId === data.targetWarehouseId) throw new Error("Cannot transfer to same warehouse")
+
+        // Resolve user from auth context instead of trusting client-provided userId
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error("Unauthorized")
+        const authenticatedUserId = user.id
 
         return await withPrismaAuth(async (tx) => {
             // Determine DB Type & Sign
@@ -1059,34 +1148,49 @@ export async function createManualMovement(data: {
                     type: dbType as any,
                     quantity: qtyChange,
                     notes: data.notes,
-                    performedBy: data.userId
+                    performedBy: authenticatedUserId
                 }
             })
 
-            // 2. Update Source Stock Level
-            const sourceLevel = await tx.stockLevel.findFirst({
-                where: { productId: data.productId, warehouseId: data.warehouseId }
-            })
-
-            if (sourceLevel) {
-                await tx.stockLevel.update({
-                    where: { id: sourceLevel.id },
+            // 2. Update Source Stock Level (Atomic — no read-then-write race)
+            if (qtyChange < 0) {
+                // For outbound: use updateMany with a WHERE guard to prevent negative stock
+                const updated = await tx.stockLevel.updateMany({
+                    where: {
+                        productId: data.productId,
+                        warehouseId: data.warehouseId,
+                        locationId: null,
+                        quantity: { gte: Math.abs(qtyChange) },
+                    },
                     data: {
                         quantity: { increment: qtyChange },
-                        availableQty: { increment: qtyChange }
-                    }
+                        availableQty: { increment: qtyChange },
+                    },
                 })
-            } else if (qtyChange > 0) {
-                await tx.stockLevel.create({
-                    data: {
+                if (updated.count === 0) {
+                    throw new Error("Stok tidak mencukupi")
+                }
+            } else {
+                // For inbound: atomic upsert
+                await tx.stockLevel.upsert({
+                    where: {
+                        productId_warehouseId_locationId: {
+                            productId: data.productId,
+                            warehouseId: data.warehouseId,
+                            locationId: null as unknown as string,
+                        }
+                    },
+                    update: {
+                        quantity: { increment: qtyChange },
+                        availableQty: { increment: qtyChange },
+                    },
+                    create: {
                         productId: data.productId,
                         warehouseId: data.warehouseId,
                         quantity: qtyChange,
-                        availableQty: qtyChange
-                    }
+                        availableQty: qtyChange,
+                    },
                 })
-            } else {
-                throw new Error("Cannot deduce from empty stock")
             }
 
             // 3. Handle TRANSFER (Target Side)
@@ -1098,32 +1202,30 @@ export async function createManualMovement(data: {
                         type: 'TRANSFER',
                         quantity: data.quantity,
                         notes: `Transfer from ${data.warehouseId} | ${data.notes || ''}`,
-                        performedBy: data.userId
+                        performedBy: authenticatedUserId
                     }
                 })
 
-                const targetLevel = await tx.stockLevel.findFirst({
-                    where: { productId: data.productId, warehouseId: data.targetWarehouseId }
-                })
-
-                if (targetLevel) {
-                    await tx.stockLevel.update({
-                        where: { id: targetLevel.id },
-                        data: {
-                            quantity: { increment: data.quantity },
-                            availableQty: { increment: data.quantity }
-                        }
-                    })
-                } else {
-                    await tx.stockLevel.create({
-                        data: {
+                // Atomic upsert for target warehouse stock
+                await tx.stockLevel.upsert({
+                    where: {
+                        productId_warehouseId_locationId: {
                             productId: data.productId,
                             warehouseId: data.targetWarehouseId,
-                            quantity: data.quantity,
-                            availableQty: data.quantity
+                            locationId: null as unknown as string,
                         }
-                    })
-                }
+                    },
+                    update: {
+                        quantity: { increment: data.quantity },
+                        availableQty: { increment: data.quantity },
+                    },
+                    create: {
+                        productId: data.productId,
+                        warehouseId: data.targetWarehouseId,
+                        quantity: data.quantity,
+                        availableQty: data.quantity,
+                    },
+                })
             }
 
             return { success: true }
@@ -1180,7 +1282,10 @@ export async function submitSpotAudit(data: {
                 if (existingStock) {
                     await prisma.stockLevel.update({
                         where: { id: existingStock.id },
-                        data: { quantity: actualQty }
+                        data: {
+                            quantity: actualQty,
+                            availableQty: { increment: discrepancy },
+                        }
                     });
                 } else {
                     await prisma.stockLevel.create({
@@ -1188,6 +1293,7 @@ export async function submitSpotAudit(data: {
                             productId,
                             warehouseId,
                             quantity: actualQty,
+                            availableQty: actualQty,
                             locationId: null
                         }
                     });
@@ -1217,50 +1323,52 @@ export async function submitSpotAudit(data: {
 
 export async function getRecentAudits() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const transactions = await prisma.inventoryTransaction.findMany({
-                where: {
-                    referenceId: { startsWith: 'AUDIT-' }
-                },
-                take: 20,
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    product: { include: { category: true } },
-                    warehouse: true
-                }
-            });
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error("Unauthorized")
 
-            return transactions.map(tx => {
-                // Parse notes for System/Actual qty if available
-                // Format: "Spot Audit by {name}. System: {sys}, Actual: {act}."
-                let auditor = 'System';
-                let systemQty = 0;
-                let actualQty = 0;
+        const transactions = await prisma.inventoryTransaction.findMany({
+            where: {
+                referenceId: { startsWith: 'AUDIT-' }
+            },
+            take: 20,
+            orderBy: { createdAt: 'desc' },
+            include: {
+                product: { include: { category: true } },
+                warehouse: true
+            }
+        });
 
-                if (tx.notes) {
-                    const auditorMatch = tx.notes.match(/Spot Audit by (.*?)\./);
-                    if (auditorMatch) auditor = auditorMatch[1];
+        return transactions.map(tx => {
+            // Parse notes for System/Actual qty if available
+            // Format: "Spot Audit by {name}. System: {sys}, Actual: {act}."
+            let auditor = 'System';
+            let systemQty = 0;
+            let actualQty = 0;
 
-                    const sysMatch = tx.notes.match(/System:\s*(\d+)/);
-                    if (sysMatch) systemQty = parseInt(sysMatch[1]);
+            if (tx.notes) {
+                const auditorMatch = tx.notes.match(/Spot Audit by (.*?)\./);
+                if (auditorMatch) auditor = auditorMatch[1];
 
-                    const actMatch = tx.notes.match(/Actual:\s*(\d+)/);
-                    if (actMatch) actualQty = parseInt(actMatch[1]);
-                }
+                const sysMatch = tx.notes.match(/System:\s*(\d+)/);
+                if (sysMatch) systemQty = parseInt(sysMatch[1]);
 
-                return {
-                    id: tx.id,
-                    productName: tx.product.name,
-                    warehouse: tx.warehouse.name,
-                    category: tx.product.category?.name || 'Uncategorized',
-                    systemQty,
-                    actualQty,
-                    auditor,
-                    date: tx.createdAt,
-                    status: (actualQty === systemQty) ? 'MATCH' : 'MISMATCH'
-                };
-            });
-        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+                const actMatch = tx.notes.match(/Actual:\s*(\d+)/);
+                if (actMatch) actualQty = parseInt(actMatch[1]);
+            }
+
+            return {
+                id: tx.id,
+                productName: tx.product.name,
+                warehouse: tx.warehouse.name,
+                category: tx.product.category?.name || 'Uncategorized',
+                systemQty,
+                actualQty,
+                auditor,
+                date: tx.createdAt,
+                status: (actualQty === systemQty) ? 'MATCH' : 'DISCREPANCY'
+            };
+        });
 
     } catch (error) {
         console.error("Error fetching audits:", error);
@@ -1494,50 +1602,52 @@ export async function deleteProduct(productId: string) {
 
 export async function getWarehouseStaffing(warehouseId: string) {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const warehouse = await prisma.warehouse.findUnique({
-                where: { id: warehouseId },
-                select: {
-                    id: true,
-                    managerId: true,
-                }
-            })
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error("Unauthorized")
 
-            if (!warehouse) {
-                return {
-                    currentManager: null,
-                    managerCandidates: [],
-                    activeStaff: []
-                }
+        const warehouse = await prisma.warehouse.findUnique({
+            where: { id: warehouseId },
+            select: {
+                id: true,
+                managerId: true,
             }
+        })
 
-            // Get all users as potential manager candidates
-            const users = await prisma.user.findMany({
-                where: { isActive: true },
-                select: { id: true, name: true },
-                take: 50
-            })
-
-            const candidates = users.map(u => ({
-                id: u.id,
-                name: u.name || 'Unnamed',
-                position: 'Staff'
-            }))
-
-            const currentManager = warehouse.managerId
-                ? candidates.find(c => c.id === warehouse.managerId) || null
-                : null
-
+        if (!warehouse) {
             return {
-                currentManager,
-                managerCandidates: candidates,
-                activeStaff: candidates.slice(0, 10).map(c => ({
-                    ...c,
-                    department: 'Gudang',
-                    status: 'active' as const
-                }))
+                currentManager: null,
+                managerCandidates: [],
+                activeStaff: []
             }
-        }, { maxWait: 5000, timeout: 8000, maxRetries: 0 })
+        }
+
+        // Get all users as potential manager candidates
+        const users = await prisma.user.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true },
+            take: 50
+        })
+
+        const candidates = users.map(u => ({
+            id: u.id,
+            name: u.name || 'Unnamed',
+            position: 'Staff'
+        }))
+
+        const currentManager = warehouse.managerId
+            ? candidates.find(c => c.id === warehouse.managerId) || null
+            : null
+
+        return {
+            currentManager,
+            managerCandidates: candidates,
+            activeStaff: candidates.slice(0, 10).map(c => ({
+                ...c,
+                department: 'Gudang',
+                status: 'active' as const
+            }))
+        }
     } catch (error) {
         console.error("Failed to get warehouse staffing:", error)
         return {

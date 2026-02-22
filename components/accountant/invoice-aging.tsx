@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Mail, Phone, Calendar, ArrowRight, AlertCircle, MessageSquare } from "lucide-react"
+import { toast } from "sonner"
 
 export function InvoiceAging() {
     return (
@@ -18,6 +19,9 @@ export function InvoiceAging() {
                 </div>
             </CardHeader>
             <CardContent className="flex-1 p-6 space-y-6">
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
+                </div>
                 {/* Invoice Table Mock */}
                 <div className="rounded-lg border overflow-hidden">
                     <table className="w-full text-sm">
@@ -62,10 +66,10 @@ export function InvoiceAging() {
                         Pelanggan biasanya membayar setelah peringatan ke-3 + telepon. Tingkat keberhasilan: <span className="font-bold text-emerald-600">78%</span>.
                     </p>
                     <div className="flex flex-wrap gap-2 pt-1">
-                        <Button variant="outline" size="sm" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs hover:bg-indigo-50">
+                        <Button variant="outline" size="sm" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs hover:bg-indigo-50" onClick={() => toast.info("Fitur belum tersedia")}>
                             🔥 MENDESAK: Somasi Hukum
                         </Button>
-                        <Button variant="outline" size="sm" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs hover:bg-indigo-50">
+                        <Button variant="outline" size="sm" className="bg-white dark:bg-zinc-900 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs hover:bg-indigo-50" onClick={() => toast.info("Fitur belum tersedia")}>
                             💰 Tawarkan Diskon 5%
                         </Button>
                     </div>
@@ -91,11 +95,11 @@ export function InvoiceAging() {
                         </div>
 
                         <div className="grid grid-cols-2 gap-3 pt-2">
-                            <Button variant="outline" className="w-full">
+                            <Button variant="outline" className="w-full" onClick={() => toast.info("Fitur belum tersedia")}>
                                 <Calendar className="h-4 w-4 mr-2" />
                                 Jadwalkan
                             </Button>
-                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
+                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white" onClick={() => toast.info("Fitur belum tersedia")}>
                                 <Mail className="h-4 w-4 mr-2" />
                                 Kirim Sekarang
                             </Button>

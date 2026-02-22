@@ -48,6 +48,9 @@ import { StockStatusBadge, CurrencyDisplay } from "@/components/inventory"
 import { formatNumber, getStockStatus } from "@/lib/inventory-utils"
 import { type ProductWithRelations } from "@/lib/types"
 import { ProductQuickView } from "@/components/inventory/product-quick-view"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
+import { toast } from "sonner"
 
 // Add current stock to products (would come from stock levels in real app)
 // Also override Decimal types to number for client usage
@@ -272,7 +275,7 @@ export const columns: ColumnDef<ProductWithStock>[] = [
   },
 ]
 
-function createActionsColumn(onQuickView: (id: string) => void): ColumnDef<ProductWithStock> {
+function createActionsColumn(onQuickView: (id: string) => void, onDelete: (id: string) => void): ColumnDef<ProductWithStock> {
   return {
     id: "actions",
     header: "Aksi",
@@ -294,7 +297,7 @@ function createActionsColumn(onQuickView: (id: string) => void): ColumnDef<Produ
               Lihat Detail & Edit
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600" onClick={() => onQuickView(product.id)}>
+            <DropdownMenuItem className="text-red-600" onClick={() => onDelete(product.id)}>
               <Trash2 className="mr-2 h-4 w-4" />
               Hapus
             </DropdownMenuItem>
@@ -319,14 +322,34 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
   const [quickViewId, setQuickViewId] = React.useState<string | null>(null)
   const [quickViewOpen, setQuickViewOpen] = React.useState(false)
 
+  const queryClient = useQueryClient()
+
   const handleQuickView = React.useCallback((id: string) => {
     setQuickViewId(id)
     setQuickViewOpen(true)
   }, [])
 
+  const handleDelete = React.useCallback(async (id: string) => {
+    const confirmed = window.confirm("Hapus produk ini? Tindakan ini tidak dapat dibatalkan.")
+    if (!confirmed) return
+
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" })
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null)
+        throw new Error(errorData?.error || "Gagal menghapus produk")
+      }
+      toast.success("Produk berhasil dihapus")
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal menghapus produk"
+      toast.error(message)
+    }
+  }, [queryClient])
+
   const allColumns = React.useMemo(
-    () => [...columns, createActionsColumn(handleQuickView)],
-    [handleQuickView]
+    () => [...columns, createActionsColumn(handleQuickView, handleDelete)],
+    [handleQuickView, handleDelete]
   )
 
   const table = useReactTable({

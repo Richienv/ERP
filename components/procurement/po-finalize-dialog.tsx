@@ -83,9 +83,9 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
 
     if (!isOpen) return null
 
-    const subtotal = poData?.subtotal || poData?.items?.reduce((acc: number, item: any) => acc + item.totalPrice, 0) || 0
-    const tax = poData?.taxAmount || (subtotal * 0.11)
-    const total = poData?.netAmount || (subtotal + tax)
+    const subtotal = poData?.subtotal ?? poData?.items?.reduce((acc: number, item: any) => acc + item.totalPrice, 0) ?? 0
+    const tax = poData?.taxAmount ?? Math.round(subtotal * 0.11)
+    const total = poData?.netAmount ?? (subtotal + tax)
 
     return (
         <Dialog open={isOpen} onOpenChange={onClose}>

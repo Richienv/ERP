@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip, Cell } from "recharts"
 
 const SPEND_BY_CATEGORY = [
@@ -23,6 +24,10 @@ const formatCompactCurrency = (value: number) => {
 
 export function SpendAnalyticsWidget() {
     return (
+        <div className="relative">
+            <Badge className="absolute -top-2 -right-2 z-10 bg-amber-100 text-amber-800 border border-amber-300 text-[8px] font-black uppercase tracking-widest rounded-none px-1.5 py-0.5">
+                Data Demo
+            </Badge>
         <Card className="col-span-1 md:col-span-3 lg:col-span-3 h-full">
             <CardHeader>
                 <CardTitle>Spend by Category</CardTitle>
@@ -52,5 +57,6 @@ export function SpendAnalyticsWidget() {
                 </div>
             </CardContent>
         </Card>
+        </div>
     )
 }

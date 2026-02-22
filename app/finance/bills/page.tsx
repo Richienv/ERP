@@ -73,6 +73,7 @@ export default function APBillsStackPage() {
     const [activeBill, setActiveBill] = useState<VendorBill | null>(null)
     const [stamped, setStamped] = useState(false)
     const [processing, setProcessing] = useState(false)
+    const [paymentPendingBillId, setPaymentPendingBillId] = useState<string | null>(null)
 
     const [isDetailOpen, setIsDetailOpen] = useState(false)
     const [isPayOpen, setIsPayOpen] = useState(false)
@@ -89,9 +90,9 @@ export default function APBillsStackPage() {
     useEffect(() => {
         if (activeBill && activeBill.vendor) {
             setPaymentForm({
-                bankCode: activeBill.vendor.bankName || "",
+                bankCode: activeBill.vendor.bankName?.toUpperCase().replace(/\s+/g, '_').replace(/^BANK_/, '') || "",
                 accountNumber: activeBill.vendor.bankAccountNumber || "",
-                accountHolderName: activeBill.vendor.bankAccountName || activeBill.vendor.name || "",
+                accountHolderName: activeBill.vendor.bankAccountName || "",
                 description: `Payment for ${activeBill.number}`
             })
         }
@@ -163,10 +164,15 @@ export default function APBillsStackPage() {
 
     const handlePaySubmit = async () => {
         if (!activeBill) return
+        if (paymentPendingBillId) {
+            toast.error("Pembayaran lain sedang diproses. Harap tunggu.")
+            return
+        }
         if (!paymentForm.bankCode) { toast.error("Please select a bank"); return }
         if (!paymentForm.accountNumber) { toast.error("Please enter account number"); return }
         if (!paymentForm.accountHolderName) { toast.error("Please enter account holder name"); return }
 
+        setPaymentPendingBillId(activeBill.id)
         setProcessing(true)
         try {
             const result = await processXenditPayout({
@@ -189,6 +195,7 @@ export default function APBillsStackPage() {
             toast.error(error.message || "An error occurred")
         } finally {
             setProcessing(false)
+            setPaymentPendingBillId(null)
         }
     }
 
@@ -248,7 +255,7 @@ export default function APBillsStackPage() {
                             </p>
                         </div>
                     </div>
-                    <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4">
+                    <Button onClick={() => toast.info("Fitur scan bill belum tersedia")} className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4">
                         <Plus className="mr-2 h-3.5 w-3.5" /> Scan Bill
                     </Button>
                 </div>
@@ -392,7 +399,8 @@ export default function APBillsStackPage() {
                                 {bill.status !== "PAID" && bill.balanceDue > 0 && (
                                     <button
                                         onClick={() => { setActiveBill(bill); setStamped(false); setIsPayOpen(true) }}
-                                        className="px-2 py-1.5 bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-colors flex items-center gap-1"
+                                        disabled={!!paymentPendingBillId}
+                                        className={`px-2 py-1.5 text-white text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 ${paymentPendingBillId ? 'bg-zinc-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
                                     >
                                         <CreditCard className="h-3 w-3" /> Bayar
                                     </button>
@@ -601,7 +609,7 @@ export default function APBillsStackPage() {
                                 <div className="space-y-2">
                                     <Label>No. Rekening</Label>
                                     <Input
-                                        placeholder="1234567890"
+                                        placeholder="Masukkan nomor rekening"
                                         value={paymentForm.accountNumber}
                                         onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
                                         className="font-mono"
@@ -652,7 +660,8 @@ export default function APBillsStackPage() {
 
                         <div className="bg-zinc-50 p-3 text-sm border border-zinc-200">
                             <div className="flex justify-between">
-                                <span className="text-zinc-400">Biaya Transfer</span>
+                                {/* Placeholder fee — actual Xendit fee depends on channel & amount */}
+                                <span className="text-zinc-400">Biaya Transfer (estimasi)</span>
                                 <span className="font-medium">Rp 2.775</span>
                             </div>
                             <div className="flex justify-between mt-1">
@@ -668,7 +677,7 @@ export default function APBillsStackPage() {
                         <Button variant="outline" onClick={() => setIsPayOpen(false)} disabled={processing}>
                             Batal
                         </Button>
-                        <Button onClick={handlePaySubmit} disabled={processing} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                        <Button onClick={handlePaySubmit} disabled={processing || !!paymentPendingBillId} className="bg-emerald-600 hover:bg-emerald-700 text-white">
                             {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Konfirmasi Pembayaran
                         </Button>

@@ -564,6 +564,8 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
             invalidateCategories()
             queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            // Close dialog so list re-renders with fresh data from invalidated cache
+            onOpenChange(false)
         } else {
             toast.error(result.error || "Gagal memperbarui kategori")
         }

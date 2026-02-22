@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -39,6 +39,19 @@ const PAYMENT_TERM_OPTIONS = [
     { value: "COD", label: "COD" },
 ] as const
 
+const BANK_OPTIONS = [
+    { value: "BCA", label: "Bank Central Asia (BCA)" },
+    { value: "MANDIRI", label: "Bank Mandiri" },
+    { value: "BNI", label: "Bank Negara Indonesia (BNI)" },
+    { value: "BRI", label: "Bank Rakyat Indonesia (BRI)" },
+    { value: "CIMB", label: "CIMB Niaga" },
+    { value: "BSI", label: "Bank Syariah Indonesia (BSI)" },
+    { value: "BTN", label: "Bank Tabungan Negara (BTN)" },
+    { value: "DANAMON", label: "Bank Danamon" },
+    { value: "PERMATA", label: "Bank Permata" },
+    { value: "MAYBANK", label: "Maybank Indonesia" },
+] as const
+
 const CONTACT_TITLE_OPTIONS = ["Bpk", "Ibu", "Dr", "Ir"] as const
 
 const formSchema = z.object({
@@ -54,6 +67,9 @@ const formSchema = z.object({
     officePhone: z.string().optional(),
     paymentTerm: z.string().optional(),
     categoryIds: z.array(z.string()).optional(),
+    bankName: z.string().optional(),
+    bankAccountNumber: z.string().optional(),
+    bankAccountName: z.string().optional(),
 })
 
 interface EditVendorDialogProps {
@@ -70,6 +86,9 @@ interface EditVendorDialogProps {
         address: string | null
         address2: string | null
         paymentTerm: string | null
+        bankName: string | null
+        bankAccountNumber: string | null
+        bankAccountName: string | null
         categories: { id: string; code: string; name: string }[]
     }
     open: boolean
@@ -122,8 +141,32 @@ export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialo
             officePhone: vendor.officePhone || "",
             paymentTerm: vendor.paymentTerm || "CASH",
             categoryIds: vendor.categories.map(c => c.id),
+            bankName: vendor.bankName || "",
+            bankAccountNumber: vendor.bankAccountNumber || "",
+            bankAccountName: vendor.bankAccountName || "",
         },
     })
+
+    // Reset form when vendor prop changes (fixes stale data bug)
+    useEffect(() => {
+        form.reset({
+            code: vendor.code,
+            name: vendor.name,
+            contactTitle: vendor.contactTitle || "",
+            contactName: vendor.contactName || "",
+            email: vendor.email || "",
+            phone: vendor.phone || "",
+            picPhone: vendor.picPhone || "",
+            address: vendor.address || "",
+            address2: vendor.address2 || "",
+            officePhone: vendor.officePhone || "",
+            paymentTerm: vendor.paymentTerm || "CASH",
+            categoryIds: vendor.categories.map(c => c.id),
+            bankName: vendor.bankName || "",
+            bankAccountNumber: vendor.bankAccountNumber || "",
+            bankAccountName: vendor.bankAccountName || "",
+        })
+    }, [vendor.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
     const { isSubmitting } = form.formState
 
@@ -423,6 +466,62 @@ export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialo
                                             </FormItem>
                                         )}
                                     />
+                                </div>
+                            </div>
+
+                            {/* Info Bank */}
+                            <div className={NB.section}>
+                                <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                    <Building2 className="h-4 w-4" />
+                                    <span className={NB.sectionTitle}>Info Bank (Opsional)</span>
+                                </div>
+                                <div className={NB.sectionBody}>
+                                    <FormField
+                                        control={form.control}
+                                        name="bankName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <label className={NB.label}>Nama Bank</label>
+                                                <FormControl>
+                                                    <select {...field} className={NB.select}>
+                                                        <option value="">-- Pilih Bank --</option>
+                                                        {BANK_OPTIONS.map(opt => (
+                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </FormControl>
+                                                <FormMessage className={NB.error} />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <FormField
+                                            control={form.control}
+                                            name="bankAccountNumber"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <label className={NB.label}>No. Rekening</label>
+                                                    <FormControl>
+                                                        <Input placeholder="1234567890" {...field} className={NB.inputMono} />
+                                                    </FormControl>
+                                                    <FormMessage className={NB.error} />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="bankAccountName"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <label className={NB.label}>Nama Pemilik Rekening</label>
+                                                    <FormControl>
+                                                        <Input placeholder="PT Contoh Abadi" {...field} className={NB.input} />
+                                                    </FormControl>
+                                                    <FormMessage className={NB.error} />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 

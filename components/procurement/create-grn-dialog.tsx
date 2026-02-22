@@ -161,6 +161,11 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
                 queryClient.invalidateQueries({ queryKey: queryKeys.receiving.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                // GRN changes inventory — invalidate all inventory-related caches
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
             } else {
                 toast.error(result.error || "Gagal membuat Surat Jalan Masuk")
             }

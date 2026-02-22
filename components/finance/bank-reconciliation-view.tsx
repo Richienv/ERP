@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -106,6 +108,7 @@ export function BankReconciliationView({
     onClose,
     onLoadDetail,
 }: BankReconciliationViewProps) {
+    const queryClient = useQueryClient()
     const [createOpen, setCreateOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [selectedRec, setSelectedRec] = useState<ReconciliationDetail | null>(null)
@@ -138,6 +141,7 @@ export function BankReconciliationView({
         if (result.success) {
             toast.success("Rekonsiliasi berhasil dibuat")
             setCreateOpen(false)
+            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
         } else {
             toast.error(result.error || "Gagal membuat rekonsiliasi")
         }
@@ -168,6 +172,7 @@ export function BankReconciliationView({
         if (result.success) {
             toast.success(`${result.importedCount} baris berhasil diimpor`)
             setImportText("")
+            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
             // Reload detail
             const detail = await onLoadDetail(selectedRec.id)
             if (detail) setSelectedRec(detail)
@@ -183,6 +188,7 @@ export function BankReconciliationView({
         setLoading(false)
         if (result.success) {
             toast.success(`${result.matchedCount} item berhasil dicocokkan otomatis`)
+            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
             const detail = await onLoadDetail(selectedRec.id)
             if (detail) setSelectedRec(detail)
         } else {
@@ -198,6 +204,7 @@ export function BankReconciliationView({
         if (result.success) {
             toast.success("Rekonsiliasi ditutup")
             setSelectedRec(null)
+            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
         } else {
             toast.error(result.error || "Gagal menutup")
         }
@@ -436,6 +443,7 @@ function ReconciliationRow({
     onMatch: (itemId: string, transactionId: string) => Promise<{ success: boolean; error?: string }>
     onUnmatch: (itemId: string) => Promise<{ success: boolean; error?: string }>
 }) {
+    const queryClient = useQueryClient()
     const [matchInput, setMatchInput] = useState("")
     const [loading, setLoading] = useState(false)
 
@@ -449,6 +457,7 @@ function ReconciliationRow({
         if (result.success) {
             toast.success("Item berhasil dicocokkan")
             setMatchInput("")
+            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
         } else {
             toast.error(result.error || "Gagal")
         }
@@ -460,6 +469,7 @@ function ReconciliationRow({
         setLoading(false)
         if (result.success) {
             toast.success("Pencocokan dibatalkan")
+            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
         }
     }
 

@@ -1,8 +1,16 @@
 'use server'
 
-import { withPrismaAuth } from "@/lib/db"
+import { prisma, withPrismaAuth } from "@/lib/db"
+import { createClient } from "@/lib/supabase/server"
 import { supabase } from "@/lib/supabase"
 import { ProcurementStatus, PaymentTerm } from "@prisma/client"
+
+async function requireAuth() {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error("Unauthorized")
+    return user
+}
 
 // ==========================================
 // GET ALL VENDORS
@@ -12,8 +20,10 @@ import { ProcurementStatus, PaymentTerm } from "@prisma/client"
 // ==========================================
 export async function getVendors() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const vendors = await prisma.supplier.findMany({
+        await requireAuth()
+
+        const [vendors, activePOCounts] = await Promise.all([
+            prisma.supplier.findMany({
                 orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
                 include: {
                     _count: {
@@ -21,30 +31,42 @@ export async function getVendors() {
                     },
                     categories: true
                 }
+            }),
+            prisma.purchaseOrder.groupBy({
+                by: ['supplierId'],
+                where: {
+                    status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] }
+                },
+                _count: { id: true }
             })
+        ])
 
-            return vendors.map(v => ({
-                id: v.id,
-                code: v.code,
-                name: v.name,
-                contactName: v.contactName,
-                contactTitle: v.contactTitle,
-                email: v.email,
-                phone: v.phone,
-                picPhone: v.picPhone,
-                officePhone: v.officePhone,
-                address: v.address,
-                address2: v.address2,
-                paymentTerm: v.paymentTerm,
-                rating: Number(v.rating) || 0,
-                onTimeRate: Number(v.onTimeRate) || 0,
-                isActive: v.isActive,
-                totalOrders: v._count.purchaseOrders,
-                activeOrders: 0, // Simplified for list view
-                createdAt: v.createdAt,
-                categories: v.categories.map(c => ({ id: c.id, code: c.code, name: c.name }))
-            }))
-        })
+        const activeOrderMap = new Map(activePOCounts.map(c => [c.supplierId, c._count.id]))
+
+        return vendors.map(v => ({
+            id: v.id,
+            code: v.code,
+            name: v.name,
+            contactName: v.contactName,
+            contactTitle: v.contactTitle,
+            email: v.email,
+            phone: v.phone,
+            picPhone: v.picPhone,
+            officePhone: v.officePhone,
+            address: v.address,
+            address2: v.address2,
+            paymentTerm: v.paymentTerm,
+            bankName: v.bankName,
+            bankAccountNumber: v.bankAccountNumber,
+            bankAccountName: v.bankAccountName,
+            rating: Number(v.rating) || 0,
+            onTimeRate: Number(v.onTimeRate) || 0,
+            isActive: v.isActive,
+            totalOrders: v._count.purchaseOrders,
+            activeOrders: activeOrderMap.get(v.id) || 0,
+            createdAt: v.createdAt,
+            categories: v.categories.map(c => ({ id: c.id, code: c.code, name: c.name }))
+        }))
     } catch (error) {
         console.error("Error fetching vendors:", error)
         return []
@@ -67,6 +89,9 @@ export async function createVendor(data: {
     address2?: string
     paymentTerm?: string
     categoryIds?: string[]
+    bankName?: string
+    bankAccountNumber?: string
+    bankAccountName?: string
 }) {
     try {
         // Validate required fields
@@ -98,6 +123,9 @@ export async function createVendor(data: {
                     address: data.address || null,
                     address2: data.address2 || null,
                     paymentTerm: (data.paymentTerm as PaymentTerm) || "CASH",
+                    bankName: data.bankName || null,
+                    bankAccountNumber: data.bankAccountNumber || null,
+                    bankAccountName: data.bankAccountName || null,
                     rating: 0,
                     onTimeRate: 0,
                     isActive: true,
@@ -133,6 +161,9 @@ export async function updateVendor(vendorId: string, data: {
     address2?: string
     paymentTerm?: string
     categoryIds?: string[]
+    bankName?: string
+    bankAccountNumber?: string
+    bankAccountName?: string
 }) {
     try {
         // Validate required fields
@@ -175,6 +206,9 @@ export async function updateVendor(vendorId: string, data: {
                     address: data.address || null,
                     address2: data.address2 || null,
                     paymentTerm: (data.paymentTerm as PaymentTerm) || "CASH",
+                    bankName: data.bankName || null,
+                    bankAccountNumber: data.bankAccountNumber || null,
+                    bankAccountName: data.bankAccountName || null,
                     categories: {
                         set: (data.categoryIds || []).map(id => ({ id }))
                     }
@@ -197,24 +231,24 @@ export async function updateVendor(vendorId: string, data: {
 // ==========================================
 export async function getVendorHistory(vendorId: string) {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const history = await prisma.purchaseOrder.findMany({
-                where: { supplierId: vendorId },
-                include: {
-                    items: true
-                },
-                orderBy: { orderDate: 'desc' }
-            })
+        await requireAuth()
 
-            return history.map(po => ({
-                id: po.id,
-                number: po.number,
-                date: po.orderDate,
-                status: po.status,
-                totalAmount: Number(po.totalAmount),
-                itemCount: po.items.length
-            }))
+        const history = await prisma.purchaseOrder.findMany({
+            where: { supplierId: vendorId },
+            include: {
+                items: true
+            },
+            orderBy: { orderDate: 'desc' }
         })
+
+        return history.map(po => ({
+            id: po.id,
+            number: po.number,
+            date: po.orderDate,
+            status: po.status,
+            totalAmount: Number(po.totalAmount),
+            itemCount: po.items.length
+        }))
     } catch (error) {
         console.error("Error fetching vendor history:", error)
         return []
@@ -226,12 +260,12 @@ export async function getVendorHistory(vendorId: string) {
 // ==========================================
 export async function getSupplierCategories() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            return prisma.supplierCategory.findMany({
-                where: { isActive: true },
-                orderBy: { name: 'asc' },
-                select: { id: true, code: true, name: true },
-            })
+        await requireAuth()
+
+        return prisma.supplierCategory.findMany({
+            where: { isActive: true },
+            orderBy: { name: 'asc' },
+            select: { id: true, code: true, name: true },
         })
     } catch (error) {
         console.error("Error fetching supplier categories:", error)
@@ -273,27 +307,27 @@ export async function checkDuplicateVendor(name: string) {
     try {
         if (!name || name.trim().length < 2) return { duplicates: [] }
 
-        return await withPrismaAuth(async (prisma) => {
-            const vendors = await prisma.supplier.findMany({
-                where: { isActive: true },
-                select: { id: true, code: true, name: true },
-            })
+        await requireAuth()
 
-            const normalizedInput = name.trim().toLowerCase()
-
-            const matches = vendors.filter(v => {
-                const normalizedName = v.name.toLowerCase()
-                // Exact match (case-insensitive)
-                if (normalizedName === normalizedInput) return true
-                // Contains match
-                if (normalizedName.includes(normalizedInput) || normalizedInput.includes(normalizedName)) return true
-                // Simple Levenshtein distance <= 2
-                if (levenshtein(normalizedName, normalizedInput) <= 2) return true
-                return false
-            })
-
-            return { duplicates: matches }
+        const vendors = await prisma.supplier.findMany({
+            where: { isActive: true },
+            select: { id: true, code: true, name: true },
         })
+
+        const normalizedInput = name.trim().toLowerCase()
+
+        const matches = vendors.filter(v => {
+            const normalizedName = v.name.toLowerCase()
+            // Exact match (case-insensitive)
+            if (normalizedName === normalizedInput) return true
+            // Contains match
+            if (normalizedName.includes(normalizedInput) || normalizedInput.includes(normalizedName)) return true
+            // Simple Levenshtein distance <= 2
+            if (levenshtein(normalizedName, normalizedInput) <= 2) return true
+            return false
+        })
+
+        return { duplicates: matches }
     } catch (error) {
         console.error("Error checking duplicate vendor:", error)
         return { duplicates: [] }

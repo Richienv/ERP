@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, XCircle, AlertCircle, ArrowRight } from "lucide-react"
+import { toast } from "sonner"
 
 export function BankReconciliation() {
     return (
@@ -16,6 +17,9 @@ export function BankReconciliation() {
                 <CardDescription>Pencocokan transaksi otomatis dengan AI</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-6">
+                <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5">Data Demo</span>
+                </div>
                 {/* Progress Stats */}
                 <div className="space-y-2">
                     <div className="flex justify-between text-sm">
@@ -61,11 +65,11 @@ export function BankReconciliation() {
                     </div>
 
                     <div className="p-3 border-t bg-white dark:bg-black flex gap-2">
-                        <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-9 text-xs" size="sm">
+                        <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-9 text-xs" size="sm" onClick={() => toast.info("Fitur belum tersedia")}>
                             <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                             Terima & Sesuaikan
                         </Button>
-                        <Button variant="outline" className="flex-1 h-9 text-xs hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" size="sm">
+                        <Button variant="outline" className="flex-1 h-9 text-xs hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20" size="sm" onClick={() => toast.info("Fitur belum tersedia")}>
                             <XCircle className="mr-1.5 h-3.5 w-3.5" />
                             Tolak
                         </Button>

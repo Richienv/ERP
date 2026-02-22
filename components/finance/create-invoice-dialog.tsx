@@ -27,9 +27,11 @@ import {
     createCustomerInvoice,
     getPendingSalesOrders,
     getPendingPurchaseOrders,
+} from "@/lib/actions/finance"
+import {
     createInvoiceFromSalesOrder,
     createBillFromPOId,
-} from "@/lib/actions/finance"
+} from "@/lib/actions/finance-invoices"
 import { NB } from "@/lib/dialog-styles"
 
 interface CreateInvoiceDialogProps {

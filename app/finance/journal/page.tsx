@@ -84,6 +84,8 @@ export default function GeneralLedgerPage() {
                 queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal posting entry") || "Gagal posting entry")
             }

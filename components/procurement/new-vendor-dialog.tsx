@@ -40,6 +40,19 @@ const PAYMENT_TERM_OPTIONS = [
     { value: "COD", label: "COD" },
 ] as const
 
+const BANK_OPTIONS = [
+    { value: "BCA", label: "Bank Central Asia (BCA)" },
+    { value: "MANDIRI", label: "Bank Mandiri" },
+    { value: "BNI", label: "Bank Negara Indonesia (BNI)" },
+    { value: "BRI", label: "Bank Rakyat Indonesia (BRI)" },
+    { value: "CIMB", label: "CIMB Niaga" },
+    { value: "BSI", label: "Bank Syariah Indonesia (BSI)" },
+    { value: "BTN", label: "Bank Tabungan Negara (BTN)" },
+    { value: "DANAMON", label: "Bank Danamon" },
+    { value: "PERMATA", label: "Bank Permata" },
+    { value: "MAYBANK", label: "Maybank Indonesia" },
+] as const
+
 const CONTACT_TITLE_OPTIONS = ["Bpk", "Ibu", "Dr", "Ir"] as const
 
 const formSchema = z.object({
@@ -55,6 +68,9 @@ const formSchema = z.object({
     officePhone: z.string().optional(),
     paymentTerm: z.string().optional(),
     categoryIds: z.array(z.string()).optional(),
+    bankName: z.string().optional(),
+    bankAccountNumber: z.string().optional(),
+    bankAccountName: z.string().optional(),
 })
 
 export function NewVendorDialog() {
@@ -105,6 +121,9 @@ export function NewVendorDialog() {
             officePhone: "",
             paymentTerm: "CASH",
             categoryIds: [],
+            bankName: "",
+            bankAccountNumber: "",
+            bankAccountName: "",
         },
     })
 
@@ -435,6 +454,62 @@ export function NewVendorDialog() {
                                             </FormItem>
                                         )}
                                     />
+                                </div>
+                            </div>
+
+                            {/* Info Bank */}
+                            <div className={NB.section}>
+                                <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
+                                    <Building2 className="h-4 w-4" />
+                                    <span className={NB.sectionTitle}>Info Bank (Opsional)</span>
+                                </div>
+                                <div className={NB.sectionBody}>
+                                    <FormField
+                                        control={form.control}
+                                        name="bankName"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <label className={NB.label}>Nama Bank</label>
+                                                <FormControl>
+                                                    <select {...field} className={NB.select}>
+                                                        <option value="">-- Pilih Bank --</option>
+                                                        {BANK_OPTIONS.map(opt => (
+                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </FormControl>
+                                                <FormMessage className={NB.error} />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <FormField
+                                            control={form.control}
+                                            name="bankAccountNumber"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <label className={NB.label}>No. Rekening</label>
+                                                    <FormControl>
+                                                        <Input placeholder="1234567890" {...field} className={NB.inputMono} />
+                                                    </FormControl>
+                                                    <FormMessage className={NB.error} />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="bankAccountName"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <label className={NB.label}>Nama Pemilik Rekening</label>
+                                                    <FormControl>
+                                                        <Input placeholder="PT Contoh Abadi" {...field} className={NB.input} />
+                                                    </FormControl>
+                                                    <FormMessage className={NB.error} />
+                                                </FormItem>
+                                            )}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 

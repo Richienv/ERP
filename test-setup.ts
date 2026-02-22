@@ -15,6 +15,17 @@ vi.mock('next/cache', () => ({
     revalidatePath: vi.fn()
 }))
 
+vi.mock('./lib/supabase/server', () => ({
+    createClient: vi.fn().mockResolvedValue({
+        auth: {
+            getUser: vi.fn().mockResolvedValue({
+                data: { user: { id: 'test-user-id', email: 'test@example.com' } },
+                error: null
+            })
+        }
+    })
+}))
+
 export const prismaMock = prisma as unknown as DeepMockProxy<PrismaClient>
 
 beforeEach(() => {

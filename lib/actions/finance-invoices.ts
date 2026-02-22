@@ -9,6 +9,7 @@ export interface InvoiceKanbanItem {
     number: string
     partyName: string
     amount: number
+    balanceDue: number
     issueDate: Date
     dueDate: Date
     status: InvoiceStatus
@@ -65,11 +66,14 @@ export async function getInvoiceKanbanData(input?: InvoiceKanbanQueryInput): Pro
             const dueDate = inv.dueDate
             const issueDate = inv.issueDate
 
+            const balanceDue = Number(inv.balanceDue ?? amount)
+
             const base: InvoiceKanbanItem = {
                 id: inv.id,
                 number: inv.number,
                 partyName,
                 amount,
+                balanceDue,
                 issueDate,
                 dueDate,
                 status: inv.status,
@@ -295,10 +299,10 @@ export async function recordPendingBillFromPO(
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-                    subtotal: po.netAmount || 0,
+                    subtotal: po.totalAmount || 0,     // pre-tax subtotal
                     taxAmount: po.taxAmount || 0,
-                    totalAmount: po.totalAmount || 0,
-                    balanceDue: po.totalAmount || 0,
+                    totalAmount: po.netAmount || 0,    // grand total (subtotal + tax)
+                    balanceDue: po.netAmount || 0,     // what's actually owed
                     items: {
                         create: po.items.map((item: any) => ({
                             description: item.product?.name || 'Unknown Item',

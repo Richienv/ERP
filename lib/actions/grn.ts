@@ -38,12 +38,10 @@ async function createPurchaseOrderEvent(tx: typeof prisma, params: {
 
 async function getEmployeeIdForUserEmail(email?: string | null) {
     if (!email) return null
-    return await withPrismaAuth(async (prismaClient) => {
-        const employee = await (prismaClient as any).employee.findFirst({
-            where: { email }
-        })
-        return employee?.id || null
+    const employee = await (prisma as any).employee.findFirst({
+        where: { email }
     })
+    return employee?.id || null
 }
 
 // ==========================================
@@ -256,18 +254,32 @@ export async function createGRN(data: CreateGRNInput) {
         const receivedById = await getEmployeeIdForUserEmail(user.email)
         if (!receivedById) throw new Error("Employee record not found for current user")
 
-        // Generate GRN number
-        const date = new Date()
-        const year = date.getFullYear()
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-        const number = `SJM-${year}${month}-${random}`
-
         // Create GRN with items in a transaction
         const grn = await withPrismaAuth(async (prisma) => {
             return await prisma.$transaction(async (tx) => {
                 const txAny = tx as any
-                const po = await txAny.purchaseOrder.findUnique({ where: { id: data.purchaseOrderId } })
+
+                // Generate GRN number INSIDE transaction to prevent race conditions
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = String(now.getMonth() + 1).padStart(2, '0')
+                const prefix = `SJM-${year}${month}`
+                const count = await txAny.goodsReceivedNote.count({
+                    where: { number: { startsWith: prefix } }
+                })
+                const number = `${prefix}-${String(count + 1).padStart(4, '0')}`
+
+                const po = await txAny.purchaseOrder.findUnique({
+                    where: { id: data.purchaseOrderId },
+                    include: {
+                        items: {
+                            include: {
+                                product: true,
+                                grnItems: true
+                            }
+                        }
+                    }
+                })
                 if (!po) throw new Error("Purchase Order not found")
 
                 // Auto-transition APPROVED → ORDERED (factories often receive same day as approval)
@@ -293,6 +305,28 @@ export async function createGRN(data: CreateGRNInput) {
 
                 if (!["ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"].includes(po.status)) {
                     throw new Error("Purchase Order is not eligible for receiving")
+                }
+
+                // Validate quantities against PO remaining
+                for (const item of data.items) {
+                    if (!item.quantityReceived || item.quantityReceived <= 0) continue
+
+                    const poItem = po.items.find((pi: any) => pi.id === item.poItemId)
+                    if (!poItem) {
+                        throw new Error(`Item PO tidak ditemukan: ${item.poItemId}`)
+                    }
+
+                    // Calculate already received from existing GRNs
+                    const alreadyReceived = poItem.grnItems?.reduce(
+                        (sum: number, gi: any) => sum + Number(gi.quantityReceived || 0), 0
+                    ) || 0
+                    const remaining = Number(poItem.quantity) - alreadyReceived
+
+                    if (item.quantityReceived > remaining) {
+                        throw new Error(
+                            `Kuantitas melebihi sisa PO untuk ${poItem.product?.name || 'item'}. Sisa: ${remaining}, Diminta: ${item.quantityReceived}`
+                        )
+                    }
                 }
 
                 // 1. Create GRN
@@ -342,7 +376,8 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
         const result = await withPrismaAuth(async (prisma) => {
             return await prisma.$transaction(async (tx) => {
                 const txAny = tx as any
-                // 1. Get GRN with items
+
+                // 1. Get GRN with items (read-only, for data access)
                 const grn = await txAny.goodsReceivedNote.findUnique({
                     where: { id: grnId },
                     include: {
@@ -354,10 +389,9 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                 })
 
                 if (!grn) throw new Error("GRN not found")
-                if (grn.status === 'ACCEPTED') throw new Error("GRN already accepted")
-                if (grn.status !== 'DRAFT') throw new Error("GRN is not in a processable state")
 
                 // SoD Check: If user approved the PO, they need to provide a reason to receive it
+                // This runs BEFORE the atomic status transition so a soft rejection doesn't corrupt state
                 const approvingEvent = await txAny.purchaseOrderEvent.findFirst({
                     where: {
                         purchaseOrderId: grn.purchaseOrderId,
@@ -392,11 +426,19 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                     })
                 }
 
-                // 2. Update GRN status
-                await txAny.goodsReceivedNote.update({
-                    where: { id: grnId },
-                    data: { status: 'ACCEPTED' }
+                // 2. Atomic status transition — only succeeds if still DRAFT (prevents double-accept race)
+                const acceptedById = await getEmployeeIdForUserEmail(user.email)
+                const updated = await txAny.goodsReceivedNote.updateMany({
+                    where: { id: grnId, status: 'DRAFT' },
+                    data: {
+                        status: 'ACCEPTED',
+                        acceptedBy: acceptedById || user.id,
+                        acceptedAt: new Date(),
+                    }
                 })
+                if (updated.count === 0) {
+                    throw new Error('GRN sudah diproses atau tidak ditemukan. Refresh halaman.')
+                }
 
                 // 3. Update PO item received quantities
                 for (const grnItem of grn.items) {
@@ -530,18 +572,29 @@ export async function rejectGRN(grnId: string, reason: string) {
         assertRole(user, RECEIVING_ROLES)
 
         await withPrismaAuth(async (prisma) => {
-            const existing = await (prisma as any).goodsReceivedNote.findUnique({ where: { id: grnId } })
-            if (!existing) throw new Error("GRN not found")
-            if (existing.status === 'ACCEPTED') throw new Error("GRN already accepted")
-            if (existing.status !== 'DRAFT') throw new Error("GRN is not in a rejectable state")
-
-            await (prisma as any).goodsReceivedNote.update({
-                where: { id: grnId },
+            // Atomic status transition — only succeeds if still DRAFT (prevents double-reject race)
+            const rejectedById = await getEmployeeIdForUserEmail(user.email)
+            const updated = await (prisma as any).goodsReceivedNote.updateMany({
+                where: { id: grnId, status: 'DRAFT' },
                 data: {
                     status: 'REJECTED',
-                    notes: reason
+                    notes: reason,
+                    rejectedBy: rejectedById || user.id,
+                    rejectedAt: new Date(),
+                    rejectionReason: reason,
                 }
             })
+            if (updated.count === 0) {
+                // Check why it failed — already processed or not found
+                const existing = await (prisma as any).goodsReceivedNote.findUnique({
+                    where: { id: grnId },
+                    select: { status: true }
+                })
+                if (!existing) throw new Error("GRN not found")
+                if (existing.status === 'ACCEPTED') throw new Error("GRN sudah diterima, tidak bisa ditolak.")
+                if (existing.status === 'REJECTED') throw new Error("GRN sudah ditolak sebelumnya.")
+                throw new Error("GRN tidak dalam status yang bisa ditolak. Refresh halaman.")
+            }
         })
 
         return { success: true }

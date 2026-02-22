@@ -136,6 +136,8 @@ export default function NewJournalEntryPage() {
             queryClient.invalidateQueries({ queryKey: queryKeys.journal.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all });
             queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all });
+            queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all });
             router.push("/finance/journal");
         } catch (error: any) {
             toast.error(error?.message || "Terjadi kesalahan saat menyimpan jurnal");
@@ -182,11 +184,10 @@ export default function NewJournalEntryPage() {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="ref">No. Referensi</Label>
+                                <Label htmlFor="ref">No. Referensi <span className="text-muted-foreground font-normal">(opsional)</span></Label>
                                 <Input
                                     id="ref"
-                                    placeholder="Contoh: ADJ-2024-001"
-                                    required
+                                    placeholder="Contoh: ADJ-2024-001 (opsional)"
                                     value={reference}
                                     onChange={(e) => setReference(e.target.value)}
                                 />

@@ -82,15 +82,17 @@ export default function FinancialReportsPage() {
                 { section: "Assets", metric: "Total Assets", amount: Number(balanceSheetData.assets?.totalAssets || 0) },
                 { section: "Liabilities", metric: "Total Liabilities", amount: Number(balanceSheetData.liabilities?.totalLiabilities || 0) },
                 { section: "Equity", metric: "Total Equity", amount: Number(balanceSheetData.equity?.totalEquity || 0) },
-                { section: "Checks", metric: "Assets = Liabilities + Equity", amount: Number(balanceSheetData.liabilitiesAndEquity?.total || 0) },
+                { section: "Balance Check", metric: "Total Liabilities + Equity", amount: Number(balanceSheetData.totalLiabilitiesAndEquity || 0) },
             ]
         }
         if (reportType === "cf" && cashFlowData) {
             return [
-                { section: "Operating", amount: Number(cashFlowData.operatingActivities || 0) },
-                { section: "Investing", amount: Number(cashFlowData.investingActivities || 0) },
-                { section: "Financing", amount: Number(cashFlowData.financingActivities || 0) },
+                { section: "Operating", amount: Number(cashFlowData.operatingActivities?.netCashFromOperating || 0) },
+                { section: "Investing", amount: Number(cashFlowData.investingActivities?.netCashFromInvesting || 0) },
+                { section: "Financing", amount: Number(cashFlowData.financingActivities?.netCashFromFinancing || 0) },
                 { section: "Net Increase in Cash", amount: Number(cashFlowData.netIncreaseInCash || 0) },
+                { section: "Beginning Cash", amount: Number(cashFlowData.beginningCash || 0) },
+                { section: "Ending Cash", amount: Number(cashFlowData.endingCash || 0) },
             ]
         }
         return []

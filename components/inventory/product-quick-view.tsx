@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import {
     Dialog,
     DialogContent,
@@ -35,10 +35,10 @@ import {
     Loader2, AlertTriangle, Warehouse
 } from "lucide-react"
 import { toast } from "sonner"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getProductById, getProductMovements, updateProduct, deleteProduct } from "@/app/actions/inventory"
-import { INDONESIAN_UNITS } from "@/lib/inventory-utils"
+import { updateProduct, deleteProduct } from "@/app/actions/inventory"
+import { useUnits } from "@/hooks/use-master-data"
 
 interface ProductQuickViewProps {
     productId: string | null
@@ -122,53 +122,88 @@ function getMovementColor(type: string): string {
 export function ProductQuickView({ productId, open, onOpenChange, categories = [] }: ProductQuickViewProps) {
     const [tab, setTab] = useState<Tab>("detail")
     const [editing, setEditing] = useState(false)
-    const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-    const [product, setProduct] = useState<ProductData | null>(null)
-    const [movements, setMovements] = useState<Movement[]>([])
     const [editForm, setEditForm] = useState<Partial<ProductData>>({})
     const queryClient = useQueryClient()
+    const { data: units = [] } = useUnits()
 
-    const loadData = useCallback(async () => {
-        if (!productId) return
-        setLoading(true)
-        try {
-            const [prod, movs] = await Promise.all([
-                getProductById(productId),
-                getProductMovements(productId),
-            ])
-            setProduct(prod)
-            setMovements(movs)
-            if (prod) {
-                setEditForm({
-                    name: prod.name,
-                    description: prod.description,
-                    unit: prod.unit,
-                    categoryId: prod.categoryId,
-                    costPrice: prod.costPrice,
-                    sellingPrice: prod.sellingPrice,
-                    minStock: prod.minStock,
-                    maxStock: prod.maxStock,
-                    reorderLevel: prod.reorderLevel,
-                    barcode: prod.barcode,
-                })
+    const { data: queryData, isLoading: loading } = useQuery({
+        queryKey: queryKeys.products.detail(productId ?? ""),
+        queryFn: async () => {
+            const res = await fetch(`/api/products/${productId}`)
+            const json = await res.json()
+            if (!json.success || !json.data) return null
+            const raw = json.data
+            const prod: ProductData = {
+                id: raw.id,
+                code: raw.code,
+                name: raw.name,
+                description: raw.description,
+                unit: raw.unit,
+                categoryId: raw.categoryId,
+                categoryName: raw.category?.name ?? null,
+                costPrice: raw.costPrice,
+                sellingPrice: raw.sellingPrice,
+                minStock: raw.minStock,
+                maxStock: raw.maxStock,
+                reorderLevel: raw.reorderLevel,
+                barcode: raw.barcode,
+                isActive: raw.isActive,
+                manualAlert: raw.manualAlert ?? false,
+                stockLevels: (raw.stockLevels ?? []).map((sl: any) => ({
+                    warehouseId: sl.warehouseId,
+                    warehouseName: sl.warehouse?.name ?? "Unknown",
+                    quantity: sl.quantity,
+                })),
+                totalStock: raw.currentStock ?? (raw.stockLevels ?? []).reduce((s: number, l: any) => s + l.quantity, 0),
             }
-        } catch (error) {
-            console.error("Failed to load product:", error)
-            toast.error("Gagal memuat data produk")
-        } finally {
-            setLoading(false)
-        }
-    }, [productId])
+            const movs: Movement[] = (raw.transactions ?? []).map((t: any) => ({
+                id: t.id,
+                type: t.type,
+                date: t.createdAt,
+                qty: t.quantity,
+                warehouseId: t.warehouseId,
+                warehouseName: t.warehouse?.name ?? "Unknown",
+                referenceId: t.referenceId ?? undefined,
+                reference: t.reference ?? undefined,
+                entity: t.entity ?? undefined,
+                notes: t.notes ?? undefined,
+                performedBy: t.performedBy ?? "",
+            }))
+            return { product: prod, movements: movs }
+        },
+        enabled: open && !!productId,
+    })
 
+    const product = queryData?.product ?? null
+    const movements = queryData?.movements ?? []
+
+    // Reset tab and editing when dialog opens with a new product
     useEffect(() => {
         if (open && productId) {
             setTab("detail")
             setEditing(false)
-            loadData()
         }
-    }, [open, productId, loadData])
+    }, [open, productId])
+
+    // Sync editForm when product data loads
+    useEffect(() => {
+        if (product) {
+            setEditForm({
+                name: product.name,
+                description: product.description,
+                unit: product.unit,
+                categoryId: product.categoryId,
+                costPrice: product.costPrice,
+                sellingPrice: product.sellingPrice,
+                minStock: product.minStock,
+                maxStock: product.maxStock,
+                reorderLevel: product.reorderLevel,
+                barcode: product.barcode,
+            })
+        }
+    }, [product])
 
     const handleSave = async () => {
         if (!productId) return
@@ -189,7 +224,6 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
             if (result.success) {
                 toast.success("Produk berhasil diperbarui")
                 setEditing(false)
-                loadData()
                 queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
@@ -381,7 +415,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                                 <SelectValue />
                                                             </SelectTrigger>
                                                             <SelectContent>
-                                                                {INDONESIAN_UNITS.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
+                                                                {units.map(u => <SelectItem key={u.code} value={u.code}>{u.code} - {u.name}</SelectItem>)}
                                                             </SelectContent>
                                                         </Select>
                                                     </div>

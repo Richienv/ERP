@@ -52,6 +52,10 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                // Invalidate finance caches — PO approval creates vendor bills
+                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             } else {
                 toast.error(result.error || "Gagal menyetujui")
             }
@@ -82,6 +86,10 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
                 queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                // Invalidate finance caches — rejection may affect pending bills
+                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             } else {
                 toast.error(result.error || "Gagal menolak")
             }

@@ -96,6 +96,24 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
 
     const [finalizePO, setFinalizePO] = useState<Order | null>(null)
 
+    const invalidateAfterAction = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+    }
+
+    const handleConfirmSent = async (po: Order) => {
+        try {
+            const orderedResult = await markAsOrdered(po.dbId)
+            if (!orderedResult.success) {
+                throw new Error((orderedResult as any).error || "Failed to mark PO as ORDERED")
+            }
+            invalidateAfterAction()
+            toast.success(`PO ${po.id} ditandai sebagai Ordered`)
+        } catch (error: any) {
+            toast.error(error?.message || "Gagal menandai PO sebagai Ordered")
+        }
+    }
+
     const handleSendToVendor = async (po: Order, channel: "whatsapp" | "gmail") => {
         setSendingOrderId(po.dbId)
         try {
@@ -103,11 +121,6 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
             const vendorEmail = po.vendorEmail || ""
             if (channel === "whatsapp" && !phone) throw new Error("Vendor WhatsApp number not found")
             if (channel === "gmail" && !vendorEmail) throw new Error("Vendor email not found")
-
-            const orderedResult = await markAsOrdered(po.dbId)
-            if (!orderedResult.success) {
-                throw new Error((orderedResult as any).error || "Failed to mark PO as ORDERED")
-            }
 
             const pdfUrl = `${window.location.origin}/api/documents/purchase-order/${po.dbId}?disposition=inline`
             if (channel === "whatsapp") {
@@ -119,9 +132,13 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                 window.open(`https://mail.google.com/mail/?view=cm&to=${vendorEmail}&su=${encodeURIComponent(subject)}&body=${body}`, "_blank")
             }
 
-            toast.success("PO marked as ORDERED and vendor message prepared")
-            queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+            // Ask user to confirm the message was actually sent before marking as ORDERED
+            const confirmed = window.confirm('Pesan sudah terkirim ke vendor? Klik OK untuk menandai PO sebagai ORDERED.')
+            if (confirmed) {
+                await handleConfirmSent(po)
+            } else {
+                toast.info('PO belum ditandai sebagai Ordered. Anda bisa mengirim ulang nanti.')
+            }
         } catch (error: any) {
             toast.error(error?.message || "Failed to send PO to vendor")
         } finally {
@@ -278,8 +295,8 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                                                     <Eye className="h-3.5 w-3.5" />
                                                 </Button>
                                             </a>
-                                            <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white">
+                                            <a href={`/api/documents/purchase-order/${po.dbId}?disposition=attachment`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" title="Download PDF">
                                                     <Download className="h-3.5 w-3.5" />
                                                 </Button>
                                             </a>

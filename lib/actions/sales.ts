@@ -926,7 +926,7 @@ export async function recordPartialShipment(
         await withPrismaAuth(async (prisma) => {
             const item = await prisma.salesOrderItem.findUniqueOrThrow({
                 where: { id: salesOrderItemId },
-                select: { quantity: true, qtyDelivered: true, salesOrderId: true },
+                select: { quantity: true, qtyDelivered: true, salesOrderId: true, productId: true },
             })
 
             const ordered = Number(item.quantity)
@@ -936,6 +936,49 @@ export async function recordPartialShipment(
             if (newDelivered > ordered) {
                 throw new Error(`Qty kirim (${newDelivered}) melebihi qty order (${ordered})`)
             }
+
+            // --- Deduct inventory stock ---
+            // Find the first StockLevel with enough quantity for this product
+            const stockLevel = await prisma.stockLevel.findFirst({
+                where: { productId: item.productId, quantity: { gte: qtyShipped } },
+                select: { id: true, warehouseId: true, quantity: true },
+            })
+
+            if (!stockLevel) {
+                throw new Error("Stok tidak mencukupi untuk pengiriman")
+            }
+
+            // Atomically decrement stock (with guard against negative)
+            const updated = await prisma.stockLevel.updateMany({
+                where: { id: stockLevel.id, quantity: { gte: qtyShipped } },
+                data: {
+                    quantity: { decrement: qtyShipped },
+                    availableQty: { decrement: qtyShipped },
+                },
+            })
+
+            if (updated.count === 0) {
+                throw new Error("Stok tidak mencukupi untuk pengiriman")
+            }
+
+            // Fetch SO number for the transaction reference
+            const salesOrder = await prisma.salesOrder.findUniqueOrThrow({
+                where: { id: item.salesOrderId },
+                select: { id: true, number: true },
+            })
+
+            // Create inventory transaction record
+            await prisma.inventoryTransaction.create({
+                data: {
+                    productId: item.productId,
+                    warehouseId: stockLevel.warehouseId,
+                    type: 'SO_SHIPMENT',
+                    quantity: -qtyShipped,
+                    referenceId: salesOrder.id,
+                    salesOrderId: salesOrder.id,
+                    notes: `Pengiriman SO ${salesOrder.number} - ${qtyShipped} unit`,
+                },
+            })
 
             await prisma.salesOrderItem.update({
                 where: { id: salesOrderItemId },

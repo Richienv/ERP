@@ -1261,6 +1261,12 @@ model GoodsReceivedNote {
   status GRNStatus @default(DRAFT)
   notes  String?
 
+  acceptedBy      String?   @db.Uuid
+  acceptedAt      DateTime?
+  rejectedBy      String?   @db.Uuid
+  rejectedAt      DateTime?
+  rejectionReason String?
+
   // Relations
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
   warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])

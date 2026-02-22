@@ -58,17 +58,22 @@ export async function createPurchaseOrder(data: {
         if (!data.supplierId) throw new Error("Supplier is required")
         if (!data.items || data.items.length === 0) throw new Error("At least one item is required")
 
-        // Generate PO Number
+        // Generate PO Number (sequential)
         const date = new Date()
         const year = date.getFullYear()
         const month = String(date.getMonth() + 1).padStart(2, '0')
-        const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0')
-        const poNumber = `PO-${year}${month}-${random}`
+        const prefix = `PO-${year}${month}`
+        const count = await prisma.purchaseOrder.count({
+            where: { number: { startsWith: prefix } }
+        })
+        const seq = String(count + 1).padStart(4, '0')
+        const poNumber = `${prefix}-${seq}`
 
         // Calculate Totals
+        // Convention: totalAmount = pre-tax subtotal, netAmount = grand total
         const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
-        const taxAmount = (data.includeTax ?? true) ? (subtotal * 0.11) : 0
-        const totalAmount = subtotal + taxAmount
+        const taxAmount = (data.includeTax ?? true) ? Math.round(subtotal * 0.11) : 0
+        const grandTotal = subtotal + taxAmount
 
         // Get authenticated user
         const supabase = await createClient()
@@ -82,9 +87,9 @@ export async function createPurchaseOrder(data: {
                     number: poNumber,
                     supplierId: data.supplierId,
                     expectedDate: data.expectedDate || null,
-                    totalAmount,
-                    taxAmount,
-                    netAmount: totalAmount,
+                    totalAmount: subtotal,    // pre-tax subtotal
+                    taxAmount,                // PPN 11%
+                    netAmount: grandTotal,    // grand total (subtotal + tax)
                     status: 'PO_DRAFT',
                     createdBy: userId || null,
                     items: {

@@ -1,5 +1,5 @@
 import Xendit from 'xendit-node';
-import { v4 as uuidv4 } from 'uuid';
+import { createHash } from 'crypto';
 
 // Initialize Xendit client (lazy initialization)
 let xenditClient: Xendit | null = null;
@@ -16,8 +16,10 @@ export const getXenditClient = () => {
 };
 
 // Helper to generate idempotency key (prevents duplicate payouts)
+// Uses deterministic SHA-256 hash so the same reference always produces the same key
 export const generateIdempotencyKey = (reference: string) => {
-    return `erp_payout_${reference}_${uuidv4()}`;
+    const hash = createHash('sha256').update(reference).digest('hex');
+    return `erp_payout_${hash}`;
 };
 
 // Bank Channel Codes for Indonesia (Payout API v2)

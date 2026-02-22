@@ -141,14 +141,14 @@ export default function InvoicesPage() {
     // Workflow handlers
     const openSendDialog = (invoice: InvoiceKanbanItem) => {
         setActiveInvoice(invoice)
-        setSendMessage(`Hi ${invoice.partyName}, here is invoice ${invoice.number} for ${formatIDR(invoice.amount)}. Please make payment by ${new Date(invoice.dueDate).toLocaleDateString()}. View Invoice: https://erp.orico.com/invoices/${invoice.id}`)
+        setSendMessage(invoice.partyName ? `Hi ${invoice.partyName}, here is invoice ${invoice.number} for ${formatIDR(invoice.amount)}. Please make payment by ${new Date(invoice.dueDate).toLocaleDateString()}. View Invoice: https://erp.orico.com/invoices/${invoice.id}` : "")
         setRecipientContact("")
         setIsSendDialogOpen(true)
     }
 
     const openPayDialog = (invoice: InvoiceKanbanItem) => {
         setActiveInvoice(invoice)
-        setPayAmount(String(invoice.amount))
+        setPayAmount(String(invoice.balanceDue ?? invoice.amount))
         setPayDate(new Date().toISOString().split('T')[0])
         setPayReference("")
         setIsPayDialogOpen(true)
@@ -164,6 +164,9 @@ export default function InvoicesPage() {
             const phone = recipientContact.replace(/\D/g, '')
             const text = encodeURIComponent(sendMessage)
             window.open(`https://wa.me/${phone}?text=${text}`, '_blank')
+        }
+        if (sendMethod === 'EMAIL') {
+            toast.info("Email akan dikirim ke pelanggan (fitur SMTP belum aktif — status invoice tetap diupdate)")
         }
         setSending(true)
         try {
@@ -185,6 +188,11 @@ export default function InvoicesPage() {
         const amount = parseFloat(payAmount)
         if (!amount || amount <= 0) {
             toast.error("Masukkan jumlah pembayaran yang valid")
+            return
+        }
+        const balanceDue = activeInvoice.balanceDue ?? activeInvoice.amount
+        if (amount > balanceDue) {
+            toast.error("Jumlah pembayaran tidak boleh melebihi sisa tagihan")
             return
         }
         setPaying(true)
@@ -419,6 +427,11 @@ export default function InvoicesPage() {
                                                 <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
                                                 {cfg.label}
                                             </span>
+                                            {invoice.status === 'ISSUED' && invoice.issueDate && (
+                                                <p className="text-[9px] text-zinc-400 mt-0.5 font-medium">
+                                                    Dikirim {new Date(invoice.issueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                            )}
                                         </div>
 
                                         {/* Due Date */}
@@ -525,10 +538,11 @@ export default function InvoicesPage() {
                                 if (!activeInvoice) return
                                 const link = `https://erp.orico.com/invoices/${activeInvoice.id}`
                                 const due = new Date(activeInvoice.dueDate).toLocaleDateString()
+                                const name = activeInvoice.partyName || "Pelanggan"
                                 const map: Record<string, string> = {
-                                    default: `Hi ${activeInvoice.partyName}, here is invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)}. Please make payment by ${due}. View: ${link}`,
-                                    formal: `Dear ${activeInvoice.partyName},\n\nPlease find invoice ${activeInvoice.number} amounting to ${formatIDR(activeInvoice.amount)}. Payment due ${due}.\n\nView: ${link}\n\nSincerely,\nFinance Team`,
-                                    friendly: `Hey ${activeInvoice.partyName}! Reminder about invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)}. Thanks! View: ${link}`,
+                                    default: `Hi ${name}, here is invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)}. Please make payment by ${due}. View: ${link}`,
+                                    formal: `Dear ${name},\n\nPlease find invoice ${activeInvoice.number} amounting to ${formatIDR(activeInvoice.amount)}. Payment due ${due}.\n\nView: ${link}\n\nSincerely,\nFinance Team`,
+                                    friendly: `Hey ${name}! Reminder about invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)}. Thanks! View: ${link}`,
                                     urgent: `URGENT: Invoice ${activeInvoice.number} for ${formatIDR(activeInvoice.amount)} is ready. Please process immediately. View: ${link}`,
                                 }
                                 setSendMessage(map[val] || '')
@@ -554,7 +568,7 @@ export default function InvoicesPage() {
                                     <span className="flex items-center px-3 border-2 border-r-0 border-black bg-zinc-100 text-xs font-bold text-zinc-500">+62</span>
                                     <Input
                                         className="border-2 border-black h-10 font-medium rounded-l-none"
-                                        placeholder="812-3456-7890"
+                                        placeholder="Masukkan nomor WhatsApp"
                                         value={recipientContact}
                                         onChange={(e) => setRecipientContact(e.target.value)}
                                     />
@@ -562,7 +576,7 @@ export default function InvoicesPage() {
                             ) : (
                                 <Input
                                     className="border-2 border-black h-10 font-medium"
-                                    placeholder="client@company.com"
+                                    placeholder="Masukkan alamat email"
                                     value={recipientContact}
                                     onChange={(e) => setRecipientContact(e.target.value)}
                                 />

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
 import { calculateProductStatus } from "@/lib/inventory-logic"
 
 /**
@@ -9,6 +10,12 @@ import { calculateProductStatus } from "@/lib/inventory-logic"
  */
 export async function GET() {
     try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+        }
+
         const [rawProducts, categories, rawWarehouses] = await Promise.all([
             prisma.product.findMany({
                 where: { isActive: true },
@@ -24,7 +31,11 @@ export async function GET() {
             }),
             prisma.warehouse.findMany({
                 include: {
-                    stockLevels: true,
+                    stockLevels: {
+                        include: {
+                            product: { select: { costPrice: true } },
+                        },
+                    },
                     _count: { select: { stockLevels: true } },
                 },
             }),
@@ -65,6 +76,7 @@ export async function GET() {
                 isActive: p.isActive,
                 manualAlert: p.manualAlert,
                 category: p.category,
+                stockLevels: p.stockLevels,
                 totalStock,
                 currentStock: totalStock,
                 status,
@@ -87,7 +99,7 @@ export async function GET() {
                 utilization,
                 manager: "Unassigned",
                 status: w.isActive ? "Active" : "Inactive",
-                totalValue: 0,
+                totalValue: Math.round(w.stockLevels.reduce((sum, sl) => sum + sl.quantity * Number(sl.product.costPrice), 0)),
                 activePOs: 0,
                 pendingTasks: 0,
                 items: totalItems,

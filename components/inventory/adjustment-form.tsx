@@ -79,7 +79,6 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
                 targetWarehouseId: type === 'TRANSFER' ? targetWarehouseId : undefined,
                 quantity: Number(quantity),
                 notes: reason ? `${reason} - ${notes}` : notes,
-                userId: "system-user"
             })
 
             if (result.success) {

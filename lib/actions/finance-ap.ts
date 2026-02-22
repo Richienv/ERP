@@ -435,7 +435,7 @@ export async function recordVendorPayment(data: {
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2100', debit: data.amount, credit: 0, description: 'Accounts Payable' },
+                    { accountCode: '2000', debit: data.amount, credit: 0, description: 'Utang Usaha' },
                     { accountCode: '1000', debit: 0, credit: data.amount, description: 'Cash/Bank' }
                 ]
             })
