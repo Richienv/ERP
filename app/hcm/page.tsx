@@ -10,10 +10,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AttendanceWidget } from "@/components/hcm/attendance-widget"
 import { PayrollSummaryWidget } from "@/components/hcm/payroll-summary"
 import { PerformanceWidget } from "@/components/hcm/performance-widget"
+import type { PerformanceEmployee } from "@/components/hcm/performance-widget"
 import { LeaveRequestWidget } from "@/components/hcm/leave-requests"
 import { DetailedStaffActivity } from "@/components/hcm/detailed-staff-activity"
+import type { StaffActivityRow } from "@/components/hcm/detailed-staff-activity"
 import { DetailedPerformanceTable } from "@/components/hcm/detailed-performance-table"
-import { getHCMDashboardData } from "@/app/actions/hcm"
+import type { PerformanceRow } from "@/components/hcm/detailed-performance-table"
+import { getHCMDashboardData, getAttendanceSnapshot } from "@/app/actions/hcm"
 import { queryKeys } from "@/lib/query-keys"
 
 interface HCMDashboardData {
@@ -88,12 +91,79 @@ export default function HCMPage() {
     },
   })
 
+  // Fetch detailed attendance snapshot for staff activity & performance tables
+  const { data: snapshot } = useQuery({
+    queryKey: [...queryKeys.hcmAttendance.all, "snapshot"],
+    queryFn: async () => {
+      const result = await getAttendanceSnapshot()
+      return result as {
+        rows: Array<{
+          id: string
+          employeeCode: string
+          name: string
+          department: string
+          position: string
+          clockIn: string | null
+          clockOut: string | null
+          workingHours: number
+          overtimeHours: number
+          status: string
+          isLate: boolean
+        }>
+        departments: string[]
+      }
+    },
+  })
+
   const dashboardData = data ?? fallbackData
   const refreshing = isLoading || isRefetching
 
   const handleRefresh = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.hcmDashboard.all })
+    queryClient.invalidateQueries({ queryKey: queryKeys.hcmAttendance.all })
   }
+
+  // Map snapshot data to component props
+  const staffRows: StaffActivityRow[] = (snapshot?.rows ?? []).map((row) => ({
+    id: row.id,
+    employeeCode: row.employeeCode,
+    name: row.name,
+    department: row.department,
+    position: row.position,
+    status: row.status,
+    clockIn: row.clockIn,
+    clockOut: row.clockOut,
+    workingHours: row.workingHours,
+    overtimeHours: row.overtimeHours,
+    isLate: row.isLate,
+  }))
+
+  const departments = snapshot?.departments ?? []
+
+  // Build performance rows — employees with attendance this month
+  const performanceRows: PerformanceRow[] = (snapshot?.rows ?? []).map((row) => ({
+    id: row.id,
+    employeeCode: row.employeeCode,
+    name: row.name,
+    department: row.department,
+    position: row.position,
+    attendanceDays: row.status === "PRESENT" || row.status === "REMOTE" ? 1 : 0,
+    workingDays: 1,
+    attendanceRate: row.status === "PRESENT" || row.status === "REMOTE" ? 100 : 0,
+    lateCount: row.isLate ? 1 : 0,
+    overtimeHours: row.overtimeHours,
+  }))
+
+  // Build top performers for widget
+  const perfEmployees: PerformanceEmployee[] = (snapshot?.rows ?? [])
+    .filter((row) => row.status === "PRESENT" || row.status === "REMOTE")
+    .map((row) => ({
+      name: row.name,
+      department: row.department,
+      attendanceRate: 100,
+    }))
+
+  const totalPresent = staffRows.filter((s) => s.status === "PRESENT" || s.status === "REMOTE").length
 
   return (
     <div className="flex-1 min-h-screen space-y-6 bg-zinc-50/50 p-4 pt-6 dark:bg-black md:p-8">
@@ -150,8 +220,8 @@ export default function HCMPage() {
       </div>
 
       <div>
-        <DetailedStaffActivity />
-        <DetailedPerformanceTable />
+        <DetailedStaffActivity staff={staffRows} departments={departments} />
+        <DetailedPerformanceTable employees={performanceRows} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -160,7 +230,11 @@ export default function HCMPage() {
           pendingCount={dashboardData.leaves.pendingCount}
           onChanged={handleRefresh}
         />
-        <PerformanceWidget />
+        <PerformanceWidget
+          employees={perfEmployees}
+          totalActive={dashboardData.headcount.active}
+          totalPresent={totalPresent}
+        />
       </div>
 
       <Tabs defaultValue="employees" className="mt-6 space-y-6">

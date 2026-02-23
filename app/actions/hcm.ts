@@ -13,6 +13,12 @@ import {
 import { withPrismaAuth } from '@/lib/db'
 import { assertRole, getAuthzUser } from '@/lib/authz'
 import { postJournalEntry } from '@/lib/actions/finance'
+import {
+    calculateBPJS,
+    calculateMonthlyPPh21,
+    calculateWorkdayOvertimePay,
+    STANDARD_DAILY_HOURS,
+} from '@/lib/hcm-calculations'
 
 const LEAVE_APPROVAL_PREFIX = 'LEAVE_APPROVAL::'
 const PAYROLL_RUN_PREFIX = 'PAYROLL_RUN::'
@@ -51,6 +57,8 @@ interface PayrollLineData {
     overtimePay: number
     bpjsKesehatan: number
     bpjsKetenagakerjaan: number
+    bpjsJHT: number
+    bpjsJP: number
     pph21: number
     grossSalary: number
     totalDeductions: number
@@ -513,15 +521,29 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         const transportAllowance = Math.round(baseSalary * 0.07)
         const mealAllowance = Math.round(baseSalary * 0.03)
         const positionAllowance = Math.round(baseSalary * 0.1)
-        const overtimePay = Math.round(overtimeHours * (baseSalary / 173) * 1.5)
+
+        // Overtime: Kepmenaker 102/2004 — 1st hour 1.5x, subsequent 2x per day
+        let overtimePay = 0
+        for (const row of rows) {
+            const wh = calculateWorkingHours(row.checkIn, row.checkOut)
+            const dailyOT = Math.max(0, wh - STANDARD_DAILY_HOURS)
+            if (dailyOT > 0) {
+                overtimePay += calculateWorkdayOvertimePay(dailyOT, baseSalary)
+            }
+        }
 
         const grossSalary = baseSalary + transportAllowance + mealAllowance + positionAllowance + overtimePay
 
-        const bpjsKesehatan = Math.min(Math.round(baseSalary * 0.01), 150_000)
-        const bpjsKetenagakerjaan = Math.min(Math.round(baseSalary * 0.02), 360_000)
-        const taxableIncome = Math.max(0, grossSalary - (bpjsKesehatan + bpjsKetenagakerjaan))
-        const pph21 = Math.round(taxableIncome * 0.05)
-        const totalDeductions = bpjsKesehatan + bpjsKetenagakerjaan + pph21
+        // BPJS: Full breakdown per PP 35/2021 & Perpres 64/2020
+        const bpjs = calculateBPJS(baseSalary)
+        const bpjsKesehatan = bpjs.kesehatanEmployee
+        const bpjsKetenagakerjaan = bpjs.jhtEmployee + bpjs.jpEmployee // JHT + JP (employee portion)
+        const bpjsJHT = bpjs.jhtEmployee
+        const bpjsJP = bpjs.jpEmployee
+
+        // PPh21: Progressive brackets per UU HPP
+        const pph21 = calculateMonthlyPPh21(grossSalary, bpjs.totalEmployee)
+        const totalDeductions = bpjs.totalEmployee + pph21
         const netSalary = Math.max(0, grossSalary - totalDeductions)
 
         return {
@@ -541,6 +563,8 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
             overtimePay,
             bpjsKesehatan,
             bpjsKetenagakerjaan,
+            bpjsJHT,
+            bpjsJP,
             pph21,
             grossSalary,
             totalDeductions,
@@ -1497,6 +1521,8 @@ export async function getPayrollComplianceReport(period: string) {
         const rows = result.data.rows
         const bpjsKesehatan = rows.reduce((sum, row) => sum + row.bpjsKesehatan, 0)
         const bpjsKetenagakerjaan = rows.reduce((sum, row) => sum + row.bpjsKetenagakerjaan, 0)
+        const bpjsJHT = rows.reduce((sum, row) => sum + (row.bpjsJHT ?? 0), 0)
+        const bpjsJP = rows.reduce((sum, row) => sum + (row.bpjsJP ?? 0), 0)
         const totalBpjs = bpjsKesehatan + bpjsKetenagakerjaan
         const totalPph21 = rows.reduce((sum, row) => sum + row.pph21, 0)
 
@@ -1509,6 +1535,8 @@ export async function getPayrollComplianceReport(period: string) {
                 totals: {
                     bpjsKesehatan,
                     bpjsKetenagakerjaan,
+                    bpjsJHT,
+                    bpjsJP,
                     bpjsTotal: totalBpjs,
                     pph21: totalPph21,
                 },
@@ -1518,6 +1546,8 @@ export async function getPayrollComplianceReport(period: string) {
                     department: row.department,
                     bpjsKesehatan: row.bpjsKesehatan,
                     bpjsKetenagakerjaan: row.bpjsKetenagakerjaan,
+                    bpjsJHT: row.bpjsJHT ?? 0,
+                    bpjsJP: row.bpjsJP ?? 0,
                     pph21: row.pph21,
                     netSalary: row.netSalary,
                 })),

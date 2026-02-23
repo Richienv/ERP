@@ -21,6 +21,8 @@ export interface PayrollLine {
     overtimePay: number
     bpjsKesehatan: number
     bpjsKetenagakerjaan: number
+    bpjsJHT: number
+    bpjsJP: number
     pph21: number
     grossSalary: number
     totalDeductions: number
@@ -58,6 +60,8 @@ export interface PayrollComplianceReport {
     totals: {
         bpjsKesehatan: number
         bpjsKetenagakerjaan: number
+        bpjsJHT: number
+        bpjsJP: number
         bpjsTotal: number
         pph21: number
     }
