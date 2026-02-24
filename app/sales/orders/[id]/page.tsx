@@ -169,7 +169,7 @@ export default function SalesOrderDetailPage() {
                     </div>
                     <div className="divide-y divide-zinc-100">
                         {order.invoices.map((inv: any) => (
-                            <Link key={inv.id} href={`/finance/invoices`} className="flex items-center justify-between px-6 py-3 hover:bg-zinc-50 transition-colors">
+                            <Link key={inv.id} href={`/finance/invoices/${inv.id}`} className="flex items-center justify-between px-6 py-3 hover:bg-zinc-50 transition-colors">
                                 <span className="text-xs font-black">{inv.number}</span>
                                 <div className="flex items-center gap-3">
                                     <span className="text-xs font-bold">{formatIDR(Number(inv.totalAmount))}</span>

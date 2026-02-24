@@ -924,95 +924,92 @@ export async function recordPartialShipment(
 ): Promise<{ success: boolean; error?: string }> {
     try {
         await withPrismaAuth(async (prisma) => {
-            const item = await prisma.salesOrderItem.findUniqueOrThrow({
-                where: { id: salesOrderItemId },
-                select: { quantity: true, qtyDelivered: true, salesOrderId: true, productId: true },
-            })
-
-            const ordered = Number(item.quantity)
-            const alreadyDelivered = Number(item.qtyDelivered)
-            const newDelivered = alreadyDelivered + qtyShipped
-
-            if (newDelivered > ordered) {
-                throw new Error(`Qty kirim (${newDelivered}) melebihi qty order (${ordered})`)
-            }
-
-            // --- Deduct inventory stock ---
-            // Find the first StockLevel with enough quantity for this product
-            const stockLevel = await prisma.stockLevel.findFirst({
-                where: { productId: item.productId, quantity: { gte: qtyShipped } },
-                select: { id: true, warehouseId: true, quantity: true },
-            })
-
-            if (!stockLevel) {
-                throw new Error("Stok tidak mencukupi untuk pengiriman")
-            }
-
-            // Atomically decrement stock (with guard against negative)
-            const updated = await prisma.stockLevel.updateMany({
-                where: { id: stockLevel.id, quantity: { gte: qtyShipped } },
-                data: {
-                    quantity: { decrement: qtyShipped },
-                    availableQty: { decrement: qtyShipped },
-                },
-            })
-
-            if (updated.count === 0) {
-                throw new Error("Stok tidak mencukupi untuk pengiriman")
-            }
-
-            // Fetch SO number for the transaction reference
-            const salesOrder = await prisma.salesOrder.findUniqueOrThrow({
-                where: { id: item.salesOrderId },
-                select: { id: true, number: true },
-            })
-
-            // Create inventory transaction record
-            await prisma.inventoryTransaction.create({
-                data: {
-                    productId: item.productId,
-                    warehouseId: stockLevel.warehouseId,
-                    type: 'SO_SHIPMENT',
-                    quantity: -qtyShipped,
-                    referenceId: salesOrder.id,
-                    salesOrderId: salesOrder.id,
-                    notes: `Pengiriman SO ${salesOrder.number} - ${qtyShipped} unit`,
-                },
-            })
-
-            await prisma.salesOrderItem.update({
-                where: { id: salesOrderItemId },
-                data: { qtyDelivered: newDelivered },
-            })
-
-            // Check if all items are fully delivered → update SO status
-            const allItems = await prisma.salesOrderItem.findMany({
-                where: { salesOrderId: item.salesOrderId },
-                select: { quantity: true, qtyDelivered: true },
-            })
-
-            const allFulfilled = allItems.every(
-                (i) => Number(i.qtyDelivered) >= Number(i.quantity)
-            )
-
-            if (allFulfilled) {
-                await prisma.salesOrder.update({
-                    where: { id: item.salesOrderId },
-                    data: { status: 'DELIVERED' },
+            // Entire shipment flow in $transaction to prevent stock race conditions
+            await prisma.$transaction(async (tx) => {
+                const item = await tx.salesOrderItem.findUniqueOrThrow({
+                    where: { id: salesOrderItemId },
+                    select: { quantity: true, qtyDelivered: true, salesOrderId: true, productId: true },
                 })
-            } else {
-                // Ensure status is IN_PROGRESS if partially shipped
-                const so = await prisma.salesOrder.findUnique({
-                    where: { id: item.salesOrderId },
-                    select: { status: true },
-                })
-                if (so?.status === 'CONFIRMED') {
-                    await prisma.salesOrder.update({
-                        where: { id: item.salesOrderId },
-                        data: { status: 'IN_PROGRESS' },
-                    })
+
+                const ordered = Number(item.quantity)
+                const alreadyDelivered = Number(item.qtyDelivered)
+                const newDelivered = alreadyDelivered + qtyShipped
+
+                if (newDelivered > ordered) {
+                    throw new Error(`Qty kirim (${newDelivered}) melebihi qty order (${ordered})`)
                 }
-            }
+
+                // Find stock and deduct atomically within same transaction
+                const stockLevel = await tx.stockLevel.findFirst({
+                    where: { productId: item.productId, quantity: { gte: qtyShipped } },
+                    select: { id: true, warehouseId: true, quantity: true },
+                })
+
+                if (!stockLevel) {
+                    throw new Error("Stok tidak mencukupi untuk pengiriman")
+                }
+
+                const updated = await tx.stockLevel.updateMany({
+                    where: { id: stockLevel.id, quantity: { gte: qtyShipped } },
+                    data: {
+                        quantity: { decrement: qtyShipped },
+                        availableQty: { decrement: qtyShipped },
+                    },
+                })
+
+                if (updated.count === 0) {
+                    throw new Error("Stok tidak mencukupi untuk pengiriman")
+                }
+
+                const salesOrder = await tx.salesOrder.findUniqueOrThrow({
+                    where: { id: item.salesOrderId },
+                    select: { id: true, number: true },
+                })
+
+                await tx.inventoryTransaction.create({
+                    data: {
+                        productId: item.productId,
+                        warehouseId: stockLevel.warehouseId,
+                        type: 'SO_SHIPMENT',
+                        quantity: -qtyShipped,
+                        referenceId: salesOrder.id,
+                        salesOrderId: salesOrder.id,
+                        notes: `Pengiriman SO ${salesOrder.number} - ${qtyShipped} unit`,
+                    },
+                })
+
+                await tx.salesOrderItem.update({
+                    where: { id: salesOrderItemId },
+                    data: { qtyDelivered: newDelivered },
+                })
+
+                const allItems = await tx.salesOrderItem.findMany({
+                    where: { salesOrderId: item.salesOrderId },
+                    select: { quantity: true, qtyDelivered: true },
+                })
+
+                const allFulfilled = allItems.every(
+                    (i) => Number(i.qtyDelivered) >= Number(i.quantity)
+                )
+
+                if (allFulfilled) {
+                    await tx.salesOrder.update({
+                        where: { id: item.salesOrderId },
+                        data: { status: 'DELIVERED' },
+                    })
+                } else {
+                    const so = await tx.salesOrder.findUnique({
+                        where: { id: item.salesOrderId },
+                        select: { status: true },
+                    })
+                    if (so?.status === 'CONFIRMED') {
+                        await tx.salesOrder.update({
+                            where: { id: item.salesOrderId },
+                            data: { status: 'IN_PROGRESS' },
+                        })
+                    }
+                }
+            })
         })
 
         return { success: true }
@@ -1069,5 +1066,47 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
     } catch (error: any) {
         console.error("Failed to generate invoice:", error)
         return { success: false, error: error.message || "Failed to generate invoice" }
+    }
+}
+
+// ==============================================================================
+// Cancel Sales Order
+// ==============================================================================
+
+export async function cancelSalesOrder(
+    salesOrderId: string,
+    reason?: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            return await prisma.$transaction(async (tx) => {
+                const so = await tx.salesOrder.findUnique({
+                    where: { id: salesOrderId },
+                    select: { id: true, number: true, status: true },
+                })
+                if (!so) return { success: false, error: "Sales Order tidak ditemukan" }
+
+                const cancellable: string[] = ['DRAFT', 'CONFIRMED']
+                if (!cancellable.includes(so.status)) {
+                    return {
+                        success: false,
+                        error: `Sales Order ${so.number} status "${so.status}" tidak dapat dibatalkan. Hanya DRAFT atau CONFIRMED yang bisa dibatalkan.`,
+                    }
+                }
+
+                await tx.salesOrder.update({
+                    where: { id: salesOrderId },
+                    data: {
+                        status: 'CANCELLED',
+                        notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
+                    },
+                })
+
+                return { success: true }
+            })
+        })
+    } catch (error: any) {
+        console.error("[cancelSalesOrder] Error:", error)
+        return { success: false, error: error.message || "Gagal membatalkan pesanan" }
     }
 }

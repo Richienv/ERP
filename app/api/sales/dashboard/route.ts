@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { createClient } from "@/lib/supabase/server"
+
+async function requireAuth() {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+    return user
+}
 
 export async function GET() {
     try {
+        await requireAuth()
         const [invoices, paidAgg, unpaidAgg, overdueAgg, totalAgg] = await Promise.all([
             prisma.invoice.findMany({
                 where: { type: "INV_OUT" },

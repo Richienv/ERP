@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
+
+async function requireAuth() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error('Unauthorized')
+  return user
+}
 
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value)
@@ -9,6 +17,7 @@ const toNumber = (value: unknown, fallback = 0) => {
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customerId') || undefined
 

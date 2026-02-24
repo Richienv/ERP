@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { CreditStatus, CustomerType, PaymentTerm, TaxStatus } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
+
+async function requireAuth() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error('Unauthorized')
+  return user
+}
 
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value)
@@ -34,6 +42,7 @@ async function generateCustomerCode() {
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const filterStatus = (searchParams.get('status') || 'all').toLowerCase()
@@ -148,6 +157,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth()
     const body = await request.json()
 
     const name = toText(body.name)

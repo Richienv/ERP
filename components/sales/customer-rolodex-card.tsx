@@ -163,7 +163,6 @@ export function CustomerRolodexCard({ customer }: CustomerRolodexCardProps) {
                                 >
                                     Edit Data
                                 </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600 focus:bg-red-50 focus:text-red-700 font-bold cursor-pointer rounded-none">Suspend Account</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>

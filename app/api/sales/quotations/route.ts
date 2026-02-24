@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { PaymentTerm, QuotationStatus } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
+
+async function requireAuth() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error('Unauthorized')
+  return user
+}
 
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value)
@@ -62,6 +70,7 @@ type NormalizedQuotationItem = {
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const status = searchParams.get('status')
@@ -140,6 +149,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth()
     const body = await request.json()
 
     const customerId = toText(body.customerId)
@@ -273,7 +283,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const number = await generateQuotationNumber()
     const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTerm))
       ? body.paymentTerm
       : PaymentTerm.NET_30
@@ -293,46 +302,55 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const quotation = await prisma.quotation.create({
-      data: {
-        number,
-        customerId,
-        customerRef: toText(body.customerRef),
-        quotationDate,
-        validUntil,
-        paymentTerm,
-        deliveryTerm: toText(body.deliveryTerm),
-        subtotal,
-        taxAmount,
-        discountAmount,
-        total,
-        status: QuotationStatus.DRAFT,
-        notes: toText(body.notes),
-        internalNotes: toText(body.internalNotes),
-        items: {
-          create: normalizedItems.map((item) => ({
-            productId: item.productId,
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discount: item.discount,
-            taxRate: item.taxRate,
-            lineTotal: item.lineTotal,
-          })),
-        },
-      },
-      include: {
-        customer: {
-          select: {
-            name: true,
+    // Use $transaction to prevent quotation number race condition
+    const quotation = await prisma.$transaction(async (tx) => {
+      const now = new Date()
+      const prefix = `QT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+      const last = await tx.quotation.findFirst({
+        where: { number: { startsWith: prefix } },
+        orderBy: { number: 'desc' },
+        select: { number: true },
+      })
+      let sequence = 1
+      if (last?.number) {
+        const match = last.number.match(/-(\d+)$/)
+        if (match) sequence = Number(match[1]) + 1
+      }
+      const number = `${prefix}-${String(sequence).padStart(4, '0')}`
+
+      return await tx.quotation.create({
+        data: {
+          number,
+          customerId,
+          customerRef: toText(body.customerRef),
+          quotationDate,
+          validUntil,
+          paymentTerm,
+          deliveryTerm: toText(body.deliveryTerm),
+          subtotal,
+          taxAmount,
+          discountAmount,
+          total,
+          status: QuotationStatus.DRAFT,
+          notes: toText(body.notes),
+          internalNotes: toText(body.internalNotes),
+          items: {
+            create: normalizedItems.map((item) => ({
+              productId: item.productId,
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount,
+              taxRate: item.taxRate,
+              lineTotal: item.lineTotal,
+            })),
           },
         },
-        _count: {
-          select: {
-            items: true,
-          },
+        include: {
+          customer: { select: { name: true } },
+          _count: { select: { items: true } },
         },
-      },
+      })
     })
 
     return NextResponse.json(

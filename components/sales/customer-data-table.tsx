@@ -41,7 +41,6 @@ import {
   MoreHorizontal,
   Eye,
   Edit,
-  Trash2,
   Building,
   User,
   CreditCard,
@@ -366,7 +365,7 @@ const columns: ColumnDef<Customer>[] = [
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href={`/sales/customers/${customer.id}/edit`}>
+              <Link href={`/sales/customers/${customer.id}`}>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Pelanggan
               </Link>
@@ -377,11 +376,6 @@ const columns: ColumnDef<Customer>[] = [
                 <CreditCard className="mr-2 h-4 w-4" />
                 Buat Penawaran
               </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600">
-              <Trash2 className="mr-2 h-4 w-4" />
-              Hapus
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

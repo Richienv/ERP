@@ -1,6 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { cancelSalesOrder } from "@/lib/actions/sales"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -102,7 +105,19 @@ function getProgress(status: string) {
 }
 
 export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutionCardProps) {
+    const router = useRouter()
     const [isCreatingWO, setIsCreatingWO] = useState(false)
+
+    const handleCancel = useCallback(async () => {
+        if (!confirm(`Batalkan pesanan ${order.number}? Aksi ini tidak dapat diurungkan.`)) return
+        const result = await cancelSalesOrder(order.id)
+        if (result.success) {
+            toast.success(`Pesanan ${order.number} berhasil dibatalkan`)
+            onWorkOrdersCreated?.(order.id, 0) // trigger refresh
+        } else {
+            toast.error(result.error || "Gagal membatalkan pesanan")
+        }
+    }, [order.id, order.number, onWorkOrdersCreated])
     const hasExistingWOs = (order.workOrderCount ?? 0) > 0
     const [woCreated, setWoCreated] = useState(hasExistingWOs)
     const [woError, setWoError] = useState<string | null>(null)
@@ -282,14 +297,22 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                                 <FileText className="mr-2 h-3.5 w-3.5" /> Lihat Detail
                             </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none">
-                            <Truck className="mr-2 h-3.5 w-3.5" /> Pengiriman
+                        <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none" asChild>
+                            <Link href={`/sales/orders/${order.id}`}>
+                                <Truck className="mr-2 h-3.5 w-3.5" /> Pengiriman
+                            </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none">
-                            <Package className="mr-2 h-3.5 w-3.5" /> Invoice
+                        <DropdownMenuItem className="text-xs font-bold cursor-pointer focus:bg-zinc-100 rounded-none" asChild>
+                            <Link href={`/sales/orders/${order.id}`}>
+                                <Package className="mr-2 h-3.5 w-3.5" /> Invoice
+                            </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator className="bg-zinc-200" />
-                        <DropdownMenuItem className="text-xs font-bold text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700 rounded-none">
+                        <DropdownMenuItem
+                            className="text-xs font-bold text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700 rounded-none"
+                            onClick={handleCancel}
+                            disabled={order.status !== 'DRAFT' && order.status !== 'CONFIRMED'}
+                        >
                             Batalkan Pesanan
                         </DropdownMenuItem>
                     </DropdownMenuContent>

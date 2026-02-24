@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
+
+async function requireAuth() {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+    return user
+}
 
 // POST /api/sales/orders/[id]/create-work-orders - Auto-create work orders from sales order
 export async function POST(
@@ -7,6 +15,7 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requireAuth()
         const { id } = await params
         const body = await request.json()
         const { priority = 'NORMAL', dueDate } = body
@@ -64,62 +73,56 @@ export async function POST(
             })
         }
 
-        // Generate work order number prefix
-        const today = new Date()
-        const prefix = `MO-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`
+        // Use $transaction to prevent WO number race condition and ensure atomicity
+        const createdWorkOrders = await prisma.$transaction(async (tx) => {
+            const today = new Date()
+            const prefix = `MO-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`
 
-        // Get the last work order number for this prefix
-        const lastWO = await prisma.workOrder.findFirst({
-            where: {
-                number: { startsWith: prefix },
-            },
-            orderBy: { number: 'desc' },
-        })
+            const lastWO = await tx.workOrder.findFirst({
+                where: { number: { startsWith: prefix } },
+                orderBy: { number: 'desc' },
+            })
 
-        let sequence = 1
-        if (lastWO) {
-            const lastSeq = parseInt(lastWO.number.split('-').pop() || '0')
-            sequence = lastSeq + 1
-        }
+            let sequence = 1
+            if (lastWO) {
+                const lastSeq = parseInt(lastWO.number.split('-').pop() || '0')
+                sequence = lastSeq + 1
+            }
 
-        // Create work orders for each item
-        const createdWorkOrders = []
-        for (const item of itemsNeedingWorkOrders) {
-            const workOrderNumber = `${prefix}-${String(sequence).padStart(4, '0')}`
+            const results = []
+            for (const item of itemsNeedingWorkOrders) {
+                const workOrderNumber = `${prefix}-${String(sequence).padStart(4, '0')}`
 
-            const workOrder = await prisma.workOrder.create({
-                data: {
-                    number: workOrderNumber,
-                    productId: item.productId,
-                    salesOrderId: id,
-                    salesOrderItemId: item.id,
-                    priority,
-                    plannedQty: Math.ceil(Number(item.quantity)), // Round up for manufacturing
-                    dueDate: dueDate ? new Date(dueDate) : salesOrder.requestedDate || null,
-                    status: 'PLANNED',
-                },
-                include: {
-                    product: {
-                        select: {
-                            code: true,
-                            name: true,
-                            unit: true,
-                        },
+                const workOrder = await tx.workOrder.create({
+                    data: {
+                        number: workOrderNumber,
+                        productId: item.productId,
+                        salesOrderId: id,
+                        salesOrderItemId: item.id,
+                        priority,
+                        plannedQty: Math.ceil(Number(item.quantity)),
+                        dueDate: dueDate ? new Date(dueDate) : salesOrder.requestedDate || null,
+                        status: 'PLANNED',
                     },
-                },
-            })
+                    include: {
+                        product: { select: { code: true, name: true, unit: true } },
+                    },
+                })
 
-            createdWorkOrders.push(workOrder)
-            sequence++
-        }
+                results.push(workOrder)
+                sequence++
+            }
 
-        // Update sales order status to IN_PROGRESS if it was CONFIRMED
-        if (salesOrder.status === 'CONFIRMED') {
-            await prisma.salesOrder.update({
-                where: { id },
-                data: { status: 'IN_PROGRESS' },
-            })
-        }
+            // Update sales order status to IN_PROGRESS if it was CONFIRMED
+            if (salesOrder.status === 'CONFIRMED') {
+                await tx.salesOrder.update({
+                    where: { id },
+                    data: { status: 'IN_PROGRESS' },
+                })
+            }
+
+            return results
+        })
 
         return NextResponse.json({
             success: true,
@@ -149,6 +152,7 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requireAuth()
         const { id } = await params
 
         // Fetch the sales order with items

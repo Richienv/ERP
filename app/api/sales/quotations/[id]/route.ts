@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PaymentTerm, QuotationStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
+
+async function requireAuth() {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Unauthorized')
+    return user
+}
 
 const toNumber = (value: unknown, fallback = 0) => {
     const parsed = Number(value)
@@ -22,6 +30,7 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requireAuth()
         const { id } = await params
         const quotation = await prisma.quotation.findUnique({
             where: { id },
@@ -117,6 +126,7 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requireAuth()
         const { id } = await params
         const body = await request.json()
 
@@ -225,6 +235,7 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        await requireAuth()
         const { id } = await params
         await prisma.quotation.delete({
             where: { id }

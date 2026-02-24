@@ -53,6 +53,7 @@ export default function CustomersPage() {
       totalProspects: filteredCustomers.filter((item) => item.isProspect).length,
       activeCustomers: filteredCustomers.filter((item) => item.isActive).length,
       creditWatch: filteredCustomers.filter((item) => ["WATCH", "HOLD", "BLOCKED"].includes(item.creditStatus)).length,
+      totalRevenue: filteredCustomers.reduce((sum, item) => sum + (item.totalOrderValue || 0), 0),
     }
   }, [filteredCustomers])
 
@@ -107,7 +108,7 @@ export default function CustomersPage() {
             </div>
             <div className="flex items-center gap-1.5 mt-1.5">
               <span className="bg-emerald-500 w-2 h-2 rounded-full inline-block animate-pulse" />
-              <span className="text-[10px] font-bold text-emerald-600 uppercase">{summary.activeCustomers} Active</span>
+              <span className="text-[10px] font-bold text-emerald-600 uppercase">{filteredSummary.activeCustomers} Aktif</span>
             </div>
           </div>
 
@@ -147,7 +148,7 @@ export default function CustomersPage() {
               <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Revenue Basis</span>
             </div>
             <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">
-              {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", notation: "compact", maximumFractionDigits: 1 }).format(summary.totalRevenue)}
+              {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", notation: "compact", maximumFractionDigits: 1 }).format(filteredSummary.totalRevenue)}
             </div>
             <div className="flex items-center gap-1 mt-1.5">
               <span className="text-[10px] font-bold text-zinc-400 uppercase">Akumulasi Order</span>

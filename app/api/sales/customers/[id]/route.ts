@@ -68,6 +68,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth()
     const { id } = await params
 
     const customer = await prisma.customer.findUnique({

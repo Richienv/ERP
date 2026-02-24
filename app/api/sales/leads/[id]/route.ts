@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { LeadSource, LeadStatus, Priority } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
+
+async function requireAuth() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error('Unauthorized')
+  return user
+}
 
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value)
@@ -23,6 +31,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAuth()
     const { id } = await params
     const body = await request.json()
 

@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { PaymentTerm, SalesOrderStatus } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
+
+async function requireAuth() {
+  const supabase = await createClient()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error || !user) throw new Error('Unauthorized')
+  return user
+}
 
 const toNumber = (value: unknown, fallback = 0) => {
   const parsed = Number(value)
@@ -69,6 +77,7 @@ type NormalizedSalesOrderItem = {
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAuth()
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
     const status = normalizeOrderStatus(searchParams.get('status'))
@@ -170,6 +179,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAuth()
     const body = await request.json()
 
     const orderPayload = body.salesOrder && typeof body.salesOrder === 'object' ? body.salesOrder : body
@@ -202,7 +212,7 @@ export async function POST(request: NextRequest) {
 
     const customer = await prisma.customer.findUnique({
       where: { id: customerId },
-      select: { id: true },
+      select: { id: true, creditLimit: true, creditStatus: true, name: true },
     })
 
     if (!customer) {
@@ -325,9 +335,38 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const number = await generateSalesOrderNumber()
+    // Credit limit validation (same as quotation endpoint)
+    if (customer.creditStatus === 'HOLD' || customer.creditStatus === 'BLOCKED') {
+      return NextResponse.json(
+        { success: false, error: `Customer "${customer.name}" berstatus ${customer.creditStatus}. Tidak dapat membuat pesanan.` },
+        { status: 400 }
+      )
+    }
+    const creditLimit = toNumber(customer.creditLimit)
+    if (creditLimit > 0 && total > creditLimit) {
+      const formatIDR = (v: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(v)
+      return NextResponse.json(
+        { success: false, error: `Total pesanan ${formatIDR(total)} melebihi limit kredit customer ${formatIDR(creditLimit)}.` },
+        { status: 400 }
+      )
+    }
 
     const order = await prisma.$transaction(async (tx) => {
+      // Generate number inside transaction to prevent race conditions
+      const now = new Date()
+      const prefix = `SO-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`
+      const last = await tx.salesOrder.findFirst({
+        where: { number: { startsWith: prefix } },
+        orderBy: { number: 'desc' },
+        select: { number: true },
+      })
+      let sequence = 1
+      if (last?.number) {
+        const match = last.number.match(/-(\d+)$/)
+        if (match) sequence = Number(match[1]) + 1
+      }
+      const number = `${prefix}-${String(sequence).padStart(4, '0')}`
+
       const created = await tx.salesOrder.create({
         data: {
           number,

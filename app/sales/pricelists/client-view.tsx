@@ -119,7 +119,7 @@ export function PriceListsClient({ initialPriceLists }: PriceListsClientProps) {
                             {initialPriceLists.length}
                         </div>
                         <div className="flex items-center gap-1.5 mt-1.5">
-                            <span className="text-[10px] font-bold text-violet-600 uppercase">{activeCount} AKtif</span>
+                            <span className="text-[10px] font-bold text-violet-600 uppercase">{activeCount} Aktif</span>
                         </div>
                     </div>
 
