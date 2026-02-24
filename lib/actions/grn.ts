@@ -71,6 +71,8 @@ interface CreateGRNInput {
 // ==========================================
 
 export async function getPendingPOsForReceiving() {
+    await getAuthzUser()
+
     const { data: orders } = await safeQuery<any[]>(
         () => withRetry(() => prismaAny.purchaseOrder.findMany({
             where: {
@@ -138,6 +140,8 @@ export async function getPendingPOsForReceiving() {
 
 export async function getAllGRNs() {
     try {
+        await getAuthzUser()
+
         const grns = await prismaAny.goodsReceivedNote.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
@@ -189,6 +193,8 @@ export async function getAllGRNs() {
 
 export async function getGRNById(id: string) {
     try {
+        await getAuthzUser()
+
         const grn = await prismaAny.goodsReceivedNote.findUnique({
             where: { id },
             include: {
@@ -555,6 +561,13 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             })
         })
 
+        // Fire-and-forget: recalculate vendor rating after successful GRN acceptance
+        if (result.success) {
+            recalculateVendorRating(grnId).catch((err) =>
+                console.error("[acceptGRN] Vendor rating recalc failed (non-blocking):", err)
+            )
+        }
+
         return result
     } catch (error: any) {
         console.error("Error accepting GRN:", error)
@@ -651,4 +664,84 @@ export async function getEmployeesForGRN() {
         console.error("Error fetching employees:", error)
         return []
     }
+}
+
+// ==========================================
+// AUTO-RECALCULATE VENDOR RATING
+// ==========================================
+
+/**
+ * Recalculates a vendor's rating and onTimeRate based on actual PO/GRN data.
+ * Called after GRN acceptance. Non-blocking — failures are logged but don't
+ * affect the GRN acceptance result.
+ */
+async function recalculateVendorRating(grnId: string) {
+    // 1. Find the supplier from this GRN's PO
+    const grn = await prismaAny.goodsReceivedNote.findUnique({
+        where: { id: grnId },
+        select: {
+            purchaseOrder: {
+                select: { supplierId: true },
+            },
+        },
+    })
+
+    const supplierId = grn?.purchaseOrder?.supplierId
+    if (!supplierId) return
+
+    // 2. Get completed POs for on-time calculation
+    const completedPOs = await prisma.purchaseOrder.findMany({
+        where: {
+            supplierId,
+            status: 'COMPLETED',
+        },
+        select: {
+            orderDate: true,
+            expectedDate: true,
+            updatedAt: true,
+        },
+        take: 100,
+        orderBy: { updatedAt: 'desc' },
+    })
+
+    let onTimeCount = 0
+    for (const po of completedPOs) {
+        if (po.expectedDate && po.updatedAt.getTime() <= po.expectedDate.getTime()) {
+            onTimeCount++
+        }
+    }
+
+    const onTimeRate = completedPOs.length > 0
+        ? Math.round((onTimeCount / completedPOs.length) * 100)
+        : 0
+
+    // 3. Get defect rate from GRN items
+    const grnStats = await prismaAny.gRNItem.aggregate({
+        where: {
+            grn: {
+                purchaseOrder: { supplierId },
+            },
+        },
+        _sum: { quantityReceived: true, quantityRejected: true },
+    })
+
+    const totalReceived = Number(grnStats._sum.quantityReceived || 0)
+    const totalRejected = Number(grnStats._sum.quantityRejected || 0)
+    const defectRate = totalReceived > 0 ? (totalRejected / totalReceived) * 100 : 0
+
+    // 4. Calculate composite rating (1-5 scale)
+    // Weight: 60% on-time delivery, 40% quality (inverse defect rate)
+    const qualityScore = Math.max(0, 100 - defectRate)
+    const compositeScore = (onTimeRate * 0.6) + (qualityScore * 0.4)
+    const rating = Math.min(5, Math.max(0, Math.round(compositeScore / 20)))
+
+    // 5. Update supplier
+    await prisma.supplier.update({
+        where: { id: supplierId },
+        data: {
+            rating,
+            onTimeRate,
+            qualityScore: Math.round(qualityScore * 100) / 100,
+        },
+    })
 }

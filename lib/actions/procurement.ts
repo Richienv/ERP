@@ -127,6 +127,8 @@ export async function getVendors() {
 
 export async function getProcurementStats(input?: ProcurementStatsInput) {
     try {
+            await getAuthzUser()
+
             const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> =>
                 promise.catch((error) => {
                     console.error(`Procurement stats segment failed: ${label}`, error)
@@ -473,6 +475,11 @@ export async function createPurchaseRequest(data: {
             return { success: false, error: "PR minimal harus memiliki 1 item." }
         }
 
+        const invalidQty = data.items.find((item) => !item.quantity || item.quantity <= 0)
+        if (invalidQty) {
+            return { success: false, error: "Kuantitas setiap item harus lebih dari 0." }
+        }
+
         const created = await withPrismaAuth(async (prisma) => {
             const actor = await resolveEmployeeContext(prisma, user)
             if (!actor) {
@@ -490,35 +497,38 @@ export async function createPurchaseRequest(data: {
                 }
             }
 
-            const now = new Date()
-            const year = now.getFullYear()
-            const month = String(now.getMonth() + 1).padStart(2, "0")
-            const prefix = `PR-${year}${month}`
-            const count = await prisma.purchaseRequest.count({
-                where: { number: { startsWith: prefix } }
-            })
-            const number = `${prefix}-${String(count + 1).padStart(4, "0")}`
+            // Use $transaction to prevent PR number race condition
+            const pr = await prisma.$transaction(async (tx) => {
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = String(now.getMonth() + 1).padStart(2, "0")
+                const prefix = `PR-${year}${month}`
+                const count = await tx.purchaseRequest.count({
+                    where: { number: { startsWith: prefix } }
+                })
+                const number = `${prefix}-${String(count + 1).padStart(4, "0")}`
 
-            const pr = await prisma.purchaseRequest.create({
-                data: {
-                    number,
-                    requesterId,
-                    department: data.department?.trim() || actor.department || "General",
-                    priority: data.priority || "NORMAL",
-                    notes: data.notes || null,
-                    status: "PENDING",
-                    requestDate: new Date(),
-                    items: {
-                        create: data.items.map((item) => ({
-                            productId: item.productId,
-                            quantity: Number(item.quantity || 0),
-                            targetDate: item.targetDate || null,
-                            notes: item.notes || null,
-                            status: "PENDING",
-                        })),
+                return await tx.purchaseRequest.create({
+                    data: {
+                        number,
+                        requesterId,
+                        department: data.department?.trim() || actor.department || "General",
+                        priority: data.priority || "NORMAL",
+                        notes: data.notes || null,
+                        status: "PENDING",
+                        requestDate: new Date(),
+                        items: {
+                            create: data.items.map((item) => ({
+                                productId: item.productId,
+                                quantity: Number(item.quantity || 0),
+                                targetDate: item.targetDate || null,
+                                notes: item.notes || null,
+                                status: "PENDING",
+                            })),
+                        },
                     },
-                },
-                select: { id: true },
+                    select: { id: true },
+                })
             })
 
             return pr
@@ -780,73 +790,77 @@ export async function convertPRToPO(prId: string, itemIds: string[], _creatorId?
                 })
             }
 
-            const createdPOs = []
+            // 3. Create POs inside transaction to prevent number race conditions
+            const createdPOs = await prisma.$transaction(async (tx) => {
+                const poNow = new Date()
+                const poYear = poNow.getFullYear()
+                const poMonth = String(poNow.getMonth() + 1).padStart(2, '0')
+                const poPrefix = `PO-${poYear}${poMonth}`
+                let poCount = await tx.purchaseOrder.count({
+                    where: { number: { startsWith: poPrefix } }
+                })
 
-            // 3. Create POs
-            const poNow = new Date()
-            const poYear = poNow.getFullYear()
-            const poMonth = String(poNow.getMonth() + 1).padStart(2, '0')
-            const poPrefix = `PO-${poYear}${poMonth}`
-            let poCount = await prisma.purchaseOrder.count({
-                where: { number: { startsWith: poPrefix } }
+                const ids: string[] = []
+
+                for (const [supplierId, groupData] of poMap.entries()) {
+                    poCount++
+                    const poNumber = `${poPrefix}-${String(poCount).padStart(4, '0')}`
+
+                    const subtotal = groupData.items.reduce((sum: number, i: any) => sum + i.totalPrice, 0)
+                    const taxAmount = Math.round(subtotal * 0.11)
+                    const netAmount = subtotal + taxAmount
+
+                    const po = await tx.purchaseOrder.create({
+                        data: {
+                            number: poNumber,
+                            supplierId,
+                            status: 'PO_DRAFT',
+                            createdBy: user.id,
+                            totalAmount: subtotal,
+                            taxAmount,
+                            netAmount,
+                            items: {
+                                create: groupData.items.map((i: any) => ({
+                                    productId: i.productId,
+                                    quantity: i.quantity,
+                                    unitPrice: i.unitPrice,
+                                    totalPrice: i.totalPrice
+                                }))
+                            },
+                            purchaseRequests: { connect: { id: prId } }
+                        }
+                    })
+
+                    await createPurchaseOrderEvent(tx as any, {
+                        purchaseOrderId: po.id,
+                        status: "PO_DRAFT",
+                        changedBy: user.id,
+                        action: "CREATE_DRAFT",
+                        metadata: { source: "SYSTEM" },
+                    })
+
+                    await tx.purchaseRequestItem.updateMany({
+                        where: { id: { in: groupData.items.map((i: any) => i.prItemId) } },
+                        data: { status: 'PO_CREATED' }
+                    })
+
+                    ids.push(po.id)
+                }
+
+                // 4. Update PR Status if all items handled
+                const remainingItems = await tx.purchaseRequestItem.count({
+                    where: { purchaseRequestId: prId, status: { not: 'PO_CREATED' } }
+                })
+
+                if (remainingItems === 0) {
+                    await tx.purchaseRequest.update({
+                        where: { id: prId },
+                        data: { status: 'PO_CREATED' }
+                    })
+                }
+
+                return ids
             })
-
-            for (const [supplierId, data] of poMap.entries()) {
-                poCount++
-                const poNumber = `${poPrefix}-${String(poCount).padStart(4, '0')}`
-
-                const subtotal = data.items.reduce((sum: number, i: any) => sum + i.totalPrice, 0)
-                const taxAmount = Math.round(subtotal * 0.11)
-                const netAmount = subtotal + taxAmount
-
-                const po = await prisma.purchaseOrder.create({
-                    data: {
-                        number: poNumber,
-                        supplierId,
-                        status: 'PO_DRAFT',
-                        createdBy: user.id,
-                        totalAmount: subtotal,
-                        taxAmount,
-                        netAmount,
-                        items: {
-                            create: data.items.map((i: any) => ({
-                                productId: i.productId,
-                                quantity: i.quantity,
-                                unitPrice: i.unitPrice,
-                                totalPrice: i.totalPrice
-                            }))
-                        },
-                        purchaseRequests: { connect: { id: prId } }
-                    }
-                })
-
-                await createPurchaseOrderEvent(prisma as any, {
-                    purchaseOrderId: po.id,
-                    status: "PO_DRAFT",
-                    changedBy: user.id,
-                    action: "CREATE_DRAFT",
-                    metadata: { source: "SYSTEM" },
-                })
-
-                await prisma.purchaseRequestItem.updateMany({
-                    where: { id: { in: data.items.map((i: any) => i.prItemId) } },
-                    data: { status: 'PO_CREATED' }
-                })
-
-                createdPOs.push(po.id)
-            }
-
-            // 4. Update PR Status if all items handled
-            const remainingItems = await prisma.purchaseRequestItem.count({
-                where: { purchaseRequestId: prId, status: { not: 'PO_CREATED' } }
-            })
-
-            if (remainingItems === 0) {
-                await prisma.purchaseRequest.update({
-                    where: { id: prId },
-                    data: { status: 'PO_CREATED' }
-                })
-            }
 
             return { success: true, poIds: createdPOs }
         })
@@ -866,25 +880,27 @@ export async function submitPOForApproval(poId: string) {
 
         await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
-            if (!current) throw new Error("Purchase Order not found")
+            await prisma.$transaction(async (tx) => {
+                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+                if (!current) throw new Error("Purchase Order not found")
 
-            assertPOTransition(current.status as any, "PENDING_APPROVAL")
+                assertPOTransition(current.status as any, "PENDING_APPROVAL")
 
-            await prisma.purchaseOrder.update({
-                where: { id: poId },
-                data: {
-                    previousStatus: current.status as any,
-                    status: 'PENDING_APPROVAL',
-                }
-            })
+                await tx.purchaseOrder.update({
+                    where: { id: poId },
+                    data: {
+                        previousStatus: current.status as any,
+                        status: 'PENDING_APPROVAL',
+                    }
+                })
 
-            await createPurchaseOrderEvent(prisma as any, {
-                purchaseOrderId: poId,
-                status: "PENDING_APPROVAL",
-                changedBy: user.id,
-                action: "SUBMIT_APPROVAL",
-                metadata: { source: "MANUAL_ENTRY" },
+                await createPurchaseOrderEvent(tx as any, {
+                    purchaseOrderId: poId,
+                    status: "PENDING_APPROVAL",
+                    changedBy: user.id,
+                    action: "SUBMIT_APPROVAL",
+                    metadata: { source: "MANUAL_ENTRY" },
+                })
             })
         })
 
@@ -901,30 +917,32 @@ export async function approvePurchaseOrder(poId: string, _approverId?: string) {
 
         const po = await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
-            if (!current) throw new Error("Purchase Order not found")
+            return await prisma.$transaction(async (tx) => {
+                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+                if (!current) throw new Error("Purchase Order not found")
 
-            assertPOTransition(current.status as any, "APPROVED")
+                assertPOTransition(current.status as any, "APPROVED")
 
-            const updated = await prisma.purchaseOrder.update({
-                where: { id: poId },
-                data: {
-                    previousStatus: current.status as any,
-                    status: 'APPROVED',
-                    approvedBy: user.id,
-                },
-                include: { supplier: true, items: { include: { product: true } } }
+                const updated = await tx.purchaseOrder.update({
+                    where: { id: poId },
+                    data: {
+                        previousStatus: current.status as any,
+                        status: 'APPROVED',
+                        approvedBy: user.id,
+                    },
+                    include: { supplier: true, items: { include: { product: true } } }
+                })
+
+                await createPurchaseOrderEvent(tx as any, {
+                    purchaseOrderId: poId,
+                    status: "APPROVED",
+                    changedBy: user.id,
+                    action: "APPROVE",
+                    metadata: { source: "MANUAL_ENTRY" },
+                })
+
+                return updated
             })
-
-            await createPurchaseOrderEvent(prisma as any, {
-                purchaseOrderId: poId,
-                status: "APPROVED",
-                changedBy: user.id,
-                action: "APPROVE",
-                metadata: { source: "MANUAL_ENTRY" },
-            })
-
-            return updated
         })
 
         // TRIGGER FINANCE (Bill Creation)
@@ -944,27 +962,29 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
 
         await withPrismaAuth(async (prisma) => {
             await requireActiveProcurementActor(prisma, user)
-            const current = await prisma.purchaseOrder.findUnique({ where: { id: poId } })
-            if (!current) throw new Error("Purchase Order not found")
+            await prisma.$transaction(async (tx) => {
+                const current = await tx.purchaseOrder.findUnique({ where: { id: poId } })
+                if (!current) throw new Error("Purchase Order not found")
 
-            assertPOTransition(current.status as any, "REJECTED")
+                assertPOTransition(current.status as any, "REJECTED")
 
-            await prisma.purchaseOrder.update({
-                where: { id: poId },
-                data: {
-                    previousStatus: current.status as any,
-                    status: 'REJECTED',
-                    rejectionReason: reason,
-                }
-            })
+                await tx.purchaseOrder.update({
+                    where: { id: poId },
+                    data: {
+                        previousStatus: current.status as any,
+                        status: 'REJECTED',
+                        rejectionReason: reason,
+                    }
+                })
 
-            await createPurchaseOrderEvent(prisma as any, {
-                purchaseOrderId: poId,
-                status: "REJECTED",
-                changedBy: user.id,
-                action: "REJECT",
-                notes: reason,
-                metadata: { source: "MANUAL_ENTRY" },
+                await createPurchaseOrderEvent(tx as any, {
+                    purchaseOrderId: poId,
+                    status: "REJECTED",
+                    changedBy: user.id,
+                    action: "REJECT",
+                    notes: reason,
+                    metadata: { source: "MANUAL_ENTRY" },
+                })
             })
         })
 
@@ -977,35 +997,37 @@ export async function rejectPurchaseOrder(poId: string, reason: string) {
 export async function cancelPurchaseOrder(id: string, reason: string) {
     try {
         return await withPrismaAuth(async (prisma, user) => {
-            const po = await prisma.purchaseOrder.findUnique({
-                where: { id },
-                select: { id: true, number: true, status: true }
+            return await prisma.$transaction(async (tx) => {
+                const po = await tx.purchaseOrder.findUnique({
+                    where: { id },
+                    select: { id: true, number: true, status: true }
+                })
+
+                if (!po) throw new Error('Purchase order not found')
+
+                // Use state machine to validate transition
+                assertPOTransition(po.status as ProcurementStatus, 'CANCELLED')
+
+                const updated = await tx.purchaseOrder.update({
+                    where: { id },
+                    data: {
+                        previousStatus: po.status as any,
+                        status: 'CANCELLED',
+                        notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
+                    }
+                })
+
+                await createPurchaseOrderEvent(tx as any, {
+                    purchaseOrderId: id,
+                    status: "CANCELLED",
+                    changedBy: user.id,
+                    action: "CANCEL",
+                    notes: reason || 'PO dibatalkan',
+                    metadata: { source: "MANUAL_ENTRY" },
+                })
+
+                return { success: true, data: updated }
             })
-
-            if (!po) throw new Error('Purchase order not found')
-
-            // Use state machine to validate transition
-            assertPOTransition(po.status as ProcurementStatus, 'CANCELLED')
-
-            const updated = await prisma.purchaseOrder.update({
-                where: { id },
-                data: {
-                    previousStatus: po.status as any,
-                    status: 'CANCELLED',
-                    notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
-                }
-            })
-
-            await createPurchaseOrderEvent(prisma as any, {
-                purchaseOrderId: id,
-                status: "CANCELLED",
-                changedBy: user.id,
-                action: "CANCEL",
-                notes: reason || 'PO dibatalkan',
-                metadata: { source: "MANUAL_ENTRY" },
-            })
-
-            return { success: true, data: updated }
         })
     } catch (error: any) {
         console.error('Cancel PO error:', error)
@@ -1175,6 +1197,8 @@ export const createPOFromPR = convertPRToPO
 
 export async function getAllPurchaseOrders() {
     try {
+        await getAuthzUser()
+
         const orders = await prisma.purchaseOrder.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
@@ -1306,6 +1330,8 @@ export async function updatePurchaseOrderTaxMode(poId: string, taxMode: "PPN" | 
 
 export async function getPendingApprovalPOs() {
     try {
+        await getAuthzUser()
+
         const pos = await prisma.purchaseOrder.findMany({
             where: { status: 'PENDING_APPROVAL' },
             include: {
@@ -1782,5 +1808,122 @@ export async function getSupplierScorecard(supplierId: string): Promise<{
     } catch (error) {
         console.error("[getSupplierScorecard] Error:", error)
         return null
+    }
+}
+
+// ==============================================================================
+// Update Vendor
+// ==============================================================================
+
+export async function updateVendor(
+    id: string,
+    data: {
+        name?: string
+        contactName?: string
+        contactTitle?: string
+        email?: string
+        phone?: string
+        picPhone?: string
+        officePhone?: string
+        address?: string
+        address2?: string
+        paymentTerm?: string
+        bankName?: string
+        bankAccountNumber?: string
+        bankAccountName?: string
+    }
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        return await withPrismaAuth(async (prisma) => {
+            const existing = await prisma.supplier.findUnique({
+                where: { id },
+                select: { id: true },
+            })
+            if (!existing) {
+                return { success: false, error: "Vendor tidak ditemukan" }
+            }
+
+            await prisma.supplier.update({
+                where: { id },
+                data: {
+                    name: data.name || undefined,
+                    contactName: data.contactName ?? undefined,
+                    contactTitle: data.contactTitle ?? undefined,
+                    email: data.email ?? undefined,
+                    phone: data.phone ?? undefined,
+                    picPhone: data.picPhone ?? undefined,
+                    officePhone: data.officePhone ?? undefined,
+                    address: data.address ?? undefined,
+                    address2: data.address2 ?? undefined,
+                    paymentTerm: data.paymentTerm
+                        ? (data.paymentTerm as import("@prisma/client").PaymentTerm)
+                        : undefined,
+                    bankName: data.bankName ?? undefined,
+                    bankAccountNumber: data.bankAccountNumber ?? undefined,
+                    bankAccountName: data.bankAccountName ?? undefined,
+                },
+            })
+
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("[updateVendor] Error:", error)
+        return { success: false, error: error.message || "Gagal memperbarui vendor" }
+    }
+}
+
+// ==============================================================================
+// Deactivate Vendor
+// ==============================================================================
+
+export async function deactivateVendor(
+    id: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        return await withPrismaAuth(async (prisma) => {
+            const vendor = await prisma.supplier.findUnique({
+                where: { id },
+                select: { id: true, name: true, isActive: true },
+            })
+            if (!vendor) {
+                return { success: false, error: "Vendor tidak ditemukan" }
+            }
+            if (!vendor.isActive) {
+                return { success: false, error: "Vendor sudah non-aktif" }
+            }
+
+            // Check for active POs (not completed, rejected, or cancelled)
+            const activePOs = await prisma.purchaseOrder.count({
+                where: {
+                    supplierId: id,
+                    status: {
+                        notIn: ['COMPLETED', 'REJECTED', 'CANCELLED'] as ProcurementStatus[],
+                    },
+                },
+            })
+
+            if (activePOs > 0) {
+                return {
+                    success: false,
+                    error: `Vendor "${vendor.name}" masih memiliki ${activePOs} PO aktif. Selesaikan atau batalkan PO terlebih dahulu.`,
+                }
+            }
+
+            await prisma.supplier.update({
+                where: { id },
+                data: { isActive: false },
+            })
+
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("[deactivateVendor] Error:", error)
+        return { success: false, error: error.message || "Gagal menonaktifkan vendor" }
     }
 }
