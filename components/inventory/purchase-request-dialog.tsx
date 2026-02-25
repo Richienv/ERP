@@ -47,6 +47,8 @@ interface PurchaseRequestDialogProps {
     cost: number;
     gap: number;
     reorderPoint: number;
+    pendingRestockQty?: number;
+    currentStock?: number;
   };
   onSuccess?: (newPO: any) => void;
 }
@@ -156,6 +158,31 @@ export function PurchaseRequestDialog({ item, onSuccess }: PurchaseRequestDialog
                 </div>
               </div>
             </div>
+
+            {/* Recommendation Banner */}
+            {(item.pendingRestockQty != null && item.pendingRestockQty > 0) && (
+              <div className="border-2 border-amber-400 bg-amber-50 p-3 space-y-1">
+                <div className="text-[10px] font-black uppercase tracking-widest text-amber-700 flex items-center gap-1.5">
+                  <ShoppingBag className="h-3.5 w-3.5" /> Rekomendasi dari Kelola Gudang
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-black text-amber-800">{item.pendingRestockQty}</span>
+                  <span className="text-sm font-bold text-amber-600">{item.unit}</span>
+                </div>
+                <p className="text-[10px] text-amber-600">
+                  Jumlah yang diminta dari permintaan restock kritis. Stok saat ini: <span className="font-black">{item.currentStock ?? 0} {item.unit}</span>
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-[10px] font-black uppercase border-amber-400 text-amber-700 hover:bg-amber-100 mt-1"
+                  onClick={() => form.setValue("quantity", item.pendingRestockQty!)}
+                >
+                  Gunakan Rekomendasi
+                </Button>
+              </div>
+            )}
 
             {/* Request Form */}
             <div className={NB.section}>

@@ -25,53 +25,71 @@ export function ProcurementInsights({ data }: ProcurementInsightsProps) {
     }
 
     return (
-        <div className="bg-zinc-50 dark:bg-zinc-800/50 overflow-hidden h-full flex items-center">
-            <div className="flex items-center justify-between w-full px-4 py-2.5 gap-6">
+        <div className="bg-zinc-50 dark:bg-zinc-800/50 h-full flex items-center">
+            <div className="flex flex-wrap items-center w-full px-3 py-2 gap-3 lg:gap-5">
 
                 {/* Restock Alert */}
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-red-500 border-2 border-black flex items-center justify-center shrink-0">
-                        <AlertCircle className="h-4 w-4 text-white" />
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="w-7 h-7 bg-red-500 border-2 border-black flex items-center justify-center shrink-0">
+                        <AlertCircle className="h-3.5 w-3.5 text-white" />
                     </div>
                     <div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Restock</div>
-                        <div className="text-lg font-black text-red-600 tracking-tighter leading-none">
+                        <div className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Restock</div>
+                        <div className="text-base font-black text-red-600 tracking-tighter leading-none">
                             {formatCurrency(data.summary.totalRestockCost)}
                         </div>
-                        <div className="text-[8px] font-bold text-zinc-400">
+                        <div className="text-[7px] font-bold text-zinc-400">
                             {data.summary.itemsCriticalCount} item kritis
                         </div>
                     </div>
                 </div>
 
                 {/* Incoming POs */}
-                <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-blue-500 border-2 border-black flex items-center justify-center shrink-0">
-                        <Truck className="h-4 w-4 text-white" />
+                <div className="flex items-center gap-2 shrink-0">
+                    <div className="w-7 h-7 bg-cyan-500 border-2 border-black flex items-center justify-center shrink-0">
+                        <Truck className="h-3.5 w-3.5 text-white" />
                     </div>
                     <div>
-                        <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Incoming</div>
-                        <div className="text-lg font-black text-zinc-900 dark:text-white tracking-tighter leading-none">
-                            {data.summary.totalIncoming} <span className="text-xs text-zinc-400 font-bold">PO</span>
+                        <div className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Incoming</div>
+                        <div className="text-base font-black text-zinc-900 dark:text-white tracking-tighter leading-none">
+                            {data.summary.totalIncoming} <span className="text-[10px] text-zinc-400 font-bold">PO</span>
                         </div>
-                        <div className="text-[8px] font-bold text-zinc-400">
+                        <div className="text-[7px] font-bold text-zinc-400">
                             Diproses vendor
                         </div>
                     </div>
                 </div>
 
+                {/* Planning (Pending PRs) */}
+                {(data.summary.totalPending ?? 0) > 0 && (
+                    <div className="flex items-center gap-2 shrink-0">
+                        <div className="w-7 h-7 bg-violet-500 border-2 border-black flex items-center justify-center shrink-0">
+                            <ShoppingCart className="h-3.5 w-3.5 text-white" />
+                        </div>
+                        <div>
+                            <div className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Planning</div>
+                            <div className="text-base font-black text-violet-600 tracking-tighter leading-none">
+                                {data.summary.totalPending} <span className="text-[10px] text-zinc-400 font-bold">PR</span>
+                            </div>
+                            <div className="text-[7px] font-bold text-zinc-400">
+                                Menunggu proses
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Action Buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 ml-auto shrink-0">
                     <Link href="/procurement">
-                        <div className="flex items-center gap-1.5 px-4 py-2 text-[9px] font-black uppercase bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-y-[1px] transition-all whitespace-nowrap">
-                            <ShoppingCart className="h-3.5 w-3.5" /> Procurement
-                            <ArrowRight className="h-3 w-3" />
+                        <div className="flex items-center gap-1 px-2.5 py-1.5 text-[8px] font-black uppercase bg-black text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:shadow-none hover:translate-y-[1px] transition-all whitespace-nowrap">
+                            <ShoppingCart className="h-3 w-3" /> Procurement
+                            <ArrowRight className="h-2.5 w-2.5" />
                         </div>
                     </Link>
                     {data.summary.itemsCriticalCount > 0 && (
                         <Link href="/procurement/requests/create?type=bulk_restock">
-                            <div className="flex items-center gap-1.5 px-4 py-2 text-[9px] font-black uppercase bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 hover:shadow-none hover:translate-y-[1px] transition-all whitespace-nowrap">
-                                <AlertCircle className="h-3.5 w-3.5" /> Restock Sekarang
+                            <div className="flex items-center gap-1 px-2.5 py-1.5 text-[8px] font-black uppercase bg-red-600 text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-700 hover:shadow-none hover:translate-y-[1px] transition-all whitespace-nowrap">
+                                <AlertCircle className="h-3 w-3" /> Restock
                             </div>
                         </Link>
                     )}

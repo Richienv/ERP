@@ -1,4 +1,4 @@
-export type KanbanStatus = 'HEALTHY' | 'LOW_STOCK' | 'CRITICAL' | 'NEW';
+export type KanbanStatus = 'HEALTHY' | 'LOW_STOCK' | 'CRITICAL' | 'NEW' | 'PLANNING' | 'INCOMING';
 
 export interface ProductStockInfo {
     totalStock: number;

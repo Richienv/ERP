@@ -50,6 +50,15 @@ export const queryKeys = {
         all: ["bom"] as const,
         list: () => [...queryKeys.bom.all, "list"] as const,
     },
+    processStations: {
+        all: ["processStations"] as const,
+        list: () => [...queryKeys.processStations.all, "list"] as const,
+    },
+    productionBom: {
+        all: ["productionBom"] as const,
+        list: () => [...queryKeys.productionBom.all, "list"] as const,
+        detail: (id: string) => [...queryKeys.productionBom.all, "detail", id] as const,
+    },
     workOrders: {
         all: ["workOrders"] as const,
         list: () => [...queryKeys.workOrders.all, "list"] as const,

@@ -32,19 +32,21 @@ import {
 import {
     Package, X, Save, Trash2, Edit3, History,
     ArrowRightLeft, ArrowDownCircle, ArrowUpCircle,
-    Loader2, AlertTriangle, Warehouse
+    Loader2, AlertTriangle, Warehouse, ShoppingCart, Calculator
 } from "lucide-react"
 import { toast } from "sonner"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { updateProduct, deleteProduct } from "@/app/actions/inventory"
+import { updateProduct, deleteProduct, requestPurchase } from "@/app/actions/inventory"
 import { useUnits } from "@/hooks/use-master-data"
+import { cn } from "@/lib/utils"
 
 interface ProductQuickViewProps {
     productId: string | null
     open: boolean
     onOpenChange: (open: boolean) => void
     categories?: { id: string; name: string; code: string }[]
+    warehouses?: { id: string; name: string }[]
 }
 
 interface ProductData {
@@ -119,12 +121,15 @@ function getMovementColor(type: string): string {
     return "bg-amber-100 text-amber-800 border-amber-300"
 }
 
-export function ProductQuickView({ productId, open, onOpenChange, categories = [] }: ProductQuickViewProps) {
+export function ProductQuickView({ productId, open, onOpenChange, categories = [], warehouses = [] }: ProductQuickViewProps) {
     const [tab, setTab] = useState<Tab>("detail")
     const [editing, setEditing] = useState(false)
     const [saving, setSaving] = useState(false)
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
     const [editForm, setEditForm] = useState<Partial<ProductData>>({})
+    const [prFormOpen, setPrFormOpen] = useState(false)
+    const [prSubmitting, setPrSubmitting] = useState(false)
+    const [prForm, setPrForm] = useState({ quantity: "", warehouseId: "", notes: "" })
     const queryClient = useQueryClient()
     const { data: units = [] } = useUnits()
 
@@ -184,6 +189,7 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
         if (open && productId) {
             setTab("detail")
             setEditing(false)
+            setPrFormOpen(false)
         }
     }, [open, productId])
 
@@ -253,6 +259,53 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
         }
     }
 
+    // PR handler from quick view
+    const handleQuickPR = async () => {
+        if (!product || !productId) return
+        if (!prForm.quantity) {
+            toast.error("Jumlah harus diisi")
+            return
+        }
+        setPrSubmitting(true)
+        toast.loading("Membuat Purchase Request...")
+        try {
+            const result = await requestPurchase({
+                itemId: productId,
+                quantity: Number(prForm.quantity),
+                notes: prForm.notes || `Request dari Detail Produk${prForm.warehouseId ? `. Gudang: ${prForm.warehouseId}` : ''}`
+            })
+            toast.dismiss()
+            if (result.success) {
+                toast.success("Purchase Request berhasil dibuat!", {
+                    description: "PR masuk ke antrian Procurement."
+                })
+                setPrFormOpen(false)
+                setPrForm({ quantity: "", warehouseId: "", notes: "" })
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+            } else {
+                const errMsg = (result as any).message || (result as any).error || "Gagal membuat PR"
+                if ((result as any).alreadyPending) {
+                    toast.info("Purchase Request sudah ada untuk produk ini.")
+                    setPrFormOpen(false)
+                } else {
+                    toast.error(errMsg)
+                }
+            }
+        } catch (error: any) {
+            toast.dismiss()
+            toast.error(error.message || "Terjadi kesalahan")
+        } finally {
+            setPrSubmitting(false)
+        }
+    }
+
+    const prEstimatedCost = product && prForm.quantity ? (Number(product.costPrice || 0) * Number(prForm.quantity)) : 0
+    const prTax = prEstimatedCost * 0.11
+    const prTotalWithTax = prEstimatedCost + prTax
+
     // Group transfer movements — find paired transfers by referenceId
     const enrichedMovements = movements.map(mv => {
         if (mv.type === 'TRANSFER' && mv.referenceId) {
@@ -316,25 +369,22 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                     <div className="flex border-b-2 border-black">
                         <button
                             onClick={() => setTab("detail")}
-                            className={`flex-1 px-4 py-2.5 text-xs font-black uppercase tracking-widest transition-all border-r-2 border-black ${
-                                tab === "detail" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
-                            }`}
+                            className={`flex-1 px-4 py-2.5 text-xs font-black uppercase tracking-widest transition-all border-r-2 border-black ${tab === "detail" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
+                                }`}
                         >
                             <Package className="h-3.5 w-3.5 inline mr-1.5" />
                             Detail Produk
                         </button>
                         <button
                             onClick={() => setTab("movements")}
-                            className={`flex-1 px-4 py-2.5 text-xs font-black uppercase tracking-widest transition-all ${
-                                tab === "movements" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
-                            }`}
+                            className={`flex-1 px-4 py-2.5 text-xs font-black uppercase tracking-widest transition-all ${tab === "movements" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"
+                                }`}
                         >
                             <History className="h-3.5 w-3.5 inline mr-1.5" />
                             Riwayat Stok
                             {movements.length > 0 && (
-                                <span className={`ml-1.5 inline-flex items-center justify-center px-1.5 h-4 text-[9px] font-black rounded-full ${
-                                    tab === "movements" ? "bg-amber-400 text-black" : "bg-zinc-200 text-zinc-600"
-                                }`}>
+                                <span className={`ml-1.5 inline-flex items-center justify-center px-1.5 h-4 text-[9px] font-black rounded-full ${tab === "movements" ? "bg-amber-400 text-black" : "bg-zinc-200 text-zinc-600"
+                                    }`}>
                                     {movements.length}
                                 </span>
                             )}
@@ -524,6 +574,114 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
                                                         <span className="text-sm font-bold text-zinc-900 flex-1">{value}</span>
                                                     </div>
                                                 ))}
+                                            </div>
+                                        )}
+
+                                        {/* === PR CREATION SECTION === */}
+                                        {!editing && (
+                                            <div className="border-2 border-violet-300 bg-violet-50/50 dark:bg-violet-950/10 overflow-hidden">
+                                                {!prFormOpen ? (
+                                                    <button
+                                                        onClick={() => {
+                                                            const deficit = Math.max((product.minStock || 0) - product.totalStock, 0)
+                                                            setPrForm({
+                                                                quantity: deficit > 0 ? deficit.toString() : (product.minStock > 0 ? (product.minStock * 2).toString() : "10"),
+                                                                warehouseId: warehouses.length > 0 ? warehouses[0].id : "",
+                                                                notes: ""
+                                                            })
+                                                            setPrFormOpen(true)
+                                                        }}
+                                                        className="w-full px-4 py-3 flex items-center justify-center gap-2 hover:bg-violet-100 dark:hover:bg-violet-950/20 transition-colors"
+                                                    >
+                                                        <ShoppingCart className="h-4 w-4 text-violet-600" />
+                                                        <span className="text-xs font-black uppercase tracking-widest text-violet-700">Buat Purchase Request</span>
+                                                    </button>
+                                                ) : (
+                                                    <div className="p-4 space-y-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <ShoppingCart className="h-4 w-4 text-violet-600" />
+                                                            <span className="text-xs font-black uppercase tracking-widest text-violet-700">Buat Purchase Request</span>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Jumlah</label>
+                                                                <div className="relative">
+                                                                    <Input
+                                                                        type="number"
+                                                                        className="font-mono font-bold pl-8 border-2 border-black h-9"
+                                                                        value={prForm.quantity}
+                                                                        onChange={(e) => setPrForm(prev => ({ ...prev, quantity: e.target.value }))}
+                                                                        placeholder="0"
+                                                                    />
+                                                                    <span className="absolute left-3 top-2 text-xs text-zinc-400 font-bold">#</span>
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Gudang (opsional)</label>
+                                                                <Select value={prForm.warehouseId} onValueChange={(val) => setPrForm(prev => ({ ...prev, warehouseId: val }))}>
+                                                                    <SelectTrigger className="border-2 border-black font-bold h-9">
+                                                                        <SelectValue placeholder="Pilih gudang..." />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {warehouses.map(w => (
+                                                                            <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Catatan / Alasan</label>
+                                                            <Textarea
+                                                                className="border-2 border-black font-medium resize-none min-h-[50px]"
+                                                                placeholder="Contoh: Pesanan pelanggan mendesak..."
+                                                                value={prForm.notes}
+                                                                onChange={(e) => setPrForm(prev => ({ ...prev, notes: e.target.value }))}
+                                                            />
+                                                        </div>
+
+                                                        {/* Cost estimation */}
+                                                        {Number(product.costPrice || 0) > 0 && Number(prForm.quantity || 0) > 0 && (
+                                                            <div className="bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-300 p-3 space-y-1.5">
+                                                                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-400 font-black text-[9px] uppercase tracking-widest">
+                                                                    <Calculator className="h-3.5 w-3.5" /> Estimasi Biaya
+                                                                </div>
+                                                                <div className="flex justify-between items-center text-xs font-medium">
+                                                                    <span>Subtotal ({product.costPrice} x {prForm.quantity})</span>
+                                                                    <span className="font-mono font-bold">Rp {prEstimatedCost.toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-center text-xs font-medium text-zinc-400">
+                                                                    <span>PPN (11%)</span>
+                                                                    <span className="font-mono font-bold">Rp {prTax.toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="border-t border-blue-200 dark:border-blue-700 pt-1.5 flex justify-between items-center font-black text-sm">
+                                                                    <span>Total Estimasi</span>
+                                                                    <span className="font-mono">Rp {prTotalWithTax.toLocaleString()}</span>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex gap-2 pt-1">
+                                                            <Button
+                                                                onClick={handleQuickPR}
+                                                                disabled={prSubmitting}
+                                                                className="flex-1 bg-violet-600 hover:bg-violet-700 text-white border-2 border-violet-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider"
+                                                            >
+                                                                {prSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShoppingCart className="h-4 w-4 mr-2" />}
+                                                                Buat PR
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                onClick={() => setPrFormOpen(false)}
+                                                                className="border-2 border-black font-black uppercase text-xs tracking-wider"
+                                                            >
+                                                                <X className="h-4 w-4 mr-1" /> Batal
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>

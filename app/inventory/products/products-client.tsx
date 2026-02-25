@@ -11,6 +11,8 @@ import {
     Wallet,
     Download,
     ChevronDown,
+    ClipboardList,
+    ArrowDownToLine,
 } from "lucide-react"
 import * as XLSX from "xlsx"
 import { Button } from "@/components/ui/button"
@@ -35,6 +37,9 @@ interface ProductsPageClientProps {
         healthy: number
         lowStock: number
         critical: number
+        newArrivals: number
+        planning: number
+        incoming: number
         totalValue: number
     }
 }
@@ -90,22 +95,20 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                         <div className="flex border-2 border-black">
                             <button
                                 onClick={() => setView("kanban")}
-                                className={`px-3 py-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all border-r-2 border-black ${
-                                    view === "kanban"
-                                        ? "bg-black text-white"
-                                        : "bg-white text-zinc-400 hover:bg-zinc-50"
-                                }`}
+                                className={`px-3 py-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all border-r-2 border-black ${view === "kanban"
+                                    ? "bg-black text-white"
+                                    : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                    }`}
                             >
                                 <LayoutGrid className="h-3.5 w-3.5" />
                                 Kanban
                             </button>
                             <button
                                 onClick={() => setView("list")}
-                                className={`px-3 py-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
-                                    view === "list"
-                                        ? "bg-black text-white"
-                                        : "bg-white text-zinc-400 hover:bg-zinc-50"
-                                }`}
+                                className={`px-3 py-2 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${view === "list"
+                                    ? "bg-black text-white"
+                                    : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                    }`}
                             >
                                 <List className="h-3.5 w-3.5" />
                                 Tabel
@@ -141,7 +144,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
             {/* KPI PULSE STRIP                            */}
             {/* ═══════════════════════════════════════════ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="grid grid-cols-2 md:grid-cols-5">
+                <div className="grid grid-cols-2 md:grid-cols-7">
                     {/* Total Products */}
                     <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
@@ -202,9 +205,39 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                         </div>
                     </div>
 
+                    {/* Planning (PR Aktif) */}
+                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-violet-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <ClipboardList className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Planning</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-violet-600">
+                            {stats.planning}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-violet-600">PR aktif</span>
+                        </div>
+                    </div>
+
+                    {/* Incoming (PO Aktif) */}
+                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-cyan-400" />
+                        <div className="flex items-center gap-2 mb-2">
+                            <ArrowDownToLine className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Incoming</span>
+                        </div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-cyan-600">
+                            {stats.incoming}
+                        </div>
+                        <div className="flex items-center gap-1 mt-1.5">
+                            <span className="text-[10px] font-bold text-cyan-600">PO aktif</span>
+                        </div>
+                    </div>
+
                     {/* Total Value */}
                     <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-violet-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-zinc-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Wallet className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nilai Inventori</span>
@@ -215,7 +248,7 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                                 : formatIDR(stats.totalValue)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-violet-600">Berdasarkan harga beli</span>
+                            <span className="text-[10px] font-bold text-zinc-500">Berdasarkan harga beli</span>
                         </div>
                     </div>
                 </div>

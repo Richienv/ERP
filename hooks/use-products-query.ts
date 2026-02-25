@@ -14,7 +14,7 @@ export function useProductsPage() {
                 products: json.products ?? [],
                 categories: json.categories ?? [],
                 warehouses: json.warehouses ?? [],
-                stats: json.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, totalValue: 0 },
+                stats: json.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, newArrivals: 0, planning: 0, incoming: 0, totalValue: 0 },
             }
         },
     })

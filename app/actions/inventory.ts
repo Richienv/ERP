@@ -321,45 +321,55 @@ export async function getInventoryKPIs() {
 
 export async function getMaterialGapAnalysis() {
     const [products, pendingTasks] = await Promise.all([
-            prisma.product.findMany({
-                where: { isActive: true },
-                include: {
-                    stockLevels: {
-                        include: { warehouse: true }
+        prisma.product.findMany({
+            where: { isActive: true },
+            include: {
+                stockLevels: {
+                    include: { warehouse: true }
+                },
+                category: true,
+                purchaseOrderItems: {
+                    where: {
+                        purchaseOrder: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] } }
                     },
-                    category: true,
-                    purchaseOrderItems: {
-                        where: {
-                            purchaseOrder: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] } }
-                        },
-                        include: {
-                            purchaseOrder: {
-                                include: { supplier: true }
-                            }
-                        },
-                        orderBy: {
-                            purchaseOrder: { expectedDate: 'asc' }
+                    include: {
+                        purchaseOrder: {
+                            include: { supplier: true }
                         }
                     },
-                    supplierItems: {
-                        where: { isPreferred: true },
-                        include: { supplier: { select: { name: true, contactName: true } } },
-                        take: 1
+                    orderBy: {
+                        purchaseOrder: { expectedDate: 'asc' }
+                    }
+                },
+                supplierItems: {
+                    where: { isPreferred: true },
+                    include: { supplier: { select: { name: true, contactName: true } } },
+                    take: 1
+                },
+                workOrders: {
+                    where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
+                },
+                alternativeProduct: true,
+                // 5. Pending Purchase Requests (restock demand)
+                purchaseRequestItems: {
+                    where: {
+                        status: 'PENDING',
+                        purchaseRequest: { status: { in: ['PENDING', 'APPROVED'] } }
                     },
-                    workOrders: {
-                        where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
-                    },
-                    alternativeProduct: true,
-                    // 5. BOM & Demand (Critical for loop)
-                    BOMItem: {
-                        include: {
-                            bom: {
-                                include: {
-                                    product: {
-                                        include: {
-                                            workOrders: {
-                                                where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
-                                            }
+                    select: {
+                        quantity: true,
+                        purchaseRequest: { select: { number: true, status: true } }
+                    }
+                },
+                // 6. BOM & Demand (Critical for loop)
+                BOMItem: {
+                    include: {
+                        bom: {
+                            include: {
+                                product: {
+                                    include: {
+                                        workOrders: {
+                                            where: { status: { in: ['PLANNED', 'IN_PROGRESS'] } }
                                         }
                                     }
                                 }
@@ -367,252 +377,264 @@ export async function getMaterialGapAnalysis() {
                         }
                     }
                 }
-            }),
-            prisma.employeeTask.findMany({
-                where: { type: 'PURCHASE_REQUEST', status: 'PENDING' },
-                select: { relatedId: true }
-            })
-        ])
+            }
+        }),
+        prisma.employeeTask.findMany({
+            where: { type: 'PURCHASE_REQUEST', status: 'PENDING' },
+            select: { relatedId: true }
+        })
+    ])
 
-        const pendingSet = new Set(pendingTasks.map(t => t.relatedId))
+    const pendingSet = new Set(pendingTasks.map(t => t.relatedId))
 
-        return products.map(p => {
-            const currentStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+    return products.map(p => {
+        const currentStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const pendingRestockQty = p.purchaseRequestItems.reduce((sum, pri) => sum + pri.quantity, 0)
 
-            // 1. Calculate Real Demand from Active Work Orders
-            // Logic: Iterate through BOM items where this material is used
-            let woDemandQty = 0
-            const activeWOs: any[] = []
+        // 1. Calculate Real Demand from Active Work Orders
+        // Logic: Iterate through BOM items where this material is used
+        let woDemandQty = 0
+        const activeWOs: any[] = []
 
-            p.BOMItem.forEach(bomItem => {
-                const fg = bomItem.bom.product
-                if (fg && fg.workOrders.length > 0) {
-                    fg.workOrders.forEach(wo => {
-                        const requiredForWO = Number(bomItem.quantity) * wo.plannedQty
-                        woDemandQty += requiredForWO
-                        activeWOs.push({
-                            id: wo.id,
-                            number: wo.number,
-                            date: wo.startDate,
-                            qty: requiredForWO,
-                            productName: fg.name
-                        })
+        p.BOMItem.forEach(bomItem => {
+            const fg = bomItem.bom.product
+            if (fg && fg.workOrders.length > 0) {
+                fg.workOrders.forEach(wo => {
+                    const requiredForWO = Number(bomItem.quantity) * wo.plannedQty
+                    woDemandQty += requiredForWO
+                    activeWOs.push({
+                        id: wo.id,
+                        number: wo.number,
+                        date: wo.startDate,
+                        qty: requiredForWO,
+                        productName: fg.name
                     })
-                }
-            })
-
-            // 2. Supply Chain Data
-            const incomingPO = p.purchaseOrderItems[0] // Just take the first one for now
-            const incomingQty = p.purchaseOrderItems.reduce((sum, item) => sum + Number(item.quantity), 0)
-
-            const preferredSupplier = p.supplierItems[0]
-
-            // 3. Planning Parameters (Real Data)
-            const leadTime = preferredSupplier?.leadTime || p.leadTime || 7
-            const safetyStock = p.safetyStock || 0
-            const burnRate = Number(p.manualBurnRate) || 0 // Per day
-            const cost = preferredSupplier?.price ? Number(preferredSupplier.price) : Number(p.costPrice)
-
-            // 4. Calculations
-            // How many days until we run out?
-            const stockEndsInDays = burnRate > 0 ? (currentStock / burnRate) : 999
-
-            // Reorder Point = Max of ((Average Daily Usage * Lead Time) + Safety Stock) OR MinStock
-            const calculatedROP = (burnRate * leadTime) + safetyStock
-            const reorderPoint = Math.max(calculatedROP, p.minStock || 0)
-
-            // Gap = (Demand + Reorder Point) - (Current Stock)
-            // WE EXCLUDE INCOMING QTY from Gap calculation to ensure "Receive Goods" button stays visible until physically received.
-            const totalProjectedNeed = woDemandQty + reorderPoint
-            const totalProjectedStock = currentStock // + incomingQty (removed to keep gap > 0 until receipt)
-
-            let gap = totalProjectedNeed - totalProjectedStock
-
-            // If Manual Alert is ON, force gap to be positive to show in Alert Tab
-            if (p.manualAlert && gap <= 0) {
-                gap = 1 // Artificial gap to trigger visibility
-            }
-
-            // Map all open POs for the dialog
-            const openPOs = p.purchaseOrderItems.map(poi => ({
-                id: poi.purchaseOrder.id,
-                number: poi.purchaseOrder.number,
-                supplierName: poi.purchaseOrder.supplier.name,
-                expectedDate: poi.purchaseOrder.expectedDate,
-                orderedQty: poi.quantity,
-                receivedQty: (poi as any).receivedQty || 0,
-                remainingQty: poi.quantity - ((poi as any).receivedQty || 0),
-                unitPrice: Number(poi.unitPrice)
-            })).filter(po => po.remainingQty > 0)
-
-            // Status Logic
-            let status = 'OK'
-            if (gap > 0) {
-                if (currentStock <= 0) status = 'OUT_OF_STOCK'
-                else if (woDemandQty > currentStock) status = 'CRITICAL_WO_SHORTAGE' // Cannot fulfill active WO
-                else status = 'RESTOCK_NEEDED'
-            }
-
-            return {
-                id: p.id,
-                name: p.name,
-                sku: p.code,
-                category: p.category?.name || 'Uncategorized',
-                unit: p.unit,
-
-                // Stock
-                currentStock,
-                incomingQty,
-                warehouses: p.stockLevels.map(sl => ({
-                    id: sl.warehouse.id,
-                    name: sl.warehouse.name,
-                    qty: sl.quantity
-                })),
-
-                // Planning
-                minStock: p.minStock,
-                reorderPoint,
-                safetyStock,
-                leadTime,
-                consumptionRate: burnRate,
-                stockEndsInDays: stockEndsInDays > 365 ? 365 : Math.floor(stockEndsInDays),
-
-                // Demand & Status
-                status,
-                isPendingRequest: pendingSet.has(p.id),
-                gap: gap > 0 ? gap : 0,
-                manualAlert: p.manualAlert, // Pass to frontend for badge
-                demandSources: activeWOs, // Detailed breakdown
-
-                // Financials
-                cost,
-                totalGapCost: gap > 0 ? gap * cost : 0,
-
-                // Procurement
-                lastProcurement: incomingPO?.purchaseOrder.expectedDate || null,
-                activePO: incomingPO ? {
-                    number: incomingPO.purchaseOrder.number,
-                    qty: incomingQty,
-                    eta: incomingPO.purchaseOrder.expectedDate
-                } : null,
-                supplier: preferredSupplier ? {
-                    name: preferredSupplier.supplier.name,
-                    isPreferred: true
-                } : null,
-
-                // Alternatives
-                alternative: p.alternativeProduct ? {
-                    name: p.alternativeProduct.name,
-                    code: p.alternativeProduct.code
-                } : null,
-
-                // Open POs for Goods Receipt
-                openPOs
+                })
             }
         })
+
+        // 2. Supply Chain Data
+        const incomingPO = p.purchaseOrderItems[0] // Just take the first one for now
+        const incomingQty = p.purchaseOrderItems.reduce((sum, item) => sum + Number(item.quantity), 0)
+
+        const preferredSupplier = p.supplierItems[0]
+
+        // 3. Planning Parameters (Real Data)
+        const leadTime = preferredSupplier?.leadTime || p.leadTime || 7
+        const safetyStock = p.safetyStock || 0
+        const burnRate = Number(p.manualBurnRate) || 0 // Per day
+        const cost = preferredSupplier?.price ? Number(preferredSupplier.price) : Number(p.costPrice)
+
+        // 4. Calculations
+        // How many days until we run out?
+        const stockEndsInDays = burnRate > 0 ? (currentStock / burnRate) : 999
+
+        // Reorder Point = Max of ((Average Daily Usage * Lead Time) + Safety Stock) OR MinStock
+        const calculatedROP = (burnRate * leadTime) + safetyStock
+        const reorderPoint = Math.max(calculatedROP, p.minStock || 0)
+
+        // Gap = (Demand + Reorder Point) - (Current Stock)
+        // WE EXCLUDE INCOMING QTY from Gap calculation to ensure "Receive Goods" button stays visible until physically received.
+        const totalProjectedNeed = woDemandQty + reorderPoint
+        const totalProjectedStock = currentStock // + incomingQty (removed to keep gap > 0 until receipt)
+
+        let gap = totalProjectedNeed - totalProjectedStock
+
+        // If Manual Alert is ON, force gap to be positive to show in Alert Tab
+        if (p.manualAlert && gap <= 0) {
+            gap = 1 // Artificial gap to trigger visibility
+        }
+
+        // Map all open POs for the dialog
+        const openPOs = p.purchaseOrderItems.map(poi => ({
+            id: poi.purchaseOrder.id,
+            number: poi.purchaseOrder.number,
+            supplierName: poi.purchaseOrder.supplier.name,
+            expectedDate: poi.purchaseOrder.expectedDate,
+            orderedQty: poi.quantity,
+            receivedQty: (poi as any).receivedQty || 0,
+            remainingQty: poi.quantity - ((poi as any).receivedQty || 0),
+            unitPrice: Number(poi.unitPrice)
+        })).filter(po => po.remainingQty > 0)
+
+        // Status Logic
+        let status = 'OK'
+        if (gap > 0) {
+            if (currentStock <= 0) status = 'OUT_OF_STOCK'
+            else if (woDemandQty > currentStock) status = 'CRITICAL_WO_SHORTAGE' // Cannot fulfill active WO
+            else status = 'RESTOCK_NEEDED'
+        }
+
+        return {
+            id: p.id,
+            name: p.name,
+            sku: p.code,
+            category: p.category?.name || 'Uncategorized',
+            unit: p.unit,
+
+            // Stock
+            currentStock,
+            pendingRestockQty,
+            incomingQty,
+            warehouses: p.stockLevels.map(sl => ({
+                id: sl.warehouse.id,
+                name: sl.warehouse.name,
+                qty: sl.quantity
+            })),
+
+            // Planning
+            minStock: p.minStock,
+            reorderPoint,
+            safetyStock,
+            leadTime,
+            consumptionRate: burnRate,
+            stockEndsInDays: stockEndsInDays > 365 ? 365 : Math.floor(stockEndsInDays),
+
+            // Demand & Status
+            status,
+            isPendingRequest: pendingSet.has(p.id),
+            gap: gap > 0 ? gap : 0,
+            manualAlert: p.manualAlert, // Pass to frontend for badge
+            demandSources: activeWOs, // Detailed breakdown
+
+            // Financials
+            cost,
+            totalGapCost: gap > 0 ? gap * cost : 0,
+
+            // Procurement
+            lastProcurement: incomingPO?.purchaseOrder.expectedDate || null,
+            activePO: incomingPO ? {
+                number: incomingPO.purchaseOrder.number,
+                qty: incomingQty,
+                eta: incomingPO.purchaseOrder.expectedDate
+            } : null,
+            supplier: preferredSupplier ? {
+                name: preferredSupplier.supplier.name,
+                isPreferred: true
+            } : null,
+
+            // Alternatives
+            alternative: p.alternativeProduct ? {
+                name: p.alternativeProduct.name,
+                code: p.alternativeProduct.code
+            } : null,
+
+            // Open POs for Goods Receipt
+            openPOs
+        }
+    })
 }
 
 export async function getProcurementInsights() {
     try {
-            // 1. Get Active Purchase Orders (Actual Inbound Data)
-            const activePOs = await prisma.purchaseOrder.findMany({
-                where: {
-                    status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] as any }
-                },
-                include: {
-                    supplier: true,
-                    items: {
-                        include: { product: true }
-                    }
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 5
-            })
-
-            const incomingStock = activePOs.map((po: any) => {
-                const totalItems = po.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
-                // Mock Progress Logic
-                let progress = 0
-                let trackingStatus = 'Confirmed'
-                if (po.status === 'SHIPPED') { progress = 60; trackingStatus = 'Shipped' }
-                else if (po.status === 'ORDERED') { progress = 35; trackingStatus = 'In Production' }
-                // Mock logic for status if not partial/open specific
-                if (!trackingStatus) trackingStatus = 'Processing'
-                if (progress === 0) progress = 10
-
-                // ETA Logic
-                const etaDate = po.expectedDate ? new Date(po.expectedDate) : new Date(Date.now() + 86400000 * 5)
-                const daysUntilarrival = Math.ceil((etaDate.getTime() - Date.now()) / (1000 * 3600 * 24))
-
-                return {
-                    id: po.id,
-                    poNumber: po.number,
-                    vendor: po.supplier.name,
-                    contact: po.supplier.contactName || po.supplier.email || 'N/A',
-                    status: po.status,
-                    trackingStatus,
-                    progress,
-                    totalItems,
-                    totalValue: Number(po.totalAmount),
-                    eta: etaDate,
-                    daysUntilarrival,
-                    items: po.items.map((i: any) => ({
-                        name: i.product.name,
-                        qty: i.quantity,
-                        unit: i.product.unit
-                    })).slice(0, 3)
+        // 1. Get Active Purchase Orders (Actual Inbound Data)
+        const activePOs = await prisma.purchaseOrder.findMany({
+            where: {
+                status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'] as any }
+            },
+            include: {
+                supplier: true,
+                items: {
+                    include: { product: true }
                 }
-            })
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 5
+        })
 
-            // 2. Calculate Required Restock Cost (Gap Analysis)
-            const lowStockProducts = await prisma.product.findMany({
-                where: { isActive: true },
-                include: {
-                    stockLevels: true,
-                    purchaseOrderItems: {
-                        include: { purchaseOrder: { include: { supplier: true } } },
-                        orderBy: { createdAt: 'desc' },
-                        take: 1
-                    }
-                }
-            })
+        const incomingStock = activePOs.map((po: any) => {
+            const totalItems = po.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+            // Mock Progress Logic
+            let progress = 0
+            let trackingStatus = 'Confirmed'
+            if (po.status === 'SHIPPED') { progress = 60; trackingStatus = 'Shipped' }
+            else if (po.status === 'ORDERED') { progress = 35; trackingStatus = 'In Production' }
+            // Mock logic for status if not partial/open specific
+            if (!trackingStatus) trackingStatus = 'Processing'
+            if (progress === 0) progress = 10
 
-            // Calculate Gap & Cost
-            let totalRestockCost = 0
-            const restockItems = lowStockProducts.map(p => {
-                const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
-                const deficit = p.minStock - totalStock
-
-                if (deficit > 0) {
-                    totalRestockCost += (deficit * Number(p.costPrice))
-                }
-
-                // Mock deadlines
-                const deadlineDays = Math.floor(Math.random() * 5) + 1
-
-                return {
-                    id: p.id,
-                    name: p.name,
-                    code: p.code,
-                    deficit: deficit > 0 ? deficit : 0,
-                    unit: p.unit,
-                    cost: Number(p.costPrice),
-                    totalCost: deficit * Number(p.costPrice),
-                    deadlineDays,
-                    lastVendor: p.purchaseOrderItems[0]?.purchaseOrder.supplier.name || 'Unknown Vendor'
-                }
-            }).filter(i => i.deficit > 0).sort((a, b) => a.deadlineDays - b.deadlineDays)
+            // ETA Logic
+            const etaDate = po.expectedDate ? new Date(po.expectedDate) : new Date(Date.now() + 86400000 * 5)
+            const daysUntilarrival = Math.ceil((etaDate.getTime() - Date.now()) / (1000 * 3600 * 24))
 
             return {
-                activePOs: incomingStock,
-                restockItems: restockItems.slice(0, 5),
-                summary: {
-                    totalIncoming: incomingStock.length,
-                    totalRestockCost,
-                    itemsCriticalCount: restockItems.length,
-                    itemsCriticalList: restockItems
+                id: po.id,
+                poNumber: po.number,
+                vendor: po.supplier.name,
+                contact: po.supplier.contactName || po.supplier.email || 'N/A',
+                status: po.status,
+                trackingStatus,
+                progress,
+                totalItems,
+                totalValue: Number(po.totalAmount),
+                eta: etaDate,
+                daysUntilarrival,
+                items: po.items.map((i: any) => ({
+                    name: i.product.name,
+                    qty: i.quantity,
+                    unit: i.product.unit
+                })).slice(0, 3)
+            }
+        })
+
+        // 2. Calculate Required Restock Cost (Gap Analysis)
+        const lowStockProducts = await prisma.product.findMany({
+            where: { isActive: true },
+            include: {
+                stockLevels: true,
+                purchaseOrderItems: {
+                    include: { purchaseOrder: { include: { supplier: true } } },
+                    orderBy: { createdAt: 'desc' },
+                    take: 1
                 }
             }
+        })
+
+        // Calculate Gap & Cost
+        let totalRestockCost = 0
+        const restockItems = lowStockProducts.map(p => {
+            const totalStock = p.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+            const deficit = p.minStock - totalStock
+
+            if (deficit > 0) {
+                totalRestockCost += (deficit * Number(p.costPrice))
+            }
+
+            // Mock deadlines
+            const deadlineDays = Math.floor(Math.random() * 5) + 1
+
+            return {
+                id: p.id,
+                name: p.name,
+                code: p.code,
+                deficit: deficit > 0 ? deficit : 0,
+                unit: p.unit,
+                cost: Number(p.costPrice),
+                totalCost: deficit * Number(p.costPrice),
+                deadlineDays,
+                lastVendor: p.purchaseOrderItems[0]?.purchaseOrder.supplier.name || 'Unknown Vendor'
+            }
+        }).filter(i => i.deficit > 0).sort((a, b) => a.deadlineDays - b.deadlineDays)
+
+        // 3. Count pending Purchase Requests (for planning visibility on dashboard)
+        const pendingPRCount = await prisma.purchaseRequest.count({
+            where: {
+                status: { in: ['PENDING', 'APPROVED', 'DRAFT'] },
+            },
+        })
+
+        return {
+            activePOs: incomingStock,
+            restockItems: restockItems.slice(0, 5),
+            summary: {
+                totalIncoming: incomingStock.length,
+                totalRestockCost,
+                itemsCriticalCount: restockItems.length,
+                itemsCriticalList: restockItems,
+                totalPending: pendingPRCount,
+                pendingApproval: pendingPRCount,
+            }
+        }
     } catch (error) {
         console.error("Error fetching procurement insights:", error)
         return {
@@ -622,7 +644,9 @@ export async function getProcurementInsights() {
                 totalIncoming: 0,
                 totalRestockCost: 0,
                 itemsCriticalCount: 0,
-                itemsCriticalList: []
+                itemsCriticalList: [],
+                totalPending: 0,
+                pendingApproval: 0,
             }
         }
     }
@@ -681,45 +705,45 @@ export async function setProductManualAlert(productId: string, isAlert: boolean)
 }
 
 export async function getWarehouseDetails(id: string) {
-        const warehouse = await prisma.warehouse.findUnique({
-            where: { id },
-            include: {
-                stockLevels: {
-                    include: {
-                        product: {
-                            include: { category: true }
-                        }
+    const warehouse = await prisma.warehouse.findUnique({
+        where: { id },
+        include: {
+            stockLevels: {
+                include: {
+                    product: {
+                        include: { category: true }
                     }
                 }
             }
-        })
-
-        if (!warehouse) return null
-
-        // Group by Category
-        const categoryMap = new Map<string, { id: string, name: string, itemCount: number, stockCount: number, value: number }>()
-
-        warehouse.stockLevels.forEach(sl => {
-            const catName = sl.product.category?.name || 'Uncategorized'
-            const catId = sl.product.category?.id || 'uncat'
-
-            const existing = categoryMap.get(catId) || { id: catId, name: catName, itemCount: 0, stockCount: 0, value: 0 }
-
-            existing.itemCount += 1
-            existing.stockCount += sl.quantity
-            existing.value += sl.quantity * Number(sl.product.costPrice)
-
-            categoryMap.set(catId, existing)
-        })
-
-        return {
-            id: warehouse.id,
-            name: warehouse.name,
-            code: warehouse.code,
-            address: warehouse.address || '',
-            capacity: warehouse.capacity,
-            categories: Array.from(categoryMap.values())
         }
+    })
+
+    if (!warehouse) return null
+
+    // Group by Category
+    const categoryMap = new Map<string, { id: string, name: string, itemCount: number, stockCount: number, value: number }>()
+
+    warehouse.stockLevels.forEach(sl => {
+        const catName = sl.product.category?.name || 'Uncategorized'
+        const catId = sl.product.category?.id || 'uncat'
+
+        const existing = categoryMap.get(catId) || { id: catId, name: catName, itemCount: 0, stockCount: 0, value: 0 }
+
+        existing.itemCount += 1
+        existing.stockCount += sl.quantity
+        existing.value += sl.quantity * Number(sl.product.costPrice)
+
+        categoryMap.set(catId, existing)
+    })
+
+    return {
+        id: warehouse.id,
+        name: warehouse.name,
+        code: warehouse.code,
+        address: warehouse.address || '',
+        capacity: warehouse.capacity,
+        categories: Array.from(categoryMap.values())
+    }
 }
 
 // ==========================================
@@ -846,7 +870,7 @@ export async function createRestockRequest(data: {
             })
         })
 
-            return result
+        return result
 
     } catch (e: any) {
         console.error("Failed to create restock request", e)
@@ -1061,33 +1085,33 @@ export async function requestPurchase(data: {
 // ==========================================
 
 export async function getStockMovements(limit = 50) {
-        const movements = await prisma.inventoryTransaction.findMany({
-            take: limit,
-            orderBy: { createdAt: 'desc' },
-            include: {
-                product: { select: { name: true, code: true, unit: true } },
-                warehouse: { select: { name: true } },
-                // Include relations for context
-                purchaseOrder: { select: { number: true, supplier: { select: { name: true } } } },
-                salesOrder: { select: { number: true, customer: { select: { name: true } } } },
-                workOrder: { select: { number: true } }
-            }
-        })
+    const movements = await prisma.inventoryTransaction.findMany({
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+            product: { select: { name: true, code: true, unit: true } },
+            warehouse: { select: { name: true } },
+            // Include relations for context
+            purchaseOrder: { select: { number: true, supplier: { select: { name: true } } } },
+            salesOrder: { select: { number: true, customer: { select: { name: true } } } },
+            workOrder: { select: { number: true } }
+        }
+    })
 
-        return movements.map(mv => ({
-            id: mv.id,
-            type: mv.type,
-            date: mv.createdAt,
-            item: mv.product.name,
-            code: mv.product.code,
-            qty: mv.quantity,
-            unit: mv.product.unit,
-            warehouse: mv.warehouse.name,
-            // Determine "entity" (Supplier, Customer, or Target Warehouse) based on type
-            entity: mv.purchaseOrder?.supplier.name || mv.salesOrder?.customer.name || mv.notes || '-',
-            reference: mv.purchaseOrder?.number || mv.salesOrder?.number || mv.workOrder?.number || '-',
-            user: mv.performedBy || 'System'
-        }))
+    return movements.map(mv => ({
+        id: mv.id,
+        type: mv.type,
+        date: mv.createdAt,
+        item: mv.product.name,
+        code: mv.product.code,
+        qty: mv.quantity,
+        unit: mv.product.unit,
+        warehouse: mv.warehouse.name,
+        // Determine "entity" (Supplier, Customer, or Target Warehouse) based on type
+        entity: mv.purchaseOrder?.supplier.name || mv.salesOrder?.customer.name || mv.notes || '-',
+        reference: mv.purchaseOrder?.number || mv.salesOrder?.number || mv.workOrder?.number || '-',
+        user: mv.performedBy || 'System'
+    }))
 }
 
 export async function createManualMovement(data: {

@@ -241,8 +241,10 @@ model Product {
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   InvoiceItem     InvoiceItem[]
-  BillOfMaterials BillOfMaterials[]
-  BOMItem         BOMItem[]
+  BillOfMaterials    BillOfMaterials[]
+  BOMItem            BOMItem[]
+  productionBOMs     ProductionBOM[]
+  productionBOMItems ProductionBOMItem[] @relation("ProductionBOMMaterial")
   inspections     QualityInspection[]
   supplierItems   SupplierProduct[]
   grnItems        GRNItem[]
@@ -1646,6 +1648,15 @@ model WorkOrder {
   machine   Machine? @relation(fields: [machineId], references: [id])
   routing   Routing? @relation(fields: [routingId], references: [id])
 
+  // Production BOM linkage
+  productionBomId      String?            @db.Uuid
+  productionBom        ProductionBOM?     @relation(fields: [productionBomId], references: [id])
+  productionBomStepId  String?            @db.Uuid
+  productionBomStep    ProductionBOMStep? @relation(fields: [productionBomStepId], references: [id])
+  dependsOnWorkOrderId String?            @db.Uuid
+  dependsOnWorkOrder   WorkOrder?         @relation("WODependency", fields: [dependsOnWorkOrderId], references: [id])
+  dependentWorkOrders  WorkOrder[]        @relation("WODependency")
+
   // Textile upgrade relations
   subcontractOrders SubcontractOrder[]
   cutPlans          CutPlan[]
@@ -1809,11 +1820,12 @@ model Machine {
 
   isActive Boolean @default(true)
 
-  logs         MaintenanceLog[]
-  group        WorkCenterGroup?     @relation(fields: [groupId], references: [id])
-  routingSteps RoutingStep[]
-  workOrders   WorkOrder[]
-  downtimeLogs MachineDowntimeLog[]
+  logs            MaintenanceLog[]
+  group           WorkCenterGroup?     @relation(fields: [groupId], references: [id])
+  routingSteps    RoutingStep[]
+  workOrders      WorkOrder[]
+  downtimeLogs    MachineDowntimeLog[]
+  processStations ProcessStation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2125,6 +2137,23 @@ enum GarmentStage {
   DONE // Selesai
 }
 
+enum StationType {
+  CUTTING
+  SEWING
+  WASHING
+  PRINTING
+  EMBROIDERY
+  QC
+  PACKING
+  FINISHING
+  OTHER
+}
+
+enum OperationType {
+  IN_HOUSE
+  SUBCONTRACTOR
+}
+
 enum SkillLevel {
   TRAINEE // Trainee
   CERTIFIED // Tersertifikasi
@@ -2313,14 +2342,20 @@ model Subcontractor {
   npwp                String?
   address             String?
   capabilities        SubcontractCapability[]
-  capacityUnitsPerDay Int?
+  capacityUnitsPerDay   Int?
+  maxCapacityPerMonth   Int?       // Max pcs per month
+  leadTimeDays          Int?       // Default lead time in days
+  rating                Int        @default(0) // 1-5 stars
+  onTimeRate            Int        @default(0) // percentage
+  qualityScore          Decimal?   @db.Decimal(5, 2) // Quality score 0-100
   contactPerson       String?
   phone               String?
   email               String?
   isActive            Boolean                 @default(true)
 
-  rates  SubcontractorRate[]
-  orders SubcontractOrder[]
+  rates           SubcontractorRate[]
+  orders          SubcontractOrder[]
+  processStations ProcessStation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2626,4 +2661,120 @@ model GarmentMeasurement {
 
   @@index([inspectionId])
   @@map("garment_measurements")
+}
+
+// ================================
+// Production BOM (Visual Flow Canvas)
+// ================================
+
+model ProcessStation {
+  id              String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code            String         @unique
+  name            String
+  stationType     StationType
+  operationType   OperationType
+  subcontractorId String?        @db.Uuid
+  subcontractor   Subcontractor? @relation(fields: [subcontractorId], references: [id])
+  machineId       String?        @db.Uuid
+  machine         Machine?       @relation(fields: [machineId], references: [id])
+  costPerUnit     Decimal        @default(0) @db.Decimal(12, 2)
+  description     String?
+  isActive        Boolean        @default(true)
+  parentStationId String?        @db.Uuid
+  parentStation   ProcessStation?  @relation("StationHierarchy", fields: [parentStationId], references: [id])
+  childStations   ProcessStation[] @relation("StationHierarchy")
+  bomSteps        ProductionBOMStep[]
+  allocations     ProductionBOMAllocation[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("process_stations")
+}
+
+model ProductionBOM {
+  id                 String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId          String   @db.Uuid
+  product            Product  @relation(fields: [productId], references: [id])
+  version            String   @default("v1")
+  isActive           Boolean  @default(true)
+  totalProductionQty Int      @default(0)
+  notes              String?
+  items              ProductionBOMItem[]
+  steps              ProductionBOMStep[]
+  workOrders         WorkOrder[]
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([productId, version])
+  @@map("production_boms")
+}
+
+model ProductionBOMItem {
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bomId           String        @db.Uuid
+  bom             ProductionBOM @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  materialId      String        @db.Uuid
+  material        Product       @relation("ProductionBOMMaterial", fields: [materialId], references: [id])
+  quantityPerUnit Decimal       @db.Decimal(10, 4)
+  unit            String?
+  wastePct        Decimal       @default(0) @db.Decimal(5, 2)
+  notes           String?
+  stepMaterials   ProductionBOMStepMaterial[]
+
+  @@map("production_bom_items")
+}
+
+model ProductionBOMStep {
+  id              String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bomId           String        @db.Uuid
+  bom             ProductionBOM @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  stationId       String        @db.Uuid
+  station         ProcessStation @relation(fields: [stationId], references: [id])
+  sequence        Int
+  durationMinutes Int?
+  notes           String?
+  parentStepIds   String[]  @default([])  // IDs of parent steps (DAG edges)
+  materials       ProductionBOMStepMaterial[]
+  allocations     ProductionBOMAllocation[]
+  attachments     ProductionBOMAttachment[]
+  workOrders      WorkOrder[]
+
+  @@unique([bomId, sequence])
+  @@map("production_bom_steps")
+}
+
+model ProductionBOMStepMaterial {
+  id        String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  stepId    String            @db.Uuid
+  step      ProductionBOMStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  bomItemId String            @db.Uuid
+  bomItem   ProductionBOMItem @relation(fields: [bomItemId], references: [id], onDelete: Cascade)
+
+  @@unique([stepId, bomItemId])
+  @@map("production_bom_step_materials")
+}
+
+model ProductionBOMAllocation {
+  id        String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  stepId    String            @db.Uuid
+  step      ProductionBOMStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  stationId String            @db.Uuid
+  station   ProcessStation    @relation(fields: [stationId], references: [id])
+  quantity  Int
+  notes     String?
+
+  @@map("production_bom_allocations")
+}
+
+model ProductionBOMAttachment {
+  id         String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  stepId     String            @db.Uuid
+  step       ProductionBOMStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  fileName   String
+  fileUrl    String
+  fileType   String
+  fileSize   Int
+  uploadedAt DateTime          @default(now())
+
+  @@map("production_bom_attachments")
 }

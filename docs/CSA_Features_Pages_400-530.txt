@@ -1,0 +1,942 @@
+============================================================================
+CSA SOFTWARE HELP MANUAL — EXHAUSTIVE FEATURE EXTRACTION (Pages 400-530)
+============================================================================
+Extracted from: /Volumes/Extreme SSD/new-erp-feb/ERP/docs/CSA_Software_Help_Manual.pdf
+
+
+=====================================
+SECTION 1: PARAMETER MODULES
+=====================================
+
+----------------------------------------------------------------------
+1.1 PARAMETER PENERIMAAN BERGANDA (Multiple Receiving Parameter)
+    Module Code: SMRCPAR
+    Module Type: Lain-lain (Miscellaneous)
+----------------------------------------------------------------------
+
+Field Categories:
+  (a) Informasi — Auto-updated by program, not editable
+  (b) Default — Default values, changeable anytime
+  (c) Counter — Auto-updated by program, user can reset periodically
+      - No Urut Penerimaan PO Berganda Terakhir (Last Multiple PO Receipt Sequence Number)
+  (d) Soft Control — Program behavior controls, changeable anytime
+  (e) Hard Control — Program behavior controls, set once at install
+      - Nomor Otomatis? (Auto Number?)
+      - Prefix/Sufix
+      - Type
+      - Separator
+
+Related Parameters:
+  - Parameter Sistem (Umum)
+  - Parameter Sistem (Khusus)
+  - Parameter Kontrol
+  - Parameter Sales Order
+  - Parameter Surat Jalan Penjualan
+  - Parameter Transaksi Kirim SJ Penjualan
+  - Parameter Invoice (Piutang)
+  - Parameter Retur SJ Penjualan
+  - Parameter Purchase Order
+  - Parameter Penerimaan PO
+  - Parameter Voucher Utang
+
+Linked Transaction: Transaksi Penerimaan PO Berganda
+Linked History: History Penerimaan PO Berganda
+
+
+----------------------------------------------------------------------
+1.2 PARAMETER PENERIMAAN BANK (Bank Receipt Parameter)
+    Module Code: SBIPARM
+    Module Type: Lain-lain
+----------------------------------------------------------------------
+
+Screen Fields:
+  - Nomor Otomatis? (Auto Number?) — Yes/No dropdown
+  - Nomor Urut Terakhir (Last Sequence Number)
+  - PREFIX/SUFIX:
+    - Prefix/Sufix value (e.g., "P")
+    - Type (e.g., YYMM)
+    - Separator (e.g., "/")
+  - CONTOH (Example): e.g., 05/09/0001
+
+Field Categories:
+  (a) Informasi — not editable
+  (b) Default — changeable
+  (c) Counter:
+      - No Urut Penerimaan Bank Terakhir
+  (d) Soft Control — none listed
+  (e) Hard Control:
+      - Nomor Otomatis?
+      - Prefix/Sufix
+      - Type
+      - Separator
+
+Database Fields (SBIPARM.DBx):
+  10.LAUTONUM   — Apakah Nomor Voucher Diisi Otomatis oleh Sistem?
+  20.NLASNUM    — Nomor Voucher Penerimaan yang Terakhir Digunakan
+  30.OPS        — Pada Nomor akan ditambahkan Prefix (awalan) atau Sufix (akhiran)
+  40.OPSTYPE    — Pilih Type Prefix/Sufix yang Dikehendaki (M=bulan, Y=tahun)
+  50.OPSSEP     — Pilih Separator pada Nomor Voucher yang Terbentuk
+  70.           — Contoh (x)
+
+Linked Transaction: Transaksi Penerimaan Bank
+
+
+----------------------------------------------------------------------
+1.3 PARAMETER PENGELUARAN BANK (Bank Disbursement Parameter)
+    Module Code: SBOPARM
+    Module Type: Lain-lain
+----------------------------------------------------------------------
+
+Screen Fields:
+  - Nomor Otomatis? (Auto Number?) — Yes/No
+  - Nomor Urut Terakhir (Last Sequence Number)
+  - PREFIX/SUFIX:
+    - Prefix/Sufix (e.g., "P")
+    - Type (e.g., YYYYMM)
+    - Separator (e.g., "/")
+  - CONTOH (Example): e.g., 2005/09/01
+
+Field Categories:
+  (a) Informasi — not editable
+  (b) Default — none
+  (c) Counter:
+      - No Urut Pengeluaran Bank Terakhir
+  (d) Soft Control — none
+  (e) Hard Control:
+      - Nomor Otomatis?
+      - Prefix/Sufix
+      - Type
+      - Separator
+
+Database Fields (SBOPARM.DBx):
+  10.LAUTONUM   — Apakah Nomor Voucher Diisi Otomatis oleh Sistem?
+  20.NLASNUM    — Nomor Voucher Pengeluaran yang Terakhir Digunakan
+  30.OPS        — Pada Nomor akan ditambahkan Prefix (awalan) atau Sufix (akhiran)
+  40.OPSTYPE    — Pilih Type Prefix/Sufix yang Dikehendaki (M=bulan, Y=tahun)
+  50.OPSSEP     — Pilih Separator pada Nomor Voucher yang Terbentuk
+  70.           — Contoh (x)
+
+Linked Transaction: Transaksi Pengeluaran Bank (Pengeluaran Bank)
+
+
+----------------------------------------------------------------------
+1.4 PARAMETER SISTEM (KHUSUS) — Custom System Parameter
+    Module Code: SCUSTOM
+    Module Type: Lain-lain
+----------------------------------------------------------------------
+
+Screen Sections — MASTER STOCK:
+  * Validasi:
+    - Aturan Barcode? (No/Yes)
+    - COLOR harus diisi? (No/Yes)
+  * Jika Stock Minus: (P=Peringatan / T=Tolak / A=Abaikan)
+  * Jika Potensi Minus (Order): (A=Abaikan)
+  * PENJUALAN LANGSUNG: (Page)
+    - Ref Harga Jual
+    - #Disc pd Skema Disc
+
+Screen Sections — PEMBELIAN:
+  * Harga Terakhir Bruto?: (No/Yes)
+
+Screen Sections — Auto-Number Counters (No Urut yang dihasilkan otomatis oleh Sistem):
+  - Bon Penjualan? (Yes/No) — Terakhir counter
+  - Bukti Pembelian? (Yes/No) — Terakhir counter
+  - Retur Pembelian? (Yes/No) — Terakhir counter
+  - Koreksi Stock? (Yes/No) — Terakhir counter
+  - Kirim Barang? (Yes/No) — Terakhir counter
+  - Kirim Update Brg? (Yes/No) — Terakhir counter
+  - Kirim Sale Disc? (Yes/No) — Terakhir counter
+  - Nomor Produksi? (Yes/No) — Terakhir counter
+
+Screen Sections — UNTUK DI-SET SEKALI SAJA (One-time settings):
+  * Stock single S/N? (Yes/No)
+    - Kode single S/N
+    - Master S/N? (Yes/No)
+  * Nomor S/N Terakhir
+  * Selalu Browse S/N? (Yes/No)
+  * F9-More... button
+
+Field Categories:
+  (a) Informasi — not editable
+  (b) Default:
+      - Basis Analisis Stock (Day/Week/Month)
+      - Cost Method
+      - Prosen Discount (Member)
+      - Default Pembayaran Cash (Penjualan Langsung)
+  (c) Counter:
+      - No Terakhir Penjualan Langsung
+      - No Terakhir Pembelian Langsung
+      - No Terakhir Retur Pembelian Langsung
+      - No Terakhir Koreksi Stock
+      - No Terakhir Pengiriman Barang
+      - No Terakhir Pengiriman Update (Harga) Barang
+      - No Terakhir Kirim Sale Discount
+      - No Terakhir Produksi & Pemakaian Bahan
+      - No S/N Hasil Produksi Terakhir
+  (d) Soft Control:
+      - Validasi Aturan Barcode?
+      - COLOR Harus Diisi?
+      - Selalu Browse S/N (pada saat Validasi S/N)?
+      - Discount Total Penjualan Langsung?
+      - Tgl Penjualan Langsung Diisi Manual?
+      - Modus Transaksi Cepat?
+      - Cegah Harga < Harga Pokok? (Penjualan Langsung)
+      - Format Struk
+      - Gabung Item Sama pada Struk? (Penjualan Langsung)
+      - Ref Harga Jual
+      - #Disc pada Skema Disc (isikan >0 untuk mengaktifkan Skema Disc)
+      - Otorisasi Harga Jual?
+      - Barang Berasal Dari... (Inventory/Job/Formula I/J)
+      - Jika Stock Minus (Abaikan/Peringatan/Tolak)
+      - Jika Stock Berpotensi Minus (Abaikan/Peringatan/Tolak) (Order)
+      - No otomatis Penjualan Langsung?
+      - No otomatis Pembelian Langsung?
+      - No otomatis Retur Pembelian Langsung?
+      - No otomatis Koreksi Stock?
+      - No otomatis Pengiriman Barang?
+      - No otomatis Pengiriman Update (Harga) Barang?
+      - No otomatis Kirim Sale Discount?
+      - No otomatis Produksi & Pemakaian Bahan?
+      - Browse S/N?
+      - Print Zero Stock?
+      - Print Zero Transaction?
+      - Unit Qty Picture
+      - Label untuk SIZE (g_csizelbl)
+  (e) Hard Control:
+      - Stock Single S/N?
+      - Kode Single S/N
+
+Database Fields (SCUSTOM.DBx) — Main Page:
+  100.LBARCODE    — Isikan "Y" agar program memvalidasi Kode Stok Sesuai Aturan Bar Code
+  110.LCOLOR      — Isikan "Y" jika Color Harus Diisi pada Stock
+  120.CNEGSTK     — Kode cara penanganan terjadinya stok minus (T=Tolak, P=Peringatan, A=Abaikan)
+  125.            — Deskripsi kode CNEGSTK
+  127.CONEGSTK    — Kode cara penanganan potensi stok minus (mis. pada pembuatan Sales Order)
+  128.            — Deskripsi kode CONEGSTK
+  130.PCUSTOM     — *Parameter Penjualan Langsung
+  135.CHRGJUAREF  — Pilih Referensi Harga Jual
+  138.NNUMDISC    — (Maksimum) Banyaknya Discount pada Skema Discount; 0 = tanpa Skema Discount
+  140.LLHRGBELBR  — Penggunaan Harga Beli Terakhir: Y:Bruto(sebelum Diskon) N:Netto(sesudah Diskon)
+  305.LAUTOCONUM  — Isikan Y jika Nomor Bon (Penjualan) diisi secara otomatis oleh system
+  310.NLASCO      — Nomor Bon berikutnya adalah nomor ini + 1
+  315.LAUTOPONUM  — Isikan Y jika Nomor Bukti (Pembelian) diisi secara otomatis oleh syste
+  320.NLASPO      — Nomor Bukti Pembelian berikutnya adalah nomor ini + 1
+  325.LAUTORBNUM  — Isikan Y jika Nomor Urut Retur Pembelian diisi secara otomatis oleh sy
+  330.NLASRB      — No Urut Retur berikutnya adalah nomor ini + 1
+  335.LAUTOKSNUM  — Isikan Y jika Nomor Transaksi Koreksi diisi secara otomatis oleh syste
+  340.NLASKS      — No Transaksi Koreksi berikutnya adalah nomor ini + 1
+  345.LAUTOSINUM  — Isikan Y jika Nomor Surat Jalan Pengiriman Barang diisi otomatis oleh system
+  350.NLASSI      — No S.Jalan Pengiriman Barang berikutnya adalah nomor ini + 1
+  355.LAUTOUINUM  — Isikan Y jika Nomor Pengiriman Update (Harga) Barang diisi otomatis oleh system
+  360.NLASUI      — No Pengiriman Data (Harga) Barang berikutnya adalah nomor ini + 1
+  365.LAUTOUDNUM  — Isikan Y jika Nomor Pengiriman Data Sale Discount diisi otomatis oleh system
+  370.NLASUD      — No Pengiriman Data Sale Discount berikutnya adalah nomor ini + 1
+  375.LAUTOPRONU  — Isikan Y jika Nomor Produksi diisi otomatis oleh system
+  380.NLASPRO     — No Produksi berikutnya adalah nomor ini + 1
+  610.LONESIZE    — Isikan Y jika SEMUA barang menggunakan SATU S/N saja (mis. NA)
+  620.CSIZE       — Jika Single S/N = Y, pengisian S/N dilakukan otomatis menggunaka
+  625.LVALCSIZE   — Isikan Y jika pengisian S/N harus divalidasi melawan Master S/N
+  630.NLASSIZE    — Nomor S/N Hasil Produksi Terakhir
+  640.LBROWSIZE   — Apakah Validasi S/N Selalu Browse?
+  700.LPRNOSTK    — Isikan Y jika barang yang Saldo=0 ingin tetap tercetak di Laporan Stoc
+  710.LPRNOTRX    — Isikan Y jika barang yang transaksinya=0 ingin tetap tercetak di Lap T
+  720.CCOSTMETHO  — Cost Method (lih. _COST_xxx di SMART.CH)
+  730.CUQTYPICT   — Format 'Unit Qty'
+  740.CREQBASE    — Basis satuan untuk analisis kebutuhan stock
+  800.CSIZELBL    — Label field CSIZE (default=S/N)
+
+Database Fields — Additional Page 'PCUSTOM':
+  120.LTOTJDISC   — Isikan Y jika Total Penjualan dapat diberikan Discount
+  125.LMANCODATE  — Isikan Y jika Tgl Penjualan ingin diisi pada setiap Penjualan
+  127.LQUICKJUAL  — Isikan Y agar Penjualan Langsung dalam Modus Transaksi Cepat
+  128.LNODEFICIT  — Isikan Y untuk Memastikan Harga Jual >= Harga Pokok
+  129.CCSHJUATYP  — Isikan Default Pembayaran Cash
+  130.CPRNJUATYP  — Pilih Format Struk Penjualan Langsung
+  131.LSMRPRNJUA  — Y: Menggabung Item yang Sama pada Struk Penjualan (hanya jika Harga sama)
+  132.LFCPRNJUA   — Y: Mengelompokkan Item per Family Code pada Struk Penjualan
+  134.NPCTDISC    — Default Prosentase Discount Penjualan untuk Member
+  140.LAUTJUAL    — Apakah Dimungkinkan untuk Pengisian Harga atas Otorisasi dari User Lain?
+  220.CREFTYPE    — Barang yang Dijual Berasal dari Mana? (I=Inventory, J=Job, F=Formula I/J)
+  225.            — Deskripsi kode CREFTYPE
+
+
+----------------------------------------------------------------------
+1.5 PARAMETER SISTEM (UMUM) — General System Parameter
+    Module Code: SGEN
+    Module Type: Lain-lain
+----------------------------------------------------------------------
+
+Screen Fields:
+  - *Flexible Menu? (Yes/No)
+  - *Kontrol Suara:
+    - "Get" Beep (Yes/No)
+    - "Error" Beep (Yes/No)
+    - "Warning" Beep (Yes/No)
+  - *Ukuran Kertas Laporan: (e.g., 55)
+  - *Footer Struk Penjualan:
+    - Line 1
+    - Line 2
+    - Line 3
+  - *Penjualan:
+    - Sistem Kupon? (No/Yes)
+    - Harga Kupon (e.g., 10,000)
+
+Field Categories:
+  (a) Informasi — not editable
+  (b) Default:
+      - Footer Struk Penjualan Langsung
+  (c) Counter — none
+  (d) Soft Control:
+      - Get Beep
+      - Error Beep
+      - Warning Beep
+      - Ukuran Kertas Laporan
+      - Sistem Kupon?
+      - Harga Kupon?
+  (e) Hard Control — none
+
+Database Fields (SGEN.DBx):
+  10.LMULTIMENU  — Jika Y, maka Menu yang Tampil akan Disesuaikan dengan Kategori User ybs
+  20.LGETSND     — Isi Y/N untuk Menentukan Apakah "Get" Diakhiri dengan Nada Beep
+  30.LERRSND     — Isikan Y/N untuk Menentukan Apakah "Error" Diikuti dengan Nada Beep
+  40.LWNGSND     — Isikan Y/N untuk Menentukan Apakah "Warning" Diikuti dengan Nada Beep
+  100.NPAGESIZE  — Maksimum Jumlah Baris dalam Satu Halaman Kertas
+  210.CJLFOOT1   — Footer Jual Line 1 -- akan tercetak di Struk Penjualan
+  220.CJLFOOT2   — Footer Jual Line 2 -- akan tercetak di Struk Penjualan
+  230.CJLFOOT3   — Footer Jual Line 3 -- akan tercetak di Struk Penjualan
+  240.LUSEKUPON  — Isikan "Y" jika Hendak Digunakan Sistem Kupon (mis. setiap kelipatan Rp.10.000)
+  250.NHRGKUPON  — Harga Kupon (untuk setiap kelipatan Penjualan dgn Sistem Kupon)
+  800.NRUNTIM    — Run time number
+  900.LPROTECT   — Protect Flag
+  980.LSTK       — Is Stock Application Installed?
+  981.LKAS       — Kas Application Installed?
+
+
+----------------------------------------------------------------------
+1.6 PARAMETER INVOICE (PIUTANG) — Invoice (A/R) Parameter
+    Module Code: SINVPAR
+    Module Type: Lain-lain
+----------------------------------------------------------------------
+
+Screen Fields:
+  - Nomor Otomatis? (No/Yes)
+  - Nomor Urut Terakhir (e.g., 0)
+  - PREFIX/SUFIX:
+    - Prefix/Sufix (e.g., "P")
+    - Type (e.g., YYMM)
+    - Separator (e.g., "/")
+  - CONTOH: e.g., 05/09/0000
+  - Ttg Invoice Oleh: (Signer name field)
+  - Kode Faktur Pjk: (e.g., CSPGK-422-)
+  - Form Faktur Pjk: (e.g., 1)
+
+Field Categories:
+  (a) Informasi — not editable
+  (b) Default — none
+  (c) Counter:
+      - No Urut Invoice A/R Terakhir
+  (d) Soft Control:
+      - Tanda Tangan Invoice Oleh
+      - Kode Faktur Pajak
+      - Form Faktur Pajak
+  (e) Hard Control:
+      - Nomor Otomatis?
+      - Prefix/Sufix
+      - Type
+      - Separator
+
+Database Fields (SINVPAR.DBx):
+  10.LAUTONUM    — Apakah Nomor Invoice (Faktur) Diisi Otomatis oleh Sistem?
+  20.NLASNUM     — Nomor Invoice (Faktur) yang Terakhir Digunakan
+  30.OPS         — Pada Nomor akan ditambahkan Prefix (awalan) atau Sufix (akhiran)
+  40.OPSTYPE     — Pilih Type Prefix/Sufix yang Dikehendaki (M=bulan, Y=tahun)
+  50.OPSSEP      — Pilih Separator pada Nomor yang Terbentuk
+  70.            — Contoh (x)
+  110.CINVSIGNER — Nama dan Jabatan yang Dicetak di Form Invoice (Faktur)
+  120.CKODEFPJK  — Kode Nomor Seri Faktur Pajak (mis. CSPGK-422-)
+  130.CFPPJKFORM — Pilih Jenis Form yang Digunakan
+
+Linked Modules: Invoice A/R, Generate Invoice
+
+
+----------------------------------------------------------------------
+1.7 PARAMETER TRANSAKSI JOURNAL
+    Module Code: SJRNPAR
+    Module Type: Lain-lain
+----------------------------------------------------------------------
+
+Screen Sections:
+  JOURNAL MANUAL:
+    - Nomor Otomatis? (Yes/No)
+    - Nomor Urut Terakhir (e.g., 1)
+    - PREFIX/SUFIX:
+      - Prefix/Sufix (e.g., "P")
+      - Type (e.g., YYMM)
+      - Separator (e.g., "/")
+    - CONTOH: e.g., 05/09/0001
+
+  JOURNAL OTOMATIS:
+    - Posting ke Ledger: (I=Immediate/Langsung, D=Deferred, N=Never)
+    - Default Accounts: (Page button)
+    - Control Accounts: (Page button)
+
+Field Categories:
+  (a) Informasi — not editable
+  (b) Default — For Posting ke Ledger:
+      - Account "Inventory (Stock)"
+      - Account "Selisih Stock"
+      - Account "Harga Pokok Penjualan (COGS)"
+        (used as default GL Account in Kelompok Stock and Gudang)
+      - Account "Piutang" (default GL Account on Customer)
+      - Account "Utang" (default GL Account on Supplier)
+      - Account "Selisih Kurs (Currency Gain/Loss)" (default GL Account on Mata Uang)
+  (c) Counter:
+      - No Urut Journal Manual Terakhir
+  (d) Soft Control:
+      - Metoda Posting (Never/Immediate/Deferred)
+        - "Never": transaksi tidak dicatat ke Ledger
+        - "Immediate": transaksi dicatat ke Ledger langsung
+        - "Deferred": transaksi dicatat ke Ledger belakangan
+  (e) Hard Control — For Journal Manual:
+      - Nomor Otomatis?
+      - Prefix/Sufix
+      - Type
+      - Separator
+
+    For Posting ke Ledger — Account Mappings:
+      - Account "Harga Pokok Penjualan (HPP)":
+        used for Transaksi Penjualan and Retur Penjualan
+        Journal example (Penjualan): DR HPP / CR Inventory (Stock)
+        Journal example (Retur Penjualan): DR Inventory (Stock) / CR HPP
+
+      - Account "Penjualan" dan "PPN Penjualan":
+        used for Create Invoice Piutang or Adjustment Piutang
+        Journal example (Create Invoice Piutang): DR Piutang / CR Penjualan + CR PPN Penjualan
+        Journal example (Adjustment Piutang/Retur/Credit Memo): DR Penjualan + DR PPN Penjualan / CR Piutang
+
+      - Account "Draft Utang":
+        Temporary account for Transaksi Pembelian and Retur Pembelian
+        Used as cross-account when Generate Voucher/Adjustment Utang
+        Journal example (Pembelian): DR Inventory (Stock) / CR Draft Utang
+        Journal example (Generate Voucher Utang): DR Draft Utang + DR PPN Pembelian / CR Utang
+        Journal example (Retur Pembelian): DR Draft Utang / CR Inventory (Stock)
+        Journal example (Generate Adjustment Utang): DR Utang / CR Draft Utang + CR PPN Pembelian
+
+      - Account "PPN Pembelian":
+        used during Generate Voucher/Adjustment Utang
+
+Database Fields (SJRNPAR.DBx) — Main:
+  10.LAUTONUM    — Apakah Nomor Voucher Diisi Otomatis oleh Sistem?
+  20.NLASNUM     — Nomor Voucher Journal yang Terakhir Digunakan
+  30.OPS         — Pada Nomor akan ditambahkan Prefix (awalan) atau Sufix (akhiran)
+  40.OPSTYPE     — Pilih Type Prefix/Sufix yang Dikehendaki (M=bulan, Y=tahun)
+  50.OPSSEP      — Pilih Separator pada Nomor Voucher yang Terbentuk
+  70.            — Contoh (x)
+  110.CGLPOST    — NEVER:Jangan Posting, DEFERRED:Belakangan, IMMEDIATE:Langsung Posting
+  115.           — Deskripsi Metoda Posting (x)
+  200.PACCTDEF   — *GL Account yang Digunakan Sebagai Default Account oleh Modul Lain
+  300.PACCTCNT   — *Account-account yang Digunakan oleh Transaksi untuk Posting ke Ledger
+
+Database Fields — Additional Page 'PACCTDEF':
+  20.CACCTSTOCK  — Account ini Akan Menjadi Default Account pada Modul Kelompok Stock
+  25.            — Deskripsi Account Stock (x)
+  30.CACCTSTADJ  — Account ini Akan Menjadi Default Account pada Modul Kelompok Stock (Selisih Stock)
+  35.            — Desk. Acct Selisih Stock (x)
+  37.CACCTSLHPP  — Account ini Akan Menjadi Default Account pada Modul Kelompok Stock (HPP/COGS)
+  38.            — Desk. Acct HPP (COGS) (x)
+  40.CACCTAR     — Account ini Akan Menjadi Default Account Piutang pada Modul Customer
+  45.            — Desk. Acct Piutang (x)
+  50.CACCTAP     — Account ini Akan Menjadi Default Account Utang pada Modul Supplier
+  55.            — Desk. Acct Utang (x)
+  60.CACCTCURGL  — Account ini Akan Menjadi Default Account Selisih Kurs pada Modul Mata Uang
+  65.            — Desk. Acct Selisih Kurs (x)
+
+Database Fields — Additional Page 'PACCTCNT':
+  20.CACCTSLSHP  — Account ini Digunakan oleh Transaksi Penjualan
+  25.            — Desk Acct Penjualan (x)
+  30.CACCTSLRET  — Account ini Digunakan oleh Transaksi Retur Penjualan
+  35.            — Desk Acct Retur Penjualan (x)
+  40.CACCTSLTAX  — Account ini Digunakan oleh Transaksi Penjualan dan Retur Penjualan
+  45.            — Desk Acct PPN Penjualan (x)
+  50.CACCTPRAPV  — Account ini Digunakan oleh Transaksi Pembelian dan Retur Pembelian
+  55.            — Desk Acct Draft Utang (x)
+  70.CACCTPRTAX  — Account ini Digunakan oleh Transaksi Pembelian dan Retur Pembelian
+  75.            — Desk Acct PPN Pembelian (x)
+  80.CACCTPDWIP  — Account ini Digunakan oleh Transaksi Produksi
+  85.            — Desk Acct WIP (x)
+  90.CACCTOUT    — Account ini Digunakan oleh Transaksi Transfer Barang Dari/Ke Site Lain
+  95.            — Desk Acct Transfr Site Lain(x)
+
+Related Modules:
+  - Chart of Accounts
+  - Journal Manual
+  - Transaksi Ledger
+  - Accounts pada Kelompok Stock
+  - Accounts pada Gudang
+  - Accounts pada Customer
+  - Accounts pada Supplier
+  - Accounts pada Mata Uang
+
+
+=====================================
+SECTION 2: SALES MODULE PARAMETERS
+=====================================
+
+----------------------------------------------------------------------
+2.1 PARAMETER SALES ORDER
+----------------------------------------------------------------------
+Referenced from multiple parameter pages. Controls Sales Order transaction behavior.
+  - Auto numbering (Nomor Otomatis)
+  - Prefix/Sufix, Type, Separator for SO numbers
+  - Counter: No Urut Sales Order Terakhir
+
+----------------------------------------------------------------------
+2.2 PARAMETER SURAT JALAN PENJUALAN (Delivery Order Parameter)
+----------------------------------------------------------------------
+Referenced from multiple parameter pages. Controls Delivery Order transaction behavior.
+  - Auto numbering
+  - Prefix/Sufix, Type, Separator for DO numbers
+
+----------------------------------------------------------------------
+2.3 PARAMETER TRANSAKSI KIRIM SJ PENJUALAN (Send DO Transaction Parameter)
+----------------------------------------------------------------------
+Referenced from multiple parameter pages. Controls sending/transmitting DO data.
+
+----------------------------------------------------------------------
+2.4 PARAMETER RETUR SJ PENJUALAN (Sales Return DO Parameter)
+----------------------------------------------------------------------
+Referenced from multiple parameter pages. Controls return delivery orders.
+
+
+=====================================
+SECTION 3: PROCUREMENT MODULE PARAMETERS
+=====================================
+
+----------------------------------------------------------------------
+3.1 PARAMETER PURCHASE ORDER
+----------------------------------------------------------------------
+Referenced from multiple parameter pages. Controls PO transaction behavior.
+  - Auto numbering (Nomor Otomatis)
+  - Prefix/Sufix, Type, Separator for PO numbers
+
+----------------------------------------------------------------------
+3.2 PARAMETER PENERIMAAN PO (PO Receiving Parameter)
+----------------------------------------------------------------------
+Referenced from multiple parameter pages. Controls single PO receiving.
+  - Auto numbering
+  - Counter: No Urut Penerimaan PO Terakhir
+
+----------------------------------------------------------------------
+3.3 PARAMETER VOUCHER UTANG (AP Voucher Parameter)
+----------------------------------------------------------------------
+Referenced from multiple parameter pages. Controls AP voucher generation.
+  - Auto numbering
+  - Prefix/Sufix, Type, Separator for voucher numbers
+
+
+=====================================
+SECTION 4: CONTROL PARAMETER
+=====================================
+
+----------------------------------------------------------------------
+4.1 PARAMETER KONTROL
+----------------------------------------------------------------------
+Referenced from all parameter pages. Central control parameter that governs
+program-wide behavior. Links to all other parameters.
+
+
+=====================================
+SECTION 5: GENERAL LEDGER / ACCOUNTING FEATURES
+=====================================
+
+----------------------------------------------------------------------
+5.1 CHART OF ACCOUNTS
+----------------------------------------------------------------------
+Referenced in Parameter Transaksi Journal section.
+  - GL Account master data
+  - Account codes and descriptions
+  - Account types/classification
+
+----------------------------------------------------------------------
+5.2 JOURNAL MANUAL (Manual Journal Entry)
+----------------------------------------------------------------------
+  - Manual voucher entry
+  - Auto/manual numbering
+  - Debit/Credit entry
+  - Posting to Ledger (Immediate/Deferred/Never)
+  - Prefix/Sufix numbering system
+
+----------------------------------------------------------------------
+5.3 TRANSAKSI LEDGER (Ledger Transactions)
+----------------------------------------------------------------------
+  - Automated posting from transactions
+  - Integration with Penjualan (Sales)
+  - Integration with Pembelian (Purchases)
+  - Integration with Retur (Returns)
+  - Integration with Produksi (Production)
+
+----------------------------------------------------------------------
+5.4 JOURNAL ENTRY — ACCOUNT MAPPING (GL Integration)
+----------------------------------------------------------------------
+
+Default Account Mappings:
+  - Inventory (Stock) Account — on Kelompok Stock and Gudang
+  - Selisih Stock (Stock Variance) Account — on Kelompok Stock
+  - HPP / COGS Account — on Kelompok Stock
+  - Piutang (Accounts Receivable) Account — on Customer
+  - Utang (Accounts Payable) Account — on Supplier
+  - Selisih Kurs (Currency Gain/Loss) Account — on Mata Uang
+
+Control Account Mappings (Transaction Posting):
+  - Penjualan (Sales) Account
+  - Retur Penjualan (Sales Return) Account
+  - PPN Penjualan (Sales Tax) Account
+  - Draft Utang (Draft AP) Account
+  - PPN Pembelian (Purchase Tax) Account
+  - WIP (Work in Progress) Account
+  - Transfer Site Lain (Inter-site Transfer) Account
+
+Automated Journal Entry Scenarios:
+  1. Penjualan (Sales): DR HPP / CR Inventory
+  2. Retur Penjualan (Sales Return): DR Inventory / CR HPP
+  3. Create Invoice Piutang (AR Invoice): DR Piutang / CR Penjualan + CR PPN Penjualan
+  4. Adjustment Piutang (Retur/Credit Memo): DR Penjualan + DR PPN Penjualan / CR Piutang
+  5. Pembelian (Purchase): DR Inventory / CR Draft Utang
+  6. Generate Voucher Utang (AP Voucher): DR Draft Utang + DR PPN Pembelian / CR Utang
+  7. Retur Pembelian (Purchase Return): DR Draft Utang / CR Inventory
+  8. Generate Adjustment Utang (AP Adjustment): DR Utang / CR Draft Utang + CR PPN Pembelian
+
+
+=====================================
+SECTION 6: MASTER DATA MODULES (Referenced)
+=====================================
+
+----------------------------------------------------------------------
+6.1 KELOMPOK STOCK (Stock Groups)
+----------------------------------------------------------------------
+  - GL Account assignment for: Inventory, Selisih Stock, HPP/COGS
+
+----------------------------------------------------------------------
+6.2 GUDANG (Warehouse)
+----------------------------------------------------------------------
+  - GL Account assignment for: Inventory, Selisih Stock, HPP/COGS
+
+----------------------------------------------------------------------
+6.3 CUSTOMER
+----------------------------------------------------------------------
+  - GL Account assignment for: Piutang (AR)
+
+----------------------------------------------------------------------
+6.4 SUPPLIER
+----------------------------------------------------------------------
+  - GL Account assignment for: Utang (AP)
+
+----------------------------------------------------------------------
+6.5 MATA UANG (Currency)
+----------------------------------------------------------------------
+  - GL Account assignment for: Selisih Kurs (Currency Gain/Loss)
+
+
+=====================================
+SECTION 7: TRANSACTION MODULES (Referenced)
+=====================================
+
+----------------------------------------------------------------------
+7.1 PENJUALAN LANGSUNG (Direct/Cash Sales / POS)
+----------------------------------------------------------------------
+  Features & Settings:
+  - Nomor Bon otomatis (auto receipt numbering)
+  - Receipt/Struk printing with configurable footer (3 lines)
+  - Discount per item and total discount
+  - Skema Discount (discount schemes, configurable number of discount levels)
+  - Member discount percentage
+  - Kupon (coupon) system with configurable price threshold
+  - Fast transaction mode (Modus Transaksi Cepat)
+  - Manual date entry option
+  - Price authorization from other users
+  - Prevent below-cost selling (Harga Jual >= Harga Pokok)
+  - Configurable price reference (Ref Harga Jual)
+  - Item merging on receipt (same item, same price)
+  - Family Code grouping on receipt
+  - Cash payment default
+  - Stock minus handling (Ignore/Warning/Reject)
+  - Potential stock minus handling for orders
+  - Item source selection (Inventory/Job/Formula)
+  - Format Struk configuration
+  - Barcode validation
+  - COLOR field validation
+  - S/N (Serial Number) / Size tracking
+    - Single S/N mode
+    - S/N validation against Master S/N
+    - Auto-browse S/N
+    - S/N auto-numbering for production output
+
+----------------------------------------------------------------------
+7.2 PEMBELIAN LANGSUNG (Direct Purchase)
+----------------------------------------------------------------------
+  - Auto numbering for purchase receipts
+  - Harga Terakhir Bruto/Netto option (Last Purchase Price gross vs net of discount)
+
+----------------------------------------------------------------------
+7.3 RETUR PEMBELIAN LANGSUNG (Direct Purchase Return)
+----------------------------------------------------------------------
+  - Auto numbering for return receipts
+
+----------------------------------------------------------------------
+7.4 KOREKSI STOCK (Stock Correction/Adjustment)
+----------------------------------------------------------------------
+  - Auto numbering for correction transactions
+
+----------------------------------------------------------------------
+7.5 PENGIRIMAN BARANG (Goods Shipment)
+----------------------------------------------------------------------
+  - Auto numbering for shipment documents
+
+----------------------------------------------------------------------
+7.6 PENGIRIMAN UPDATE (HARGA) BARANG (Price Update Shipment)
+----------------------------------------------------------------------
+  - Auto numbering for price update documents
+
+----------------------------------------------------------------------
+7.7 KIRIM SALE DISCOUNT (Sale Discount Shipment)
+----------------------------------------------------------------------
+  - Auto numbering for sale discount documents
+
+----------------------------------------------------------------------
+7.8 PRODUKSI & PEMAKAIAN BAHAN (Production & Material Usage)
+----------------------------------------------------------------------
+  - Auto numbering for production documents
+  - S/N tracking for production output
+
+----------------------------------------------------------------------
+7.9 TRANSAKSI PENERIMAAN PO BERGANDA (Multiple PO Receiving)
+----------------------------------------------------------------------
+  - Receive goods against multiple POs simultaneously
+  - Auto numbering
+
+----------------------------------------------------------------------
+7.10 PENERIMAAN BANK (Bank Receipt)
+----------------------------------------------------------------------
+  - Record incoming bank transactions
+  - Auto numbering with Prefix/Type/Separator
+  - Voucher generation
+
+----------------------------------------------------------------------
+7.11 PENGELUARAN BANK (Bank Disbursement)
+----------------------------------------------------------------------
+  - Record outgoing bank transactions
+  - Auto numbering with Prefix/Type/Separator
+  - Voucher generation
+
+----------------------------------------------------------------------
+7.12 INVOICE A/R (Accounts Receivable Invoice / Faktur Piutang)
+----------------------------------------------------------------------
+  - Invoice generation
+  - Auto numbering
+  - Faktur Pajak (Tax Invoice) configuration
+    - Kode Faktur Pajak (Tax Invoice Code)
+    - Form Faktur Pajak (Tax Invoice Form type)
+  - Signer configuration (Tanda Tangan Invoice Oleh)
+  - Link to Generate Invoice function
+
+----------------------------------------------------------------------
+7.13 GENERATE INVOICE
+----------------------------------------------------------------------
+  - Automated invoice generation from transactions
+  - Linked to Parameter Invoice
+
+----------------------------------------------------------------------
+7.14 TRANSFER BARANG DARI/KE SITE LAIN (Inter-site Stock Transfer)
+----------------------------------------------------------------------
+  - Transfer stock between sites/locations
+  - GL posting with Transfer Site Lain account
+
+
+=====================================
+SECTION 8: REPORTING FEATURES (Referenced)
+=====================================
+
+----------------------------------------------------------------------
+8.1 LAPORAN STOC (Stock Report)
+----------------------------------------------------------------------
+  - Print Zero Stock option (include items with zero balance)
+  - Configurable via Parameter Sistem (Khusus)
+
+----------------------------------------------------------------------
+8.2 LAPORAN TRANSAKSI (Transaction Report)
+----------------------------------------------------------------------
+  - Print Zero Transaction option (include items with no transactions)
+  - Configurable via Parameter Sistem (Khusus)
+
+
+=====================================
+SECTION 9: SYSTEM ADMINISTRATION & UTILITIES
+=====================================
+
+----------------------------------------------------------------------
+9.1 FLEXIBLE MENU SYSTEM
+----------------------------------------------------------------------
+  - Menu customization per user category (Kategori User)
+  - Enabled via LMULTIMENU in Parameter Sistem (Umum)
+
+----------------------------------------------------------------------
+9.2 SOUND CONTROL (Kontrol Suara)
+----------------------------------------------------------------------
+  - Get Beep — sound on field entry
+  - Error Beep — sound on error
+  - Warning Beep — sound on warning
+
+----------------------------------------------------------------------
+9.3 PAPER SIZE CONFIGURATION
+----------------------------------------------------------------------
+  - Ukuran Kertas Laporan — maximum lines per page for reports
+
+----------------------------------------------------------------------
+9.4 PROTECTION & RUNTIME
+----------------------------------------------------------------------
+  - Run time number (NRUNTIM)
+  - Protect Flag (LPROTECT)
+  - Stock Application Installed flag (LSTK)
+  - Kas Application Installed flag (LKAS)
+
+----------------------------------------------------------------------
+9.5 NUMBERING SYSTEM (Universal across all modules)
+----------------------------------------------------------------------
+  Every transaction module supports:
+  - Nomor Otomatis? (Auto/Manual numbering toggle)
+  - Nomor Urut Terakhir (Last used sequence number, resettable)
+  - Prefix/Sufix (placed before or after the number)
+  - Type options: YYMM (2-digit year + month), YYYYMM (4-digit year + month)
+  - Separator character (e.g., "/")
+  - Generated example preview (CONTOH)
+
+  Applicable to:
+  - Penjualan Langsung (Bon number)
+  - Pembelian Langsung (Bukti number)
+  - Retur Pembelian Langsung
+  - Koreksi Stock
+  - Pengiriman Barang (Surat Jalan)
+  - Pengiriman Update (Harga) Barang
+  - Kirim Sale Discount
+  - Produksi & Pemakaian Bahan
+  - Penerimaan PO
+  - Penerimaan PO Berganda
+  - Penerimaan Bank
+  - Pengeluaran Bank
+  - Invoice (Faktur) Piutang
+  - Journal Manual
+
+----------------------------------------------------------------------
+9.6 FIELD CATEGORY SYSTEM (5 categories used across all parameters)
+----------------------------------------------------------------------
+  (a) Informasi — Read-only, auto-updated by program
+  (b) Default — Default values, changeable anytime by user
+  (c) Counter — Auto-incremented, user can reset periodically (e.g., monthly/yearly)
+  (d) Soft Control — Program behavior controls, non-fundamental, changeable anytime
+  (e) Hard Control — Fundamental program behavior, set once after install, NOT recommended to change after transactions exist
+
+
+=====================================
+SECTION 10: CROSS-MODULE REFERENCE MAP
+=====================================
+
+All Parameter modules reference each other via "Lihat Juga" (See Also) links:
+
+Parameter Sistem (Umum) <-> Parameter Sistem (Khusus)
+Parameter Kontrol (central)
+
+Sales Parameters:
+  - Parameter Sales Order
+  - Parameter Surat Jalan Penjualan
+  - Parameter Transaksi Kirim SJ Penjualan
+  - Parameter Invoice (Piutang)
+  - Parameter Retur SJ Penjualan
+
+Procurement Parameters:
+  - Parameter Purchase Order
+  - Parameter Penerimaan PO
+  - Parameter Penerimaan PO Berganda
+  - Parameter Voucher Utang
+
+Finance/Accounting Parameters:
+  - Parameter Transaksi Journal
+  - Parameter Penerimaan Bank
+  - Parameter Pengeluaran Bank
+
+General References:
+  - Petunjuk Memulai Penggunaan Program (Getting Started Guide)
+  - Informasi Umum Mengenai Parameter (General Information About Parameters)
+
+
+=====================================
+SECTION 11: INVENTORY / STOCK ANALYSIS FEATURES
+=====================================
+
+----------------------------------------------------------------------
+11.1 STOCK ANALYSIS
+----------------------------------------------------------------------
+  - Basis Analisis Stock: Day / Week / Month (configurable)
+  - Cost Method: configurable (referenced as _COST_xxx in SMART.CH)
+  - Stock minus handling: Tolak (Reject) / Peringatan (Warning) / Abaikan (Ignore)
+  - Potential stock minus handling for orders
+
+----------------------------------------------------------------------
+11.2 SERIAL NUMBER / SIZE (S/N) MANAGEMENT
+----------------------------------------------------------------------
+  - Single S/N mode (all items use one S/N, e.g., "NA")
+  - Custom S/N code
+  - Master S/N validation
+  - Auto-browse S/N during validation
+  - S/N counter for production output
+  - Configurable S/N label (default "S/N", can be renamed e.g., "SIZE")
+
+----------------------------------------------------------------------
+11.3 BARCODE MANAGEMENT
+----------------------------------------------------------------------
+  - Barcode validation rule enforcement
+  - Configurable via Parameter Sistem (Khusus)
+
+
+=====================================
+SECTION 12: TAX (PAJAK) FEATURES
+=====================================
+
+----------------------------------------------------------------------
+12.1 PPN PENJUALAN (Sales VAT)
+----------------------------------------------------------------------
+  - GL Account mapping for Sales VAT
+  - Auto-posting on Invoice creation
+  - Auto-reversal on Credit Memo / Adjustment
+
+----------------------------------------------------------------------
+12.2 PPN PEMBELIAN (Purchase VAT)
+----------------------------------------------------------------------
+  - GL Account mapping for Purchase VAT
+  - Auto-posting on AP Voucher generation
+  - Auto-reversal on AP Adjustment
+
+----------------------------------------------------------------------
+12.3 FAKTUR PAJAK (Tax Invoice)
+----------------------------------------------------------------------
+  - Kode Faktur Pajak configuration (e.g., CSPGK-422-)
+  - Form Faktur Pajak type selection
+  - Integrated with Invoice A/R parameter
+
+
+============================================================================
+END OF EXTRACTION
+============================================================================
+
+Notes:
+- Pages 400-530 of the CSA Software Help Manual primarily cover PARAMETER
+  CONFIGURATION modules — the system settings that govern how each transaction
+  module behaves (numbering, GL posting, validation rules, defaults).
+- The content is highly repetitive in structure: each parameter module follows
+  the same 5-category field system (Informasi, Default, Counter, Soft Control,
+  Hard Control).
+- Many pages contain the exact same "Lihat Juga" (See Also) cross-reference
+  lists pointing to all other parameter modules.
+- The most feature-rich parameter modules are:
+  1. Parameter Sistem (Khusus) — SCUSTOM — with 50+ configurable fields
+  2. Parameter Transaksi Journal — SJRNPAR — with full GL account mapping
+  3. Parameter Invoice — SINVPAR — with tax invoice configuration

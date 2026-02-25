@@ -6,7 +6,7 @@ import { calculateProductStatus } from "@/lib/inventory-logic"
 /**
  * GET /api/inventory/page-data
  * Returns all data needed for the inventory products page in a single request.
- * Uses prisma singleton (no withPrismaAuth transaction overhead).
+ * Includes procurement pipeline data for Planning & Incoming columns.
  */
 export async function GET() {
     try {
@@ -16,7 +16,7 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        const [rawProducts, categories, rawWarehouses] = await Promise.all([
+        const [rawProducts, categories, rawWarehouses, prItems, poItems] = await Promise.all([
             prisma.product.findMany({
                 where: { isActive: true },
                 include: {
@@ -39,10 +39,111 @@ export async function GET() {
                     _count: { select: { stockLevels: true } },
                 },
             }),
+            // ALL non-cancelled/rejected PR items (for Planning column + status tracking)
+            prisma.purchaseRequestItem.findMany({
+                where: {
+                    purchaseRequest: {
+                        status: { notIn: ['REJECTED', 'CANCELLED'] },
+                    },
+                },
+                include: {
+                    purchaseRequest: {
+                        select: {
+                            id: true,
+                            number: true,
+                            status: true,
+                            convertedToPOId: true,
+                            createdAt: true,
+                        },
+                    },
+                },
+            }),
+            // Active PO items (for Incoming column — products with orders in progress)
+            prisma.purchaseOrderItem.findMany({
+                where: {
+                    purchaseOrder: {
+                        status: {
+                            in: ['APPROVED', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'],
+                        },
+                    },
+                },
+                include: {
+                    purchaseOrder: {
+                        select: {
+                            id: true,
+                            number: true,
+                            status: true,
+                            expectedDate: true,
+                            supplier: { select: { name: true } },
+                        },
+                    },
+                },
+            }),
         ])
 
-        // Transform products (same logic as getProductsForKanban)
-        // Collect product IDs where manualAlert should be auto-cleared
+        // Build lookup maps per product
+        // Planning: products with pending/approved PRs (not yet PO_CREATED or done)
+        const prByProduct = new Map<string, {
+            prId: string
+            prNumber: string
+            prStatus: string
+            quantity: number
+            createdAt: Date
+        }[]>()
+
+        for (const item of prItems) {
+            const arr = prByProduct.get(item.productId) || []
+            arr.push({
+                prId: item.purchaseRequest.id,
+                prNumber: item.purchaseRequest.number,
+                prStatus: item.purchaseRequest.status,
+                quantity: item.quantity,
+                createdAt: item.purchaseRequest.createdAt,
+            })
+            prByProduct.set(item.productId, arr)
+        }
+
+        // Incoming: products with active POs (approved/ordered/shipped/etc)
+        const poByProduct = new Map<string, {
+            poId: string
+            poNumber: string
+            poStatus: string
+            expectedDate: Date | null
+            supplierName: string
+            orderedQty: number
+            receivedQty: number
+        }[]>()
+
+        for (const item of poItems) {
+            const arr = poByProduct.get(item.productId) || []
+            arr.push({
+                poId: item.purchaseOrder.id,
+                poNumber: item.purchaseOrder.number,
+                poStatus: item.purchaseOrder.status,
+                expectedDate: item.purchaseOrder.expectedDate,
+                supplierName: item.purchaseOrder.supplier.name,
+                orderedQty: item.quantity,
+                receivedQty: item.receivedQty,
+            })
+            poByProduct.set(item.productId, arr)
+        }
+
+        // Determine which products have pending PRs (for Planning column)
+        const pendingPRProductIds = new Set<string>()
+        for (const [productId, prs] of prByProduct.entries()) {
+            // Has at least one PR that is PENDING or APPROVED (not yet PO_CREATED)
+            if (prs.some(pr => ['PENDING', 'APPROVED', 'DRAFT'].includes(pr.prStatus))) {
+                pendingPRProductIds.add(productId)
+            }
+        }
+
+        // Determine which products have active incoming orders (for Incoming column)
+        const incomingProductIds = new Set<string>()
+        for (const [productId] of poByProduct.entries()) {
+            incomingProductIds.add(productId)
+        }
+
+        // Transform products
         const idsToResetAlert: string[] = []
 
         const products = rawProducts.map((p) => {
@@ -55,9 +156,48 @@ export async function GET() {
                 createdAt: p.createdAt,
             })
 
-            // Auto-clear manualAlert when stock is healthy
-            if (p.manualAlert && status === "HEALTHY") {
+            // Auto-clear manualAlert when it's redundant:
+            // - HEALTHY: stock is fine, no need for alert
+            // - CRITICAL with 0 stock: already critical naturally, flag is pointless
+            // manualAlert only matters for LOW_STOCK → CRITICAL elevation
+            if (p.manualAlert && (status === "HEALTHY" || totalStock === 0)) {
                 idsToResetAlert.push(p.id)
+            }
+
+            const hasPendingPR = pendingPRProductIds.has(p.id)
+            const hasIncomingPO = incomingProductIds.has(p.id)
+
+            // Get the "best" procurement status for this product
+            const productPRs = prByProduct.get(p.id) || []
+            const productPOs = poByProduct.get(p.id) || []
+
+            // Determine procurement pipeline step
+            let procurementStatus: string | null = null
+            let procurementDetail: any = null
+
+            if (productPOs.length > 0) {
+                // Has active PO — show PO status
+                const latestPO = productPOs[0]
+                procurementStatus = latestPO.poStatus
+                procurementDetail = {
+                    type: 'PO',
+                    number: latestPO.poNumber,
+                    status: latestPO.poStatus,
+                    expectedDate: latestPO.expectedDate,
+                    supplierName: latestPO.supplierName,
+                    orderedQty: latestPO.orderedQty,
+                    receivedQty: latestPO.receivedQty,
+                }
+            } else if (productPRs.length > 0) {
+                const latestPR = productPRs[0]
+                procurementStatus = `PR_${latestPR.prStatus}`
+                procurementDetail = {
+                    type: 'PR',
+                    number: latestPR.prNumber,
+                    status: latestPR.prStatus,
+                    quantity: latestPR.quantity,
+                    createdAt: latestPR.createdAt,
+                }
             }
 
             return {
@@ -80,11 +220,19 @@ export async function GET() {
                 totalStock,
                 currentStock: totalStock,
                 status,
+                hasPendingPR,
+                hasIncomingPO,
+                procurementStatus,
+                procurementDetail,
+                // PR info — always available if product has a pending PR
+                prQuantity: productPRs.length > 0 ? productPRs.reduce((sum, pr) => sum + pr.quantity, 0) : 0,
+                prNumber: productPRs.length > 0 ? productPRs[0].prNumber : null,
+                prStatus: productPRs.length > 0 ? productPRs[0].prStatus : null,
                 image: "/placeholder.png",
             }
         })
 
-        // Transform warehouses (same logic as getWarehouses)
+        // Transform warehouses
         const warehouses = rawWarehouses.map((w) => {
             const totalItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
             const capacity = w.capacity || 50000
@@ -114,6 +262,9 @@ export async function GET() {
             healthy: products.filter((p) => p.status === "HEALTHY").length,
             lowStock: products.filter((p) => p.status === "LOW_STOCK").length,
             critical: products.filter((p) => p.status === "CRITICAL").length,
+            newArrivals: products.filter((p) => p.status === "NEW").length,
+            planning: products.filter((p) => p.hasPendingPR).length,
+            incoming: products.filter((p) => p.hasIncomingPO).length,
             totalValue: products.reduce((sum, p) => sum + (p.totalStock * p.costPrice), 0),
         }
 
@@ -122,7 +273,7 @@ export async function GET() {
             prisma.product.updateMany({
                 where: { id: { in: idsToResetAlert } },
                 data: { manualAlert: false },
-            }).catch(() => {}) // Non-blocking, don't fail the response
+            }).catch(() => { })
         }
 
         return NextResponse.json({

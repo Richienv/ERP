@@ -28,6 +28,8 @@ interface GapData {
     sku: string
     category: string
     currentStock: number
+    pendingRestockQty: number
+    incomingQty: number
     unit: string
 
     // Planning
@@ -256,14 +258,38 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                 </div>
                                             </td>
 
-                                            {/* Stock & Demand (Warehouses + Work Orders) */}
+                                            {/* Stock & Demand (Current / Needed) */}
                                             <td className="p-4 align-top w-[200px]">
                                                 <div className="text-center">
-                                                    <div className="text-xl font-black">{item.currentStock} <span className="text-sm font-normal text-zinc-500">{item.unit}</span></div>
+                                                    {(() => {
+                                                        const demand = item.pendingRestockQty > 0 ? item.pendingRestockQty : item.reorderPoint
+                                                        return (
+                                                            <>
+                                                                <div className="flex items-baseline justify-center gap-1">
+                                                                    <span className={`text-xl font-black ${item.currentStock < demand ? 'text-red-600' : 'text-emerald-600'}`}>
+                                                                        {item.currentStock}
+                                                                    </span>
+                                                                    <span className="text-zinc-400 font-bold text-sm">/</span>
+                                                                    <span className="text-xl font-black text-zinc-700">{demand}</span>
+                                                                    <span className="text-sm font-normal text-zinc-500 ml-0.5">{item.unit}</span>
+                                                                </div>
+                                                                <div className="text-[9px] font-bold text-zinc-400 uppercase mt-0.5">
+                                                                    Stok / {item.pendingRestockQty > 0 ? 'Diminta (PR)' : 'Kebutuhan'}
+                                                                </div>
+                                                            </>
+                                                        )
+                                                    })()}
 
-                                                    {/* Warehouse Tooltip / Breakdown */}
+                                                    {/* Incoming from PO */}
+                                                    {item.incomingQty > 0 && (
+                                                        <div className="text-[10px] font-bold text-cyan-600 mt-1 bg-cyan-50 border border-cyan-200 py-0.5 px-2 inline-block">
+                                                            +{item.incomingQty} {item.unit} incoming (PO)
+                                                        </div>
+                                                    )}
+
+                                                    {/* Warehouse Breakdown */}
                                                     {item.warehouses.length > 0 && (
-                                                        <div className="flex flex-wrap justify-center gap-1 mt-1">
+                                                        <div className="flex flex-wrap justify-center gap-1 mt-1.5">
                                                             {item.warehouses.map(w => (
                                                                 <span key={w.name} className="text-[9px] bg-zinc-100 px-1 border border-zinc-200" title={w.name}>
                                                                     {w.name.substring(0, 3)}: {w.qty}
@@ -377,7 +403,9 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                                     unit: item.unit,
                                                                     cost: item.cost,
                                                                     gap: item.gap,
-                                                                    reorderPoint: item.reorderPoint
+                                                                    reorderPoint: item.reorderPoint,
+                                                                    pendingRestockQty: item.pendingRestockQty,
+                                                                    currentStock: item.currentStock
                                                                 }}
                                                                 onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
                                                             />
@@ -423,7 +451,9 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
                                                                             unit: item.unit,
                                                                             cost: item.cost,
                                                                             gap: item.gap,
-                                                                            reorderPoint: item.reorderPoint
+                                                                            reorderPoint: item.reorderPoint,
+                                                                            pendingRestockQty: item.pendingRestockQty,
+                                                                            currentStock: item.currentStock
                                                                         }}
                                                                         onSuccess={(result) => handlePurchaseSuccess(item.id, result)}
                                                                     />

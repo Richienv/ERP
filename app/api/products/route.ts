@@ -46,6 +46,11 @@ export async function GET(request: NextRequest) {
       whereClause.isActive = false
     }
 
+    const productType = searchParams.get('productType')
+    if (productType) {
+      whereClause.productType = productType
+    }
+
     // Calculate offset for pagination
     const offset = ((filters.page || 1) - 1) * (filters.limit || 10)
 
@@ -167,6 +172,7 @@ export async function POST(request: NextRequest) {
         name,
         description: body.description || null,
         categoryId: body.categoryId || null,
+        productType: body.productType || undefined,
         unit,
         costPrice: parseFloat(costPrice || 0),
         sellingPrice: parseFloat(sellingPrice || 0),
