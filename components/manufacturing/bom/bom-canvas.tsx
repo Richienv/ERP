@@ -1,9 +1,9 @@
 "use client"
 
-import { useCallback, useEffect } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import {
     ReactFlow, Background, Controls, MiniMap,
-    useNodesState, useEdgesState,
+    useNodesState, useEdgesState, reconnectEdge,
     type Node, type Edge, type Connection,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
@@ -134,6 +134,7 @@ export function BOMCanvas({
                         style: { strokeWidth: 2, stroke: "#000" },
                         animated: true,
                         deletable: true,
+                        reconnectable: true,
                     })
                 }
             }
@@ -185,6 +186,33 @@ export function BOMCanvas({
         }
     }, [onDisconnectSteps])
 
+    // Edge reconnection: drag an existing edge endpoint to a different node
+    const edgeReconnectSuccessful = useRef(true)
+
+    const handleReconnectStart = useCallback(() => {
+        edgeReconnectSuccessful.current = false
+    }, [])
+
+    const handleReconnect = useCallback((oldEdge: Edge, newConnection: Connection) => {
+        edgeReconnectSuccessful.current = true
+        // Remove old connection, add new one
+        if (oldEdge.source && oldEdge.target && onDisconnectSteps) {
+            onDisconnectSteps(oldEdge.source, oldEdge.target)
+        }
+        if (newConnection.source && newConnection.target && onConnectSteps) {
+            onConnectSteps(newConnection.source, newConnection.target)
+        }
+        setEdges((eds) => reconnectEdge(oldEdge, newConnection, eds))
+    }, [onDisconnectSteps, onConnectSteps, setEdges])
+
+    const handleReconnectEnd = useCallback((_: any, edge: Edge) => {
+        // If reconnect was not successful (dropped in empty space), delete the edge
+        if (!edgeReconnectSuccessful.current && onDisconnectSteps) {
+            onDisconnectSteps(edge.source, edge.target)
+        }
+        edgeReconnectSuccessful.current = true
+    }, [onDisconnectSteps])
+
     return (
         <div className="flex-1 h-full">
             <ReactFlow
@@ -196,6 +224,9 @@ export function BOMCanvas({
                 onPaneClick={onPaneClick}
                 onConnect={handleConnect}
                 onEdgesDelete={handleEdgesDelete}
+                onReconnect={handleReconnect}
+                onReconnectStart={handleReconnectStart}
+                onReconnectEnd={handleReconnectEnd}
                 nodeTypes={nodeTypes}
                 fitView
                 minZoom={0.3}
