@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react"
 import {
     ReactFlow, Background, Controls, MiniMap,
     useNodesState, useEdgesState, reconnectEdge,
+    ConnectionMode,
     type Node, type Edge, type Connection,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
@@ -205,10 +206,12 @@ export function BOMCanvas({
                 onReconnect={handleReconnect}
                 onReconnectStart={handleReconnectStart}
                 onReconnectEnd={handleReconnectEnd}
+                connectionMode={ConnectionMode.Loose}
                 nodeTypes={nodeTypes}
                 fitView
                 minZoom={0.3}
                 maxZoom={2}
+                connectionLineStyle={{ strokeWidth: 2, stroke: "#f97316" }}
                 proOptions={{ hideAttribution: true }}
             >
                 <Background gap={20} size={1} color="#e4e4e7" />
