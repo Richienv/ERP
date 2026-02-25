@@ -86,18 +86,13 @@ export function BOMCanvas({
     steps, items, onStepSelect, onDropMaterial, onRemoveMaterial,
     onRemoveStep, selectedStepId, onConnectSteps, onDisconnectSteps,
 }: BOMCanvasProps) {
-    // Check if any step uses DAG edges
-    const hasDAGEdges = steps.some(s => s.parentStepIds?.length > 0)
-
     const buildNodes = useCallback((): Node[] => {
-        const positions = hasDAGEdges ? layoutNodes(steps) : null
+        const positions = layoutNodes(steps)
 
         return steps.map((step, index) => ({
             id: step.id,
             type: "station" as const,
-            position: positions
-                ? (positions.get(step.id) || { x: 80 + index * 300, y: 100 })
-                : { x: 80 + index * 300, y: 100 },
+            position: positions.get(step.id) || { x: 80 + index * 300, y: 100 },
             data: {
                 station: step.station,
                 sequence: step.sequence,
@@ -117,38 +112,21 @@ export function BOMCanvas({
                 onRemoveStep: onRemoveStep ? () => onRemoveStep(step.id) : undefined,
             } satisfies StationNodeData,
         }))
-    }, [steps, items, selectedStepId, onRemoveMaterial, onDropMaterial, onRemoveStep, hasDAGEdges])
+    }, [steps, items, selectedStepId, onRemoveMaterial, onDropMaterial, onRemoveStep])
 
     const buildEdges = useCallback((): Edge[] => {
         const edges: Edge[] = []
 
-        // Build from parentStepIds (DAG)
         for (const step of steps) {
-            const parentIds = step.parentStepIds || []
-            if (parentIds.length > 0) {
-                for (const parentId of parentIds) {
-                    edges.push({
-                        id: `e-${parentId}-${step.id}`,
-                        source: parentId,
-                        target: step.id,
-                        style: { strokeWidth: 2, stroke: "#000" },
-                        animated: true,
-                        deletable: true,
-                        reconnectable: true,
-                    })
-                }
-            }
-        }
-
-        // Fallback: if no step has parentStepIds, use sequential chain
-        if (edges.length === 0 && steps.length > 1) {
-            for (let i = 1; i < steps.length; i++) {
+            for (const parentId of (step.parentStepIds || [])) {
                 edges.push({
-                    id: `e-${steps[i - 1].id}-${steps[i].id}`,
-                    source: steps[i - 1].id,
-                    target: steps[i].id,
+                    id: `e-${parentId}-${step.id}`,
+                    source: parentId,
+                    target: step.id,
                     style: { strokeWidth: 2, stroke: "#000" },
                     animated: true,
+                    deletable: true,
+                    reconnectable: true,
                 })
             }
         }

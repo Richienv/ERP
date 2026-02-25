@@ -100,17 +100,21 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const tempId = `step-${Date.now()}`
         const newSequence = steps.length + 1
 
-        setSteps((prev) => [...prev, {
-            id: tempId,
-            stationId: station.id,
-            station,
-            sequence: newSequence,
-            durationMinutes: null,
-            notes: null,
-            materials: [],
-            allocations: [],
-            attachments: [],
-        }])
+        setSteps((prev) => {
+            const lastStep = prev[prev.length - 1]
+            return [...prev, {
+                id: tempId,
+                stationId: station.id,
+                station,
+                sequence: newSequence,
+                durationMinutes: null,
+                notes: null,
+                parentStepIds: lastStep ? [lastStep.id] : [],
+                materials: [],
+                allocations: [],
+                attachments: [],
+            }]
+        })
     }, [allStations, steps.length])
 
     // Quick-add station by type: finds existing station or auto-creates one
@@ -146,17 +150,21 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 // Add to canvas immediately
                 const station = result.data
                 const tempId = `step-${Date.now()}`
-                setSteps((prev) => [...prev, {
-                    id: tempId,
-                    stationId: station.id,
-                    station,
-                    sequence: prev.length + 1,
-                    durationMinutes: null,
-                    notes: null,
-                    materials: [],
-                    allocations: [],
-                    attachments: [],
-                }])
+                setSteps((prev) => {
+                    const lastStep = prev[prev.length - 1]
+                    return [...prev, {
+                        id: tempId,
+                        stationId: station.id,
+                        station,
+                        sequence: prev.length + 1,
+                        durationMinutes: null,
+                        notes: null,
+                        parentStepIds: lastStep ? [lastStep.id] : [],
+                        materials: [],
+                        allocations: [],
+                        attachments: [],
+                    }]
+                })
                 toast.success(`Stasiun "${label}" dibuat & ditambahkan`)
             } else {
                 toast.error(result.error || "Gagal membuat stasiun")
@@ -171,8 +179,12 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     const handleRemoveStep = useCallback((stepId: string) => {
         setSteps((prev) => {
             const filtered = prev.filter((s) => s.id !== stepId)
-            // Re-sequence
-            return filtered.map((s, i) => ({ ...s, sequence: i + 1 }))
+            // Re-sequence + remove deleted step from parentStepIds
+            return filtered.map((s, i) => ({
+                ...s,
+                sequence: i + 1,
+                parentStepIds: (s.parentStepIds || []).filter((id: string) => id !== stepId),
+            }))
         })
         if (selectedStepId === stepId) setSelectedStepId(null)
     }, [selectedStepId])
