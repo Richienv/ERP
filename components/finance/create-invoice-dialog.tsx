@@ -61,6 +61,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     const [manualProduct, setManualProduct] = useState("")
     const [manualQty, setManualQty] = useState(1)
     const [manualPrice, setManualPrice] = useState("")
+    const [includeTax, setIncludeTax] = useState(true) // PPN 11% default ON
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
     const [dueDate, setDueDate] = useState("")
 
@@ -109,6 +110,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         setManualProduct("")
         setManualQty(1)
         setManualPrice("")
+        setIncludeTax(true)
         setDueDate("")
         setIssueDate(new Date().toISOString().split('T')[0])
     }
@@ -130,6 +132,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                     amount: parseFloat(manualPrice) * manualQty,
                     issueDate: parseDateInput(issueDate),
                     dueDate: parseDateInput(dueDate),
+                    includeTax,
                     items: [{
                         description: manualProduct || 'Manual Item',
                         quantity: manualQty,
@@ -278,11 +281,45 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                             </div>
                                         </div>
 
-                                        {/* Total Preview */}
-                                        <div className="border-2 border-black bg-zinc-100 px-4 py-2 flex justify-between items-center">
-                                            <span className={NB.label + " !mb-0"}>Total</span>
-                                            <span className="font-mono font-black text-lg">{formatIDR((parseFloat(manualPrice) || 0) * manualQty)}</span>
+                                        {/* PPN Toggle */}
+                                        <div className="flex items-center justify-between border-2 border-zinc-200 px-4 py-2.5">
+                                            <div>
+                                                <span className={NB.label + " !mb-0"}>PPN 11%</span>
+                                                <p className="text-[9px] text-zinc-400 font-medium">Pajak Pertambahan Nilai</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIncludeTax(!includeTax)}
+                                                className={`relative w-11 h-6 rounded-full border-2 transition-colors ${includeTax ? 'bg-emerald-500 border-emerald-600' : 'bg-zinc-200 border-zinc-300'}`}
+                                            >
+                                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${includeTax ? 'left-5' : 'left-0.5'}`} />
+                                            </button>
                                         </div>
+
+                                        {/* Total Preview with Tax Breakdown */}
+                                        {(() => {
+                                            const subtotal = (parseFloat(manualPrice) || 0) * manualQty
+                                            const tax = includeTax ? Math.round(subtotal * 0.11) : 0
+                                            const total = subtotal + tax
+                                            return (
+                                                <div className="border-2 border-black bg-zinc-100 px-4 py-2 space-y-1">
+                                                    <div className="flex justify-between items-center text-xs text-zinc-500">
+                                                        <span>Subtotal</span>
+                                                        <span className="font-mono font-bold">{formatIDR(subtotal)}</span>
+                                                    </div>
+                                                    {includeTax && (
+                                                        <div className="flex justify-between items-center text-xs text-zinc-500">
+                                                            <span>PPN 11%</span>
+                                                            <span className="font-mono font-bold">{formatIDR(tax)}</span>
+                                                        </div>
+                                                    )}
+                                                    <div className="flex justify-between items-center border-t border-zinc-300 pt-1">
+                                                        <span className={NB.label + " !mb-0"}>Total</span>
+                                                        <span className="font-mono font-black text-lg">{formatIDR(total)}</span>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })()}
                                     </div>
                                 </div>
 

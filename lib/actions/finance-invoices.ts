@@ -140,6 +140,7 @@ export async function createCustomerInvoice(data: {
     issueDate?: Date
     dueDate?: Date
     notes?: string
+    includeTax?: boolean  // PPN 11%
     // Manual Items
     items?: Array<{
         description: string
@@ -185,8 +186,6 @@ export async function createCustomerInvoice(data: {
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 amount: item.quantity * item.unitPrice,
-                // If productId is provided, use it, otherwise maybe look up by code?
-                // For now, manual entry might not link to product table unless strictly required.
             })) : [{
                 description: data.notes || 'Manual Entry',
                 quantity: 1,
@@ -194,8 +193,10 @@ export async function createCustomerInvoice(data: {
                 amount: data.amount
             }]
 
-            // Recalculate total if items exist
-            const totalAmount = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
+            // Calculate subtotal and tax
+            const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
+            const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
+            const totalAmount = subtotal + taxAmount
 
             // Create invoice
             const invoice = await prisma.invoice.create({
@@ -206,8 +207,8 @@ export async function createCustomerInvoice(data: {
                     supplierId: invoiceType === 'INV_IN' ? data.customerId : null,
                     issueDate: issueDate,
                     dueDate: dueDate,
-                    subtotal: totalAmount,
-                    taxAmount: 0,
+                    subtotal: subtotal,
+                    taxAmount: taxAmount,
                     totalAmount: totalAmount,
                     balanceDue: totalAmount,
                     status: 'DRAFT',
@@ -216,7 +217,6 @@ export async function createCustomerInvoice(data: {
                     }
                 }
             })
-
 
             return {
                 success: true,
@@ -227,6 +227,191 @@ export async function createCustomerInvoice(data: {
     } catch (error: any) {
         console.error("Failed to create invoice:", error)
         return { success: false, error: error.message || "Failed to create invoice" }
+    }
+}
+
+/**
+ * Update a DRAFT invoice (items, amounts, dates, tax)
+ * Only DRAFT invoices can be edited. ISSUED/SENT invoices are locked.
+ */
+export async function updateDraftInvoice(data: {
+    invoiceId: string
+    customerId?: string
+    items?: Array<{ description: string; quantity: number; unitPrice: number }>
+    includeTax?: boolean
+    issueDate?: Date
+    dueDate?: Date
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const invoice = await prisma.invoice.findUnique({
+                where: { id: data.invoiceId },
+                select: { id: true, status: true, type: true }
+            })
+            if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
+            if (invoice.status !== 'DRAFT') return { success: false, error: "Hanya invoice DRAFT yang bisa diedit" }
+
+            // Recalculate amounts from items
+            if (data.items && data.items.length > 0) {
+                // Delete existing items, recreate
+                await prisma.invoiceItem.deleteMany({ where: { invoiceId: data.invoiceId } })
+                const invoiceItems = data.items.map(item => ({
+                    invoiceId: data.invoiceId,
+                    description: item.description,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    amount: item.quantity * item.unitPrice,
+                }))
+                await prisma.invoiceItem.createMany({ data: invoiceItems })
+
+                const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
+                const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
+                const totalAmount = subtotal + taxAmount
+
+                const updateData: any = { subtotal, taxAmount, totalAmount, balanceDue: totalAmount }
+                if (data.customerId) {
+                    if (invoice.type === 'INV_OUT') updateData.customerId = data.customerId
+                    else updateData.supplierId = data.customerId
+                }
+                if (data.issueDate) updateData.issueDate = data.issueDate
+                if (data.dueDate) updateData.dueDate = data.dueDate
+
+                await prisma.invoice.update({ where: { id: data.invoiceId }, data: updateData })
+            } else {
+                // Just update dates/customer
+                const updateData: any = {}
+                if (data.customerId) {
+                    if (invoice.type === 'INV_OUT') updateData.customerId = data.customerId
+                    else updateData.supplierId = data.customerId
+                }
+                if (data.issueDate) updateData.issueDate = data.issueDate
+                if (data.dueDate) updateData.dueDate = data.dueDate
+                if (data.includeTax !== undefined) {
+                    // Recalculate tax on existing subtotal
+                    const existing = await prisma.invoice.findUnique({ where: { id: data.invoiceId }, select: { subtotal: true } })
+                    const subtotal = Number(existing?.subtotal || 0)
+                    const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
+                    updateData.taxAmount = taxAmount
+                    updateData.totalAmount = subtotal + taxAmount
+                    updateData.balanceDue = subtotal + taxAmount
+                }
+                if (Object.keys(updateData).length > 0) {
+                    await prisma.invoice.update({ where: { id: data.invoiceId }, data: updateData })
+                }
+            }
+
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("Failed to update draft invoice:", error)
+        return { success: false, error: error.message || "Gagal mengupdate invoice" }
+    }
+}
+
+/**
+ * Get full invoice details (for editing or viewing)
+ */
+export async function getInvoiceDetail(invoiceId: string) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const invoice = await prisma.invoice.findUnique({
+                where: { id: invoiceId },
+                include: {
+                    items: true,
+                    customer: { select: { id: true, name: true } },
+                    supplier: { select: { id: true, name: true } },
+                    payments: { select: { id: true, number: true, amount: true, date: true, method: true } },
+                }
+            })
+            if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
+            return { success: true, data: invoice }
+        })
+    } catch (error: any) {
+        return { success: false, error: error.message }
+    }
+}
+
+/**
+ * Get account transactions (GL journal entries) for the Account Transactions Report.
+ * Returns journal entries with their lines, grouped chronologically.
+ */
+export async function getAccountTransactions(params?: {
+    accountCode?: string
+    dateFrom?: Date
+    dateTo?: Date
+    limit?: number
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const where: any = { status: 'POSTED' }
+            if (params?.dateFrom || params?.dateTo) {
+                where.date = {}
+                if (params?.dateFrom) where.date.gte = params.dateFrom
+                if (params?.dateTo) where.date.lte = params.dateTo
+            }
+
+            // If filtering by account, only get entries that have lines for that account
+            if (params?.accountCode) {
+                const account = await prisma.gLAccount.findUnique({ where: { code: params.accountCode } })
+                if (account) {
+                    where.lines = { some: { accountId: account.id } }
+                }
+            }
+
+            const entries = await prisma.journalEntry.findMany({
+                where,
+                include: {
+                    lines: {
+                        include: {
+                            account: { select: { id: true, code: true, name: true, type: true } }
+                        }
+                    },
+                    invoice: { select: { id: true, number: true, type: true } },
+                    payment: { select: { id: true, number: true, method: true } },
+                },
+                orderBy: { date: 'desc' },
+                take: params?.limit || 200,
+            })
+
+            // Also get account list for the filter dropdown
+            const accounts = await prisma.gLAccount.findMany({
+                orderBy: { code: 'asc' },
+                select: { id: true, code: true, name: true, type: true, balance: true }
+            })
+
+            return {
+                success: true,
+                entries: entries.map(e => ({
+                    id: e.id,
+                    date: e.date,
+                    description: e.description,
+                    reference: e.reference,
+                    invoiceNumber: e.invoice?.number || null,
+                    invoiceType: e.invoice?.type || null,
+                    paymentNumber: e.payment?.number || null,
+                    paymentMethod: e.payment?.method || null,
+                    lines: e.lines.map(l => ({
+                        id: l.id,
+                        accountCode: l.account.code,
+                        accountName: l.account.name,
+                        accountType: l.account.type,
+                        description: l.description,
+                        debit: Number(l.debit),
+                        credit: Number(l.credit),
+                    }))
+                })),
+                accounts: accounts.map(a => ({
+                    id: a.id,
+                    code: a.code,
+                    name: a.name,
+                    type: a.type,
+                    balance: Number(a.balance),
+                }))
+            }
+        })
+    } catch (error: any) {
+        console.error("Failed to fetch account transactions:", error)
+        return { success: false, error: error.message, entries: [], accounts: [] }
     }
 }
 

@@ -11,6 +11,8 @@ import {
     Banknote,
     Loader2,
     Receipt,
+    Pencil,
+    BookOpen,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -36,6 +38,8 @@ import {
     type InvoiceKanbanItem,
     moveInvoiceToSent,
     recordInvoicePayment,
+    getInvoiceDetail,
+    updateDraftInvoice,
 } from "@/lib/actions/finance-invoices"
 
 import { useInvoiceKanban } from "@/hooks/use-invoices"
@@ -74,6 +78,15 @@ export default function InvoicesPage() {
     const [payAmount, setPayAmount] = useState("")
     const [paying, setPaying] = useState(false)
     const [sending, setSending] = useState(false)
+
+    // Edit form (DRAFT only)
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const [editLoading, setEditLoading] = useState(false)
+    const [editSaving, setEditSaving] = useState(false)
+    const [editItems, setEditItems] = useState<Array<{ description: string; quantity: number; unitPrice: number }>>([])
+    const [editIncludeTax, setEditIncludeTax] = useState(true)
+    const [editIssueDate, setEditIssueDate] = useState("")
+    const [editDueDate, setEditDueDate] = useState("")
 
     const [searchText, setSearchText] = useState("")
     const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'ALL' | 'INV_OUT' | 'INV_IN'>('ALL')
@@ -152,6 +165,59 @@ export default function InvoicesPage() {
         setPayDate(new Date().toISOString().split('T')[0])
         setPayReference("")
         setIsPayDialogOpen(true)
+    }
+
+    const openEditDialog = async (invoice: InvoiceKanbanItem) => {
+        setActiveInvoice(invoice)
+        setEditLoading(true)
+        setIsEditDialogOpen(true)
+        try {
+            const result = await getInvoiceDetail(invoice.id) as any
+            if (result.success && result.data) {
+                const inv = result.data as any
+                setEditItems(inv.items.map((item: any) => ({
+                    description: item.description || '',
+                    quantity: Number(item.quantity),
+                    unitPrice: Number(item.unitPrice),
+                })))
+                setEditIncludeTax(Number(inv.taxAmount) > 0)
+                setEditIssueDate(new Date(inv.issueDate).toISOString().split('T')[0])
+                setEditDueDate(new Date(inv.dueDate).toISOString().split('T')[0])
+            }
+        } catch {
+            toast.error("Gagal memuat detail invoice")
+        } finally {
+            setEditLoading(false)
+        }
+    }
+
+    const handleSaveEdit = async () => {
+        if (!activeInvoice || editSaving) return
+        if (editItems.length === 0 || editItems.some(i => !i.description || i.quantity <= 0 || i.unitPrice <= 0)) {
+            toast.error("Lengkapi semua item dengan benar")
+            return
+        }
+        setEditSaving(true)
+        try {
+            const result = await updateDraftInvoice({
+                invoiceId: activeInvoice.id,
+                items: editItems,
+                includeTax: editIncludeTax,
+                issueDate: new Date(editIssueDate + 'T12:00:00'),
+                dueDate: new Date(editDueDate + 'T12:00:00'),
+            })
+            if (result.success) {
+                toast.success("Invoice berhasil diupdate")
+                setIsEditDialogOpen(false)
+                invalidateInvoices()
+            } else {
+                toast.error(result.error || "Gagal mengupdate invoice")
+            }
+        } catch {
+            toast.error("Terjadi kesalahan")
+        } finally {
+            setEditSaving(false)
+        }
     }
 
     const handleConfirmSend = async () => {
@@ -271,12 +337,21 @@ export default function InvoicesPage() {
                             </p>
                         </div>
                     </div>
-                    <Button
-                        onClick={() => setIsCreatorOpen(true)}
-                        className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
-                    >
-                        <FileText className="h-3.5 w-3.5 mr-1.5" /> Buat Invoice
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button
+                            onClick={() => router.push('/finance/invoices/transactions')}
+                            variant="outline"
+                            className="border-2 border-black font-black uppercase text-[10px] tracking-wide h-10 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                        >
+                            <BookOpen className="h-3.5 w-3.5 mr-1.5" /> Transaksi Akun
+                        </Button>
+                        <Button
+                            onClick={() => setIsCreatorOpen(true)}
+                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                        >
+                            <FileText className="h-3.5 w-3.5 mr-1.5" /> Buat Invoice
+                        </Button>
+                    </div>
                 </div>
             </div>
 
@@ -444,13 +519,22 @@ export default function InvoicesPage() {
                                         {/* Actions */}
                                         <div className="flex gap-1.5">
                                             {isDraft && (
-                                                <button
-                                                    onClick={() => openSendDialog(invoice)}
-                                                    title="Kirim Invoice"
-                                                    className="h-8 w-8 flex items-center justify-center border-2 border-blue-300 text-blue-500 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-700 transition-colors rounded-sm"
-                                                >
-                                                    <Send className="h-3.5 w-3.5" />
-                                                </button>
+                                                <>
+                                                    <button
+                                                        onClick={() => openEditDialog(invoice)}
+                                                        title="Edit Invoice"
+                                                        className="h-8 w-8 flex items-center justify-center border-2 border-orange-300 text-orange-500 hover:bg-orange-50 hover:border-orange-500 hover:text-orange-700 transition-colors rounded-sm"
+                                                    >
+                                                        <Pencil className="h-3.5 w-3.5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openSendDialog(invoice)}
+                                                        title="Kirim Invoice"
+                                                        className="h-8 w-8 flex items-center justify-center border-2 border-blue-300 text-blue-500 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-700 transition-colors rounded-sm"
+                                                    >
+                                                        <Send className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </>
                                             )}
                                             {canPay && (
                                                 <button
@@ -603,6 +687,154 @@ export default function InvoicesPage() {
                                 Kirim via Email
                             </Button>
                         )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* EDIT DRAFT DIALOG */}
+            <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!editSaving) setIsEditDialogOpen(open) }}>
+                <DialogContent className="max-w-lg border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-y-auto max-h-[90vh] bg-white">
+                    <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-orange-50">
+                        <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
+                            <Pencil className="h-5 w-5" /> Edit Invoice {activeInvoice?.number}
+                        </DialogTitle>
+                        <DialogDescription className="font-medium text-black/60">
+                            Edit item, harga, dan pajak. Hanya tersedia untuk invoice DRAFT.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="p-6 space-y-4">
+                        {editLoading ? (
+                            <div className="flex items-center justify-center py-8 text-zinc-400">
+                                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                <span className="text-xs font-bold uppercase">Memuat detail...</span>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Items */}
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Item</Label>
+                                    {editItems.map((item, idx) => (
+                                        <div key={idx} className="grid grid-cols-[1fr_70px_100px_30px] gap-2 items-end">
+                                            <div>
+                                                {idx === 0 && <Label className="text-[9px] text-zinc-400 font-bold">Deskripsi</Label>}
+                                                <Input
+                                                    className="border-2 border-black h-9 text-sm font-medium"
+                                                    value={item.description}
+                                                    onChange={(e) => {
+                                                        const next = [...editItems]
+                                                        next[idx] = { ...next[idx], description: e.target.value }
+                                                        setEditItems(next)
+                                                    }}
+                                                />
+                                            </div>
+                                            <div>
+                                                {idx === 0 && <Label className="text-[9px] text-zinc-400 font-bold">Qty</Label>}
+                                                <Input
+                                                    type="number"
+                                                    className="border-2 border-black h-9 text-sm font-mono"
+                                                    value={item.quantity}
+                                                    onChange={(e) => {
+                                                        const next = [...editItems]
+                                                        next[idx] = { ...next[idx], quantity: Math.max(1, Number(e.target.value) || 1) }
+                                                        setEditItems(next)
+                                                    }}
+                                                />
+                                            </div>
+                                            <div>
+                                                {idx === 0 && <Label className="text-[9px] text-zinc-400 font-bold">Harga</Label>}
+                                                <Input
+                                                    type="number"
+                                                    className="border-2 border-black h-9 text-sm font-mono"
+                                                    value={item.unitPrice}
+                                                    onChange={(e) => {
+                                                        const next = [...editItems]
+                                                        next[idx] = { ...next[idx], unitPrice: Number(e.target.value) || 0 }
+                                                        setEditItems(next)
+                                                    }}
+                                                />
+                                            </div>
+                                            <button
+                                                className="h-9 w-9 flex items-center justify-center border-2 border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-sm"
+                                                onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}
+                                                disabled={editItems.length <= 1}
+                                            >
+                                                ×
+                                            </button>
+                                        </div>
+                                    ))}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-dashed border-2 text-[10px] font-bold uppercase w-full"
+                                        onClick={() => setEditItems([...editItems, { description: '', quantity: 1, unitPrice: 0 }])}
+                                    >
+                                        + Tambah Item
+                                    </Button>
+                                </div>
+
+                                {/* Dates */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Terbit</Label>
+                                        <Input type="date" className="border-2 border-black h-9" value={editIssueDate} onChange={(e) => setEditIssueDate(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jatuh Tempo</Label>
+                                        <Input type="date" className="border-2 border-black h-9" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
+                                    </div>
+                                </div>
+
+                                {/* PPN Toggle */}
+                                <div className="flex items-center justify-between border-2 border-zinc-200 px-4 py-2.5">
+                                    <div>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">PPN 11%</span>
+                                        <p className="text-[9px] text-zinc-400 font-medium">Pajak Pertambahan Nilai</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEditIncludeTax(!editIncludeTax)}
+                                        className={`relative w-11 h-6 rounded-full border-2 transition-colors ${editIncludeTax ? 'bg-emerald-500 border-emerald-600' : 'bg-zinc-200 border-zinc-300'}`}
+                                    >
+                                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${editIncludeTax ? 'left-5' : 'left-0.5'}`} />
+                                    </button>
+                                </div>
+
+                                {/* Totals */}
+                                {(() => {
+                                    const subtotal = editItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+                                    const tax = editIncludeTax ? Math.round(subtotal * 0.11) : 0
+                                    const total = subtotal + tax
+                                    return (
+                                        <div className="border-2 border-black bg-zinc-100 px-4 py-2 space-y-1">
+                                            <div className="flex justify-between items-center text-xs text-zinc-500">
+                                                <span>Subtotal</span>
+                                                <span className="font-mono font-bold">{formatIDR(subtotal)}</span>
+                                            </div>
+                                            {editIncludeTax && (
+                                                <div className="flex justify-between items-center text-xs text-zinc-500">
+                                                    <span>PPN 11%</span>
+                                                    <span className="font-mono font-bold">{formatIDR(tax)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center border-t border-zinc-300 pt-1">
+                                                <span className="text-[10px] font-black uppercase">Total</span>
+                                                <span className="font-mono font-black text-lg">{formatIDR(total)}</span>
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
+                            </>
+                        )}
+                    </div>
+                    <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
+                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsEditDialogOpen(false)} disabled={editSaving}>Batal</Button>
+                        <Button
+                            onClick={handleSaveEdit}
+                            disabled={editSaving || editLoading}
+                            className="bg-orange-500 hover:bg-orange-600 border-2 border-orange-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                        >
+                            {editSaving ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Menyimpan...</> : "Simpan Perubahan"}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

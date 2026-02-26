@@ -871,6 +871,7 @@ export async function createCustomerInvoice(data: {
     issueDate?: Date
     dueDate?: Date
     notes?: string
+    includeTax?: boolean  // PPN 11%
     // Manual Items
     items?: Array<{
         description: string
@@ -916,8 +917,6 @@ export async function createCustomerInvoice(data: {
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 amount: item.quantity * item.unitPrice,
-                // If productId is provided, use it, otherwise maybe look up by code? 
-                // For now, manual entry might not link to product table unless strictly required.
             })) : [{
                 description: data.notes || 'Manual Entry',
                 quantity: 1,
@@ -925,8 +924,10 @@ export async function createCustomerInvoice(data: {
                 amount: data.amount
             }]
 
-            // Recalculate total if items exist
-            const totalAmount = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
+            // Calculate subtotal and tax
+            const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
+            const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
+            const totalAmount = subtotal + taxAmount
 
             // Create invoice
             const invoice = await prisma.invoice.create({
@@ -937,8 +938,8 @@ export async function createCustomerInvoice(data: {
                     supplierId: invoiceType === 'INV_IN' ? data.customerId : null,
                     issueDate: issueDate,
                     dueDate: dueDate,
-                    subtotal: totalAmount,
-                    taxAmount: 0,
+                    subtotal: subtotal,
+                    taxAmount: taxAmount,
                     totalAmount: totalAmount,
                     balanceDue: totalAmount,
                     status: 'DRAFT',
@@ -2957,9 +2958,15 @@ export async function getARPaymentRegistry(params: {
     const invoicePage = Math.max(1, params.invoicePage || 1)
 
     try {
-        const [unallocated, openInvoices] = await Promise.all([
+        const [unallocated, openInvoices, allCustomers] = await Promise.all([
             getUnallocatedPayments(),
-            getOpenInvoices()
+            getOpenInvoices(),
+            basePrisma.customer.findMany({
+                where: { isActive: true },
+                select: { id: true, name: true, code: true },
+                orderBy: { name: 'asc' },
+                take: 500,
+            }),
         ])
 
         // Client-side filtering
@@ -2993,6 +3000,7 @@ export async function getARPaymentRegistry(params: {
         return {
             unallocated: paginatedPayments,
             openInvoices: paginatedInvoices,
+            allCustomers: allCustomers.map(c => ({ id: c.id, name: c.name, code: c.code })),
             meta: {
                 payments: { page: paymentPage, pageSize, total: filteredPayments.length, totalPages: Math.ceil(filteredPayments.length / pageSize) },
                 invoices: { page: invoicePage, pageSize, total: filteredInvoices.length, totalPages: Math.ceil(filteredInvoices.length / pageSize) },
@@ -3008,6 +3016,7 @@ export async function getARPaymentRegistry(params: {
         return {
             unallocated: [],
             openInvoices: [],
+            allCustomers: [],
             meta: {
                 payments: { page: 1, pageSize, total: 0, totalPages: 0 },
                 invoices: { page: 1, pageSize, total: 0, totalPages: 0 },
