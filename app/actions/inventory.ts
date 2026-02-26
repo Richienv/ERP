@@ -206,6 +206,10 @@ export async function getWarehouses() {
                     product: { select: { costPrice: true } }
                 }
             },
+            fabricRolls: {
+                where: { status: { in: ['AVAILABLE', 'RESERVED', 'IN_USE'] } },
+                select: { lengthMeters: true }
+            },
             _count: {
                 select: { stockLevels: true }
             }
@@ -223,7 +227,9 @@ export async function getWarehouses() {
         const managerName = manager ? `${manager.firstName} ${manager.lastName || ''}`.trim() : 'Unassigned'
         const managerPhone = manager?.phone || '-'
 
-        const totalItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const stockLevelItems = w.stockLevels.reduce((sum, sl) => sum + sl.quantity, 0)
+        const fabricRollMeters = w.fabricRolls.reduce((sum, fr) => sum + Math.round(Number(fr.lengthMeters)), 0)
+        const totalItems = stockLevelItems + fabricRollMeters
         const capacity = w.capacity || 50000
         const utilization = capacity > 0 ? Math.min(parseFloat(((totalItems / capacity) * 100).toFixed(1)), 100) : 0
 

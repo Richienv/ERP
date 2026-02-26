@@ -1163,13 +1163,13 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
 }
 
 /**
- * Get Sales Orders that are ready for invoicing (CONFIRMED status)
+ * Get Sales Orders that are ready for invoicing (CONFIRMED or IN_PROGRESS status)
  */
 export async function getPendingSalesOrders() {
     return withPrismaAuth(async (prisma) => {
         const orders = await prisma.salesOrder.findMany({
             where: {
-                status: 'CONFIRMED',
+                status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
                 invoices: { none: {} } // Only those without an invoice yet
             },
             include: {

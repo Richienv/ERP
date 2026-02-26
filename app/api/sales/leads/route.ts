@@ -170,9 +170,34 @@ export async function POST(request: NextRequest) {
     const probability = Math.max(0, Math.min(100, Math.trunc(toNumber(body.probability, 0))))
     const estimatedValue = toNumber(body.estimatedValue, 0)
 
+    // Validate foreign keys before creating
+    const rawAssignedTo = toText(body.assignedTo)
+    const rawCustomerId = toText(body.customerId)
+
+    let validAssignedTo: string | null = null
+    let validCustomerId: string | null = null
+
+    if (rawAssignedTo) {
+      // Check if this ID exists in users table (Lead.assignedTo -> User)
+      const userExists = await prisma.user.findUnique({ where: { id: rawAssignedTo }, select: { id: true } })
+      if (userExists) {
+        validAssignedTo = rawAssignedTo
+      } else {
+        // Maybe it's an Employee ID — try to find the employee's linked userId
+        console.warn(`assignedTo "${rawAssignedTo}" is not a User ID, skipping assignment`)
+      }
+    }
+
+    if (rawCustomerId) {
+      const customerExists = await prisma.customer.findUnique({ where: { id: rawCustomerId }, select: { id: true } })
+      if (customerExists) {
+        validCustomerId = rawCustomerId
+      }
+    }
+
     const lead = await prisma.lead.create({
       data: {
-        customerId: toText(body.customerId),
+        customerId: validCustomerId,
         title,
         description: toText(body.description),
         source,
@@ -185,7 +210,7 @@ export async function POST(request: NextRequest) {
         estimatedValue: estimatedValue > 0 ? estimatedValue : null,
         probability,
         expectedClose: body.expectedClose ? new Date(body.expectedClose) : null,
-        assignedTo: toText(body.assignedTo),
+        assignedTo: validAssignedTo,
       },
       include: {
         assignee: {

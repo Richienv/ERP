@@ -195,9 +195,13 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                                 <SelectValue placeholder={`Pilih ${sourceType === 'SO' ? 'Order' : 'PO'}`} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {pendingOrders.length === 0 ? (
+                                                {loading ? (
                                                     <div className="p-2 text-xs text-center italic text-muted-foreground">
-                                                        {loading ? "Memuat..." : `Tidak ada ${sourceType === 'SO' ? 'order' : 'PO'} pending`}
+                                                        Memuat...
+                                                    </div>
+                                                ) : pendingOrders.length === 0 ? (
+                                                    <div className="p-2 text-xs text-center italic text-muted-foreground">
+                                                        {`Tidak ada ${sourceType === 'SO' ? 'order' : 'PO'} pending`}
                                                     </div>
                                                 ) : pendingOrders.map((order) => (
                                                     <SelectItem key={order.id} value={order.id}>
