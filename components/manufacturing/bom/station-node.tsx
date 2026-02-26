@@ -16,6 +16,7 @@ export interface StationNodeData {
     materials: { bomItemId: string; materialName: string }[]
     materialCost: number
     durationMinutes: number | null
+    useSubkon: boolean
     isSelected: boolean
     onRemoveMaterial: (bomItemId: string) => void
     onDrop: (bomItemId: string) => void
@@ -26,7 +27,7 @@ export interface StationNodeData {
 function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
     const { station, sequence, materials, isSelected, onRemoveMaterial, onDrop, onRemoveStep } = data
     const Icon = STATION_ICONS[station?.stationType] || Cog
-    const isSubcon = station?.operationType === "SUBCONTRACTOR"
+    const isSubcon = data.useSubkon || station?.operationType === "SUBCONTRACTOR"
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault()

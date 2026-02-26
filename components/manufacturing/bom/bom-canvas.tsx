@@ -106,6 +106,7 @@ export function BOMCanvas({
                     return stepCost + laborCost
                 })(),
                 durationMinutes: step.durationMinutes || null,
+                useSubkon: step.useSubkon || false,
                 isSelected: step.id === selectedStepId,
                 onRemoveMaterial: (bomItemId: string) => onRemoveMaterial(step.id, bomItemId),
                 onDrop: (bomItemId: string) => onDropMaterial(step.id, bomItemId),

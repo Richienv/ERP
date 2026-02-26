@@ -39,8 +39,8 @@ export function DetailPanel({
     const stepLaborTotal = Number(step.station?.costPerUnit || 0) * totalQty
 
     return (
-        <div className="border-t-2 border-black bg-white px-4 lg:px-6 py-3 shrink-0 max-h-[280px] overflow-y-auto">
-            <div className="flex items-start gap-4 lg:gap-6">
+        <div className="border-t-2 border-black bg-white px-4 lg:px-6 py-3 shrink-0 max-h-[320px] overflow-auto">
+            <div className="flex items-start gap-4 lg:gap-6 min-w-[700px]">
                 {/* LEFT — Step Config */}
                 <div className="w-[200px] lg:w-[240px] space-y-3 shrink-0">
                     <div className="flex items-center gap-2 mb-2">
