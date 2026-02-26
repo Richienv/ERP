@@ -45,7 +45,7 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
             onDragLeave={(e) => { e.currentTarget.classList.remove("ring-2", "ring-orange-400") }}
             onDrop={handleDrop}
         >
-            <Handle type="target" position={Position.Left} className="!bg-black !w-5 !h-5 !border-[3px] !border-white hover:!bg-orange-500 hover:!scale-125 !transition-all !cursor-crosshair !-left-2.5" />
+            <Handle type="target" position={Position.Left} className="!bg-transparent !w-5 !h-5 !border-0 group-hover:!bg-black group-hover:!border-[3px] group-hover:!border-white hover:!bg-orange-500 hover:!scale-125 !transition-all !cursor-crosshair !-left-2.5" />
 
             {/* Header */}
             <div className={`px-3 py-2 border-b-2 border-black flex items-center gap-2 ${isSubcon ? "bg-amber-50" : "bg-emerald-50"}`}>
@@ -105,7 +105,7 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                 )}
             </div>
 
-            <Handle type="source" position={Position.Right} className="!bg-black !w-5 !h-5 !border-[3px] !border-white hover:!bg-orange-500 hover:!scale-125 !transition-all !cursor-crosshair !-right-2.5" />
+            <Handle type="source" position={Position.Right} className="!bg-transparent !w-5 !h-5 !border-0 group-hover:!bg-black group-hover:!border-[3px] group-hover:!border-white hover:!bg-orange-500 hover:!scale-125 !transition-all !cursor-crosshair !-right-2.5" />
         </div>
     )
 }
