@@ -159,6 +159,12 @@ export async function PATCH(
                             sequence: step.sequence,
                             durationMinutes: step.durationMinutes || null,
                             notes: step.notes || null,
+                            estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
+                            actualTimeTotal: step.actualTimeTotal ?? null,
+                            completedQty: step.completedQty ?? 0,
+                            startOffsetMinutes: step.startOffsetMinutes ?? 0,
+                            startedAt: step.startedAt ? new Date(step.startedAt) : null,
+                            completedAt: step.completedAt ? new Date(step.completedAt) : null,
                         },
                     })
 
@@ -222,23 +228,66 @@ export async function PATCH(
                 }
             }
 
-            // Return updated BOM
+            // Return updated BOM (same shape as GET)
             return tx.productionBOM.findUnique({
                 where: { id },
                 include: {
-                    product: { select: { id: true, code: true, name: true } },
-                    items: { include: { material: { select: { id: true, code: true, name: true } } } },
+                    product: { select: { id: true, code: true, name: true, unit: true, sellingPrice: true, costPrice: true } },
+                    items: {
+                        include: {
+                            material: {
+                                select: { id: true, code: true, name: true, unit: true, costPrice: true },
+                            },
+                            stepMaterials: { select: { stepId: true } },
+                        },
+                    },
                     steps: {
                         include: {
-                            station: { select: { id: true, name: true, stationType: true } },
-                            materials: true,
-                            allocations: true,
+                            station: {
+                                select: {
+                                    id: true, code: true, name: true, stationType: true,
+                                    operationType: true, costPerUnit: true,
+                                    subcontractor: { select: { id: true, name: true } },
+                                },
+                            },
+                            materials: {
+                                include: {
+                                    bomItem: {
+                                        include: {
+                                            material: { select: { id: true, code: true, name: true, unit: true, costPrice: true } },
+                                        },
+                                    },
+                                },
+                            },
+                            allocations: {
+                                include: {
+                                    station: {
+                                        select: { id: true, code: true, name: true, operationType: true, subcontractor: { select: { name: true } } },
+                                    },
+                                },
+                            },
+                            attachments: true,
                         },
                         orderBy: { sequence: 'asc' },
                     },
                 },
             })
         })
+
+        // Log edit history
+        try {
+            const stepCount = steps?.length || 0
+            const itemCount = items?.length || 0
+            await prisma.bOMEditLog.create({
+                data: {
+                    bomId: id,
+                    action: "SAVE",
+                    summary: `Menyimpan BOM: ${stepCount} proses, ${itemCount} material, target ${body.totalProductionQty || 0} pcs`,
+                }
+            })
+        } catch {
+            // Don't fail the save if logging fails
+        }
 
         return NextResponse.json({ success: true, data: result })
     } catch (error: any) {

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import {
     Plus, Search, RefreshCcw, Package, Layers, Cog,
-    ArrowRight, Scissors, Shirt, Droplets, ShieldCheck, ArchiveRestore, Loader2,
+    ArrowRight, Scissors, Shirt, Droplets, ShieldCheck, ArchiveRestore, Loader2, Copy,
 } from "lucide-react"
 
 const formatCurrency = (val: number) =>
@@ -30,6 +30,7 @@ export function BOMListClient({ boms }: BOMListClientProps) {
     const [search, setSearch] = useState("")
     const [createOpen, setCreateOpen] = useState(false)
     const [migratingId, setMigratingId] = useState<string | null>(null)
+    const [cloningId, setCloningId] = useState<string | null>(null)
 
     const handleCardClick = useCallback(async (bom: any, e: React.MouseEvent) => {
         // New production BOMs — navigate directly
@@ -59,6 +60,27 @@ export function BOMListClient({ boms }: BOMListClientProps) {
             toast.error(err.message || 'Gagal migrasi BOM')
         } finally {
             setMigratingId(null)
+        }
+    }, [router, queryClient])
+
+    const handleClone = useCallback(async (bomId: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        setCloningId(bomId)
+        try {
+            const res = await fetch('/api/manufacturing/production-bom', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cloneFromId: bomId }),
+            })
+            const data = await res.json()
+            if (!data.success) throw new Error(data.error || 'Duplikasi gagal')
+            toast.success('BOM berhasil diduplikasi')
+            queryClient.invalidateQueries({ queryKey: queryKeys.productionBom.all })
+            router.push(`/manufacturing/bom/${data.data.id}`)
+        } catch (err: any) {
+            toast.error(err.message || 'Gagal menduplikasi BOM')
+        } finally {
+            setCloningId(null)
         }
     }, [router, queryClient])
 
@@ -183,6 +205,21 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                                 <p className="text-[10px] font-mono font-bold text-zinc-400">{bom.product?.code}</p>
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
+                                                {!isLegacy && (
+                                                    <button
+                                                        onClick={(e) => handleClone(bom.id, e)}
+                                                        disabled={cloningId === bom.id}
+                                                        className="bg-white border-2 border-black text-[9px] font-black px-2 py-0.5 uppercase flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        title="Duplikat BOM"
+                                                    >
+                                                        {cloningId === bom.id ? (
+                                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                                        ) : (
+                                                            <Copy className="h-3 w-3" />
+                                                        )}
+                                                        Duplikat
+                                                    </button>
+                                                )}
                                                 {isLegacy && (
                                                     <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 flex items-center gap-1">
                                                         <ArchiveRestore className="h-3 w-3" /> LEGACY

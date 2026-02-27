@@ -6,7 +6,7 @@ import { formatCurrency } from "@/lib/inventory-utils"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { Paperclip, Upload, X, Clock, Cog, Building2, Truck } from "lucide-react"
+import { Paperclip, Upload, X, Clock, Cog, Building2, Truck, CheckCircle2 } from "lucide-react"
 
 interface DetailPanelProps {
     step: any
@@ -91,6 +91,25 @@ export function DetailPanel({
                     onChange={(e) => onUpdateStep("notes", e.target.value)}
                     className="text-xs border-zinc-200 rounded-none min-h-[32px] h-8"
                 />
+            </div>
+
+            {/* Completion tracking */}
+            <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">
+                    <CheckCircle2 className="h-3 w-3 inline mr-1" /> Selesai (pcs)
+                </label>
+                <div className="flex items-center gap-2">
+                    <Input
+                        type="number"
+                        min={0}
+                        max={totalQty}
+                        value={step.completedQty ?? ""}
+                        onChange={(e) => onUpdateStep("completedQty", e.target.value ? parseInt(e.target.value) : 0)}
+                        className="h-8 text-xs font-mono border-zinc-200 rounded-none flex-1"
+                        placeholder="0"
+                    />
+                    <span className="text-[10px] font-bold text-zinc-400 whitespace-nowrap">/ {totalQty} pcs</span>
+                </div>
             </div>
         </div>
     )
@@ -211,7 +230,7 @@ export function DetailPanel({
 
     // ── IN-HOUSE LAYOUT: 2 columns (original but simplified) ──
     return (
-        <div className="border-t-2 border-black bg-white px-4 lg:px-6 py-3 shrink-0 max-h-[320px] overflow-y-auto">
+        <div className="border-t-2 border-black bg-white px-4 lg:px-6 py-3 shrink-0 max-h-[420px] overflow-y-auto">
             <div className="flex items-start gap-4 lg:gap-6">
                 {/* LEFT — Step Config */}
                 <div className="w-[220px] lg:w-[240px] shrink-0">

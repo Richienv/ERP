@@ -7,8 +7,11 @@ import { useProductionBOM } from "@/hooks/use-production-bom"
 import { useProcessStations } from "@/hooks/use-process-stations"
 import { queryKeys } from "@/lib/query-keys"
 import { BOMCanvas } from "@/components/manufacturing/bom/bom-canvas"
+import { NodeContextMenu } from "@/components/manufacturing/bom/node-context-menu"
 import { MaterialPanel } from "@/components/manufacturing/bom/material-panel"
 import { DetailPanel } from "@/components/manufacturing/bom/detail-panel"
+import { TimelineView } from "@/components/manufacturing/bom/timeline-view"
+import { EditHistoryDrawer } from "@/components/manufacturing/bom/edit-history-drawer"
 import { AddMaterialDialog } from "@/components/manufacturing/bom/add-material-dialog"
 import { CreateStationDialog } from "@/components/manufacturing/bom/create-station-dialog"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
@@ -21,7 +24,8 @@ import { toast } from "sonner"
 import {
     ArrowLeft, Save, Loader2, Plus, Zap, Package,
     Scissors, Shirt, Droplets, Printer, Sparkles,
-    ShieldCheck, PackageIcon, Wrench, Cog,
+    ShieldCheck, PackageIcon, Wrench, Cog, FileDown,
+    Clock, Copy, LayoutTemplate, History, GitBranch,
 } from "lucide-react"
 
 const STATION_TYPE_CONFIG = [
@@ -34,6 +38,12 @@ const STATION_TYPE_CONFIG = [
     { type: "PACKING", label: "Packing", icon: PackageIcon, color: "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100" },
     { type: "FINISHING", label: "Finishing", icon: Wrench, color: "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100" },
     { type: "OTHER", label: "Lainnya", icon: Cog, color: "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100" },
+] as const
+
+const PROCESS_TEMPLATES = [
+    { label: "Garmen Lengkap", types: ["CUTTING", "SEWING", "QC", "PACKING"] },
+    { label: "CMT", types: ["CUTTING", "SEWING", "FINISHING"] },
+    { label: "Sablon + Jahit", types: ["PRINTING", "SEWING", "QC", "PACKING"] },
 ] as const
 
 export const dynamic = "force-dynamic"
@@ -57,6 +67,13 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     // Dialogs
     const [addMaterialOpen, setAddMaterialOpen] = useState(false)
     const [addStationDialogOpen, setAddStationDialogOpen] = useState(false)
+    const [historyOpen, setHistoryOpen] = useState(false)
+
+    // View mode: canvas or timeline
+    const [viewMode, setViewMode] = useState<"canvas" | "timeline">("canvas")
+
+    // Context menu
+    const [contextMenu, setContextMenu] = useState<{ x: number; y: number; stepId: string } | null>(null)
 
     // Initialize local state from fetched BOM data
     if (bom && !initialized.current) {
@@ -74,7 +91,18 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const grandTotal = totalMaterial + totalLabor
         const perUnit = totalQty > 0 ? grandTotal / totalQty : 0
         const totalDuration = steps.reduce((sum, s) => sum + (s.durationMinutes || 0), 0)
-        return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration }
+        // Time estimates — durationMinutes is total step duration (not per-unit)
+        const estTimeTotalMin = steps.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0)
+        const estTimeHours = Math.floor(estTimeTotalMin / 60)
+        const estTimeMinutes = Math.round(estTimeTotalMin % 60)
+        const estTimeLabel = estTimeTotalMin > 0
+            ? `${estTimeHours > 0 ? `${estTimeHours} jam ` : ""}${estTimeMinutes} menit`
+            : null
+        // Progress
+        const totalCompleted = steps.reduce((sum, s) => sum + (s.completedQty || 0), 0)
+        const maxPossible = steps.length * totalQty
+        const progressPct = maxPossible > 0 ? Math.round((totalCompleted / maxPossible) * 100) : 0
+        return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration, estTimeLabel, progressPct, totalCompleted, maxPossible }
     }, [steps, items, totalQty])
 
     // --- MATERIAL HANDLERS ---
@@ -176,6 +204,55 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         }
     }, [allStations, handleAddStationToCanvas, queryClient])
 
+    // Apply a process template (adds multiple connected stations)
+    const [applyingTemplate, setApplyingTemplate] = useState(false)
+    const handleApplyTemplate = useCallback(async (types: readonly string[]) => {
+        setApplyingTemplate(true)
+        try {
+            const newStations: any[] = []
+            for (const stationType of types) {
+                let station = (allStations || []).find((s: any) => s.stationType === stationType)
+                if (!station) {
+                    const config = STATION_TYPE_CONFIG.find((c) => c.type === stationType)
+                    const label = config?.label || stationType
+                    const code = `STN-${stationType.substring(0, 3)}-${String(Date.now()).slice(-4)}`
+                    const res = await fetch("/api/manufacturing/process-stations", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ code, name: label, stationType, operationType: "IN_HOUSE", costPerUnit: 0 }),
+                    })
+                    const result = await res.json()
+                    if (result.success) {
+                        station = result.data
+                        queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
+                    } else continue
+                }
+                newStations.push(station)
+            }
+            setSteps((prev) => {
+                let baseSequence = prev.length + 1
+                let prevStepId = prev[prev.length - 1]?.id || null
+                const added = newStations.map((station, i) => {
+                    const tempId = `step-tmpl-${Date.now()}-${i}`
+                    const step = {
+                        id: tempId, stationId: station.id, station,
+                        sequence: baseSequence + i, durationMinutes: null, notes: null,
+                        parentStepIds: prevStepId ? [prevStepId] : [],
+                        materials: [], allocations: [], attachments: [],
+                    }
+                    prevStepId = tempId
+                    return step
+                })
+                return [...prev, ...added]
+            })
+            toast.success(`Template diterapkan: ${newStations.length} proses ditambahkan`)
+        } catch {
+            toast.error("Gagal menerapkan template")
+        } finally {
+            setApplyingTemplate(false)
+        }
+    }, [allStations, queryClient])
+
     const handleRemoveStep = useCallback((stepId: string) => {
         setSteps((prev) => {
             const filtered = prev.filter((s) => s.id !== stepId)
@@ -257,6 +334,118 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         ))
     }, [])
 
+    // --- CONTEXT MENU HANDLERS ---
+    const handleNodeContextMenu = useCallback((stepId: string, pos: { clientX: number; clientY: number }) => {
+        setContextMenu({ x: pos.clientX, y: pos.clientY, stepId })
+    }, [])
+
+    const handleDuplicateStep = useCallback((stepId: string) => {
+        const source = steps.find((s) => s.id === stepId)
+        if (!source) return
+
+        const tempId = `step-${Date.now()}`
+        setSteps((prev) => {
+            const newSequence = prev.length + 1
+            return [...prev, {
+                ...source,
+                id: tempId,
+                sequence: newSequence,
+                parentStepIds: [stepId],
+                completedQty: 0,
+                startedAt: null,
+                completedAt: null,
+                materials: [...(source.materials || [])],
+                allocations: [...(source.allocations || [])],
+                attachments: [],
+            }]
+        })
+        toast.success("Stasiun berhasil diduplikat")
+    }, [steps])
+
+    // Add a parallel step — same parents as the clicked step (sibling, not child)
+    const handleAddParallel = useCallback((stepId: string) => {
+        const source = steps.find((s) => s.id === stepId)
+        if (!source) return
+
+        const tempId = `step-par-${Date.now()}`
+        setSteps((prev) => {
+            const newSequence = prev.length + 1
+            return [...prev, {
+                id: tempId,
+                stationId: source.stationId,
+                station: source.station,
+                sequence: newSequence,
+                durationMinutes: source.durationMinutes,
+                notes: null,
+                // Same parents = parallel sibling
+                parentStepIds: [...(source.parentStepIds || [])],
+                materials: [],
+                allocations: [],
+                attachments: [],
+            }]
+        })
+        toast.success("Proses paralel ditambahkan — ganti stasiun di panel detail")
+    }, [steps])
+
+    const handleAddSequential = useCallback((stepId: string) => {
+        const source = steps.find((s) => s.id === stepId)
+        if (!source) return
+
+        const tempId = `step-seq-${Date.now()}`
+        setSteps((prev) => {
+            const newSequence = prev.length + 1
+            return [...prev, {
+                id: tempId,
+                stationId: source.stationId,
+                station: source.station,
+                sequence: newSequence,
+                durationMinutes: source.durationMinutes,
+                notes: null,
+                // Child of this step
+                parentStepIds: [stepId],
+                materials: [],
+                allocations: [],
+                attachments: [],
+            }]
+        })
+        toast.success("Proses berikutnya ditambahkan — ganti stasiun di panel detail")
+    }, [steps])
+
+    // --- TIMELINE DRAG HANDLERS ---
+    // Move block freely on timeline: sets startOffsetMinutes and clears parents so the step starts independently
+    const handleMoveStep = useCallback((stepId: string, startOffsetMinutes: number) => {
+        setSteps(prev => prev.map(s => {
+            if (s.id === stepId) {
+                // Clear parents — step is now freely positioned at the given offset
+                return { ...s, parentStepIds: [], startOffsetMinutes }
+            }
+            return s
+        }))
+    }, [])
+
+    // Resize bar → change durationMinutes
+    const handleUpdateDuration = useCallback((stepId: string, durationMinutes: number) => {
+        setSteps(prev => prev.map(s =>
+            s.id === stepId ? { ...s, durationMinutes } : s
+        ))
+    }, [])
+
+    const handleMarkStarted = useCallback((stepId: string) => {
+        setSteps((prev) => prev.map((step) =>
+            step.id === stepId ? { ...step, startedAt: new Date().toISOString() } : step
+        ))
+        toast.success("Stasiun ditandai mulai")
+    }, [])
+
+    const handleMarkCompleted = useCallback((stepId: string) => {
+        setSteps((prev) => prev.map((step) =>
+            step.id === stepId
+                ? { ...step, completedAt: new Date().toISOString(), completedQty: totalQty }
+                : step
+        ))
+        toast.success("Stasiun ditandai selesai")
+    }, [totalQty])
+
     // --- ATTACHMENT HANDLERS ---
     const handleUploadAttachment = useCallback(async () => {
         if (!selectedStepId) return
@@ -329,6 +518,12 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 durationMinutes: step.durationMinutes || null,
                 notes: step.notes || null,
                 parentStepIds: step.parentStepIds || [],
+                startOffsetMinutes: step.startOffsetMinutes ?? 0,
+                estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
+                actualTimeTotal: step.actualTimeTotal ?? null,
+                completedQty: step.completedQty ?? 0,
+                startedAt: step.startedAt || null,
+                completedAt: step.completedAt || null,
                 materialProductIds: (step.materials || []).map((m: any) => {
                     const item = items.find((i) => i.id === m.bomItemId)
                     return item?.materialId || item?.material?.id
@@ -456,6 +651,15 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => window.open(`/api/manufacturing/production-bom/${id}/pdf`, "_blank")}
+                        className="h-8 font-bold text-[10px] uppercase border-2 border-black rounded-none"
+                    >
+                        <FileDown className="mr-1 h-3.5 w-3.5" /> PDF
+                    </Button>
+
+                    <Button
+                        variant="outline"
+                        size="sm"
                         onClick={handleGenerateSPK}
                         disabled={generating || steps.length === 0}
                         className="h-8 font-black text-[10px] uppercase border-2 border-orange-500 text-orange-600 rounded-none hover:bg-orange-50"
@@ -475,7 +679,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 </div>
             </div>
 
-            {/* TOOLBAR — Row 2: Work Center Type Quick-Add Buttons */}
+            {/* TOOLBAR — Row 2: Quick-Add + Templates + View Toggle */}
             <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-1 flex items-center gap-1.5 shrink-0 overflow-x-auto">
                 <span className="text-[9px] font-black uppercase text-zinc-400 mr-1 shrink-0">Tambah Proses:</span>
                 {STATION_TYPE_CONFIG.map((cfg) => {
@@ -495,6 +699,53 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         </Button>
                     )
                 })}
+
+                <div className="border-l border-zinc-300 mx-1 h-5 shrink-0" />
+
+                {/* Template Presets */}
+                <span className="text-[9px] font-black uppercase text-zinc-400 shrink-0">Template:</span>
+                {PROCESS_TEMPLATES.map((tmpl) => (
+                    <Button
+                        key={tmpl.label}
+                        variant="outline"
+                        size="sm"
+                        disabled={applyingTemplate}
+                        onClick={() => handleApplyTemplate(tmpl.types)}
+                        className="h-7 text-[10px] font-bold border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-none shrink-0 px-2.5 gap-1"
+                    >
+                        {applyingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : <LayoutTemplate className="h-3 w-3" />}
+                        {tmpl.label}
+                    </Button>
+                ))}
+
+                <div className="ml-auto flex items-center gap-1 shrink-0">
+                    {/* History button */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setHistoryOpen(true)}
+                        className="h-7 text-[10px] font-bold rounded-none px-2"
+                        title="Riwayat Edit"
+                    >
+                        <History className="h-3.5 w-3.5" />
+                    </Button>
+
+                    {/* View Toggle */}
+                    <div className="flex border border-zinc-300 overflow-hidden">
+                        <button
+                            onClick={() => setViewMode("canvas")}
+                            className={`px-2 py-1 text-[9px] font-black uppercase ${viewMode === "canvas" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-100"}`}
+                        >
+                            Canvas
+                        </button>
+                        <button
+                            onClick={() => setViewMode("timeline")}
+                            className={`px-2 py-1 text-[9px] font-black uppercase ${viewMode === "timeline" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-100"}`}
+                        >
+                            Timeline
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {/* TOOLBAR — Row 3: Cost Summary Strip */}
@@ -517,6 +768,24 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         {costSummary.totalDuration > 0 ? `${costSummary.totalDuration} min` : "—"}
                     </span>
                 </div>
+                {costSummary.estTimeLabel && (
+                    <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
+                        <Clock className="h-3 w-3 text-indigo-400" />
+                        <span className="text-[9px] font-black uppercase text-zinc-400">Est. Waktu:</span>
+                        <span className="text-xs font-bold text-indigo-600">{costSummary.estTimeLabel}</span>
+                    </div>
+                )}
+                {costSummary.progressPct > 0 && (
+                    <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
+                        <span className="text-[9px] font-black uppercase text-zinc-400">Progress:</span>
+                        <div className="flex items-center gap-1.5">
+                            <div className="h-1.5 w-16 bg-zinc-200 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${costSummary.progressPct}%` }} />
+                            </div>
+                            <span className="text-xs font-mono font-bold text-emerald-700">{costSummary.progressPct}%</span>
+                        </div>
+                    </div>
+                )}
                 <div className="border-l-2 border-black pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
                     <span className="text-[9px] font-black uppercase text-zinc-400">Total ({totalQty} pcs):</span>
                     <span className="text-sm font-black text-emerald-700">{formatCurrency(costSummary.grandTotal)}</span>
@@ -533,19 +802,34 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     onRemoveItem={handleRemoveItem}
                 />
 
-                {/* Center: Canvas */}
+                {/* Center: Canvas or Timeline */}
                 <div className="flex-1 flex flex-col">
-                    <BOMCanvas
-                        steps={steps}
-                        items={items}
-                        onStepSelect={setSelectedStepId}
-                        onDropMaterial={handleDropMaterial}
-                        onRemoveMaterial={handleRemoveMaterial}
-                        onRemoveStep={handleRemoveStep}
-                        selectedStepId={selectedStepId}
-                        onConnectSteps={handleConnectSteps}
-                        onDisconnectSteps={handleDisconnectSteps}
-                    />
+                    {viewMode === "canvas" ? (
+                        <BOMCanvas
+                            steps={steps}
+                            items={items}
+                            totalProductionQty={totalQty}
+                            onStepSelect={setSelectedStepId}
+                            onDropMaterial={handleDropMaterial}
+                            onRemoveMaterial={handleRemoveMaterial}
+                            onRemoveStep={handleRemoveStep}
+                            selectedStepId={selectedStepId}
+                            onConnectSteps={handleConnectSteps}
+                            onDisconnectSteps={handleDisconnectSteps}
+                            onNodeContextMenu={handleNodeContextMenu}
+                            onAddParallel={handleAddParallel}
+                            onAddSequential={handleAddSequential}
+                        />
+                    ) : (
+                        <TimelineView
+                            steps={steps}
+                            totalQty={totalQty}
+                            selectedStepId={selectedStepId}
+                            onStepSelect={setSelectedStepId}
+                            onMoveStep={handleMoveStep}
+                            onUpdateDuration={handleUpdateDuration}
+                        />
+                    )}
 
                     {/* Bottom: Detail Panel */}
                     {selectedStep && (
@@ -588,6 +872,28 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     handleAddStationToCanvas(station.id)
                 }}
             />
+
+            {/* Edit History Drawer */}
+            <EditHistoryDrawer
+                bomId={id}
+                open={historyOpen}
+                onClose={() => setHistoryOpen(false)}
+            />
+
+            {/* Node Context Menu */}
+            {contextMenu && (
+                <NodeContextMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    stepId={contextMenu.stepId}
+                    onClose={() => setContextMenu(null)}
+                    onDeleteStep={(stepId) => { handleRemoveStep(stepId); setContextMenu(null) }}
+                    onDuplicateStep={(stepId) => { handleDuplicateStep(stepId); setContextMenu(null) }}
+                    onAddParallel={(stepId) => { handleAddParallel(stepId); setContextMenu(null) }}
+                    onMarkStarted={(stepId) => { handleMarkStarted(stepId); setContextMenu(null) }}
+                    onMarkCompleted={(stepId) => { handleMarkCompleted(stepId); setContextMenu(null) }}
+                />
+            )}
         </div>
     )
 }

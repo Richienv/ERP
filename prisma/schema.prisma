@@ -2702,6 +2702,7 @@ model ProductionBOM {
   items              ProductionBOMItem[]
   steps              ProductionBOMStep[]
   workOrders         WorkOrder[]
+  editLogs           BOMEditLog[]
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -2733,7 +2734,16 @@ model ProductionBOMStep {
   sequence        Int
   durationMinutes Int?
   notes           String?
-  parentStepIds   String[]  @default([])  // IDs of parent steps (DAG edges)
+  parentStepIds      String[]  @default([])  // IDs of parent steps (DAG edges)
+  startOffsetMinutes Int       @default(0)   // manual start time in minutes (free-position on timeline)
+
+  // Time tracking & production progress
+  estimatedTimePerUnit  Decimal?  @db.Decimal(8, 2)  // minutes per unit
+  actualTimeTotal       Decimal?  @db.Decimal(10, 2) // actual total minutes spent
+  completedQty          Int       @default(0)        // e.g. 150 of 900
+  startedAt             DateTime?
+  completedAt           DateTime?
+
   materials       ProductionBOMStepMaterial[]
   allocations     ProductionBOMAllocation[]
   attachments     ProductionBOMAttachment[]
@@ -2777,4 +2787,18 @@ model ProductionBOMAttachment {
   uploadedAt DateTime          @default(now())
 
   @@map("production_bom_attachments")
+}
+
+model BOMEditLog {
+  id        String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  bomId     String        @db.Uuid
+  bom       ProductionBOM @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  action    String        // SAVE, ADD_STEP, REMOVE_STEP, ADD_MATERIAL, GENERATE_SPK
+  summary   String        // human-readable description
+  details   Json?         // optional diff payload
+  userId    String?       @db.Uuid
+  createdAt DateTime      @default(now())
+
+  @@index([bomId])
+  @@map("bom_edit_logs")
 }
