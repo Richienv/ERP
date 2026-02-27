@@ -10,6 +10,12 @@ import {
     Wallet,
     Building,
     BarChart3,
+    Scale,
+    Users,
+    Truck,
+    AlertTriangle,
+    Check,
+    Clock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +32,8 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableHead,
+    TableHeader,
     TableRow,
 } from "@/components/ui/table"
 import { formatIDR } from "@/lib/utils"
@@ -33,8 +41,10 @@ import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { useFinanceReports } from "@/hooks/use-finance-reports"
 
+type ReportType = "pnl" | "bs" | "cf" | "tb" | "ar_aging" | "ap_aging"
+
 export default function FinancialReportsPage() {
-    const [reportType, setReportType] = useState<"pnl" | "bs" | "cf">("pnl")
+    const [reportType, setReportType] = useState<ReportType>("pnl")
     const [dateDialogOpen, setDateDialogOpen] = useState(false)
     const [exportDialogOpen, setExportDialogOpen] = useState(false)
     const [exportFormat, setExportFormat] = useState<"CSV" | "XLS">("CSV")
@@ -49,6 +59,9 @@ export default function FinancialReportsPage() {
     const pnlData = data?.pnl ?? null
     const balanceSheetData = data?.bs ?? null
     const cashFlowData = data?.cf ?? null
+    const trialBalanceData = data?.tb ?? null
+    const arAgingData = data?.arAging ?? null
+    const apAgingData = data?.apAging ?? null
 
     function applyDateRange() {
         const nextStart = new Date(draftStartDate)
@@ -63,7 +76,7 @@ export default function FinancialReportsPage() {
         toast.success("Rentang tanggal diperbarui")
     }
 
-    function getExportRows() {
+    function getExportRows(): Record<string, unknown>[] {
         if (reportType === "pnl" && pnlData) {
             return [
                 { metric: "Revenue", amount: Number(pnlData.revenue || 0) },
@@ -95,6 +108,36 @@ export default function FinancialReportsPage() {
                 { section: "Ending Cash", amount: Number(cashFlowData.endingCash || 0) },
             ]
         }
+        if (reportType === "tb" && trialBalanceData) {
+            return trialBalanceData.rows.map((r: any) => ({
+                accountCode: r.accountCode,
+                accountName: r.accountName,
+                type: r.accountType,
+                debit: r.debit,
+                credit: r.credit,
+                balance: r.balance,
+            }))
+        }
+        if (reportType === "ar_aging" && arAgingData) {
+            return arAgingData.details.map((d: any) => ({
+                invoiceNumber: d.invoiceNumber,
+                customer: d.customerName,
+                dueDate: new Date(d.dueDate).toLocaleDateString("id-ID"),
+                balanceDue: d.balanceDue,
+                daysOverdue: d.daysOverdue,
+                bucket: d.bucket,
+            }))
+        }
+        if (reportType === "ap_aging" && apAgingData) {
+            return apAgingData.details.map((d: any) => ({
+                billNumber: d.billNumber,
+                supplier: d.supplierName,
+                dueDate: new Date(d.dueDate).toLocaleDateString("id-ID"),
+                balanceDue: d.balanceDue,
+                daysOverdue: d.daysOverdue,
+                bucket: d.bucket,
+            }))
+        }
         return []
     }
 
@@ -119,14 +162,14 @@ export default function FinancialReportsPage() {
         toast.success(`Export ${exportFormat} berhasil`)
     }
 
-    const reportTabs = ["pnl", "bs", "cf"] as const
-    const reportLabels: Record<string, string> = { pnl: "Laba Rugi", bs: "Neraca", cf: "Arus Kas" }
-
-    // KPI values
-    const kpiPrimary = reportType === "pnl" ? formatIDR(pnlData?.netIncome || 0)
-        : reportType === "bs" ? formatIDR(balanceSheetData?.assets?.totalAssets || 0)
-        : formatIDR(cashFlowData?.netIncreaseInCash || 0)
-    const kpiLabel = reportType === "pnl" ? "Net Income" : reportType === "bs" ? "Total Assets" : "Net Cash Change"
+    const reportTabs: { key: ReportType; label: string; icon: React.ReactNode }[] = [
+        { key: "pnl", label: "Laba Rugi", icon: <TrendingUp className="h-3.5 w-3.5" /> },
+        { key: "bs", label: "Neraca", icon: <Building className="h-3.5 w-3.5" /> },
+        { key: "cf", label: "Arus Kas", icon: <Wallet className="h-3.5 w-3.5" /> },
+        { key: "tb", label: "Trial Balance", icon: <Scale className="h-3.5 w-3.5" /> },
+        { key: "ar_aging", label: "AR Aging", icon: <Users className="h-3.5 w-3.5" /> },
+        { key: "ap_aging", label: "AP Aging", icon: <Truck className="h-3.5 w-3.5" /> },
+    ]
 
     return (
         <div className="mf-page">
@@ -222,42 +265,39 @@ export default function FinancialReportsPage() {
                         <div className="text-[10px] font-bold text-emerald-600 mt-1">Laba bersih</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
                         <div className="flex items-center gap-2 mb-2">
-                            <Building className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Assets</span>
+                            <Users className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AR Outstanding</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-indigo-600">{loading ? "..." : formatIDR(balanceSheetData?.assets?.totalAssets || 0)}</div>
-                        <div className="text-[10px] font-bold text-indigo-600 mt-1">Aset perusahaan</div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">{loading ? "..." : formatIDR(arAgingData?.summary?.totalOutstanding || 0)}</div>
+                        <div className="text-[10px] font-bold text-orange-600 mt-1">Piutang belum tertagih</div>
                     </div>
                     <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
-                            <Wallet className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Cash Flow</span>
+                            <Truck className="h-4 w-4 text-zinc-400" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AP Outstanding</span>
                         </div>
-                        <div className={`text-2xl md:text-3xl font-black tracking-tighter ${(cashFlowData?.netIncreaseInCash || 0) >= 0 ? "text-amber-600" : "text-red-600"}`}>{loading ? "..." : formatIDR(cashFlowData?.netIncreaseInCash || 0)}</div>
-                        <div className="text-[10px] font-bold text-amber-600 mt-1">Perubahan kas</div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{loading ? "..." : formatIDR(apAgingData?.summary?.totalOutstanding || 0)}</div>
+                        <div className="text-[10px] font-bold text-red-600 mt-1">Hutang belum dibayar</div>
                     </div>
                 </div>
             </div>
 
             {/* ═══ REPORT TYPE SELECTOR ═══ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="px-4 py-3 flex items-center gap-3">
+                <div className="px-4 py-3 flex items-center gap-3 overflow-x-auto">
                     <div className="flex border-2 border-black">
                         {reportTabs.map((t) => (
                             <button
-                                key={t}
-                                onClick={() => setReportType(t)}
-                                className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 flex items-center gap-2 ${
-                                    reportType === t ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
-                                }`}
+                                key={t.key}
+                                onClick={() => setReportType(t.key)}
+                                className={`px-3 md:px-4 py-2 text-[9px] md:text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 flex items-center gap-1.5 whitespace-nowrap ${reportType === t.key ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                    }`}
                             >
-                                {t === "pnl" && <TrendingUp className="h-3.5 w-3.5" />}
-                                {t === "bs" && <Building className="h-3.5 w-3.5" />}
-                                {t === "cf" && <Wallet className="h-3.5 w-3.5" />}
-                                {reportLabels[t]}
+                                {t.icon}
+                                {t.label}
                             </button>
                         ))}
                     </div>
@@ -327,7 +367,6 @@ export default function FinancialReportsPage() {
                     {/* Balance Sheet */}
                     {reportType === "bs" && balanceSheetData && (
                         <div className="grid md:grid-cols-2 gap-4">
-                            {/* Assets */}
                             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                                 <div className="px-4 py-3 border-b-2 border-black bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-2">
                                     <TrendingUp className="h-4 w-4 text-emerald-600" />
@@ -357,7 +396,6 @@ export default function FinancialReportsPage() {
                                 </Table>
                             </div>
 
-                            {/* Liabilities & Equity */}
                             <div className="space-y-4">
                                 <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                                     <div className="px-4 py-3 border-b-2 border-black bg-red-50 dark:bg-red-900/20 flex items-center gap-2">
@@ -480,7 +518,226 @@ export default function FinancialReportsPage() {
                         </div>
                     )}
 
-                    {!pnlData && !balanceSheetData && !cashFlowData && (
+                    {/* Trial Balance */}
+                    {reportType === "tb" && trialBalanceData && (
+                        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                            <div className="px-4 py-3 border-b-2 border-black bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Scale className="h-4 w-4 text-indigo-600" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Trial Balance</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {trialBalanceData.totals.isBalanced ? (
+                                        <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600">
+                                            <Check className="h-3.5 w-3.5" /> Balanced
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-1 text-[10px] font-black uppercase text-red-600">
+                                            <AlertTriangle className="h-3.5 w-3.5" /> Tidak Balance ({formatIDR(trialBalanceData.totals.difference)})
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-zinc-50 dark:bg-zinc-800">
+                                        <TableHead className="text-[10px] font-black uppercase tracking-widest w-[100px]">Kode</TableHead>
+                                        <TableHead className="text-[10px] font-black uppercase tracking-widest">Nama Akun</TableHead>
+                                        <TableHead className="text-[10px] font-black uppercase tracking-widest w-[80px]">Tipe</TableHead>
+                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Debit</TableHead>
+                                        <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Kredit</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {trialBalanceData.rows.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                Tidak ada transaksi dalam periode ini
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        trialBalanceData.rows.map((row: any, idx: number) => (
+                                            <TableRow key={idx}>
+                                                <TableCell className="font-mono font-bold text-sm">{row.accountCode}</TableCell>
+                                                <TableCell className="text-sm">{row.accountName}</TableCell>
+                                                <TableCell>
+                                                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border rounded-sm ${row.accountType === "ASSET" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
+                                                            row.accountType === "LIABILITY" ? "bg-red-50 border-red-200 text-red-600" :
+                                                                row.accountType === "EQUITY" ? "bg-blue-50 border-blue-200 text-blue-600" :
+                                                                    row.accountType === "REVENUE" ? "bg-indigo-50 border-indigo-200 text-indigo-600" :
+                                                                        "bg-amber-50 border-amber-200 text-amber-600"
+                                                        }`}>{row.accountType}</span>
+                                                </TableCell>
+                                                <TableCell className="text-right font-mono text-sm">
+                                                    {row.debit > 0 ? formatIDR(row.debit) : "-"}
+                                                </TableCell>
+                                                <TableCell className="text-right font-mono text-sm">
+                                                    {row.credit > 0 ? formatIDR(row.credit) : "-"}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                    <TableRow className="font-black bg-indigo-50 dark:bg-indigo-900/20 border-t-2 border-black">
+                                        <TableCell colSpan={3} className="text-sm">TOTAL</TableCell>
+                                        <TableCell className="text-right font-mono text-sm">{formatIDR(trialBalanceData.totals.totalDebits)}</TableCell>
+                                        <TableCell className="text-right font-mono text-sm">{formatIDR(trialBalanceData.totals.totalCredits)}</TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </div>
+                    )}
+
+                    {/* AR Aging */}
+                    {reportType === "ar_aging" && arAgingData && (
+                        <div className="space-y-4">
+                            {/* Aging Buckets Summary */}
+                            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                <div className="px-4 py-3 border-b-2 border-black bg-orange-50 dark:bg-orange-900/20 flex items-center gap-2">
+                                    <Users className="h-4 w-4 text-orange-600" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-orange-700">Aging Piutang (AR) — Ringkasan</span>
+                                    <span className="ml-auto bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-sm">
+                                        {arAgingData.summary.invoiceCount} Invoice
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-6 divide-x divide-zinc-100 dark:divide-zinc-800">
+                                    {[
+                                        { label: "Current", value: arAgingData.summary.current, color: "emerald" },
+                                        { label: "1-30 Hari", value: arAgingData.summary.d1_30, color: "blue" },
+                                        { label: "31-60 Hari", value: arAgingData.summary.d31_60, color: "amber" },
+                                        { label: "61-90 Hari", value: arAgingData.summary.d61_90, color: "orange" },
+                                        { label: "90+ Hari", value: arAgingData.summary.d90_plus, color: "red" },
+                                        { label: "Total", value: arAgingData.summary.totalOutstanding, color: "zinc" },
+                                    ].map((b, i) => (
+                                        <div key={i} className="p-4 text-center">
+                                            <div className={`text-[10px] font-black uppercase tracking-widest text-${b.color}-600 mb-1`}>{b.label}</div>
+                                            <div className={`text-lg font-black font-mono tracking-tighter ${b.value > 0 ? `text-${b.color}-700` : "text-zinc-300"}`}>
+                                                {b.value > 0 ? formatIDR(b.value) : "Rp 0"}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* By Customer */}
+                            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-zinc-500" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Per Pelanggan</span>
+                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-zinc-50 dark:bg-zinc-800">
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Pelanggan</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Current</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {arAgingData.byCustomer.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={7} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                    Tidak ada piutang terbuka
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            arAgingData.byCustomer.map((cust: any, idx: number) => (
+                                                <TableRow key={idx}>
+                                                    <TableCell className="font-bold text-sm">{cust.customerName}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">{cust.current > 0 ? formatIDR(cust.current) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">{cust.d1_30 > 0 ? formatIDR(cust.d1_30) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">{cust.d31_60 > 0 ? formatIDR(cust.d31_60) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">{cust.d61_90 > 0 ? formatIDR(cust.d61_90) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm text-red-600">{cust.d90_plus > 0 ? formatIDR(cust.d90_plus) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm font-black">{formatIDR(cust.total)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* AP Aging */}
+                    {reportType === "ap_aging" && apAgingData && (
+                        <div className="space-y-4">
+                            {/* Aging Buckets Summary */}
+                            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                <div className="px-4 py-3 border-b-2 border-black bg-red-50 dark:bg-red-900/20 flex items-center gap-2">
+                                    <Truck className="h-4 w-4 text-red-600" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-red-700">Aging Hutang (AP) — Ringkasan</span>
+                                    <span className="ml-auto bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-sm">
+                                        {apAgingData.summary.billCount} Bill
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-6 divide-x divide-zinc-100 dark:divide-zinc-800">
+                                    {[
+                                        { label: "Current", value: apAgingData.summary.current, color: "emerald" },
+                                        { label: "1-30 Hari", value: apAgingData.summary.d1_30, color: "blue" },
+                                        { label: "31-60 Hari", value: apAgingData.summary.d31_60, color: "amber" },
+                                        { label: "61-90 Hari", value: apAgingData.summary.d61_90, color: "orange" },
+                                        { label: "90+ Hari", value: apAgingData.summary.d90_plus, color: "red" },
+                                        { label: "Total", value: apAgingData.summary.totalOutstanding, color: "zinc" },
+                                    ].map((b, i) => (
+                                        <div key={i} className="p-4 text-center">
+                                            <div className={`text-[10px] font-black uppercase tracking-widest text-${b.color}-600 mb-1`}>{b.label}</div>
+                                            <div className={`text-lg font-black font-mono tracking-tighter ${b.value > 0 ? `text-${b.color}-700` : "text-zinc-300"}`}>
+                                                {b.value > 0 ? formatIDR(b.value) : "Rp 0"}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* By Supplier */}
+                            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-zinc-500" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Per Supplier</span>
+                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-zinc-50 dark:bg-zinc-800">
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest">Supplier</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Current</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+</TableHead>
+                                            <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {apAgingData.bySupplier.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={7} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                    Tidak ada hutang terbuka
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            apAgingData.bySupplier.map((supp: any, idx: number) => (
+                                                <TableRow key={idx}>
+                                                    <TableCell className="font-bold text-sm">{supp.supplierName}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">{supp.current > 0 ? formatIDR(supp.current) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">{supp.d1_30 > 0 ? formatIDR(supp.d1_30) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">{supp.d31_60 > 0 ? formatIDR(supp.d31_60) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm">{supp.d61_90 > 0 ? formatIDR(supp.d61_90) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm text-red-600">{supp.d90_plus > 0 ? formatIDR(supp.d90_plus) : "-"}</TableCell>
+                                                    <TableCell className="text-right font-mono text-sm font-black">{formatIDR(supp.total)}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    )}
+
+                    {!pnlData && !balanceSheetData && !cashFlowData && !trialBalanceData && !arAgingData && !apAgingData && (
                         <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
                             <BarChart3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
                             <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data laporan tidak tersedia</p>

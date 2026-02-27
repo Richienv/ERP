@@ -163,33 +163,23 @@ export async function getBankAccounts(): Promise<
     try {
         await requireAuth()
 
-        // Bank accounts typically have codes starting with 101x or 110x
+        // Bank & Cash accounts: type ASSET, name contains bank/kas/cash, or specific codes
         const accounts = await prisma.gLAccount.findMany({
             where: {
                 type: 'ASSET',
-                code: { startsWith: '1' },
-                name: {
-                    contains: 'bank',
-                    mode: 'insensitive' as const,
-                },
+                OR: [
+                    { name: { contains: 'bank', mode: 'insensitive' as const } },
+                    { name: { contains: 'kas', mode: 'insensitive' as const } },
+                    { name: { contains: 'cash', mode: 'insensitive' as const } },
+                    { code: { in: ['1000', '1010', '1020', '1100', '1110'] } },
+                ],
             },
             select: { id: true, code: true, name: true, balance: true },
             orderBy: { code: 'asc' },
         })
 
-        // Also include cash accounts
-        const cashAccounts = await prisma.gLAccount.findMany({
-            where: {
-                type: 'ASSET',
-                code: { in: ['1000', '1010', '1020'] },
-            },
-            select: { id: true, code: true, name: true, balance: true },
-            orderBy: { code: 'asc' },
-        })
-
-        const all = [...accounts, ...cashAccounts]
         const seen = new Set<string>()
-        return all.filter((a) => {
+        return accounts.filter((a) => {
             if (seen.has(a.id)) return false
             seen.add(a.id)
             return true
@@ -197,6 +187,40 @@ export async function getBankAccounts(): Promise<
     } catch (error) {
         console.error("[getBankAccounts] Error:", error)
         return []
+    }
+}
+
+/**
+ * Create a new bank GL account for reconciliation.
+ */
+export async function createBankAccount(data: {
+    code: string
+    name: string
+    initialBalance?: number
+}): Promise<{ success: boolean; accountId?: string; error?: string }> {
+    try {
+        const result = await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Check code uniqueness
+            const existing = await prisma.gLAccount.findFirst({ where: { code: data.code } })
+            if (existing) return { success: false as const, error: `Kode ${data.code} sudah digunakan` }
+
+            const account = await prisma.gLAccount.create({
+                data: {
+                    code: data.code,
+                    name: data.name,
+                    type: 'ASSET',
+                    balance: data.initialBalance ?? 0,
+                },
+            })
+
+            return { success: true as const, accountId: account.id }
+        })
+
+        return result
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal membuat akun bank'
+        console.error("[createBankAccount] Error:", error)
+        return { success: false, error: msg }
     }
 }
 

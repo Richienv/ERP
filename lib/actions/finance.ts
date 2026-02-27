@@ -363,48 +363,46 @@ export async function postJournalEntry(data: {
 
             const accountMap = new Map(accounts.map(a => [a.code, a]))
 
-            // 3. Create Entry & Lines Transactionally
-            await prisma.$transaction(async (tx) => {
-                // Create Header
-                const _entry = await tx.journalEntry.create({
-                    data: {
-                        date: data.date,
-                        description: data.description,
-                        reference: data.reference,
-                        status: 'POSTED',
-                        lines: {
-                            create: data.lines.map(line => {
-                                const account = accountMap.get(line.accountCode)
-                                if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
+            // 3. Create Entry & Lines (already inside withPrismaAuth transaction)
+            // Create Header
+            const _entry = await prisma.journalEntry.create({
+                data: {
+                    date: data.date,
+                    description: data.description,
+                    reference: data.reference,
+                    status: 'POSTED',
+                    lines: {
+                        create: data.lines.map(line => {
+                            const account = accountMap.get(line.accountCode)
+                            if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
 
-                                return {
-                                    accountId: account.id,
-                                    debit: line.debit,
-                                    credit: line.credit,
-                                    description: line.description || data.description
-                                }
-                            })
-                        }
+                            return {
+                                accountId: account.id,
+                                debit: line.debit,
+                                credit: line.credit,
+                                description: line.description || data.description
+                            }
+                        })
                     }
-                })
-
-                // Update Account Balances
-                for (const line of data.lines) {
-                    const account = accountMap.get(line.accountCode)!
-                    let balanceChange = 0
-
-                    if (['ASSET', 'EXPENSE'].includes(account.type)) {
-                        balanceChange = line.debit - line.credit
-                    } else {
-                        balanceChange = line.credit - line.debit
-                    }
-
-                    await tx.gLAccount.update({
-                        where: { id: account.id },
-                        data: { balance: { increment: balanceChange } }
-                    })
                 }
             })
+
+            // Update Account Balances
+            for (const line of data.lines) {
+                const account = accountMap.get(line.accountCode)!
+                let balanceChange = 0
+
+                if (['ASSET', 'EXPENSE'].includes(account.type)) {
+                    balanceChange = line.debit - line.credit
+                } else {
+                    balanceChange = line.credit - line.debit
+                }
+
+                await prisma.gLAccount.update({
+                    where: { id: account.id },
+                    data: { balance: { increment: balanceChange } }
+                })
+            }
 
             return { success: true }
         })
@@ -1230,104 +1228,6 @@ export async function createBillFromPOId(poId: string) {
 // ==========================================
 // CREDIT NOTES & REFUNDS (AR)
 // ==========================================
-
-export async function createCreditNote(data: {
-    originalInvoiceId: string
-    reason: string
-    items: {
-        description: string
-        quantity: number
-        unitPrice: number
-    }[]
-}) {
-    try {
-        return await withPrismaAuth(async (prisma) => {
-            // 1. Get Original Invoice
-            const originalInvoice = await prisma.invoice.findUnique({
-                where: { id: data.originalInvoiceId },
-                include: { customer: true }
-            })
-
-            if (!originalInvoice) throw new Error("Original invoice not found")
-            if (originalInvoice.type !== 'INV_OUT') throw new Error("Can only credit customer invoices")
-
-            // 2. Calculate Credit Amount
-            const creditSubtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
-            const creditTax = creditSubtotal * 0.11
-            const creditTotal = creditSubtotal + creditTax
-
-            // 3. Generate Credit Note Number
-            const count = await prisma.invoice.count({ where: { type: 'CREDIT_NOTE' } })
-            const year = new Date().getFullYear()
-            const number = `CN-${year}-${String(count + 1).padStart(4, '0')}`
-
-            // 4. Create Credit Note
-            const creditNote = await prisma.invoice.create({
-                data: {
-                    number,
-                    type: 'CREDIT_NOTE',
-                    customerId: originalInvoice.customerId,
-                    referenceId: originalInvoice.id,
-                    status: 'ISSUED',
-                    issueDate: new Date(),
-                    dueDate: new Date(),
-                    subtotal: -creditSubtotal,
-                    taxAmount: -creditTax,
-                    totalAmount: -creditTotal,
-                    balanceDue: -creditTotal,
-                    notes: data.reason,
-                    items: {
-                        create: data.items.map(item => ({
-                            description: item.description,
-                            quantity: item.quantity,
-                            unitPrice: item.unitPrice,
-                            amount: -(item.quantity * item.unitPrice)
-                        }))
-                    }
-                }
-            })
-
-            // 5. Apply Credit to Original Invoice
-            const newBalance = Number(originalInvoice.balanceDue) - creditTotal
-            await prisma.invoice.update({
-                where: { id: originalInvoice.id },
-                data: {
-                    balanceDue: newBalance,
-                    status: newBalance <= 0 ? 'PAID' : 'PARTIAL'
-                }
-            })
-
-            // 6. Post Journal Entry
-            await postJournalEntry({
-                description: `Credit Note for ${originalInvoice.number}: ${data.reason}`,
-                date: new Date(),
-                reference: creditNote.id,
-                lines: [
-                    {
-                        accountCode: '1200', // AR Account
-                        debit: creditTotal,
-                        credit: 0
-                    },
-                    {
-                        accountCode: '4101', // Revenue (negative)
-                        debit: 0,
-                        credit: creditSubtotal
-                    },
-                    {
-                        accountCode: '2200', // Tax Payable
-                        debit: 0,
-                        credit: creditTax
-                    }
-                ]
-            })
-
-            return { success: true, creditNoteId: creditNote.id, number: creditNote.number }
-        })
-    } catch (error: any) {
-        console.error("Create Credit Note Error:", error)
-        return { success: false, error: error.message }
-    }
-}
 
 export async function processRefund(data: {
     invoiceId: string
@@ -3150,3 +3050,741 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
         }
     }
 }
+
+// ==========================================
+// TRIAL BALANCE REPORT
+// ==========================================
+export async function getTrialBalance(startDate: Date, endDate: Date) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const accounts = await prisma.gLAccount.findMany({
+                orderBy: { code: 'asc' },
+                include: {
+                    lines: {
+                        where: {
+                            entry: {
+                                date: { gte: startDate, lte: endDate },
+                                status: 'POSTED',
+                            }
+                        },
+                        select: { debit: true, credit: true }
+                    }
+                }
+            })
+
+            let totalDebits = 0
+            let totalCredits = 0
+
+            const rows = accounts.map(acc => {
+                const debit = acc.lines.reduce((sum, l) => sum + Number(l.debit), 0)
+                const credit = acc.lines.reduce((sum, l) => sum + Number(l.credit), 0)
+                totalDebits += debit
+                totalCredits += credit
+
+                return {
+                    accountCode: acc.code,
+                    accountName: acc.name,
+                    accountType: acc.type,
+                    debit,
+                    credit,
+                    balance: debit - credit,
+                }
+            }).filter(r => r.debit !== 0 || r.credit !== 0) // Only show accounts with activity
+
+            return {
+                rows,
+                totals: {
+                    totalDebits: Math.round(totalDebits * 100) / 100,
+                    totalCredits: Math.round(totalCredits * 100) / 100,
+                    difference: Math.round((totalDebits - totalCredits) * 100) / 100,
+                    isBalanced: Math.abs(totalDebits - totalCredits) < 0.01,
+                },
+                period: { start: startDate, end: endDate },
+            }
+        })
+    } catch (error) {
+        console.error("Failed to generate trial balance:", error)
+        return {
+            rows: [],
+            totals: { totalDebits: 0, totalCredits: 0, difference: 0, isBalanced: true },
+            period: { start: startDate, end: endDate },
+        }
+    }
+}
+
+// ==========================================
+// AR AGING REPORT (Accounts Receivable)
+// ==========================================
+export async function getARAgingReport() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const openInvoices = await prisma.invoice.findMany({
+                where: {
+                    type: 'INV_OUT',
+                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
+                },
+                include: {
+                    customer: { select: { id: true, name: true, code: true } },
+                },
+                orderBy: { dueDate: 'asc' },
+            })
+
+            const today = new Date()
+            const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
+            const customerMap = new Map<string, {
+                customerId: string
+                customerName: string
+                customerCode: string | null
+                current: number
+                d1_30: number
+                d31_60: number
+                d61_90: number
+                d90_plus: number
+                total: number
+                invoiceCount: number
+            }>()
+
+            const details: Array<{
+                invoiceNumber: string
+                customerName: string
+                dueDate: Date
+                balanceDue: number
+                daysOverdue: number
+                bucket: string
+            }> = []
+
+            for (const inv of openInvoices) {
+                const due = new Date(inv.dueDate)
+                const diffMs = today.getTime() - due.getTime()
+                const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+                const balance = Number(inv.balanceDue)
+                const custId = inv.customer?.id || 'unknown'
+                const custName = inv.customer?.name || 'Tanpa Pelanggan'
+                const custCode = inv.customer?.code ?? null
+
+                let bucket: string = 'current'
+                if (daysOverdue <= 0) {
+                    buckets.current += balance
+                    bucket = 'current'
+                } else if (daysOverdue <= 30) {
+                    buckets.d1_30 += balance
+                    bucket = '1-30'
+                } else if (daysOverdue <= 60) {
+                    buckets.d31_60 += balance
+                    bucket = '31-60'
+                } else if (daysOverdue <= 90) {
+                    buckets.d61_90 += balance
+                    bucket = '61-90'
+                } else {
+                    buckets.d90_plus += balance
+                    bucket = '90+'
+                }
+
+                // Customer summary
+                const existing = customerMap.get(custId) || {
+                    customerId: custId, customerName: custName, customerCode: custCode,
+                    current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, invoiceCount: 0,
+                }
+                existing.invoiceCount++
+                existing.total += balance
+                if (bucket === 'current') existing.current += balance
+                else if (bucket === '1-30') existing.d1_30 += balance
+                else if (bucket === '31-60') existing.d31_60 += balance
+                else if (bucket === '61-90') existing.d61_90 += balance
+                else existing.d90_plus += balance
+                customerMap.set(custId, existing)
+
+                details.push({
+                    invoiceNumber: inv.number,
+                    customerName: custName,
+                    dueDate: due,
+                    balanceDue: balance,
+                    daysOverdue,
+                    bucket,
+                })
+            }
+
+            const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
+
+            return {
+                summary: {
+                    ...buckets,
+                    totalOutstanding,
+                    invoiceCount: openInvoices.length,
+                },
+                byCustomer: Array.from(customerMap.values()).sort((a, b) => b.total - a.total),
+                details: details.sort((a, b) => b.daysOverdue - a.daysOverdue),
+            }
+        })
+    } catch (error) {
+        console.error("Failed to generate AR aging report:", error)
+        return {
+            summary: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, invoiceCount: 0 },
+            byCustomer: [],
+            details: [],
+        }
+    }
+}
+
+// ==========================================
+// AP AGING REPORT (Accounts Payable)
+// ==========================================
+export async function getAPAgingReport() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const openBills = await prisma.invoice.findMany({
+                where: {
+                    type: 'INV_IN',
+                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
+                },
+                include: {
+                    supplier: { select: { id: true, name: true, code: true } },
+                },
+                orderBy: { dueDate: 'asc' },
+            })
+
+            const today = new Date()
+            const buckets = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
+            const supplierMap = new Map<string, {
+                supplierId: string
+                supplierName: string
+                supplierCode: string | null
+                current: number
+                d1_30: number
+                d31_60: number
+                d61_90: number
+                d90_plus: number
+                total: number
+                billCount: number
+            }>()
+
+            const details: Array<{
+                billNumber: string
+                supplierName: string
+                dueDate: Date
+                balanceDue: number
+                daysOverdue: number
+                bucket: string
+            }> = []
+
+            for (const bill of openBills) {
+                const due = new Date(bill.dueDate)
+                const diffMs = today.getTime() - due.getTime()
+                const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+                const balance = Number(bill.balanceDue)
+                const suppId = bill.supplier?.id || 'unknown'
+                const suppName = bill.supplier?.name || 'Tanpa Supplier'
+                const suppCode = bill.supplier?.code ?? null
+
+                let bucket: string = 'current'
+                if (daysOverdue <= 0) {
+                    buckets.current += balance
+                    bucket = 'current'
+                } else if (daysOverdue <= 30) {
+                    buckets.d1_30 += balance
+                    bucket = '1-30'
+                } else if (daysOverdue <= 60) {
+                    buckets.d31_60 += balance
+                    bucket = '31-60'
+                } else if (daysOverdue <= 90) {
+                    buckets.d61_90 += balance
+                    bucket = '61-90'
+                } else {
+                    buckets.d90_plus += balance
+                    bucket = '90+'
+                }
+
+                const existing = supplierMap.get(suppId) || {
+                    supplierId: suppId, supplierName: suppName, supplierCode: suppCode,
+                    current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, billCount: 0,
+                }
+                existing.billCount++
+                existing.total += balance
+                if (bucket === 'current') existing.current += balance
+                else if (bucket === '1-30') existing.d1_30 += balance
+                else if (bucket === '31-60') existing.d31_60 += balance
+                else if (bucket === '61-90') existing.d61_90 += balance
+                else existing.d90_plus += balance
+                supplierMap.set(suppId, existing)
+
+                details.push({
+                    billNumber: bill.number,
+                    supplierName: suppName,
+                    dueDate: due,
+                    balanceDue: balance,
+                    daysOverdue,
+                    bucket,
+                })
+            }
+
+            const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
+
+            return {
+                summary: {
+                    ...buckets,
+                    totalOutstanding,
+                    billCount: openBills.length,
+                },
+                bySupplier: Array.from(supplierMap.values()).sort((a, b) => b.total - a.total),
+                details: details.sort((a, b) => b.daysOverdue - a.daysOverdue),
+            }
+        })
+    } catch (error) {
+        console.error("Failed to generate AP aging report:", error)
+        return {
+            summary: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, billCount: 0 },
+            bySupplier: [],
+            details: [],
+        }
+    }
+}
+
+// ─── Open Vendor Bills (for AP payment allocation) ─────────────────────────
+export async function getOpenVendorBills() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const bills = await prisma.invoice.findMany({
+                where: {
+                    type: 'INV_IN',
+                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
+                },
+                include: {
+                    supplier: { select: { id: true, name: true, code: true } },
+                },
+                orderBy: { dueDate: 'asc' },
+            })
+
+            return bills.map(b => ({
+                id: b.id,
+                number: b.number,
+                supplierId: b.supplierId,
+                supplierName: b.supplier?.name ?? 'Unknown',
+                amount: Number(b.totalAmount),
+                balanceDue: Number(b.balanceDue ?? b.totalAmount),
+                dueDate: b.dueDate,
+                isOverdue: b.dueDate ? new Date(b.dueDate) < new Date() : false,
+            }))
+        })
+    } catch (error) {
+        console.error("Failed to fetch open vendor bills:", error)
+        return []
+    }
+}
+
+// ─── Expenses Module (Buku Kas) ─────────────────────────────────────────────
+
+interface RecordExpenseInput {
+    description: string
+    amount: number
+    date: Date
+    category: string
+    expenseAccountId: string
+    cashAccountId: string
+    reference?: string
+}
+
+export async function recordExpense(input: RecordExpenseInput) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const { description, amount, date, category, expenseAccountId, cashAccountId, reference } = input
+
+            if (!description || amount <= 0) {
+                return { success: false, error: "Deskripsi dan jumlah wajib diisi" }
+            }
+
+            const count = await prisma.journalEntry.count({
+                where: { description: { startsWith: '[EXPENSE]' } }
+            })
+            const num = `EXP-${String(count + 1).padStart(5, '0')}`
+
+            const entry = await prisma.journalEntry.create({
+                data: {
+                    date,
+                    description: `[EXPENSE] ${category}: ${description}`,
+                    reference: reference || num,
+                    status: 'POSTED',
+                    lines: {
+                        create: [
+                            { accountId: expenseAccountId, debit: amount, credit: 0, description: `${category} — ${description}` },
+                            { accountId: cashAccountId, credit: amount, debit: 0, description: `Pembayaran: ${description}` },
+                        ]
+                    }
+                }
+            })
+
+            await prisma.gLAccount.update({ where: { id: expenseAccountId }, data: { balance: { increment: amount } } })
+            await prisma.gLAccount.update({ where: { id: cashAccountId }, data: { balance: { decrement: amount } } })
+
+            return { success: true, entryId: entry.id, number: num }
+        })
+    } catch (error) {
+        console.error("Failed to record expense:", error)
+        return { success: false, error: "Gagal mencatat pengeluaran" }
+    }
+}
+
+export async function getExpenses() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const entries = await prisma.journalEntry.findMany({
+                where: { description: { startsWith: '[EXPENSE]' } },
+                include: {
+                    lines: { include: { account: { select: { id: true, code: true, name: true } } } }
+                },
+                orderBy: { date: 'desc' },
+                take: 200,
+            })
+
+            return entries.map(e => {
+                const debitLine = e.lines.find(l => Number(l.debit) > 0)
+                const creditLine = e.lines.find(l => Number(l.credit) > 0)
+                const match = e.description.match(/^\[EXPENSE\]\s*(.+?):\s*(.+)$/)
+                return {
+                    id: e.id,
+                    date: e.date,
+                    category: match?.[1] ?? 'Lainnya',
+                    description: match?.[2] ?? e.description,
+                    amount: debitLine ? Number(debitLine.debit) : 0,
+                    expenseAccount: debitLine?.account ?? null,
+                    cashAccount: creditLine?.account ?? null,
+                    reference: e.reference,
+                    status: e.status,
+                }
+            })
+        })
+    } catch (error) {
+        console.error("Failed to fetch expenses:", error)
+        return []
+    }
+}
+
+export async function getExpenseAccounts() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const [expenseAccounts, cashAccounts] = await Promise.all([
+                prisma.gLAccount.findMany({
+                    where: { type: 'EXPENSE' },
+                    select: { id: true, code: true, name: true },
+                    orderBy: { code: 'asc' },
+                }),
+                prisma.gLAccount.findMany({
+                    where: {
+                        type: 'ASSET',
+                        OR: [
+                            { name: { contains: 'kas', mode: 'insensitive' as const } },
+                            { name: { contains: 'cash', mode: 'insensitive' as const } },
+                            { name: { contains: 'bank', mode: 'insensitive' as const } },
+                            { code: { in: ['1000', '1010', '1020', '1100', '1110'] } },
+                        ]
+                    },
+                    select: { id: true, code: true, name: true },
+                    orderBy: { code: 'asc' },
+                }),
+            ])
+            return { expenseAccounts, cashAccounts }
+        })
+    } catch (error) {
+        console.error("Failed to fetch expense accounts:", error)
+        return { expenseAccounts: [], cashAccounts: [] }
+    }
+}
+
+// ─── Edit Payments with Lock Period ─────────────────────────────────────────
+
+const LOCK_PERIOD_DAYS = 31
+
+function isWithinLockPeriod(transactionDate: Date): boolean {
+    const now = new Date()
+    const diffMs = now.getTime() - new Date(transactionDate).getTime()
+    const diffDays = diffMs / (1000 * 60 * 60 * 24)
+    return diffDays <= LOCK_PERIOD_DAYS
+}
+
+interface EditPaymentInput {
+    paymentId: string
+    amount?: number
+    reference?: string
+    notes?: string
+    date?: Date
+}
+
+export async function editARPayment(input: EditPaymentInput) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const payment = await prisma.payment.findUnique({ where: { id: input.paymentId } })
+            if (!payment) return { success: false, error: "Pembayaran tidak ditemukan" }
+
+            if (!isWithinLockPeriod(payment.date)) {
+                return { success: false, error: `Pembayaran tidak bisa diedit — sudah lebih dari ${LOCK_PERIOD_DAYS} hari` }
+            }
+
+            const updateData: any = {}
+            if (input.amount !== undefined) updateData.amount = input.amount
+            if (input.reference !== undefined) updateData.reference = input.reference
+            if (input.notes !== undefined) updateData.notes = input.notes
+            if (input.date !== undefined) updateData.date = input.date
+
+            await prisma.payment.update({ where: { id: input.paymentId }, data: updateData })
+            return { success: true }
+        })
+    } catch (error) {
+        console.error("Failed to edit AR payment:", error)
+        return { success: false, error: "Gagal mengedit pembayaran" }
+    }
+}
+
+export async function editAPPayment(input: EditPaymentInput) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const payment = await prisma.payment.findUnique({ where: { id: input.paymentId } })
+            if (!payment) return { success: false, error: "Pembayaran tidak ditemukan" }
+
+            if (!isWithinLockPeriod(payment.date)) {
+                return { success: false, error: `Pembayaran tidak bisa diedit — sudah lebih dari ${LOCK_PERIOD_DAYS} hari` }
+            }
+
+            const updateData: any = {}
+            if (input.amount !== undefined) updateData.amount = input.amount
+            if (input.reference !== undefined) updateData.reference = input.reference
+            if (input.notes !== undefined) updateData.notes = input.notes
+            if (input.date !== undefined) updateData.date = input.date
+
+            await prisma.payment.update({ where: { id: input.paymentId }, data: updateData })
+            return { success: true }
+        })
+    } catch (error) {
+        console.error("Failed to edit AP payment:", error)
+        return { success: false, error: "Gagal mengedit pembayaran" }
+    }
+}
+
+// ─── Credit & Debit Notes ───────────────────────────────────────────────────
+
+interface CreateCreditNoteInput {
+    customerId: string
+    originalInvoiceId?: string
+    amount: number
+    reason: string
+    date: Date
+    revenueAccountId: string
+    arAccountId: string
+}
+
+export async function createCreditNote(input: CreateCreditNoteInput) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const { customerId, originalInvoiceId, amount, reason, date, revenueAccountId, arAccountId } = input
+
+            if (!customerId || amount <= 0) {
+                return { success: false, error: "Customer dan jumlah wajib diisi" }
+            }
+
+            // Generate number
+            const count = await prisma.invoice.count({ where: { number: { startsWith: 'CN-' } } })
+            const num = `CN-${String(count + 1).padStart(5, '0')}`
+
+            // Create invoice as credit note
+            const cn = await prisma.invoice.create({
+                data: {
+                    number: num,
+                    type: 'INV_OUT',
+                    status: 'PAID',
+                    customerId,
+                    issueDate: date,
+                    dueDate: date,
+                    totalAmount: -amount,
+                    balanceDue: 0,
+                    taxAmount: 0,
+                    subtotalAmount: -amount,
+                }
+            })
+
+            // Journal: Debit Revenue, Credit AR
+            await prisma.journalEntry.create({
+                data: {
+                    date,
+                    description: `[CREDIT_NOTE] ${num}: ${reason}`,
+                    reference: num,
+                    status: 'POSTED',
+                    invoiceId: cn.id,
+                    lines: {
+                        create: [
+                            { accountId: revenueAccountId, debit: amount, credit: 0, description: `Credit Note — ${reason}` },
+                            { accountId: arAccountId, credit: amount, debit: 0, description: `Credit Note → AR adjustment` },
+                        ]
+                    }
+                }
+            })
+
+            // Update account balances
+            await prisma.gLAccount.update({ where: { id: revenueAccountId }, data: { balance: { increment: amount } } })
+            await prisma.gLAccount.update({ where: { id: arAccountId }, data: { balance: { decrement: amount } } })
+
+            // If linked to original invoice, reduce its balance
+            if (originalInvoiceId) {
+                const inv = await prisma.invoice.findUnique({ where: { id: originalInvoiceId } })
+                if (inv) {
+                    const newBalance = Math.max(0, Number(inv.balanceDue) - amount)
+                    await prisma.invoice.update({
+                        where: { id: originalInvoiceId },
+                        data: {
+                            balanceDue: newBalance,
+                            status: newBalance === 0 ? 'PAID' : inv.status,
+                        }
+                    })
+                }
+            }
+
+            return { success: true, number: num, id: cn.id }
+        })
+    } catch (error) {
+        console.error("Failed to create credit note:", error)
+        return { success: false, error: "Gagal membuat credit note" }
+    }
+}
+
+interface CreateDebitNoteInput {
+    supplierId: string
+    originalBillId?: string
+    amount: number
+    reason: string
+    date: Date
+    apAccountId: string
+    expenseAccountId: string
+}
+
+export async function createDebitNote(input: CreateDebitNoteInput) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const { supplierId, originalBillId, amount, reason, date, apAccountId, expenseAccountId } = input
+
+            if (!supplierId || amount <= 0) {
+                return { success: false, error: "Supplier dan jumlah wajib diisi" }
+            }
+
+            const count = await prisma.invoice.count({ where: { number: { startsWith: 'DN-' } } })
+            const num = `DN-${String(count + 1).padStart(5, '0')}`
+
+            const dn = await prisma.invoice.create({
+                data: {
+                    number: num,
+                    type: 'INV_IN',
+                    status: 'PAID',
+                    supplierId,
+                    issueDate: date,
+                    dueDate: date,
+                    totalAmount: -amount,
+                    balanceDue: 0,
+                    taxAmount: 0,
+                    subtotalAmount: -amount,
+                }
+            })
+
+            // Journal: Debit AP, Credit Expense
+            await prisma.journalEntry.create({
+                data: {
+                    date,
+                    description: `[DEBIT_NOTE] ${num}: ${reason}`,
+                    reference: num,
+                    status: 'POSTED',
+                    invoiceId: dn.id,
+                    lines: {
+                        create: [
+                            { accountId: apAccountId, debit: amount, credit: 0, description: `Debit Note — AP reduction` },
+                            { accountId: expenseAccountId, credit: amount, debit: 0, description: `Debit Note — ${reason}` },
+                        ]
+                    }
+                }
+            })
+
+            await prisma.gLAccount.update({ where: { id: apAccountId }, data: { balance: { increment: amount } } })
+            await prisma.gLAccount.update({ where: { id: expenseAccountId }, data: { balance: { decrement: amount } } })
+
+            if (originalBillId) {
+                const bill = await prisma.invoice.findUnique({ where: { id: originalBillId } })
+                if (bill) {
+                    const newBalance = Math.max(0, Number(bill.balanceDue) - amount)
+                    await prisma.invoice.update({
+                        where: { id: originalBillId },
+                        data: {
+                            balanceDue: newBalance,
+                            status: newBalance === 0 ? 'PAID' : bill.status,
+                        }
+                    })
+                }
+            }
+
+            return { success: true, number: num, id: dn.id }
+        })
+    } catch (error) {
+        console.error("Failed to create debit note:", error)
+        return { success: false, error: "Gagal membuat debit note" }
+    }
+}
+
+export async function getCreditDebitNotes() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const entries = await prisma.journalEntry.findMany({
+                where: {
+                    OR: [
+                        { description: { startsWith: '[CREDIT_NOTE]' } },
+                        { description: { startsWith: '[DEBIT_NOTE]' } },
+                    ]
+                },
+                include: {
+                    invoice: {
+                        include: {
+                            customer: { select: { id: true, name: true } },
+                            supplier: { select: { id: true, name: true } },
+                        }
+                    },
+                    lines: { include: { account: { select: { id: true, code: true, name: true } } } },
+                },
+                orderBy: { date: 'desc' },
+                take: 200,
+            })
+
+            return entries.map(e => {
+                const isCN = e.description.startsWith('[CREDIT_NOTE]')
+                const debitLine = e.lines.find(l => Number(l.debit) > 0)
+                return {
+                    id: e.id,
+                    type: isCN ? 'CREDIT_NOTE' as const : 'DEBIT_NOTE' as const,
+                    number: e.reference || '-',
+                    date: e.date,
+                    amount: debitLine ? Number(debitLine.debit) : 0,
+                    reason: e.description.replace(/^\[(CREDIT|DEBIT)_NOTE\]\s*\S+:\s*/, ''),
+                    party: isCN
+                        ? e.invoice?.customer?.name ?? '-'
+                        : e.invoice?.supplier?.name ?? '-',
+                    invoiceNumber: e.invoice?.number ?? null,
+                    status: e.status,
+                }
+            })
+        })
+    } catch (error) {
+        console.error("Failed to fetch credit/debit notes:", error)
+        return []
+    }
+}
+
+export async function getCreditDebitNoteAccounts() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const [revenueAccounts, arAccounts, apAccounts, expenseAccounts, customers, suppliers] = await Promise.all([
+                prisma.gLAccount.findMany({ where: { type: 'REVENUE' }, select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } }),
+                prisma.gLAccount.findMany({ where: { type: 'ASSET', code: { startsWith: '1' }, name: { contains: 'piutang', mode: 'insensitive' as const } }, select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } }),
+                prisma.gLAccount.findMany({ where: { type: 'LIABILITY', name: { contains: 'hutang', mode: 'insensitive' as const } }, select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } }),
+                prisma.gLAccount.findMany({ where: { type: 'EXPENSE' }, select: { id: true, code: true, name: true }, orderBy: { code: 'asc' } }),
+                prisma.customer.findMany({ where: { isActive: true }, select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+                prisma.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
+            ])
+            return { revenueAccounts, arAccounts, apAccounts, expenseAccounts, customers, suppliers }
+        })
+    } catch (error) {
+        console.error("Failed to fetch CN/DN accounts:", error)
+        return { revenueAccounts: [], arAccounts: [], apAccounts: [], expenseAccounts: [], customers: [], suppliers: [] }
+    }
+}
+

@@ -127,289 +127,289 @@ export async function getVendors() {
 
 export async function getProcurementStats(input?: ProcurementStatsInput) {
     try {
-            await getAuthzUser()
+        await getAuthzUser()
 
-            const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> =>
-                promise.catch((error) => {
-                    console.error(`Procurement stats segment failed: ${label}`, error)
-                    return fallback
-                })
+        const safe = async <T,>(label: string, promise: Promise<T>, fallback: T): Promise<T> =>
+            promise.catch((error) => {
+                console.error(`Procurement stats segment failed: ${label}`, error)
+                return fallback
+            })
 
-            const now = new Date()
-            const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-            const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
-            const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-            const poQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseOrders)
-            const prQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseRequests)
-            const receivingQuery = normalizeRegistryQuery(input?.registryQuery?.receiving)
+        const now = new Date()
+        const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+        const startOfPreviousMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+        const poQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseOrders)
+        const prQuery = normalizeRegistryQuery(input?.registryQuery?.purchaseRequests)
+        const receivingQuery = normalizeRegistryQuery(input?.registryQuery?.receiving)
 
-            const activeSpendStatuses: ProcurementStatus[] = ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED', 'COMPLETED']
-            const poWhere = poQuery.status ? { status: poQuery.status as ProcurementStatus } : {}
-            const prWhere = prQuery.status ? { status: prQuery.status as any } : {}
-            const receivingWhere = receivingQuery.status ? { status: receivingQuery.status as any } : {}
+        const activeSpendStatuses: ProcurementStatus[] = ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'RECEIVED', 'COMPLETED']
+        const poWhere = poQuery.status ? { status: poQuery.status as ProcurementStatus } : {}
+        const prWhere = prQuery.status ? { status: prQuery.status as any } : {}
+        const receivingWhere = receivingQuery.status ? { status: receivingQuery.status as any } : {}
 
-            // Batch queries into smaller groups to avoid exhausting DB connection pool
-            // Group 1: Lightweight counts + aggregates (6 queries)
-            const [
-                pendingPOs,
-                pendingPRs,
-                incomingCount,
-                poStatusRows,
-                prStatusRows,
-                grnStatusRows,
-            ] = await Promise.all([
-                safe("pending-po-count", prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }), 0),
-                safe("pending-pr-count", prisma.purchaseRequest.count({ where: { status: 'PENDING' } }), 0),
-                safe("incoming-po-count", prisma.purchaseOrder.count({ where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] } } }), 0),
-                safe("po-status-group", prisma.purchaseOrder.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
-                safe("pr-status-group", prisma.purchaseRequest.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
-                safe("grn-status-group", prisma.goodsReceivedNote.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
-            ])
+        // Batch queries into smaller groups to avoid exhausting DB connection pool
+        // Group 1: Lightweight counts + aggregates (6 queries)
+        const [
+            pendingPOs,
+            pendingPRs,
+            incomingCount,
+            poStatusRows,
+            prStatusRows,
+            grnStatusRows,
+        ] = await Promise.all([
+            safe("pending-po-count", prisma.purchaseOrder.count({ where: { status: 'PENDING_APPROVAL' } }), 0),
+            safe("pending-pr-count", prisma.purchaseRequest.count({ where: { status: 'PENDING' } }), 0),
+            safe("incoming-po-count", prisma.purchaseOrder.count({ where: { status: { in: ['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'] } } }), 0),
+            safe("po-status-group", prisma.purchaseOrder.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
+            safe("pr-status-group", prisma.purchaseRequest.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
+            safe("grn-status-group", prisma.goodsReceivedNote.groupBy({ by: ['status'], _count: { _all: true } }), [] as Array<{ status: string; _count: { _all: number } }>),
+        ])
 
-            // Group 2: Spend, vendors, urgentNeeds, filtered totals (6 queries)
-            const [
-                currentMonthPOs,
-                previousMonthPOs,
-                vendors,
-                urgentNeedsCount,
-                poFilteredTotal,
-                prFilteredTotal,
-            ] = await Promise.all([
-                safe("current-month-pos", prisma.purchaseOrder.findMany({
-                    where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfCurrentMonth, lt: startOfNextMonth } },
-                    select: { totalAmount: true }
-                }), [] as Array<{ totalAmount: any }>),
-                safe("previous-month-pos", prisma.purchaseOrder.findMany({
-                    where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfPreviousMonth, lt: startOfCurrentMonth } },
-                    select: { totalAmount: true }
-                }), [] as Array<{ totalAmount: any }>),
-                safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
-                safe("urgent-needs", prisma.$queryRaw<[{ count: bigint }]>`
+        // Group 2: Spend, vendors, urgentNeeds, filtered totals (6 queries)
+        const [
+            currentMonthPOs,
+            previousMonthPOs,
+            vendors,
+            urgentNeedsCount,
+            poFilteredTotal,
+            prFilteredTotal,
+        ] = await Promise.all([
+            safe("current-month-pos", prisma.purchaseOrder.findMany({
+                where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfCurrentMonth, lt: startOfNextMonth } },
+                select: { totalAmount: true }
+            }), [] as Array<{ totalAmount: any }>),
+            safe("previous-month-pos", prisma.purchaseOrder.findMany({
+                where: { status: { in: activeSpendStatuses }, createdAt: { gte: startOfPreviousMonth, lt: startOfCurrentMonth } },
+                select: { totalAmount: true }
+            }), [] as Array<{ totalAmount: any }>),
+            safe("vendors-health", prisma.supplier.findMany({ where: { isActive: true }, select: { rating: true, onTimeRate: true } }), [] as Array<{ rating: number | null; onTimeRate: number | null }>),
+            safe("urgent-needs", prisma.$queryRaw<[{ count: bigint }]>`
                     SELECT COUNT(DISTINCT p.id)::bigint as count
                     FROM public."Product" p
                     LEFT JOIN (SELECT "productId", SUM(quantity) as total_qty FROM public."StockLevel" GROUP BY "productId") sl ON sl."productId" = p.id
                     WHERE p."isActive" = true AND p."minStock" > 0 AND COALESCE(sl.total_qty, 0) <= p."minStock"
                 `.then(rows => Number(rows[0]?.count || 0)), 0),
-                safe("po-filtered-total", prisma.purchaseOrder.count({ where: poWhere }), 0),
-                safe("pr-filtered-total", prisma.purchaseRequest.count({ where: prWhere }), 0),
-            ])
+            safe("po-filtered-total", prisma.purchaseOrder.count({ where: poWhere }), 0),
+            safe("pr-filtered-total", prisma.purchaseRequest.count({ where: prWhere }), 0),
+        ])
 
-            // Group 3: Registry lists (4 queries)
-            const [
-                recentPOs,
-                recentPRsRaw,
-                recentGRNsRaw,
-                receivingFilteredTotal,
-            ] = await Promise.all([
-                safe("recent-po", prisma.purchaseOrder.findMany({
-                    where: poWhere,
-                    orderBy: { createdAt: 'desc' },
-                    skip: (poQuery.page - 1) * poQuery.pageSize,
-                    take: poQuery.pageSize,
-                    include: { supplier: { select: { name: true } } }
-                }), [] as Array<any>),
-                safe("recent-pr", prisma.purchaseRequest.findMany({
-                    where: prWhere,
-                    orderBy: { createdAt: 'desc' },
-                    skip: (prQuery.page - 1) * prQuery.pageSize,
-                    take: prQuery.pageSize,
-                    select: { id: true, number: true, status: true, requesterId: true, createdAt: true, priority: true }
-                }), [] as Array<any>),
-                safe("recent-grn", prisma.goodsReceivedNote.findMany({
-                    where: receivingWhere,
-                    orderBy: { receivedDate: 'desc' },
-                    skip: (receivingQuery.page - 1) * receivingQuery.pageSize,
-                    take: receivingQuery.pageSize,
-                    select: { id: true, number: true, status: true, receivedDate: true, purchaseOrder: { select: { number: true } }, warehouse: { select: { name: true } } }
-                }), [] as Array<any>),
-                safe("receiving-filtered-total", prisma.goodsReceivedNote.count({ where: receivingWhere }), 0),
-            ])
+        // Group 3: Registry lists (4 queries)
+        const [
+            recentPOs,
+            recentPRsRaw,
+            recentGRNsRaw,
+            receivingFilteredTotal,
+        ] = await Promise.all([
+            safe("recent-po", prisma.purchaseOrder.findMany({
+                where: poWhere,
+                orderBy: { createdAt: 'desc' },
+                skip: (poQuery.page - 1) * poQuery.pageSize,
+                take: poQuery.pageSize,
+                include: { supplier: { select: { name: true } } }
+            }), [] as Array<any>),
+            safe("recent-pr", prisma.purchaseRequest.findMany({
+                where: prWhere,
+                orderBy: { createdAt: 'desc' },
+                skip: (prQuery.page - 1) * prQuery.pageSize,
+                take: prQuery.pageSize,
+                select: { id: true, number: true, status: true, requesterId: true, createdAt: true, priority: true }
+            }), [] as Array<any>),
+            safe("recent-grn", prisma.goodsReceivedNote.findMany({
+                where: receivingWhere,
+                orderBy: { receivedDate: 'desc' },
+                skip: (receivingQuery.page - 1) * receivingQuery.pageSize,
+                take: receivingQuery.pageSize,
+                select: { id: true, number: true, status: true, receivedDate: true, purchaseOrder: { select: { number: true } }, warehouse: { select: { name: true } } }
+            }), [] as Array<any>),
+            safe("receiving-filtered-total", prisma.goodsReceivedNote.count({ where: receivingWhere }), 0),
+        ])
 
-            const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
-            const previousSpend = previousMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
-            const growth = previousSpend > 0 ? ((currentSpend - previousSpend) / previousSpend) * 100 : 0
+        const currentSpend = currentMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+        const previousSpend = previousMonthPOs.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0)
+        const growth = previousSpend > 0 ? ((currentSpend - previousSpend) / previousSpend) * 100 : 0
 
-            const avgRating = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.rating || 0), 0) / vendors.length : 0
-            const avgOnTime = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.onTimeRate || 0), 0) / vendors.length : 0
+        const avgRating = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.rating || 0), 0) / vendors.length : 0
+        const avgOnTime = vendors.length > 0 ? vendors.reduce((sum, v) => sum + (v.onTimeRate || 0), 0) / vendors.length : 0
 
-            const urgentNeeds = urgentNeedsCount
+        const urgentNeeds = urgentNeedsCount
 
-            const requesterIds = [...new Set(recentPRsRaw.map((pr) => pr.requesterId))]
-            const [requesters, prItemCounts] = await Promise.all([
-                requesterIds.length > 0
-                    ? prisma.employee.findMany({
-                        where: { id: { in: requesterIds } },
-                        select: { id: true, firstName: true, lastName: true }
-                    })
-                    : Promise.resolve([]),
-                recentPRsRaw.length > 0
-                    ? prisma.purchaseRequestItem.groupBy({
-                        by: ['purchaseRequestId'],
-                        _count: { _all: true },
-                        where: { purchaseRequestId: { in: recentPRsRaw.map((pr) => pr.id) } }
-                    })
-                    : Promise.resolve([])
-            ])
+        const requesterIds = [...new Set(recentPRsRaw.map((pr) => pr.requesterId))]
+        const [requesters, prItemCounts] = await Promise.all([
+            requesterIds.length > 0
+                ? prisma.employee.findMany({
+                    where: { id: { in: requesterIds } },
+                    select: { id: true, firstName: true, lastName: true }
+                })
+                : Promise.resolve([]),
+            recentPRsRaw.length > 0
+                ? prisma.purchaseRequestItem.groupBy({
+                    by: ['purchaseRequestId'],
+                    _count: { _all: true },
+                    where: { purchaseRequestId: { in: recentPRsRaw.map((pr) => pr.id) } }
+                })
+                : Promise.resolve([])
+        ])
 
-            const requesterMap = new Map(requesters.map((r) => [r.id, `${r.firstName} ${r.lastName || ''}`.trim()]))
-            const prItemCountMap = new Map(prItemCounts.map((r) => [r.purchaseRequestId, r._count._all || 0]))
+        const requesterMap = new Map(requesters.map((r) => [r.id, `${r.firstName} ${r.lastName || ''}`.trim()]))
+        const prItemCountMap = new Map(prItemCounts.map((r) => [r.purchaseRequestId, r._count._all || 0]))
 
-            const poSummary = {
-                draft: 0,
-                pendingApproval: 0,
-                approved: 0,
-                inProgress: 0,
-                received: 0,
-                completed: 0,
-                rejected: 0,
-                cancelled: 0,
-            }
-            for (const row of poStatusRows) {
-                const count = row._count._all || 0
-                if (row.status === 'PO_DRAFT') poSummary.draft = count
-                else if (row.status === 'PENDING_APPROVAL') poSummary.pendingApproval = count
-                else if (row.status === 'APPROVED') poSummary.approved = count
-                else if (['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'].includes(row.status)) poSummary.inProgress += count
-                else if (row.status === 'RECEIVED') poSummary.received = count
-                else if (row.status === 'COMPLETED') poSummary.completed = count
-                else if (row.status === 'REJECTED') poSummary.rejected = count
-                else if (row.status === 'CANCELLED') poSummary.cancelled = count
-            }
+        const poSummary = {
+            draft: 0,
+            pendingApproval: 0,
+            approved: 0,
+            inProgress: 0,
+            received: 0,
+            completed: 0,
+            rejected: 0,
+            cancelled: 0,
+        }
+        for (const row of poStatusRows) {
+            const count = row._count._all || 0
+            if (row.status === 'PO_DRAFT') poSummary.draft = count
+            else if (row.status === 'PENDING_APPROVAL') poSummary.pendingApproval = count
+            else if (row.status === 'APPROVED') poSummary.approved = count
+            else if (['ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED', 'PARTIAL_RECEIVED'].includes(row.status)) poSummary.inProgress += count
+            else if (row.status === 'RECEIVED') poSummary.received = count
+            else if (row.status === 'COMPLETED') poSummary.completed = count
+            else if (row.status === 'REJECTED') poSummary.rejected = count
+            else if (row.status === 'CANCELLED') poSummary.cancelled = count
+        }
 
-            const prSummary = {
-                draft: 0,
-                pending: 0,
-                approved: 0,
-                poCreated: 0,
-                rejected: 0,
-                cancelled: 0,
-            }
-            for (const row of prStatusRows) {
-                const count = row._count._all || 0
-                if (row.status === 'DRAFT') prSummary.draft = count
-                else if (row.status === 'PENDING') prSummary.pending = count
-                else if (row.status === 'APPROVED') prSummary.approved = count
-                else if (row.status === 'PO_CREATED') prSummary.poCreated = count
-                else if (row.status === 'REJECTED') prSummary.rejected = count
-                else if (row.status === 'CANCELLED') prSummary.cancelled = count
-            }
+        const prSummary = {
+            draft: 0,
+            pending: 0,
+            approved: 0,
+            poCreated: 0,
+            rejected: 0,
+            cancelled: 0,
+        }
+        for (const row of prStatusRows) {
+            const count = row._count._all || 0
+            if (row.status === 'DRAFT') prSummary.draft = count
+            else if (row.status === 'PENDING') prSummary.pending = count
+            else if (row.status === 'APPROVED') prSummary.approved = count
+            else if (row.status === 'PO_CREATED') prSummary.poCreated = count
+            else if (row.status === 'REJECTED') prSummary.rejected = count
+            else if (row.status === 'CANCELLED') prSummary.cancelled = count
+        }
 
-            const receivingSummary = {
-                draft: 0,
-                inspecting: 0,
-                partialAccepted: 0,
-                accepted: 0,
-                rejected: 0,
-            }
-            for (const row of grnStatusRows) {
-                const count = row._count._all || 0
-                if (row.status === 'DRAFT') receivingSummary.draft = count
-                else if (row.status === 'INSPECTING') receivingSummary.inspecting = count
-                else if (row.status === 'PARTIAL_ACCEPTED') receivingSummary.partialAccepted = count
-                else if (row.status === 'ACCEPTED') receivingSummary.accepted = count
-                else if (row.status === 'REJECTED') receivingSummary.rejected = count
-            }
+        const receivingSummary = {
+            draft: 0,
+            inspecting: 0,
+            partialAccepted: 0,
+            accepted: 0,
+            rejected: 0,
+        }
+        for (const row of grnStatusRows) {
+            const count = row._count._all || 0
+            if (row.status === 'DRAFT') receivingSummary.draft = count
+            else if (row.status === 'INSPECTING') receivingSummary.inspecting = count
+            else if (row.status === 'PARTIAL_ACCEPTED') receivingSummary.partialAccepted = count
+            else if (row.status === 'ACCEPTED') receivingSummary.accepted = count
+            else if (row.status === 'REJECTED') receivingSummary.rejected = count
+        }
 
-            return {
-                spend: { current: currentSpend, growth },
-                needsApproval: pendingPOs + pendingPRs,
-                urgentNeeds,
-                vendorHealth: { rating: avgRating, onTime: avgOnTime },
-                incomingCount,
-                recentActivity: recentPOs || [],
+        return {
+            spend: { current: currentSpend, growth },
+            needsApproval: pendingPOs + pendingPRs,
+            urgentNeeds,
+            vendorHealth: { rating: avgRating, onTime: avgOnTime },
+            incomingCount,
+            recentActivity: recentPOs || [],
+            purchaseOrders: {
+                summary: poSummary,
+                recent: recentPOs.map((po) => ({
+                    id: po.id,
+                    number: po.number,
+                    status: po.status,
+                    supplier: po.supplier?.name || 'Unknown',
+                    total: Number(po.netAmount || po.totalAmount || 0),
+                    date: po.createdAt
+                }))
+            },
+            purchaseRequests: {
+                summary: prSummary,
+                recent: recentPRsRaw.map((pr) => ({
+                    id: pr.id,
+                    number: pr.number,
+                    status: pr.status,
+                    requester: requesterMap.get(pr.requesterId) || pr.requesterId,
+                    itemCount: prItemCountMap.get(pr.id) || 0,
+                    priority: pr.priority,
+                    date: pr.createdAt
+                }))
+            },
+            receiving: {
+                summary: receivingSummary,
+                recent: recentGRNsRaw.map((grn) => ({
+                    id: grn.id,
+                    number: grn.number,
+                    status: grn.status,
+                    poNumber: grn.purchaseOrder?.number || '-',
+                    warehouse: grn.warehouse?.name || '-',
+                    date: grn.receivedDate
+                }))
+            },
+            registryMeta: {
                 purchaseOrders: {
-                    summary: poSummary,
-                    recent: recentPOs.map((po) => ({
-                        id: po.id,
-                        number: po.number,
-                        status: po.status,
-                        supplier: po.supplier?.name || 'Unknown',
-                        total: Number(po.netAmount || po.totalAmount || 0),
-                        date: po.createdAt
-                    }))
+                    page: poQuery.page,
+                    pageSize: poQuery.pageSize,
+                    total: poFilteredTotal,
+                    totalPages: Math.max(1, Math.ceil(poFilteredTotal / poQuery.pageSize)),
                 },
                 purchaseRequests: {
-                    summary: prSummary,
-                    recent: recentPRsRaw.map((pr) => ({
-                        id: pr.id,
-                        number: pr.number,
-                        status: pr.status,
-                        requester: requesterMap.get(pr.requesterId) || pr.requesterId,
-                        itemCount: prItemCountMap.get(pr.id) || 0,
-                        priority: pr.priority,
-                        date: pr.createdAt
-                    }))
+                    page: prQuery.page,
+                    pageSize: prQuery.pageSize,
+                    total: prFilteredTotal,
+                    totalPages: Math.max(1, Math.ceil(prFilteredTotal / prQuery.pageSize)),
                 },
                 receiving: {
-                    summary: receivingSummary,
-                    recent: recentGRNsRaw.map((grn) => ({
-                        id: grn.id,
-                        number: grn.number,
-                        status: grn.status,
-                        poNumber: grn.purchaseOrder?.number || '-',
-                        warehouse: grn.warehouse?.name || '-',
-                        date: grn.receivedDate
-                    }))
-                },
-                registryMeta: {
-                    purchaseOrders: {
-                        page: poQuery.page,
-                        pageSize: poQuery.pageSize,
-                        total: poFilteredTotal,
-                        totalPages: Math.max(1, Math.ceil(poFilteredTotal / poQuery.pageSize)),
-                    },
-                    purchaseRequests: {
-                        page: prQuery.page,
-                        pageSize: prQuery.pageSize,
-                        total: prFilteredTotal,
-                        totalPages: Math.max(1, Math.ceil(prFilteredTotal / prQuery.pageSize)),
-                    },
-                    receiving: {
-                        page: receivingQuery.page,
-                        pageSize: receivingQuery.pageSize,
-                        total: receivingFilteredTotal,
-                        totalPages: Math.max(1, Math.ceil(receivingFilteredTotal / receivingQuery.pageSize)),
-                    }
-                },
-                registryQuery: {
-                    purchaseOrders: poQuery,
-                    purchaseRequests: prQuery,
-                    receiving: receivingQuery,
+                    page: receivingQuery.page,
+                    pageSize: receivingQuery.pageSize,
+                    total: receivingFilteredTotal,
+                    totalPages: Math.max(1, Math.ceil(receivingFilteredTotal / receivingQuery.pageSize)),
                 }
+            },
+            registryQuery: {
+                purchaseOrders: poQuery,
+                purchaseRequests: prQuery,
+                receiving: receivingQuery,
             }
+        }
 
-        } catch (error) {
-            console.error("Error fetching procurement stats:", error)
-            return {
-                spend: { current: 0, growth: 0 },
-                needsApproval: 0,
-                urgentNeeds: 0,
-                vendorHealth: { rating: 0, onTime: 0 },
-                incomingCount: 0,
-                recentActivity: [],
-                purchaseOrders: {
-                    summary: { draft: 0, pendingApproval: 0, approved: 0, inProgress: 0, received: 0, completed: 0, rejected: 0, cancelled: 0 },
-                    recent: []
-                },
-                purchaseRequests: {
-                    summary: { draft: 0, pending: 0, approved: 0, poCreated: 0, rejected: 0, cancelled: 0 },
-                    recent: []
-                },
-                receiving: {
-                    summary: { draft: 0, inspecting: 0, partialAccepted: 0, accepted: 0, rejected: 0 },
-                    recent: []
-                },
-                registryMeta: {
-                    purchaseOrders: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
-                    purchaseRequests: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
-                    receiving: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
-                },
-                registryQuery: {
-                    purchaseOrders: { status: null, page: 1, pageSize: 6 },
-                    purchaseRequests: { status: null, page: 1, pageSize: 6 },
-                    receiving: { status: null, page: 1, pageSize: 6 },
-                }
+    } catch (error) {
+        console.error("Error fetching procurement stats:", error)
+        return {
+            spend: { current: 0, growth: 0 },
+            needsApproval: 0,
+            urgentNeeds: 0,
+            vendorHealth: { rating: 0, onTime: 0 },
+            incomingCount: 0,
+            recentActivity: [],
+            purchaseOrders: {
+                summary: { draft: 0, pendingApproval: 0, approved: 0, inProgress: 0, received: 0, completed: 0, rejected: 0, cancelled: 0 },
+                recent: []
+            },
+            purchaseRequests: {
+                summary: { draft: 0, pending: 0, approved: 0, poCreated: 0, rejected: 0, cancelled: 0 },
+                recent: []
+            },
+            receiving: {
+                summary: { draft: 0, inspecting: 0, partialAccepted: 0, accepted: 0, rejected: 0 },
+                recent: []
+            },
+            registryMeta: {
+                purchaseOrders: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
+                purchaseRequests: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
+                receiving: { page: 1, pageSize: 6, total: 0, totalPages: 1 },
+            },
+            registryQuery: {
+                purchaseOrders: { status: null, page: 1, pageSize: 6 },
+                purchaseRequests: { status: null, page: 1, pageSize: 6 },
+                receiving: { status: null, page: 1, pageSize: 6 },
             }
+        }
     }
 }
 
@@ -1183,6 +1183,19 @@ export async function confirmPurchaseOrder(id: string) {
                 })
             })
         })
+
+        // Auto-create vendor bill (AP) from completed PO
+        try {
+            const { createBillFromPOId } = await import("@/lib/actions/finance-invoices")
+            const billResult = await createBillFromPOId(id)
+            if (billResult.success) {
+                console.log(`[Auto-AP] Vendor bill ${(billResult as any).billNumber || 'created'} for PO ${id}`)
+            } else {
+                console.warn(`[Auto-AP] Could not create bill for PO ${id}:`, billResult.error)
+            }
+        } catch (billError) {
+            console.warn("[Auto-AP] Bill creation failed (PO still completed):", billError)
+        }
 
         return { success: true }
 

@@ -38,6 +38,7 @@ import type {
     ReconciliationDetail,
     ReconciliationItemData,
 } from "@/lib/actions/finance-reconciliation"
+import { createBankAccount } from "@/lib/actions/finance-reconciliation"
 
 // ==============================================================================
 // Types
@@ -121,6 +122,13 @@ export function BankReconciliationView({
 
     // Import state
     const [importText, setImportText] = useState("")
+
+    // Add bank state
+    const [addBankOpen, setAddBankOpen] = useState(false)
+    const [newBankCode, setNewBankCode] = useState("")
+    const [newBankName, setNewBankName] = useState("")
+    const [newBankBalance, setNewBankBalance] = useState("")
+    const [addingBank, setAddingBank] = useState(false)
 
     const formatIDR = (n: number) => n.toLocaleString('id-ID')
     const formatDate = (iso: string) => new Date(iso).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -231,6 +239,69 @@ export function BankReconciliationView({
                             <Plus className="h-4 w-4 mr-1" /> Rekonsiliasi Baru
                         </Button>
                     </DialogTrigger>
+
+                    {/* Add Bank Button */}
+                    <Dialog open={addBankOpen} onOpenChange={setAddBankOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9 px-3 rounded-none">
+                                <Landmark className="h-3.5 w-3.5 mr-1" /> Tambah Bank
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className={NB.contentNarrow}>
+                            <DialogHeader className={NB.header}>
+                                <DialogTitle className={NB.title}>
+                                    <Landmark className="h-5 w-5" /> Tambah Akun Bank
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className={NB.label}>Kode Akun <span className={NB.labelRequired}>*</span></label>
+                                    <Input className={NB.inputMono} placeholder="e.g. 1100" value={newBankCode} onChange={(e) => setNewBankCode(e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className={NB.label}>Nama Bank <span className={NB.labelRequired}>*</span></label>
+                                    <Input className={NB.input} placeholder="e.g. Bank BCA — Operasional" value={newBankName} onChange={(e) => setNewBankName(e.target.value)} />
+                                </div>
+                                <div>
+                                    <label className={NB.label}>Saldo Awal (Rp)</label>
+                                    <Input className={NB.inputMono} type="number" placeholder="0" value={newBankBalance} onChange={(e) => setNewBankBalance(e.target.value)} />
+                                </div>
+                                <div className={NB.footer}>
+                                    <Button variant="outline" className={NB.cancelBtn} onClick={() => setAddBankOpen(false)}>Batal</Button>
+                                    <Button className={NB.submitBtn} disabled={addingBank} onClick={async () => {
+                                        if (!newBankCode.trim() || !newBankName.trim()) {
+                                            toast.error("Kode dan nama bank wajib diisi")
+                                            return
+                                        }
+                                        setAddingBank(true)
+                                        try {
+                                            const result = await createBankAccount({
+                                                code: newBankCode.trim(),
+                                                name: newBankName.trim(),
+                                                initialBalance: Number(newBankBalance) || 0,
+                                            })
+                                            if (result.success) {
+                                                toast.success("Akun bank berhasil dibuat")
+                                                setAddBankOpen(false)
+                                                setNewBankCode("")
+                                                setNewBankName("")
+                                                setNewBankBalance("")
+                                                queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+                                            } else {
+                                                toast.error(result.error || "Gagal membuat akun bank")
+                                            }
+                                        } catch {
+                                            toast.error("Terjadi kesalahan")
+                                        } finally {
+                                            setAddingBank(false)
+                                        }
+                                    }}>
+                                        {addingBank ? 'Menyimpan...' : 'Simpan'}
+                                    </Button>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                     <DialogContent className={NB.contentNarrow}>
                         <DialogHeader className={NB.header}>
                             <DialogTitle className={NB.title}>
@@ -292,9 +363,8 @@ export function BankReconciliationView({
                         reconciliations.map((rec) => (
                             <button
                                 key={rec.id}
-                                className={`w-full text-left bg-white border-2 border-black p-3 hover:bg-zinc-50 transition-colors ${
-                                    selectedRec?.id === rec.id ? 'bg-zinc-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : ''
-                                }`}
+                                className={`w-full text-left bg-white border-2 border-black p-3 hover:bg-zinc-50 transition-colors ${selectedRec?.id === rec.id ? 'bg-zinc-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : ''
+                                    }`}
                                 onClick={() => handleSelectRec(rec)}
                             >
                                 <div className="flex items-center justify-between mb-1">

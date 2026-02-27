@@ -68,6 +68,7 @@ interface OpenInvoice {
 interface ARPaymentsViewProps {
     unallocated: UnallocatedPayment[]
     openInvoices: OpenInvoice[]
+    allCustomers: { id: string; name: string; code: string | null }[]
     stats: {
         unallocatedCount: number
         unallocatedAmount: number
@@ -97,7 +98,7 @@ const EMPTY_INVOICE_VALUE = "__NO_INVOICE__"
 
 const todayAsInput = () => new Date().toISOString().slice(0, 10)
 
-export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta, registryQuery }: ARPaymentsViewProps) {
+export function ARPaymentsView({ unallocated, openInvoices, allCustomers, stats, registryMeta, registryQuery }: ARPaymentsViewProps) {
     const router = useRouter()
     const queryClient = useQueryClient()
     const pathname = usePathname()
@@ -156,10 +157,10 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
 
     const paymentInvoiceMismatch = Boolean(
         selectedPayment &&
-            selectedInvoice &&
-            selectedPayment.customerId &&
-            selectedInvoice.customer?.id &&
-            selectedPayment.customerId !== selectedInvoice.customer.id
+        selectedInvoice &&
+        selectedPayment.customerId &&
+        selectedInvoice.customer?.id &&
+        selectedPayment.customerId !== selectedInvoice.customer.id
     )
 
     const filteredPayments = unallocated
@@ -199,6 +200,10 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
         const amount = Number(createForm.amount)
         if (!createForm.customerId) {
             toast.error("Pilih pelanggan terlebih dahulu")
+            return
+        }
+        if (!createForm.invoiceId) {
+            toast.error("Pilih invoice penjualan untuk mengalokasikan penerimaan")
             return
         }
         if (!Number.isFinite(amount) || amount <= 0) {
@@ -439,14 +444,12 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                 <div className="px-6 py-3 flex items-center gap-0">
                     {/* Step 1 */}
                     <div className="flex items-center gap-2">
-                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${
-                            currentStep >= 1 ? "bg-emerald-500 text-white" : "bg-zinc-100 text-zinc-400"
-                        }`}>
+                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${currentStep >= 1 ? "bg-emerald-500 text-white" : "bg-zinc-100 text-zinc-400"
+                            }`}>
                             {currentStep > 1 ? <Check className="h-4 w-4" /> : "1"}
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${
-                            currentStep >= 1 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
-                        }`}>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep >= 1 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
+                            }`}>
                             Pilih Pembayaran
                         </span>
                     </div>
@@ -454,14 +457,12 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                     <div className={`flex-1 h-0.5 mx-3 ${currentStep > 1 ? "bg-emerald-500" : "bg-zinc-200"}`} />
                     {/* Step 2 */}
                     <div className="flex items-center gap-2">
-                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${
-                            currentStep >= 2 ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-400"
-                        }`}>
+                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${currentStep >= 2 ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-400"
+                            }`}>
                             {currentStep > 2 ? <Check className="h-4 w-4" /> : "2"}
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${
-                            currentStep >= 2 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
-                        }`}>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep >= 2 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
+                            }`}>
                             Pilih Invoice
                         </span>
                     </div>
@@ -469,14 +470,12 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                     <div className={`flex-1 h-0.5 mx-3 ${currentStep > 2 ? "bg-orange-500" : "bg-zinc-200"}`} />
                     {/* Step 3 */}
                     <div className="flex items-center gap-2">
-                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${
-                            currentStep >= 3 ? "bg-orange-500 text-white" : "bg-zinc-100 text-zinc-400"
-                        }`}>
+                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${currentStep >= 3 ? "bg-orange-500 text-white" : "bg-zinc-100 text-zinc-400"
+                            }`}>
                             3
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${
-                            currentStep >= 3 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
-                        }`}>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep >= 3 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
+                            }`}>
                             Konfirmasi
                         </span>
                     </div>
@@ -517,7 +516,7 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                         className={`w-full px-5 py-3 text-left transition-colors ${isSelected
                                             ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500"
                                             : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
-                                        }`}
+                                            }`}
                                         onClick={() => {
                                             setSelectedPaymentId(item.id)
                                             setSelectedInvoiceId(null)
@@ -534,12 +533,11 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                             <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{formatIDR(item.amount)}</span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${
-                                                item.method === "TRANSFER" ? "bg-blue-50 border-blue-200 text-blue-600" :
+                                            <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${item.method === "TRANSFER" ? "bg-blue-50 border-blue-200 text-blue-600" :
                                                 item.method === "CASH" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
-                                                item.method === "CHECK" ? "bg-amber-50 border-amber-200 text-amber-600" :
-                                                "bg-violet-50 border-violet-200 text-violet-600"
-                                            }`}>
+                                                    item.method === "CHECK" ? "bg-amber-50 border-amber-200 text-amber-600" :
+                                                        "bg-violet-50 border-violet-200 text-violet-600"
+                                                }`}>
                                                 {METHOD_LABEL[item.method as PaymentMethod] ?? item.method}
                                             </span>
                                             {item.reference && (
@@ -634,7 +632,7 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                         className={`w-full px-5 py-3 text-left transition-colors ${isSelected
                                             ? "bg-blue-50 dark:bg-blue-950/30 border-l-4 border-l-blue-500"
                                             : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center justify-between gap-2 mb-1">
                                             <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{invoice.number}</span>
@@ -651,9 +649,8 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                             <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">
                                                 {invoice.customer?.name ?? "Tanpa pelanggan"}
                                             </span>
-                                            <span className={`font-mono font-black text-sm whitespace-nowrap ${
-                                                invoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"
-                                            }`}>
+                                            <span className={`font-mono font-black text-sm whitespace-nowrap ${invoice.isOverdue ? "text-red-700 dark:text-red-400" : "text-zinc-900 dark:text-zinc-100"
+                                                }`}>
                                                 {formatIDR(invoice.balanceDue)}
                                             </span>
                                         </div>
@@ -781,9 +778,8 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                 </div>
                                 <div className="text-center flex-1">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Selisih</span>
-                                    <span className={`font-mono font-black text-lg ${
-                                        selectedPayment.amount - selectedInvoice.balanceDue >= 0 ? "text-emerald-700" : "text-red-700"
-                                    }`}>
+                                    <span className={`font-mono font-black text-lg ${selectedPayment.amount - selectedInvoice.balanceDue >= 0 ? "text-emerald-700" : "text-red-700"
+                                        }`}>
                                         {formatIDR(selectedPayment.amount - selectedInvoice.balanceDue)}
                                     </span>
                                 </div>
@@ -857,7 +853,8 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                                 onValueChange={(value) =>
                                                     setCreateForm((prev) => ({
                                                         ...prev,
-                                                        customerId: value === EMPTY_INVOICE_VALUE ? "" : value
+                                                        customerId: value === EMPTY_INVOICE_VALUE ? "" : value,
+                                                        invoiceId: ""
                                                     }))
                                                 }
                                             >
@@ -866,9 +863,9 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih pelanggan</SelectItem>
-                                                    {customerOptions.map((customer) => (
+                                                    {allCustomers.map((customer) => (
                                                         <SelectItem key={customer.id} value={customer.id}>
-                                                            {customer.name}
+                                                            {customer.code ? `[${customer.code}] ` : ""}{customer.name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
@@ -936,7 +933,7 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                 </div>
                                 <div className={NB.sectionBody}>
                                     <div>
-                                        <label className={NB.label}>Invoice (Opsional)</label>
+                                        <label className={NB.label}>Invoice Penjualan <span className="text-red-500">*</span></label>
                                         <Select
                                             value={createForm.invoiceId || EMPTY_INVOICE_VALUE}
                                             onValueChange={(value) => {
@@ -953,15 +950,17 @@ export function ARPaymentsView({ unallocated, openInvoices, stats, registryMeta,
                                             }}
                                         >
                                             <SelectTrigger className={NB.select}>
-                                                <SelectValue placeholder="Tidak langsung dialokasikan" />
+                                                <SelectValue placeholder="Pilih invoice" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value={EMPTY_INVOICE_VALUE}>Tidak langsung dialokasikan</SelectItem>
-                                                {openInvoices.map((invoice) => (
-                                                    <SelectItem key={invoice.id} value={invoice.id}>
-                                                        {invoice.number} - {invoice.customer?.name ?? "Tanpa pelanggan"}
-                                                    </SelectItem>
-                                                ))}
+                                                <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih invoice</SelectItem>
+                                                {openInvoices
+                                                    .filter((inv) => !createForm.customerId || inv.customer?.id === createForm.customerId)
+                                                    .map((invoice) => (
+                                                        <SelectItem key={invoice.id} value={invoice.id}>
+                                                            {invoice.number} — {invoice.customer?.name ?? "?"} — Sisa: {formatIDR(invoice.balanceDue)} {invoice.isOverdue ? "⚠️ OVERDUE" : ""}
+                                                        </SelectItem>
+                                                    ))}
                                             </SelectContent>
                                         </Select>
                                     </div>

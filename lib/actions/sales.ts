@@ -997,6 +997,19 @@ export async function recordPartialShipment(
                         where: { id: item.salesOrderId },
                         data: { status: 'DELIVERED' },
                     })
+
+                    // Auto-create AR invoice when SO fully delivered
+                    try {
+                        const { createInvoiceFromSalesOrder: autoCreateInvoice } = await import("@/lib/actions/finance")
+                        const invResult: any = await autoCreateInvoice(item.salesOrderId)
+                        if (invResult.success) {
+                            console.log(`[Auto-AR] Invoice ${invResult.invoiceNumber || 'created'} for SO ${item.salesOrderId}`)
+                        } else {
+                            console.warn(`[Auto-AR] Could not create invoice:`, invResult.error)
+                        }
+                    } catch (invErr) {
+                        console.warn("[Auto-AR] Invoice creation failed (shipment still recorded):", invErr)
+                    }
                 } else {
                     const so = await tx.salesOrder.findUnique({
                         where: { id: item.salesOrderId },

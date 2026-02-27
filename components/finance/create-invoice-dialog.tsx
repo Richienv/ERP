@@ -27,6 +27,7 @@ import {
     createCustomerInvoice,
     getPendingSalesOrders,
     getPendingPurchaseOrders,
+    getExpenseAccounts,
 } from "@/lib/actions/finance"
 import {
     createInvoiceFromSalesOrder,
@@ -64,6 +65,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     const [includeTax, setIncludeTax] = useState(true) // PPN 11% default ON
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
     const [dueDate, setDueDate] = useState("")
+    const [revenueAccounts, setRevenueAccounts] = useState<Array<{ id: string; code: string; name: string }>>([])
+    const [selectedAccountId, setSelectedAccountId] = useState("")
 
     useEffect(() => {
         if (!open) return
@@ -71,8 +74,15 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         const loadData = async () => {
             setLoading(true)
             try {
-                const customerList = await getInvoiceCustomers()
-                if (active) setCustomers(customerList)
+                const [customerList, accountsData] = await Promise.all([
+                    getInvoiceCustomers(),
+                    getExpenseAccounts(),
+                ])
+                if (active) {
+                    setCustomers(customerList)
+                    // Combine expense + cash accounts as "revenue" accounts for invoice
+                    setRevenueAccounts(accountsData.expenseAccounts ?? [])
+                }
             } catch {
                 console.error("Failed to load customers")
             } finally {
@@ -113,6 +123,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         setIncludeTax(true)
         setDueDate("")
         setIssueDate(new Date().toISOString().split('T')[0])
+        setSelectedAccountId("")
     }
 
     const handleCreate = async () => {
@@ -294,6 +305,22 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                             >
                                                 <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${includeTax ? 'left-5' : 'left-0.5'}`} />
                                             </button>
+                                        </div>
+
+                                        {/* COA Account (Optional) */}
+                                        <div>
+                                            <label className={NB.label}>Akun Pendapatan / Beban (COA)</label>
+                                            <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                                                <SelectTrigger className={NB.select}>
+                                                    <SelectValue placeholder="Opsional — pilih akun COA" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">Tanpa akun COA</SelectItem>
+                                                    {revenueAccounts.map((a) => (
+                                                        <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
                                         </div>
 
                                         {/* Total Preview with Tax Breakdown */}

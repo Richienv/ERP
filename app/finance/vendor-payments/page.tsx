@@ -60,11 +60,13 @@ export default function APCheckbookPage() {
     const queryClient = useQueryClient()
     const payments = data?.payments ?? []
     const vendors = data?.vendors ?? []
+    const openBills = data?.openBills ?? []
     const [showForm, setShowForm] = useState(false)
 
     const [selectedVendorId, setSelectedVendorId] = useState("")
     const [amount, setAmount] = useState("")
     const [reference, setReference] = useState("")
+    const [selectedBillId, setSelectedBillId] = useState("")
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("TRANSFER")
     const [checkNumber, setCheckNumber] = useState("")
     const [checkBank, setCheckBank] = useState("")
@@ -93,6 +95,7 @@ export default function APCheckbookPage() {
         setSelectedVendorId("")
         setAmount("")
         setReference("")
+        setSelectedBillId("")
         setPaymentMethod("TRANSFER")
         setCheckNumber("")
         setCheckBank("")
@@ -189,6 +192,10 @@ export default function APCheckbookPage() {
         const numericAmount = Number(amount)
         if (!selectedVendorId || !numericAmount || numericAmount <= 0) {
             toast.error("Vendor dan jumlah wajib diisi")
+            return
+        }
+        if (!selectedBillId) {
+            toast.error("Pilih tagihan vendor untuk mengalokasikan pembayaran")
             return
         }
         if (paymentMethod === "CHECK" && !checkNumber.trim()) {
@@ -330,7 +337,7 @@ export default function APCheckbookPage() {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor</Label>
-                                <Select value={selectedVendorId} onValueChange={(v) => { setSelectedVendorId(v); resetSignatureState() }}>
+                                <Select value={selectedVendorId} onValueChange={(v) => { setSelectedVendorId(v); setSelectedBillId(""); resetSignatureState() }}>
                                     <SelectTrigger className="border-2 border-black h-10 font-bold rounded-none">
                                         <SelectValue placeholder="Pilih vendor..." />
                                     </SelectTrigger>
@@ -379,6 +386,25 @@ export default function APCheckbookPage() {
                                 </div>
                             </div>
                         )}
+
+                        {/* Bill Allocation */}
+                        <div className="space-y-2">
+                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tagihan Vendor <span className="text-red-500">*</span></Label>
+                            <Select value={selectedBillId} onValueChange={(v) => { setSelectedBillId(v); resetSignatureState() }}>
+                                <SelectTrigger className="border-2 border-black h-10 font-bold rounded-none">
+                                    <SelectValue placeholder="Pilih tagihan vendor..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {openBills
+                                        .filter((b: any) => !selectedVendorId || b.vendor?.id === selectedVendorId)
+                                        .map((b: any) => (
+                                            <SelectItem key={b.id} value={b.id}>
+                                                {b.number} — {b.vendor?.name ?? "?"} — Sisa: {formatIDR(b.balanceDue)} {b.isOverdue ? "⚠️" : ""}
+                                            </SelectItem>
+                                        ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
