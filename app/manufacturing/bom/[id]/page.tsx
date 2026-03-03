@@ -459,10 +459,10 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     }, [steps])
 
     // --- TIMELINE DRAG HANDLERS ---
-    // Move block on timeline: sets startOffsetMinutes without destroying DAG edges
-    const handleMoveStep = useCallback((stepId: string, startOffsetMinutes: number) => {
+    // Move block on timeline: sets startOffsetMinutes + lane without destroying DAG edges
+    const handleMoveStep = useCallback((stepId: string, startOffsetMinutes: number, lane?: number) => {
         dirtySetSteps(prev => prev.map(s =>
-            s.id === stepId ? { ...s, startOffsetMinutes } : s
+            s.id === stepId ? { ...s, startOffsetMinutes, ...(lane != null ? { manualLane: lane } : {}) } : s
         ))
     }, [])
 

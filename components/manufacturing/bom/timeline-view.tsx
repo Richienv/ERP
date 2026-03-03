@@ -31,7 +31,7 @@ interface TimelineViewProps {
     totalQty: number
     selectedStepId: string | null
     onStepSelect: (stepId: string | null) => void
-    onMoveStep?: (stepId: string, startOffsetMinutes: number) => void
+    onMoveStep?: (stepId: string, startOffsetMinutes: number, lane?: number) => void
     onUpdateDuration?: (stepId: string, durationMinutes: number) => void
 }
 
@@ -70,8 +70,9 @@ function scheduleSteps(steps: any[]): { bars: BarLayout[]; totalMinutes: number;
         const parentEnds = (step.parentStepIds || []).map((pid: string) => endTimes.get(pid) || 0)
         const dagStart = parentEnds.length > 0 ? Math.max(...parentEnds) : 0
         const offset = step.startOffsetMinutes || 0
-        // Start at whichever is later: after parents finish, or the manual offset
-        const start = Math.max(dagStart, offset)
+        // If user has manually positioned (dragged), use their offset directly.
+        // Otherwise, use DAG-based scheduling (after parents finish).
+        const start = offset > 0 ? offset : dagStart
         const duration = getDuration(step)
         startTimes.set(step.id, start)
         endTimes.set(step.id, start + duration)
@@ -80,20 +81,34 @@ function scheduleSteps(steps: any[]): { bars: BarLayout[]; totalMinutes: number;
     const bars: BarLayout[] = []
     const rowOccupied: { end: number }[] = []
 
+    // Helper: ensure rowOccupied has enough rows
+    const ensureRow = (r: number) => {
+        while (rowOccupied.length <= r) rowOccupied.push({ end: 0 })
+    }
+
     for (const step of sorted) {
         const start = startTimes.get(step.id) || 0
         const duration = getDuration(step)
         let assignedRow = -1
-        for (let r = 0; r < rowOccupied.length; r++) {
-            if (rowOccupied[r].end <= start) {
-                assignedRow = r
-                rowOccupied[r].end = start + duration
-                break
+
+        // If user manually placed this step in a lane, respect it
+        if (step.manualLane != null && step.manualLane >= 0) {
+            assignedRow = step.manualLane
+            ensureRow(assignedRow)
+            rowOccupied[assignedRow].end = Math.max(rowOccupied[assignedRow].end, start + duration)
+        } else {
+            // Auto-assign: first row where it fits
+            for (let r = 0; r < rowOccupied.length; r++) {
+                if (rowOccupied[r].end <= start) {
+                    assignedRow = r
+                    rowOccupied[r].end = start + duration
+                    break
+                }
             }
-        }
-        if (assignedRow === -1) {
-            assignedRow = rowOccupied.length
-            rowOccupied.push({ end: start + duration })
+            if (assignedRow === -1) {
+                assignedRow = rowOccupied.length
+                rowOccupied.push({ end: start + duration })
+            }
         }
         bars.push({ step, row: assignedRow, startMin: start, durationMin: duration })
     }
@@ -229,10 +244,14 @@ export function TimelineView({
 
             if (prev.mode === "move" && onMoveStep) {
                 const dx = prev.currentX - prev.startX
+                const dy = prev.currentY - prev.startY
                 const rawMin = prev.barLayout.startMin + dx / PIXELS_PER_MINUTE
                 const snappedMin = Math.max(0, Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES)
-                if (snappedMin !== prev.barLayout.startMin) {
-                    onMoveStep(prev.stepId, snappedMin)
+                const newY = rowY(prev.barLayout.row) + dy
+                const targetRow = Math.max(0, Math.round((newY - HEADER_HEIGHT - ROW_GAP / 2) / (ROW_HEIGHT + ROW_GAP)))
+                const rowChanged = targetRow !== prev.barLayout.row
+                if (snappedMin !== prev.barLayout.startMin || rowChanged) {
+                    onMoveStep(prev.stepId, snappedMin, targetRow)
                 }
             } else if (prev.mode === "resize-right" && onUpdateDuration) {
                 const dx = prev.currentX - prev.startX
