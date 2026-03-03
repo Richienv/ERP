@@ -26,7 +26,7 @@ export function AddMaterialDialog({ open, onOpenChange, existingMaterialIds, onA
     useEffect(() => {
         if (open) {
             setLoading(true)
-            fetch("/api/products?limit=500&status=active&productType=RAW_MATERIAL")
+            fetch("/api/products?limit=500&status=active&productType=RAW_MATERIAL,WIP")
                 .then((r) => r.json())
                 .then((data) => {
                     const items = data.data || data.products || []
@@ -44,8 +44,8 @@ export function AddMaterialDialog({ open, onOpenChange, existingMaterialIds, onA
     }, [open, existingMaterialIds])
 
     const filtered = products.filter((p) =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.code.toLowerCase().includes(search.toLowerCase())
+        p.name?.toLowerCase().includes(search.toLowerCase()) ||
+        p.code?.toLowerCase().includes(search.toLowerCase())
     )
 
     const handleAdd = () => {

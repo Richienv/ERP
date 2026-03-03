@@ -81,11 +81,18 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
 
     useEffect(() => {
         if (open && !externalSubcontractors && !isSubkonMode) {
-            fetch("/api/manufacturing/subcontract/registry")
+            fetch("/api/manufacturing/process-stations")
                 .then((r) => r.json())
                 .then((data) => {
                     if (data.success && data.data) {
-                        setSubcontractors(data.data.map((s: any) => ({ id: s.id, name: s.name })))
+                        // Extract unique subcontractors from stations that have one
+                        const subs = new Map<string, string>()
+                        for (const station of data.data) {
+                            if (station.subcontractor?.id) {
+                                subs.set(station.subcontractor.id, station.subcontractor.name)
+                            }
+                        }
+                        setSubcontractors(Array.from(subs, ([id, name]) => ({ id, name })))
                     }
                 })
                 .catch(() => {})

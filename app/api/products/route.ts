@@ -48,7 +48,11 @@ export async function GET(request: NextRequest) {
 
     const productType = searchParams.get('productType')
     if (productType) {
-      whereClause.productType = productType
+      if (productType.includes(',')) {
+        whereClause.productType = { in: productType.split(',') }
+      } else {
+        whereClause.productType = productType
+      }
     }
 
     // Calculate offset for pagination

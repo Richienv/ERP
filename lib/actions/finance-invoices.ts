@@ -239,6 +239,7 @@ export async function updateDraftInvoice(data: {
     customerId?: string
     items?: Array<{ description: string; quantity: number; unitPrice: number }>
     includeTax?: boolean
+    discountAmount?: number
     issueDate?: Date
     dueDate?: Date
 }) {
@@ -250,6 +251,8 @@ export async function updateDraftInvoice(data: {
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
             if (invoice.status !== 'DRAFT') return { success: false, error: "Hanya invoice DRAFT yang bisa diedit" }
+
+            const discount = data.discountAmount ?? 0
 
             // Recalculate amounts from items
             if (data.items && data.items.length > 0) {
@@ -265,10 +268,11 @@ export async function updateDraftInvoice(data: {
                 await prisma.invoiceItem.createMany({ data: invoiceItems })
 
                 const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
-                const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
-                const totalAmount = subtotal + taxAmount
+                const taxableAmount = subtotal - discount
+                const taxAmount = data.includeTax ? Math.round(taxableAmount * 0.11) : 0
+                const totalAmount = taxableAmount + taxAmount
 
-                const updateData: any = { subtotal, taxAmount, totalAmount, balanceDue: totalAmount }
+                const updateData: any = { subtotal, taxAmount, discountAmount: discount, totalAmount, balanceDue: totalAmount }
                 if (data.customerId) {
                     if (invoice.type === 'INV_OUT') updateData.customerId = data.customerId
                     else updateData.supplierId = data.customerId
@@ -278,7 +282,7 @@ export async function updateDraftInvoice(data: {
 
                 await prisma.invoice.update({ where: { id: data.invoiceId }, data: updateData })
             } else {
-                // Just update dates/customer
+                // Just update dates/customer/tax/discount
                 const updateData: any = {}
                 if (data.customerId) {
                     if (invoice.type === 'INV_OUT') updateData.customerId = data.customerId
@@ -286,14 +290,19 @@ export async function updateDraftInvoice(data: {
                 }
                 if (data.issueDate) updateData.issueDate = data.issueDate
                 if (data.dueDate) updateData.dueDate = data.dueDate
-                if (data.includeTax !== undefined) {
-                    // Recalculate tax on existing subtotal
-                    const existing = await prisma.invoice.findUnique({ where: { id: data.invoiceId }, select: { subtotal: true } })
+                if (data.includeTax !== undefined || data.discountAmount !== undefined) {
+                    const existing = await prisma.invoice.findUnique({
+                        where: { id: data.invoiceId },
+                        select: { subtotal: true, discountAmount: true }
+                    })
                     const subtotal = Number(existing?.subtotal || 0)
-                    const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
+                    const disc = data.discountAmount ?? Number(existing?.discountAmount || 0)
+                    const taxableAmount = subtotal - disc
+                    const taxAmount = (data.includeTax ?? true) ? Math.round(taxableAmount * 0.11) : 0
                     updateData.taxAmount = taxAmount
-                    updateData.totalAmount = subtotal + taxAmount
-                    updateData.balanceDue = subtotal + taxAmount
+                    updateData.discountAmount = disc
+                    updateData.totalAmount = taxableAmount + taxAmount
+                    updateData.balanceDue = taxableAmount + taxAmount
                 }
                 if (Object.keys(updateData).length > 0) {
                     await prisma.invoice.update({ where: { id: data.invoiceId }, data: updateData })

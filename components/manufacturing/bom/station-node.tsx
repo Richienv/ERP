@@ -19,7 +19,7 @@ export interface StationNodeData {
     completedQty?: number
     totalProductionQty?: number
     startedAt?: string | null
-    useSubkon: boolean
+    useSubkon?: boolean
     isSelected: boolean
     onRemoveMaterial: (bomItemId: string) => void
     onDrop: (bomItemId: string) => void
@@ -33,7 +33,8 @@ export interface StationNodeData {
 function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
     const { station, sequence, materials, isSelected, onRemoveMaterial, onDrop, onRemoveStep } = data
     const Icon = STATION_ICONS[station?.stationType] || Cog
-    const isSubcon = data.useSubkon || station?.operationType === "SUBCONTRACTOR"
+    // useSubkon is explicitly set by detail panel toggle; if undefined, fall back to station.operationType
+    const isSubcon = data.useSubkon !== undefined ? data.useSubkon : station?.operationType === "SUBCONTRACTOR"
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault()

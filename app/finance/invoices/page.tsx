@@ -40,6 +40,7 @@ import {
     recordInvoicePayment,
     getInvoiceDetail,
     updateDraftInvoice,
+    getInvoiceCustomers,
 } from "@/lib/actions/finance-invoices"
 
 import { useInvoiceKanban } from "@/hooks/use-invoices"
@@ -87,6 +88,11 @@ export default function InvoicesPage() {
     const [editIncludeTax, setEditIncludeTax] = useState(true)
     const [editIssueDate, setEditIssueDate] = useState("")
     const [editDueDate, setEditDueDate] = useState("")
+    const [editDiscount, setEditDiscount] = useState(0)
+    const [editPartyId, setEditPartyId] = useState("")
+    const [editInvoiceType, setEditInvoiceType] = useState<'INV_OUT' | 'INV_IN'>('INV_OUT')
+    const [editParties, setEditParties] = useState<Array<{ id: string; name: string; type: 'CUSTOMER' | 'SUPPLIER' }>>([])
+    const [editNumber, setEditNumber] = useState("")
 
     const [searchText, setSearchText] = useState("")
     const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'ALL' | 'INV_OUT' | 'INV_IN'>('ALL')
@@ -172,9 +178,12 @@ export default function InvoicesPage() {
         setEditLoading(true)
         setIsEditDialogOpen(true)
         try {
-            const result = await getInvoiceDetail(invoice.id) as any
-            if (result.success && result.data) {
-                const inv = result.data as any
+            const [detailResult, parties] = await Promise.all([
+                getInvoiceDetail(invoice.id) as any,
+                getInvoiceCustomers(),
+            ])
+            if (detailResult.success && detailResult.data) {
+                const inv = detailResult.data as any
                 setEditItems(inv.items.map((item: any) => ({
                     description: item.description || '',
                     quantity: Number(item.quantity),
@@ -183,7 +192,12 @@ export default function InvoicesPage() {
                 setEditIncludeTax(Number(inv.taxAmount) > 0)
                 setEditIssueDate(new Date(inv.issueDate).toISOString().split('T')[0])
                 setEditDueDate(new Date(inv.dueDate).toISOString().split('T')[0])
+                setEditDiscount(Number(inv.discountAmount) || 0)
+                setEditInvoiceType(inv.type)
+                setEditPartyId(inv.customerId || inv.supplierId || "")
+                setEditNumber(inv.number || "")
             }
+            setEditParties(parties || [])
         } catch {
             toast.error("Gagal memuat detail invoice")
         } finally {
@@ -197,12 +211,18 @@ export default function InvoicesPage() {
             toast.error("Lengkapi semua item dengan benar")
             return
         }
+        if (!editPartyId) {
+            toast.error("Pilih customer/vendor terlebih dahulu")
+            return
+        }
         setEditSaving(true)
         try {
             const result = await updateDraftInvoice({
                 invoiceId: activeInvoice.id,
+                customerId: editPartyId,
                 items: editItems,
                 includeTax: editIncludeTax,
+                discountAmount: editDiscount,
                 issueDate: new Date(editIssueDate + 'T12:00:00'),
                 dueDate: new Date(editDueDate + 'T12:00:00'),
             })
@@ -339,7 +359,7 @@ export default function InvoicesPage() {
                     </div>
                     <div className="flex gap-2">
                         <Button
-                            onClick={() => router.push('/finance/invoices/transactions')}
+                            onClick={() => router.push('/finance/transactions')}
                             variant="outline"
                             className="border-2 border-black font-black uppercase text-[10px] tracking-wide h-10 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
                         >
@@ -693,79 +713,127 @@ export default function InvoicesPage() {
 
             {/* EDIT DRAFT DIALOG */}
             <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!editSaving) setIsEditDialogOpen(open) }}>
-                <DialogContent className="max-w-lg border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-y-auto max-h-[90vh] bg-white">
-                    <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-orange-50">
+                <DialogContent className="max-w-2xl border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-y-auto max-h-[90vh] bg-white">
+                    <DialogHeader className="p-6 pb-3 border-b-2 border-black bg-orange-50">
                         <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
-                            <Pencil className="h-5 w-5" /> Edit Invoice {activeInvoice?.number}
+                            <Pencil className="h-5 w-5" /> Edit Invoice Draft
                         </DialogTitle>
                         <DialogDescription className="font-medium text-black/60">
-                            Edit item, harga, dan pajak. Hanya tersedia untuk invoice DRAFT.
+                            Edit semua detail invoice sebelum dikirim ke klien.
                         </DialogDescription>
+                        {editNumber && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className="font-mono text-sm font-black bg-white border-2 border-black px-3 py-1">{editNumber}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${editInvoiceType === 'INV_OUT' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-purple-50 border-purple-200 text-purple-600'}`}>
+                                    {editInvoiceType === 'INV_OUT' ? 'Invoice' : 'Bill'}
+                                </span>
+                            </div>
+                        )}
                     </DialogHeader>
-                    <div className="p-6 space-y-4">
+                    <div className="p-6 space-y-5">
                         {editLoading ? (
-                            <div className="flex items-center justify-center py-8 text-zinc-400">
+                            <div className="flex items-center justify-center py-12 text-zinc-400">
                                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                                <span className="text-xs font-bold uppercase">Memuat detail...</span>
+                                <span className="text-xs font-bold uppercase tracking-widest">Memuat detail invoice...</span>
                             </div>
                         ) : (
                             <>
-                                {/* Items */}
+                                {/* Party (Customer/Vendor) Selector */}
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                        {editInvoiceType === 'INV_OUT' ? 'Customer' : 'Vendor / Supplier'} <span className="text-red-500">*</span>
+                                    </Label>
+                                    <Select value={editPartyId} onValueChange={setEditPartyId}>
+                                        <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                            <SelectValue placeholder={`Pilih ${editInvoiceType === 'INV_OUT' ? 'customer' : 'vendor'}`} />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {editParties
+                                                .filter(p => editInvoiceType === 'INV_OUT' ? p.type === 'CUSTOMER' : p.type === 'SUPPLIER')
+                                                .map((party) => (
+                                                    <SelectItem key={party.id} value={party.id}>
+                                                        {party.name}
+                                                    </SelectItem>
+                                                ))
+                                            }
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Items Table */}
                                 <div className="space-y-3">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Item</Label>
-                                    {editItems.map((item, idx) => (
-                                        <div key={idx} className="grid grid-cols-[1fr_70px_100px_30px] gap-2 items-end">
-                                            <div>
-                                                {idx === 0 && <Label className="text-[9px] text-zinc-400 font-bold">Deskripsi</Label>}
-                                                <Input
-                                                    className="border-2 border-black h-9 text-sm font-medium"
-                                                    value={item.description}
-                                                    onChange={(e) => {
-                                                        const next = [...editItems]
-                                                        next[idx] = { ...next[idx], description: e.target.value }
-                                                        setEditItems(next)
-                                                    }}
-                                                />
-                                            </div>
-                                            <div>
-                                                {idx === 0 && <Label className="text-[9px] text-zinc-400 font-bold">Qty</Label>}
-                                                <Input
-                                                    type="number"
-                                                    className="border-2 border-black h-9 text-sm font-mono"
-                                                    value={item.quantity}
-                                                    onChange={(e) => {
-                                                        const next = [...editItems]
-                                                        next[idx] = { ...next[idx], quantity: Math.max(1, Number(e.target.value) || 1) }
-                                                        setEditItems(next)
-                                                    }}
-                                                />
-                                            </div>
-                                            <div>
-                                                {idx === 0 && <Label className="text-[9px] text-zinc-400 font-bold">Harga</Label>}
-                                                <Input
-                                                    type="number"
-                                                    className="border-2 border-black h-9 text-sm font-mono"
-                                                    value={item.unitPrice}
-                                                    onChange={(e) => {
-                                                        const next = [...editItems]
-                                                        next[idx] = { ...next[idx], unitPrice: Number(e.target.value) || 0 }
-                                                        setEditItems(next)
-                                                    }}
-                                                />
-                                            </div>
-                                            <button
-                                                className="h-9 w-9 flex items-center justify-center border-2 border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-sm"
-                                                onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}
-                                                disabled={editItems.length <= 1}
-                                            >
-                                                ×
-                                            </button>
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                        Item Invoice <span className="text-red-500">*</span>
+                                    </Label>
+                                    <div className="border-2 border-black overflow-hidden">
+                                        {/* Table header */}
+                                        <div className="grid grid-cols-[1fr_80px_120px_100px_36px] gap-0 bg-zinc-100 border-b-2 border-black">
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2">Deskripsi</span>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2">Qty</span>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2">Harga Satuan</span>
+                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 px-3 py-2 text-right">Jumlah</span>
+                                            <span />
                                         </div>
-                                    ))}
+                                        {/* Table rows */}
+                                        {editItems.map((item, idx) => (
+                                            <div key={idx} className="grid grid-cols-[1fr_80px_120px_100px_36px] gap-0 border-b border-zinc-200 last:border-b-0 items-center">
+                                                <div className="px-1.5 py-1">
+                                                    <Input
+                                                        className="border border-zinc-200 h-8 text-sm font-medium rounded-sm focus:border-orange-400"
+                                                        placeholder="Deskripsi item..."
+                                                        value={item.description}
+                                                        onChange={(e) => {
+                                                            const next = [...editItems]
+                                                            next[idx] = { ...next[idx], description: e.target.value }
+                                                            setEditItems(next)
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div className="px-1.5 py-1">
+                                                    <Input
+                                                        type="number"
+                                                        className="border border-zinc-200 h-8 text-sm font-mono rounded-sm text-center focus:border-orange-400"
+                                                        value={item.quantity}
+                                                        onChange={(e) => {
+                                                            const next = [...editItems]
+                                                            next[idx] = { ...next[idx], quantity: Math.max(1, Number(e.target.value) || 1) }
+                                                            setEditItems(next)
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div className="px-1.5 py-1">
+                                                    <Input
+                                                        type="number"
+                                                        className="border border-zinc-200 h-8 text-sm font-mono rounded-sm focus:border-orange-400"
+                                                        value={item.unitPrice}
+                                                        onChange={(e) => {
+                                                            const next = [...editItems]
+                                                            next[idx] = { ...next[idx], unitPrice: Number(e.target.value) || 0 }
+                                                            setEditItems(next)
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div className="px-3 py-1 text-right">
+                                                    <span className="text-sm font-mono font-bold text-zinc-700">
+                                                        {formatIDR(item.quantity * item.unitPrice)}
+                                                    </span>
+                                                </div>
+                                                <div className="px-1 py-1">
+                                                    <button
+                                                        className="h-8 w-8 flex items-center justify-center border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-sm transition-colors"
+                                                        onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}
+                                                        disabled={editItems.length <= 1}
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="border-dashed border-2 text-[10px] font-bold uppercase w-full"
+                                        className="border-dashed border-2 text-[10px] font-bold uppercase w-full hover:bg-orange-50 hover:border-orange-300"
                                         onClick={() => setEditItems([...editItems, { description: '', quantity: 1, unitPrice: 0 }])}
                                     >
                                         + Tambah Item
@@ -784,6 +852,21 @@ export default function InvoicesPage() {
                                     </div>
                                 </div>
 
+                                {/* Discount */}
+                                <div className="space-y-1.5">
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Diskon (Rp)</Label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">Rp</span>
+                                        <Input
+                                            type="number"
+                                            className="border-2 border-black h-9 font-mono pl-9"
+                                            value={editDiscount || ''}
+                                            placeholder="0"
+                                            onChange={(e) => setEditDiscount(Math.max(0, Number(e.target.value) || 0))}
+                                        />
+                                    </div>
+                                </div>
+
                                 {/* PPN Toggle */}
                                 <div className="flex items-center justify-between border-2 border-zinc-200 px-4 py-2.5">
                                     <div>
@@ -799,26 +882,33 @@ export default function InvoicesPage() {
                                     </button>
                                 </div>
 
-                                {/* Totals */}
+                                {/* Totals Summary */}
                                 {(() => {
                                     const subtotal = editItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-                                    const tax = editIncludeTax ? Math.round(subtotal * 0.11) : 0
-                                    const total = subtotal + tax
+                                    const afterDiscount = subtotal - editDiscount
+                                    const tax = editIncludeTax ? Math.round(afterDiscount * 0.11) : 0
+                                    const total = afterDiscount + tax
                                     return (
-                                        <div className="border-2 border-black bg-zinc-100 px-4 py-2 space-y-1">
+                                        <div className="border-2 border-black bg-zinc-50 px-4 py-3 space-y-1.5">
                                             <div className="flex justify-between items-center text-xs text-zinc-500">
-                                                <span>Subtotal</span>
+                                                <span>Subtotal ({editItems.length} item)</span>
                                                 <span className="font-mono font-bold">{formatIDR(subtotal)}</span>
                                             </div>
+                                            {editDiscount > 0 && (
+                                                <div className="flex justify-between items-center text-xs text-red-500">
+                                                    <span>Diskon</span>
+                                                    <span className="font-mono font-bold">- {formatIDR(editDiscount)}</span>
+                                                </div>
+                                            )}
                                             {editIncludeTax && (
                                                 <div className="flex justify-between items-center text-xs text-zinc-500">
                                                     <span>PPN 11%</span>
                                                     <span className="font-mono font-bold">{formatIDR(tax)}</span>
                                                 </div>
                                             )}
-                                            <div className="flex justify-between items-center border-t border-zinc-300 pt-1">
-                                                <span className="text-[10px] font-black uppercase">Total</span>
-                                                <span className="font-mono font-black text-lg">{formatIDR(total)}</span>
+                                            <div className="flex justify-between items-center border-t-2 border-black pt-2 mt-1">
+                                                <span className="text-[10px] font-black uppercase tracking-widest">Total Tagihan</span>
+                                                <span className="font-mono font-black text-xl">{formatIDR(total)}</span>
                                             </div>
                                         </div>
                                     )
@@ -826,7 +916,7 @@ export default function InvoicesPage() {
                             </>
                         )}
                     </div>
-                    <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
+                    <DialogFooter className="p-6 pt-3 border-t-2 border-black bg-zinc-50 flex gap-2">
                         <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsEditDialogOpen(false)} disabled={editSaving}>Batal</Button>
                         <Button
                             onClick={handleSaveEdit}

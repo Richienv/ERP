@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useState, useCallback, useRef, useMemo } from "react"
+import { use, useState, useCallback, useRef, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { useProductionBOM } from "@/hooks/use-production-bom"
@@ -17,6 +17,7 @@ import { CreateStationDialog } from "@/components/manufacturing/bom/create-stati
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 // Select removed — toolbar now uses quick-add buttons
 import { formatCurrency } from "@/lib/inventory-utils"
 import { calcTotalMaterialCost, calcTotalLaborCost, type BOMItemWithCost } from "@/components/manufacturing/bom/bom-cost-helpers"
@@ -25,7 +26,7 @@ import {
     ArrowLeft, Save, Loader2, Plus, Zap, Package,
     Scissors, Shirt, Droplets, Printer, Sparkles,
     ShieldCheck, PackageIcon, Wrench, Cog, FileDown,
-    Clock, Copy, LayoutTemplate, History, GitBranch,
+    Clock, Copy, LayoutTemplate, History, GitBranch, CheckCircle2,
 } from "lucide-react"
 
 const STATION_TYPE_CONFIG = [
@@ -62,7 +63,21 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
     const [generating, setGenerating] = useState(false)
+    const [spkProgress, setSpkProgress] = useState<string | null>(null)
+    const [spkResult, setSpkResult] = useState<{ workOrders: any[]; bomId: string } | null>(null)
     const initialized = useRef(false)
+    const [isDirty, setIsDirty] = useState(false)
+
+    // Unsaved changes warning — browser close/refresh
+    useEffect(() => {
+        if (!isDirty) return
+        const handler = (e: BeforeUnloadEvent) => {
+            e.preventDefault()
+            return ""
+        }
+        window.addEventListener("beforeunload", handler)
+        return () => window.removeEventListener("beforeunload", handler)
+    }, [isDirty])
 
     // Dialogs
     const [addMaterialOpen, setAddMaterialOpen] = useState(false)
@@ -79,9 +94,15 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     if (bom && !initialized.current) {
         initialized.current = true
         setItems(bom.items || [])
-        setSteps(bom.steps || [])
+        setSteps(bom.steps || []) // init only — not dirty
         setTotalQty(bom.totalProductionQty || 0)
+        setIsDirty(false)
     }
+
+    // Dirty-tracking wrappers
+    const dirtySetItems: typeof setItems = useCallback((v) => { setItems(v); setIsDirty(true) }, [])
+    const dirtySetSteps: typeof setSteps = useCallback((v) => { setSteps(v); setIsDirty(true) }, [])
+    const dirtySetTotalQty = useCallback((v: number) => { setTotalQty(v); setIsDirty(true) }, [])
 
     const selectedStep = steps.find((s) => s.id === selectedStepId) || null
 
@@ -105,16 +126,42 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration, estTimeLabel, progressPct, totalCompleted, maxPossible }
     }, [steps, items, totalQty])
 
+    // --- SPK READINESS CHECK ---
+    const NON_MATERIAL_TYPES = ['QC', 'PACKING']
+    const spkReadiness = useMemo(() => {
+        const issues: string[] = []
+        if (totalQty <= 0) issues.push("Target produksi harus > 0")
+        if (steps.length === 0) issues.push("Belum ada langkah proses")
+        const emptySteps = steps.filter(s => {
+            const stationType = s.station?.stationType || ''
+            return (s.materials || []).length === 0 && !NON_MATERIAL_TYPES.includes(stationType)
+        })
+        if (emptySteps.length > 0) {
+            issues.push(`${emptySteps.length} proses belum ada material: ${emptySteps.map(s => s.station?.name || `Step ${s.sequence}`).join(', ')}`)
+        }
+        const subkonSteps = steps.filter(s => (s.useSubkon ?? s.station?.operationType === 'SUBCONTRACTOR'))
+        for (const s of subkonSteps) {
+            const allocTotal = (s.allocations || []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
+            if (allocTotal !== totalQty && allocTotal > 0) {
+                issues.push(`Alokasi ${s.station?.name}: ${allocTotal}/${totalQty} pcs`)
+            }
+            if ((s.allocations || []).length === 0) {
+                issues.push(`${s.station?.name} belum ada alokasi subkon`)
+            }
+        }
+        return { ready: issues.length === 0, issues }
+    }, [steps, totalQty])
+
     // --- MATERIAL HANDLERS ---
     const handleAddMaterial = useCallback((newItem: any) => {
         const tempId = `temp-${Date.now()}`
-        setItems((prev) => [...prev, { id: tempId, ...newItem }])
-    }, [])
+        dirtySetItems((prev) => [...prev, { id: tempId, ...newItem }])
+    }, [dirtySetItems])
 
     const handleRemoveItem = useCallback((itemId: string) => {
-        setItems((prev) => prev.filter((i) => i.id !== itemId))
+        dirtySetItems((prev) => prev.filter((i) => i.id !== itemId))
         // Also remove from all steps
-        setSteps((prev) => prev.map((step) => ({
+        dirtySetSteps((prev) => prev.map((step) => ({
             ...step,
             materials: (step.materials || []).filter((m: any) => m.bomItemId !== itemId),
         })))
@@ -128,7 +175,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const tempId = `step-${Date.now()}`
         const newSequence = steps.length + 1
 
-        setSteps((prev) => {
+        dirtySetSteps((prev) => {
             const lastStep = prev[prev.length - 1]
             return [...prev, {
                 id: tempId,
@@ -178,7 +225,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 // Add to canvas immediately
                 const station = result.data
                 const tempId = `step-${Date.now()}`
-                setSteps((prev) => {
+                dirtySetSteps((prev) => {
                     const lastStep = prev[prev.length - 1]
                     return [...prev, {
                         id: tempId,
@@ -229,7 +276,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 }
                 newStations.push(station)
             }
-            setSteps((prev) => {
+            dirtySetSteps((prev) => {
                 let baseSequence = prev.length + 1
                 let prevStepId = prev[prev.length - 1]?.id || null
                 const added = newStations.map((station, i) => {
@@ -254,7 +301,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     }, [allStations, queryClient])
 
     const handleRemoveStep = useCallback((stepId: string) => {
-        setSteps((prev) => {
+        dirtySetSteps((prev) => {
             const filtered = prev.filter((s) => s.id !== stepId)
             // Re-sequence + remove deleted step from parentStepIds
             return filtered.map((s, i) => ({
@@ -267,7 +314,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     }, [selectedStepId])
 
     const handleDropMaterial = useCallback((stepId: string, bomItemId: string) => {
-        setSteps((prev) => prev.map((step) => {
+        dirtySetSteps((prev) => prev.map((step) => {
             if (step.id !== stepId) return step
             // Check if already assigned
             if ((step.materials || []).some((m: any) => m.bomItemId === bomItemId)) return step
@@ -285,7 +332,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     }, [items])
 
     const handleRemoveMaterial = useCallback((stepId: string, bomItemId: string) => {
-        setSteps((prev) => prev.map((step) => {
+        dirtySetSteps((prev) => prev.map((step) => {
             if (step.id !== stepId) return step
             return {
                 ...step,
@@ -296,21 +343,21 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
     const handleUpdateStep = useCallback((field: string, value: any) => {
         if (!selectedStepId) return
-        setSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev) => prev.map((step) =>
             step.id === selectedStepId ? { ...step, [field]: value } : step
         ))
     }, [selectedStepId])
 
     const handleUpdateAllocations = useCallback((allocations: any[]) => {
         if (!selectedStepId) return
-        setSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev) => prev.map((step) =>
             step.id === selectedStepId ? { ...step, allocations } : step
         ))
     }, [selectedStepId])
 
     const handleToggleSubkon = useCallback((useSubkon: boolean) => {
         if (!selectedStepId) return
-        setSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev) => prev.map((step) =>
             step.id === selectedStepId
                 ? { ...step, useSubkon, allocations: useSubkon ? (step.allocations || []) : [] }
                 : step
@@ -319,7 +366,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
     // --- DAG EDGE HANDLERS ---
     const handleConnectSteps = useCallback((sourceId: string, targetId: string) => {
-        setSteps(prev => prev.map(step =>
+        dirtySetSteps(prev => prev.map(step =>
             step.id === targetId
                 ? { ...step, parentStepIds: [...new Set([...(step.parentStepIds || []), sourceId])] }
                 : step
@@ -327,7 +374,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     }, [])
 
     const handleDisconnectSteps = useCallback((sourceId: string, targetId: string) => {
-        setSteps(prev => prev.map(step =>
+        dirtySetSteps(prev => prev.map(step =>
             step.id === targetId
                 ? { ...step, parentStepIds: (step.parentStepIds || []).filter((id: string) => id !== sourceId) }
                 : step
@@ -344,7 +391,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (!source) return
 
         const tempId = `step-${Date.now()}`
-        setSteps((prev) => {
+        dirtySetSteps((prev) => {
             const newSequence = prev.length + 1
             return [...prev, {
                 ...source,
@@ -368,7 +415,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (!source) return
 
         const tempId = `step-par-${Date.now()}`
-        setSteps((prev) => {
+        dirtySetSteps((prev) => {
             const newSequence = prev.length + 1
             return [...prev, {
                 id: tempId,
@@ -392,7 +439,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (!source) return
 
         const tempId = `step-seq-${Date.now()}`
-        setSteps((prev) => {
+        dirtySetSteps((prev) => {
             const newSequence = prev.length + 1
             return [...prev, {
                 id: tempId,
@@ -412,33 +459,29 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     }, [steps])
 
     // --- TIMELINE DRAG HANDLERS ---
-    // Move block freely on timeline: sets startOffsetMinutes and clears parents so the step starts independently
+    // Move block on timeline: sets startOffsetMinutes without destroying DAG edges
     const handleMoveStep = useCallback((stepId: string, startOffsetMinutes: number) => {
-        setSteps(prev => prev.map(s => {
-            if (s.id === stepId) {
-                // Clear parents — step is now freely positioned at the given offset
-                return { ...s, parentStepIds: [], startOffsetMinutes }
-            }
-            return s
-        }))
+        dirtySetSteps(prev => prev.map(s =>
+            s.id === stepId ? { ...s, startOffsetMinutes } : s
+        ))
     }, [])
 
     // Resize bar → change durationMinutes
     const handleUpdateDuration = useCallback((stepId: string, durationMinutes: number) => {
-        setSteps(prev => prev.map(s =>
+        dirtySetSteps(prev => prev.map(s =>
             s.id === stepId ? { ...s, durationMinutes } : s
         ))
     }, [])
 
     const handleMarkStarted = useCallback((stepId: string) => {
-        setSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev) => prev.map((step) =>
             step.id === stepId ? { ...step, startedAt: new Date().toISOString() } : step
         ))
         toast.success("Stasiun ditandai mulai")
     }, [])
 
     const handleMarkCompleted = useCallback((stepId: string) => {
-        setSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev) => prev.map((step) =>
             step.id === stepId
                 ? { ...step, completedAt: new Date().toISOString(), completedQty: totalQty }
                 : step
@@ -449,6 +492,12 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     // --- ATTACHMENT HANDLERS ---
     const handleUploadAttachment = useCallback(async () => {
         if (!selectedStepId) return
+
+        // C4: Prevent upload on unsaved steps
+        if (selectedStepId.startsWith('step-') || selectedStepId.startsWith('temp-')) {
+            toast.error("Simpan BOM terlebih dahulu sebelum upload lampiran")
+            return
+        }
 
         const input = document.createElement("input")
         input.type = "file"
@@ -469,7 +518,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 if (result.success) {
                     toast.success(`File ${file.name} berhasil diupload`)
                     // Add to local state
-                    setSteps((prev) => prev.map((step) =>
+                    dirtySetSteps((prev) => prev.map((step) =>
                         step.id === selectedStepId
                             ? { ...step, attachments: [...(step.attachments || []), result.data] }
                             : step
@@ -489,7 +538,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             const res = await fetch(`/api/manufacturing/production-bom-attachments/${attachmentId}`, { method: "DELETE" })
             const result = await res.json()
             if (result.success) {
-                setSteps((prev) => prev.map((step) => ({
+                dirtySetSteps((prev) => prev.map((step) => ({
                     ...step,
                     attachments: (step.attachments || []).filter((a: any) => a.id !== attachmentId),
                 })))
@@ -505,20 +554,23 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const payload = {
             totalProductionQty: totalQty,
             items: items.map((item) => ({
+                id: item.id, // For ID mapping on server
                 materialId: item.materialId || item.material?.id,
                 quantityPerUnit: Number(item.quantityPerUnit),
                 unit: item.unit || item.material?.unit || null,
                 wastePct: Number(item.wastePct || 0),
                 notes: item.notes || null,
             })),
-            steps: steps.map((step) => ({
+            // C1 fix: normalize sequences to 1..N to prevent collisions
+            steps: steps.map((step, idx) => ({
                 id: step.id, // Used for parentStepIds mapping on server
                 stationId: step.stationId || step.station?.id,
-                sequence: step.sequence,
+                sequence: idx + 1,
                 durationMinutes: step.durationMinutes || null,
                 notes: step.notes || null,
                 parentStepIds: step.parentStepIds || [],
                 startOffsetMinutes: step.startOffsetMinutes ?? 0,
+                useSubkon: step.useSubkon ?? null,
                 estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
                 actualTimeTotal: step.actualTimeTotal ?? null,
                 completedQty: step.completedQty ?? 0,
@@ -544,8 +596,33 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const result = await res.json()
 
         if (result.success) {
-            queryClient.invalidateQueries({ queryKey: queryKeys.productionBom.detail(id) })
-            initialized.current = false
+            // C2 fix: update local state with server-assigned IDs so subsequent saves work
+            const mapping = result.idMapping as { stepIdMap?: Record<string, string>; itemIdMap?: Record<string, string> } | undefined
+            if (mapping) {
+                if (mapping.itemIdMap && Object.keys(mapping.itemIdMap).length > 0) {
+                    setItems(prev => prev.map(item => ({
+                        ...item,
+                        id: mapping.itemIdMap![item.id] || item.id,
+                    })))
+                }
+                if (mapping.stepIdMap && Object.keys(mapping.stepIdMap).length > 0) {
+                    setSteps(prev => prev.map(step => ({
+                        ...step,
+                        id: mapping.stepIdMap![step.id] || step.id,
+                        parentStepIds: (step.parentStepIds || []).map(
+                            (pid: string) => mapping.stepIdMap![pid] || pid
+                        ),
+                        materials: (step.materials || []).map((m: any) => ({
+                            ...m,
+                            bomItemId: mapping.itemIdMap?.[m.bomItemId] || m.bomItemId,
+                        })),
+                    })))
+                }
+            }
+            setIsDirty(false)
+            // Invalidate caches so next page load gets fresh data.
+            // Don't reset initialized.current — keep local state for THIS session.
+            queryClient.invalidateQueries({ queryKey: queryKeys.productionBom.all })
             return true
         } else {
             toast.error(result.error || "Gagal menyimpan")
@@ -565,17 +642,29 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         }
     }
 
-    // --- GENERATE SPK (auto-saves first) ---
+    // --- GENERATE SPK (pre-validates, auto-saves, then generates) ---
     const handleGenerateSPK = async () => {
+        // Pre-validate client-side before even saving
+        if (!spkReadiness.ready) {
+            toast.error(
+                `Belum siap generate SPK:\n• ${spkReadiness.issues.join('\n• ')}`,
+                { duration: 6000 }
+            )
+            return
+        }
+
         setGenerating(true)
         try {
-            // Save first so DB has latest totalQty, steps, materials
+            // Step 1: Save BOM so DB has latest data
+            setSpkProgress("Menyimpan BOM...")
             const saved = await doSave()
             if (!saved) {
-                toast.error("Gagal menyimpan BOM sebelum generate SPK")
+                setSpkProgress(null)
                 return
             }
 
+            // Step 2: Create work order records for production tracking
+            setSpkProgress("Membuat Work Order...")
             const res = await fetch(`/api/manufacturing/production-bom/${id}/generate-spk`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -583,14 +672,23 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             })
             const result = await res.json()
 
-            if (result.success) {
-                toast.success(result.message || `${result.data?.length} SPK berhasil dibuat`)
-                queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.spkOrders.all })
-            } else {
+            if (!result.success) {
+                setSpkProgress(null)
                 toast.error(result.error || "Gagal membuat SPK")
+                return
             }
+
+            // Step 3: Generate PDF document
+            setSpkProgress("Membuat dokumen PDF...")
+            // Verify PDF is accessible (pre-check)
+            const pdfCheck = await fetch(`/api/documents/spk/${id}`, { method: "HEAD" }).catch(() => null)
+
+            setSpkProgress(null)
+            setSpkResult({ workOrders: result.data || [], bomId: id })
+            queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.spkOrders.all })
         } catch {
+            setSpkProgress(null)
             toast.error("Terjadi kesalahan")
         } finally {
             setGenerating(false)
@@ -613,7 +711,12 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => router.push("/manufacturing/bom")}
+                        onClick={() => {
+                            if (isDirty) {
+                                if (!window.confirm("Ada perubahan yang belum disimpan. Yakin ingin keluar tanpa menyimpan?")) return
+                            }
+                            router.push("/manufacturing/bom")
+                        }}
                         className="h-8 rounded-none font-bold shrink-0"
                     >
                         <ArrowLeft className="mr-1 h-4 w-4" /> Kembali
@@ -631,7 +734,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         <Input
                             type="number"
                             value={totalQty}
-                            onChange={(e) => setTotalQty(parseInt(e.target.value) || 0)}
+                            onChange={(e) => dirtySetTotalQty(parseInt(e.target.value) || 0)}
                             className="h-7 w-20 text-xs font-mono border-zinc-200 rounded-none"
                         />
                         <span className="text-[10px] font-bold text-zinc-400">pcs</span>
@@ -662,10 +765,20 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         size="sm"
                         onClick={handleGenerateSPK}
                         disabled={generating || steps.length === 0}
-                        className="h-8 font-black text-[10px] uppercase border-2 border-orange-500 text-orange-600 rounded-none hover:bg-orange-50"
+                        title={spkReadiness.ready ? "Semua siap — klik untuk generate SPK" : `Belum siap:\n${spkReadiness.issues.join('\n')}`}
+                        className={`h-8 font-black text-[10px] uppercase border-2 rounded-none ${
+                            spkReadiness.ready
+                                ? "border-orange-500 text-orange-600 hover:bg-orange-50"
+                                : "border-zinc-300 text-zinc-400 hover:bg-zinc-50"
+                        }`}
                     >
                         {generating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-1 h-3.5 w-3.5" />}
                         Generate SPK
+                        {!spkReadiness.ready && steps.length > 0 && (
+                            <span className="ml-1.5 bg-red-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center">
+                                {spkReadiness.issues.length}
+                            </span>
+                        )}
                     </Button>
 
                     <Button
@@ -792,6 +905,16 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 </div>
             </div>
 
+            {/* SPK READINESS WARNING */}
+            {!spkReadiness.ready && steps.length > 0 && (
+                <div className="border-b border-red-200 bg-red-50 px-4 py-1.5 flex items-center gap-2 shrink-0">
+                    <span className="bg-red-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center shrink-0">!</span>
+                    <span className="text-[10px] font-bold text-red-700">
+                        SPK belum siap: {spkReadiness.issues.join(' · ')}
+                    </span>
+                </div>
+            )}
+
             {/* MAIN CONTENT */}
             <div className="flex-1 flex overflow-hidden">
                 {/* Left: Material Panel */}
@@ -894,6 +1017,101 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     onMarkCompleted={(stepId) => { handleMarkCompleted(stepId); setContextMenu(null) }}
                 />
             )}
+
+            {/* SPK Progress / Result Dialog */}
+            <Dialog open={!!spkProgress || !!spkResult} onOpenChange={(open) => { if (!open && !spkProgress) setSpkResult(null) }}>
+                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none sm:max-w-lg">
+                    {spkProgress ? (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="font-black text-lg">Membuat SPK...</DialogTitle>
+                                <DialogDescription className="text-zinc-500 text-sm">Mohon tunggu, sedang memproses</DialogDescription>
+                            </DialogHeader>
+                            <div className="flex flex-col items-center py-8 gap-4">
+                                <div className="relative">
+                                    <div className="h-16 w-16 border-4 border-zinc-200 border-t-orange-500 rounded-full animate-spin" />
+                                    <Zap className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-orange-500" />
+                                </div>
+                                <p className="font-bold text-sm text-zinc-700 animate-pulse">{spkProgress}</p>
+                            </div>
+                        </>
+                    ) : spkResult ? (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="font-black text-lg flex items-center gap-2">
+                                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                    SPK Berhasil Dibuat
+                                </DialogTitle>
+                                <DialogDescription className="text-zinc-500 text-sm">
+                                    Surat Perintah Kerja siap diunduh ({spkResult.workOrders.length} proses)
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {/* PDF Preview / Download Section */}
+                            <div className="border-2 border-black bg-orange-50 p-4 flex items-center gap-4">
+                                <div className="bg-orange-500 text-white p-3 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                    <FileDown className="h-6 w-6" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-black text-sm">Dokumen SPK (PDF)</p>
+                                    <p className="text-[10px] text-zinc-500 font-mono truncate">
+                                        SPK-{bom?.product?.code}-{bom?.version}.pdf
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 shrink-0">
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-2 border-black rounded-none font-bold text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                        onClick={() => window.open(`/api/documents/spk/${spkResult.bomId}?disposition=inline`, '_blank')}
+                                    >
+                                        Lihat
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        className="bg-orange-500 hover:bg-orange-600 text-white border-2 border-black rounded-none font-bold text-xs shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                        onClick={() => {
+                                            const a = document.createElement('a')
+                                            a.href = `/api/documents/spk/${spkResult.bomId}`
+                                            a.download = `SPK-${bom?.product?.code}-${bom?.version}.pdf`
+                                            a.click()
+                                        }}
+                                    >
+                                        <FileDown className="h-3.5 w-3.5 mr-1" />
+                                        Unduh
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* Work Orders Summary */}
+                            <div className="space-y-1">
+                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Work Orders ({spkResult.workOrders.length})</p>
+                                <div className="max-h-[200px] overflow-y-auto space-y-1">
+                                    {spkResult.workOrders.map((wo: any, i: number) => (
+                                        <div key={wo.id || i} className="flex items-center gap-3 px-3 py-1.5 bg-zinc-50 border border-zinc-200">
+                                            <span className="bg-black text-white text-[9px] font-black px-1.5 py-0.5 shrink-0">{wo.stepSequence}</span>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-[11px] font-bold truncate">{wo.stationName}</p>
+                                                <p className="text-[9px] text-zinc-400 font-mono">{wo.number}</p>
+                                            </div>
+                                            <span className="text-[11px] font-bold text-emerald-600">{wo.plannedQty} pcs</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <DialogFooter>
+                                <Button
+                                    onClick={() => setSpkResult(null)}
+                                    className="bg-black hover:bg-zinc-800 text-white font-bold border-2 border-black rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                                >
+                                    Tutup
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

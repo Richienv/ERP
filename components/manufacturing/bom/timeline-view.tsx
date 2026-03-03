@@ -197,6 +197,10 @@ export function TimelineView({
         })
     }, [bars])
 
+    // Keep a ref to the latest drag state so onUp can read it without re-subscribing
+    const dragRef = useRef<DragState | null>(null)
+    dragRef.current = drag
+
     useEffect(() => {
         if (!drag) return
 
@@ -211,34 +215,33 @@ export function TimelineView({
         }
 
         const onUp = () => {
-            setDrag(prev => {
-                if (!prev) return null
+            // Read final state from ref — don't call parent callbacks inside setDrag updater
+            const prev = dragRef.current
+            setDrag(null)
 
-                if (!prev.active) {
-                    // Click — select
-                    onStepSelect(prev.stepId)
-                    return null
+            if (!prev) return
+
+            if (!prev.active) {
+                // Click — select
+                onStepSelect(prev.stepId)
+                return
+            }
+
+            if (prev.mode === "move" && onMoveStep) {
+                const dx = prev.currentX - prev.startX
+                const rawMin = prev.barLayout.startMin + dx / PIXELS_PER_MINUTE
+                const snappedMin = Math.max(0, Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES)
+                if (snappedMin !== prev.barLayout.startMin) {
+                    onMoveStep(prev.stepId, snappedMin)
                 }
-
-                if (prev.mode === "move" && onMoveStep) {
-                    const dx = prev.currentX - prev.startX
-                    const rawMin = prev.barLayout.startMin + dx / PIXELS_PER_MINUTE
-                    const snappedMin = Math.max(0, Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES)
-                    // Only fire if position actually changed
-                    if (snappedMin !== prev.barLayout.startMin) {
-                        onMoveStep(prev.stepId, snappedMin)
-                    }
-                } else if (prev.mode === "resize-right" && onUpdateDuration) {
-                    const dx = prev.currentX - prev.startX
-                    const deltaMin = Math.round((dx / PIXELS_PER_MINUTE) / SNAP_MINUTES) * SNAP_MINUTES
-                    const newDuration = Math.max(SNAP_MINUTES, prev.barLayout.durationMin + deltaMin)
-                    if (newDuration !== prev.barLayout.durationMin) {
-                        onUpdateDuration(prev.stepId, newDuration)
-                    }
+            } else if (prev.mode === "resize-right" && onUpdateDuration) {
+                const dx = prev.currentX - prev.startX
+                const deltaMin = Math.round((dx / PIXELS_PER_MINUTE) / SNAP_MINUTES) * SNAP_MINUTES
+                const newDuration = Math.max(SNAP_MINUTES, prev.barLayout.durationMin + deltaMin)
+                if (newDuration !== prev.barLayout.durationMin) {
+                    onUpdateDuration(prev.stepId, newDuration)
                 }
-
-                return null
-            })
+            }
         }
 
         window.addEventListener("pointermove", onMove)
@@ -247,7 +250,7 @@ export function TimelineView({
             window.removeEventListener("pointermove", onMove)
             window.removeEventListener("pointerup", onUp)
         }
-    }, [drag, onMoveStep, onUpdateDuration, onStepSelect])
+    }, [!!drag, onMoveStep, onUpdateDuration, onStepSelect])
 
     /* ── Summary ── */
     const maxParallel = totalRows

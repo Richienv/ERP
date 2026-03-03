@@ -23,7 +23,7 @@ export async function POST(
                 product: { select: { id: true, code: true, name: true, unit: true } },
                 steps: {
                     include: {
-                        station: { select: { id: true, name: true, operationType: true } },
+                        station: { select: { id: true, name: true, stationType: true, operationType: true } },
                         materials: {
                             include: { bomItem: { include: { material: { select: { id: true, name: true } } } } },
                         },
@@ -48,8 +48,11 @@ export async function POST(
             return NextResponse.json({ success: false, error: 'BOM belum memiliki langkah proses' }, { status: 400 })
         }
 
-        // Validate: all steps must have materials
-        const emptySteps = bom.steps.filter((s) => s.materials.length === 0)
+        // Validate: production steps (non-QC, non-PACKING) must have materials
+        const NON_MATERIAL_TYPES = ['QC', 'PACKING']
+        const emptySteps = bom.steps.filter((s) =>
+            s.materials.length === 0 && !NON_MATERIAL_TYPES.includes(s.station.stationType ?? '')
+        )
         if (emptySteps.length > 0) {
             return NextResponse.json({
                 success: false,
@@ -59,7 +62,8 @@ export async function POST(
 
         // Validate: subcontractor steps must have allocations totaling totalProductionQty
         for (const step of bom.steps) {
-            if (step.station.operationType === 'SUBCONTRACTOR') {
+            const isSubkon = step.useSubkon ?? step.station.operationType === 'SUBCONTRACTOR'
+            if (isSubkon) {
                 const totalAlloc = step.allocations.reduce((sum, a) => sum + a.quantity, 0)
                 if (totalAlloc !== bom.totalProductionQty) {
                     return NextResponse.json({
@@ -99,10 +103,11 @@ export async function POST(
                     const parentWOs = stepToWOIds.get(parentId) || []
                     parentWOIds.push(...parentWOs)
                 }
-                // Fallback for linear flow: if no parentStepIds, use previous step
-                const dependsOnId = parentWOIds.length === 1 ? parentWOIds[0] : null
+                // H4: Pick first parent WO (schema supports single dependency only)
+                const dependsOnId = parentWOIds.length > 0 ? parentWOIds[0] : null
 
-                if (step.station.operationType === 'SUBCONTRACTOR' && step.allocations.length > 0) {
+                const stepIsSubkon = step.useSubkon ?? step.station.operationType === 'SUBCONTRACTOR'
+                if (stepIsSubkon && step.allocations.length > 0) {
                     for (const alloc of step.allocations) {
                         const woNumber = `${prefix}-${String(sequence).padStart(4, '0')}`
                         const wo = await tx.workOrder.create({

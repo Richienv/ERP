@@ -188,6 +188,10 @@ const data = {
           url: "/finance/chart-accounts",
         },
         {
+          title: "Transaksi Akun",
+          url: "/finance/transactions",
+        },
+        {
           title: "Jurnal Umum",
           url: "/finance/journal",
         },

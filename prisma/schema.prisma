@@ -2736,6 +2736,7 @@ model ProductionBOMStep {
   notes           String?
   parentStepIds      String[]  @default([])  // IDs of parent steps (DAG edges)
   startOffsetMinutes Int       @default(0)   // manual start time in minutes (free-position on timeline)
+  useSubkon          Boolean?               // per-step override: true=subkon, false=in-house, null=use station default
 
   // Time tracking & production progress
   estimatedTimePerUnit  Decimal?  @db.Decimal(8, 2)  // minutes per unit

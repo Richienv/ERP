@@ -79,8 +79,12 @@ export function DetailPanel({
                 </label>
                 <Input
                     type="number"
+                    min={0}
                     value={step.durationMinutes || ""}
-                    onChange={(e) => onUpdateStep("durationMinutes", parseInt(e.target.value) || null)}
+                    onChange={(e) => {
+                        const val = parseInt(e.target.value)
+                        onUpdateStep("durationMinutes", isNaN(val) ? null : Math.max(0, val))
+                    }}
                     className="h-8 text-xs font-mono border-zinc-200 rounded-none"
                 />
             </div>

@@ -114,7 +114,7 @@ export function BOMCanvas({
                 completedQty: step.completedQty || 0,
                 totalProductionQty: totalProductionQty || 0,
                 startedAt: step.startedAt || null,
-                useSubkon: step.useSubkon || false,
+                useSubkon: step.useSubkon ?? undefined,
                 isSelected: step.id === selectedStepId,
                 onRemoveMaterial: (bomItemId: string) => onRemoveMaterial(step.id, bomItemId),
                 onDrop: (bomItemId: string) => onDropMaterial(step.id, bomItemId),

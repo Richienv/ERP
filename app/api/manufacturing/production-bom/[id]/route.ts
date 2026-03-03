@@ -75,7 +75,8 @@ export async function GET(
     }
 }
 
-// PATCH /api/manufacturing/production-bom/[id] — full save of canvas state
+// PATCH /api/manufacturing/production-bom/[id] — fast save of canvas state
+// Optimized: uses createMany batches, no heavy re-read inside transaction
 export async function PATCH(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -90,8 +91,15 @@ export async function PATCH(
         const body = await request.json()
         const { version, isActive, totalProductionQty, notes, items, steps } = body
 
-        const result = await prisma.$transaction(async (tx) => {
-            // Update BOM metadata
+        // C1 fix: normalize sequences to 1..N to prevent collisions
+        if (steps) {
+            for (let i = 0; i < steps.length; i++) {
+                steps[i].sequence = i + 1
+            }
+        }
+
+        const idMapping = await prisma.$transaction(async (tx) => {
+            // 1. Update BOM metadata
             await tx.productionBOM.update({
                 where: { id },
                 data: {
@@ -102,194 +110,172 @@ export async function PATCH(
                 },
             })
 
-            // If items provided, replace all items
+            // 2. Bulk-delete old child records in parallel
+            const existingStepIds = (await tx.productionBOMStep.findMany({
+                where: { bomId: id }, select: { id: true },
+            })).map((s) => s.id)
+
+            await Promise.all([
+                existingStepIds.length > 0
+                    ? Promise.all([
+                        tx.productionBOMStepMaterial.deleteMany({ where: { stepId: { in: existingStepIds } } }),
+                        tx.productionBOMAllocation.deleteMany({ where: { stepId: { in: existingStepIds } } }),
+                    ])
+                    : Promise.resolve(),
+            ])
+
             if (items) {
-                // Delete step materials first (they reference bom items)
-                const existingSteps = await tx.productionBOMStep.findMany({ where: { bomId: id }, select: { id: true } })
-                const stepIds = existingSteps.map((s) => s.id)
-                if (stepIds.length > 0) {
-                    await tx.productionBOMStepMaterial.deleteMany({ where: { stepId: { in: stepIds } } })
-                }
-
                 await tx.productionBOMItem.deleteMany({ where: { bomId: id } })
-
-                const createdItems: any[] = []
-                for (const item of items) {
-                    const created = await tx.productionBOMItem.create({
-                        data: {
+                if (items.length > 0) {
+                    await tx.productionBOMItem.createMany({
+                        data: items.map((item: any) => ({
                             bomId: id,
                             materialId: item.materialId,
                             quantityPerUnit: item.quantityPerUnit,
                             unit: item.unit || null,
                             wastePct: item.wastePct || 0,
                             notes: item.notes || null,
-                        },
+                        })),
                     })
-                    createdItems.push(created)
                 }
             }
 
-            // If steps provided, replace all steps
+            // Result maps for C2: client can update local state with real DB IDs
+            const stepIdMap: Record<string, string> = {}
+            const itemIdMap: Record<string, string> = {}
+
+            // Build materialId → new bomItemId mapping
+            const currentItems = await tx.productionBOMItem.findMany({ where: { bomId: id } })
+            const materialIdToBomItemId = new Map<string, string>()
+            for (const ci of currentItems) {
+                materialIdToBomItemId.set(ci.materialId, ci.id)
+            }
+
+            // C2: build item ID mapping (old client materialId → new bomItemId)
+            if (items) {
+                for (const clientItem of items) {
+                    const newId = materialIdToBomItemId.get(clientItem.materialId)
+                    if (newId && clientItem.id) {
+                        itemIdMap[clientItem.id] = newId
+                    }
+                }
+            }
+
             if (steps) {
-                const existingSteps = await tx.productionBOMStep.findMany({ where: { bomId: id }, select: { id: true } })
-                const stepIds = existingSteps.map((s) => s.id)
-                if (stepIds.length > 0) {
-                    await tx.productionBOMStepMaterial.deleteMany({ where: { stepId: { in: stepIds } } })
-                    await tx.productionBOMAllocation.deleteMany({ where: { stepId: { in: stepIds } } })
-                    // Keep attachments — they are managed separately via upload/delete APIs
-                    // Move attachments to new steps if possible, otherwise orphan them
+                // Nullify WorkOrder references to old steps before deleting (FK constraint)
+                if (existingStepIds.length > 0) {
+                    await tx.workOrder.updateMany({
+                        where: { productionBomStepId: { in: existingStepIds } },
+                        data: { productionBomStepId: null },
+                    })
                 }
                 await tx.productionBOMStep.deleteMany({ where: { bomId: id } })
 
-                // Get freshly created items — map materialId → new bomItemId
-                const currentItems = await tx.productionBOMItem.findMany({ where: { bomId: id } })
-                const materialIdToBomItemId = new Map<string, string>()
-                for (const ci of currentItems) {
-                    materialIdToBomItemId.set(ci.materialId, ci.id)
+                if (steps.length > 0) {
+                    // Create steps one-by-one to get individual IDs back (createMany doesn't return IDs)
+                    // Use sequential create for reliable ID mapping
+                    for (let i = 0; i < steps.length; i++) {
+                        const step = steps[i]
+                        const created = await tx.productionBOMStep.create({
+                            data: {
+                                bomId: id,
+                                stationId: step.stationId,
+                                sequence: step.sequence,
+                                durationMinutes: step.durationMinutes || null,
+                                notes: step.notes || null,
+                                estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
+                                actualTimeTotal: step.actualTimeTotal ?? null,
+                                completedQty: step.completedQty ?? 0,
+                                startOffsetMinutes: step.startOffsetMinutes ?? 0,
+                                useSubkon: step.useSubkon ?? null,
+                                startedAt: step.startedAt ? new Date(step.startedAt) : null,
+                                completedAt: step.completedAt ? new Date(step.completedAt) : null,
+                            },
+                            select: { id: true },
+                        })
+                        if (step.id) {
+                            stepIdMap[step.id] = created.id
+                        }
+                    }
                 }
 
-                // Track old client step ID → new DB step ID for parentStepIds mapping
-                const oldToNewStepId = new Map<string, string>()
+                // Build old→new step ID map from stepIdMap
+                const oldToNewStepId = new Map(Object.entries(stepIdMap))
+
+                // Batch-create step materials and allocations
+                const stepMaterialRows: { stepId: string; bomItemId: string }[] = []
+                const allocationRows: { stepId: string; stationId: string; quantity: number; notes: string | null }[] = []
 
                 for (const step of steps) {
-                    const createdStep = await tx.productionBOMStep.create({
-                        data: {
-                            bomId: id,
-                            stationId: step.stationId,
-                            sequence: step.sequence,
-                            durationMinutes: step.durationMinutes || null,
-                            notes: step.notes || null,
-                            estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
-                            actualTimeTotal: step.actualTimeTotal ?? null,
-                            completedQty: step.completedQty ?? 0,
-                            startOffsetMinutes: step.startOffsetMinutes ?? 0,
-                            startedAt: step.startedAt ? new Date(step.startedAt) : null,
-                            completedAt: step.completedAt ? new Date(step.completedAt) : null,
-                        },
-                    })
+                    const newStepId = oldToNewStepId.get(step.id)
+                    if (!newStepId) continue
 
-                    // Map old → new step ID
-                    if (step.id) {
-                        oldToNewStepId.set(step.id, createdStep.id)
-                    }
-
-                    // Create step materials
-                    if (step.materialProductIds && step.materialProductIds.length > 0) {
+                    // Collect step materials — always use materialProductIds (product IDs)
+                    if (step.materialProductIds?.length > 0) {
                         for (const productId of step.materialProductIds) {
                             const bomItemId = materialIdToBomItemId.get(productId)
-                            if (bomItemId) {
-                                await tx.productionBOMStepMaterial.create({
-                                    data: { stepId: createdStep.id, bomItemId },
-                                })
-                            }
-                        }
-                    } else if (step.materialIds && step.materialIds.length > 0) {
-                        const validIds = new Set(currentItems.map((ci) => ci.id))
-                        for (const bomItemId of step.materialIds) {
-                            if (validIds.has(bomItemId)) {
-                                await tx.productionBOMStepMaterial.create({
-                                    data: { stepId: createdStep.id, bomItemId },
-                                })
-                            }
+                            if (bomItemId) stepMaterialRows.push({ stepId: newStepId, bomItemId })
                         }
                     }
 
-                    // Create allocations
-                    if (step.allocations && step.allocations.length > 0) {
+                    // Collect allocations
+                    if (step.allocations?.length > 0) {
                         for (const alloc of step.allocations) {
-                            await tx.productionBOMAllocation.create({
-                                data: {
-                                    stepId: createdStep.id,
-                                    stationId: alloc.stationId,
-                                    quantity: alloc.quantity,
-                                    notes: alloc.notes || null,
-                                },
+                            allocationRows.push({
+                                stepId: newStepId,
+                                stationId: alloc.stationId,
+                                quantity: alloc.quantity,
+                                notes: alloc.notes || null,
                             })
                         }
                     }
                 }
 
-                // Second pass: update parentStepIds with mapped new IDs
-                for (const step of steps) {
-                    if (step.parentStepIds && step.parentStepIds.length > 0) {
+                // Batch insert step materials + allocations in parallel
+                await Promise.all([
+                    stepMaterialRows.length > 0
+                        ? tx.productionBOMStepMaterial.createMany({ data: stepMaterialRows })
+                        : Promise.resolve(),
+                    allocationRows.length > 0
+                        ? tx.productionBOMAllocation.createMany({ data: allocationRows })
+                        : Promise.resolve(),
+                ])
+
+                // Update parentStepIds with mapped new IDs
+                const parentUpdates = steps
+                    .filter((s: any) => s.parentStepIds?.length > 0)
+                    .map((step: any) => {
                         const newStepId = oldToNewStepId.get(step.id)
-                        if (newStepId) {
-                            const mappedParentIds = step.parentStepIds
-                                .map((oldId: string) => oldToNewStepId.get(oldId))
-                                .filter(Boolean) as string[]
-                            if (mappedParentIds.length > 0) {
-                                await tx.productionBOMStep.update({
-                                    where: { id: newStepId },
-                                    data: { parentStepIds: mappedParentIds },
-                                })
-                            }
-                        }
-                    }
+                        if (!newStepId) return null
+                        const mappedParentIds = step.parentStepIds
+                            .map((oldId: string) => oldToNewStepId.get(oldId))
+                            .filter(Boolean) as string[]
+                        if (mappedParentIds.length === 0) return null
+                        return tx.productionBOMStep.update({
+                            where: { id: newStepId },
+                            data: { parentStepIds: mappedParentIds },
+                        })
+                    })
+                    .filter(Boolean)
+
+                if (parentUpdates.length > 0) {
+                    await Promise.all(parentUpdates)
                 }
             }
 
-            // Return updated BOM (same shape as GET)
-            return tx.productionBOM.findUnique({
-                where: { id },
-                include: {
-                    product: { select: { id: true, code: true, name: true, unit: true, sellingPrice: true, costPrice: true } },
-                    items: {
-                        include: {
-                            material: {
-                                select: { id: true, code: true, name: true, unit: true, costPrice: true },
-                            },
-                            stepMaterials: { select: { stepId: true } },
-                        },
-                    },
-                    steps: {
-                        include: {
-                            station: {
-                                select: {
-                                    id: true, code: true, name: true, stationType: true,
-                                    operationType: true, costPerUnit: true,
-                                    subcontractor: { select: { id: true, name: true } },
-                                },
-                            },
-                            materials: {
-                                include: {
-                                    bomItem: {
-                                        include: {
-                                            material: { select: { id: true, code: true, name: true, unit: true, costPrice: true } },
-                                        },
-                                    },
-                                },
-                            },
-                            allocations: {
-                                include: {
-                                    station: {
-                                        select: { id: true, code: true, name: true, operationType: true, subcontractor: { select: { name: true } } },
-                                    },
-                                },
-                            },
-                            attachments: true,
-                        },
-                        orderBy: { sequence: 'asc' },
-                    },
-                },
-            })
-        })
+            return { stepIdMap, itemIdMap }
+        }, { timeout: 15000 })
 
-        // Log edit history
-        try {
-            const stepCount = steps?.length || 0
-            const itemCount = items?.length || 0
-            await prisma.bOMEditLog.create({
-                data: {
-                    bomId: id,
-                    action: "SAVE",
-                    summary: `Menyimpan BOM: ${stepCount} proses, ${itemCount} material, target ${body.totalProductionQty || 0} pcs`,
-                }
-            })
-        } catch {
-            // Don't fail the save if logging fails
-        }
+        // Log edit history (outside transaction — non-blocking)
+        prisma.bOMEditLog.create({
+            data: {
+                bomId: id,
+                action: "SAVE",
+                summary: `Menyimpan BOM: ${steps?.length || 0} proses, ${items?.length || 0} material, target ${body.totalProductionQty || 0} pcs`,
+            }
+        }).catch(() => {})
 
-        return NextResponse.json({ success: true, data: result })
+        return NextResponse.json({ success: true, idMapping })
     } catch (error: any) {
         console.error('Error updating production BOM:', error)
         return NextResponse.json({ success: false, error: error?.message || 'Failed to update production BOM' }, { status: 500 })
@@ -309,7 +295,35 @@ export async function DELETE(
         }
         const { id } = await params
 
+        // H6: Collect attachment storage paths before cascade delete wipes the records
+        const attachments = await prisma.productionBOMAttachment.findMany({
+            where: { step: { bomId: id } },
+            select: { fileUrl: true },
+        })
+
+        // C3: Nullify WorkOrder references before delete (no cascade on WO → BOM)
+        await prisma.workOrder.updateMany({
+            where: { productionBomId: id },
+            data: { productionBomId: null, productionBomStepId: null },
+        })
+
         await prisma.productionBOM.delete({ where: { id } })
+
+        // H6: Clean up storage blobs (non-blocking, after DB delete succeeds)
+        if (attachments.length > 0) {
+            const paths = attachments
+                .map((a) => {
+                    try {
+                        const urlPath = new URL(a.fileUrl).pathname
+                        return urlPath.split('/documents/')[1]
+                    } catch { return null }
+                })
+                .filter(Boolean) as string[]
+            if (paths.length > 0) {
+                supabase.storage.from('documents').remove(paths).catch(() => {})
+            }
+        }
+
         return NextResponse.json({ success: true })
     } catch (error: any) {
         console.error('Error deleting production BOM:', error)

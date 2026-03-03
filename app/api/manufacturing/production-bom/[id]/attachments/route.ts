@@ -23,6 +23,14 @@ export async function POST(
             return NextResponse.json({ success: false, error: 'file and stepId are required' }, { status: 400 })
         }
 
+        // C4: Reject temp IDs (unsaved steps) — user must save BOM first
+        if (stepId.startsWith('step-') || stepId.startsWith('temp-')) {
+            return NextResponse.json({
+                success: false,
+                error: 'Simpan BOM terlebih dahulu sebelum upload lampiran',
+            }, { status: 400 })
+        }
+
         // Upload to Supabase Storage
         const fileName = `${Date.now()}-${file.name}`
         const filePath = `bom-attachments/${id}/${stepId}/${fileName}`

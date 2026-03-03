@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import {
     Plus, Search, RefreshCcw, Package, Layers, Cog,
-    ArrowRight, Scissors, Shirt, Droplets, ShieldCheck, ArchiveRestore, Loader2, Copy,
+    ArrowRight, Scissors, Shirt, Droplets, ShieldCheck, ArchiveRestore, Loader2, Copy, Trash2,
 } from "lucide-react"
 
 const formatCurrency = (val: number) =>
@@ -31,6 +31,7 @@ export function BOMListClient({ boms }: BOMListClientProps) {
     const [createOpen, setCreateOpen] = useState(false)
     const [migratingId, setMigratingId] = useState<string | null>(null)
     const [cloningId, setCloningId] = useState<string | null>(null)
+    const [deletingId, setDeletingId] = useState<string | null>(null)
 
     const handleCardClick = useCallback(async (bom: any, e: React.MouseEvent) => {
         // New production BOMs — navigate directly
@@ -83,6 +84,23 @@ export function BOMListClient({ boms }: BOMListClientProps) {
             setCloningId(null)
         }
     }, [router, queryClient])
+
+    const handleDelete = useCallback(async (bomId: string, productName: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!window.confirm(`Hapus BOM untuk "${productName}"?\n\nSPK yang sudah di-generate tidak akan dihapus, tapi linknya akan terputus.`)) return
+        setDeletingId(bomId)
+        try {
+            const res = await fetch(`/api/manufacturing/production-bom/${bomId}`, { method: 'DELETE' })
+            const data = await res.json()
+            if (!data.success) throw new Error(data.error || 'Gagal menghapus')
+            toast.success('BOM berhasil dihapus')
+            queryClient.invalidateQueries({ queryKey: queryKeys.productionBom.all })
+        } catch (err: any) {
+            toast.error(err.message || 'Gagal menghapus BOM')
+        } finally {
+            setDeletingId(null)
+        }
+    }, [queryClient])
 
     const filtered = useMemo(() => {
         if (!search) return boms
@@ -206,19 +224,32 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                             </div>
                                             <div className="flex items-center gap-2 shrink-0">
                                                 {!isLegacy && (
-                                                    <button
-                                                        onClick={(e) => handleClone(bom.id, e)}
-                                                        disabled={cloningId === bom.id}
-                                                        className="bg-white border-2 border-black text-[9px] font-black px-2 py-0.5 uppercase flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        title="Duplikat BOM"
-                                                    >
-                                                        {cloningId === bom.id ? (
-                                                            <Loader2 className="h-3 w-3 animate-spin" />
-                                                        ) : (
-                                                            <Copy className="h-3 w-3" />
-                                                        )}
-                                                        Duplikat
-                                                    </button>
+                                                    <>
+                                                        <button
+                                                            onClick={(e) => handleClone(bom.id, e)}
+                                                            disabled={cloningId === bom.id}
+                                                            className="bg-white border-2 border-black text-[9px] font-black px-2 py-0.5 uppercase flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title="Duplikat BOM"
+                                                        >
+                                                            {cloningId === bom.id ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                            ) : (
+                                                                <Copy className="h-3 w-3" />
+                                                            )}
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => handleDelete(bom.id, bom.product?.name || '', e)}
+                                                            disabled={deletingId === bom.id}
+                                                            className="bg-white border-2 border-red-400 text-red-500 text-[9px] font-black px-1.5 py-0.5 uppercase flex items-center shadow-[2px_2px_0px_0px_rgba(239,68,68,0.4)] hover:translate-y-[1px] hover:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            title="Hapus BOM"
+                                                        >
+                                                            {deletingId === bom.id ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="h-3 w-3" />
+                                                            )}
+                                                        </button>
+                                                    </>
                                                 )}
                                                 {isLegacy && (
                                                     <span className="bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 flex items-center gap-1">

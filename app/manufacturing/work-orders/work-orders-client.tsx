@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -100,6 +100,7 @@ interface Props {
 export function WorkOrdersClient({ initialOrders }: Props) {
     const queryClient = useQueryClient();
     const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialOrders);
+    useEffect(() => { setWorkOrders(initialOrders) }, [initialOrders])
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
