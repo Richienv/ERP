@@ -183,6 +183,7 @@ export async function PATCH(
                                 sequence: step.sequence,
                                 durationMinutes: step.durationMinutes || null,
                                 notes: step.notes || null,
+                                laborMonthlySalary: step.laborMonthlySalary ?? null,
                                 estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
                                 actualTimeTotal: step.actualTimeTotal ?? null,
                                 completedQty: step.completedQty ?? 0,
@@ -225,6 +226,7 @@ export async function PATCH(
                                 stepId: newStepId,
                                 stationId: alloc.stationId,
                                 quantity: alloc.quantity,
+                                pricePerPcs: alloc.pricePerPcs ?? null,
                                 notes: alloc.notes || null,
                             })
                         }
@@ -260,6 +262,49 @@ export async function PATCH(
 
                 if (parentUpdates.length > 0) {
                     await Promise.all(parentUpdates)
+                }
+            }
+
+            // Sync completedQty to linked work orders (B-008 fix)
+            // Re-link work orders to new step IDs and sync progress
+            if (steps) {
+                const workOrders = await tx.workOrder.findMany({
+                    where: { productionBomId: id },
+                    select: { id: true, productionBomStepId: true, status: true, plannedQty: true },
+                })
+                // Match work orders to new steps by sequence order
+                const newStepIds = Object.values(stepIdMap)
+                const newSteps = await tx.productionBOMStep.findMany({
+                    where: { id: { in: newStepIds } },
+                    select: { id: true, sequence: true, completedQty: true },
+                    orderBy: { sequence: 'asc' },
+                })
+
+                for (const wo of workOrders) {
+                    // Find matching step by sequence (work orders were created in sequence order)
+                    const matchedStep = newSteps.find(s => {
+                        // Try to match by the original step mapping
+                        return true // we'll update all WOs to re-link
+                    })
+                    if (newSteps.length > 0) {
+                        // Re-link to first unlinked step in sequence
+                        const stepForWO = newSteps.shift()
+                        if (stepForWO) {
+                            const completedQty = stepForWO.completedQty || 0
+                            const newStatus = completedQty >= wo.plannedQty ? 'COMPLETED'
+                                : completedQty > 0 ? 'IN_PROGRESS'
+                                : wo.status
+                            await tx.workOrder.update({
+                                where: { id: wo.id },
+                                data: {
+                                    productionBomStepId: stepForWO.id,
+                                    actualQty: completedQty,
+                                    ...(newStatus !== wo.status && { status: newStatus }),
+                                    ...(completedQty > 0 && !wo.status.includes('IN_PROGRESS') && { startDate: new Date() }),
+                                },
+                            })
+                        }
+                    }
                 }
             }
 

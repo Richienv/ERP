@@ -2,15 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { DocumentService } from '@/lib/services/document-service'
-import { formatRupiah } from '@/lib/utils'
-
-function resolveMaterialUnitCost(material: any): number {
-    const directCost = Number(material.costPrice || 0)
-    if (directCost > 0) return directCost
-    const preferred = material.supplierItems?.find((s: any) => s.isPreferred)?.price
-    if (preferred != null) return Number(preferred || 0)
-    return Number(material.supplierItems?.[0]?.price || 0)
-}
 
 // GET /api/documents/spk/[bomId] — Generate SPK PDF from Production BOM
 export async function GET(
@@ -33,10 +24,7 @@ export async function GET(
                 items: {
                     include: {
                         material: {
-                            select: {
-                                id: true, code: true, name: true, unit: true, costPrice: true,
-                                supplierItems: { select: { price: true, isPreferred: true } },
-                            },
+                            select: { id: true, code: true, name: true, unit: true },
                         },
                     },
                 },
@@ -80,26 +68,19 @@ export async function GET(
             PACKING: 'Packing', FINISHING: 'Finishing', OTHER: 'Lainnya',
         }
 
-        // Calculate costs
-        const totalMaterialCost = bom.items.reduce((sum, item) => {
-            const unitCost = resolveMaterialUnitCost(item.material)
-            const qty = Number(item.quantityPerUnit)
-            const waste = Number(item.wastePct || 0)
-            return sum + unitCost * qty * (1 + waste / 100)
-        }, 0)
-
-        const totalLaborCost = bom.steps.reduce((sum, step) => {
-            return sum + Number(step.station.costPerUnit || 0)
-        }, 0)
-
-        const costPerUnit = totalMaterialCost + totalLaborCost
-        const totalCost = costPerUnit * bom.totalProductionQty
+        // Calculate estimated time from canvas steps
+        const estTimeTotalMin = bom.steps.reduce((sum, step) => sum + (Number(step.durationMinutes) || 0), 0)
+        const estHours = Math.floor(estTimeTotalMin / 60)
+        const estMinutes = Math.round(estTimeTotalMin % 60)
+        const estTimeLabel = estTimeTotalMin > 0
+            ? `${estHours > 0 ? `${estHours} jam ` : ''}${estMinutes} menit`
+            : '-'
 
         const templateData = {
             spk_number: spkNumber,
             spk_date: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
             print_date: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            due_date: '-',
+            est_time: estTimeLabel,
             priority: 'NORMAL',
             company: {
                 name: 'PT PERUSAHAAN',
@@ -143,12 +124,6 @@ export async function GET(
                     })),
                 }
             }),
-            summary: {
-                material_cost_per_unit: formatRupiah(totalMaterialCost, false),
-                labor_cost_per_unit: formatRupiah(totalLaborCost, false),
-                cost_per_unit: formatRupiah(costPerUnit, false),
-                total_cost: formatRupiah(totalCost, false),
-            },
         }
 
         const pdfBuffer = await DocumentService.generatePDF('spk', templateData)

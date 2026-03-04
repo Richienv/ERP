@@ -109,7 +109,7 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                 </p>
                 {data.durationMinutes && (
                     <span className="text-[9px] font-bold text-blue-500 flex items-center gap-0.5">
-                        <Clock className="h-3 w-3" /> {data.durationMinutes}m
+                        <Clock className="h-3 w-3" /> {data.durationMinutes}m/pcs
                     </span>
                 )}
             </div>

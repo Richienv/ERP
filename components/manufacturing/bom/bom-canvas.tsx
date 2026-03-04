@@ -24,6 +24,7 @@ interface BOMCanvasProps {
     onNodeContextMenu?: (stepId: string, pos: { clientX: number; clientY: number }) => void
     onAddParallel?: (stepId: string) => void
     onAddSequential?: (stepId: string) => void
+    onNodePositionChange?: (stepId: string, x: number, y: number) => void
 }
 
 const nodeTypes = { station: StationNode }
@@ -89,15 +90,23 @@ function layoutNodes(steps: any[]): Map<string, { x: number; y: number }> {
 export function BOMCanvas({
     steps, items, totalProductionQty, onStepSelect, onDropMaterial, onRemoveMaterial,
     onRemoveStep, selectedStepId, onConnectSteps, onDisconnectSteps, onNodeContextMenu,
-    onAddParallel, onAddSequential,
+    onAddParallel, onAddSequential, onNodePositionChange,
 }: BOMCanvasProps) {
     const buildNodes = useCallback((): Node[] => {
-        const positions = layoutNodes(steps)
+        const layoutPositions = layoutNodes(steps)
 
-        return steps.map((step, index) => ({
+        return steps.map((step, index) => {
+            // Use saved position if available, otherwise use layout algorithm
+            const hasSavedPosition = step.positionX != null && step.positionY != null
+            const layoutPos = layoutPositions.get(step.id) || { x: 80 + index * 300, y: 100 }
+            const position = hasSavedPosition
+                ? { x: step.positionX, y: step.positionY }
+                : layoutPos
+
+            return {
             id: step.id,
             type: "station" as const,
-            position: positions.get(step.id) || { x: 80 + index * 300, y: 100 },
+            position,
             data: {
                 station: step.station,
                 sequence: step.sequence,
@@ -123,7 +132,7 @@ export function BOMCanvas({
                 onAddParallel: onAddParallel ? () => onAddParallel(step.id) : undefined,
                 onAddSequential: onAddSequential ? () => onAddSequential(step.id) : undefined,
             } satisfies StationNodeData,
-        }))
+        }})
     }, [steps, items, selectedStepId, onRemoveMaterial, onDropMaterial, onRemoveStep, onNodeContextMenu, onAddParallel, onAddSequential])
 
     const buildEdges = useCallback((): Edge[] => {
@@ -157,6 +166,12 @@ export function BOMCanvas({
     const onNodeClick = useCallback((_: any, node: Node) => {
         onStepSelect(node.id)
     }, [onStepSelect])
+
+    const onNodeDragStop = useCallback((_: any, node: Node) => {
+        if (onNodePositionChange) {
+            onNodePositionChange(node.id, node.position.x, node.position.y)
+        }
+    }, [onNodePositionChange])
 
     const onPaneClick = useCallback(() => {
         onStepSelect(null)
@@ -211,6 +226,7 @@ export function BOMCanvas({
                 onNodesChange={onNodesChange}
                 onEdgesChange={onEdgesChange}
                 onNodeClick={onNodeClick}
+                onNodeDragStop={onNodeDragStop}
                 onPaneClick={onPaneClick}
                 onConnect={handleConnect}
                 onEdgesDelete={handleEdgesDelete}

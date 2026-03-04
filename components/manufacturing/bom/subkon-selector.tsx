@@ -14,6 +14,7 @@ import { Search, Plus, Star, Clock, Package, X } from "lucide-react"
 interface Allocation {
     stationId: string
     quantity: number
+    pricePerPcs: number
     notes: string
 }
 
@@ -46,11 +47,17 @@ export function SubkonSelector({ stationType, allocations, totalQty, onChange }:
 
     const addAllocation = (stationId: string) => {
         if (allocations.some(a => a.stationId === stationId)) return
-        onChange([...allocations, { stationId, quantity: 0, notes: "" }])
+        const station = subkonStations.find((s: any) => s.id === stationId)
+        const defaultPrice = Number(station?.costPerUnit || 0)
+        onChange([...allocations, { stationId, quantity: 0, pricePerPcs: defaultPrice, notes: "" }])
     }
 
     const updateQty = (stationId: string, qty: number) => {
         onChange(allocations.map(a => a.stationId === stationId ? { ...a, quantity: qty } : a))
+    }
+
+    const updatePrice = (stationId: string, price: number) => {
+        onChange(allocations.map(a => a.stationId === stationId ? { ...a, pricePerPcs: price } : a))
     }
 
     const removeAllocation = (stationId: string) => {
@@ -156,26 +163,55 @@ export function SubkonSelector({ stationType, allocations, totalQty, onChange }:
                     </div>
                     {allocations.map((alloc) => {
                         const info = getStationInfo(alloc.stationId)
+                        const subtotal = (alloc.pricePerPcs || 0) * (alloc.quantity || 0)
                         return (
-                            <div key={alloc.stationId} className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold truncate flex-1">
-                                    {info?.subcontractor?.name || info?.name || "—"}
-                                </span>
-                                <Input
-                                    type="number"
-                                    value={alloc.quantity}
-                                    onChange={(e) => updateQty(alloc.stationId, parseInt(e.target.value) || 0)}
-                                    className="h-6 w-16 text-[10px] font-mono border-zinc-200 rounded-none"
-                                />
-                                <span className="text-[9px] text-zinc-400">pcs</span>
-                                <button onClick={() => removeAllocation(alloc.stationId)}>
-                                    <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
-                                </button>
+                            <div key={alloc.stationId} className="space-y-1 pb-1.5 border-b border-zinc-100 last:border-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-bold truncate flex-1">
+                                        {info?.subcontractor?.name || info?.name || "—"}
+                                    </span>
+                                    <button onClick={() => removeAllocation(alloc.stationId)}>
+                                        <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
+                                    </button>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="number"
+                                        value={alloc.quantity}
+                                        onChange={(e) => updateQty(alloc.stationId, parseInt(e.target.value) || 0)}
+                                        className="h-6 w-16 text-[10px] font-mono border-zinc-200 rounded-none"
+                                    />
+                                    <span className="text-[9px] text-zinc-400 shrink-0">pcs</span>
+                                    <span className="text-[9px] text-zinc-300">×</span>
+                                    <span className="text-[9px] text-zinc-400 shrink-0">Rp</span>
+                                    <Input
+                                        type="number"
+                                        value={alloc.pricePerPcs || ""}
+                                        onChange={(e) => updatePrice(alloc.stationId, parseFloat(e.target.value) || 0)}
+                                        className="h-6 w-20 text-[10px] font-mono border-zinc-200 rounded-none"
+                                        placeholder="harga/pcs"
+                                    />
+                                    {subtotal > 0 && (
+                                        <span className="text-[9px] font-bold text-emerald-700 shrink-0">
+                                            = {formatCurrency(subtotal)}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         )
                     })}
                 </div>
             )}
+
+            {allocations.length > 0 && (() => {
+                const totalSubkonCost = allocations.reduce((sum, a) => sum + (a.pricePerPcs || 0) * (a.quantity || 0), 0)
+                return totalSubkonCost > 0 ? (
+                    <div className="border-t-2 border-amber-300 pt-1.5 flex justify-between items-center">
+                        <span className="text-[9px] font-black uppercase text-zinc-400">Total Biaya Subkon</span>
+                        <span className="text-xs font-black text-amber-700">{formatCurrency(totalSubkonCost)}</span>
+                    </div>
+                ) : null
+            })()}
 
             <CreateStationDialog
                 open={createOpen}

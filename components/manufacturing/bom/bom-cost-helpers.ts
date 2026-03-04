@@ -41,11 +41,33 @@ export function calcStepMaterialCost(
     return total * targetQty
 }
 
+/**
+ * Labour cost per pcs based on monthly salary + duration per piece.
+ * Formula: gaji_bulanan / (172 / (durasi_menit / 60))
+ *        = gaji_bulanan * durasi_menit / 10320
+ * 172 = standard Indonesian working hours per month (26 hari kerja × ~6.6 jam)
+ */
+export const WORKING_HOURS_PER_MONTH = 172
+
+export function calcLaborCostPerPcs(
+    laborMonthlySalary: number | string | null | undefined,
+    durationMinutes: number | null | undefined,
+): number {
+    const salary = Number(laborMonthlySalary || 0)
+    const duration = Number(durationMinutes || 0)
+    if (salary <= 0 || duration <= 0) return 0
+    return salary * duration / (WORKING_HOURS_PER_MONTH * 60)
+}
+
 /** Calculate total labor/station cost for a step */
 export function calcStepLaborCost(
-    step: { station?: { costPerUnit?: number | string } },
+    step: { station?: { costPerUnit?: number | string }; laborMonthlySalary?: number | string | null; durationMinutes?: number | null },
     targetQty: number,
 ): number {
+    // If step has monthly salary + duration, use calculated per-pcs cost
+    const calculatedCost = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes)
+    if (calculatedCost > 0) return calculatedCost * targetQty
+    // Fallback to static station costPerUnit
     return Number(step.station?.costPerUnit || 0) * targetQty
 }
 
@@ -63,12 +85,13 @@ export function calcTotalMaterialCost(
 
 /** Calculate grand total labor cost across all steps */
 export function calcTotalLaborCost(
-    steps: { station?: { costPerUnit?: number | string } }[],
+    steps: { station?: { costPerUnit?: number | string }; laborMonthlySalary?: number | string | null; durationMinutes?: number | null }[],
     targetQty: number,
 ): number {
     let total = 0
     for (const step of steps) {
-        total += Number(step.station?.costPerUnit || 0)
+        const calculated = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes)
+        total += calculated > 0 ? calculated : Number(step.station?.costPerUnit || 0)
     }
     return total * targetQty
 }

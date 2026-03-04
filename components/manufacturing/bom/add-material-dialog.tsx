@@ -83,16 +83,30 @@ export function AddMaterialDialog({ open, onOpenChange, existingMaterialIds, onA
                             </div>
                         ) : (
                             <div className="divide-y">
-                                {filtered.map((p) => (
-                                    <button
-                                        key={p.id}
-                                        onClick={() => setSelected(p)}
-                                        className={`w-full text-left px-3 py-2 hover:bg-zinc-50 transition-colors ${selected?.id === p.id ? "bg-orange-50 border-l-4 border-l-orange-500" : ""}`}
-                                    >
-                                        <p className="text-xs font-bold">{p.name}</p>
-                                        <p className="text-[10px] text-zinc-400 font-mono">{p.code} · {p.unit}</p>
-                                    </button>
-                                ))}
+                                {filtered.map((p) => {
+                                    const stock = p.totalStock ?? p.stockLevels?.reduce((s: number, l: any) => s + (l.quantity || 0), 0) ?? null
+                                    return (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => setSelected(p)}
+                                            className={`w-full text-left px-3 py-2 hover:bg-zinc-50 transition-colors ${selected?.id === p.id ? "bg-orange-50 border-l-4 border-l-orange-500" : ""}`}
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-xs font-bold truncate">{p.name}</p>
+                                                    <p className="text-[10px] text-zinc-400 font-mono">{p.code} · {p.unit}</p>
+                                                </div>
+                                                {stock != null && (
+                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 shrink-0 ${
+                                                        stock > 0 ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"
+                                                    }`}>
+                                                        Stok: {Number(stock).toLocaleString("id-ID")}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    )
+                                })}
                             </div>
                         )}
                     </ScrollArea>

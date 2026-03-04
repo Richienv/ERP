@@ -2736,7 +2736,12 @@ model ProductionBOMStep {
   notes           String?
   parentStepIds      String[]  @default([])  // IDs of parent steps (DAG edges)
   startOffsetMinutes Int       @default(0)   // manual start time in minutes (free-position on timeline)
+  positionX          Float?                 // Canvas node X position (persisted)
+  positionY          Float?                 // Canvas node Y position (persisted)
   useSubkon          Boolean?               // per-step override: true=subkon, false=in-house, null=use station default
+
+  // Labour cost calculation
+  laborMonthlySalary    Decimal?  @db.Decimal(12, 2) // Gaji bulanan operator (IDR) for labour cost calc
 
   // Time tracking & production progress
   estimatedTimePerUnit  Decimal?  @db.Decimal(8, 2)  // minutes per unit
@@ -2771,8 +2776,9 @@ model ProductionBOMAllocation {
   step      ProductionBOMStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
   stationId String            @db.Uuid
   station   ProcessStation    @relation(fields: [stationId], references: [id])
-  quantity  Int
-  notes     String?
+  quantity    Int
+  pricePerPcs Decimal?  @db.Decimal(12, 2) // Harga subkon per pcs
+  notes       String?
 
   @@map("production_bom_allocations")
 }

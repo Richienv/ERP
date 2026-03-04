@@ -38,7 +38,6 @@ const STATION_TYPE_CONFIG = [
     { type: "QC", label: "QC", icon: ShieldCheck, color: "bg-green-50 text-green-600 border-green-200 hover:bg-green-100" },
     { type: "PACKING", label: "Packing", icon: PackageIcon, color: "bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100" },
     { type: "FINISHING", label: "Finishing", icon: Wrench, color: "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100" },
-    { type: "OTHER", label: "Lainnya", icon: Cog, color: "bg-zinc-50 text-zinc-600 border-zinc-200 hover:bg-zinc-100" },
 ] as const
 
 const PROCESS_TEMPLATES = [
@@ -119,11 +118,25 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const estTimeLabel = estTimeTotalMin > 0
             ? `${estTimeHours > 0 ? `${estTimeHours} jam ` : ""}${estTimeMinutes} menit`
             : null
-        // Progress
-        const totalCompleted = steps.reduce((sum, s) => sum + (s.completedQty || 0), 0)
-        const maxPossible = steps.length * totalQty
-        const progressPct = maxPossible > 0 ? Math.round((totalCompleted / maxPossible) * 100) : 0
-        return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration, estTimeLabel, progressPct, totalCompleted, maxPossible }
+        // Progress — per action type, not per box
+        // Group steps by stationType, sum completedQty per group, average across action types
+        const actionGroups: Record<string, any[]> = {}
+        for (const s of steps) {
+            const type = s.station?.stationType || "OTHER"
+            if (!actionGroups[type]) actionGroups[type] = []
+            actionGroups[type].push(s)
+        }
+        const actionTypes = Object.keys(actionGroups)
+        let progressPct = 0
+        if (actionTypes.length > 0 && totalQty > 0) {
+            let totalActionProgress = 0
+            for (const type of actionTypes) {
+                const groupCompleted = actionGroups[type].reduce((sum: number, s: any) => sum + (s.completedQty || 0), 0)
+                totalActionProgress += Math.min(1, groupCompleted / totalQty)
+            }
+            progressPct = Math.round((totalActionProgress / actionTypes.length) * 100)
+        }
+        return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration, estTimeLabel, progressPct }
     }, [steps, items, totalQty])
 
     // --- SPK READINESS CHECK ---
@@ -139,14 +152,19 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (emptySteps.length > 0) {
             issues.push(`${emptySteps.length} proses belum ada material: ${emptySteps.map(s => s.station?.name || `Step ${s.sequence}`).join(', ')}`)
         }
+        // Duration required for all steps
+        const noDurationSteps = steps.filter(s => !s.durationMinutes || s.durationMinutes <= 0)
+        if (noDurationSteps.length > 0) {
+            issues.push(`${noDurationSteps.length} proses belum ada durasi: ${noDurationSteps.map(s => s.station?.name || `Step ${s.sequence}`).join(', ')}`)
+        }
         const subkonSteps = steps.filter(s => (s.useSubkon ?? s.station?.operationType === 'SUBCONTRACTOR'))
         for (const s of subkonSteps) {
-            const allocTotal = (s.allocations || []).reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
-            if (allocTotal !== totalQty && allocTotal > 0) {
-                issues.push(`Alokasi ${s.station?.name}: ${allocTotal}/${totalQty} pcs`)
-            }
-            if ((s.allocations || []).length === 0) {
-                issues.push(`${s.station?.name} belum ada alokasi subkon`)
+            const allocs = s.allocations || []
+            const allocTotal = allocs.reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
+            if (allocs.length === 0) {
+                issues.push(`${s.station?.name}: belum ada alokasi subkon`)
+            } else if (allocTotal !== totalQty) {
+                issues.push(`${s.station?.name}: alokasi ${allocTotal}/${totalQty} pcs (kurang ${totalQty - allocTotal})`)
             }
         }
         return { ready: issues.length === 0, issues }
@@ -195,8 +213,10 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     // Quick-add station by type: finds existing station or auto-creates one
     const [creatingStationType, setCreatingStationType] = useState<string | null>(null)
     const handleQuickAddByType = useCallback(async (stationType: string) => {
-        // Find an existing station of this type
-        const existing = (allStations || []).find((s: any) => s.stationType === stationType)
+        // Find an existing IN_HOUSE station of this type (skip subkon stations)
+        const existing = (allStations || []).find((s: any) =>
+            s.stationType === stationType && s.operationType !== "SUBCONTRACTOR" && s.isActive !== false
+        )
         if (existing) {
             handleAddStationToCanvas(existing.id)
             return
@@ -258,7 +278,9 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         try {
             const newStations: any[] = []
             for (const stationType of types) {
-                let station = (allStations || []).find((s: any) => s.stationType === stationType)
+                let station = (allStations || []).find((s: any) =>
+                    s.stationType === stationType && s.operationType !== "SUBCONTRACTOR" && s.isActive !== false
+                )
                 if (!station) {
                     const config = STATION_TYPE_CONFIG.find((c) => c.type === stationType)
                     const label = config?.label || stationType
@@ -345,6 +367,13 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (!selectedStepId) return
         dirtySetSteps((prev) => prev.map((step) =>
             step.id === selectedStepId ? { ...step, [field]: value } : step
+        ))
+    }, [selectedStepId])
+
+    const handleChangeStation = useCallback((stationId: string, station: any) => {
+        if (!selectedStepId) return
+        dirtySetSteps((prev) => prev.map((step) =>
+            step.id === selectedStepId ? { ...step, stationId, station } : step
         ))
     }, [selectedStepId])
 
@@ -457,6 +486,13 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         })
         toast.success("Proses berikutnya ditambahkan — ganti stasiun di panel detail")
     }, [steps])
+
+    // --- CANVAS POSITION HANDLER ---
+    const handleNodePositionChange = useCallback((stepId: string, x: number, y: number) => {
+        dirtySetSteps(prev => prev.map(s =>
+            s.id === stepId ? { ...s, positionX: x, positionY: y } : s
+        ))
+    }, [])
 
     // --- TIMELINE DRAG HANDLERS ---
     // Move block on timeline: sets startOffsetMinutes + lane without destroying DAG edges
@@ -571,6 +607,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 parentStepIds: step.parentStepIds || [],
                 startOffsetMinutes: step.startOffsetMinutes ?? 0,
                 useSubkon: step.useSubkon ?? null,
+                laborMonthlySalary: step.laborMonthlySalary ?? null,
                 estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
                 actualTimeTotal: step.actualTimeTotal ?? null,
                 completedQty: step.completedQty ?? 0,
@@ -583,6 +620,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 allocations: (step.allocations || []).map((a: any) => ({
                     stationId: a.stationId || a.station?.id,
                     quantity: a.quantity,
+                    pricePerPcs: a.pricePerPcs ?? null,
                     notes: a.notes || null,
                 })),
             })),
@@ -878,7 +916,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
                     <span className="text-[9px] font-black uppercase text-zinc-400">Estimasi:</span>
                     <span className="text-xs font-bold text-blue-600">
-                        {costSummary.totalDuration > 0 ? `${costSummary.totalDuration} min` : "—"}
+                        {costSummary.totalDuration > 0 ? `${costSummary.totalDuration} min/pcs` : "—"}
                     </span>
                 </div>
                 {costSummary.estTimeLabel && (
@@ -950,7 +988,6 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                             selectedStepId={selectedStepId}
                             onStepSelect={setSelectedStepId}
                             onMoveStep={handleMoveStep}
-                            onUpdateDuration={handleUpdateDuration}
                         />
                     )}
 
@@ -960,7 +997,9 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                             step={selectedStep}
                             totalQty={totalQty}
                             allItems={items}
+                            allStations={allStations || []}
                             onUpdateStep={handleUpdateStep}
+                            onChangeStation={handleChangeStation}
                             onUpdateAllocations={handleUpdateAllocations}
                             onUploadAttachment={handleUploadAttachment}
                             onDeleteAttachment={handleDeleteAttachment}

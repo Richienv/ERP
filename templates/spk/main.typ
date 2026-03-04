@@ -93,7 +93,7 @@
   [Versi BOM], [: #get-field(data, "bom_version")],
   [Target Produksi], [: *#get-field(data, "total_qty") pcs*],
   [Tanggal SPK], [: #get-field(data, "spk_date")],
-  [Batas Waktu], [: #get-field(data, "due_date", default: "-")],
+  [Estimasi Waktu], [: *#get-field(data, "est_time", default: "-")*],
   [Prioritas], [: #get-field(data, "priority", default: "NORMAL")],
 )
 
@@ -205,31 +205,11 @@
 #v(0.4cm)
 
 // ============================================
-// RINGKASAN BIAYA
-// ============================================
-#text(11pt, weight: "bold")[4. Ringkasan Biaya]
-#v(0.2cm)
-
-#let summary = get-field(data, "summary", default: (:))
-#table(
-  columns: (1fr, auto),
-  stroke: 0.5pt + black,
-  inset: 8pt,
-  fill: (x, y) => if y >= 2 { luma(240) },
-  [Biaya Material per Unit], [#get-field(summary, "material_cost_per_unit", default: "Rp 0")],
-  [Biaya Proses per Unit], [#get-field(summary, "labor_cost_per_unit", default: "Rp 0")],
-  [*Total HPP per Unit*], [*#get-field(summary, "cost_per_unit", default: "Rp 0")*],
-  [*Total Biaya Produksi (#get-field(data, "total_qty") pcs)*], [*#get-field(summary, "total_cost", default: "Rp 0")*],
-)
-
-#v(0.4cm)
-
-// ============================================
 // CATATAN
 // ============================================
 #let notes = get-field(data, "notes", default: "")
 #if notes != "" [
-  #text(11pt, weight: "bold")[5. Catatan]
+  #text(11pt, weight: "bold")[4. Catatan]
   #v(0.2cm)
   #block(
     width: 100%,

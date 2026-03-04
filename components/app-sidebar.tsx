@@ -215,32 +215,20 @@ const data = {
           url: "/manufacturing",
         },
         {
-          title: "Pusat Kerja (Mesin)",
+          title: "Stasiun",
           url: "/manufacturing/work-centers",
         },
         {
-          title: "Grup Pusat Kerja",
-          url: "/manufacturing/groups",
+          title: "Proses",
+          url: "/manufacturing/processes",
         },
         {
           title: "Bill of Materials (BoM)",
           url: "/manufacturing/bom",
         },
         {
-          title: "Routing Proses",
-          url: "/manufacturing/routing",
-        },
-        {
           title: "Perencanaan (MPS)",
           url: "/manufacturing/planning",
-        },
-        {
-          title: "Jadwal Produksi",
-          url: "/manufacturing/schedule",
-        },
-        {
-          title: "Order Produksi (MO)",
-          url: "/manufacturing/orders",
         },
         {
           title: "Perintah Kerja (SPK)",
