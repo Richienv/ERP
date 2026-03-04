@@ -1981,6 +1981,9 @@ model GLAccount {
 
   lines               JournalLine[]
   bankReconciliations BankReconciliation[]
+  pettyCashBankTxns     PettyCashTransaction[] @relation("PettyCashBank")
+  pettyCashExpenseTxns  PettyCashTransaction[] @relation("PettyCashExpense")
+  budgetLines           BudgetLine[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2015,6 +2018,7 @@ model JournalEntry {
   salesOrder           SalesOrder?           @relation(fields: [salesOrderId], references: [id])
   purchaseOrder        PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id])
   inventoryTransaction InventoryTransaction? @relation(fields: [inventoryTransactionId], references: [id])
+  pettyCashTransaction  PettyCashTransaction?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2808,4 +2812,59 @@ model BOMEditLog {
 
   @@index([bomId])
   @@map("bom_edit_logs")
+}
+
+enum PettyCashType {
+  TOPUP
+  DISBURSEMENT
+}
+
+model PettyCashTransaction {
+  id               String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date             DateTime       @default(now())
+  type             PettyCashType
+  amount           Decimal        @db.Decimal(15, 2)
+  recipientName    String?
+  description      String
+  bankAccountId    String?        @db.Uuid
+  bankAccount      GLAccount?     @relation("PettyCashBank", fields: [bankAccountId], references: [id])
+  expenseAccountId String?        @db.Uuid
+  expenseAccount   GLAccount?     @relation("PettyCashExpense", fields: [expenseAccountId], references: [id])
+  journalEntryId   String?        @unique @db.Uuid
+  journalEntry     JournalEntry?  @relation(fields: [journalEntryId], references: [id])
+  balanceAfter     Decimal        @db.Decimal(15, 2)
+  createdAt        DateTime       @default(now())
+
+  @@map("petty_cash_transactions")
+}
+
+// ================================
+// Budget Module
+// ================================
+
+model Budget {
+  id          String       @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String                               // e.g. "Anggaran 2026"
+  year        Int
+  description String?
+  isActive    Boolean      @default(true)
+  lines       BudgetLine[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([year])
+  @@map("budgets")
+}
+
+model BudgetLine {
+  id          String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  budgetId    String    @db.Uuid
+  budget      Budget    @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  accountId   String    @db.Uuid
+  account     GLAccount @relation(fields: [accountId], references: [id])
+  month       Int                                  // 1-12
+  amount      Decimal   @db.Decimal(15, 2)
+
+  @@unique([budgetId, accountId, month])
+  @@map("budget_lines")
 }

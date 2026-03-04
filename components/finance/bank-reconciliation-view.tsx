@@ -41,6 +41,34 @@ import type {
 import { createBankAccount } from "@/lib/actions/finance-reconciliation"
 
 // ==============================================================================
+// Indonesian Banks
+// ==============================================================================
+
+const INDONESIAN_BANKS = [
+    "Bank BCA",
+    "Bank Mandiri",
+    "Bank BNI",
+    "Bank BRI",
+    "Bank CIMB Niaga",
+    "Bank Danamon",
+    "Bank Permata",
+    "Bank OCBC NISP",
+    "Bank Mega",
+    "Bank BTN",
+    "Bank Panin",
+    "Bank Maybank Indonesia",
+    "Bank Sinarmas",
+    "Bank BTPN",
+    "Bank DBS Indonesia",
+    "Bank UOB Indonesia",
+    "Bank Jago",
+    "Bank Digital BCA (Blu)",
+    "Bank Syariah Indonesia (BSI)",
+    "Bank Muamalat",
+    "Jenius (Bank BTPN)",
+]
+
+// ==============================================================================
 // Types
 // ==============================================================================
 
@@ -128,6 +156,7 @@ export function BankReconciliationView({
     const [newBankCode, setNewBankCode] = useState("")
     const [newBankName, setNewBankName] = useState("")
     const [newBankBalance, setNewBankBalance] = useState("")
+    const [newBankDesc, setNewBankDesc] = useState("")
     const [addingBank, setAddingBank] = useState(false)
 
     const formatIDR = (n: number) => n.toLocaleString('id-ID')
@@ -233,15 +262,8 @@ export function BankReconciliationView({
                     <Landmark className="h-5 w-5" />
                     <h2 className="text-sm font-black uppercase tracking-widest">Rekonsiliasi Bank</h2>
                 </div>
-                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                    <DialogTrigger asChild>
-                        <Button className={NB.triggerBtn}>
-                            <Plus className="h-4 w-4 mr-1" /> Rekonsiliasi Baru
-                        </Button>
-                    </DialogTrigger>
-
-                    {/* Add Bank Button */}
-                    <Dialog open={addBankOpen} onOpenChange={setAddBankOpen}>
+                <div className="flex items-center gap-2">
+                <Dialog open={addBankOpen} onOpenChange={setAddBankOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9 px-3 rounded-none">
                                 <Landmark className="h-3.5 w-3.5 mr-1" /> Tambah Bank
@@ -260,7 +282,20 @@ export function BankReconciliationView({
                                 </div>
                                 <div>
                                     <label className={NB.label}>Nama Bank <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.input} placeholder="e.g. Bank BCA — Operasional" value={newBankName} onChange={(e) => setNewBankName(e.target.value)} />
+                                    <Select value={newBankName} onValueChange={setNewBankName}>
+                                        <SelectTrigger className={NB.select}>
+                                            <SelectValue placeholder="Pilih bank..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {INDONESIAN_BANKS.map((bank) => (
+                                                <SelectItem key={bank} value={bank}>{bank}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div>
+                                    <label className={NB.label}>Keterangan (opsional)</label>
+                                    <Input className={NB.input} placeholder="e.g. Operasional, Gaji, Tabungan..." value={newBankDesc} onChange={(e) => setNewBankDesc(e.target.value)} />
                                 </div>
                                 <div>
                                     <label className={NB.label}>Saldo Awal (Rp)</label>
@@ -275,9 +310,12 @@ export function BankReconciliationView({
                                         }
                                         setAddingBank(true)
                                         try {
+                                            const fullName = newBankDesc.trim()
+                                                ? `${newBankName} — ${newBankDesc.trim()}`
+                                                : newBankName
                                             const result = await createBankAccount({
                                                 code: newBankCode.trim(),
-                                                name: newBankName.trim(),
+                                                name: fullName,
                                                 initialBalance: Number(newBankBalance) || 0,
                                             })
                                             if (result.success) {
@@ -285,6 +323,7 @@ export function BankReconciliationView({
                                                 setAddBankOpen(false)
                                                 setNewBankCode("")
                                                 setNewBankName("")
+                                                setNewBankDesc("")
                                                 setNewBankBalance("")
                                                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
                                             } else {
@@ -302,51 +341,58 @@ export function BankReconciliationView({
                             </div>
                         </DialogContent>
                     </Dialog>
-                    <DialogContent className={NB.contentNarrow}>
-                        <DialogHeader className={NB.header}>
-                            <DialogTitle className={NB.title}>
-                                <Landmark className="h-5 w-5" /> Rekonsiliasi Baru
-                            </DialogTitle>
-                        </DialogHeader>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className={NB.label}>Akun Bank <span className={NB.labelRequired}>*</span></label>
-                                <Select value={newAccountId} onValueChange={setNewAccountId}>
-                                    <SelectTrigger className={NB.select}>
-                                        <SelectValue placeholder="Pilih akun bank" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {bankAccounts.map((a) => (
-                                            <SelectItem key={a.id} value={a.id}>
-                                                {a.code} — {a.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <label className={NB.label}>Tanggal Statement <span className={NB.labelRequired}>*</span></label>
-                                <Input className={NB.input} type="date" value={newStatementDate} onChange={(e) => setNewStatementDate(e.target.value)} />
-                            </div>
-                            <div className="grid grid-cols-2 gap-3">
+                    <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                        <DialogTrigger asChild>
+                            <Button className={NB.triggerBtn}>
+                                <Plus className="h-4 w-4 mr-1" /> Rekonsiliasi Baru
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className={NB.contentNarrow}>
+                            <DialogHeader className={NB.header}>
+                                <DialogTitle className={NB.title}>
+                                    <Landmark className="h-5 w-5" /> Rekonsiliasi Baru
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="p-6 space-y-4">
                                 <div>
-                                    <label className={NB.label}>Periode Awal <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.input} type="date" value={newPeriodStart} onChange={(e) => setNewPeriodStart(e.target.value)} />
+                                    <label className={NB.label}>Akun Bank <span className={NB.labelRequired}>*</span></label>
+                                    <Select value={newAccountId} onValueChange={setNewAccountId}>
+                                        <SelectTrigger className={NB.select}>
+                                            <SelectValue placeholder="Pilih akun bank" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {bankAccounts.map((a) => (
+                                                <SelectItem key={a.id} value={a.id}>
+                                                    {a.code} — {a.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                                 </div>
                                 <div>
-                                    <label className={NB.label}>Periode Akhir <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.input} type="date" value={newPeriodEnd} onChange={(e) => setNewPeriodEnd(e.target.value)} />
+                                    <label className={NB.label}>Tanggal Statement <span className={NB.labelRequired}>*</span></label>
+                                    <Input className={NB.input} type="date" value={newStatementDate} onChange={(e) => setNewStatementDate(e.target.value)} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className={NB.label}>Periode Awal <span className={NB.labelRequired}>*</span></label>
+                                        <Input className={NB.input} type="date" value={newPeriodStart} onChange={(e) => setNewPeriodStart(e.target.value)} />
+                                    </div>
+                                    <div>
+                                        <label className={NB.label}>Periode Akhir <span className={NB.labelRequired}>*</span></label>
+                                        <Input className={NB.input} type="date" value={newPeriodEnd} onChange={(e) => setNewPeriodEnd(e.target.value)} />
+                                    </div>
+                                </div>
+                                <div className={NB.footer}>
+                                    <Button variant="outline" className={NB.cancelBtn} onClick={() => setCreateOpen(false)}>Batal</Button>
+                                    <Button className={NB.submitBtn} disabled={loading} onClick={handleCreate}>
+                                        {loading ? 'Membuat...' : 'Buat Rekonsiliasi'}
+                                    </Button>
                                 </div>
                             </div>
-                            <div className={NB.footer}>
-                                <Button variant="outline" className={NB.cancelBtn} onClick={() => setCreateOpen(false)}>Batal</Button>
-                                <Button className={NB.submitBtn} disabled={loading} onClick={handleCreate}>
-                                    {loading ? 'Membuat...' : 'Buat Rekonsiliasi'}
-                                </Button>
-                            </div>
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">

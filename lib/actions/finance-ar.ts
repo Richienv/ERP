@@ -513,6 +513,7 @@ export interface ARPaymentRegistryResult {
     unallocated: UnallocatedPayment[]
     openInvoices: OpenInvoice[]
     recentPayments: RecentAllocatedPayment[]
+    allCustomers: { id: string; name: string; code: string | null }[]
     meta: {
         payments: { page: number; pageSize: number; total: number; totalPages: number }
         invoices: { page: number; pageSize: number; total: number; totalPages: number }
@@ -580,7 +581,7 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                 ]
             }
 
-            const [payments, invoices, paymentsTotal, invoicesTotal, recentPayments] = await Promise.all([
+            const [payments, invoices, paymentsTotal, invoicesTotal, recentPayments, allCustomers] = await Promise.all([
                 prisma.payment.findMany({
                     where: paymentWhere,
                     include: { customer: { select: { id: true, name: true } } },
@@ -608,6 +609,11 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                         id: true, amount: true, method: true, reference: true, createdAt: true,
                         invoice: { select: { id: true, number: true, status: true } },
                     },
+                }),
+                prisma.customer.findMany({
+                    where: { isActive: true },
+                    select: { id: true, name: true, code: true },
+                    orderBy: { name: 'asc' },
                 }),
             ])
 
@@ -640,6 +646,7 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     createdAt: p.createdAt,
                     invoice: p.invoice ? { id: p.invoice.id, number: p.invoice.number, status: p.invoice.status } : null,
                 })),
+                allCustomers,
                 meta: {
                     payments: {
                         page: query.paymentPage,
@@ -667,6 +674,7 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
             unallocated: [],
             openInvoices: [],
             recentPayments: [],
+            allCustomers: [],
             meta: {
                 payments: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },
                 invoices: { page: 1, pageSize: query.pageSize, total: 0, totalPages: 1 },

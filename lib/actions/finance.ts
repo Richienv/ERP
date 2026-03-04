@@ -3,6 +3,7 @@
 import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/server"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -449,9 +450,12 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
         const startIso = start.toISOString()
         const endIso = end.toISOString()
 
-        return await withPrismaAuth(async (prisma) => {
+        const supabaseClient = await createClient()
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+        if (authError || !user) throw new Error('Unauthorized')
+
             // Fetch journal lines with accounts
-            const journalLines = await (prisma.journalLine.findMany({
+            const journalLines = await (basePrisma.journalLine.findMany({
                 where: {
                     entry: {
                         date: {
@@ -537,7 +541,6 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                     endDate: endIso
                 }
             }
-        })
     } catch (error) {
         console.error("Failed to fetch P&L:", error)
         return {
@@ -587,9 +590,12 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
     try {
         const date = parseDateInput(asOfDate) || new Date()
 
-        return await withPrismaAuth(async (prisma) => {
+        const supabaseClient = await createClient()
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+        if (authError || !user) throw new Error('Unauthorized')
+
             // Get all accounts with their balances
-            const accounts = await prisma.gLAccount.findMany({
+            const accounts = await basePrisma.gLAccount.findMany({
                 where: {
                     OR: [
                         { type: 'ASSET' },
@@ -685,7 +691,6 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 totalLiabilitiesAndEquity: liabilities.totalLiabilities + equity.totalEquity,
                 asOfDate: date.toISOString()
             }
-        })
     } catch (error) {
         console.error("Failed to fetch Balance Sheet:", error)
         return {
@@ -732,9 +737,12 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
 
         const pnlData = await getProfitLossStatement(start, end)
 
-        return await withPrismaAuth(async (prisma) => {
+        const supabaseClient = await createClient()
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+        if (authError || !user) throw new Error('Unauthorized')
+
             // Get cash account changes
-            const cashAccounts = await prisma.gLAccount.findMany({
+            const cashAccounts = await basePrisma.gLAccount.findMany({
                 where: {
                     type: 'ASSET',
                     OR: [
@@ -749,7 +757,7 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
             const beginningCash = cashAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0)
 
             // Get journal entries affecting cash
-            const cashJournalLines = await prisma.journalLine.findMany({
+            const cashJournalLines = await basePrisma.journalLine.findMany({
                 where: {
                     accountId: { in: cashAccounts.map(a => a.id) },
                     entry: {
@@ -839,7 +847,6 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
                     endDate: end.toISOString()
                 }
             }
-        })
     } catch (error) {
         console.error("Failed to fetch Cash Flow:", error)
         return {
@@ -2721,9 +2728,15 @@ export async function approveAndPayBill(
 
 export async function getFinanceDashboardData() {
     try {
-        // Build 7-day cash flow data
-        const cashFlow: Array<{ date: string; day: string; incoming: number; outgoing: number }> = []
+        // Auth check (lightweight, no transaction)
+        const supabaseServer = await createClient()
+        const { data: { user }, error: authErr } = await supabaseServer.auth.getUser()
+        if (authErr || !user) throw new Error('Not authenticated')
+
         const now = new Date()
+
+        // Build 7-day cash flow skeleton
+        const cashFlow: Array<{ date: string; day: string; incoming: number; outgoing: number }> = []
         for (let i = 6; i >= 0; i--) {
             const d = new Date(now)
             d.setDate(d.getDate() - i)
@@ -2735,99 +2748,79 @@ export async function getFinanceDashboardData() {
             })
         }
 
-        // Try to populate from journal entries
-        try {
-            const sevenDaysAgo = new Date(now)
-            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-            sevenDaysAgo.setHours(0, 0, 0, 0)
+        const sevenDaysAgo = new Date(now)
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
+        sevenDaysAgo.setHours(0, 0, 0, 0)
 
-            await withPrismaAuth(async (prisma) => {
-                const entries = await prisma.journalEntry.findMany({
-                    where: { date: { gte: sevenDaysAgo } },
-                    include: { lines: { include: { account: { select: { code: true, type: true } } } } }
-                })
+        // Single parallel fetch using prisma singleton (no transaction overhead)
+        const [cashFlowEntries, recentEntries, overdueInvoices, pendingBills] = await Promise.all([
+            basePrisma.journalEntry.findMany({
+                where: { date: { gte: sevenDaysAgo } },
+                include: { lines: { include: { account: { select: { code: true, type: true } } } } },
+            }),
+            basePrisma.journalEntry.findMany({
+                orderBy: { date: 'desc' },
+                take: 5,
+                include: {
+                    lines: { take: 2, include: { account: { select: { name: true, code: true, type: true } } } },
+                },
+            }),
+            basePrisma.invoice.count({
+                where: { status: 'OVERDUE', type: 'INV_OUT' },
+            }),
+            basePrisma.invoice.count({
+                where: { status: { in: ['DRAFT', 'ISSUED'] }, type: 'INV_IN' },
+            }),
+        ])
 
-                for (const entry of entries) {
-                    const dateKey = new Date(entry.date).toISOString().slice(0, 10)
-                    const dayEntry = cashFlow.find(cf => cf.date === dateKey)
-                    if (!dayEntry) continue
-
-                    for (const line of entry.lines) {
-                        if (line.account?.code?.startsWith('1')) {
-                            dayEntry.incoming += Number(line.debit)
-                            dayEntry.outgoing += Number(line.credit)
-                        }
-                    }
+        // Populate cash flow from journal entries
+        for (const entry of cashFlowEntries) {
+            const dateKey = new Date(entry.date).toISOString().slice(0, 10)
+            const dayEntry = cashFlow.find(cf => cf.date === dateKey)
+            if (!dayEntry) continue
+            for (const line of entry.lines) {
+                if (line.account?.code?.startsWith('1')) {
+                    dayEntry.incoming += Number(line.debit)
+                    dayEntry.outgoing += Number(line.credit)
                 }
-            })
-        } catch (e) {
-            console.error("Failed to populate cash flow:", e)
+            }
         }
 
-        // Recent transactions from journal entries
-        let recentTransactions: Array<{ id: string; title: string; subtitle: string; date: string; direction: 'in' | 'out'; amount: number; href: string }> = []
-        try {
-            await withPrismaAuth(async (prisma) => {
-                const entries = await prisma.journalEntry.findMany({
-                    orderBy: { date: 'desc' },
-                    take: 5,
-                    include: {
-                        lines: { take: 2, include: { account: { select: { name: true, code: true, type: true } } } }
-                    }
-                })
-                recentTransactions = entries.map(e => {
-                    const firstLine = e.lines[0]
-                    const accountCode = firstLine?.account?.code || ''
-                    // Revenue (4xxx) and liability increases = incoming
-                    // Expense (5xxx, 6xxx) and asset decreases = outgoing
-                    const isIncoming = accountCode.startsWith('4') || (accountCode.startsWith('2') && Number(firstLine?.credit || 0) > 0)
-                    return {
-                        id: e.id,
-                        title: e.description || 'Jurnal Umum',
-                        subtitle: firstLine?.account?.name || 'N/A',
-                        date: e.date.toISOString(),
-                        direction: isIncoming ? 'in' as const : 'out' as const,
-                        amount: Math.max(Number(firstLine?.debit || 0), Number(firstLine?.credit || 0)),
-                        href: `/finance/journal`
-                    }
-                })
+        // Map recent transactions
+        const recentTransactions = recentEntries.map(e => {
+            const firstLine = e.lines[0]
+            const accountCode = firstLine?.account?.code || ''
+            const isIncoming = accountCode.startsWith('4') || (accountCode.startsWith('2') && Number(firstLine?.credit || 0) > 0)
+            return {
+                id: e.id,
+                title: e.description || 'Jurnal Umum',
+                subtitle: firstLine?.account?.name || 'N/A',
+                date: e.date.toISOString(),
+                direction: isIncoming ? 'in' as const : 'out' as const,
+                amount: Math.max(Number(firstLine?.debit || 0), Number(firstLine?.credit || 0)),
+                href: `/finance/journal`,
+            }
+        })
+
+        // Build action items
+        const actionItems: Array<{ id: string; title: string; type: 'urgent' | 'pending' | 'warning' | 'info'; due: string; href: string }> = []
+        if (overdueInvoices > 0) {
+            actionItems.push({
+                id: 'overdue-invoices',
+                title: `${overdueInvoices} invoice jatuh tempo`,
+                type: 'urgent',
+                due: 'Segera',
+                href: '/finance/invoices',
             })
-        } catch (e) {
-            console.error("Failed to get recent transactions:", e)
         }
-
-        // Action items
-        let actionItems: Array<{ id: string; title: string; type: 'urgent' | 'pending' | 'warning' | 'info'; due: string; href: string }> = []
-        try {
-            await withPrismaAuth(async (prisma) => {
-                const overdueInvoices = await prisma.invoice.count({
-                    where: { status: 'OVERDUE', type: 'INV_OUT' }
-                })
-                const pendingBills = await prisma.invoice.count({
-                    where: { status: { in: ['DRAFT', 'ISSUED'] }, type: 'INV_IN' }
-                })
-
-                if (overdueInvoices > 0) {
-                    actionItems.push({
-                        id: 'overdue-invoices',
-                        title: `${overdueInvoices} invoice jatuh tempo`,
-                        type: 'urgent',
-                        due: 'Segera',
-                        href: '/finance/invoices'
-                    })
-                }
-                if (pendingBills > 0) {
-                    actionItems.push({
-                        id: 'pending-bills',
-                        title: `${pendingBills} bill menunggu pembayaran`,
-                        type: 'pending',
-                        due: 'Minggu ini',
-                        href: '/finance/bills'
-                    })
-                }
+        if (pendingBills > 0) {
+            actionItems.push({
+                id: 'pending-bills',
+                title: `${pendingBills} bill menunggu pembayaran`,
+                type: 'pending',
+                due: 'Minggu ini',
+                href: '/finance/bills',
             })
-        } catch (e) {
-            console.error("Failed to get action items:", e)
         }
 
         return { cashFlow, recentTransactions, actionItems }
@@ -2836,7 +2829,7 @@ export async function getFinanceDashboardData() {
         return {
             cashFlow: [],
             recentTransactions: [],
-            actionItems: []
+            actionItems: [],
         }
     }
 }
@@ -3056,8 +3049,11 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
 // ==========================================
 export async function getTrialBalance(startDate: Date, endDate: Date) {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const accounts = await prisma.gLAccount.findMany({
+        const supabaseClient = await createClient()
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+        if (authError || !user) throw new Error('Unauthorized')
+
+            const accounts = await basePrisma.gLAccount.findMany({
                 orderBy: { code: 'asc' },
                 include: {
                     lines: {
@@ -3101,7 +3097,6 @@ export async function getTrialBalance(startDate: Date, endDate: Date) {
                 },
                 period: { start: startDate, end: endDate },
             }
-        })
     } catch (error) {
         console.error("Failed to generate trial balance:", error)
         return {
@@ -3117,8 +3112,11 @@ export async function getTrialBalance(startDate: Date, endDate: Date) {
 // ==========================================
 export async function getARAgingReport() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const openInvoices = await prisma.invoice.findMany({
+        const supabaseClient = await createClient()
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+        if (authError || !user) throw new Error('Unauthorized')
+
+            const openInvoices = await basePrisma.invoice.findMany({
                 where: {
                     type: 'INV_OUT',
                     status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
@@ -3215,7 +3213,6 @@ export async function getARAgingReport() {
                 byCustomer: Array.from(customerMap.values()).sort((a, b) => b.total - a.total),
                 details: details.sort((a, b) => b.daysOverdue - a.daysOverdue),
             }
-        })
     } catch (error) {
         console.error("Failed to generate AR aging report:", error)
         return {
@@ -3231,8 +3228,11 @@ export async function getARAgingReport() {
 // ==========================================
 export async function getAPAgingReport() {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const openBills = await prisma.invoice.findMany({
+        const supabaseClient = await createClient()
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+        if (authError || !user) throw new Error('Unauthorized')
+
+            const openBills = await basePrisma.invoice.findMany({
                 where: {
                     type: 'INV_IN',
                     status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] },
@@ -3328,7 +3328,6 @@ export async function getAPAgingReport() {
                 bySupplier: Array.from(supplierMap.values()).sort((a, b) => b.total - a.total),
                 details: details.sort((a, b) => b.daysOverdue - a.daysOverdue),
             }
-        })
     } catch (error) {
         console.error("Failed to generate AP aging report:", error)
         return {

@@ -95,6 +95,22 @@ export function BOMCanvas({
     const buildNodes = useCallback((): Node[] => {
         const layoutPositions = layoutNodes(steps)
 
+        // Compute per-step production target (split among parallel siblings)
+        const stepTargets = new Map<string, number>()
+        for (const step of steps) {
+            const allocs = step.allocations || []
+            const allocTotal = allocs.reduce((s: number, a: any) => s + (a.quantity || 0), 0)
+            if (allocTotal > 0) {
+                stepTargets.set(step.id, allocTotal)
+            } else {
+                const stationType = step.station?.stationType
+                const siblings = steps.filter((s: any) => s.station?.stationType === stationType)
+                stepTargets.set(step.id, siblings.length > 1
+                    ? Math.ceil((totalProductionQty || 0) / siblings.length)
+                    : (totalProductionQty || 0))
+            }
+        }
+
         return steps.map((step, index) => {
             // Use saved position if available, otherwise use layout algorithm
             const hasSavedPosition = step.positionX != null && step.positionY != null
@@ -121,7 +137,7 @@ export function BOMCanvas({
                 })(),
                 durationMinutes: step.durationMinutes || null,
                 completedQty: step.completedQty || 0,
-                totalProductionQty: totalProductionQty || 0,
+                totalProductionQty: stepTargets.get(step.id) || totalProductionQty || 0,
                 startedAt: step.startedAt || null,
                 useSubkon: step.useSubkon ?? undefined,
                 isSelected: step.id === selectedStepId,

@@ -61,9 +61,16 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                 <div className="bg-black text-white p-1 shrink-0"><Icon className="h-3.5 w-3.5" /></div>
                 <div className="min-w-0 flex-1">
                     <p className="font-black text-xs uppercase truncate">{station?.name}</p>
-                    <p className={`text-[9px] font-bold ${isSubcon ? "text-amber-600" : "text-emerald-600"}`}>
-                        {isSubcon ? `Subkon: ${station?.subcontractor?.name || "-"}` : "In-House"}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                        <p className={`text-[9px] font-bold ${isSubcon ? "text-amber-600" : "text-emerald-600"}`}>
+                            {isSubcon ? `Subkon: ${station?.subcontractor?.name || "-"}` : "In-House"}
+                        </p>
+                        {station?.stationType && (
+                            <span className="text-[7px] font-black uppercase px-1 py-0.5 rounded bg-black/10 text-zinc-600">
+                                {station.stationType}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <span className="bg-black text-white text-[10px] font-black px-1.5 py-0.5 shrink-0">{sequence}</span>
                 {onRemoveStep && (

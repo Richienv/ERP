@@ -598,7 +598,7 @@ export async function createInvoiceFromSalesOrder(
                     type: 'INV_OUT',
                     customerId: salesOrder.customerId,
                     salesOrderId: salesOrder.id,
-                    status: 'ISSUED',
+                    status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: dueDate,
                     subtotal: salesOrder.subtotal,
@@ -623,32 +623,9 @@ export async function createInvoiceFromSalesOrder(
             return {
                 success: true as const,
                 invoiceId: invoice.id,
-                invoiceNumber: invoice.number,
-                _gl: {
-                    customerName: salesOrder.customer?.name,
-                    soNumber: salesOrder.number,
-                    total: Number(salesOrder.total),
-                }
+                invoiceNumber: invoice.number
             }
         })
-
-        // Post GL journal entry OUTSIDE the main transaction to avoid nested tx deadlock
-        if (result.success && result._gl) {
-            try {
-                await postJournalEntry({
-                    description: `Customer Invoice ${result.invoiceNumber} - ${result._gl.customerName}`,
-                    date: new Date(),
-                    reference: result.invoiceNumber,
-                    lines: [
-                        { accountCode: '1200', debit: result._gl.total, credit: 0, description: `AR - ${result._gl.customerName}` },
-                        { accountCode: '4000', debit: 0, credit: result._gl.total, description: `Sales Revenue - SO ${result._gl.soNumber}` }
-                    ]
-                })
-                console.log("GL Entry Posted for Invoice:", result.invoiceNumber)
-            } catch (glError) {
-                console.warn("Failed to post GL entry (invoice still created):", glError)
-            }
-        }
 
         return result
     } catch (error) {
@@ -865,7 +842,7 @@ export async function recordInvoicePayment(data: {
                 await postJournalEntry({
                     description: `Payment for Invoice ${txResult.invoiceNumber}`,
                     date: data.paymentDate,
-                    reference: txResult.paymentNumber,
+                    reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
                     lines: [
                         { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Receipt from ${txResult.customerName}` },
                         { accountCode: arAccountCode, debit: 0, credit: data.amount, description: `Payment for ${txResult.invoiceNumber}` }
@@ -875,7 +852,7 @@ export async function recordInvoicePayment(data: {
                 await postJournalEntry({
                     description: `Payment for Bill ${txResult.invoiceNumber}`,
                     date: data.paymentDate,
-                    reference: txResult.paymentNumber,
+                    reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
                     lines: [
                         { accountCode: apAccountCode, debit: data.amount, credit: 0, description: `Payment for ${txResult.supplierName}` },
                         { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Payment for ${txResult.invoiceNumber}` }

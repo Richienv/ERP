@@ -18,7 +18,7 @@ import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
-// Select removed — toolbar now uses quick-add buttons
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { formatCurrency } from "@/lib/inventory-utils"
 import { calcTotalMaterialCost, calcTotalLaborCost, type BOMItemWithCost } from "@/components/manufacturing/bom/bom-cost-helpers"
 import { toast } from "sonner"
@@ -210,19 +210,28 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         })
     }, [allStations, steps.length])
 
-    // Quick-add station by type: finds existing station or auto-creates one
+    // Quick-add station by type: if >1 station of same type exists, show picker
     const [creatingStationType, setCreatingStationType] = useState<string | null>(null)
+    const [stationPickerType, setStationPickerType] = useState<string | null>(null)
+
     const handleQuickAddByType = useCallback(async (stationType: string) => {
-        // Find an existing IN_HOUSE station of this type (skip subkon stations)
-        const existing = (allStations || []).find((s: any) =>
+        // Find all active IN_HOUSE stations of this type
+        const candidates = (allStations || []).filter((s: any) =>
             s.stationType === stationType && s.operationType !== "SUBCONTRACTOR" && s.isActive !== false
         )
-        if (existing) {
-            handleAddStationToCanvas(existing.id)
+
+        if (candidates.length === 1) {
+            handleAddStationToCanvas(candidates[0].id)
             return
         }
 
-        // Auto-create a default station of this type
+        if (candidates.length > 1) {
+            // Multiple → show picker
+            setStationPickerType(stationType)
+            return
+        }
+
+        // None exist → auto-create default station
         setCreatingStationType(stationType)
         const config = STATION_TYPE_CONFIG.find((c) => c.type === stationType)
         const label = config?.label || stationType
@@ -231,33 +240,20 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             const res = await fetch("/api/manufacturing/process-stations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    code,
-                    name: label,
-                    stationType,
-                    operationType: "IN_HOUSE",
-                    costPerUnit: 0,
-                }),
+                body: JSON.stringify({ code, name: label, stationType, operationType: "IN_HOUSE", costPerUnit: 0 }),
             })
             const result = await res.json()
             if (result.success) {
                 queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
-                // Add to canvas immediately
                 const station = result.data
                 const tempId = `step-${Date.now()}`
                 dirtySetSteps((prev) => {
                     const lastStep = prev[prev.length - 1]
                     return [...prev, {
-                        id: tempId,
-                        stationId: station.id,
-                        station,
-                        sequence: prev.length + 1,
-                        durationMinutes: null,
-                        notes: null,
+                        id: tempId, stationId: station.id, station,
+                        sequence: prev.length + 1, durationMinutes: null, notes: null,
                         parentStepIds: lastStep ? [lastStep.id] : [],
-                        materials: [],
-                        allocations: [],
-                        attachments: [],
+                        materials: [], allocations: [], attachments: [],
                     }]
                 })
                 toast.success(`Stasiun "${label}" dibuat & ditambahkan`)
@@ -517,11 +513,23 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     }, [])
 
     const handleMarkCompleted = useCallback((stepId: string) => {
-        dirtySetSteps((prev) => prev.map((step) =>
-            step.id === stepId
-                ? { ...step, completedAt: new Date().toISOString(), completedQty: totalQty }
-                : step
-        ))
+        dirtySetSteps((prev) => {
+            const step = prev.find(s => s.id === stepId)
+            if (!step) return prev
+            const allocs = step.allocations || []
+            const allocTotal = allocs.reduce((s: number, a: any) => s + (a.quantity || 0), 0)
+            let target = totalQty
+            if (allocTotal > 0) {
+                target = allocTotal
+            } else {
+                const siblings = prev.filter(s => s.station?.stationType === step.station?.stationType)
+                if (siblings.length > 1) target = Math.ceil(totalQty / siblings.length)
+            }
+            return prev.map(s => s.id === stepId
+                ? { ...s, completedAt: new Date().toISOString(), completedQty: target }
+                : s
+            )
+        })
         toast.success("Stasiun ditandai selesai")
     }, [totalQty])
 
@@ -836,18 +844,59 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 {STATION_TYPE_CONFIG.map((cfg) => {
                     const Icon = cfg.icon
                     const isCreating = creatingStationType === cfg.type
+                    const isPicking = stationPickerType === cfg.type
+                    const candidates = (allStations || []).filter((s: any) =>
+                        s.stationType === cfg.type && s.operationType !== "SUBCONTRACTOR" && s.isActive !== false
+                    )
+                    const hasMultiple = candidates.length > 1
+
                     return (
-                        <Button
-                            key={cfg.type}
-                            variant="outline"
-                            size="sm"
-                            disabled={isCreating}
-                            onClick={() => handleQuickAddByType(cfg.type)}
-                            className={`h-7 text-[10px] font-bold border rounded-none shrink-0 px-2.5 gap-1 ${cfg.color}`}
-                        >
-                            {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
-                            {cfg.label}
-                        </Button>
+                        <Popover key={cfg.type} open={isPicking} onOpenChange={(open) => { if (!open) setStationPickerType(null) }}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={isCreating}
+                                    onClick={() => handleQuickAddByType(cfg.type)}
+                                    className={`h-7 text-[10px] font-bold border rounded-none shrink-0 px-2.5 gap-1 ${cfg.color}`}
+                                >
+                                    {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
+                                    {cfg.label}
+                                    {hasMultiple && <span className="text-[8px] opacity-60">({candidates.length})</span>}
+                                </Button>
+                            </PopoverTrigger>
+                            {isPicking && (
+                                <PopoverContent className="w-60 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
+                                    <div className="px-3 py-2 bg-zinc-50 border-b-2 border-black">
+                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            Pilih Stasiun {cfg.label}
+                                        </p>
+                                    </div>
+                                    <div className="py-1 max-h-48 overflow-y-auto">
+                                        {candidates.map((station: any) => (
+                                            <button
+                                                key={station.id}
+                                                onClick={() => {
+                                                    handleAddStationToCanvas(station.id)
+                                                    setStationPickerType(null)
+                                                }}
+                                                className="w-full text-left px-3 py-2 hover:bg-zinc-100 transition-colors flex items-center justify-between"
+                                            >
+                                                <div>
+                                                    <p className="text-xs font-bold">{station.name}</p>
+                                                    <p className="text-[9px] font-mono text-zinc-400">{station.code}</p>
+                                                </div>
+                                                {Number(station.costPerUnit) > 0 && (
+                                                    <span className="text-[9px] font-bold text-emerald-600">
+                                                        Rp {Number(station.costPerUnit).toLocaleString("id-ID")}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </PopoverContent>
+                            )}
+                        </Popover>
                     )
                 })}
 

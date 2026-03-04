@@ -8,8 +8,15 @@ export function useProductionBOMs() {
         queryKey: queryKeys.productionBom.list(),
         queryFn: async () => {
             const res = await fetch("/api/manufacturing/production-bom")
-            if (!res.ok) return []
+            if (!res.ok) {
+                const text = await res.text().catch(() => "")
+                console.error("[useProductionBOMs] API error:", res.status, text)
+                return []
+            }
             const result = await res.json()
+            if (!result.success) {
+                console.error("[useProductionBOMs] API returned failure:", result.error)
+            }
             return result.success ? result.data : []
         },
     })

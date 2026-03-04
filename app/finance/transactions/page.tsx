@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/select"
 import { formatIDR } from "@/lib/utils"
 import { getAccountTransactions } from "@/lib/actions/finance-invoices"
+import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 
 export const dynamic = "force-dynamic"
 
@@ -299,7 +300,7 @@ export default function AccountTransactionsPage() {
     // Filters
     const [searchText, setSearchText] = useState("")
     const [filterAccount, setFilterAccount] = useState("ALL")
-    const [filterType, setFilterType] = useState("ALL")
+    const [filterTypes, setFilterTypes] = useState<string[]>([])
     const [datePreset, setDatePreset] = useState<DatePreset>("THIS_YEAR")
     const [dateFrom, setDateFrom] = useState("")
     const [dateTo, setDateTo] = useState("")
@@ -371,8 +372,8 @@ export default function AccountTransactionsPage() {
             const to = new Date(dateTo + "T23:59:59")
             result = result.filter(e => new Date(e.date) <= to)
         }
-        if (filterType !== "ALL") {
-            result = result.filter(e => e.lines.some(l => l.accountType === filterType))
+        if (filterTypes.length > 0) {
+            result = result.filter(e => e.lines.some(l => filterTypes.includes(l.accountType)))
         }
         if (searchText.trim()) {
             const q = searchText.toLowerCase()
@@ -385,7 +386,7 @@ export default function AccountTransactionsPage() {
             )
         }
         return result
-    }, [entries, dateFrom, dateTo, filterType, searchText])
+    }, [entries, dateFrom, dateTo, filterTypes, searchText])
 
     // ─── Group by Account (Xero-style) ──────────────────
     const groupedByAccount = useMemo(() => {
@@ -409,7 +410,7 @@ export default function AccountTransactionsPage() {
 
         for (const entry of sorted) {
             for (const line of entry.lines) {
-                if (filterType !== "ALL" && line.accountType !== filterType) continue
+                if (filterTypes.length > 0 && !filterTypes.includes(line.accountType)) continue
 
                 const key = line.accountCode
                 if (!accountMap.has(key)) {
@@ -452,7 +453,7 @@ export default function AccountTransactionsPage() {
         }
 
         return groups
-    }, [filtered, groupMode, filterType, accountsInclude])
+    }, [filtered, groupMode, filterTypes, accountsInclude])
 
     const toggleGroup = (code: string) => {
         setCollapsedGroups(prev => {
@@ -569,22 +570,18 @@ export default function AccountTransactionsPage() {
                             </SelectContent>
                         </Select>
                     </div>
-                    <div>
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Tipe Akun</label>
-                        <Select value={filterType} onValueChange={setFilterType}>
-                            <SelectTrigger className="border-2 border-black h-9 font-medium w-[160px] text-xs">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Semua Tipe</SelectItem>
-                                <SelectItem value="ASSET">Aset</SelectItem>
-                                <SelectItem value="LIABILITY">Kewajiban</SelectItem>
-                                <SelectItem value="EQUITY">Ekuitas</SelectItem>
-                                <SelectItem value="REVENUE">Pendapatan</SelectItem>
-                                <SelectItem value="EXPENSE">Beban</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <CheckboxFilter
+                        label="Tipe Akun"
+                        options={[
+                            { value: "ASSET", label: "Aset" },
+                            { value: "LIABILITY", label: "Kewajiban" },
+                            { value: "EQUITY", label: "Ekuitas" },
+                            { value: "REVENUE", label: "Pendapatan" },
+                            { value: "EXPENSE", label: "Beban" },
+                        ]}
+                        selected={filterTypes}
+                        onChange={setFilterTypes}
+                    />
                     <div className="relative flex-1 min-w-[200px]">
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Cari</label>
                         <div className="relative">

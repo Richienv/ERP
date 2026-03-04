@@ -96,6 +96,10 @@ export const queryKeys = {
         all: ["vendorPayments"] as const,
         list: () => [...queryKeys.vendorPayments.all, "list"] as const,
     },
+    pettyCash: {
+        all: ["pettyCash"] as const,
+        list: () => [...queryKeys.pettyCash.all, "list"] as const,
+    },
     financeReports: {
         all: ["financeReports"] as const,
         list: (start?: string, end?: string) => [...queryKeys.financeReports.all, "list", start, end] as const,

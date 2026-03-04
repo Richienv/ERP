@@ -200,6 +200,10 @@ const data = {
           url: "/finance/reports",
         },
         {
+          title: "Peti Kas",
+          url: "/finance/petty-cash",
+        },
+        {
           title: "Rekonsiliasi Bank",
           url: "/finance/reconciliation",
         },

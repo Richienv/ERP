@@ -3,7 +3,7 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from "react"
 import {
     Scissors, Shirt, Droplets, Printer, Sparkles,
-    ShieldCheck, Package, Wrench, Cog, Clock, Users, ArrowLeftRight, Building2,
+    ShieldCheck, Package, Wrench, Cog, Clock, Building2, ArrowLeftRight,
 } from "lucide-react"
 
 /* ── Station visuals ── */
@@ -38,7 +38,8 @@ interface BarLayout {
     step: any
     row: number
     startMin: number
-    durationMin: number
+    durationMin: number       // total = perPcs × qty
+    durationPerPcs: number    // original per-piece
 }
 
 /* ── Constants ── */
@@ -52,13 +53,16 @@ const SNAP_MINUTES = 5
 
 /* ── Station-grouped scheduling ──
  * Groups bars by stationId — each unique station gets its own row.
+ * Duration = durationMinutes × totalQty (total production time).
  */
-function scheduleByStation(steps: any[]): { bars: BarLayout[]; totalMinutes: number; totalRows: number; rowLabels: string[] } {
+function scheduleByStation(steps: any[], totalQty: number): { bars: BarLayout[]; totalMinutes: number; totalRows: number; rowLabels: string[] } {
     if (steps.length === 0) return { bars: [], totalMinutes: 0, totalRows: 0, rowLabels: [] }
 
-    const getDuration = (step: any) => Math.max(step.durationMinutes || 0, MIN_BAR_MINUTES)
+    const qty = Math.max(totalQty, 1)
+    const getDuration = (step: any) => Math.max((step.durationMinutes || 0) * qty, MIN_BAR_MINUTES)
+    const getPerPcs = (step: any) => step.durationMinutes || 0
 
-    // Compute start times (same DAG logic)
+    // Compute start times (DAG logic)
     const endTimes = new Map<string, number>()
     const startTimes = new Map<string, number>()
     const sorted = [...steps].sort((a, b) => a.sequence - b.sequence)
@@ -90,78 +94,12 @@ function scheduleByStation(steps: any[]): { bars: BarLayout[]; totalMinutes: num
         const row = stationOrder.indexOf(sid)
         const start = startTimes.get(step.id) || 0
         const duration = getDuration(step)
-        bars.push({ step, row, startMin: start, durationMin: duration })
+        bars.push({ step, row, startMin: start, durationMin: duration, durationPerPcs: getPerPcs(step) })
     }
 
     const totalMinutes = endTimes.size > 0 ? Math.max(...endTimes.values(), MIN_BAR_MINUTES) : MIN_BAR_MINUTES
     const rowLabels = stationOrder.map(sid => stationNames[sid])
     return { bars, totalMinutes, totalRows: Math.max(stationOrder.length, 1), rowLabels }
-}
-
-/* ── Scheduling ──
- * Each step starts at:
- *   max(parent end times, startOffsetMinutes)
- * If no parents: starts at startOffsetMinutes (default 0)
- * This allows free horizontal positioning via startOffsetMinutes.
- */
-function scheduleSteps(steps: any[]): { bars: BarLayout[]; totalMinutes: number; totalRows: number } {
-    if (steps.length === 0) return { bars: [], totalMinutes: 0, totalRows: 0 }
-
-    const getDuration = (step: any) => Math.max(step.durationMinutes || 0, MIN_BAR_MINUTES)
-
-    const endTimes = new Map<string, number>()
-    const startTimes = new Map<string, number>()
-    const sorted = [...steps].sort((a, b) => a.sequence - b.sequence)
-
-    for (const step of sorted) {
-        const parentEnds = (step.parentStepIds || []).map((pid: string) => endTimes.get(pid) || 0)
-        const dagStart = parentEnds.length > 0 ? Math.max(...parentEnds) : 0
-        const offset = step.startOffsetMinutes || 0
-        // If user has manually positioned (dragged), use their offset directly.
-        // Otherwise, use DAG-based scheduling (after parents finish).
-        const start = offset > 0 ? offset : dagStart
-        const duration = getDuration(step)
-        startTimes.set(step.id, start)
-        endTimes.set(step.id, start + duration)
-    }
-
-    const bars: BarLayout[] = []
-    const rowOccupied: { end: number }[] = []
-
-    // Helper: ensure rowOccupied has enough rows
-    const ensureRow = (r: number) => {
-        while (rowOccupied.length <= r) rowOccupied.push({ end: 0 })
-    }
-
-    for (const step of sorted) {
-        const start = startTimes.get(step.id) || 0
-        const duration = getDuration(step)
-        let assignedRow = -1
-
-        // If user manually placed this step in a lane, respect it
-        if (step.manualLane != null && step.manualLane >= 0) {
-            assignedRow = step.manualLane
-            ensureRow(assignedRow)
-            rowOccupied[assignedRow].end = Math.max(rowOccupied[assignedRow].end, start + duration)
-        } else {
-            // Auto-assign: first row where it fits
-            for (let r = 0; r < rowOccupied.length; r++) {
-                if (rowOccupied[r].end <= start) {
-                    assignedRow = r
-                    rowOccupied[r].end = start + duration
-                    break
-                }
-            }
-            if (assignedRow === -1) {
-                assignedRow = rowOccupied.length
-                rowOccupied.push({ end: start + duration })
-            }
-        }
-        bars.push({ step, row: assignedRow, startMin: start, durationMin: duration })
-    }
-
-    const totalMinutes = endTimes.size > 0 ? Math.max(...endTimes.values(), MIN_BAR_MINUTES) : MIN_BAR_MINUTES
-    return { bars, totalMinutes, totalRows: Math.max(rowOccupied.length, 1) }
 }
 
 function fmtDuration(min: number): string {
@@ -196,9 +134,7 @@ function generateTicks(totalMinutes: number): { label: string; minute: number }[
 interface DragState {
     stepId: string
     startX: number
-    startY: number
     currentX: number
-    currentY: number
     barLayout: BarLayout
     active: boolean
 }
@@ -209,20 +145,10 @@ function rowY(row: number) {
 
 /* ═══════════════════ COMPONENT ═══════════════════ */
 
-type TimelineMode = "jalur" | "stasiun"
-
 export function TimelineView({
-    steps, totalQty, selectedStepId, onStepSelect,
-    onMoveStep,
+    steps, totalQty, selectedStepId, onStepSelect, onMoveStep,
 }: TimelineViewProps) {
-    const [timelineMode, setTimelineMode] = useState<TimelineMode>("jalur")
-
-    const jalurSchedule = useMemo(() => scheduleSteps(steps), [steps])
-    const stasiunSchedule = useMemo(() => scheduleByStation(steps), [steps])
-
-    const isStasiunMode = timelineMode === "stasiun"
-    const { bars, totalMinutes, totalRows } = isStasiunMode ? stasiunSchedule : jalurSchedule
-    const stasiunRowLabels = stasiunSchedule.rowLabels
+    const { bars, totalMinutes, totalRows, rowLabels } = useMemo(() => scheduleByStation(steps, totalQty), [steps, totalQty])
 
     const ticks = useMemo(() => generateTicks(totalMinutes), [totalMinutes])
     const scrollRef = useRef<HTMLDivElement>(null)
@@ -230,7 +156,6 @@ export function TimelineView({
     /* ── Drag state ── */
     const [drag, setDrag] = useState<DragState | null>(null)
 
-    // Compute ghost position during move drag (snapped to grid)
     const ghostStartMin = useMemo(() => {
         if (!drag?.active) return -1
         const dx = drag.currentX - drag.startX
@@ -238,17 +163,7 @@ export function TimelineView({
         return Math.max(0, Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES)
     }, [drag])
 
-    // How many display rows (add one if ghost is below all existing rows)
-    const ghostRow = useMemo(() => {
-        if (!drag?.active) return -1
-        const dy = drag.currentY - drag.startY
-        const newY = rowY(drag.barLayout.row) + dy
-        return Math.max(0, Math.round((newY - HEADER_HEIGHT - ROW_GAP / 2) / (ROW_HEIGHT + ROW_GAP)))
-    }, [drag])
-
-    const displayRows = drag?.active && ghostRow >= totalRows
-        ? totalRows + 1 : totalRows
-
+    const displayRows = totalRows
     const chartWidth = Math.max((totalMinutes + 30) * PIXELS_PER_MINUTE, 500)
     const chartHeight = displayRows * (ROW_HEIGHT + ROW_GAP) + HEADER_HEIGHT + ROW_HEIGHT + ROW_GAP
 
@@ -256,22 +171,11 @@ export function TimelineView({
     const onPointerDown = useCallback((e: React.PointerEvent, stepId: string) => {
         e.preventDefault()
         e.stopPropagation()
-        // In stasiun mode, only allow click-to-select (no drag)
-        if (isStasiunMode) {
-            onStepSelect(stepId)
-            return
-        }
         const bar = bars.find(b => b.step.id === stepId)
         if (!bar) return
-        setDrag({
-            stepId, barLayout: bar,
-            startX: e.clientX, startY: e.clientY,
-            currentX: e.clientX, currentY: e.clientY,
-            active: false,
-        })
-    }, [bars, isStasiunMode, onStepSelect])
+        setDrag({ stepId, barLayout: bar, startX: e.clientX, currentX: e.clientX, active: false })
+    }, [bars])
 
-    // Keep a ref to the latest drag state so onUp can read it without re-subscribing
     const dragRef = useRef<DragState | null>(null)
     dragRef.current = drag
 
@@ -282,35 +186,27 @@ export function TimelineView({
             setDrag(prev => {
                 if (!prev) return null
                 const dx = e.clientX - prev.startX
-                const dy = e.clientY - prev.startY
-                const active = prev.active || Math.abs(dx) > 4 || Math.abs(dy) > 4
-                return { ...prev, currentX: e.clientX, currentY: e.clientY, active }
+                const active = prev.active || Math.abs(dx) > 4
+                return { ...prev, currentX: e.clientX, active }
             })
         }
 
         const onUp = () => {
-            // Read final state from ref — don't call parent callbacks inside setDrag updater
             const prev = dragRef.current
             setDrag(null)
-
             if (!prev) return
 
             if (!prev.active) {
-                // Click — select
                 onStepSelect(prev.stepId)
                 return
             }
 
             if (onMoveStep) {
                 const dx = prev.currentX - prev.startX
-                const dy = prev.currentY - prev.startY
                 const rawMin = prev.barLayout.startMin + dx / PIXELS_PER_MINUTE
                 const snappedMin = Math.max(0, Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES)
-                const newY = rowY(prev.barLayout.row) + dy
-                const targetRow = Math.max(0, Math.round((newY - HEADER_HEIGHT - ROW_GAP / 2) / (ROW_HEIGHT + ROW_GAP)))
-                const rowChanged = targetRow !== prev.barLayout.row
-                if (snappedMin !== prev.barLayout.startMin || rowChanged) {
-                    onMoveStep(prev.stepId, snappedMin, targetRow)
+                if (snappedMin !== prev.barLayout.startMin) {
+                    onMoveStep(prev.stepId, snappedMin)
                 }
             }
         }
@@ -323,8 +219,22 @@ export function TimelineView({
         }
     }, [!!drag, onMoveStep, onStepSelect])
 
-    /* ── Summary ── */
-    const maxParallel = totalRows
+    // Compute per-step targets for progress (split among parallel siblings)
+    const stepTargets = useMemo(() => {
+        const targets = new Map<string, number>()
+        for (const step of steps) {
+            const allocs = step.allocations || []
+            const allocTotal = allocs.reduce((s: number, a: any) => s + (a.quantity || 0), 0)
+            if (allocTotal > 0) {
+                targets.set(step.id, allocTotal)
+            } else {
+                const stationType = step.station?.stationType
+                const siblings = steps.filter((s: any) => s.station?.stationType === stationType)
+                targets.set(step.id, siblings.length > 1 ? Math.ceil(totalQty / siblings.length) : totalQty)
+            }
+        }
+        return targets
+    }, [steps, totalQty])
 
     if (steps.length === 0) {
         return (
@@ -340,41 +250,18 @@ export function TimelineView({
             <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-2 flex items-center gap-5 shrink-0">
                 <div className="flex items-center gap-1.5">
                     <Clock className="h-3.5 w-3.5 text-indigo-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Total:</span>
+                    <span className="text-[9px] font-black uppercase text-zinc-400">Total Waktu:</span>
                     <span className="text-xs font-black text-indigo-700">{fmtDuration(totalMinutes)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-blue-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Jalur Paralel:</span>
-                    <span className="text-xs font-black text-blue-700">{maxParallel}</span>
+                    <Building2 className="h-3.5 w-3.5 text-blue-500" />
+                    <span className="text-[9px] font-black uppercase text-zinc-400">Stasiun:</span>
+                    <span className="text-xs font-black text-blue-700">{totalRows}</span>
                 </div>
-
-                {/* View mode toggle */}
-                <div className="flex items-center gap-0 border border-zinc-300 rounded overflow-hidden ml-auto">
-                    <button
-                        onClick={() => setTimelineMode("jalur")}
-                        className={`flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase transition-colors ${
-                            timelineMode === "jalur" ? "bg-indigo-500 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
-                        }`}
-                    >
-                        <Users className="h-3 w-3" /> Jalur
-                    </button>
-                    <button
-                        onClick={() => setTimelineMode("stasiun")}
-                        className={`flex items-center gap-1 px-2.5 py-1 text-[9px] font-black uppercase transition-colors ${
-                            timelineMode === "stasiun" ? "bg-indigo-500 text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
-                        }`}
-                    >
-                        <Building2 className="h-3 w-3" /> Stasiun
-                    </button>
+                <div className="flex items-center gap-1.5 ml-auto">
+                    <ArrowLeftRight className="h-3.5 w-3.5 text-zinc-400" />
+                    <span className="text-[9px] font-bold text-zinc-400">Drag blok untuk atur waktu</span>
                 </div>
-
-                {!isStasiunMode && (
-                    <div className="flex items-center gap-1.5">
-                        <ArrowLeftRight className="h-3.5 w-3.5 text-zinc-400" />
-                        <span className="text-[9px] font-bold text-zinc-400">Drag blok bebas</span>
-                    </div>
-                )}
             </div>
 
             {/* Scrollable canvas */}
@@ -384,39 +271,19 @@ export function TimelineView({
                     {/* ── Left sidebar ── */}
                     <div className="absolute left-0 top-0 bg-white border-r border-zinc-200 z-20" style={{ width: LABEL_WIDTH, height: chartHeight }}>
                         <div className="border-b border-zinc-200 flex items-end px-3 pb-1" style={{ height: HEADER_HEIGHT }}>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">
-                                {isStasiunMode ? "Stasiun" : "Jalur"}
-                            </span>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Stasiun</span>
                         </div>
-                        {Array.from({ length: displayRows }, (_, i) => {
-                            const isNew = i >= totalRows
-                            const isGhostTarget = !isStasiunMode && drag?.active && ghostRow === i
-                            return (
-                                <div
-                                    key={i}
-                                    className={`flex items-center px-3 transition-colors duration-100 ${
-                                        isGhostTarget ? "bg-indigo-50 border-b border-indigo-200" :
-                                        isNew ? "border-b border-dashed border-zinc-200" :
-                                        "border-b border-zinc-100"
-                                    }`}
-                                    style={{ height: ROW_HEIGHT + ROW_GAP }}
-                                >
-                                    <span className={`text-[10px] font-bold truncate ${
-                                        isGhostTarget ? "text-indigo-600" : isNew ? "text-zinc-300" : "text-zinc-400"
-                                    }`}>
-                                        {isNew ? (isStasiunMode ? "" : "+ Jalur Baru")
-                                            : isStasiunMode ? (stasiunRowLabels[i] || `Stasiun ${i + 1}`)
-                                            : `Jalur ${i + 1}`}
-                                    </span>
-                                </div>
-                            )
-                        })}
-                        {/* Static "+ Drag ke sini" hint — only in jalur mode */}
-                        {!isStasiunMode && !(drag?.active && ghostRow >= totalRows) && steps.length > 0 && (
-                            <div className="flex items-center px-3 text-zinc-300" style={{ height: ROW_HEIGHT + ROW_GAP }}>
-                                <span className="text-[10px] font-bold">+ Drag ke sini</span>
+                        {Array.from({ length: displayRows }, (_, i) => (
+                            <div
+                                key={i}
+                                className="flex items-center px-3 border-b border-zinc-100"
+                                style={{ height: ROW_HEIGHT + ROW_GAP }}
+                            >
+                                <span className="text-[10px] font-bold truncate text-zinc-400">
+                                    {rowLabels[i] || `Stasiun ${i + 1}`}
+                                </span>
                             </div>
-                        )}
+                        ))}
                     </div>
 
                     {/* ── Chart area ── */}
@@ -438,23 +305,15 @@ export function TimelineView({
                         ))}
 
                         {/* Row backgrounds */}
-                        {Array.from({ length: displayRows + 1 }, (_, i) => {
-                            const isGhostTarget = drag?.active && ghostRow === i
-                            const isNew = i >= totalRows
-                            return (
-                                <div
-                                    key={`rb-${i}`}
-                                    className={`absolute w-full transition-colors duration-100 ${
-                                        isGhostTarget ? "bg-indigo-50/40 border-b border-indigo-200" :
-                                        isNew ? "border-b border-dashed border-zinc-100" :
-                                        `border-b border-zinc-100 ${i % 2 === 1 ? "bg-zinc-50/30" : "bg-white"}`
-                                    }`}
-                                    style={{ top: HEADER_HEIGHT + i * (ROW_HEIGHT + ROW_GAP), height: ROW_HEIGHT + ROW_GAP }}
-                                />
-                            )
-                        })}
+                        {Array.from({ length: displayRows }, (_, i) => (
+                            <div
+                                key={`rb-${i}`}
+                                className={`absolute w-full border-b border-zinc-100 ${i % 2 === 1 ? "bg-zinc-50/30" : "bg-white"}`}
+                                style={{ top: HEADER_HEIGHT + i * (ROW_HEIGHT + ROW_GAP), height: ROW_HEIGHT + ROW_GAP }}
+                            />
+                        ))}
 
-                        {/* ── Snap guide line (vertical) while dragging ── */}
+                        {/* ── Snap guide line while dragging ── */}
                         {drag?.active && ghostStartMin >= 0 && (
                             <div
                                 className="absolute top-0 bottom-0 border-l border-dashed border-indigo-300 z-30 pointer-events-none"
@@ -470,14 +329,12 @@ export function TimelineView({
                             const isSelected = bar.step.id === selectedStepId
                             const isDragging = drag?.active && drag.stepId === bar.step.id
                             const barWidth = Math.max(bar.durationMin * PIXELS_PER_MINUTE, 60)
-
-                            const displayWidth = barWidth
-
-                            const progress = totalQty > 0 ? Math.min(100, ((bar.step.completedQty || 0) / totalQty) * 100) : 0
+                            const stepTarget = stepTargets.get(bar.step.id) || totalQty
+                            const progress = stepTarget > 0 ? Math.min(100, ((bar.step.completedQty || 0) / stepTarget) * 100) : 0
 
                             return (
                                 <div key={bar.step.id}>
-                                    {/* Static bar (fades when move-dragging) */}
+                                    {/* Static bar */}
                                     <div
                                         onPointerDown={(e) => onPointerDown(e, bar.step.id)}
                                         className={`absolute rounded-md cursor-grab active:cursor-grabbing transition-shadow ${
@@ -488,12 +345,13 @@ export function TimelineView({
                                         style={{
                                             left: bar.startMin * PIXELS_PER_MINUTE,
                                             top: rowY(bar.row),
-                                            width: displayWidth,
+                                            width: barWidth,
                                             height: ROW_HEIGHT,
                                             background: c.bg,
                                             borderLeft: `3px solid ${c.accent}`,
                                         }}
                                     >
+                                        {/* Progress fill */}
                                         {progress > 0 && (
                                             <div className="absolute inset-0 rounded-r-md opacity-15" style={{ width: `${progress}%`, background: c.accent }} />
                                         )}
@@ -501,21 +359,29 @@ export function TimelineView({
                                             <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: c.text }} />
                                             <div className="min-w-0 flex-1">
                                                 <p className="text-[11px] font-bold truncate" style={{ color: c.text }}>{bar.step.station?.name || "—"}</p>
-                                                <p className="text-[9px] font-mono opacity-60" style={{ color: c.text }}>{fmtDuration(bar.durationMin)}/pcs</p>
+                                                <p className="text-[9px] font-mono opacity-60" style={{ color: c.text }}>
+                                                    {bar.durationPerPcs > 0 && totalQty > 1
+                                                        ? `${fmtDuration(bar.durationPerPcs)}/pcs × ${totalQty} = ${fmtDuration(bar.durationMin)}`
+                                                        : fmtDuration(bar.durationMin)
+                                                    }
+                                                </p>
                                             </div>
+                                            {progress > 0 && (
+                                                <span className="text-[8px] font-black shrink-0" style={{ color: c.text }}>{Math.round(progress)}%</span>
+                                            )}
                                             {bar.step.station?.operationType === "SUBCONTRACTOR" && (
                                                 <span className="text-[7px] font-bold bg-amber-100 text-amber-700 px-1 py-0.5 rounded shrink-0">SUB</span>
                                             )}
                                         </div>
                                     </div>
 
-                                    {/* Ghost bar during move drag */}
+                                    {/* Ghost bar during drag */}
                                     {isDragging && (
                                         <div
                                             className="absolute rounded-md shadow-lg ring-2 ring-indigo-400 pointer-events-none z-50"
                                             style={{
                                                 left: ghostStartMin * PIXELS_PER_MINUTE,
-                                                top: rowY(drag.barLayout.row) + (drag.currentY - drag.startY),
+                                                top: rowY(bar.row),
                                                 width: barWidth,
                                                 height: ROW_HEIGHT,
                                                 background: c.bg,

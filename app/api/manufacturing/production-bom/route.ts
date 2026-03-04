@@ -140,9 +140,9 @@ export async function GET(request: NextRequest) {
         const all = [...enrichedNew, ...enrichedLegacy]
 
         return NextResponse.json({ success: true, data: all })
-    } catch (error) {
-        console.error('Error fetching production BOMs:', error)
-        return NextResponse.json({ success: false, error: 'Failed to fetch production BOMs' }, { status: 500 })
+    } catch (error: any) {
+        console.error('Error fetching production BOMs:', error?.message || error)
+        return NextResponse.json({ success: false, error: error?.message || 'Failed to fetch production BOMs' }, { status: 500 })
     }
 }
 

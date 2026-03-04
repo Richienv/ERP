@@ -33,6 +33,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import {
     type InvoiceKanbanData,
     type InvoiceKanbanItem,
@@ -53,10 +54,11 @@ import { queryKeys } from "@/lib/query-keys"
 const emptyKanban: InvoiceKanbanData = { draft: [], sent: [], overdue: [], paid: [] }
 const PAGE_SIZE = 15
 
-type StatusTab = 'ALL' | 'DRAFT' | 'SENT' | 'OVERDUE' | 'PAID'
+// Status filtering is handled by CheckboxFilter components
 
 export default function InvoicesPage() {
-    const [activeTab, setActiveTab] = useState<StatusTab>('ALL')
+    const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+    const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
     const [page, setPage] = useState(1)
 
     // Create invoice dialog
@@ -95,15 +97,13 @@ export default function InvoicesPage() {
     const [editNumber, setEditNumber] = useState("")
 
     const [searchText, setSearchText] = useState("")
-    const [invoiceTypeFilter, setInvoiceTypeFilter] = useState<'ALL' | 'INV_OUT' | 'INV_IN'>('ALL')
     const router = useRouter()
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const queryClient = useQueryClient()
 
     const q = (searchParams.get("q") || "").trim()
-    const type = (searchParams.get("type") as 'ALL' | 'INV_OUT' | 'INV_IN' | null) || "ALL"
-    const { data: invoices = emptyKanban, isLoading: loading } = useInvoiceKanban({ q: q || undefined, type: type !== "ALL" ? type : undefined })
+    const { data: invoices = emptyKanban, isLoading: loading } = useInvoiceKanban({ q: q || undefined })
 
     const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
         const next = new URLSearchParams(searchParams.toString())
@@ -140,14 +140,25 @@ export default function InvoicesPage() {
     }, [invoices])
 
     const filteredInvoices = useMemo(() => {
-        if (activeTab === 'ALL') return allInvoices
-        return allInvoices.filter(i => i._tab === activeTab)
-    }, [allInvoices, activeTab])
+        return allInvoices.filter(i => {
+            // Type filter: empty = show all
+            if (selectedTypes.length > 0 && !selectedTypes.includes(i.type)) return false
+            // Status filter: empty = show all
+            // Map ISSUED status to match _tab "SENT" bucket, and handle OVERDUE which is a _tab but maps to ISSUED/OVERDUE status
+            if (selectedStatuses.length > 0) {
+                // Use _tab for matching since that's how invoices are bucketed
+                const tabToStatus: Record<string, string> = { DRAFT: 'DRAFT', SENT: 'ISSUED', OVERDUE: 'OVERDUE', PAID: 'PAID' }
+                const mappedStatus = tabToStatus[i._tab] || i.status
+                if (!selectedStatuses.includes(mappedStatus)) return false
+            }
+            return true
+        })
+    }, [allInvoices, selectedTypes, selectedStatuses])
 
     const totalPages = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE))
     const pagedInvoices = filteredInvoices.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-    useEffect(() => { setPage(1) }, [activeTab])
+    useEffect(() => { setPage(1) }, [selectedTypes, selectedStatuses])
 
     const counts = useMemo(() => ({
         all: allInvoices.length,
@@ -311,17 +322,15 @@ export default function InvoicesPage() {
             const q = searchText.trim()
             if (q) params.set("q", q)
             else params.delete("q")
-            if (invoiceTypeFilter === "ALL") params.delete("type")
-            else params.set("type", invoiceTypeFilter)
         })
     }
 
     const resetFilters = () => {
         setSearchText("")
-        setInvoiceTypeFilter("ALL")
+        setSelectedTypes([])
+        setSelectedStatuses([])
         pushSearchParams((params) => {
             params.delete("q")
-            params.delete("type")
         })
     }
 
@@ -333,13 +342,6 @@ export default function InvoicesPage() {
         PAID: { label: 'Lunas', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     }
 
-    const tabs: { key: StatusTab; label: string; count: number; color: string }[] = [
-        { key: 'ALL', label: 'Semua', count: counts.all, color: 'orange' },
-        { key: 'DRAFT', label: 'Draft', count: counts.draft, color: 'zinc' },
-        { key: 'SENT', label: 'Terkirim', count: counts.sent, color: 'blue' },
-        { key: 'OVERDUE', label: 'Jatuh Tempo', count: counts.overdue, color: 'red' },
-        { key: 'PAID', label: 'Lunas', count: counts.paid, color: 'emerald' },
-    ]
 
     return (
         <div className="mf-page">
@@ -389,16 +391,26 @@ export default function InvoicesPage() {
                                 onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
                             />
                         </div>
-                        <Select value={invoiceTypeFilter} onValueChange={(v: any) => setInvoiceTypeFilter(v)}>
-                            <SelectTrigger className="border-2 border-black h-10 font-medium w-full md:w-[180px]">
-                                <SelectValue placeholder="Semua Tipe" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">Semua Tipe</SelectItem>
-                                <SelectItem value="INV_OUT">Customer Invoice</SelectItem>
-                                <SelectItem value="INV_IN">Vendor Bill</SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <CheckboxFilter
+                            label="Tipe Invoice"
+                            options={[
+                                { value: "INV_OUT", label: "Invoice Keluar" },
+                                { value: "INV_IN", label: "Invoice Masuk" },
+                            ]}
+                            selected={selectedTypes}
+                            onChange={setSelectedTypes}
+                        />
+                        <CheckboxFilter
+                            label="Status"
+                            options={[
+                                { value: "DRAFT", label: "Draft" },
+                                { value: "ISSUED", label: "Terkirim" },
+                                { value: "OVERDUE", label: "Jatuh Tempo" },
+                                { value: "PAID", label: "Lunas" },
+                            ]}
+                            selected={selectedStatuses}
+                            onChange={setSelectedStatuses}
+                        />
                         <Button
                             onClick={applyFilters}
                             className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-4"
@@ -416,32 +428,25 @@ export default function InvoicesPage() {
                 </div>
             </div>
 
-            {/* Status Tabs */}
+            {/* Status Summary Chips */}
             <div className="flex gap-2 flex-wrap">
-                {tabs.map((tab) => {
-                    const isActive = activeTab === tab.key
-                    return (
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveTab(tab.key)}
-                            className={`
-                                flex items-center gap-2 px-4 py-2 border-2 text-[11px] font-black uppercase tracking-widest transition-all
-                                ${isActive
-                                    ? 'border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] text-zinc-900'
-                                    : 'border-zinc-200 bg-zinc-50 text-zinc-400 hover:border-zinc-400 hover:text-zinc-600'
-                                }
-                            `}
-                        >
-                            {tab.label}
-                            <span className={`
-                                text-[10px] font-black px-1.5 py-0.5 min-w-[22px] text-center rounded-sm
-                                ${isActive ? 'bg-orange-500 text-white' : 'bg-zinc-200 text-zinc-500'}
-                            `}>
-                                {tab.count}
-                            </span>
-                        </button>
-                    )
-                })}
+                {[
+                    { label: 'Semua', count: counts.all, color: 'orange' },
+                    { label: 'Draft', count: counts.draft, color: 'zinc' },
+                    { label: 'Terkirim', count: counts.sent, color: 'blue' },
+                    { label: 'Jatuh Tempo', count: counts.overdue, color: 'red' },
+                    { label: 'Lunas', count: counts.paid, color: 'emerald' },
+                ].map((chip) => (
+                    <div
+                        key={chip.label}
+                        className="flex items-center gap-2 px-4 py-2 border-2 border-zinc-200 bg-zinc-50 text-[11px] font-black uppercase tracking-widest"
+                    >
+                        {chip.label}
+                        <span className="text-[10px] font-black px-1.5 py-0.5 min-w-[22px] text-center rounded-sm bg-zinc-200 text-zinc-500">
+                            {chip.count}
+                        </span>
+                    </div>
+                ))}
             </div>
 
             {/* Invoice Table */}
