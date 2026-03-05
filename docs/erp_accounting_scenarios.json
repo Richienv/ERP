@@ -1,0 +1,2312 @@
+{
+  "chart_of_accounts": [
+    {
+      "code": "1-1000",
+      "name": "Cash on Hand",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Cash & Equivalents",
+      "description": "Physical cash in register/safe",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-1010",
+      "name": "Bank Account (IDR)",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Cash & Equivalents",
+      "description": "IDR bank account balance",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-1020",
+      "name": "Bank Account (USD)",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Cash & Equivalents",
+      "description": "Foreign currency bank account",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-1100",
+      "name": "Accounts Receivable",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Receivables",
+      "description": "Money owed by customers from credit sales",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-1110",
+      "name": "Allowance for Doubtful Accounts",
+      "type": "Contra Asset",
+      "normal_balance": "Credit",
+      "category": "Current Asset",
+      "sub_category": "Receivables",
+      "description": "Estimated uncollectible AR (reduces AR)",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-1200",
+      "name": "Inventory - Raw Materials",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Inventory",
+      "description": "Fabric, thread, buttons, zippers etc.",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "1-1210",
+      "name": "Inventory - Work in Progress",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Inventory",
+      "description": "Garments in production process",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-1220",
+      "name": "Inventory - Finished Goods",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Inventory",
+      "description": "Completed garments ready for sale",
+      "tax_relevant": true,
+      "tax_code": "PPN Keluaran"
+    },
+    {
+      "code": "1-1300",
+      "name": "Prepaid Rent",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Prepaid Expenses",
+      "description": "Rent paid in advance (factory/office)",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "1-1310",
+      "name": "Prepaid Insurance",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Prepaid Expenses",
+      "description": "Insurance premiums paid in advance",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-1320",
+      "name": "Prepaid Tax (PPh 25)",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Prepaid Expenses",
+      "description": "Monthly corporate income tax installment",
+      "tax_relevant": true,
+      "tax_code": "PPh 25"
+    },
+    {
+      "code": "1-1330",
+      "name": "VAT Input (PPN Masukan)",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Current Asset",
+      "sub_category": "Tax Receivable",
+      "description": "VAT paid on purchases, offsettable",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "1-2000",
+      "name": "Land",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Fixed Asset",
+      "sub_category": "Property",
+      "description": "Land ownership (not depreciated)",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2010",
+      "name": "Building",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Fixed Asset",
+      "sub_category": "Property",
+      "description": "Factory/office building",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2011",
+      "name": "Accum. Depreciation - Building",
+      "type": "Contra Asset",
+      "normal_balance": "Credit",
+      "category": "Fixed Asset",
+      "sub_category": "Property",
+      "description": "Total depreciation charged on building",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2020",
+      "name": "Machinery & Equipment",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Fixed Asset",
+      "sub_category": "Equipment",
+      "description": "Sewing machines, cutting tables, etc.",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2021",
+      "name": "Accum. Depreciation - Machinery",
+      "type": "Contra Asset",
+      "normal_balance": "Credit",
+      "category": "Fixed Asset",
+      "sub_category": "Equipment",
+      "description": "Total depreciation on machinery",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2030",
+      "name": "Vehicles",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Fixed Asset",
+      "sub_category": "Vehicles",
+      "description": "Delivery trucks, company cars",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2031",
+      "name": "Accum. Depreciation - Vehicles",
+      "type": "Contra Asset",
+      "normal_balance": "Credit",
+      "category": "Fixed Asset",
+      "sub_category": "Vehicles",
+      "description": "Total depreciation on vehicles",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2040",
+      "name": "Computer & IT Equipment",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Fixed Asset",
+      "sub_category": "Equipment",
+      "description": "Computers, servers, POS systems",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2041",
+      "name": "Accum. Depr. - IT Equipment",
+      "type": "Contra Asset",
+      "normal_balance": "Credit",
+      "category": "Fixed Asset",
+      "sub_category": "Equipment",
+      "description": "Total depreciation on IT equipment",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2050",
+      "name": "Furniture & Fixtures",
+      "type": "Asset",
+      "normal_balance": "Debit",
+      "category": "Fixed Asset",
+      "sub_category": "Equipment",
+      "description": "Office desks, shelving, display racks",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "1-2051",
+      "name": "Accum. Depr. - Furniture",
+      "type": "Contra Asset",
+      "normal_balance": "Credit",
+      "category": "Fixed Asset",
+      "sub_category": "Equipment",
+      "description": "Total depreciation on furniture",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "2-1000",
+      "name": "Accounts Payable",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Payables",
+      "description": "Money owed to suppliers",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "2-1010",
+      "name": "Accrued Wages Payable",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Payables",
+      "description": "Employee wages earned but not yet paid",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "2-1020",
+      "name": "Accrued Expenses",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Payables",
+      "description": "Expenses incurred but not yet billed (utilities, etc.)",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "2-1100",
+      "name": "VAT Output (PPN Keluaran)",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Tax Payable",
+      "description": "VAT collected on sales, owed to government",
+      "tax_relevant": true,
+      "tax_code": "PPN Keluaran"
+    },
+    {
+      "code": "2-1110",
+      "name": "Income Tax Payable (PPh 21)",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Tax Payable",
+      "description": "Employee income tax withholding",
+      "tax_relevant": true,
+      "tax_code": "PPh 21"
+    },
+    {
+      "code": "2-1120",
+      "name": "Income Tax Payable (PPh 23)",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Tax Payable",
+      "description": "Tax on services/rent paid to others",
+      "tax_relevant": true,
+      "tax_code": "PPh 23"
+    },
+    {
+      "code": "2-1130",
+      "name": "Income Tax Payable (PPh 29)",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Tax Payable",
+      "description": "Annual corporate income tax underpayment",
+      "tax_relevant": true,
+      "tax_code": "PPh 29"
+    },
+    {
+      "code": "2-1140",
+      "name": "PPh 4(2) Final Tax Payable",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Tax Payable",
+      "description": "Final tax on construction/rental income",
+      "tax_relevant": true,
+      "tax_code": "PPh 4(2)"
+    },
+    {
+      "code": "2-1200",
+      "name": "Short-term Loan (Bank)",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Borrowings",
+      "description": "Bank loan due within 12 months",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "2-1210",
+      "name": "Unearned Revenue / DP",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Current Liability",
+      "sub_category": "Deferred",
+      "description": "Customer down payments / deposits received",
+      "tax_relevant": true,
+      "tax_code": "PPN Keluaran"
+    },
+    {
+      "code": "2-2000",
+      "name": "Long-term Loan (Bank)",
+      "type": "Liability",
+      "normal_balance": "Credit",
+      "category": "Non-Current Liability",
+      "sub_category": "Borrowings",
+      "description": "Bank loan due after 12 months",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "3-1000",
+      "name": "Owner's Capital",
+      "type": "Equity",
+      "normal_balance": "Credit",
+      "category": "Equity",
+      "sub_category": "Capital",
+      "description": "Initial & additional capital invested",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "3-1010",
+      "name": "Retained Earnings",
+      "type": "Equity",
+      "normal_balance": "Credit",
+      "category": "Equity",
+      "sub_category": "Retained Earnings",
+      "description": "Accumulated net profit from prior years",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "3-1020",
+      "name": "Current Year Earnings",
+      "type": "Equity",
+      "normal_balance": "Credit",
+      "category": "Equity",
+      "sub_category": "Retained Earnings",
+      "description": "Net profit/loss for the current year",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "3-1030",
+      "name": "Owner's Drawing / Prive",
+      "type": "Equity",
+      "normal_balance": "Debit",
+      "category": "Equity",
+      "sub_category": "Drawing",
+      "description": "Owner withdrawals from the business",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "4-1000",
+      "name": "Product Sales Revenue",
+      "type": "Revenue",
+      "normal_balance": "Credit",
+      "category": "Operating Revenue",
+      "sub_category": "Sales",
+      "description": "Income from selling finished garments",
+      "tax_relevant": true,
+      "tax_code": "PPN Keluaran"
+    },
+    {
+      "code": "4-1010",
+      "name": "Service Revenue (CMT)",
+      "type": "Revenue",
+      "normal_balance": "Credit",
+      "category": "Operating Revenue",
+      "sub_category": "Sales",
+      "description": "Income from Cut-Make-Trim services",
+      "tax_relevant": true,
+      "tax_code": "PPN Keluaran"
+    },
+    {
+      "code": "4-1020",
+      "name": "Sales Returns & Allowances",
+      "type": "Contra Revenue",
+      "normal_balance": "Debit",
+      "category": "Operating Revenue",
+      "sub_category": "Sales",
+      "description": "Goods returned by customers (reduces revenue)",
+      "tax_relevant": true,
+      "tax_code": "PPN Keluaran"
+    },
+    {
+      "code": "4-1030",
+      "name": "Sales Discounts",
+      "type": "Contra Revenue",
+      "normal_balance": "Debit",
+      "category": "Operating Revenue",
+      "sub_category": "Sales",
+      "description": "Discounts given to customers",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "4-2000",
+      "name": "Interest Income",
+      "type": "Revenue",
+      "normal_balance": "Credit",
+      "category": "Other Income",
+      "sub_category": "Financial",
+      "description": "Interest earned on bank deposits",
+      "tax_relevant": true,
+      "tax_code": "PPh 4(2)"
+    },
+    {
+      "code": "4-2010",
+      "name": "Foreign Exchange Gain",
+      "type": "Revenue",
+      "normal_balance": "Credit",
+      "category": "Other Income",
+      "sub_category": "Financial",
+      "description": "Gain from currency conversion",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "4-2020",
+      "name": "Gain on Asset Disposal",
+      "type": "Revenue",
+      "normal_balance": "Credit",
+      "category": "Other Income",
+      "sub_category": "Non-Operating",
+      "description": "Profit from selling fixed assets",
+      "tax_relevant": true,
+      "tax_code": "PPN Keluaran"
+    },
+    {
+      "code": "4-2030",
+      "name": "Miscellaneous Income",
+      "type": "Revenue",
+      "normal_balance": "Credit",
+      "category": "Other Income",
+      "sub_category": "Non-Operating",
+      "description": "Scrap sales, commissions, other small income",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "5-1000",
+      "name": "Raw Material Cost",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "COGS",
+      "sub_category": "Direct Material",
+      "description": "Fabric, thread, accessories consumed",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "5-1010",
+      "name": "Direct Labor Cost",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "COGS",
+      "sub_category": "Direct Labor",
+      "description": "Wages of sewing/cutting operators",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "5-1020",
+      "name": "Factory Overhead - Electricity",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "COGS",
+      "sub_category": "Overhead",
+      "description": "Factory electricity for production",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "5-1030",
+      "name": "Factory Overhead - Depreciation",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "COGS",
+      "sub_category": "Overhead",
+      "description": "Depreciation of production machinery",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "5-1040",
+      "name": "Factory Overhead - Supplies",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "COGS",
+      "sub_category": "Overhead",
+      "description": "Needles, oils, cleaning supplies for machines",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "5-1050",
+      "name": "Subcontractor / CMT Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "COGS",
+      "sub_category": "Overhead",
+      "description": "Outsourced manufacturing costs",
+      "tax_relevant": true,
+      "tax_code": "PPh 23"
+    },
+    {
+      "code": "5-1060",
+      "name": "Freight In (Shipping to Factory)",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "COGS",
+      "sub_category": "Direct Material",
+      "description": "Cost to receive raw materials",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1000",
+      "name": "Office Rent Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Rent",
+      "description": "Monthly rent for office space",
+      "tax_relevant": true,
+      "tax_code": "PPh 4(2)"
+    },
+    {
+      "code": "6-1010",
+      "name": "Factory Rent Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Rent",
+      "description": "Monthly rent for factory/warehouse",
+      "tax_relevant": true,
+      "tax_code": "PPh 4(2)"
+    },
+    {
+      "code": "6-1020",
+      "name": "Employee Salary Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Payroll",
+      "description": "Admin, management, sales staff salaries",
+      "tax_relevant": true,
+      "tax_code": "PPh 21"
+    },
+    {
+      "code": "6-1030",
+      "name": "Employee Benefits (BPJS)",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Payroll",
+      "description": "BPJS Kesehatan & Ketenagakerjaan",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1040",
+      "name": "THR & Bonus Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Payroll",
+      "description": "Tunjangan Hari Raya & performance bonus",
+      "tax_relevant": true,
+      "tax_code": "PPh 21"
+    },
+    {
+      "code": "6-1050",
+      "name": "Office Utilities (Electricity)",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Utilities",
+      "description": "Office electricity bill",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1060",
+      "name": "Water Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Utilities",
+      "description": "Water bill for office/factory",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1070",
+      "name": "Internet & Phone",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Utilities",
+      "description": "Internet, phone, mobile data plans",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1080",
+      "name": "Office Supplies",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Admin",
+      "description": "Paper, ink, stationery",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1090",
+      "name": "Marketing & Advertising",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Marketing",
+      "description": "Online ads, brochures, trade shows",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1100",
+      "name": "Shipping & Delivery (Out)",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Logistics",
+      "description": "Cost to ship products to customers",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1110",
+      "name": "Vehicle Fuel & Maintenance",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Transport",
+      "description": "Fuel, repairs for company vehicles",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1120",
+      "name": "Travel & Accommodation",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Travel",
+      "description": "Business trip costs",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1130",
+      "name": "Professional Fees (Accounting)",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Professional",
+      "description": "Accounting/audit service fees",
+      "tax_relevant": true,
+      "tax_code": "PPh 23"
+    },
+    {
+      "code": "6-1140",
+      "name": "Professional Fees (Legal)",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Professional",
+      "description": "Legal/notary fees",
+      "tax_relevant": true,
+      "tax_code": "PPh 23"
+    },
+    {
+      "code": "6-1150",
+      "name": "Software & SaaS",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "IT",
+      "description": "ERP, design software subscriptions",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1160",
+      "name": "Insurance Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Insurance",
+      "description": "Fire, theft, product liability insurance",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1170",
+      "name": "Depreciation - Office Equipment",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Depreciation",
+      "description": "Monthly depreciation of office assets",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1180",
+      "name": "Depreciation - Vehicles",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Depreciation",
+      "description": "Monthly depreciation of vehicles",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1190",
+      "name": "Depreciation - Building",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Depreciation",
+      "description": "Monthly depreciation of building",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1200",
+      "name": "Bad Debt Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Admin",
+      "description": "Uncollectible accounts receivable written off",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1210",
+      "name": "Bank Charges & Admin Fees",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Financial",
+      "description": "Transfer fees, monthly bank admin",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1220",
+      "name": "Entertainment & Representation",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Marketing",
+      "description": "Client meals, gifts (with daftar nominatif)",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "6-1230",
+      "name": "Training & Development",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "HR",
+      "description": "Employee training, seminars, certification",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1240",
+      "name": "Repairs & Maintenance",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Maintenance",
+      "description": "Building/equipment repairs",
+      "tax_relevant": true,
+      "tax_code": "PPN Masukan"
+    },
+    {
+      "code": "6-1250",
+      "name": "Security & Cleaning Service",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "OpEx",
+      "sub_category": "Admin",
+      "description": "Outsourced security/cleaning",
+      "tax_relevant": true,
+      "tax_code": "PPh 23"
+    },
+    {
+      "code": "7-1000",
+      "name": "Interest Expense",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "Non-OpEx",
+      "sub_category": "Financial",
+      "description": "Interest on bank loans",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "7-1010",
+      "name": "Foreign Exchange Loss",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "Non-OpEx",
+      "sub_category": "Financial",
+      "description": "Loss from currency conversion",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "7-1020",
+      "name": "Loss on Asset Disposal",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "Non-OpEx",
+      "sub_category": "Non-Operating",
+      "description": "Loss from selling/discarding fixed assets",
+      "tax_relevant": false,
+      "tax_code": null
+    },
+    {
+      "code": "7-1030",
+      "name": "Penalty & Fine",
+      "type": "Expense",
+      "normal_balance": "Debit",
+      "category": "Non-OpEx",
+      "sub_category": "Non-Operating",
+      "description": "Tax penalties, late payment fines",
+      "tax_relevant": false,
+      "tax_code": null
+    }
+  ],
+  "transaction_scenarios": {
+    "sales": [
+      {
+        "id": "S01",
+        "name": "Cash Sale (with PPN)",
+        "debit": [
+          "1-1000"
+        ],
+        "credit": [
+          "4-1000",
+          "2-1100"
+        ],
+        "trigger": "POS sale / cash invoice",
+        "detection_logic": "Invoice type=Cash, payment=immediate",
+        "tax_impact": "PPN 11% collected from buyer"
+      },
+      {
+        "id": "S02",
+        "name": "Credit Sale (with PPN)",
+        "debit": [
+          "1-1100"
+        ],
+        "credit": [
+          "4-1000",
+          "2-1100"
+        ],
+        "trigger": "Credit invoice issued",
+        "detection_logic": "Invoice type=Credit, terms>0 days",
+        "tax_impact": "PPN 11% on invoice, Faktur Pajak required"
+      },
+      {
+        "id": "S03",
+        "name": "Customer Down Payment Received",
+        "debit": [
+          "1-1010"
+        ],
+        "credit": [
+          "2-1210",
+          "2-1100"
+        ],
+        "trigger": "DP received before delivery",
+        "detection_logic": "Payment received without matching delivery",
+        "tax_impact": "PPN due on DP receipt per PMK 2021"
+      },
+      {
+        "id": "S04",
+        "name": "DP Applied to Final Invoice",
+        "debit": [
+          "2-1210"
+        ],
+        "credit": [
+          "4-1000"
+        ],
+        "trigger": "Goods delivered, final invoice raised",
+        "detection_logic": "Link DP payment to sales order fulfilled",
+        "tax_impact": "Net PPN on remaining balance"
+      },
+      {
+        "id": "S05",
+        "name": "Sales Return (Credit Note)",
+        "debit": [
+          "4-1020",
+          "2-1100"
+        ],
+        "credit": [
+          "1-1100"
+        ],
+        "trigger": "Customer returns goods",
+        "detection_logic": "Return note linked to original invoice",
+        "tax_impact": "PPN reversal via Faktur Pajak Pengganti"
+      },
+      {
+        "id": "S06",
+        "name": "Sales Discount Given",
+        "debit": [
+          "4-1030"
+        ],
+        "credit": [
+          "1-1100"
+        ],
+        "trigger": "Early payment discount taken",
+        "detection_logic": "Payment < invoice amount within terms",
+        "tax_impact": "No PPN impact if discount on payment"
+      },
+      {
+        "id": "S07",
+        "name": "CMT Service Revenue",
+        "debit": [
+          "1-1100"
+        ],
+        "credit": [
+          "4-1010",
+          "2-1100"
+        ],
+        "trigger": "CMT job completed & invoiced",
+        "detection_logic": "Service invoice, type=CMT",
+        "tax_impact": "PPN 11% on service"
+      }
+    ],
+    "purchasing": [
+      {
+        "id": "P01",
+        "name": "Purchase Raw Materials (Credit)",
+        "debit": [
+          "1-1200",
+          "1-1330"
+        ],
+        "credit": [
+          "2-1000"
+        ],
+        "trigger": "PO received & GRN created",
+        "detection_logic": "GRN matched with PO, invoice received",
+        "tax_impact": "Claim PPN Masukan 11%"
+      },
+      {
+        "id": "P02",
+        "name": "Purchase Raw Materials (Cash)",
+        "debit": [
+          "1-1200",
+          "1-1330"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Cash purchase with receipt",
+        "detection_logic": "Direct payment, no PO required",
+        "tax_impact": "Claim PPN Masukan if Faktur Pajak exists"
+      },
+      {
+        "id": "P03",
+        "name": "Pay Supplier Invoice",
+        "debit": [
+          "2-1000"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Payment processed for supplier",
+        "detection_logic": "AP aging triggers payment run",
+        "tax_impact": "PPh 23 withheld if applicable service"
+      },
+      {
+        "id": "P04",
+        "name": "Purchase Return to Supplier",
+        "debit": [
+          "2-1000"
+        ],
+        "credit": [
+          "1-1200",
+          "1-1330"
+        ],
+        "trigger": "Defective goods returned",
+        "detection_logic": "Return note linked to GRN/PO",
+        "tax_impact": "PPN Masukan reversed"
+      },
+      {
+        "id": "P05",
+        "name": "Freight-In on Raw Materials",
+        "debit": [
+          "5-1060"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Shipping cost for inbound goods",
+        "detection_logic": "Freight invoice linked to PO",
+        "tax_impact": "PPN Masukan on freight"
+      }
+    ],
+    "inventory": [
+      {
+        "id": "I01",
+        "name": "Transfer Raw Material to WIP",
+        "debit": [
+          "1-1210"
+        ],
+        "credit": [
+          "1-1200"
+        ],
+        "trigger": "Production order started, materials issued",
+        "detection_logic": "Material requisition slip approved",
+        "tax_impact": "No tax impact"
+      },
+      {
+        "id": "I02",
+        "name": "Transfer WIP to Finished Goods",
+        "debit": [
+          "1-1220"
+        ],
+        "credit": [
+          "1-1210"
+        ],
+        "trigger": "Production order completed, QC passed",
+        "detection_logic": "Production completion report",
+        "tax_impact": "No tax impact"
+      },
+      {
+        "id": "I03",
+        "name": "COGS on Sale (Perpetual)",
+        "debit": [
+          "5-1000"
+        ],
+        "credit": [
+          "1-1220"
+        ],
+        "trigger": "Invoice/delivery note created",
+        "detection_logic": "Auto-post on sales invoice confirmation",
+        "tax_impact": "No tax impact"
+      },
+      {
+        "id": "I04",
+        "name": "Inventory Adjustment (Shrinkage)",
+        "debit": [
+          "5-1000"
+        ],
+        "credit": [
+          "1-1220"
+        ],
+        "trigger": "Stock count < system count",
+        "detection_logic": "Stock opname variance detected",
+        "tax_impact": "Non-deductible if no police report"
+      },
+      {
+        "id": "I05",
+        "name": "Inventory Adjustment (Surplus)",
+        "debit": [
+          "1-1220"
+        ],
+        "credit": [
+          "4-2030"
+        ],
+        "trigger": "Stock count > system count",
+        "detection_logic": "Stock opname surplus detected",
+        "tax_impact": "Taxable as other income"
+      }
+    ],
+    "payroll": [
+      {
+        "id": "PR01",
+        "name": "Record Monthly Salary",
+        "debit": [
+          "6-1020"
+        ],
+        "credit": [
+          "2-1010",
+          "2-1110"
+        ],
+        "trigger": "End of month payroll run",
+        "detection_logic": "Payroll module calculates gross to net",
+        "tax_impact": "PPh 21 withheld based on PTKP"
+      },
+      {
+        "id": "PR02",
+        "name": "Pay Employee Salary",
+        "debit": [
+          "2-1010"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Salary transfer date",
+        "detection_logic": "Bank transfer batch from payroll",
+        "tax_impact": "No additional tax (already withheld)"
+      },
+      {
+        "id": "PR03",
+        "name": "Record BPJS Contributions",
+        "debit": [
+          "6-1030",
+          "2-1010"
+        ],
+        "credit": [
+          "2-1020"
+        ],
+        "trigger": "Monthly payroll processing",
+        "detection_logic": "Auto-calculate based on salary tiers",
+        "tax_impact": "Company portion is deductible expense"
+      },
+      {
+        "id": "PR04",
+        "name": "Pay PPh 21 to Tax Office",
+        "debit": [
+          "2-1110"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "10th of following month",
+        "detection_logic": "Tax calendar reminder + auto payment",
+        "tax_impact": "Monthly SPT PPh 21 filing"
+      },
+      {
+        "id": "PR05",
+        "name": "Record THR Payment",
+        "debit": [
+          "6-1040"
+        ],
+        "credit": [
+          "1-1010",
+          "2-1110"
+        ],
+        "trigger": "Before Hari Raya",
+        "detection_logic": "THR calculation triggered by HR module",
+        "tax_impact": "PPh 21 calculated annually"
+      },
+      {
+        "id": "PR06",
+        "name": "Record Direct Labor (Factory)",
+        "debit": [
+          "5-1010"
+        ],
+        "credit": [
+          "2-1010",
+          "2-1110"
+        ],
+        "trigger": "Factory payroll run",
+        "detection_logic": "Job type=Production tagged employees",
+        "tax_impact": "PPh 21 same treatment"
+      }
+    ],
+    "fixed_assets": [
+      {
+        "id": "FA01",
+        "name": "Purchase Machinery (Cash)",
+        "debit": [
+          "1-2020",
+          "1-1330"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Asset purchased and installed",
+        "detection_logic": "Capex PO + asset tag created",
+        "tax_impact": "Claim PPN Masukan"
+      },
+      {
+        "id": "FA02",
+        "name": "Purchase Vehicle (Loan)",
+        "debit": [
+          "1-2030",
+          "1-1330"
+        ],
+        "credit": [
+          "2-2000"
+        ],
+        "trigger": "Vehicle purchased via bank loan",
+        "detection_logic": "Asset created, loan schedule generated",
+        "tax_impact": "PPN Masukan, PPh depr. deductible"
+      },
+      {
+        "id": "FA03",
+        "name": "Monthly Depreciation - Machinery",
+        "debit": [
+          "5-1030"
+        ],
+        "credit": [
+          "1-2021"
+        ],
+        "trigger": "Month-end closing",
+        "detection_logic": "Auto-calculate straight-line/declining",
+        "tax_impact": "Deductible per PMK useful life rules"
+      },
+      {
+        "id": "FA04",
+        "name": "Monthly Depreciation - Vehicle",
+        "debit": [
+          "6-1180"
+        ],
+        "credit": [
+          "1-2031"
+        ],
+        "trigger": "Month-end closing",
+        "detection_logic": "Auto-calculate based on asset register",
+        "tax_impact": "Max 50% deductible if sedan (mixed use)"
+      },
+      {
+        "id": "FA05",
+        "name": "Monthly Depreciation - Building",
+        "debit": [
+          "6-1190"
+        ],
+        "credit": [
+          "1-2011"
+        ],
+        "trigger": "Month-end closing",
+        "detection_logic": "Auto-calculate 20yr straight-line",
+        "tax_impact": "Deductible over 20 years"
+      },
+      {
+        "id": "FA06",
+        "name": "Monthly Depreciation - IT Equipment",
+        "debit": [
+          "6-1170"
+        ],
+        "credit": [
+          "1-2041"
+        ],
+        "trigger": "Month-end closing",
+        "detection_logic": "Auto-calculate 4yr straight-line",
+        "tax_impact": "Group 1: 4 years useful life"
+      },
+      {
+        "id": "FA07",
+        "name": "Sell Fixed Asset (Gain)",
+        "debit": [
+          "1-1010",
+          "1-2021"
+        ],
+        "credit": [
+          "1-2020",
+          "4-2020"
+        ],
+        "trigger": "Asset sold above book value",
+        "detection_logic": "Asset disposal form, calculate gain/loss",
+        "tax_impact": "PPN on selling price"
+      },
+      {
+        "id": "FA08",
+        "name": "Sell Fixed Asset (Loss)",
+        "debit": [
+          "1-1010",
+          "1-2021",
+          "7-1020"
+        ],
+        "credit": [
+          "1-2020"
+        ],
+        "trigger": "Asset sold below book value",
+        "detection_logic": "Asset disposal form, calculate gain/loss",
+        "tax_impact": "PPN on selling price"
+      },
+      {
+        "id": "FA09",
+        "name": "Asset Write-off (Fully Depreciated)",
+        "debit": [
+          "1-2021"
+        ],
+        "credit": [
+          "1-2020"
+        ],
+        "trigger": "Asset retired, NBV = 0",
+        "detection_logic": "Asset status changed to retired",
+        "tax_impact": "No tax impact if fully depreciated"
+      }
+    ],
+    "rent": [
+      {
+        "id": "R01",
+        "name": "Pay Office Rent (Monthly)",
+        "debit": [
+          "6-1000"
+        ],
+        "credit": [
+          "1-1010",
+          "2-1140"
+        ],
+        "trigger": "Monthly rent due date",
+        "detection_logic": "Recurring expense schedule",
+        "tax_impact": "PPh 4(2) Final 10% withheld if land/building"
+      },
+      {
+        "id": "R02",
+        "name": "Prepay Annual Factory Rent",
+        "debit": [
+          "1-1300"
+        ],
+        "credit": [
+          "1-1010",
+          "2-1140"
+        ],
+        "trigger": "Annual rent payment",
+        "detection_logic": "Prepaid to monthly amortization schedule",
+        "tax_impact": "PPh 4(2) 10% on total, PPN 11%"
+      },
+      {
+        "id": "R03",
+        "name": "Amortize Prepaid Rent Monthly",
+        "debit": [
+          "6-1010"
+        ],
+        "credit": [
+          "1-1300"
+        ],
+        "trigger": "Month-end closing",
+        "detection_logic": "Auto-amortize 1/12 of prepaid balance",
+        "tax_impact": "No additional tax (already withheld)"
+      },
+      {
+        "id": "R04",
+        "name": "Receive Rental Income (Landlord)",
+        "debit": [
+          "1-1010"
+        ],
+        "credit": [
+          "4-2030"
+        ],
+        "trigger": "Tenant pays rent",
+        "detection_logic": "Incoming payment tagged as rental",
+        "tax_impact": "PPh 4(2) Final 10% on gross"
+      },
+      {
+        "id": "R05",
+        "name": "Equipment Rental Expense",
+        "debit": [
+          "6-1240"
+        ],
+        "credit": [
+          "1-1010",
+          "2-1120"
+        ],
+        "trigger": "Equipment hired temporarily",
+        "detection_logic": "Vendor type=equipment rental",
+        "tax_impact": "PPh 23 at 2% if corporate vendor"
+      }
+    ],
+    "tax": [
+      {
+        "id": "T01",
+        "name": "Monthly PPN Settlement",
+        "debit": [
+          "2-1100"
+        ],
+        "credit": [
+          "1-1330",
+          "1-1010"
+        ],
+        "trigger": "Monthly PPN SPT filing",
+        "detection_logic": "Net PPN = Keluaran - Masukan",
+        "tax_impact": "SPT Masa PPN filing by end of month+1"
+      },
+      {
+        "id": "T02",
+        "name": "Monthly PPh 25 Installment",
+        "debit": [
+          "1-1320"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "15th of each month",
+        "detection_logic": "Auto-calculate from prior year SPT",
+        "tax_impact": "Monthly advance corporate tax"
+      },
+      {
+        "id": "T03",
+        "name": "Pay PPh 23 on Services",
+        "debit": [
+          "2-1120"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "10th of following month",
+        "detection_logic": "Triggered when paying service vendors",
+        "tax_impact": "2% on gross for tax-ID vendors"
+      },
+      {
+        "id": "T04",
+        "name": "Pay PPh 4(2) Final on Rent",
+        "debit": [
+          "2-1140"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "10th of following month",
+        "detection_logic": "Triggered when paying rent",
+        "tax_impact": "10% Final on gross rental"
+      },
+      {
+        "id": "T05",
+        "name": "Annual PPh 29 (Underpayment)",
+        "debit": [
+          "2-1130"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Annual SPT Badan filing",
+        "detection_logic": "Annual tax calc - PPh 25 installments",
+        "tax_impact": "Due April 30 for corporate"
+      }
+    ],
+    "operating_expenses": [
+      {
+        "id": "OE01",
+        "name": "Pay Electricity Bill (Office)",
+        "debit": [
+          "6-1050"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Electricity bill received",
+        "detection_logic": "Utility payment auto-categorize",
+        "tax_impact": "No PPN on PLN electricity"
+      },
+      {
+        "id": "OE02",
+        "name": "Pay Internet Bill",
+        "debit": [
+          "6-1070",
+          "1-1330"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Monthly internet invoice",
+        "detection_logic": "Recurring vendor payment",
+        "tax_impact": "PPN 11% claimable"
+      },
+      {
+        "id": "OE03",
+        "name": "Marketing Expense (Online Ads)",
+        "debit": [
+          "6-1090",
+          "1-1330"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Ad campaign payment",
+        "detection_logic": "Vendor category=marketing",
+        "tax_impact": "PPN if domestic; No PPN if Google/Meta direct"
+      },
+      {
+        "id": "OE04",
+        "name": "Pay Accounting Firm",
+        "debit": [
+          "6-1130",
+          "1-1330"
+        ],
+        "credit": [
+          "1-1010",
+          "2-1120"
+        ],
+        "trigger": "Accounting invoice received",
+        "detection_logic": "Vendor type=professional service",
+        "tax_impact": "PPh 23 2%, PPN 11%"
+      },
+      {
+        "id": "OE05",
+        "name": "Pay for Software Subscription",
+        "debit": [
+          "6-1150",
+          "1-1330"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "SaaS invoice due",
+        "detection_logic": "Recurring subscription payment",
+        "tax_impact": "PPN if domestic vendor"
+      },
+      {
+        "id": "OE06",
+        "name": "Write Off Bad Debt",
+        "debit": [
+          "6-1200"
+        ],
+        "credit": [
+          "1-1100"
+        ],
+        "trigger": "AR deemed uncollectible",
+        "detection_logic": "AR aging > threshold + approval",
+        "tax_impact": "Deductible if reported to DJP"
+      },
+      {
+        "id": "OE07",
+        "name": "Record Bank Charges",
+        "debit": [
+          "6-1210"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Bank statement reconciliation",
+        "detection_logic": "Auto-detect from bank feed",
+        "tax_impact": "Non-PPN, deductible"
+      },
+      {
+        "id": "OE08",
+        "name": "Pay Outsourced Security",
+        "debit": [
+          "6-1250"
+        ],
+        "credit": [
+          "1-1010",
+          "2-1120"
+        ],
+        "trigger": "Monthly security invoice",
+        "detection_logic": "Vendor type=outsourced service",
+        "tax_impact": "PPh 23 2% on gross"
+      }
+    ],
+    "financial": [
+      {
+        "id": "F01",
+        "name": "Bank Interest Earned",
+        "debit": [
+          "1-1010"
+        ],
+        "credit": [
+          "4-2000"
+        ],
+        "trigger": "Interest posted to bank account",
+        "detection_logic": "Bank feed detects interest credit",
+        "tax_impact": "PPh 4(2) 20% Final (auto-deducted by bank)"
+      },
+      {
+        "id": "F02",
+        "name": "Loan Interest Payment",
+        "debit": [
+          "7-1000"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Loan installment due date",
+        "detection_logic": "Loan schedule auto-generates entries",
+        "tax_impact": "Deductible expense"
+      },
+      {
+        "id": "F03",
+        "name": "Loan Principal Repayment",
+        "debit": [
+          "2-1200"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Loan installment due date",
+        "detection_logic": "Separate principal from interest",
+        "tax_impact": "Not an expense (balance sheet only)"
+      },
+      {
+        "id": "F04",
+        "name": "Foreign Exchange Gain (Realized)",
+        "debit": [
+          "1-1010"
+        ],
+        "credit": [
+          "4-2010"
+        ],
+        "trigger": "Foreign payment at better rate",
+        "detection_logic": "Compare transaction rate vs booking rate",
+        "tax_impact": "Taxable income"
+      },
+      {
+        "id": "F05",
+        "name": "Foreign Exchange Loss (Realized)",
+        "debit": [
+          "7-1010"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Foreign payment at worse rate",
+        "detection_logic": "Compare transaction rate vs booking rate",
+        "tax_impact": "Deductible expense"
+      },
+      {
+        "id": "F06",
+        "name": "Owner Injects Capital",
+        "debit": [
+          "1-1010"
+        ],
+        "credit": [
+          "3-1000"
+        ],
+        "trigger": "Capital injection received",
+        "detection_logic": "Bank feed tagged as capital",
+        "tax_impact": "No tax impact"
+      },
+      {
+        "id": "F07",
+        "name": "Owner Draws Money (Prive)",
+        "debit": [
+          "3-1030"
+        ],
+        "credit": [
+          "1-1010"
+        ],
+        "trigger": "Owner withdraws business funds",
+        "detection_logic": "Transfer to owner personal account",
+        "tax_impact": "Not deductible, not taxable at entity level"
+      }
+    ],
+    "adjusting_entries": [
+      {
+        "id": "AE01",
+        "name": "Accrue Unpaid Utilities",
+        "debit": [
+          "6-1050"
+        ],
+        "credit": [
+          "2-1020"
+        ],
+        "trigger": "Month-end, bill not yet received",
+        "detection_logic": "Estimate based on prior months",
+        "tax_impact": "Deductible when accrued"
+      },
+      {
+        "id": "AE02",
+        "name": "Amortize Prepaid Insurance",
+        "debit": [
+          "6-1160"
+        ],
+        "credit": [
+          "1-1310"
+        ],
+        "trigger": "Month-end closing",
+        "detection_logic": "Auto-amortize 1/12 of annual premium",
+        "tax_impact": "Deductible ratably"
+      },
+      {
+        "id": "AE03",
+        "name": "Provision for Doubtful Debts",
+        "debit": [
+          "6-1200"
+        ],
+        "credit": [
+          "1-1110"
+        ],
+        "trigger": "Month/quarter-end review",
+        "detection_logic": "AR aging % method auto-calculation",
+        "tax_impact": "Not deductible until actual write-off"
+      },
+      {
+        "id": "AE04",
+        "name": "Accrue Employee Bonus",
+        "debit": [
+          "6-1040"
+        ],
+        "credit": [
+          "2-1020"
+        ],
+        "trigger": "Quarter/year-end accrual",
+        "detection_logic": "Estimated bonus pool / periods",
+        "tax_impact": "Deductible when paid, PPh 21 on payment"
+      },
+      {
+        "id": "AE05",
+        "name": "Close Revenue to Retained Earnings",
+        "debit": [
+          "4-1000"
+        ],
+        "credit": [
+          "3-1020"
+        ],
+        "trigger": "Year-end closing",
+        "detection_logic": "Auto-close all revenue accounts",
+        "tax_impact": "No tax impact (accounting entry only)"
+      },
+      {
+        "id": "AE06",
+        "name": "Close Expenses to Retained Earnings",
+        "debit": [
+          "3-1020"
+        ],
+        "credit": [
+          "5-xxxx",
+          "6-xxxx",
+          "7-xxxx"
+        ],
+        "trigger": "Year-end closing",
+        "detection_logic": "Auto-close all expense accounts",
+        "tax_impact": "No tax impact (accounting entry only)"
+      },
+      {
+        "id": "AE07",
+        "name": "Transfer CY Earnings to Retained",
+        "debit": [
+          "3-1020"
+        ],
+        "credit": [
+          "3-1010"
+        ],
+        "trigger": "Year-end closing (after close)",
+        "detection_logic": "Final closing entry",
+        "tax_impact": "No tax impact"
+      }
+    ]
+  },
+  "depreciation_rules": {
+    "tangible_assets": [
+      {
+        "group": "Kelompok 1",
+        "examples": "Computers, printers, phones, small tools, office furniture",
+        "useful_life_years": 4,
+        "straight_line_rate": 0.25,
+        "declining_balance_rate": 0.5
+      },
+      {
+        "group": "Kelompok 2",
+        "examples": "Metal furniture, vehicles (non-sedan), heavy tools, AC units",
+        "useful_life_years": 8,
+        "straight_line_rate": 0.125,
+        "declining_balance_rate": 0.25
+      },
+      {
+        "group": "Kelompok 3",
+        "examples": "Industrial machinery, heavy equipment, lifts",
+        "useful_life_years": 16,
+        "straight_line_rate": 0.0625,
+        "declining_balance_rate": 0.125
+      },
+      {
+        "group": "Kelompok 4",
+        "examples": "Heavy construction equipment, specialized machinery",
+        "useful_life_years": 20,
+        "straight_line_rate": 0.05,
+        "declining_balance_rate": 0.1
+      }
+    ],
+    "buildings": [
+      {
+        "type": "Permanent Building",
+        "examples": "Concrete/brick factory, office building",
+        "useful_life_years": 20,
+        "straight_line_rate": 0.05,
+        "method": "Straight-line only"
+      },
+      {
+        "type": "Non-Permanent Building",
+        "examples": "Wooden structures, temporary warehouse, prefab",
+        "useful_life_years": 10,
+        "straight_line_rate": 0.1,
+        "method": "Straight-line only"
+      }
+    ],
+    "special_rules": [
+      {
+        "asset": "Sedan/Station Wagon",
+        "rule": "Only 50% of depreciation is tax-deductible if used for mixed (personal+business) purpose",
+        "useful_life_years": 8
+      },
+      {
+        "asset": "Land",
+        "rule": "Never depreciated",
+        "useful_life_years": null
+      },
+      {
+        "asset": "Leasehold Improvement",
+        "rule": "Depreciate over the shorter of lease term or asset useful life",
+        "useful_life_years": null
+      }
+    ]
+  },
+  "erp_detection_rules": [
+    {
+      "id": "DET-S01",
+      "module": "Sales",
+      "trigger": "Invoice created with payment_method=CASH",
+      "action": "Post journal: Dr Cash, Cr Revenue + PPN",
+      "accounts": [
+        "1-1000",
+        "4-1000",
+        "2-1100"
+      ],
+      "validation": "PPN amount = 11% of DPP",
+      "priority": "high"
+    },
+    {
+      "id": "DET-S02",
+      "module": "Sales",
+      "trigger": "Invoice created with payment_terms > 0",
+      "action": "Post journal: Dr AR, Cr Revenue + PPN",
+      "accounts": [
+        "1-1100",
+        "4-1000",
+        "2-1100"
+      ],
+      "validation": "Payment terms within policy",
+      "priority": "high"
+    },
+    {
+      "id": "DET-S03",
+      "module": "Sales",
+      "trigger": "Payment received without matching invoice",
+      "action": "Post to Unearned Revenue (DP)",
+      "accounts": [
+        "1-1010",
+        "2-1210"
+      ],
+      "validation": "Flag for matching within 30 days",
+      "priority": "high"
+    },
+    {
+      "id": "DET-S04",
+      "module": "Sales",
+      "trigger": "Return note linked to original invoice",
+      "action": "Reverse proportional revenue + PPN",
+      "accounts": [
+        "4-1020",
+        "2-1100"
+      ],
+      "validation": "Return quantity <= original quantity",
+      "priority": "high"
+    },
+    {
+      "id": "DET-S05",
+      "module": "Sales",
+      "trigger": "Payment amount < invoice amount within discount terms",
+      "action": "Auto-post sales discount",
+      "accounts": [
+        "4-1030"
+      ],
+      "validation": "Discount % within approved range",
+      "priority": "medium"
+    },
+    {
+      "id": "DET-P01",
+      "module": "Purchase",
+      "trigger": "GRN created + supplier invoice matched",
+      "action": "Post journal: Dr Inventory + PPN, Cr AP",
+      "accounts": [
+        "1-1200",
+        "1-1330",
+        "2-1000"
+      ],
+      "validation": "3-way match (PO-GRN-Invoice)",
+      "priority": "high"
+    },
+    {
+      "id": "DET-P02",
+      "module": "Purchase",
+      "trigger": "Payment to vendor with NPWP on file",
+      "action": "Auto-calculate PPh 23 withholding",
+      "accounts": [
+        "2-1000",
+        "2-1120",
+        "1-1010"
+      ],
+      "validation": "Verify vendor tax status",
+      "priority": "high"
+    },
+    {
+      "id": "DET-P03",
+      "module": "Purchase",
+      "trigger": "Vendor category = Land/Building Rental",
+      "action": "Apply PPh 4(2) 10% Final",
+      "accounts": [
+        "6-1000",
+        "2-1140",
+        "1-1010"
+      ],
+      "validation": "Verify landlord is individual/corporate",
+      "priority": "high"
+    },
+    {
+      "id": "DET-P04",
+      "module": "Purchase",
+      "trigger": "Vendor category = Professional Service",
+      "action": "Apply PPh 23 2% + PPN 11%",
+      "accounts": [
+        "6-1130",
+        "2-1120",
+        "1-1330"
+      ],
+      "validation": "Check if vendor has NPWP",
+      "priority": "high"
+    },
+    {
+      "id": "DET-I01",
+      "module": "Inventory",
+      "trigger": "Material requisition approved for production order",
+      "action": "Transfer Raw Material to WIP",
+      "accounts": [
+        "1-1210",
+        "1-1200"
+      ],
+      "validation": "Qty available >= qty requested",
+      "priority": "high"
+    },
+    {
+      "id": "DET-I02",
+      "module": "Inventory",
+      "trigger": "Production order status = COMPLETED + QC passed",
+      "action": "Transfer WIP to Finished Goods",
+      "accounts": [
+        "1-1220",
+        "1-1210"
+      ],
+      "validation": "QC approval required",
+      "priority": "high"
+    },
+    {
+      "id": "DET-I03",
+      "module": "Inventory",
+      "trigger": "Stock opname: physical < system",
+      "action": "Post shrinkage adjustment",
+      "accounts": [
+        "5-1000",
+        "1-1200"
+      ],
+      "validation": "Approval by warehouse manager",
+      "priority": "medium"
+    },
+    {
+      "id": "DET-I04",
+      "module": "Inventory",
+      "trigger": "Sales invoice confirmed (perpetual method)",
+      "action": "Auto-post COGS entry",
+      "accounts": [
+        "5-1000",
+        "1-1220"
+      ],
+      "validation": "FIFO/Weighted Avg cost calculated",
+      "priority": "high"
+    },
+    {
+      "id": "DET-PR01",
+      "module": "Payroll",
+      "trigger": "Payroll run completed for month",
+      "action": "Post salary journal with PPh 21",
+      "accounts": [
+        "6-1020",
+        "2-1010",
+        "2-1110"
+      ],
+      "validation": "PPh 21 calc matches PTKP table",
+      "priority": "high"
+    },
+    {
+      "id": "DET-PR02",
+      "module": "Payroll",
+      "trigger": "Employee job_type = PRODUCTION",
+      "action": "Classify salary as Direct Labor (COGS)",
+      "accounts": [
+        "5-1010"
+      ],
+      "validation": "Job type mapping maintained",
+      "priority": "high"
+    },
+    {
+      "id": "DET-PR03",
+      "module": "Payroll",
+      "trigger": "Calendar = THR period (before Lebaran)",
+      "action": "Trigger THR calculation & journal",
+      "accounts": [
+        "6-1040",
+        "2-1010",
+        "2-1110"
+      ],
+      "validation": "THR = 1 month salary (min)",
+      "priority": "high"
+    },
+    {
+      "id": "DET-FA01",
+      "module": "Fixed Asset",
+      "trigger": "PO item_type = CAPEX and amount > threshold",
+      "action": "Create asset record instead of expense",
+      "accounts": [
+        "1-20xx",
+        "1-1010"
+      ],
+      "validation": "Amount > capitalization threshold",
+      "priority": "high"
+    },
+    {
+      "id": "DET-FA02",
+      "module": "Fixed Asset",
+      "trigger": "Month-end scheduler runs",
+      "action": "Calculate & post depreciation for all active assets",
+      "accounts": [
+        "5-1030",
+        "6-11xx",
+        "1-20x1"
+      ],
+      "validation": "Verify rates match kelompok harta",
+      "priority": "high"
+    },
+    {
+      "id": "DET-FA03",
+      "module": "Fixed Asset",
+      "trigger": "Asset status changed to DISPOSED",
+      "action": "Post disposal entry with gain/loss calc",
+      "accounts": [
+        "various"
+      ],
+      "validation": "Book value vs selling price",
+      "priority": "medium"
+    },
+    {
+      "id": "DET-FA04",
+      "module": "Fixed Asset",
+      "trigger": "Asset type = SEDAN and usage = MIXED",
+      "action": "Apply 50% depreciation rule",
+      "accounts": [
+        "6-1180"
+      ],
+      "validation": "Auto-flag for fiscal adjustment",
+      "priority": "medium"
+    },
+    {
+      "id": "DET-T01",
+      "module": "Tax",
+      "trigger": "Month-end: sum PPN Keluaran vs PPN Masukan",
+      "action": "Calculate net PPN payable/refundable",
+      "accounts": [
+        "2-1100",
+        "1-1330"
+      ],
+      "validation": "Reconcile with Faktur Pajak list",
+      "priority": "critical"
+    },
+    {
+      "id": "DET-T02",
+      "module": "Tax",
+      "trigger": "Payment to vendor triggers PPh withholding",
+      "action": "Auto-deduct PPh 23/4(2) from payment",
+      "accounts": [
+        "2-1120",
+        "2-1140"
+      ],
+      "validation": "Match vendor category to PPh type",
+      "priority": "critical"
+    },
+    {
+      "id": "DET-T03",
+      "module": "Tax",
+      "trigger": "15th of month: PPh 25 due",
+      "action": "Auto-calculate installment amount",
+      "accounts": [
+        "1-1320",
+        "1-1010"
+      ],
+      "validation": "Based on prior year annual PPh",
+      "priority": "high"
+    },
+    {
+      "id": "DET-T04",
+      "module": "Tax",
+      "trigger": "10th of month: PPh 21/23/4(2) due",
+      "action": "Remind + prepare payment batch",
+      "accounts": [
+        "2-11xx",
+        "1-1010"
+      ],
+      "validation": "Check amounts match prior month calc",
+      "priority": "critical"
+    },
+    {
+      "id": "DET-AE01",
+      "module": "Period-End",
+      "trigger": "Month-end: prepaid rent balance > 0",
+      "action": "Auto-amortize 1/period of prepaid",
+      "accounts": [
+        "6-1010",
+        "1-1300"
+      ],
+      "validation": "Verify remaining periods correct",
+      "priority": "high"
+    },
+    {
+      "id": "DET-AE02",
+      "module": "Period-End",
+      "trigger": "Month-end: prepaid insurance balance > 0",
+      "action": "Auto-amortize 1/12 of annual premium",
+      "accounts": [
+        "6-1160",
+        "1-1310"
+      ],
+      "validation": "Match to policy term",
+      "priority": "high"
+    },
+    {
+      "id": "DET-AE03",
+      "module": "Period-End",
+      "trigger": "Month-end: AR aging > 90 days",
+      "action": "Flag for doubtful debt provision review",
+      "accounts": [
+        "6-1200",
+        "1-1110"
+      ],
+      "validation": "Management approval for write-off",
+      "priority": "medium"
+    },
+    {
+      "id": "DET-AE04",
+      "module": "Period-End",
+      "trigger": "Year-end: December 31",
+      "action": "Auto-close all revenue/expense to RE",
+      "accounts": [
+        "3-1020",
+        "3-1010"
+      ],
+      "validation": "Trial balance must balance",
+      "priority": "critical"
+    }
+  ],
+  "indonesian_tax_reference": {
+    "ppn": [
+      {
+        "type": "PPN Keluaran",
+        "full_name": "Pajak Pertambahan Nilai - Output",
+        "rate": 0.11,
+        "applied_to": "Sales of goods/services",
+        "who_pays": "Collected from buyer, paid to DJP",
+        "due_date": "End of month+1",
+        "erp_trigger": "Sales invoice created"
+      },
+      {
+        "type": "PPN Masukan",
+        "full_name": "Pajak Pertambahan Nilai - Input",
+        "rate": 0.11,
+        "applied_to": "Purchases of goods/services",
+        "who_pays": "Paid to supplier, claimed from DJP",
+        "due_date": "Offset vs Keluaran",
+        "erp_trigger": "Purchase invoice with Faktur Pajak"
+      }
+    ],
+    "pph": [
+      {
+        "type": "PPh 21",
+        "full_name": "Pajak Penghasilan Pasal 21",
+        "rate": "Progressive 5%-35%",
+        "applied_to": "Employee salaries, honorariums",
+        "who_pays": "Employer withholds from employee",
+        "due_date": "10th of month+1",
+        "erp_trigger": "Payroll run completed"
+      },
+      {
+        "type": "PPh 23",
+        "full_name": "Pajak Penghasilan Pasal 23",
+        "rate_with_npwp": 0.02,
+        "rate_without_npwp": 0.04,
+        "applied_to": "Services: accounting, legal, technical, management, rent (non-land/building)",
+        "who_pays": "Payer withholds from service provider",
+        "due_date": "10th of month+1",
+        "erp_trigger": "Vendor category = service + payment"
+      },
+      {
+        "type": "PPh 25",
+        "full_name": "Pajak Penghasilan Pasal 25",
+        "rate": "1/12 of annual PPh",
+        "applied_to": "Corporate income tax installment",
+        "who_pays": "Company pays monthly advance",
+        "due_date": "15th of each month",
+        "erp_trigger": "Monthly scheduler"
+      },
+      {
+        "type": "PPh 29",
+        "full_name": "Pajak Penghasilan Pasal 29",
+        "rate": "Varies (underpayment)",
+        "applied_to": "Annual corporate tax shortfall",
+        "who_pays": "Company pays balance due",
+        "due_date": "April 30 (corporate)",
+        "erp_trigger": "Annual SPT calculation"
+      },
+      {
+        "type": "PPh 4(2)",
+        "full_name": "Pajak Penghasilan Pasal 4 ayat 2",
+        "rates": {
+          "rent": 0.1,
+          "construction": "0.02-0.06",
+          "bank_interest": 0.2
+        },
+        "applied_to": "Land/building rent, construction services, bank interest",
+        "who_pays": "Payer withholds (final tax)",
+        "due_date": "10th of month+1",
+        "erp_trigger": "Vendor type=rental/construction, bank interest"
+      },
+      {
+        "type": "PPh 26",
+        "full_name": "Pajak Penghasilan Pasal 26",
+        "rate": 0.2,
+        "applied_to": "Payments to foreign entities (services, royalties, dividends)",
+        "who_pays": "Payer withholds",
+        "due_date": "10th of month+1",
+        "erp_trigger": "Vendor country != Indonesia"
+      }
+    ],
+    "umkm": [
+      {
+        "type": "PPh Final UMKM",
+        "regulation": "PP 55/2022",
+        "rate": 0.005,
+        "applied_to": "UMKM with turnover < Rp 4.8B/year",
+        "who_pays": "Self-assessed monthly",
+        "due_date": "15th of each month",
+        "erp_trigger": "Monthly revenue < Rp 400M threshold"
+      },
+      {
+        "type": "UMKM PPN Exemption",
+        "regulation": "PMK threshold",
+        "rate": 0,
+        "applied_to": "Businesses below Rp 4.8B turnover",
+        "who_pays": "No PPN obligation",
+        "due_date": null,
+        "erp_trigger": "Annual revenue check"
+      }
+    ]
+  }
+}

@@ -498,13 +498,15 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                         }
                         break
                     case 'EXPENSE':
-                        // COGS: code 5xxx (Harga Pokok Penjualan)
-                        if (account.code.startsWith('5') && account.code < '6000') {
+                        // COGS: only code 5000 "HPP" or accounts containing "Harga Pokok"
+                        // (5100+ are operating expenses like Beban Transportasi, Makan & Minum, etc.)
+                        if (account.code === '5000' || account.name.toLowerCase().includes('harga pokok')) {
                             costOfGoodsSold += effectiveAmount
                         // Other expenses: code 8xxx-9xxx (biaya lain-lain)
                         } else if (account.code >= '8000') {
                             otherExpenses += effectiveAmount
                         } else {
+                            // Operating expenses — show each account by name (Beban Transportasi, Beban Makan & Minum, etc.)
                             const current = expenseMap.get(account.name) || 0
                             expenseMap.set(account.name, current + effectiveAmount)
                         }
@@ -512,12 +514,13 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                 }
             }
 
-            // Convert expense map to array
+            // Convert expense map to array, sorted by amount descending
             expenseMap.forEach((amount, category) => {
                 if (amount > 0) {
                     operatingExpenses.push({ category, amount })
                 }
             })
+            operatingExpenses.sort((a, b) => b.amount - a.amount)
 
             const totalOperatingExpenses = operatingExpenses.reduce((sum, exp) => sum + exp.amount, 0)
             const grossProfit = revenue - costOfGoodsSold
@@ -1310,7 +1313,7 @@ export async function processRefund(data: {
                 reference: refund.id,
                 lines: [
                     {
-                        accountCode: '1200', // AR
+                        accountCode: '1100', // AR
                         debit: data.amount,
                         credit: 0
                     },
@@ -1414,7 +1417,7 @@ export async function createPaymentVoucher(data: {
                 reference: voucher.id,
                 lines: [
                     {
-                        accountCode: '2101', // AP
+                        accountCode: '2100', // AP
                         debit: data.amount,
                         credit: 0
                     },
@@ -1585,12 +1588,12 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
                     reference: voucher.id,
                     lines: [
                         {
-                            accountCode: '2101',
+                            accountCode: '2100',
                             debit: voucher.amount,
                             credit: 0
                         },
                         {
-                            accountCode: '1102',
+                            accountCode: '1010',
                             debit: 0,
                             credit: voucher.amount
                         }
@@ -1887,7 +1890,7 @@ export async function recordARPayment(data: {
                             reference: paymentNumber,
                             lines: [
                                 { accountCode: '1000', debit: data.amount, credit: 0 }, // Cash
-                                { accountCode: '1200', debit: 0, credit: data.amount }  // AR
+                                { accountCode: '1100', debit: 0, credit: data.amount }  // AR
                             ]
                         })
                     } catch (glError) {
@@ -1946,7 +1949,7 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
                     reference: payment.number,
                     lines: [
                         { accountCode: '1000', debit: paymentAmount, credit: 0 }, // Cash
-                        { accountCode: '1200', debit: 0, credit: paymentAmount }  // AR
+                        { accountCode: '1100', debit: 0, credit: paymentAmount }  // AR
                     ]
                 })
             } catch (glError) {
@@ -2167,10 +2170,10 @@ export async function approveVendorBill(billId: string) {
 
             // Add Tax if applicable (Input VAT - Asset)
             if (Number(bill.taxAmount) > 0) {
-                const vatInAccount = await prisma.gLAccount.findFirst({ where: { code: '1300' } }) // VAT In
+                const vatInAccount = await prisma.gLAccount.findFirst({ where: { code: '1330' } }) // VAT In
                 if (vatInAccount) {
                     glLines.push({
-                        accountCode: '1300',
+                        accountCode: '1330',
                         debit: Number(bill.taxAmount),
                         credit: 0,
                         description: `VAT In - Bill ${bill.number}`
@@ -2181,7 +2184,7 @@ export async function approveVendorBill(billId: string) {
 
             // Add AP Credit Line
             glLines.push({
-                accountCode: '2000',
+                accountCode: '2100',
                 debit: 0,
                 credit: totalAmount, // Should match bill total
                 description: `AP - ${bill.supplier?.name}`
@@ -2670,7 +2673,7 @@ export async function approveAndPayBill(
                     const amount = Number(item.amount)
                     totalAmount += amount
                     glLines.push({
-                        accountCode: '6000', // Default Expense for now
+                        accountCode: '5000', // Default Expense (HPP)
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
@@ -2680,7 +2683,7 @@ export async function approveAndPayBill(
                 // Add Tax
                 if (Number(bill.taxAmount) > 0) {
                     glLines.push({
-                        accountCode: '1300', // VAT In
+                        accountCode: '1330', // VAT In
                         debit: Number(bill.taxAmount),
                         credit: 0,
                         description: `VAT In - Bill ${bill.number}`
@@ -2690,7 +2693,7 @@ export async function approveAndPayBill(
 
                 // Add AP Credit
                 glLines.push({
-                    accountCode: '2000',
+                    accountCode: '2100',
                     debit: 0,
                     credit: totalAmount,
                     description: `AP - ${bill.supplier?.name}`
@@ -2733,8 +2736,8 @@ export async function approveAndPayBill(
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2000', debit: paymentDetails.amount, credit: 0, description: `AP Payment` }, // Debit AP (Liability connects)
-                    { accountCode: '1100', debit: 0, credit: paymentDetails.amount, description: `Bank Transfer` } // Credit Bank (Asset decreases)
+                    { accountCode: '2100', debit: paymentDetails.amount, credit: 0, description: `AP Payment` }, // Debit AP (Liability connects)
+                    { accountCode: '1010', debit: 0, credit: paymentDetails.amount, description: `Bank Transfer` } // Credit Bank (Asset decreases)
                 ]
             })
 
@@ -3128,6 +3131,47 @@ export async function getTrialBalance(startDate: Date, endDate: Date) {
             totals: { totalDebits: 0, totalCredits: 0, difference: 0, isBalanced: true },
             period: { start: startDate, end: endDate },
         }
+    }
+}
+
+// ==========================================
+// REVENUE FROM INVOICES (Omzet / Pendapatan)
+// ==========================================
+// Calculates revenue from actual invoices issued (not GL journal entries).
+// In accrual accounting: invoice issued = revenue recognized = piutang created.
+// So total revenue (omzet) is always >= piutang outstanding.
+export async function getRevenueFromInvoices(startDate?: Date | string, endDate?: Date | string) {
+    try {
+        const supabaseClient = await createClient()
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+        if (authError || !user) throw new Error('Unauthorized')
+
+        const start = parseDateInput(startDate) || new Date(new Date().getFullYear(), 0, 1)
+        const end = parseDateInput(endDate) || new Date()
+
+        // Total revenue = sum of all non-cancelled outgoing invoices in period
+        const invoices = await basePrisma.invoice.findMany({
+            where: {
+                type: 'INV_OUT',
+                status: { notIn: ['CANCELLED', 'VOID'] },
+                issueDate: { gte: start, lte: end },
+            },
+            select: { totalAmount: true, balanceDue: true },
+        })
+
+        const totalRevenue = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount || 0), 0)
+        const totalPaid = invoices.reduce((sum, inv) => sum + (Number(inv.totalAmount || 0) - Number(inv.balanceDue || 0)), 0)
+        const totalOutstanding = invoices.reduce((sum, inv) => sum + Number(inv.balanceDue || 0), 0)
+
+        return {
+            totalRevenue,
+            totalPaid,
+            totalOutstanding,
+            invoiceCount: invoices.length,
+        }
+    } catch (error) {
+        console.error("Failed to get revenue from invoices:", error)
+        return { totalRevenue: 0, totalPaid: 0, totalOutstanding: 0, invoiceCount: 0 }
     }
 }
 
@@ -3632,8 +3676,8 @@ export async function createCreditNote(input: CreateCreditNoteInput) {
                     invoiceId: cn.id,
                     lines: {
                         create: [
-                            { accountId: revenueAccountId, debit: amount, credit: 0, description: `Credit Note — ${reason}` },
-                            { accountId: arAccountId, credit: amount, debit: 0, description: `Credit Note → AR adjustment` },
+                            { accountId: revenueAccountId, debit: amount, credit: 0, description: `Nota Kredit ${num} — pengurangan pendapatan: ${reason}` },
+                            { accountId: arAccountId, credit: amount, debit: 0, description: `Nota Kredit ${num} — pengurangan piutang usaha` },
                         ]
                     }
                 }
@@ -3713,8 +3757,8 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
                     invoiceId: dn.id,
                     lines: {
                         create: [
-                            { accountId: apAccountId, debit: amount, credit: 0, description: `Debit Note — AP reduction` },
-                            { accountId: expenseAccountId, credit: amount, debit: 0, description: `Debit Note — ${reason}` },
+                            { accountId: apAccountId, debit: amount, credit: 0, description: `Nota Debit ${num} — pengurangan hutang usaha` },
+                            { accountId: expenseAccountId, credit: amount, debit: 0, description: `Nota Debit ${num} — koreksi beban/HPP: ${reason}` },
                         ]
                     }
                 }

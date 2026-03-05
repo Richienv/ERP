@@ -9,6 +9,7 @@ import {
     getTrialBalance,
     getARAgingReport,
     getAPAgingReport,
+    getRevenueFromInvoices,
 } from "@/lib/actions/finance"
 import type { ProfitLossData, BalanceSheetData, CashFlowData } from "@/lib/actions/finance"
 import {
@@ -28,20 +29,27 @@ export function useFinanceKPI(startDate: Date, endDate: Date) {
     return useQuery({
         queryKey: queryKeys.financeReports.kpi(startDate.toISOString(), endDate.toISOString()),
         queryFn: async () => {
-            const [pnlResult, arResult, apResult] = await Promise.allSettled([
+            const [pnlResult, arResult, apResult, revenueResult] = await Promise.allSettled([
                 getProfitLossStatement(startDate, endDate),
                 getARAgingReport(),
                 getAPAgingReport(),
+                getRevenueFromInvoices(startDate, endDate),
             ])
 
             const pnl = pnlResult.status === 'fulfilled' ? pnlResult.value : null
             const ar = arResult.status === 'fulfilled' ? arResult.value : null
             const ap = apResult.status === 'fulfilled' ? apResult.value : null
+            const invoiceRevenue = revenueResult.status === 'fulfilled' ? revenueResult.value : null
+
+            // Pendapatan (Omzet) = total invoices issued in period (from actual invoices)
+            // After GL fix (Task 1), P&L revenue = invoice revenue, no Math.max hack needed
+            const arOutstanding = ar?.summary?.totalOutstanding ?? 0
+            const revenue = invoiceRevenue?.totalRevenue ?? pnl?.revenue ?? 0
 
             return {
-                revenue: pnl?.revenue ?? 0,
+                revenue,
                 netIncome: pnl?.netIncome ?? 0,
-                arOutstanding: ar?.summary?.totalOutstanding ?? 0,
+                arOutstanding,
                 apOutstanding: ap?.summary?.totalOutstanding ?? 0,
             }
         },

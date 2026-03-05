@@ -4,8 +4,9 @@ import { useState } from "react"
 import { useMfgPlanning } from "@/hooks/use-mfg-planning"
 import { PlanningClient } from "./planning-client"
 import { ProductionGantt } from "@/components/manufacturing/dashboard/production-gantt"
+import { StationWorkloadTimeline } from "@/components/manufacturing/dashboard/station-workload-timeline"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
-import { Calendar, BarChart3 } from "lucide-react"
+import { Calendar, BarChart3, Factory } from "lucide-react"
 
 const emptyData = { weeklySchedule: [], workOrders: [], machines: [] }
 const emptySummary = {
@@ -18,7 +19,7 @@ const emptySummary = {
     activeMachines: 0,
 }
 
-type TabKey = "mps" | "gantt"
+type TabKey = "mps" | "gantt" | "workload"
 
 export default function PlanningPage() {
     const { data, isLoading } = useMfgPlanning()
@@ -31,6 +32,7 @@ export default function PlanningPage() {
     const tabs: { key: TabKey; label: string; icon: typeof Calendar }[] = [
         { key: "mps", label: "Perencanaan (MPS)", icon: Calendar },
         { key: "gantt", label: "Gantt Chart", icon: BarChart3 },
+        { key: "workload", label: "Timeline Work Center", icon: Factory },
     ]
 
     return (
@@ -65,8 +67,10 @@ export default function PlanningPage() {
                     initialData={data?.data ?? emptyData}
                     initialSummary={data?.summary ?? emptySummary}
                 />
-            ) : (
+            ) : activeTab === "gantt" ? (
                 <ProductionGantt />
+            ) : (
+                <StationWorkloadTimeline />
             )}
         </div>
     )

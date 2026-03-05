@@ -380,9 +380,10 @@ export default function InvoicesPage() {
             {/* Search & Filter Bar */}
             <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
                 <div className="p-4">
-                    <div className="flex flex-col md:flex-row gap-3">
+                    <div className="flex flex-col md:flex-row md:items-end gap-3">
                         <div className="relative flex-1">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Pencarian</label>
+                            <Search className="pointer-events-none absolute left-3 bottom-3 h-4 w-4 text-zinc-400" />
                             <Input
                                 className="border-2 border-black h-10 pl-9 font-medium rounded-none"
                                 placeholder="Cari nomor invoice / customer / supplier..."
@@ -411,19 +412,24 @@ export default function InvoicesPage() {
                             selected={selectedStatuses}
                             onChange={setSelectedStatuses}
                         />
-                        <Button
-                            onClick={applyFilters}
-                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
-                        >
-                            Terapkan
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={resetFilters}
-                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
-                        >
-                            Reset
-                        </Button>
+                        <div>
+                            <label className="text-[9px] font-black uppercase tracking-widest text-transparent mb-1 block">Aksi</label>
+                            <div className="flex gap-2">
+                                <Button
+                                    onClick={applyFilters}
+                                    className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
+                                >
+                                    Terapkan
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    onClick={resetFilters}
+                                    className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
+                                >
+                                    Reset
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

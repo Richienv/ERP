@@ -172,16 +172,12 @@ const data = {
           url: "/finance/invoices",
         },
         {
-          title: "Penerimaan (AR)",
-          url: "/finance/payments",
+          title: "Piutang Usaha (AR)",
+          url: "/finance/receivables",
         },
         {
-          title: "Tagihan Vendor (AP)",
-          url: "/finance/bills",
-        },
-        {
-          title: "Pembayaran (AP)",
-          url: "/finance/vendor-payments",
+          title: "Hutang Usaha (AP)",
+          url: "/finance/payables",
         },
         {
           title: "Chart of Accounts",

@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { StationWorkloadTimeline } from "@/components/manufacturing/dashboard/station-workload-timeline";
 
 interface DashboardData {
   productionHealth: {
@@ -452,6 +453,9 @@ export function ManufacturingDashboardClient({ initialData }: Props) {
           </div>
         </div>
       </div>
+
+      {/* ── Station Workload Timeline ─────────────────────────────── */}
+      <StationWorkloadTimeline />
 
       {/* ── Quick Links ──────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">

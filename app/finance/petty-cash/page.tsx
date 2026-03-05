@@ -147,6 +147,8 @@ export default function PettyCashPage() {
                 queryClient.invalidateQueries({ queryKey: queryKeys.pettyCash.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
             }} />
 
             {/* DISBURSEMENT DIALOG */}
@@ -154,6 +156,8 @@ export default function PettyCashPage() {
                 queryClient.invalidateQueries({ queryKey: queryKeys.pettyCash.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
             }} />
         </div>
     )
@@ -337,13 +341,19 @@ function DisburseDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOp
                             onCreate={async (name) => {
                                 const result = await createExpenseAccount(name)
                                 if (result.success && result.code) {
-                                    // Refresh expense list
-                                    await loadExpenses()
+                                    // Immediately add to local state (don't rely on refetch timing)
+                                    setExpenses(prev => {
+                                        if (prev.some(e => e.code === result.code)) return prev
+                                        return [...prev, { code: result.code!, name: result.name || name }].sort((a, b) => a.code.localeCompare(b.code))
+                                    })
+                                    // Also refetch in background for consistency
+                                    loadExpenses()
                                     // Invalidate cross-module queries
-                                    queryClient.invalidateQueries({ queryKey: ["expenses"] })
+                                    queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                                    queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
                                     queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                                     queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
-                                    toast.success(`Akun "${name}" berhasil dibuat`)
+                                    toast.success(`Akun "${name}" berhasil dibuat (${result.code})`)
                                     return result.code
                                 }
                                 toast.error(result.error || "Gagal membuat akun beban")

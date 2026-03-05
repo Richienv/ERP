@@ -1,0 +1,1416 @@
+{
+  "meta": {
+    "version": "1.0",
+    "description": "Debit Note & Credit Note configuration for OIC ERP - Indonesian UMKM context",
+    "last_updated": "2026-03-05",
+    "regulation_references": [
+      "PMK 65/PMK.03/2010 - Tata Cara Pengurangan PPN/PPnBM atas BKP yang Dikembalikan",
+      "PMK 81/2024 - Ketentuan Perpajakan dalam Rangka Pelaksanaan Sistem Inti Administrasi Perpajakan (Coretax)",
+      "UU PPN Pasal 5A - Nota Retur & Nota Pembatalan",
+      "PER-03/PJ/2022 - Faktur Pajak (as amended by PER-11/PJ/2022)"
+    ]
+  },
+  "definitions": {
+    "credit_note": {
+      "also_known_as": [
+        "Credit Memo",
+        "Nota Kredit"
+      ],
+      "issued_by": "Seller / Supplier",
+      "issued_to": "Buyer / Customer",
+      "purpose": "Reduces the amount the buyer owes to the seller. Acknowledges that the buyer's account has been credited.",
+      "effect_on_seller": "Reduces Accounts Receivable (piutang) and Revenue",
+      "effect_on_buyer": "Reduces Accounts Payable (utang) and Purchase cost",
+      "indonesian_tax_document": "Nota Retur Penjualan (for goods) / Nota Pembatalan (for services)"
+    },
+    "debit_note": {
+      "also_known_as": [
+        "Debit Memo",
+        "Nota Debit"
+      ],
+      "issued_by": "Buyer / Customer",
+      "issued_to": "Seller / Supplier",
+      "purpose": "Notifies the seller that their account has been debited. Formally requests a reduction in the amount owed.",
+      "effect_on_buyer": "Reduces Accounts Payable (utang) and records Purchase Return",
+      "effect_on_seller": "Triggers issuance of Credit Note, reduces Accounts Receivable",
+      "indonesian_tax_document": "Nota Retur Pembelian (created via e-Faktur by buyer/PKP)"
+    },
+    "nota_retur": {
+      "description": "Indonesian tax document for goods returns between PKP (Pengusaha Kena Pajak). Required for PPN adjustment.",
+      "for_goods": "Nota Retur - created by buyer via e-Faktur app",
+      "for_services": "Nota Pembatalan - created by buyer for service cancellations",
+      "buyer_effect": "Reduces PPN Masukan in SPT Masa PPN (column B2)",
+      "seller_effect": "Reduces PPN Keluaran in SPT Masa PPN (column A2)",
+      "required_fields": [
+        "Nomor nota retur",
+        "Tanggal nota retur",
+        "Nama & NPWP PKP Penjual",
+        "Nama & NPWP PKP Pembeli",
+        "Nomor Faktur Pajak asal",
+        "Jenis & jumlah BKP yang diretur",
+        "Harga jual BKP yang diretur",
+        "PPN atas BKP yang diretur",
+        "PPnBM (jika ada)",
+        "Tanggal pengembalian BKP"
+      ],
+      "exception": "If returned goods are replaced with identical goods (same type, quantity, and price), the return is considered as NOT occurring and no Nota Retur is needed."
+    }
+  },
+  "reason_codes": [
+    {
+      "code": "RET-DEFECT",
+      "name": "Defective/Damaged Goods",
+      "type": "both",
+      "description": "Goods received are defective, damaged, or broken",
+      "triggers_inventory_return": true,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "RET-WRONG",
+      "name": "Wrong Items Delivered",
+      "type": "both",
+      "description": "Items delivered do not match the order/PO specification",
+      "triggers_inventory_return": true,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "RET-QUALITY",
+      "name": "Quality Below Standard",
+      "type": "both",
+      "description": "Items fail QC inspection or do not meet agreed quality standards",
+      "triggers_inventory_return": true,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "RET-EXCESS",
+      "name": "Excess Quantity Delivered",
+      "type": "both",
+      "description": "More items delivered than ordered, returning the excess",
+      "triggers_inventory_return": true,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "RET-EXPIRED",
+      "name": "Expired/Shelf-life Issue",
+      "type": "both",
+      "description": "Goods past expiration or insufficient remaining shelf life",
+      "triggers_inventory_return": true,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "ADJ-OVERCHARGE",
+      "name": "Price Overcharge Correction",
+      "type": "credit_note_only",
+      "description": "Original invoice billed higher than agreed price",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "ADJ-DISCOUNT",
+      "name": "Discount Not Applied",
+      "type": "credit_note_only",
+      "description": "Agreed discount was missing from original invoice",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "ADJ-UNDERCHARGE",
+      "name": "Price Undercharge Correction",
+      "type": "debit_note_only",
+      "description": "Original invoice billed lower than agreed price (seller issues debit note to buyer)",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "ADJ-ADDCHARGE",
+      "name": "Additional Charges",
+      "type": "debit_note_only",
+      "description": "Additional shipping, handling, or service fees not on original invoice",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "SVC-CANCEL",
+      "name": "Service Cancellation",
+      "type": "credit_note_only",
+      "description": "Service not rendered or partially cancelled (uses Nota Pembatalan for PPN)",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "SVC-SHORT",
+      "name": "Service Shortfall",
+      "type": "credit_note_only",
+      "description": "Service delivered below agreed scope or specification",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "ORD-CANCEL",
+      "name": "Order Cancellation",
+      "type": "credit_note_only",
+      "description": "Full or partial order cancelled before or after delivery",
+      "triggers_inventory_return": true,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "ADJ-PENALTY",
+      "name": "Penalty/Late Delivery Fee",
+      "type": "debit_note_only",
+      "description": "Penalty charged for late delivery or SLA breach (buyer debits seller)",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": false
+    },
+    {
+      "code": "ADJ-REBATE",
+      "name": "Volume Rebate / Incentive",
+      "type": "credit_note_only",
+      "description": "Periodic rebate based on purchase volume thresholds",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": true
+    },
+    {
+      "code": "ADJ-GOODWILL",
+      "name": "Goodwill Adjustment",
+      "type": "credit_note_only",
+      "description": "Seller offers credit to maintain customer relationship",
+      "triggers_inventory_return": false,
+      "triggers_ppn_adjustment": false
+    }
+  ],
+  "document_types": {
+    "sales_credit_note": {
+      "description": "Issued by seller to customer to reduce amount owed (AR reduction)",
+      "module": "Sales / Accounts Receivable",
+      "direction": "Outgoing (we issue to our customer)",
+      "scenarios": [
+        {
+          "id": "SCN-01",
+          "name": "Customer Returns Goods (Full)",
+          "reason_code": "RET-DEFECT",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "4-1020",
+                "name": "Sales Returns & Allowances",
+                "description": "Reverse revenue for returned goods"
+              },
+              {
+                "account": "2-1100",
+                "name": "PPN Keluaran",
+                "description": "Reverse VAT output on returned amount"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1100",
+                "name": "Accounts Receivable",
+                "description": "Reduce customer's outstanding balance"
+              }
+            ]
+          },
+          "inventory_entry": {
+            "debit": [
+              {
+                "account": "1-1220",
+                "name": "Finished Goods Inventory",
+                "description": "Return goods to stock (if sellable)"
+              }
+            ],
+            "credit": [
+              {
+                "account": "5-1000",
+                "name": "COGS",
+                "description": "Reverse cost of goods sold"
+              }
+            ]
+          },
+          "ppn_impact": "Seller reduces PPN Keluaran in SPT Masa PPN. Customer must issue Nota Retur via e-Faktur.",
+          "erp_workflow": [
+            "Customer initiates return request",
+            "Warehouse receives goods + inspects quality",
+            "System creates Sales Return document linked to original Sales Invoice",
+            "Credit Note auto-generated from Sales Return",
+            "Journal entries auto-posted (revenue reversal + PPN reversal)",
+            "Inventory re-stocked (if goods are sellable) or written off",
+            "Nota Retur received from customer and recorded in e-Faktur",
+            "PPN Keluaran adjusted in SPT Masa PPN"
+          ]
+        },
+        {
+          "id": "SCN-02",
+          "name": "Customer Returns Goods (Partial)",
+          "reason_code": "RET-QUALITY",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "4-1020",
+                "name": "Sales Returns & Allowances",
+                "amount_note": "Only the returned portion"
+              },
+              {
+                "account": "2-1100",
+                "name": "PPN Keluaran",
+                "amount_note": "11% of returned goods DPP"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1100",
+                "name": "Accounts Receivable",
+                "amount_note": "Returned amount + PPN"
+              }
+            ]
+          },
+          "inventory_entry": {
+            "debit": [
+              {
+                "account": "1-1220",
+                "name": "Finished Goods Inventory",
+                "amount_note": "COGS of returned portion only"
+              }
+            ],
+            "credit": [
+              {
+                "account": "5-1000",
+                "name": "COGS",
+                "amount_note": "Reverse partial COGS"
+              }
+            ]
+          },
+          "ppn_impact": "Partial PPN Keluaran reduction. Nota Retur only for returned portion.",
+          "erp_workflow": [
+            "Customer requests partial return with reason",
+            "Warehouse receives partial goods + QC inspection",
+            "System creates partial Sales Return linked to original invoice line items",
+            "Credit Note generated for partial amount only",
+            "Original invoice remains open for unpaid non-returned balance",
+            "Nota Retur from customer covers only returned items"
+          ]
+        },
+        {
+          "id": "SCN-03",
+          "name": "Price Overcharge Correction",
+          "reason_code": "ADJ-OVERCHARGE",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "4-1000",
+                "name": "Sales Revenue",
+                "amount_note": "Difference between invoiced and correct price"
+              },
+              {
+                "account": "2-1100",
+                "name": "PPN Keluaran",
+                "amount_note": "11% of price difference"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1100",
+                "name": "Accounts Receivable",
+                "amount_note": "Total reduction including PPN"
+              }
+            ]
+          },
+          "inventory_entry": null,
+          "ppn_impact": "Requires Faktur Pajak Pengganti (replacement tax invoice) with corrected amount. PPN Keluaran adjusted.",
+          "erp_workflow": [
+            "Price discrepancy identified (by customer or internal audit)",
+            "Credit Note created referencing original invoice + reason",
+            "No inventory movement (price adjustment only)",
+            "Faktur Pajak Pengganti issued to replace original Faktur Pajak",
+            "AR balance updated automatically"
+          ]
+        },
+        {
+          "id": "SCN-04",
+          "name": "Post-Sale Discount / Rebate",
+          "reason_code": "ADJ-REBATE",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "4-1030",
+                "name": "Sales Discounts",
+                "amount_note": "Rebate/discount amount"
+              },
+              {
+                "account": "2-1100",
+                "name": "PPN Keluaran",
+                "amount_note": "11% of discount DPP"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1100",
+                "name": "Accounts Receivable",
+                "amount_note": "If unpaid; or 1-1010 Bank if refunding cash"
+              }
+            ]
+          },
+          "inventory_entry": null,
+          "ppn_impact": "PPN adjustment via Faktur Pajak Pengganti if discount changes DPP.",
+          "erp_workflow": [
+            "Volume threshold reached or promotional period ends",
+            "System auto-calculates rebate based on configured rules",
+            "Credit Note generated with rebate details",
+            "Applied against outstanding AR or issued as refund"
+          ]
+        },
+        {
+          "id": "SCN-05",
+          "name": "Service Cancellation (Nota Pembatalan)",
+          "reason_code": "SVC-CANCEL",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "4-1010",
+                "name": "Service Revenue (CMT)",
+                "amount_note": "Cancelled service amount"
+              },
+              {
+                "account": "2-1100",
+                "name": "PPN Keluaran",
+                "amount_note": "11% of cancelled service DPP"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1100",
+                "name": "Accounts Receivable"
+              }
+            ]
+          },
+          "inventory_entry": null,
+          "ppn_impact": "Customer issues Nota Pembatalan (not Nota Retur, because services cannot be physically returned). PPN Keluaran reduced.",
+          "erp_workflow": [
+            "Service cancellation agreement documented",
+            "Credit Note created referencing original service invoice",
+            "Nota Pembatalan received from customer",
+            "PPN Keluaran adjusted in SPT Masa PPN"
+          ]
+        },
+        {
+          "id": "SCN-06",
+          "name": "Goodwill Credit (No PPN Impact)",
+          "reason_code": "ADJ-GOODWILL",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "6-1220",
+                "name": "Entertainment & Representation",
+                "amount_note": "Goodwill expense"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1100",
+                "name": "Accounts Receivable",
+                "amount_note": "If reducing AR; or 1-1010 Bank if cash"
+              }
+            ]
+          },
+          "inventory_entry": null,
+          "ppn_impact": "No PPN impact. This is a commercial gesture, not a price correction. No Faktur Pajak adjustment needed.",
+          "erp_workflow": [
+            "Management approves goodwill credit with justification",
+            "Credit Note created with reason_code=ADJ-GOODWILL",
+            "Classified as marketing/entertainment expense (with daftar nominatif for tax deductibility)",
+            "No PPN documents generated"
+          ]
+        }
+      ]
+    },
+    "sales_debit_note": {
+      "description": "Issued by seller to customer to INCREASE amount owed (AR increase)",
+      "module": "Sales / Accounts Receivable",
+      "direction": "Outgoing (we issue to our customer)",
+      "scenarios": [
+        {
+          "id": "SDN-01",
+          "name": "Undercharge Correction (Price Increase)",
+          "reason_code": "ADJ-UNDERCHARGE",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "1-1100",
+                "name": "Accounts Receivable",
+                "amount_note": "Additional amount + PPN"
+              }
+            ],
+            "credit": [
+              {
+                "account": "4-1000",
+                "name": "Sales Revenue",
+                "amount_note": "Price difference"
+              },
+              {
+                "account": "2-1100",
+                "name": "PPN Keluaran",
+                "amount_note": "11% of additional DPP"
+              }
+            ]
+          },
+          "ppn_impact": "Requires Faktur Pajak Pengganti with increased amount, or additional Faktur Pajak.",
+          "erp_workflow": [
+            "Undercharge identified",
+            "Debit Note created referencing original invoice",
+            "Additional Faktur Pajak or Faktur Pajak Pengganti issued",
+            "AR balance increased"
+          ]
+        },
+        {
+          "id": "SDN-02",
+          "name": "Additional Charges (Shipping/Handling)",
+          "reason_code": "ADJ-ADDCHARGE",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "1-1100",
+                "name": "Accounts Receivable"
+              }
+            ],
+            "credit": [
+              {
+                "account": "4-2030",
+                "name": "Miscellaneous Income",
+                "amount_note": "Or a specific shipping revenue account"
+              },
+              {
+                "account": "2-1100",
+                "name": "PPN Keluaran",
+                "amount_note": "11% if BKP/JKP"
+              }
+            ]
+          },
+          "ppn_impact": "PPN applies if the additional charge is for BKP/JKP delivery. Separate Faktur Pajak may be needed.",
+          "erp_workflow": [
+            "Additional charge identified post-invoicing",
+            "Debit Note generated with line items for extra charges",
+            "New Faktur Pajak issued for the additional amount",
+            "Customer AR updated"
+          ]
+        }
+      ]
+    },
+    "purchase_debit_note": {
+      "description": "Issued by us (buyer) to our supplier to reduce amount we owe (AP reduction)",
+      "module": "Purchasing / Accounts Payable",
+      "direction": "Outgoing (we issue to our supplier)",
+      "scenarios": [
+        {
+          "id": "PDN-01",
+          "name": "Return Defective Raw Materials to Supplier",
+          "reason_code": "RET-DEFECT",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "2-1000",
+                "name": "Accounts Payable",
+                "amount_note": "Reduce amount owed to supplier"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1200",
+                "name": "Raw Material Inventory",
+                "amount_note": "Remove returned goods from stock"
+              },
+              {
+                "account": "1-1330",
+                "name": "PPN Masukan",
+                "amount_note": "Reverse input VAT on returned goods"
+              }
+            ]
+          },
+          "ppn_impact": "Buyer creates Nota Retur Pembelian via e-Faktur. PPN Masukan reduced in SPT Masa PPN (column B2). Supplier receives Nota Retur and reduces PPN Keluaran.",
+          "erp_workflow": [
+            "QC inspection finds defective raw materials",
+            "Purchase Return document created linked to original GRN/PO",
+            "Debit Note auto-generated from Purchase Return",
+            "Inventory decreased for returned items",
+            "Nota Retur created in e-Faktur system",
+            "PPN Masukan adjusted",
+            "Supplier's AP balance reduced",
+            "Nota Retur sent to supplier"
+          ]
+        },
+        {
+          "id": "PDN-02",
+          "name": "Return Wrong Items to Supplier",
+          "reason_code": "RET-WRONG",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "2-1000",
+                "name": "Accounts Payable"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1200",
+                "name": "Raw Material Inventory"
+              },
+              {
+                "account": "1-1330",
+                "name": "PPN Masukan"
+              }
+            ]
+          },
+          "ppn_impact": "Same as PDN-01. Nota Retur required.",
+          "erp_workflow": [
+            "GRN mismatch detected (items don't match PO)",
+            "Purchase Return + Debit Note created",
+            "If replacement goods come, new GRN created separately",
+            "Nota Retur issued to supplier"
+          ]
+        },
+        {
+          "id": "PDN-03",
+          "name": "Supplier Overcharged Us (Price Correction)",
+          "reason_code": "ADJ-OVERCHARGE",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "2-1000",
+                "name": "Accounts Payable",
+                "amount_note": "Reduce AP by overcharge amount + PPN"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1200",
+                "name": "Raw Material Inventory",
+                "amount_note": "Adjust inventory cost downward (if already capitalized)"
+              },
+              {
+                "account": "1-1330",
+                "name": "PPN Masukan",
+                "amount_note": "Reverse excess PPN claimed"
+              }
+            ]
+          },
+          "ppn_impact": "Supplier issues Faktur Pajak Pengganti with corrected price. Our PPN Masukan adjusted accordingly.",
+          "erp_workflow": [
+            "Price discrepancy found during 3-way matching or AP review",
+            "Debit Note issued to supplier for the difference",
+            "No inventory movement, but inventory cost adjusted",
+            "Wait for supplier's Faktur Pajak Pengganti",
+            "Adjust PPN Masukan once replacement Faktur received"
+          ]
+        },
+        {
+          "id": "PDN-04",
+          "name": "Penalty for Late Delivery by Supplier",
+          "reason_code": "ADJ-PENALTY",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "2-1000",
+                "name": "Accounts Payable",
+                "amount_note": "Deduct penalty from amount owed"
+              }
+            ],
+            "credit": [
+              {
+                "account": "4-2030",
+                "name": "Miscellaneous Income",
+                "amount_note": "Penalty income"
+              }
+            ]
+          },
+          "ppn_impact": "Generally no PPN impact on penalties. However, if structured as a service fee, PPh 23 may apply.",
+          "erp_workflow": [
+            "SLA breach detected (delivery past agreed date)",
+            "Penalty auto-calculated based on contract terms",
+            "Debit Note issued to supplier",
+            "Deducted from next payment or current AP balance"
+          ]
+        }
+      ]
+    },
+    "purchase_credit_note": {
+      "description": "Received from supplier, reducing amount we owe (AP reduction) - supplier acknowledges our debit note",
+      "module": "Purchasing / Accounts Payable",
+      "direction": "Incoming (supplier issues to us)",
+      "scenarios": [
+        {
+          "id": "PCN-01",
+          "name": "Supplier Acknowledges Return (Credit Note Received)",
+          "reason_code": "RET-DEFECT",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "2-1000",
+                "name": "Accounts Payable",
+                "amount_note": "If not already adjusted via our Debit Note"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1200",
+                "name": "Raw Material Inventory"
+              },
+              {
+                "account": "1-1330",
+                "name": "PPN Masukan"
+              }
+            ]
+          },
+          "ppn_impact": "Confirms PPN adjustment. Supplier's Credit Note should match our Nota Retur.",
+          "erp_workflow": [
+            "Receive supplier's Credit Note document",
+            "Match against our Debit Note / Purchase Return",
+            "If already posted via Debit Note, just reconcile",
+            "If not yet posted, create journal entry now",
+            "Verify amounts match"
+          ]
+        },
+        {
+          "id": "PCN-02",
+          "name": "Supplier Volume Rebate Received",
+          "reason_code": "ADJ-REBATE",
+          "journal_entry": {
+            "debit": [
+              {
+                "account": "2-1000",
+                "name": "Accounts Payable",
+                "amount_note": "Or 1-1010 Bank if received as cash"
+              }
+            ],
+            "credit": [
+              {
+                "account": "1-1200",
+                "name": "Raw Material Inventory",
+                "amount_note": "Reduce cost of inventory (if still in stock)"
+              },
+              {
+                "account": "1-1330",
+                "name": "PPN Masukan",
+                "amount_note": "Reverse PPN on rebated amount"
+              }
+            ]
+          },
+          "ppn_impact": "Rebate reduces DPP, so PPN Masukan must be adjusted. Supplier should issue Faktur Pajak Pengganti.",
+          "erp_workflow": [
+            "Receive supplier Credit Note for volume rebate",
+            "System matches against qualifying purchase orders",
+            "Inventory cost adjusted if goods still in stock",
+            "If goods already sold, credit goes to COGS",
+            "PPN Masukan adjusted per supplier's updated Faktur Pajak"
+          ]
+        }
+      ]
+    }
+  },
+  "database_schema": {
+    "notes_header": {
+      "table_name": "debit_credit_notes",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "description": "Primary key"
+        },
+        {
+          "name": "note_number",
+          "type": "VARCHAR(30)",
+          "description": "Auto-generated sequence (e.g., CN-2026-00001, DN-2026-00001)"
+        },
+        {
+          "name": "note_type",
+          "type": "ENUM",
+          "values": [
+            "CREDIT_NOTE",
+            "DEBIT_NOTE"
+          ],
+          "description": "Type of document"
+        },
+        {
+          "name": "direction",
+          "type": "ENUM",
+          "values": [
+            "ISSUED",
+            "RECEIVED"
+          ],
+          "description": "Whether we issued or received this note"
+        },
+        {
+          "name": "module",
+          "type": "ENUM",
+          "values": [
+            "SALES",
+            "PURCHASE"
+          ],
+          "description": "Which module this belongs to"
+        },
+        {
+          "name": "status",
+          "type": "ENUM",
+          "values": [
+            "DRAFT",
+            "PENDING_APPROVAL",
+            "APPROVED",
+            "POSTED",
+            "CANCELLED",
+            "REJECTED"
+          ],
+          "description": "Document lifecycle status"
+        },
+        {
+          "name": "reason_code",
+          "type": "VARCHAR(20)",
+          "description": "FK to reason_codes table"
+        },
+        {
+          "name": "reason_description",
+          "type": "TEXT",
+          "description": "Free-text explanation"
+        },
+        {
+          "name": "partner_id",
+          "type": "UUID",
+          "description": "FK to customers/suppliers table"
+        },
+        {
+          "name": "original_invoice_id",
+          "type": "UUID",
+          "description": "FK to invoices table (the invoice being adjusted). Nullable for standalone notes."
+        },
+        {
+          "name": "original_invoice_number",
+          "type": "VARCHAR(30)",
+          "description": "Display reference to original invoice"
+        },
+        {
+          "name": "note_date",
+          "type": "DATE",
+          "description": "Date of the note"
+        },
+        {
+          "name": "due_date",
+          "type": "DATE",
+          "description": "Payment/settlement due date (nullable)"
+        },
+        {
+          "name": "currency",
+          "type": "VARCHAR(3)",
+          "description": "Currency code (IDR, USD, etc.)"
+        },
+        {
+          "name": "exchange_rate",
+          "type": "DECIMAL(15,6)",
+          "description": "Exchange rate at note date (1.0 for IDR)"
+        },
+        {
+          "name": "subtotal",
+          "type": "DECIMAL(15,2)",
+          "description": "Total before tax (DPP)"
+        },
+        {
+          "name": "ppn_amount",
+          "type": "DECIMAL(15,2)",
+          "description": "PPN amount (11% of DPP, or 0 if no PPN)"
+        },
+        {
+          "name": "pph_amount",
+          "type": "DECIMAL(15,2)",
+          "description": "PPh withheld amount (if applicable)"
+        },
+        {
+          "name": "total_amount",
+          "type": "DECIMAL(15,2)",
+          "description": "Grand total (subtotal + PPN - PPh withholding)"
+        },
+        {
+          "name": "settlement_method",
+          "type": "ENUM",
+          "values": [
+            "OFFSET_AR",
+            "OFFSET_AP",
+            "CASH_REFUND",
+            "APPLY_NEXT_INVOICE",
+            "OFFSET_SPECIFIC_INVOICE"
+          ],
+          "description": "How the note will be settled"
+        },
+        {
+          "name": "settlement_invoice_id",
+          "type": "UUID",
+          "description": "If settling against a specific future invoice"
+        },
+        {
+          "name": "is_settled",
+          "type": "BOOLEAN",
+          "description": "Whether the note has been fully applied/settled"
+        },
+        {
+          "name": "settled_amount",
+          "type": "DECIMAL(15,2)",
+          "description": "Amount settled so far (for partial settlements)"
+        },
+        {
+          "name": "nota_retur_number",
+          "type": "VARCHAR(30)",
+          "description": "Indonesian Nota Retur number (from e-Faktur)"
+        },
+        {
+          "name": "nota_retur_date",
+          "type": "DATE",
+          "description": "Date on Nota Retur"
+        },
+        {
+          "name": "faktur_pajak_pengganti_number",
+          "type": "VARCHAR(30)",
+          "description": "Replacement Faktur Pajak number (if price correction)"
+        },
+        {
+          "name": "triggers_inventory",
+          "type": "BOOLEAN",
+          "description": "Whether this note involves inventory movement"
+        },
+        {
+          "name": "triggers_ppn_adjustment",
+          "type": "BOOLEAN",
+          "description": "Whether this note requires PPN adjustment in SPT"
+        },
+        {
+          "name": "approval_required",
+          "type": "BOOLEAN",
+          "description": "Whether management approval is needed"
+        },
+        {
+          "name": "approved_by",
+          "type": "UUID",
+          "description": "FK to users table"
+        },
+        {
+          "name": "approved_at",
+          "type": "TIMESTAMP",
+          "description": "Approval timestamp"
+        },
+        {
+          "name": "journal_entry_id",
+          "type": "UUID",
+          "description": "FK to journal_entries table (auto-generated on posting)"
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "description": "Internal notes/comments"
+        },
+        {
+          "name": "tenant_id",
+          "type": "UUID",
+          "description": "Multi-tenant isolation"
+        },
+        {
+          "name": "created_by",
+          "type": "UUID",
+          "description": "User who created"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "description": "Creation timestamp"
+        },
+        {
+          "name": "updated_at",
+          "type": "TIMESTAMP",
+          "description": "Last update timestamp"
+        }
+      ]
+    },
+    "notes_line_items": {
+      "table_name": "debit_credit_note_items",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "description": "Primary key"
+        },
+        {
+          "name": "note_id",
+          "type": "UUID",
+          "description": "FK to debit_credit_notes"
+        },
+        {
+          "name": "line_number",
+          "type": "INTEGER",
+          "description": "Line sequence"
+        },
+        {
+          "name": "original_invoice_item_id",
+          "type": "UUID",
+          "description": "FK to original invoice line item (nullable)"
+        },
+        {
+          "name": "product_id",
+          "type": "UUID",
+          "description": "FK to products table (nullable for non-inventory items)"
+        },
+        {
+          "name": "product_name",
+          "type": "VARCHAR(255)",
+          "description": "Product/service description"
+        },
+        {
+          "name": "product_sku",
+          "type": "VARCHAR(50)",
+          "description": "SKU reference"
+        },
+        {
+          "name": "quantity",
+          "type": "DECIMAL(10,2)",
+          "description": "Quantity being credited/debited"
+        },
+        {
+          "name": "uom",
+          "type": "VARCHAR(20)",
+          "description": "Unit of measure"
+        },
+        {
+          "name": "unit_price",
+          "type": "DECIMAL(15,2)",
+          "description": "Price per unit"
+        },
+        {
+          "name": "discount_percent",
+          "type": "DECIMAL(5,2)",
+          "description": "Discount percentage (if applicable)"
+        },
+        {
+          "name": "line_subtotal",
+          "type": "DECIMAL(15,2)",
+          "description": "qty * unit_price - discount (DPP per line)"
+        },
+        {
+          "name": "ppn_rate",
+          "type": "DECIMAL(5,4)",
+          "description": "PPN rate (0.11 for 11%, 0 if exempt)"
+        },
+        {
+          "name": "ppn_amount",
+          "type": "DECIMAL(15,2)",
+          "description": "PPN for this line"
+        },
+        {
+          "name": "line_total",
+          "type": "DECIMAL(15,2)",
+          "description": "subtotal + PPN"
+        },
+        {
+          "name": "debit_account",
+          "type": "VARCHAR(10)",
+          "description": "Account code to debit"
+        },
+        {
+          "name": "credit_account",
+          "type": "VARCHAR(10)",
+          "description": "Account code to credit"
+        },
+        {
+          "name": "warehouse_id",
+          "type": "UUID",
+          "description": "Warehouse for inventory return (nullable)"
+        },
+        {
+          "name": "return_condition",
+          "type": "ENUM",
+          "values": [
+            "SELLABLE",
+            "DAMAGED",
+            "SCRAP",
+            "NOT_APPLICABLE"
+          ],
+          "description": "Condition of returned goods"
+        }
+      ]
+    },
+    "notes_settlement_log": {
+      "table_name": "debit_credit_note_settlements",
+      "description": "Tracks how each note is applied/settled over time (supports partial settlement)",
+      "fields": [
+        {
+          "name": "id",
+          "type": "UUID",
+          "description": "Primary key"
+        },
+        {
+          "name": "note_id",
+          "type": "UUID",
+          "description": "FK to debit_credit_notes"
+        },
+        {
+          "name": "settlement_type",
+          "type": "ENUM",
+          "values": [
+            "OFFSET_INVOICE",
+            "CASH_PAYMENT",
+            "BANK_TRANSFER",
+            "WRITE_OFF"
+          ],
+          "description": "How this portion was settled"
+        },
+        {
+          "name": "settlement_date",
+          "type": "DATE",
+          "description": "Date of settlement"
+        },
+        {
+          "name": "amount",
+          "type": "DECIMAL(15,2)",
+          "description": "Amount settled in this transaction"
+        },
+        {
+          "name": "offset_invoice_id",
+          "type": "UUID",
+          "description": "Invoice this was offset against (nullable)"
+        },
+        {
+          "name": "payment_id",
+          "type": "UUID",
+          "description": "Payment transaction ID (nullable)"
+        },
+        {
+          "name": "journal_entry_id",
+          "type": "UUID",
+          "description": "Journal entry for this settlement"
+        },
+        {
+          "name": "notes",
+          "type": "TEXT"
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMP"
+        }
+      ]
+    }
+  },
+  "erp_detection_rules": [
+    {
+      "id": "DET-CN01",
+      "trigger": "Sales Return document created and approved",
+      "action": "Auto-generate Credit Note (SALES module, ISSUED direction)",
+      "validation": [
+        "Return qty <= original invoice qty",
+        "Original invoice exists and is POSTED",
+        "Reason code is mandatory"
+      ],
+      "auto_journal": true,
+      "requires_approval": true,
+      "approval_threshold_note": "Configure threshold (e.g., > Rp 5,000,000 requires manager approval)"
+    },
+    {
+      "id": "DET-CN02",
+      "trigger": "Price correction identified (original price > agreed price) on sales invoice",
+      "action": "Auto-generate Credit Note with ADJ-OVERCHARGE reason, trigger Faktur Pajak Pengganti",
+      "validation": [
+        "Corrected price must be documented",
+        "Cannot exceed original invoice amount"
+      ],
+      "auto_journal": true,
+      "requires_approval": true
+    },
+    {
+      "id": "DET-DN01",
+      "trigger": "Purchase Return document created and approved",
+      "action": "Auto-generate Debit Note (PURCHASE module, ISSUED direction)",
+      "validation": [
+        "Return qty <= GRN qty",
+        "Original PO/GRN exists",
+        "Reason code mandatory"
+      ],
+      "auto_journal": true,
+      "requires_approval": true
+    },
+    {
+      "id": "DET-DN02",
+      "trigger": "3-way match detects price discrepancy (supplier invoice > PO price)",
+      "action": "Flag for review, suggest Debit Note creation with ADJ-OVERCHARGE reason",
+      "validation": [
+        "Price variance exceeds tolerance threshold (configurable, e.g., 1%)"
+      ],
+      "auto_journal": false,
+      "requires_approval": true
+    },
+    {
+      "id": "DET-DN03",
+      "trigger": "Supplier delivery date exceeds PO expected date + grace period",
+      "action": "Auto-calculate penalty based on contract terms, suggest Debit Note",
+      "validation": [
+        "Contract penalty clause exists",
+        "Grace period expired"
+      ],
+      "auto_journal": false,
+      "requires_approval": true
+    },
+    {
+      "id": "DET-NR01",
+      "trigger": "Credit Note or Debit Note involving goods return is POSTED",
+      "action": "Prompt user to create Nota Retur in e-Faktur system",
+      "validation": [
+        "Both parties are PKP",
+        "Original Faktur Pajak exists",
+        "Goods are BKP"
+      ],
+      "auto_journal": false,
+      "requires_approval": false
+    },
+    {
+      "id": "DET-NR02",
+      "trigger": "Credit Note for service cancellation is POSTED",
+      "action": "Prompt user to create Nota Pembatalan in e-Faktur system",
+      "validation": [
+        "Service was JKP",
+        "Original Faktur Pajak exists"
+      ],
+      "auto_journal": false,
+      "requires_approval": false
+    },
+    {
+      "id": "DET-SET01",
+      "trigger": "Credit Note is POSTED and settlement_method = APPLY_NEXT_INVOICE",
+      "action": "When next invoice is created for same partner, auto-suggest offset",
+      "validation": [
+        "Unsettled credit balance exists for this partner"
+      ],
+      "auto_journal": true,
+      "requires_approval": false
+    },
+    {
+      "id": "DET-SET02",
+      "trigger": "Credit Note is POSTED and settlement_method = CASH_REFUND",
+      "action": "Create payment entry for refund, debit AR/AP and credit Bank",
+      "validation": [
+        "Refund amount matches note amount",
+        "Bank account selected"
+      ],
+      "auto_journal": true,
+      "requires_approval": true
+    }
+  ],
+  "approval_workflow": {
+    "levels": [
+      {
+        "level": 1,
+        "role": "Sales/Purchase Staff",
+        "can_create": true,
+        "can_approve_up_to": 0,
+        "description": "Can create draft notes only"
+      },
+      {
+        "level": 2,
+        "role": "Department Supervisor",
+        "can_create": true,
+        "can_approve_up_to": 5000000,
+        "description": "Can approve notes up to Rp 5 juta"
+      },
+      {
+        "level": 3,
+        "role": "Finance Manager",
+        "can_create": true,
+        "can_approve_up_to": 50000000,
+        "description": "Can approve notes up to Rp 50 juta"
+      },
+      {
+        "level": 4,
+        "role": "Director / Owner",
+        "can_create": true,
+        "can_approve_up_to": null,
+        "description": "Can approve any amount (unlimited)"
+      }
+    ],
+    "rules": [
+      "All notes require at least Level 2 approval before posting",
+      "Goodwill credits (ADJ-GOODWILL) always require Level 3+ approval",
+      "Notes exceeding Rp 50 juta require Level 4 approval",
+      "Rejected notes return to DRAFT status with rejection reason",
+      "Cancelled notes after posting require reversal journal entry"
+    ]
+  },
+  "numbering_format": {
+    "credit_note_sales": {
+      "prefix": "CN-S",
+      "format": "CN-S/{YYYY}/{MM}/{SEQ:5}",
+      "example": "CN-S/2026/03/00001"
+    },
+    "credit_note_purchase": {
+      "prefix": "CN-P",
+      "format": "CN-P/{YYYY}/{MM}/{SEQ:5}",
+      "example": "CN-P/2026/03/00001"
+    },
+    "debit_note_sales": {
+      "prefix": "DN-S",
+      "format": "DN-S/{YYYY}/{MM}/{SEQ:5}",
+      "example": "DN-S/2026/03/00001"
+    },
+    "debit_note_purchase": {
+      "prefix": "DN-P",
+      "format": "DN-P/{YYYY}/{MM}/{SEQ:5}",
+      "example": "DN-P/2026/03/00001"
+    },
+    "nota_retur": {
+      "prefix": "NR",
+      "format": "NR/{YYYY}/{MM}/{SEQ:5}",
+      "example": "NR/2026/03/00001",
+      "note": "Also has e-Faktur system number"
+    }
+  },
+  "print_template_fields": {
+    "header": [
+      "Company name & logo",
+      "Company NPWP",
+      "Company address",
+      "Note type (CREDIT NOTE / DEBIT NOTE)",
+      "Note number",
+      "Note date",
+      "Reference: Original Invoice number & date"
+    ],
+    "partner_info": [
+      "Partner name",
+      "Partner NPWP",
+      "Partner address",
+      "Attention (contact person)"
+    ],
+    "body": [
+      "Line items table: No, Description, Qty, UOM, Unit Price, Subtotal",
+      "Reason for issuance",
+      "Subtotal (DPP)",
+      "PPN amount",
+      "Total amount",
+      "Settlement method"
+    ],
+    "footer": [
+      "Prepared by (name, signature, date)",
+      "Approved by (name, signature, date)",
+      "Received by (name, signature, date)",
+      "Nota Retur reference number (if applicable)"
+    ],
+    "legal_note_indonesia": "Dokumen ini merupakan bukti pengurangan utang/piutang yang sah sesuai dengan ketentuan perpajakan yang berlaku."
+  },
+  "validation_rules": [
+    {
+      "rule": "AMOUNT_LIMIT",
+      "description": "Credit/Debit Note total cannot exceed original invoice total",
+      "applies_to": "all"
+    },
+    {
+      "rule": "QTY_LIMIT",
+      "description": "Return quantity per line cannot exceed original invoice line quantity",
+      "applies_to": "goods_return"
+    },
+    {
+      "rule": "DATE_VALID",
+      "description": "Note date must be on or after original invoice date",
+      "applies_to": "all"
+    },
+    {
+      "rule": "INVOICE_STATUS",
+      "description": "Original invoice must be in POSTED or PARTIALLY_PAID status",
+      "applies_to": "all"
+    },
+    {
+      "rule": "SINGLE_CURRENCY",
+      "description": "Note currency must match original invoice currency",
+      "applies_to": "all"
+    },
+    {
+      "rule": "REASON_REQUIRED",
+      "description": "Reason code is mandatory for all notes",
+      "applies_to": "all"
+    },
+    {
+      "rule": "NO_DUPLICATE",
+      "description": "Cannot create multiple notes for the same invoice line item + reason without cancelling previous",
+      "applies_to": "all"
+    },
+    {
+      "rule": "NOTA_RETUR_REQUIRED",
+      "description": "If both parties are PKP and goods are BKP, Nota Retur number must be filled before period closing",
+      "applies_to": "goods_return"
+    },
+    {
+      "rule": "NOTA_PEMBATALAN_REQUIRED",
+      "description": "If service cancellation between PKPs, Nota Pembatalan number must be filled",
+      "applies_to": "service_cancellation"
+    },
+    {
+      "rule": "REPLACEMENT_EXCEPTION",
+      "description": "If returned goods are replaced with identical goods (same type, qty, price), no Nota Retur needed. Flag as replacement.",
+      "applies_to": "goods_return"
+    },
+    {
+      "rule": "PPN_CONSISTENCY",
+      "description": "PPN rate on note must match original invoice PPN rate",
+      "applies_to": "all"
+    },
+    {
+      "rule": "SETTLEMENT_TRACKING",
+      "description": "Note must be fully settled (settled_amount = total_amount) before year-end closing",
+      "applies_to": "all"
+    }
+  ],
+  "reporting": {
+    "reports": [
+      {
+        "name": "Credit Note Register",
+        "description": "List all credit notes by period with status, amount, and settlement status",
+        "filters": [
+          "date_range",
+          "module",
+          "status",
+          "partner",
+          "reason_code"
+        ]
+      },
+      {
+        "name": "Debit Note Register",
+        "description": "List all debit notes by period",
+        "filters": [
+          "date_range",
+          "module",
+          "status",
+          "partner",
+          "reason_code"
+        ]
+      },
+      {
+        "name": "Unsettled Notes Aging",
+        "description": "Outstanding credit/debit notes not yet fully applied, aged by days",
+        "filters": [
+          "as_of_date",
+          "module",
+          "partner"
+        ]
+      },
+      {
+        "name": "Return Analysis by Reason",
+        "description": "Breakdown of returns by reason code to identify quality/process issues",
+        "filters": [
+          "date_range",
+          "product",
+          "partner",
+          "reason_code"
+        ]
+      },
+      {
+        "name": "PPN Adjustment Report",
+        "description": "All notes requiring PPN adjustment for SPT Masa PPN reconciliation",
+        "filters": [
+          "tax_period",
+          "module"
+        ]
+      },
+      {
+        "name": "Nota Retur Tracking",
+        "description": "Track Nota Retur/Pembatalan status and e-Faktur integration",
+        "filters": [
+          "tax_period",
+          "status"
+        ]
+      }
+    ]
+  }
+}

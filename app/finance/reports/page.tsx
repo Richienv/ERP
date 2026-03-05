@@ -67,7 +67,7 @@ const sidebarGroups: SidebarGroup[] = [
         label: "Neraca & Saldo",
         color: "indigo",
         items: [
-            { key: "tb", label: "Trial Balance", icon: <Scale className="h-3.5 w-3.5" /> },
+            { key: "tb", label: "Neraca Saldo", icon: <Scale className="h-3.5 w-3.5" /> },
             { key: "equity_changes", label: "Perubahan Ekuitas", icon: <TrendingDown className="h-3.5 w-3.5" /> },
         ],
     },
@@ -142,33 +142,36 @@ export default function FinancialReportsPage() {
     function getExportRows(): Record<string, unknown>[] {
         if (reportType === "pnl" && pnlData) {
             return [
-                { metric: "Revenue", amount: Number(pnlData.revenue || 0) },
-                { metric: "Cost of Goods Sold", amount: Number(pnlData.costOfGoodsSold || 0) },
-                { metric: "Gross Profit", amount: Number(pnlData.grossProfit || 0) },
-                { metric: "Operating Expenses", amount: Number(pnlData.totalOperatingExpenses || 0) },
-                { metric: "Operating Income", amount: Number(pnlData.operatingIncome || 0) },
-                { metric: "Tax Expense", amount: Number(pnlData.taxExpense || 0) },
-                { metric: "Net Income", amount: Number(pnlData.netIncome || 0) },
+                { metric: "Pendapatan (Revenue)", amount: Number(pnlData.revenue || 0) },
+                { metric: "Harga Pokok Penjualan (HPP)", amount: Number(pnlData.costOfGoodsSold || 0) },
+                { metric: "Laba Kotor", amount: Number(pnlData.grossProfit || 0) },
+                { metric: "Beban Operasional", amount: Number(pnlData.totalOperatingExpenses || 0) },
+                ...((pnlData.operatingExpenses || []) as any[]).map((exp: any) => ({
+                    metric: `  — ${exp.category}`, amount: Number(exp.amount || 0),
+                })),
+                { metric: "Laba Operasional", amount: Number(pnlData.operatingIncome || 0) },
+                { metric: "Pajak (22%)", amount: Number(pnlData.taxExpense || 0) },
+                { metric: "Laba Bersih", amount: Number(pnlData.netIncome || 0) },
             ]
         }
         if (reportType === "bs" && balanceSheetData) {
             return [
-                { section: "Assets", metric: "Total Current Assets", amount: Number(balanceSheetData.assets?.totalCurrentAssets || 0) },
-                { section: "Assets", metric: "Total Fixed Assets", amount: Number(balanceSheetData.assets?.totalFixedAssets || 0) },
-                { section: "Assets", metric: "Total Assets", amount: Number(balanceSheetData.assets?.totalAssets || 0) },
-                { section: "Liabilities", metric: "Total Liabilities", amount: Number(balanceSheetData.liabilities?.totalLiabilities || 0) },
-                { section: "Equity", metric: "Total Equity", amount: Number(balanceSheetData.equity?.totalEquity || 0) },
-                { section: "Balance Check", metric: "Total Liabilities + Equity", amount: Number(balanceSheetData.totalLiabilitiesAndEquity || 0) },
+                { section: "Aset", metric: "Total Aset Lancar", amount: Number(balanceSheetData.assets?.totalCurrentAssets || 0) },
+                { section: "Aset", metric: "Total Aset Tetap", amount: Number(balanceSheetData.assets?.totalFixedAssets || 0) },
+                { section: "Aset", metric: "Total Aset", amount: Number(balanceSheetData.assets?.totalAssets || 0) },
+                { section: "Kewajiban", metric: "Total Kewajiban", amount: Number(balanceSheetData.liabilities?.totalLiabilities || 0) },
+                { section: "Ekuitas", metric: "Total Ekuitas", amount: Number(balanceSheetData.equity?.totalEquity || 0) },
+                { section: "Cek Neraca", metric: "Total Kewajiban + Ekuitas", amount: Number(balanceSheetData.totalLiabilitiesAndEquity || 0) },
             ]
         }
         if (reportType === "cf" && cashFlowData) {
             return [
-                { section: "Operating", amount: Number(cashFlowData.operatingActivities?.netCashFromOperating || 0) },
-                { section: "Investing", amount: Number(cashFlowData.investingActivities?.netCashFromInvesting || 0) },
-                { section: "Financing", amount: Number(cashFlowData.financingActivities?.netCashFromFinancing || 0) },
-                { section: "Net Increase in Cash", amount: Number(cashFlowData.netIncreaseInCash || 0) },
-                { section: "Beginning Cash", amount: Number(cashFlowData.beginningCash || 0) },
-                { section: "Ending Cash", amount: Number(cashFlowData.endingCash || 0) },
+                { section: "Operasi", amount: Number(cashFlowData.operatingActivities?.netCashFromOperating || 0) },
+                { section: "Investasi", amount: Number(cashFlowData.investingActivities?.netCashFromInvesting || 0) },
+                { section: "Pendanaan", amount: Number(cashFlowData.financingActivities?.netCashFromFinancing || 0) },
+                { section: "Kenaikan Bersih Kas", amount: Number(cashFlowData.netIncreaseInCash || 0) },
+                { section: "Saldo Kas Awal", amount: Number(cashFlowData.beginningCash || 0) },
+                { section: "Saldo Kas Akhir", amount: Number(cashFlowData.endingCash || 0) },
             ]
         }
         if (reportType === "tb" && trialBalanceData) {
@@ -492,19 +495,19 @@ export default function FinancialReportsPage() {
                                     <Table>
                                         <TableBody>
                                             <TableRow className="font-black bg-zinc-50 dark:bg-zinc-800">
-                                                <TableCell className="w-[60%]">Revenue</TableCell>
+                                                <TableCell className="w-[60%]">Pendapatan (Revenue)</TableCell>
                                                 <TableCell className="text-right font-mono">{formatIDR(pnlData.revenue)}</TableCell>
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell className="pl-8">Cost of Goods Sold</TableCell>
+                                                <TableCell className="pl-8">Harga Pokok Penjualan (HPP)</TableCell>
                                                 <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.costOfGoodsSold)})</TableCell>
                                             </TableRow>
                                             <TableRow className="font-bold bg-blue-50 dark:bg-blue-900/20">
-                                                <TableCell>Gross Profit</TableCell>
+                                                <TableCell>Laba Kotor</TableCell>
                                                 <TableCell className="text-right font-mono text-blue-600">{formatIDR(pnlData.grossProfit)}</TableCell>
                                             </TableRow>
-                                            <TableRow>
-                                                <TableCell className="pl-8">Operating Expenses</TableCell>
+                                            <TableRow className="font-black bg-zinc-50 dark:bg-zinc-800">
+                                                <TableCell>Beban Operasional</TableCell>
                                                 <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.totalOperatingExpenses)})</TableCell>
                                             </TableRow>
                                             {pnlData.operatingExpenses?.map((exp: any, idx: number) => (
@@ -514,7 +517,7 @@ export default function FinancialReportsPage() {
                                                 </TableRow>
                                             ))}
                                             <TableRow className="font-bold bg-indigo-50 dark:bg-indigo-900/20">
-                                                <TableCell>Operating Income</TableCell>
+                                                <TableCell>Laba Operasional</TableCell>
                                                 <TableCell className="text-right font-mono text-indigo-600">{formatIDR(pnlData.operatingIncome)}</TableCell>
                                             </TableRow>
                                             {(pnlData.otherIncome > 0) && (
@@ -536,11 +539,11 @@ export default function FinancialReportsPage() {
                                                 </TableRow>
                                             )}
                                             <TableRow>
-                                                <TableCell className="pl-8">Tax Expense (PPh 22%)</TableCell>
+                                                <TableCell className="pl-8">Pajak Penghasilan (PPh 22%)</TableCell>
                                                 <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.taxExpense)})</TableCell>
                                             </TableRow>
                                             <TableRow className="font-black bg-emerald-50 dark:bg-emerald-900/20 border-t-2 border-black">
-                                                <TableCell className="text-lg">NET INCOME</TableCell>
+                                                <TableCell className="text-lg">LABA BERSIH</TableCell>
                                                 <TableCell className={`text-right font-mono text-lg ${pnlData.netIncome >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                                                     {formatIDR(pnlData.netIncome)}
                                                 </TableCell>
@@ -579,12 +582,12 @@ export default function FinancialReportsPage() {
                                     <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                                         <div className="px-4 py-3 border-b-2 border-black bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-2">
                                             <TrendingUp className="h-4 w-4 text-emerald-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Assets</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Aset</span>
                                         </div>
                                         <Table>
                                             <TableBody>
                                                 <TableRow className="bg-emerald-50/50 dark:bg-emerald-900/10 font-bold">
-                                                    <TableCell>Current Assets</TableCell>
+                                                    <TableCell>Aset Lancar</TableCell>
                                                     <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalCurrentAssets)}</TableCell>
                                                 </TableRow>
                                                 {balanceSheetData.assets?.currentAssets?.slice(0, 5).map((asset: any, idx: number) => (
@@ -594,11 +597,11 @@ export default function FinancialReportsPage() {
                                                     </TableRow>
                                                 ))}
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800 font-bold">
-                                                    <TableCell>Fixed Assets</TableCell>
+                                                    <TableCell>Aset Tetap</TableCell>
                                                     <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalFixedAssets)}</TableCell>
                                                 </TableRow>
                                                 <TableRow className="font-black bg-emerald-100 dark:bg-emerald-900/30 border-t-2 border-black">
-                                                    <TableCell>TOTAL ASSETS</TableCell>
+                                                    <TableCell>TOTAL ASET</TableCell>
                                                     <TableCell className="text-right font-mono text-emerald-700">{formatIDR(balanceSheetData.assets?.totalAssets)}</TableCell>
                                                 </TableRow>
                                             </TableBody>
@@ -609,12 +612,12 @@ export default function FinancialReportsPage() {
                                         <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                                             <div className="px-4 py-3 border-b-2 border-black bg-red-50 dark:bg-red-900/20 flex items-center gap-2">
                                                 <TrendingDown className="h-4 w-4 text-red-600" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-red-700">Liabilities</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-red-700">Kewajiban</span>
                                             </div>
                                             <Table>
                                                 <TableBody>
                                                     <TableRow className="bg-red-50/50 dark:bg-red-900/10 font-bold">
-                                                        <TableCell>Current Liabilities</TableCell>
+                                                        <TableCell>Kewajiban Lancar</TableCell>
                                                         <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.liabilities?.totalCurrentLiabilities)}</TableCell>
                                                     </TableRow>
                                                     {balanceSheetData.liabilities?.currentLiabilities?.slice(0, 3).map((liab: any, idx: number) => (
@@ -624,7 +627,7 @@ export default function FinancialReportsPage() {
                                                         </TableRow>
                                                     ))}
                                                     <TableRow className="font-black bg-red-100 dark:bg-red-900/30 border-t-2 border-black">
-                                                        <TableCell>TOTAL LIABILITIES</TableCell>
+                                                        <TableCell>TOTAL KEWAJIBAN</TableCell>
                                                         <TableCell className="text-right font-mono text-red-700">{formatIDR(balanceSheetData.liabilities?.totalLiabilities)}</TableCell>
                                                     </TableRow>
                                                 </TableBody>
@@ -634,7 +637,7 @@ export default function FinancialReportsPage() {
                                         <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                                             <div className="px-4 py-3 border-b-2 border-black bg-blue-50 dark:bg-blue-900/20 flex items-center gap-2">
                                                 <Building className="h-4 w-4 text-blue-600" />
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">Equity</span>
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">Ekuitas</span>
                                             </div>
                                             <Table>
                                                 <TableBody>
@@ -645,11 +648,11 @@ export default function FinancialReportsPage() {
                                                         </TableRow>
                                                     ))}
                                                     <TableRow>
-                                                        <TableCell className="text-sm text-zinc-500">Retained Earnings</TableCell>
+                                                        <TableCell className="text-sm text-zinc-500">Laba Ditahan</TableCell>
                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(balanceSheetData.equity?.retainedEarnings)}</TableCell>
                                                     </TableRow>
                                                     <TableRow className="font-black bg-blue-100 dark:bg-blue-900/30 border-t-2 border-black">
-                                                        <TableCell>TOTAL EQUITY</TableCell>
+                                                        <TableCell>TOTAL EKUITAS</TableCell>
                                                         <TableCell className="text-right font-mono text-blue-700">{formatIDR(balanceSheetData.equity?.totalEquity)}</TableCell>
                                                     </TableRow>
                                                 </TableBody>
@@ -670,10 +673,10 @@ export default function FinancialReportsPage() {
                                     <Table>
                                         <TableBody>
                                             <TableRow className="bg-emerald-50/50 dark:bg-emerald-900/10 font-bold">
-                                                <TableCell colSpan={2}>Operating Activities</TableCell>
+                                                <TableCell colSpan={2}>Aktivitas Operasi</TableCell>
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell className="pl-8">Net Income</TableCell>
+                                                <TableCell className="pl-8">Laba Bersih</TableCell>
                                                 <TableCell className="text-right font-mono">{formatIDR(cashFlowData.operatingActivities?.netIncome)}</TableCell>
                                             </TableRow>
                                             {cashFlowData.operatingActivities?.changesInWorkingCapital?.map((adj: any, idx: number) => (
@@ -683,12 +686,12 @@ export default function FinancialReportsPage() {
                                                 </TableRow>
                                             ))}
                                             <TableRow className="font-bold bg-zinc-50 dark:bg-zinc-800">
-                                                <TableCell>Net Cash from Operating</TableCell>
+                                                <TableCell>Arus Kas Bersih dari Operasi</TableCell>
                                                 <TableCell className={`text-right font-mono ${cashFlowData.operatingActivities?.netCashFromOperating >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(cashFlowData.operatingActivities?.netCashFromOperating)}</TableCell>
                                             </TableRow>
 
                                             <TableRow className="bg-zinc-50 dark:bg-zinc-800 font-bold">
-                                                <TableCell colSpan={2}>Investing Activities</TableCell>
+                                                <TableCell colSpan={2}>Aktivitas Investasi</TableCell>
                                             </TableRow>
                                             {cashFlowData.investingActivities?.items?.map((item: any, idx: number) => (
                                                 <TableRow key={idx}>
@@ -697,12 +700,12 @@ export default function FinancialReportsPage() {
                                                 </TableRow>
                                             ))}
                                             <TableRow className="font-bold bg-zinc-50 dark:bg-zinc-800">
-                                                <TableCell>Net Cash from Investing</TableCell>
+                                                <TableCell>Arus Kas Bersih dari Investasi</TableCell>
                                                 <TableCell className={`text-right font-mono ${cashFlowData.investingActivities?.netCashFromInvesting >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(cashFlowData.investingActivities?.netCashFromInvesting)}</TableCell>
                                             </TableRow>
 
                                             <TableRow className="bg-zinc-50 dark:bg-zinc-800 font-bold">
-                                                <TableCell colSpan={2}>Financing Activities</TableCell>
+                                                <TableCell colSpan={2}>Aktivitas Pendanaan</TableCell>
                                             </TableRow>
                                             {cashFlowData.financingActivities?.items?.map((item: any, idx: number) => (
                                                 <TableRow key={idx}>
@@ -711,16 +714,16 @@ export default function FinancialReportsPage() {
                                                 </TableRow>
                                             ))}
                                             <TableRow className="font-bold bg-zinc-50 dark:bg-zinc-800">
-                                                <TableCell>Net Cash from Financing</TableCell>
+                                                <TableCell>Arus Kas Bersih dari Pendanaan</TableCell>
                                                 <TableCell className={`text-right font-mono ${cashFlowData.financingActivities?.netCashFromFinancing >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(cashFlowData.financingActivities?.netCashFromFinancing)}</TableCell>
                                             </TableRow>
 
                                             <TableRow className="font-black bg-emerald-50 dark:bg-emerald-900/20 border-t-2 border-black">
-                                                <TableCell className="text-lg">NET INCREASE IN CASH</TableCell>
+                                                <TableCell className="text-lg">KENAIKAN BERSIH KAS</TableCell>
                                                 <TableCell className={`text-right font-mono text-lg ${cashFlowData.netIncreaseInCash >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatIDR(cashFlowData.netIncreaseInCash)}</TableCell>
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell>Ending Cash Balance</TableCell>
+                                                <TableCell>Saldo Kas Akhir</TableCell>
                                                 <TableCell className="text-right font-mono text-emerald-700 font-bold">{formatIDR(cashFlowData.endingCash)}</TableCell>
                                             </TableRow>
                                         </TableBody>
@@ -734,12 +737,12 @@ export default function FinancialReportsPage() {
                                     <div className="px-4 py-3 border-b-2 border-black bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <Scale className="h-4 w-4 text-indigo-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Trial Balance</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-indigo-700">Neraca Saldo</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             {trialBalanceData.totals.isBalanced ? (
                                                 <span className="flex items-center gap-1 text-[10px] font-black uppercase text-emerald-600">
-                                                    <Check className="h-3.5 w-3.5" /> Balanced
+                                                    <Check className="h-3.5 w-3.5" /> Seimbang
                                                 </span>
                                             ) : (
                                                 <span className="flex items-center gap-1 text-[10px] font-black uppercase text-red-600">

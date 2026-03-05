@@ -229,6 +229,21 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.bills.list(),
         queryFn: async () => await getVendorBillsRegistry(),
     },
+    "/finance/payables": {
+        queryKey: queryKeys.bills.list(),
+        queryFn: async () => await getVendorBillsRegistry(),
+    },
+    "/finance/receivables": {
+        queryKey: queryKeys.arPayments.list(),
+        queryFn: async () => {
+            const { getARPaymentRegistry, getARPaymentStats } = await import("@/lib/actions/finance")
+            const [registry, stats] = await Promise.all([
+                getARPaymentRegistry({}),
+                getARPaymentStats(),
+            ])
+            return { registry, stats }
+        },
+    },
     "/manufacturing/schedule": {
         queryKey: queryKeys.mfgSchedule.list(),
         queryFn: async () => {

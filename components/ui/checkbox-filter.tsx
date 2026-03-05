@@ -43,7 +43,7 @@ export function CheckboxFilter({ label, options, selected, onChange }: CheckboxF
             <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">{label}</label>
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
-                    <button className="flex items-center gap-2 border-2 border-black h-9 px-3 bg-white text-xs font-medium min-w-[160px] justify-between hover:bg-zinc-50 transition-colors">
+                    <button className="flex items-center gap-2 border-2 border-black h-10 px-3 bg-white text-xs font-medium min-w-[160px] justify-between hover:bg-zinc-50 transition-colors">
                         <span className="truncate">{displayText}</span>
                         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                     </button>

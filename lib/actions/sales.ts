@@ -274,17 +274,17 @@ export async function approveInvoice(id: string) {
             reference: id,
             lines: [
                 {
-                    accountCode: '1200', // Accounts Receivable (AR)
+                    accountCode: '1100', // Piutang Usaha (AR)
                     debit: totalAmount,
                     credit: 0
                 },
                 {
-                    accountCode: '2200', // Tax Output (PPN Keluaran)
+                    accountCode: '2110', // PPN Keluaran
                     debit: 0,
                     credit: taxAmount
                 },
                 {
-                    accountCode: '4101', // Revenue / Sales
+                    accountCode: '4000', // Pendapatan Penjualan
                     debit: 0,
                     credit: subtotal
                 }
@@ -357,7 +357,7 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
                     credit: 0
                 },
                 {
-                    accountCode: '1200',
+                    accountCode: '1100', // Piutang Usaha (AR)
                     credit: amount,
                     debit: 0
                 }

@@ -312,4 +312,8 @@ export const queryKeys = {
         all: ["sidebarActions"] as const,
         list: () => [...queryKeys.sidebarActions.all, "list"] as const,
     },
+    manufacturing: {
+        all: ["manufacturing"] as const,
+        stationWorkload: () => [...queryKeys.manufacturing.all, "stationWorkload"] as const,
+    },
 } as const

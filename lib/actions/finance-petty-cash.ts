@@ -195,16 +195,32 @@ export async function createExpenseAccount(name: string) {
     try {
         await requireAuth()
 
-        // Auto-generate next expense code (5xxx series)
-        const lastExpense = await basePrisma.gLAccount.findFirst({
-            where: { type: "EXPENSE", code: { startsWith: "5" } },
-            orderBy: { code: "desc" },
-            select: { code: true },
+        // Check if an expense account with this exact name already exists
+        const existing = await basePrisma.gLAccount.findFirst({
+            where: { type: "EXPENSE", name: { equals: name, mode: "insensitive" } },
+            select: { code: true, name: true },
         })
+        if (existing) {
+            return { success: true, code: existing.code, name: existing.name }
+        }
 
-        const nextCode = lastExpense
-            ? String(Number(lastExpense.code) + 100).padStart(4, "0")
-            : "5100"
+        // Auto-generate next expense code (5xxx series) with collision check
+        const allExpenseCodes = await basePrisma.gLAccount.findMany({
+            where: { type: "EXPENSE", code: { startsWith: "5" } },
+            select: { code: true },
+            orderBy: { code: "desc" },
+        })
+        const existingCodes = new Set(allExpenseCodes.map(a => a.code))
+
+        let nextNum = allExpenseCodes.length > 0
+            ? Number(allExpenseCodes[0].code) + 100
+            : 5100
+
+        // Skip collisions
+        while (existingCodes.has(String(nextNum).padStart(4, "0"))) {
+            nextNum += 10
+        }
+        const nextCode = String(nextNum).padStart(4, "0")
 
         const account = await basePrisma.gLAccount.create({
             data: { code: nextCode, name, type: "EXPENSE", balance: 0 },
@@ -212,6 +228,7 @@ export async function createExpenseAccount(name: string) {
 
         return { success: true, code: account.code, name: account.name }
     } catch (e: any) {
+        console.error("createExpenseAccount error:", e)
         return { success: false, error: e.message }
     }
 }

@@ -274,13 +274,13 @@ export async function approveVendorBill(billId: string) {
 
             // Add Tax if applicable (Input VAT - Asset)
             if (Number(bill.taxAmount) > 0) {
-                const vatInAccount = await prisma.gLAccount.findFirst({ where: { code: '1300' } }) // VAT In
+                const vatInAccount = await prisma.gLAccount.findFirst({ where: { code: '1330' } }) // PPN Masukan
                 if (vatInAccount) {
                     glLines.push({
-                        accountCode: '1300',
+                        accountCode: '1330',
                         debit: Number(bill.taxAmount),
                         credit: 0,
-                        description: `VAT In - Bill ${bill.number}`
+                        description: `PPN Masukan - Bill ${bill.number}`
                     })
                     totalAmount += Number(bill.taxAmount)
                 }
@@ -288,10 +288,10 @@ export async function approveVendorBill(billId: string) {
 
             // Add AP Credit Line
             glLines.push({
-                accountCode: '2000',
+                accountCode: '2100', // Hutang Usaha
                 debit: 0,
                 credit: totalAmount, // Should match bill total
-                description: `AP - ${bill.supplier?.name}`
+                description: `Hutang - ${bill.supplier?.name}`
             })
 
             // Post Journal Entry
@@ -435,8 +435,8 @@ export async function recordVendorPayment(data: {
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2000', debit: data.amount, credit: 0, description: 'Utang Usaha' },
-                    { accountCode: '1000', debit: 0, credit: data.amount, description: 'Cash/Bank' }
+                    { accountCode: '2100', debit: data.amount, credit: 0, description: 'Hutang Usaha' },
+                    { accountCode: '1000', debit: 0, credit: data.amount, description: 'Kas Besar' }
                 ]
             })
 
@@ -588,7 +588,7 @@ export async function approveAndPayBill(
                     const amount = Number(item.amount)
                     totalAmount += amount
                     glLines.push({
-                        accountCode: '6000', // Default Expense for now
+                        accountCode: '5000', // HPP
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
@@ -598,20 +598,20 @@ export async function approveAndPayBill(
                 // Add Tax
                 if (Number(bill.taxAmount) > 0) {
                     glLines.push({
-                        accountCode: '1300', // VAT In
+                        accountCode: '1330', // PPN Masukan
                         debit: Number(bill.taxAmount),
                         credit: 0,
-                        description: `VAT In - Bill ${bill.number}`
+                        description: `PPN Masukan - Bill ${bill.number}`
                     })
                     totalAmount += Number(bill.taxAmount)
                 }
 
                 // Add AP Credit
                 glLines.push({
-                    accountCode: '2000',
+                    accountCode: '2100', // Hutang Usaha
                     debit: 0,
                     credit: totalAmount,
-                    description: `AP - ${bill.supplier?.name}`
+                    description: `Hutang - ${bill.supplier?.name}`
                 })
 
                 await postJournalEntry({
@@ -651,8 +651,8 @@ export async function approveAndPayBill(
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2000', debit: paymentDetails.amount, credit: 0, description: `AP Payment` }, // Debit AP (Liability connects)
-                    { accountCode: '1100', debit: 0, credit: paymentDetails.amount, description: `Bank Transfer` } // Credit Bank (Asset decreases)
+                    { accountCode: '2100', debit: paymentDetails.amount, credit: 0, description: `Pelunasan Hutang` }, // Debit AP (Hutang Usaha)
+                    { accountCode: '1010', debit: 0, credit: paymentDetails.amount, description: `Transfer Bank` } // Credit Bank
                 ]
             })
 

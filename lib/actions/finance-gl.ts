@@ -121,6 +121,8 @@ export async function postJournalEntry(data: {
     description: string
     date: Date
     reference: string
+    invoiceId?: string
+    paymentId?: string
     lines: {
         accountCode: string
         debit: number
@@ -151,6 +153,8 @@ export async function postJournalEntry(data: {
                         description: data.description,
                         reference: data.reference,
                         status: 'POSTED',
+                        ...(data.invoiceId ? { invoiceId: data.invoiceId } : {}),
+                        ...(data.paymentId ? { paymentId: data.paymentId } : {}),
                         lines: {
                             create: data.lines.map(line => {
                                 const account = accountMap.get(line.accountCode)

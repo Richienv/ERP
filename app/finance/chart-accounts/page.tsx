@@ -86,11 +86,17 @@ export default function CoALedgerPage() {
         return acc.type === filterType
     })
 
-    // KPI calculations
+    // KPI calculations — Liabilities, Equity, Revenue are credit-normal (stored negative), so we use Math.abs
     const totalAccounts = accounts.length
     const totalAssets = accounts.filter(a => a.type === "ASSET").reduce((sum, a) => sum + a.balance, 0)
-    const totalLiabilities = accounts.filter(a => a.type === "LIABILITY").reduce((sum, a) => sum + a.balance, 0)
-    const totalEquity = accounts.filter(a => a.type === "EQUITY").reduce((sum, a) => sum + a.balance, 0)
+    const totalLiabilities = Math.abs(accounts.filter(a => a.type === "LIABILITY").reduce((sum, a) => sum + a.balance, 0))
+    const totalEquity = Math.abs(accounts.filter(a => a.type === "EQUITY").reduce((sum, a) => sum + a.balance, 0))
+    const totalRevenue = Math.abs(accounts.filter(a => a.type === "REVENUE").reduce((sum, a) => sum + a.balance, 0))
+    const totalExpense = accounts.filter(a => a.type === "EXPENSE").reduce((sum, a) => sum + a.balance, 0)
+    const retainedEarnings = totalRevenue - totalExpense
+    // Accounting equation: Assets = Liabilities + Equity + Retained Earnings
+    const rightSide = totalLiabilities + totalEquity + retainedEarnings
+    const isBalanced = Math.abs(totalAssets - rightSide) < 1 // tolerance for rounding
 
     async function handleCreateAccount() {
         if (!newCode.trim() || !newName.trim()) {
@@ -192,42 +198,61 @@ export default function CoALedgerPage() {
 
             {/* ═══ KPI PULSE STRIP ═══ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                {/* Balance equation bar */}
+                <div className={`px-4 py-2 flex items-center justify-between text-[10px] font-black uppercase tracking-widest border-b-2 ${isBalanced ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-amber-50 border-amber-200 text-amber-700"}`}>
+                    <span>{isBalanced ? "✓ Persamaan Akuntansi Seimbang" : "⚠ Persamaan Akuntansi Belum Seimbang"}</span>
+                    <span className="font-mono text-[9px] normal-case">
+                        Aset ({formatIDR(totalAssets)}) = Kewajiban ({formatIDR(totalLiabilities)}) + Ekuitas ({formatIDR(totalEquity)}) + Laba ({formatIDR(retainedEarnings)})
+                    </span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+                    <div className="relative p-4 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Layers className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Akun</span>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <Layers className="h-3.5 w-3.5 text-zinc-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Total Akun</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{totalAccounts}</div>
-                        <div className="text-[10px] font-bold text-indigo-600 mt-1">Root accounts</div>
+                        <div className="text-xl md:text-2xl font-black tracking-tighter text-zinc-900 dark:text-white">{totalAccounts}</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
+                    <div className="relative p-4 border-r border-zinc-100 dark:border-zinc-800 border-b md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <TrendingUp className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Assets</span>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Assets</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{formatIDR(totalAssets)}</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-1">Aset bersih</div>
+                        <div className="text-xl md:text-2xl font-black tracking-tighter text-emerald-600">{formatIDR(totalAssets)}</div>
                     </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
+                    <div className="relative p-4 border-r border-zinc-100 dark:border-zinc-800 border-b lg:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <TrendingDown className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Liabilities</span>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <TrendingDown className="h-3.5 w-3.5 text-zinc-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Liabilities</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{formatIDR(totalLiabilities)}</div>
-                        <div className="text-[10px] font-bold text-red-600 mt-1">Kewajiban</div>
+                        <div className="text-xl md:text-2xl font-black tracking-tighter text-red-600">{formatIDR(totalLiabilities)}</div>
                     </div>
-                    <div className="relative p-4 md:p-5">
+                    <div className="relative p-4 border-r border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Scale className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Equity</span>
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <Scale className="h-3.5 w-3.5 text-zinc-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Equity</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">{formatIDR(totalEquity)}</div>
-                        <div className="text-[10px] font-bold text-blue-600 mt-1">Ekuitas</div>
+                        <div className="text-xl md:text-2xl font-black tracking-tighter text-blue-600">{formatIDR(totalEquity)}</div>
+                    </div>
+                    <div className="relative p-4 border-r border-zinc-100 dark:border-zinc-800">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-purple-400" />
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <TrendingUp className="h-3.5 w-3.5 text-zinc-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Revenue</span>
+                        </div>
+                        <div className="text-xl md:text-2xl font-black tracking-tighter text-purple-600">{formatIDR(totalRevenue)}</div>
+                    </div>
+                    <div className="relative p-4">
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <TrendingDown className="h-3.5 w-3.5 text-zinc-400" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Expense</span>
+                        </div>
+                        <div className="text-xl md:text-2xl font-black tracking-tighter text-orange-600">{formatIDR(totalExpense)}</div>
                     </div>
                 </div>
             </div>
