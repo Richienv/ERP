@@ -42,7 +42,8 @@ import {
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
-import { useFinanceReports } from "@/hooks/use-finance-reports"
+import { useFinanceKPI, useFinanceReport } from "@/hooks/use-finance-reports"
+import { Loader2 } from "lucide-react"
 
 type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "budget_vs_actual"
 
@@ -107,17 +108,23 @@ export default function FinancialReportsPage() {
     const [draftStartDate, setDraftStartDate] = useState(new Date(currentYear, 0, 1).toISOString().slice(0, 10))
     const [draftEndDate, setDraftEndDate] = useState(new Date().toISOString().slice(0, 10))
 
-    const { data, isLoading: loading, isError, error } = useFinanceReports(startDate, endDate)
-    const pnlData = data?.pnl ?? null
-    const balanceSheetData = data?.bs ?? null
-    const cashFlowData = data?.cf ?? null
-    const trialBalanceData = data?.tb ?? null
-    const arAgingData = data?.arAging ?? null
-    const apAgingData = data?.apAging ?? null
-    const equityData = data?.equity ?? null
-    const inventoryTurnoverData = data?.inventoryTurnover ?? null
-    const taxData = data?.tax ?? null
-    const budgetVsActualData = data?.budgetVsActual ?? null
+    // KPI strip: lightweight (3 queries) — loads fast
+    const { data: kpi, isLoading: kpiLoading } = useFinanceKPI(startDate, endDate)
+
+    // Active report tab: only fetches the one selected report
+    const { data: reportResult, isLoading: reportLoading, isError, error } = useFinanceReport(reportType, startDate, endDate)
+
+    // Extract typed data from the active report result
+    const pnlData = reportResult?.type === "pnl" ? reportResult.data : null
+    const balanceSheetData = reportResult?.type === "bs" ? reportResult.data : null
+    const cashFlowData = reportResult?.type === "cf" ? reportResult.data : null
+    const trialBalanceData = reportResult?.type === "tb" ? reportResult.data : null
+    const arAgingData = reportResult?.type === "ar_aging" ? reportResult.data : null
+    const apAgingData = reportResult?.type === "ap_aging" ? reportResult.data : null
+    const equityData = reportResult?.type === "equity_changes" ? reportResult.data : null
+    const inventoryTurnoverData = reportResult?.type === "inventory_turnover" ? reportResult.data : null
+    const taxData = reportResult?.type === "tax_report" ? reportResult.data : null
+    const budgetVsActualData = reportResult?.type === "budget_vs_actual" ? reportResult.data : null
 
     function applyDateRange() {
         const nextStart = new Date(draftStartDate)
@@ -343,7 +350,7 @@ export default function FinancialReportsPage() {
                             <TrendingUp className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Revenue</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{loading ? "..." : formatIDR(pnlData?.revenue || 0)}</div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.revenue || 0)}</div>
                         <div className="text-[10px] font-bold text-blue-600 mt-1">Pendapatan</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
@@ -352,7 +359,7 @@ export default function FinancialReportsPage() {
                             <FileText className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Net Income</span>
                         </div>
-                        <div className={`text-2xl md:text-3xl font-black tracking-tighter ${(pnlData?.netIncome || 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>{loading ? "..." : formatIDR(pnlData?.netIncome || 0)}</div>
+                        <div className={`text-2xl md:text-3xl font-black tracking-tighter ${(kpi?.netIncome || 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.netIncome || 0)}</div>
                         <div className="text-[10px] font-bold text-emerald-600 mt-1">Laba bersih</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
@@ -361,7 +368,7 @@ export default function FinancialReportsPage() {
                             <Users className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AR Outstanding</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">{loading ? "..." : formatIDR(arAgingData?.summary?.totalOutstanding || 0)}</div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.arOutstanding || 0)}</div>
                         <div className="text-[10px] font-bold text-orange-600 mt-1">Piutang belum tertagih</div>
                     </div>
                     <div className="relative p-4 md:p-5">
@@ -370,7 +377,7 @@ export default function FinancialReportsPage() {
                             <Truck className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AP Outstanding</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{loading ? "..." : formatIDR(apAgingData?.summary?.totalOutstanding || 0)}</div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.apOutstanding || 0)}</div>
                         <div className="text-[10px] font-bold text-red-600 mt-1">Hutang belum dibayar</div>
                     </div>
                 </div>
@@ -435,9 +442,36 @@ export default function FinancialReportsPage() {
 
                 {/* Main Content Area */}
                 <div className="flex-1 min-w-0">
-                    {loading ? (
-                        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 animate-pulse">Memuat data laporan...</p>
+                    {reportLoading ? (
+                        <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                            <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
+                                <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    Memuat {reportLabel}
+                                </span>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                {/* Progress message */}
+                                <div className="flex items-center justify-center gap-3 py-4">
+                                    <div className="relative">
+                                        <div className="h-10 w-10 rounded-full border-[3px] border-zinc-200 dark:border-zinc-700" />
+                                        <div className="absolute inset-0 h-10 w-10 rounded-full border-[3px] border-blue-500 border-t-transparent animate-spin" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Mengambil data dari database...</p>
+                                        <p className="text-xs text-zinc-400 mt-0.5">Menyiapkan laporan {reportLabel}</p>
+                                    </div>
+                                </div>
+                                {/* Skeleton rows */}
+                                <div className="space-y-3">
+                                    {[100, 85, 92, 78, 88, 70].map((w, i) => (
+                                        <div key={i} className="flex items-center gap-4">
+                                            <div className="h-4 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" style={{ width: `${w * 0.4}%`, animationDelay: `${i * 100}ms` }} />
+                                            <div className="ml-auto h-4 w-24 bg-zinc-200 dark:bg-zinc-700 rounded animate-pulse" style={{ animationDelay: `${i * 100 + 50}ms` }} />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     ) : isError ? (
                         <div className="bg-white dark:bg-zinc-900 border-2 border-red-500 shadow-[3px_3px_0px_0px_rgba(239,68,68,1)] p-12 text-center space-y-3">
@@ -1270,8 +1304,8 @@ export default function FinancialReportsPage() {
                                 </div>
                             )}
 
-                            {/* Fallback: no data at all */}
-                            {!pnlData && !balanceSheetData && !cashFlowData && !trialBalanceData && !arAgingData && !apAgingData && !equityData && !inventoryTurnoverData && !taxData && !budgetVsActualData && (
+                            {/* Fallback: no data for active report */}
+                            {reportResult && !reportResult.data && (
                                 <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
                                     <BarChart3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
                                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data laporan tidak tersedia</p>

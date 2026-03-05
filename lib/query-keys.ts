@@ -103,6 +103,8 @@ export const queryKeys = {
     financeReports: {
         all: ["financeReports"] as const,
         list: (start?: string, end?: string) => [...queryKeys.financeReports.all, "list", start, end] as const,
+        report: (type: string, start: string, end: string) => [...queryKeys.financeReports.all, "report", type, start, end] as const,
+        kpi: (start: string, end: string) => [...queryKeys.financeReports.all, "kpi", start, end] as const,
     },
     mfgDashboard: {
         all: ["mfgDashboard"] as const,

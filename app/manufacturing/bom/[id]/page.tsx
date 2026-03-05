@@ -214,11 +214,40 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     const [creatingStationType, setCreatingStationType] = useState<string | null>(null)
     const [stationPickerType, setStationPickerType] = useState<string | null>(null)
 
-    const handleQuickAddByType = useCallback(async (stationType: string) => {
-        // Find all active IN_HOUSE stations of this type
-        const candidates = (allStations || []).filter((s: any) =>
-            s.stationType === stationType && s.operationType !== "SUBCONTRACTOR" && s.isActive !== false
+    // Build dynamic process types: fixed types + custom OTHER types from allStations
+    const dynamicProcessTypes = useMemo(() => {
+        const fixed = [...STATION_TYPE_CONFIG].map(cfg => ({ ...cfg, isCustom: false, description: null as string | null }))
+
+        // Find unique custom (OTHER) process types from allStations
+        const otherStations = (allStations || []).filter((s: any) =>
+            s.stationType === "OTHER" && s.operationType !== "SUBCONTRACTOR" && s.isActive !== false
         )
+        const customDescriptions = [...new Set(otherStations.map((s: any) => s.description).filter(Boolean))] as string[]
+
+        const custom = customDescriptions.map(desc => ({
+            type: `OTHER:${desc}`,
+            label: desc,
+            icon: Cog,
+            color: "bg-zinc-50 text-zinc-600 border-zinc-300 hover:bg-zinc-100",
+            isCustom: true,
+            description: desc,
+        }))
+
+        return [...fixed, ...custom]
+    }, [allStations])
+
+    const handleQuickAddByType = useCallback(async (typeKey: string, description?: string | null) => {
+        // For custom types, typeKey is "OTHER:Description" — extract actual stationType
+        const isCustom = typeKey.startsWith("OTHER:")
+        const stationType = isCustom ? "OTHER" : typeKey
+        const customDesc = isCustom ? typeKey.substring(6) : description
+
+        // Find all active IN_HOUSE stations of this type (+ matching description for custom)
+        const candidates = (allStations || []).filter((s: any) => {
+            if (s.operationType === "SUBCONTRACTOR" || s.isActive === false) return false
+            if (isCustom) return s.stationType === "OTHER" && s.description === customDesc
+            return s.stationType === stationType
+        })
 
         if (candidates.length === 1) {
             handleAddStationToCanvas(candidates[0].id)
@@ -227,20 +256,23 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
         if (candidates.length > 1) {
             // Multiple → show picker
-            setStationPickerType(stationType)
+            setStationPickerType(typeKey)
             return
         }
 
         // None exist → auto-create default station
-        setCreatingStationType(stationType)
+        setCreatingStationType(typeKey)
         const config = STATION_TYPE_CONFIG.find((c) => c.type === stationType)
-        const label = config?.label || stationType
+        const label = customDesc || config?.label || stationType
         const code = `STN-${stationType.substring(0, 3)}-${String(Date.now()).slice(-4)}`
         try {
             const res = await fetch("/api/manufacturing/process-stations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code, name: label, stationType, operationType: "IN_HOUSE", costPerUnit: 0 }),
+                body: JSON.stringify({
+                    code, name: label, stationType, operationType: "IN_HOUSE", costPerUnit: 0,
+                    ...(isCustom ? { description: customDesc } : {}),
+                }),
             })
             const result = await res.json()
             if (result.success) {
@@ -812,11 +844,10 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         onClick={handleGenerateSPK}
                         disabled={generating || steps.length === 0}
                         title={spkReadiness.ready ? "Semua siap — klik untuk generate SPK" : `Belum siap:\n${spkReadiness.issues.join('\n')}`}
-                        className={`h-8 font-black text-[10px] uppercase border-2 rounded-none ${
-                            spkReadiness.ready
+                        className={`h-8 font-black text-[10px] uppercase border-2 rounded-none ${spkReadiness.ready
                                 ? "border-orange-500 text-orange-600 hover:bg-orange-50"
                                 : "border-zinc-300 text-zinc-400 hover:bg-zinc-50"
-                        }`}
+                            }`}
                     >
                         {generating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-1 h-3.5 w-3.5" />}
                         Generate SPK
@@ -841,13 +872,16 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             {/* TOOLBAR — Row 2: Quick-Add + Templates + View Toggle */}
             <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-1 flex items-center gap-1.5 shrink-0 overflow-x-auto">
                 <span className="text-[9px] font-black uppercase text-zinc-400 mr-1 shrink-0">Tambah Proses:</span>
-                {STATION_TYPE_CONFIG.map((cfg) => {
+                {dynamicProcessTypes.map((cfg) => {
                     const Icon = cfg.icon
                     const isCreating = creatingStationType === cfg.type
                     const isPicking = stationPickerType === cfg.type
-                    const candidates = (allStations || []).filter((s: any) =>
-                        s.stationType === cfg.type && s.operationType !== "SUBCONTRACTOR" && s.isActive !== false
-                    )
+                    const isCustom = cfg.isCustom
+                    const candidates = (allStations || []).filter((s: any) => {
+                        if (s.operationType === "SUBCONTRACTOR" || s.isActive === false) return false
+                        if (isCustom) return s.stationType === "OTHER" && s.description === cfg.description
+                        return s.stationType === cfg.type
+                    })
                     const hasMultiple = candidates.length > 1
 
                     return (
@@ -857,7 +891,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                                     variant="outline"
                                     size="sm"
                                     disabled={isCreating}
-                                    onClick={() => handleQuickAddByType(cfg.type)}
+                                    onClick={() => handleQuickAddByType(cfg.type, cfg.description)}
                                     className={`h-7 text-[10px] font-bold border rounded-none shrink-0 px-2.5 gap-1 ${cfg.color}`}
                                 >
                                     {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
