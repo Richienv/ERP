@@ -21,7 +21,7 @@ export function ProductionLineStatus({ data }: ProductionLineStatusProps) {
                 <CardHeader className="relative z-10 flex flex-row items-center justify-between p-6 border-b border-black space-y-0 bg-zinc-50 dark:bg-zinc-900 group-hover/card:bg-zinc-100 transition-colors">
                     <div>
                         <CardTitle className="text-lg font-black text-foreground uppercase tracking-wider flex items-center gap-2">
-                            Status Stasiun Fisik
+                            Status Work Center Fisik
                             <ArrowRight className="h-4 w-4 opacity-0 group-hover/card:opacity-100 -translate-x-2 group-hover/card:translate-x-0 transition-all text-black" />
                         </CardTitle>
                         <p className="text-xs text-muted-foreground mt-1 font-medium">Pemantauan Line Produksi Real-time</p>

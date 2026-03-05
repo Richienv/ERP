@@ -12,6 +12,14 @@ import {
     Layers,
     DollarSign,
 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+
+const WAREHOUSE_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
+    RAW_MATERIAL: { label: "Bahan Baku", className: "bg-blue-100 text-blue-800 border-blue-300" },
+    WORK_IN_PROGRESS: { label: "WIP", className: "bg-amber-100 text-amber-800 border-amber-300" },
+    FINISHED_GOODS: { label: "Barang Jadi", className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+    GENERAL: { label: "Umum", className: "bg-zinc-100 text-zinc-700 border-zinc-300" },
+}
 import { Button } from "@/components/ui/button"
 import { useWarehouseDetail } from "@/hooks/use-warehouse-detail"
 import { WarehouseEditDialog } from "@/components/inventory/warehouse-edit-dialog"
@@ -60,6 +68,11 @@ export default function WarehousePage() {
                                 <span className="inline-block border-2 border-black bg-zinc-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider font-mono">
                                     {warehouse.code}
                                 </span>
+                                {warehouse.warehouseType && (
+                                    <Badge className={`text-[9px] font-black uppercase px-2 py-0.5 border rounded-none ${WAREHOUSE_TYPE_CONFIG[warehouse.warehouseType]?.className || WAREHOUSE_TYPE_CONFIG.GENERAL.className}`}>
+                                        {WAREHOUSE_TYPE_CONFIG[warehouse.warehouseType]?.label || "Umum"}
+                                    </Badge>
+                                )}
                             </div>
                             <h1 className="text-xl font-black uppercase tracking-tight">
                                 {warehouse.name}
@@ -71,7 +84,7 @@ export default function WarehousePage() {
                             )}
                         </div>
                     </div>
-                    <WarehouseEditDialog warehouse={{ ...warehouse, capacity: warehouse.capacity ?? undefined }} />
+                    <WarehouseEditDialog warehouse={{ ...warehouse, capacity: warehouse.capacity ?? undefined, warehouseType: warehouse.warehouseType }} />
                 </div>
             </div>
 

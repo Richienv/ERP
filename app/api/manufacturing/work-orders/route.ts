@@ -68,6 +68,16 @@ export async function GET(request: NextRequest) {
                             },
                         },
                     },
+                    machine: {
+                        select: {
+                            id: true,
+                            code: true,
+                            name: true,
+                            group: {
+                                select: { id: true, name: true },
+                            },
+                        },
+                    },
                     inspections: {
                         orderBy: { inspectionDate: 'desc' },
                         take: 1,

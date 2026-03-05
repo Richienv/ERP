@@ -26,7 +26,7 @@ export function MaterialPanel({ items, steps, onAddItem, onRemoveItem }: Materia
             {/* Header */}
             <div className="px-4 py-3 border-b-2 border-black bg-zinc-50">
                 <h3 className="text-xs font-black uppercase tracking-widest">Material</h3>
-                <p className="text-[9px] font-bold text-zinc-400 mt-0.5">Drag ke stasiun proses</p>
+                <p className="text-[9px] font-bold text-zinc-400 mt-0.5">Drag ke work center proses</p>
             </div>
 
             {/* Search */}

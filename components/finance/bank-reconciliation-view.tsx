@@ -168,19 +168,24 @@ export function BankReconciliationView({
             return
         }
         setLoading(true)
-        const result = await onCreateReconciliation({
-            glAccountId: newAccountId,
-            statementDate: newStatementDate,
-            periodStart: newPeriodStart,
-            periodEnd: newPeriodEnd,
-        })
-        setLoading(false)
-        if (result.success) {
-            toast.success("Rekonsiliasi berhasil dibuat")
-            setCreateOpen(false)
-            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
-        } else {
-            toast.error(result.error || "Gagal membuat rekonsiliasi")
+        try {
+            const result = await onCreateReconciliation({
+                glAccountId: newAccountId,
+                statementDate: newStatementDate,
+                periodStart: newPeriodStart,
+                periodEnd: newPeriodEnd,
+            })
+            if (result.success) {
+                toast.success("Rekonsiliasi berhasil dibuat")
+                setCreateOpen(false)
+                queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+            } else {
+                toast.error(result.error || "Gagal membuat rekonsiliasi")
+            }
+        } catch {
+            toast.error("Gagal membuat rekonsiliasi")
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -204,66 +209,88 @@ export function BankReconciliationView({
         }
 
         setLoading(true)
-        const result = await onImportRows(selectedRec.id, rows)
-        setLoading(false)
-        if (result.success) {
-            toast.success(`${result.importedCount} baris berhasil diimpor`)
-            setImportText("")
-            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
-            // Reload detail
-            const detail = await onLoadDetail(selectedRec.id)
-            if (detail) setSelectedRec(detail)
-        } else {
-            toast.error(result.error || "Gagal mengimpor")
+        try {
+            const result = await onImportRows(selectedRec.id, rows)
+            if (result.success) {
+                toast.success(`${result.importedCount} baris berhasil diimpor`)
+                setImportText("")
+                queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+                // Reload detail
+                const detail = await onLoadDetail(selectedRec.id)
+                if (detail) setSelectedRec(detail)
+            } else {
+                toast.error(result.error || "Gagal mengimpor")
+            }
+        } catch {
+            toast.error("Gagal mengimpor data")
+        } finally {
+            setLoading(false)
         }
     }
 
     const handleAutoMatch = async () => {
         if (!selectedRec) return
         setLoading(true)
-        const result = await onAutoMatch(selectedRec.id)
-        setLoading(false)
-        if (result.success) {
-            toast.success(`${result.matchedCount} item berhasil dicocokkan otomatis`)
-            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
-            const detail = await onLoadDetail(selectedRec.id)
-            if (detail) setSelectedRec(detail)
-        } else {
-            toast.error(result.error || "Gagal auto-match")
+        try {
+            const result = await onAutoMatch(selectedRec.id)
+            if (result.success) {
+                toast.success(`${result.matchedCount} item berhasil dicocokkan otomatis`)
+                queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+                const detail = await onLoadDetail(selectedRec.id)
+                if (detail) setSelectedRec(detail)
+            } else {
+                toast.error(result.error || "Gagal auto-match")
+            }
+        } catch {
+            toast.error("Gagal melakukan auto-match")
+        } finally {
+            setLoading(false)
         }
     }
 
     const handleClose = async () => {
         if (!selectedRec) return
+        const confirmed = window.confirm("Tutup rekonsiliasi ini? Setelah ditutup, tidak bisa diubah lagi.")
+        if (!confirmed) return
         setLoading(true)
-        const result = await onClose(selectedRec.id)
-        setLoading(false)
-        if (result.success) {
-            toast.success("Rekonsiliasi ditutup")
-            setSelectedRec(null)
-            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
-        } else {
-            toast.error(result.error || "Gagal menutup")
+        try {
+            const result = await onClose(selectedRec.id)
+            if (result.success) {
+                toast.success("Rekonsiliasi ditutup")
+                setSelectedRec(null)
+                queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+            } else {
+                toast.error(result.error || "Gagal menutup")
+            }
+        } catch {
+            toast.error("Gagal menutup rekonsiliasi")
+        } finally {
+            setLoading(false)
         }
     }
 
     const handleSelectRec = async (rec: ReconciliationSummary) => {
         setLoading(true)
-        const detail = await onLoadDetail(rec.id)
-        setLoading(false)
-        setSelectedRec(detail)
+        try {
+            const detail = await onLoadDetail(rec.id)
+            setSelectedRec(detail)
+        } catch {
+            toast.error("Gagal memuat detail rekonsiliasi")
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
         <div className="space-y-4">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-2">
                     <Landmark className="h-5 w-5" />
                     <h2 className="text-sm font-black uppercase tracking-widest">Rekonsiliasi Bank</h2>
                 </div>
-                <div className="flex items-center gap-2">
-                <Dialog open={addBankOpen} onOpenChange={setAddBankOpen}>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Dialog open={addBankOpen} onOpenChange={setAddBankOpen}>
                         <DialogTrigger asChild>
                             <Button variant="outline" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9 px-3 rounded-none">
                                 <Landmark className="h-3.5 w-3.5 mr-1" /> Tambah Bank
@@ -395,9 +422,9 @@ export function BankReconciliationView({
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Reconciliation list */}
-                <div className="col-span-1 space-y-2">
+                <div className="lg:col-span-1 space-y-2">
                     {reconciliations.length === 0 ? (
                         <div className="bg-white border-2 border-black p-8 text-center">
                             <Landmark className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
@@ -432,7 +459,7 @@ export function BankReconciliationView({
                 </div>
 
                 {/* Detail panel */}
-                <div className="col-span-2">
+                <div className="lg:col-span-2">
                     {selectedRec ? (
                         <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                             {/* Detail header */}
@@ -450,7 +477,7 @@ export function BankReconciliationView({
 
                             {/* Actions bar */}
                             {selectedRec.status !== 'REC_COMPLETED' && (
-                                <div className="px-4 py-2 border-b border-zinc-200 flex items-center gap-2 flex-wrap">
+                                <div className="px-4 py-2 border-b border-zinc-200 flex items-center gap-2 flex-wrap min-h-[44px]">
                                     <Button
                                         variant="outline"
                                         size="sm"
@@ -568,24 +595,36 @@ function ReconciliationRow({
     const handleMatch = async () => {
         if (!matchInput.trim()) return
         setLoading(true)
-        const result = await onMatch(item.id, matchInput.trim())
-        setLoading(false)
-        if (result.success) {
-            toast.success("Item berhasil dicocokkan")
-            setMatchInput("")
-            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
-        } else {
-            toast.error(result.error || "Gagal")
+        try {
+            const result = await onMatch(item.id, matchInput.trim())
+            if (result.success) {
+                toast.success("Item berhasil dicocokkan")
+                setMatchInput("")
+                queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+            } else {
+                toast.error(result.error || "Gagal mencocokkan")
+            }
+        } catch {
+            toast.error("Gagal mencocokkan item")
+        } finally {
+            setLoading(false)
         }
     }
 
     const handleUnmatch = async () => {
         setLoading(true)
-        const result = await onUnmatch(item.id)
-        setLoading(false)
-        if (result.success) {
-            toast.success("Pencocokan dibatalkan")
-            queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+        try {
+            const result = await onUnmatch(item.id)
+            if (result.success) {
+                toast.success("Pencocokan dibatalkan")
+                queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+            } else {
+                toast.error(result.error || "Gagal membatalkan pencocokan")
+            }
+        } catch {
+            toast.error("Gagal membatalkan pencocokan")
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -627,7 +666,7 @@ function ReconciliationRow({
                             <Unlink className="h-3 w-3" />
                         </Button>
                     ) : (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center justify-center gap-1">
                             <Input
                                 className="border border-zinc-300 font-mono text-[9px] h-6 rounded-none w-20"
                                 placeholder="ID Jurnal"
@@ -637,7 +676,7 @@ function ReconciliationRow({
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-1.5 text-[8px]"
+                                className="h-6 px-1.5 text-[8px] shrink-0"
                                 disabled={loading || !matchInput.trim()}
                                 onClick={handleMatch}
                             >

@@ -28,7 +28,7 @@ export function DetailedLineStatus() {
                 <div>
                     <CardTitle className="text-xl font-black uppercase tracking-wider flex items-center gap-2">
                         <Factory className="h-5 w-5" />
-                        Status Stasiun Fisik (Detail)
+                        Status Work Center Fisik (Detail)
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">Live metrics across all 7 production lines.</p>
                 </div>

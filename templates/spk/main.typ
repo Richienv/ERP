@@ -6,11 +6,6 @@
   if value == none { default } else { str(value) }
 }
 
-#let format-currency(amount) = {
-  let amt = if amount == none { 0 } else { amount }
-  "Rp " + str(amt)
-}
-
 // ============================================
 // DATA INJECTION
 // ============================================

@@ -15,7 +15,7 @@ export async function POST(
         }
         const { id } = await params
         const body = await request.json().catch(() => ({}))
-        const { priority = 'NORMAL', dueDate } = body
+        const { priority = 'NORMAL', dueDate, startDate: requestStartDate } = body
 
         const bom = await prisma.productionBOM.findUnique({
             where: { id },
@@ -60,18 +60,39 @@ export async function POST(
             }, { status: 400 })
         }
 
-        // Validate: subcontractor steps must have allocations totaling totalProductionQty
+        // Validate: all steps must have duration set
+        const noDuration = bom.steps.filter(s => !s.durationMinutes || Number(s.durationMinutes) <= 0)
+        if (noDuration.length > 0) {
+            return NextResponse.json({
+                success: false,
+                error: `Step ${noDuration.map(s => s.sequence).join(', ')} belum ada durasi (wajib diisi)`,
+            }, { status: 400 })
+        }
+
+        // Validate: steps with allocations must have totals matching totalProductionQty
         for (const step of bom.steps) {
-            const isSubkon = step.useSubkon ?? step.station.operationType === 'SUBCONTRACTOR'
-            if (isSubkon) {
+            if (step.allocations.length > 0) {
                 const totalAlloc = step.allocations.reduce((sum, a) => sum + a.quantity, 0)
+                const isSubkon = step.useSubkon ?? step.station.operationType === 'SUBCONTRACTOR'
+                const typeLabel = isSubkon ? 'subkon' : 'in-house'
                 if (totalAlloc !== bom.totalProductionQty) {
                     return NextResponse.json({
                         success: false,
-                        error: `Alokasi step ${step.sequence} (${step.station.name}): ${totalAlloc}/${bom.totalProductionQty} pcs — harus sama dengan target produksi`,
+                        error: `Alokasi ${typeLabel} step ${step.sequence} (${step.station.name}): ${totalAlloc}/${bom.totalProductionQty} pcs — harus sama dengan target produksi`,
                     }, { status: 400 })
                 }
             }
+        }
+
+        // Guard: prevent duplicate SPK generation
+        const existingWOs = await prisma.workOrder.count({
+            where: { productionBomId: id },
+        })
+        if (existingWOs > 0) {
+            return NextResponse.json({
+                success: false,
+                error: `BOM ini sudah memiliki ${existingWOs} SPK/Work Order. Hapus SPK yang ada sebelum generate ulang.`,
+            }, { status: 409 })
         }
 
         // Generate work orders in transaction
@@ -93,6 +114,9 @@ export async function POST(
             const results: any[] = []
             // DAG-based dependency: map stepId → workOrderIds
             const stepToWOIds = new Map<string, string[]>()
+            // DAG-based scheduling: map stepId → end time in minutes from base start
+            const stepEndMinutes = new Map<string, number>()
+            const baseStart = requestStartDate ? new Date(requestStartDate) : new Date()
 
             for (const step of bom.steps) {
                 const currentStepWOIds: string[] = []
@@ -106,10 +130,25 @@ export async function POST(
                 // H4: Pick first parent WO (schema supports single dependency only)
                 const dependsOnId = parentWOIds.length > 0 ? parentWOIds[0] : null
 
-                const stepIsSubkon = step.useSubkon ?? step.station.operationType === 'SUBCONTRACTOR'
-                if (stepIsSubkon && step.allocations.length > 0) {
+                // F-007: DAG-aware scheduling — start after ALL parent steps complete (critical path)
+                const stepDuration = (Number(step.durationMinutes) || 0) * bom.totalProductionQty
+                const parentIds: string[] = (step as any).parentStepIds || []
+                let startOffsetMinutes = 0
+                if (parentIds.length > 0) {
+                    // Start after the LATEST parent finishes (critical path)
+                    startOffsetMinutes = Math.max(...parentIds.map(pid => stepEndMinutes.get(pid) || 0))
+                }
+                stepEndMinutes.set(step.id, startOffsetMinutes + stepDuration)
+
+                const woStartDate = new Date(baseStart.getTime() + startOffsetMinutes * 60 * 1000)
+                const woEndDate = new Date(woStartDate.getTime() + stepDuration * 60 * 1000)
+
+                // N-004: Both subkon AND in-house steps with allocations generate per-allocation WOs
+                const hasAllocations = step.allocations.length > 0
+                if (hasAllocations) {
                     for (const alloc of step.allocations) {
                         const woNumber = `${prefix}-${String(sequence).padStart(4, '0')}`
+                        const allocStationName = alloc.station?.name || step.station.name
                         const wo = await tx.workOrder.create({
                             data: {
                                 number: woNumber,
@@ -118,13 +157,20 @@ export async function POST(
                                 productionBomStepId: step.id,
                                 priority,
                                 plannedQty: alloc.quantity,
-                                dueDate: dueDate ? new Date(dueDate) : null,
+                                startDate: woStartDate,
+                                dueDate: dueDate ? new Date(dueDate) : woEndDate,
                                 status: 'PLANNED',
                                 dependsOnWorkOrderId: dependsOnId,
                             },
                         })
                         currentStepWOIds.push(wo.id)
-                        results.push({ ...wo, stepSequence: step.sequence, stationName: step.station.name })
+                        results.push({
+                            ...wo,
+                            stepSequence: step.sequence,
+                            stationName: step.station.name,
+                            allocStationName,
+                            allocQty: alloc.quantity,
+                        })
                         sequence++
                     }
                 } else {
@@ -137,7 +183,8 @@ export async function POST(
                             productionBomStepId: step.id,
                             priority,
                             plannedQty: bom.totalProductionQty,
-                            dueDate: dueDate ? new Date(dueDate) : null,
+                            startDate: woStartDate,
+                            dueDate: dueDate ? new Date(dueDate) : woEndDate,
                             status: 'PLANNED',
                             dependsOnWorkOrderId: dependsOnId,
                         },
@@ -162,6 +209,7 @@ export async function POST(
                 plannedQty: wo.plannedQty,
                 stepSequence: wo.stepSequence,
                 stationName: wo.stationName,
+                allocStationName: wo.allocStationName || null,
                 status: wo.status,
             })),
         }, { status: 201 })

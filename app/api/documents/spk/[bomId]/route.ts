@@ -20,7 +20,7 @@ export async function GET(
         const bom = await prisma.productionBOM.findUnique({
             where: { id: bomId },
             include: {
-                product: { select: { id: true, code: true, name: true, unit: true, sellingPrice: true } },
+                product: { select: { id: true, code: true, name: true, unit: true } },
                 items: {
                     include: {
                         material: {
@@ -32,7 +32,7 @@ export async function GET(
                     include: {
                         station: {
                             select: {
-                                id: true, name: true, stationType: true, operationType: true, costPerUnit: true,
+                                id: true, name: true, stationType: true, operationType: true,
                                 subcontractor: { select: { name: true } },
                             },
                         },

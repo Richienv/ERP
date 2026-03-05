@@ -54,7 +54,7 @@ export function AllocationEditor({ allocations, totalQty, stations, onChange }: 
                 <div key={index} className="flex items-center gap-2">
                     <Select value={alloc.stationId} onValueChange={(v) => updateAllocation(index, "stationId", v)}>
                         <SelectTrigger className="h-8 text-xs border-zinc-200 rounded-none flex-1">
-                            <SelectValue placeholder="Pilih stasiun..." />
+                            <SelectValue placeholder="Pilih work center..." />
                         </SelectTrigger>
                         <SelectContent>
                             {stations.map((s) => (

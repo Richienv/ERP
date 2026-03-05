@@ -20,6 +20,7 @@ export interface StationNodeData {
     totalProductionQty?: number
     startedAt?: string | null
     useSubkon?: boolean
+    allocations?: any[]
     isSelected: boolean
     onRemoveMaterial: (bomItemId: string) => void
     onDrop: (bomItemId: string) => void
@@ -63,7 +64,16 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                     <p className="font-black text-xs uppercase truncate">{station?.name}</p>
                     <div className="flex items-center gap-1.5">
                         <p className={`text-[9px] font-bold ${isSubcon ? "text-amber-600" : "text-emerald-600"}`}>
-                            {isSubcon ? `Subkon: ${station?.subcontractor?.name || "-"}` : "In-House"}
+                            {isSubcon ? `Subkon: ${(() => {
+                                // Try allocations first (actual assigned subcon CVs)
+                                const allocs = data.allocations || []
+                                if (allocs.length > 0) {
+                                    const names = allocs.map((a: any) => a.station?.name || a.station?.subcontractor?.name).filter(Boolean)
+                                    if (names.length > 0) return names.join(', ')
+                                }
+                                // Fallback to station's subcontractor
+                                return station?.subcontractor?.name || "-"
+                            })()}` : "In-House"}
                         </p>
                         {station?.stationType && (
                             <span className="text-[7px] font-black uppercase px-1 py-0.5 rounded bg-black/10 text-zinc-600">
@@ -77,7 +87,7 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                     <button
                         onClick={(e) => { e.stopPropagation(); onRemoveStep() }}
                         className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-red-100 transition-all shrink-0"
-                        title="Hapus stasiun"
+                        title="Hapus work center"
                     >
                         <Trash2 className="h-3 w-3 text-red-500" />
                     </button>

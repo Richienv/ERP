@@ -1,7 +1,7 @@
 'use server'
 
 import { InvoiceStatus, InvoiceType } from "@prisma/client"
-import { withPrismaAuth } from "@/lib/db"
+import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 
 export interface InvoiceKanbanItem {
@@ -644,7 +644,7 @@ export async function getPendingSalesOrders() {
     return withPrismaAuth(async (prisma) => {
         const orders = await prisma.salesOrder.findMany({
             where: {
-                status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+                status: { in: ['CONFIRMED', 'IN_PROGRESS', 'DELIVERED', 'COMPLETED'] },
                 invoices: {
                     none: {
                         type: 'INV_OUT',
@@ -747,39 +747,105 @@ export async function createBillFromPOId(
 
 export async function moveInvoiceToSent(invoiceId: string, message?: string, method?: 'WHATSAPP' | 'EMAIL') {
     try {
-        return await withPrismaAuth(async (prisma) => {
+        const txResult = await withPrismaAuth(async (prisma) => {
             const now = new Date()
             const existing = await prisma.invoice.findUnique({
                 where: { id: invoiceId },
-                select: { id: true, dueDate: true }
+                select: {
+                    id: true, number: true, dueDate: true,
+                    totalAmount: true, subtotal: true, taxAmount: true,
+                    type: true, status: true,
+                    customer: { select: { name: true } },
+                    supplier: { select: { name: true } },
+                }
             })
 
-            if (!existing) {
-                throw new Error("Invoice not found")
-            }
+            if (!existing) throw new Error("Invoice not found")
+            if (existing.status !== 'DRAFT') throw new Error("Hanya invoice DRAFT yang bisa dikirim")
 
             const fallbackDueDate = new Date(now)
             fallbackDueDate.setDate(fallbackDueDate.getDate() + 30)
             const dueDate = existing.dueDate || fallbackDueDate
             const nextStatus = dueDate < now ? 'OVERDUE' : 'ISSUED'
 
-            const invoice = await prisma.invoice.update({
+            await prisma.invoice.update({
                 where: { id: invoiceId },
                 data: {
                     status: nextStatus,
                     issueDate: now,
-                    dueDate, // Preserve user-selected due date when available.
+                    dueDate,
                 }
             })
 
-            // Log activity or "send" message (mock for now)
-            console.log(`Sending Invoice ${invoice.number} via ${method}: ${message}`)
-
-            return { success: true, dueDate, status: nextStatus }
+            return {
+                number: existing.number,
+                type: existing.type,
+                totalAmount: Number(existing.totalAmount || 0),
+                subtotal: Number(existing.subtotal || existing.totalAmount || 0),
+                taxAmount: Number(existing.taxAmount || 0),
+                customerName: existing.customer?.name,
+                supplierName: existing.supplier?.name,
+                nextStatus,
+                dueDate,
+                issueDate: now,
+            }
         })
-    } catch (error) {
+
+        // Post GL entry for AR/AP recognition (outside withPrismaAuth to avoid nested transaction)
+        try {
+            if (txResult.type === 'INV_OUT') {
+                // AR Invoice: DR Piutang Usaha, CR Pendapatan + CR PPN Keluaran
+                const lines: { accountCode: string; debit: number; credit: number; description: string }[] = [
+                    { accountCode: '1200', debit: txResult.totalAmount, credit: 0, description: `Piutang ${txResult.customerName || 'Customer'}` },
+                ]
+                if (txResult.taxAmount > 0) {
+                    lines.push({ accountCode: '4000', debit: 0, credit: txResult.subtotal, description: `Pendapatan ${txResult.number}` })
+                    lines.push({ accountCode: '2100', debit: 0, credit: txResult.taxAmount, description: `PPN Keluaran ${txResult.number}` })
+                } else {
+                    lines.push({ accountCode: '4000', debit: 0, credit: txResult.totalAmount, description: `Pendapatan ${txResult.number}` })
+                }
+                await postJournalEntry({
+                    description: `Invoice ${txResult.number} issued`,
+                    date: txResult.issueDate,
+                    reference: txResult.number,
+                    lines,
+                })
+            } else {
+                // AP Bill: DR Beban + DR PPN Masukan, CR Hutang Usaha
+                const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
+                if (txResult.taxAmount > 0) {
+                    lines.push({ accountCode: '5000', debit: txResult.subtotal, credit: 0, description: `Beban ${txResult.number}` })
+                    lines.push({ accountCode: '1150', debit: txResult.taxAmount, credit: 0, description: `PPN Masukan ${txResult.number}` })
+                } else {
+                    lines.push({ accountCode: '5000', debit: txResult.totalAmount, credit: 0, description: `Beban ${txResult.number}` })
+                }
+                lines.push({ accountCode: '2000', debit: 0, credit: txResult.totalAmount, description: `Hutang ${txResult.supplierName || 'Supplier'}` })
+                await postJournalEntry({
+                    description: `Bill ${txResult.number} issued`,
+                    date: txResult.issueDate,
+                    reference: txResult.number,
+                    lines,
+                })
+            }
+        } catch (glError: any) {
+            console.error("GL posting failed:", glError)
+            // Revert invoice to DRAFT so user knows GL posting failed
+            try {
+                await prisma.invoice.update({
+                    where: { id: invoiceId },
+                    data: { status: 'DRAFT', issueDate: null },
+                })
+            } catch { /* revert best-effort */ }
+            return {
+                success: false,
+                error: `Invoice gagal diposting ke jurnal: ${glError?.message || 'Akun GL tidak ditemukan'}. Status dikembalikan ke DRAFT.`,
+            }
+        }
+
+        return { success: true, dueDate: txResult.dueDate, status: txResult.nextStatus }
+    } catch (error: any) {
         console.error("Failed to move invoice to sent:", error)
-        return { success: false, error: "Failed to update invoice status" }
+        return { success: false, error: error?.message || "Failed to update invoice status" }
     }
 }
 
@@ -859,8 +925,12 @@ export async function recordInvoicePayment(data: {
                     ]
                 })
             }
-        } catch (glError) {
+        } catch (glError: any) {
             console.warn("Journal entry failed (GL accounts may not exist):", glError)
+            return {
+                success: true,
+                glWarning: `Pembayaran berhasil dicatat, tetapi jurnal GL gagal diposting: ${glError?.message || 'Akun GL tidak ditemukan'}. Hubungi bagian akuntansi.`,
+            }
         }
 
         return { success: true }

@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
                     },
                 },
                 machine: { select: { id: true, code: true, name: true } },
+                group: { select: { id: true, code: true, name: true } },
                 childStations: {
                     include: {
                         subcontractor: {
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
                         name: `${companyName} (${stationType})`,
                         stationType,
                         operationType: 'SUBCONTRACTOR',
-                        subcontractorId: subcontractor.id,
+                        subcontractor: { connect: { id: subcontractor.id } },
                         costPerUnit: costPerUnit || 0,
                         description: description || null,
                     },
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
         }
 
         // ── MODE: generic station creation (original) ──
-        const { code, name, stationType, operationType, subcontractorId, machineId, costPerUnit, description, parentStationId } = body
+        const { code, name, stationType, operationType, subcontractorId, machineId, costPerUnit, description, parentStationId, groupId } = body
 
         if (!code || !name || !stationType || !operationType) {
             return NextResponse.json(
@@ -131,15 +132,17 @@ export async function POST(request: NextRequest) {
                 name,
                 stationType,
                 operationType,
-                subcontractorId: subcontractorId || null,
-                machineId: machineId || null,
+                ...(subcontractorId ? { subcontractor: { connect: { id: subcontractorId } } } : {}),
+                ...(machineId ? { machine: { connect: { id: machineId } } } : {}),
                 costPerUnit: costPerUnit || 0,
                 description: description || null,
-                parentStationId: parentStationId || null,
+                ...(parentStationId ? { parentStation: { connect: { id: parentStationId } } } : {}),
+                ...(groupId ? { group: { connect: { id: groupId } } } : {}),
             },
             include: {
                 subcontractor: { select: { id: true, name: true } },
                 machine: { select: { id: true, code: true, name: true } },
+                group: { select: { id: true, code: true, name: true } },
             },
         })
 

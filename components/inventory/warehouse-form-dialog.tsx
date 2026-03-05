@@ -17,6 +17,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { NB } from "@/lib/dialog-styles";
 
+const WAREHOUSE_TYPE_OPTIONS = [
+  { value: "RAW_MATERIAL", label: "Bahan Baku" },
+  { value: "WORK_IN_PROGRESS", label: "WIP" },
+  { value: "FINISHED_GOODS", label: "Barang Jadi" },
+  { value: "GENERAL", label: "Umum" },
+] as const;
+
 interface WarehouseFormDialogProps {
   mode: "create" | "edit";
   warehouse?: {
@@ -25,6 +32,7 @@ interface WarehouseFormDialogProps {
     code: string;
     address: string;
     capacity?: number;
+    warehouseType?: string;
   };
   trigger?: React.ReactNode;
 }
@@ -39,6 +47,7 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
     code: warehouse?.code || "",
     address: warehouse?.address || "",
     capacity: warehouse?.capacity || 10000,
+    warehouseType: warehouse?.warehouseType || "GENERAL",
   });
 
   // Reset form data when dialog opens or warehouse prop changes
@@ -50,9 +59,10 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
           code: warehouse.code,
           address: warehouse.address,
           capacity: warehouse.capacity || 10000,
+          warehouseType: warehouse.warehouseType || "GENERAL",
         });
       } else if (mode === "create") {
-        setFormData({ name: "", code: "", address: "", capacity: 10000 });
+        setFormData({ name: "", code: "", address: "", capacity: 10000, warehouseType: "GENERAL" });
       }
     }
   }, [open, warehouse?.id, mode]);
@@ -72,7 +82,7 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
         toast.success(mode === "create" ? "Warehouse created!" : "Warehouse updated!");
         setOpen(false);
         if (mode === "create") {
-          setFormData({ name: "", code: "", address: "", capacity: 10000 });
+          setFormData({ name: "", code: "", address: "", capacity: 10000, warehouseType: "GENERAL" });
         }
         queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
@@ -149,14 +159,28 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
                   className={NB.input}
                 />
               </div>
-              <div className="max-w-[200px]">
-                <label className={NB.label}>Max Capacity</label>
-                <Input
-                  type="number"
-                  value={formData.capacity}
-                  onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-                  className={NB.inputMono}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={NB.label}>Max Capacity</label>
+                  <Input
+                    type="number"
+                    value={formData.capacity}
+                    onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
+                    className={NB.inputMono}
+                  />
+                </div>
+                <div>
+                  <label className={NB.label}>Tipe Gudang</label>
+                  <select
+                    value={formData.warehouseType}
+                    onChange={(e) => setFormData({ ...formData, warehouseType: e.target.value })}
+                    className="flex h-9 w-full border-2 border-black bg-white px-3 py-1 text-sm font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-none"
+                  >
+                    {WAREHOUSE_TYPE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </div>

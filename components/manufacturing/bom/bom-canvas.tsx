@@ -104,10 +104,16 @@ export function BOMCanvas({
                 stepTargets.set(step.id, allocTotal)
             } else {
                 const stationType = step.station?.stationType
-                const siblings = steps.filter((s: any) => s.station?.stationType === stationType)
-                stepTargets.set(step.id, siblings.length > 1
-                    ? Math.ceil((totalProductionQty || 0) / siblings.length)
-                    : (totalProductionQty || 0))
+                const siblings = stationType ? steps.filter((s: any) => s.station?.stationType === stationType) : [step]
+                if (siblings.length > 1) {
+                    const qty = totalProductionQty || 0
+                    const idx = siblings.indexOf(step)
+                    const share = Math.floor(qty / siblings.length)
+                    const remainder = qty % siblings.length
+                    stepTargets.set(step.id, share + (idx < remainder ? 1 : 0))
+                } else {
+                    stepTargets.set(step.id, totalProductionQty || 0)
+                }
             }
         }
 
@@ -140,6 +146,7 @@ export function BOMCanvas({
                 totalProductionQty: stepTargets.get(step.id) || totalProductionQty || 0,
                 startedAt: step.startedAt || null,
                 useSubkon: step.useSubkon ?? undefined,
+                allocations: step.allocations || [],
                 isSelected: step.id === selectedStepId,
                 onRemoveMaterial: (bomItemId: string) => onRemoveMaterial(step.id, bomItemId),
                 onDrop: (bomItemId: string) => onDropMaterial(step.id, bomItemId),

@@ -44,7 +44,7 @@ const OPERATION_TYPES = [
 const stationSchema = z.object({
     code: z.string().min(1, "Kode wajib diisi"),
     name: z.string().min(1, "Nama wajib diisi"),
-    stationType: z.string().min(1, "Tipe stasiun wajib dipilih"),
+    stationType: z.string().min(1, "Tipe work center wajib dipilih"),
     operationType: z.string().min(1, "Tipe operasi wajib dipilih"),
     subcontractorId: z.string().optional(),
     costPerUnit: z.coerce.number().min(0).default(0),
@@ -178,13 +178,13 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
             const result = await res.json()
 
             if (result.success) {
-                toast.success("Stasiun proses berhasil dibuat")
+                toast.success("Work center proses berhasil dibuat")
                 queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
                 stationForm.reset()
                 onOpenChange(false)
                 onCreated?.(result.data)
             } else {
-                toast.error(result.error || "Gagal membuat stasiun")
+                toast.error(result.error || "Gagal membuat work center")
             }
         } catch {
             toast.error("Terjadi kesalahan")
@@ -311,9 +311,9 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
             <DialogContent className={NB.contentNarrow}>
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}>
-                        <Cog className="h-5 w-5" /> Tambah Stasiun Proses
+                        <Cog className="h-5 w-5" /> Tambah Work Center Proses
                     </DialogTitle>
-                    <p className={NB.subtitle}>Buat stasiun produksi baru (potong, jahit, QC, dll)</p>
+                    <p className={NB.subtitle}>Buat work center produksi baru (potong, jahit, QC, dll)</p>
                 </DialogHeader>
 
                 <ScrollArea className={NB.scroll}>
@@ -340,7 +340,7 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                 <div className="grid grid-cols-2 gap-3">
                                     <FormField control={stationForm.control as any} name="stationType" render={({ field }) => (
                                         <FormItem>
-                                            <label className={NB.label}>Tipe Stasiun <span className={NB.labelRequired}>*</span></label>
+                                            <label className={NB.label}>Tipe Work Center <span className={NB.labelRequired}>*</span></label>
                                             <Select onValueChange={field.onChange} value={field.value}>
                                                 <FormControl><SelectTrigger className={NB.select}><SelectValue placeholder="Pilih tipe" /></SelectTrigger></FormControl>
                                                 <SelectContent>
@@ -404,7 +404,7 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                 <div className={NB.footer}>
                                     <Button type="button" variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>Batal</Button>
                                     <Button type="submit" disabled={loading} className={NB.submitBtn}>
-                                        {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : "Simpan Stasiun"}
+                                        {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Menyimpan...</> : "Simpan Work Center"}
                                     </Button>
                                 </div>
                             </form>

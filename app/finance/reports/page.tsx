@@ -348,37 +348,37 @@ export default function FinancialReportsPage() {
                         <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <TrendingUp className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Revenue</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pendapatan</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.revenue || 0)}</div>
-                        <div className="text-[10px] font-bold text-blue-600 mt-1">Pendapatan</div>
+                        <div className="text-[10px] font-bold text-blue-600 mt-1">Total pendapatan periode ini</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Net Income</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Laba Bersih</span>
                         </div>
                         <div className={`text-2xl md:text-3xl font-black tracking-tighter ${(kpi?.netIncome || 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.netIncome || 0)}</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-1">Laba bersih</div>
+                        <div className="text-[10px] font-bold text-emerald-600 mt-1">Setelah pajak</div>
                     </div>
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Users className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AR Outstanding</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Piutang Usaha</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.arOutstanding || 0)}</div>
-                        <div className="text-[10px] font-bold text-orange-600 mt-1">Piutang belum tertagih</div>
+                        <div className="text-[10px] font-bold text-orange-600 mt-1">Belum tertagih</div>
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <Truck className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">AP Outstanding</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hutang Usaha</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.apOutstanding || 0)}</div>
-                        <div className="text-[10px] font-bold text-red-600 mt-1">Hutang belum dibayar</div>
+                        <div className="text-[10px] font-bold text-red-600 mt-1">Belum dibayar</div>
                     </div>
                 </div>
             </div>
@@ -517,8 +517,26 @@ export default function FinancialReportsPage() {
                                                 <TableCell>Operating Income</TableCell>
                                                 <TableCell className="text-right font-mono text-indigo-600">{formatIDR(pnlData.operatingIncome)}</TableCell>
                                             </TableRow>
+                                            {(pnlData.otherIncome > 0) && (
+                                                <TableRow>
+                                                    <TableCell className="pl-8">Pendapatan Lain-lain</TableCell>
+                                                    <TableCell className="text-right font-mono text-emerald-600">{formatIDR(pnlData.otherIncome)}</TableCell>
+                                                </TableRow>
+                                            )}
+                                            {(pnlData.otherExpenses > 0) && (
+                                                <TableRow>
+                                                    <TableCell className="pl-8">Biaya Lain-lain</TableCell>
+                                                    <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.otherExpenses)})</TableCell>
+                                                </TableRow>
+                                            )}
+                                            {(pnlData.otherIncome > 0 || pnlData.otherExpenses > 0) && (
+                                                <TableRow className="font-bold bg-zinc-50 dark:bg-zinc-800">
+                                                    <TableCell>Laba Sebelum Pajak</TableCell>
+                                                    <TableCell className="text-right font-mono">{formatIDR(pnlData.netIncomeBeforeTax)}</TableCell>
+                                                </TableRow>
+                                            )}
                                             <TableRow>
-                                                <TableCell className="pl-8">Tax Expense</TableCell>
+                                                <TableCell className="pl-8">Tax Expense (PPh 22%)</TableCell>
                                                 <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.taxExpense)})</TableCell>
                                             </TableRow>
                                             <TableRow className="font-black bg-emerald-50 dark:bg-emerald-900/20 border-t-2 border-black">
@@ -534,6 +552,29 @@ export default function FinancialReportsPage() {
 
                             {/* Balance Sheet */}
                             {reportType === "bs" && balanceSheetData && (
+                                <div className="space-y-4">
+                                {/* Balance Check Banner */}
+                                {(() => {
+                                    const diff = Math.abs((balanceSheetData.assets?.totalAssets || 0) - (balanceSheetData.totalLiabilitiesAndEquity || 0))
+                                    const isBalanced = diff < 1
+                                    return (
+                                        <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-4 py-3 flex items-center justify-between ${isBalanced ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-red-50 dark:bg-red-900/20"}`}>
+                                            <div className="flex items-center gap-2">
+                                                {isBalanced ? (
+                                                    <Check className="h-4 w-4 text-emerald-600" />
+                                                ) : (
+                                                    <AlertTriangle className="h-4 w-4 text-red-600" />
+                                                )}
+                                                <span className={`text-[10px] font-black uppercase tracking-widest ${isBalanced ? "text-emerald-700" : "text-red-700"}`}>
+                                                    {isBalanced ? "Neraca Seimbang" : `Neraca Tidak Seimbang (Selisih: ${formatIDR(diff)})`}
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] font-black text-zinc-400">
+                                                Per {new Date(balanceSheetData.asOfDate).toLocaleDateString("id-ID")}
+                                            </span>
+                                        </div>
+                                    )
+                                })()}
                                 <div className="grid md:grid-cols-2 gap-4">
                                     <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                                         <div className="px-4 py-3 border-b-2 border-black bg-emerald-50 dark:bg-emerald-900/20 flex items-center gap-2">
@@ -615,6 +656,7 @@ export default function FinancialReportsPage() {
                                             </Table>
                                         </div>
                                     </div>
+                                </div>
                                 </div>
                             )}
 
@@ -850,7 +892,7 @@ export default function FinancialReportsPage() {
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-6 divide-x divide-zinc-100 dark:divide-zinc-800">
                                             {[
-                                                { label: "Current", value: arAgingData.summary.current, color: "emerald" },
+                                                { label: "Belum Jatuh Tempo", value: arAgingData.summary.current, color: "emerald" },
                                                 { label: "1-30 Hari", value: arAgingData.summary.d1_30, color: "blue" },
                                                 { label: "31-60 Hari", value: arAgingData.summary.d31_60, color: "amber" },
                                                 { label: "61-90 Hari", value: arAgingData.summary.d61_90, color: "orange" },
@@ -923,7 +965,7 @@ export default function FinancialReportsPage() {
                                         </div>
                                         <div className="grid grid-cols-2 md:grid-cols-6 divide-x divide-zinc-100 dark:divide-zinc-800">
                                             {[
-                                                { label: "Current", value: apAgingData.summary.current, color: "emerald" },
+                                                { label: "Belum Jatuh Tempo", value: apAgingData.summary.current, color: "emerald" },
                                                 { label: "1-30 Hari", value: apAgingData.summary.d1_30, color: "blue" },
                                                 { label: "31-60 Hari", value: apAgingData.summary.d31_60, color: "amber" },
                                                 { label: "61-90 Hari", value: apAgingData.summary.d61_90, color: "orange" },
@@ -943,12 +985,12 @@ export default function FinancialReportsPage() {
                                     <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                                         <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
                                             <FileText className="h-4 w-4 text-zinc-500" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Per Supplier</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Per Pemasok</span>
                                         </div>
                                         <Table>
                                             <TableHeader>
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800">
-                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Supplier</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest">Pemasok</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Current</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">1-30</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">31-60</TableHead>

@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
                 _count: {
                     select: {
                         machines: true,
+                        stations: true,
                     },
                 },
             },
@@ -58,6 +59,7 @@ export async function GET(request: NextRequest) {
                 description: g.description,
                 isActive: g.isActive,
                 machineCount: g._count.machines,
+                stationCount: g._count.stations,
                 machines: g.machines,
                 activeMachines: g.machines.filter(m => m.status === 'RUNNING').length,
                 avgHealth: g.machines.length > 0

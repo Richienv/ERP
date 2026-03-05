@@ -179,6 +179,12 @@ export function TimelineView({
     const dragRef = useRef<DragState | null>(null)
     dragRef.current = drag
 
+    // Store callbacks in refs to avoid re-registering listeners
+    const onMoveStepRef = useRef(onMoveStep)
+    onMoveStepRef.current = onMoveStep
+    const onStepSelectRef = useRef(onStepSelect)
+    onStepSelectRef.current = onStepSelect
+
     useEffect(() => {
         if (!drag) return
 
@@ -197,16 +203,16 @@ export function TimelineView({
             if (!prev) return
 
             if (!prev.active) {
-                onStepSelect(prev.stepId)
+                onStepSelectRef.current(prev.stepId)
                 return
             }
 
-            if (onMoveStep) {
+            if (onMoveStepRef.current) {
                 const dx = prev.currentX - prev.startX
                 const rawMin = prev.barLayout.startMin + dx / PIXELS_PER_MINUTE
                 const snappedMin = Math.max(0, Math.round(rawMin / SNAP_MINUTES) * SNAP_MINUTES)
                 if (snappedMin !== prev.barLayout.startMin) {
-                    onMoveStep(prev.stepId, snappedMin)
+                    onMoveStepRef.current(prev.stepId, snappedMin)
                 }
             }
         }
@@ -217,7 +223,7 @@ export function TimelineView({
             window.removeEventListener("pointermove", onMove)
             window.removeEventListener("pointerup", onUp)
         }
-    }, [!!drag, onMoveStep, onStepSelect])
+    }, [!!drag])
 
     // Compute per-step targets for progress (split among parallel siblings)
     const stepTargets = useMemo(() => {
@@ -229,8 +235,15 @@ export function TimelineView({
                 targets.set(step.id, allocTotal)
             } else {
                 const stationType = step.station?.stationType
-                const siblings = steps.filter((s: any) => s.station?.stationType === stationType)
-                targets.set(step.id, siblings.length > 1 ? Math.ceil(totalQty / siblings.length) : totalQty)
+                const siblings = stationType ? steps.filter((s: any) => s.station?.stationType === stationType) : [step]
+                if (siblings.length > 1) {
+                    const idx = siblings.indexOf(step)
+                    const share = Math.floor(totalQty / siblings.length)
+                    const remainder = totalQty % siblings.length
+                    targets.set(step.id, share + (idx < remainder ? 1 : 0))
+                } else {
+                    targets.set(step.id, totalQty)
+                }
             }
         }
         return targets
@@ -255,7 +268,7 @@ export function TimelineView({
                 </div>
                 <div className="flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 text-blue-500" />
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Stasiun:</span>
+                    <span className="text-[9px] font-black uppercase text-zinc-400">Work Center:</span>
                     <span className="text-xs font-black text-blue-700">{totalRows}</span>
                 </div>
                 <div className="flex items-center gap-1.5 ml-auto">
@@ -271,7 +284,7 @@ export function TimelineView({
                     {/* ── Left sidebar ── */}
                     <div className="absolute left-0 top-0 bg-white border-r border-zinc-200 z-20" style={{ width: LABEL_WIDTH, height: chartHeight }}>
                         <div className="border-b border-zinc-200 flex items-end px-3 pb-1" style={{ height: HEADER_HEIGHT }}>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Stasiun</span>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-400">Work Center</span>
                         </div>
                         {Array.from({ length: displayRows }, (_, i) => (
                             <div
@@ -280,7 +293,7 @@ export function TimelineView({
                                 style={{ height: ROW_HEIGHT + ROW_GAP }}
                             >
                                 <span className="text-[10px] font-bold truncate text-zinc-400">
-                                    {rowLabels[i] || `Stasiun ${i + 1}`}
+                                    {rowLabels[i] || `Work Center ${i + 1}`}
                                 </span>
                             </div>
                         ))}

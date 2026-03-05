@@ -55,7 +55,7 @@ export function CheckboxFilter({ label, options, selected, onChange }: CheckboxF
                     </div>
                     <div className="p-2 space-y-1 max-h-[240px] overflow-y-auto">
                         {options.map(opt => (
-                            <label key={opt.value} className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-zinc-50 cursor-pointer">
+                            <label key={opt.value} className="flex items-center gap-2.5 px-2 py-1.5 hover:bg-zinc-50 cursor-pointer">
                                 <Checkbox
                                     checked={allSelected || selected.includes(opt.value)}
                                     onCheckedChange={() => {

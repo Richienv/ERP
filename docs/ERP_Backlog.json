@@ -1,0 +1,598 @@
+{
+  "project": "OIC ERP - Manufacturing & Finance Modules",
+  "generated_at": "2026-03-05",
+  "summary": {
+    "total_items": 44,
+    "bugs": 11,
+    "fixes": 15,
+    "features": 26,
+    "action_items": 6,
+    "high_priority": 19,
+    "medium_priority": 16,
+    "low_priority": 9
+  },
+  "key_milestones": [
+    { "date": "2026-03-30", "event": "Internal testing with Darren" },
+    { "date": "2026-04-01", "event": "Production trial launch" }
+  ],
+  "development_items": [
+    {
+      "id": "B-001",
+      "type": "BUG",
+      "module": "BOM",
+      "title": "Progress shows 300% for sewing",
+      "description": "Progress calculation is per-BOM instead of accumulating from processes. Shows 300% when it should be 100% total across all distributed processes.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "B-002",
+      "type": "BUG",
+      "module": "BOM",
+      "title": "CVA label showing for subcon processes",
+      "description": "Subcon processes still display 'CVA' instead of the correct process name. In-house shows CVA correctly but subcon label should change (e.g., to 'Sewing' or 'Subcon').",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "B-003",
+      "type": "BUG",
+      "module": "Timeline",
+      "title": "Drag creates duplicate entries",
+      "description": "Dragging items on the timeline creates double/duplicate entries. Possible bug in drag event handler. Needs investigation.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "B-004",
+      "type": "BUG",
+      "module": "BOM",
+      "title": "Duration field uses total instead of per-piece",
+      "description": "Duration is currently stored/displayed as total duration. Should be per-piece duration in minutes. Total should be calculated as: duration_per_piece × target_quantity.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "B-005",
+      "type": "BUG",
+      "module": "SPK",
+      "title": "SPK generation allowed with missing data",
+      "description": "SPK can be generated even when material is not assigned or subcon CV is not selected. The safety guard button should block generation if data is incomplete.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "B-006",
+      "type": "BUG",
+      "module": "BOM",
+      "title": "Process distribution percentage incorrect",
+      "description": "When distributing work across stations (e.g., 3 cut stations), percentage should reflect piece distribution (e.g., 33/33/33) but total target must still equal original (e.g., 6 pieces = 100%). Currently accumulating incorrectly.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "B-007",
+      "type": "BUG",
+      "module": "UI",
+      "title": "Overlapping UI elements",
+      "description": "Some elements overlap in the interface. Minor visual issue but should be cleaned up.",
+      "priority": "LOW",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "B-008",
+      "type": "BUG",
+      "module": "Production",
+      "title": "Production schedule not linking to SPK status",
+      "description": "Transaction status stays 'pending' instead of moving to 'in progress' when SPK starts. Production schedule and SPK status need to be synced.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "B-009",
+      "type": "BUG",
+      "module": "Invoicing",
+      "title": "Invoice auto-finalized on creation",
+      "description": "Invoice is immediately set to 'finalized' upon creation from a sales order. Should default to 'draft' status first to allow review and edits before finalizing.",
+      "priority": "HIGH",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "B-010",
+      "type": "BUG",
+      "module": "Finance",
+      "title": "Bank reconciliation button misaligned",
+      "description": "The bank reconciliation button in the UI has alignment issues. Needs CSS/layout fix to align properly with surrounding elements.",
+      "priority": "LOW",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "B-011",
+      "type": "BUG",
+      "module": "BOM",
+      "title": "Timeline station view needs debugging",
+      "description": "Timeline view for stations (cutting, sewing, washing) has been built but still has bugs. Needs debugging pass before testing.",
+      "priority": "HIGH",
+      "owner": "Dev Team",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "F-001",
+      "type": "FIX",
+      "module": "BOM",
+      "title": "Make duration a required field",
+      "description": "Duration (per piece, in minutes) must be a required field in BOM. Cannot proceed without it. This is critical for production planning calculations.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "F-002",
+      "type": "FIX",
+      "module": "BOM",
+      "title": "Separate time study from PCC",
+      "description": "PCC (Process Cycle Time) should be entered per piece. Time study data is recorded separately (e.g., per 20 pieces) and then divided to get per-piece value. Keep these as separate inputs.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "F-003",
+      "type": "FIX",
+      "module": "SPK",
+      "title": "HPP not included in SPK",
+      "description": "HPP (Harga Pokok Produksi / COGS) should not be shown in SPK as discussed. Remove or hide HPP from SPK view.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "F-004",
+      "type": "FIX",
+      "module": "Process",
+      "title": "Replace 'Station' with Work Center group",
+      "description": "Station concept is being replaced by Work Center groups. The process linked to BOM should come from the Work Center group. Update all references accordingly.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "F-005",
+      "type": "FIX",
+      "module": "Navigation",
+      "title": "Remove Routing page",
+      "description": "Routing is no longer needed since everything is handled in the BOM template. Remove or hide the routing page from navigation.",
+      "priority": "LOW",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "F-006",
+      "type": "FIX",
+      "module": "Process",
+      "title": "Move 'Add Process' to Admin/Implementation",
+      "description": "Adding new processes should be done through Admin/Implementation settings (enable/disable toggle) instead of manual addition. Processes update frequently (1-2 per month) so admin control is better.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "F-007",
+      "type": "FIX",
+      "module": "SPK",
+      "title": "Combine production schedule with SPK generation",
+      "description": "When production schedule is set, SPK should be generated from it directly without a separate order step. Merge the two flows.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "F-008",
+      "type": "FIX",
+      "module": "Work Center",
+      "title": "Add operator assignment to work centers",
+      "description": "Each work center/machine needs operator names assigned (PIC - Person In Charge). Show who can use each machine.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "F-009",
+      "type": "FIX",
+      "module": "Finance",
+      "title": "Simplify account transactions view",
+      "description": "Current account transactions view is too complex. Simplify to primarily show accounts receivable and accounts payable, connected directly to invoicing. Remove unnecessary clutter.",
+      "priority": "HIGH",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "F-010",
+      "type": "FIX",
+      "module": "Finance",
+      "title": "Remove gross and tax columns",
+      "description": "Gross and tax columns in the transactions view are redundant. Remove them to reduce confusion and simplify the interface.",
+      "priority": "MEDIUM",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "F-011",
+      "type": "FIX",
+      "module": "Finance",
+      "title": "Fix debit/credit notation display",
+      "description": "Standardize notation: amounts without brackets = debit, amounts in brackets = credit. Ensure this convention is consistent across all financial views.",
+      "priority": "MEDIUM",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "F-012",
+      "type": "FIX",
+      "module": "Invoicing",
+      "title": "Ensure invoice-to-account transaction link",
+      "description": "Verify and fix connection between invoices and account transactions. When invoice is created/finalized, it must reflect correctly in the accounts.",
+      "priority": "HIGH",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "F-013",
+      "type": "FIX",
+      "module": "SPK",
+      "title": "SPK and subcon adjustments only",
+      "description": "No new features for SPK/subcon — focus solely on adjustments and fixes for the items identified in previous meeting. Stabilize before trial.",
+      "priority": "HIGH",
+      "owner": "Dev Team",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "F-014",
+      "type": "FIX",
+      "module": "BOM",
+      "title": "Station distribution visualization refinement",
+      "description": "Station and process visualization with percentage distribution has been added. Needs polish and verification that percentages calculate correctly across stations.",
+      "priority": "MEDIUM",
+      "owner": "Dev Team",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "F-015",
+      "type": "FIX",
+      "module": "Expenses",
+      "title": "Push incomplete expenses",
+      "description": "Outstanding expense entries need to be completed and pushed into the system. Cleanup of pending/draft expenses.",
+      "priority": "MEDIUM",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-001",
+      "type": "FEATURE",
+      "module": "BOM",
+      "title": "Labor cost formula calculation",
+      "description": "Implement labor cost formula: Monthly salary ÷ (working hours/month ÷ duration per piece) = cost per piece. E.g., Rp 4M salary, 172 hrs/month, 15 min/piece = 0.25 hr → 688 pcs/month → Rp 5,814/piece. Different formulas for cutting, sewing, etc.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-002",
+      "type": "FEATURE",
+      "module": "BOM",
+      "title": "Subcon price per piece field",
+      "description": "When a process is marked as subcon, show a direct 'price per piece' input field instead of the labor cost formula. Subcon pricing is straightforward per-piece.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-003",
+      "type": "FEATURE",
+      "module": "Work Center",
+      "title": "Work center grouping with process assignment",
+      "description": "Add group name to work centers. Groups represent process types (e.g., Potong/Cut, Jahit/Sewing, Cuci/Wash). BOM processes are linked to these groups. Work centers within a group have their own stations.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-004",
+      "type": "FEATURE",
+      "module": "BOM",
+      "title": "Multi-station work distribution",
+      "description": "Allow distributing a BOM process across multiple stations/lines. E.g., cutting distributed 50/50 across Cut Line A and Cut Line B. Each station gets assigned piece quantities.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-005",
+      "type": "FEATURE",
+      "module": "SPK",
+      "title": "Per-action SPK generation from BOM",
+      "description": "Each action/process in BOM generates its own individual SPK (work order). If BOM has 5 processes, 5 separate SPKs are created. Each SPK shows its own progress.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-006",
+      "type": "FEATURE",
+      "module": "SPK",
+      "title": "SPK PDF with per-action detail",
+      "description": "Generate PDF for each SPK. Each action gets its own SPK PDF document. Include production line, process details, target quantities.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-007",
+      "type": "FEATURE",
+      "module": "Dashboard",
+      "title": "Production Gantt chart",
+      "description": "Gantt chart dashboard showing: (1) Monthly view of all production, (2) View by process line (cutting, sewing, etc.), (3) View by machine/work center. Show start/stop times, idle gaps, and available capacity.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-008",
+      "type": "FEATURE",
+      "module": "Dashboard",
+      "title": "Work center capacity visibility",
+      "description": "Show which work centers have available capacity. Managers can see if a line can still accept orders. E.g., 'Cut Line 1 has capacity this month for more orders.'",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-009",
+      "type": "FEATURE",
+      "module": "Inventory",
+      "title": "Work in Progress (WIP) warehouse",
+      "description": "Add WIP warehouse type. Track items moving through: Raw Material Warehouse → WIP Warehouse → Finished Goods Warehouse. Virtual warehouse (same physical location, different status).",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-010",
+      "type": "FEATURE",
+      "module": "Inventory",
+      "title": "Warehouse notification on SPK creation",
+      "description": "When SPK is generated, notify relevant warehouses (fabric warehouse, accessory warehouse) to release materials. Warehouse must confirm material release in the system.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-011",
+      "type": "FEATURE",
+      "module": "Inventory",
+      "title": "Finished goods warehouse confirmation",
+      "description": "After production is complete, finished goods must be confirmed into the finished goods warehouse. Product delivery in and product delivery out tracking.",
+      "priority": "HIGH",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-012",
+      "type": "FEATURE",
+      "module": "Inventory",
+      "title": "Stock movement page",
+      "description": "Add stock movement sub-page for monitoring all warehouse mutations: inbound, outbound, transfers between warehouses. Unified view of all movements.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-013",
+      "type": "FEATURE",
+      "module": "Inventory",
+      "title": "Warehouse-specific user views",
+      "description": "Different warehouse users see different views. E.g., fabric warehouse keeper only sees fabric-related orders and confirmations. Role-based warehouse access.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-014",
+      "type": "FEATURE",
+      "module": "Inventory",
+      "title": "WIP tracking with timestamps",
+      "description": "Track how long items stay in WIP. Flag items that have been in WIP too long (e.g., 'This has been in WIP since last year, why hasn't it been released?'). Default WIP location in warehouse settings.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-015",
+      "type": "FEATURE",
+      "module": "BOM",
+      "title": "Show material availability in BOM",
+      "description": "When selecting materials in BOM, show current available quantity from linked inventory/warehouse. Help users know if stock is sufficient before creating SPK.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-016",
+      "type": "FEATURE",
+      "module": "SPK",
+      "title": "Daily fulfillment tracking per SPK step",
+      "description": "Each SPK step should track daily fulfillment: how many pieces completed per day, faulty items report, and for cutting: how many meters of fabric used. Photo upload for proof.",
+      "priority": "MEDIUM",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-017",
+      "type": "FEATURE",
+      "module": "Sales",
+      "title": "Sales entry integration planning",
+      "description": "Plan integration point for external sales entry app (being built separately). Must use same tech architecture. Will integrate with inventory (warehouse stock per store A, B, C, D). SPG daily sales entry and settlement tracking.",
+      "priority": "LOW",
+      "owner": null,
+      "source": "Meeting 1"
+    },
+    {
+      "id": "N-018",
+      "type": "FEATURE",
+      "module": "Finance",
+      "title": "Petty cash module",
+      "description": "Add petty cash tracking functionality. Track small cash expenses, replenishments, and running balance. Integrate with the account transactions ledger.",
+      "priority": "MEDIUM",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-019",
+      "type": "FEATURE",
+      "module": "Finance",
+      "title": "Bank dropdown selector",
+      "description": "Add dropdown menu for selecting banks in relevant forms (e.g., bank reconciliation, payment entries). Populate with commonly used Indonesian banks.",
+      "priority": "LOW",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-020",
+      "type": "FEATURE",
+      "module": "Finance",
+      "title": "Complete financial statements",
+      "description": "Finish building balance sheet, P&L (profit & loss), and cash flow statements. AP/AR already connected. Balance sheet still needs completion.",
+      "priority": "HIGH",
+      "owner": "Darren",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-021",
+      "type": "FEATURE",
+      "module": "Inventory",
+      "title": "Real-time inventory tracking (3 categories)",
+      "description": "Display real-time inventory data connected to BOM for three categories: Work in Progress, Finished Goods, and Delivery. Live status updates as production moves through stages.",
+      "priority": "HIGH",
+      "owner": "Dev Team",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-022",
+      "type": "FEATURE",
+      "module": "BOM",
+      "title": "Integrate labor cost into BOM",
+      "description": "Connect the labor cost formula (discussed in previous meeting) into the BOM system. Auto-calculate labor costs based on process type, salary data, and duration per piece.",
+      "priority": "HIGH",
+      "owner": "Dev Team",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-023",
+      "type": "FEATURE",
+      "module": "System",
+      "title": "CSA checklist applied to all features",
+      "description": "Apply the CSA checklist across all modules and features. Must be fully completed before the 1 April trial. Benchmark for trial readiness.",
+      "priority": "HIGH",
+      "owner": "All",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-024",
+      "type": "FEATURE",
+      "module": "System",
+      "title": "Client implementation workflow",
+      "description": "Build the client onboarding flow: interview form → system implementation → 2-week testing → finalization. System deployed as web app on VPS with separate database per client.",
+      "priority": "LOW",
+      "owner": "Richie",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-025",
+      "type": "FEATURE",
+      "module": "System",
+      "title": "Data migration research (SAP/Accurate)",
+      "description": "Research data migration paths from existing systems like SAP and Accurate into OIC ERP. Lower priority for Excel/paper-based clients (simpler migration).",
+      "priority": "LOW",
+      "owner": "Richie",
+      "source": "Meeting 2"
+    },
+    {
+      "id": "N-026",
+      "type": "FEATURE",
+      "module": "Legal",
+      "title": "Draft IP protection MOU",
+      "description": "Create a simple 1-2 page MOU for IP protection. Can be signed digitally or via print + video signature as legal proof.",
+      "priority": "MEDIUM",
+      "owner": "Richie",
+      "source": "Meeting 2"
+    }
+  ],
+  "action_items": [
+    {
+      "id": "A-001",
+      "title": "Meeting review BOM, Finance, CSA",
+      "description": "Thursday 12:30/1:30 PM. Review BOM updates, finance progress, and CSA checklist status.",
+      "owner": "All",
+      "deadline": "Thursday"
+    },
+    {
+      "id": "A-002",
+      "title": "Darren: Complete PR for invoicing",
+      "description": "Darren to finish and merge the pull request for the invoicing module.",
+      "owner": "Darren",
+      "deadline": "Before testing"
+    },
+    {
+      "id": "A-003",
+      "title": "Internal testing with Darren",
+      "description": "Full system testing session with Darren. System must be stable for all core flows.",
+      "owner": "Darren + Dev",
+      "deadline": "2026-03-30"
+    },
+    {
+      "id": "A-004",
+      "title": "Production trial launch",
+      "description": "Trial with real production data. Benchmark: zero critical bugs, CSA fully applied.",
+      "owner": "All",
+      "deadline": "2026-04-01"
+    },
+    {
+      "id": "A-005",
+      "title": "Send BOM meeting notes",
+      "description": "Share previous meeting notes about BOM (from Raymond session) to the team.",
+      "owner": "Richie",
+      "deadline": "ASAP"
+    },
+    {
+      "id": "A-006",
+      "title": "Review & complete CSA checklist",
+      "description": "Go through the full CSA checklist and ensure every item is addressed before trial.",
+      "owner": "All",
+      "deadline": "2026-03-31"
+    }
+  ],
+  "reference_notes": {
+    "labor_cost_formula": {
+      "description": "Monthly salary ÷ (monthly working hours ÷ duration per piece) = pieces per month. Then salary ÷ pieces = cost per piece.",
+      "example": "Rp 4,000,000 salary / 688 pcs per month = Rp 5,814 per piece",
+      "variables": {
+        "working_days_per_month": 26,
+        "working_hours_per_month": 172,
+        "note": "Different formulas may apply per process type (cutting, sewing, etc.). Subcon uses direct price per piece."
+      }
+    },
+    "warehouse_flow": "Raw Material (Fabric + Accessories) → Release to Production → Work in Progress → Finished Goods Warehouse. Each step requires confirmation. WIP is virtual (same physical location, different status).",
+    "work_center_model": "Replace station concept with work center groups. Groups = process types (Cut, Sew, Wash, etc.). Each group has multiple stations/machines with assigned operators. BOM links to group, SPK distributes to specific stations.",
+    "development_freeze": "No new features until April 1 trial. Focus exclusively on bug fixes, SPK/subcon adjustments, and CSA compliance."
+  }
+}

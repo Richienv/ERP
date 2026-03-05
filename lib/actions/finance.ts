@@ -490,22 +490,24 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
 
                 switch (account.type) {
                     case 'REVENUE':
-                        revenue += effectiveAmount
+                        // Other income: code 7xxx-8xxx (pendapatan lain-lain)
+                        if (account.code >= '7000' && account.code < '9000') {
+                            otherIncome += effectiveAmount
+                        } else {
+                            revenue += effectiveAmount
+                        }
                         break
                     case 'EXPENSE':
-                        // Check if COGS account (code 5xxx)
+                        // COGS: code 5xxx (Harga Pokok Penjualan)
                         if (account.code.startsWith('5') && account.code < '6000') {
                             costOfGoodsSold += effectiveAmount
+                        // Other expenses: code 8xxx-9xxx (biaya lain-lain)
+                        } else if (account.code >= '8000') {
+                            otherExpenses += effectiveAmount
                         } else {
                             const current = expenseMap.get(account.name) || 0
                             expenseMap.set(account.name, current + effectiveAmount)
                         }
-                        break
-                    case 'OTHER_INCOME':
-                        otherIncome += effectiveAmount
-                        break
-                    case 'OTHER_EXPENSE':
-                        otherExpenses += effectiveAmount
                         break
                 }
             }
@@ -594,14 +596,21 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
-            // Get all accounts with their balances
+            // Get all BS accounts (ASSET, LIABILITY, EQUITY) with journal lines up to asOfDate
             const accounts = await basePrisma.gLAccount.findMany({
                 where: {
-                    OR: [
-                        { type: 'ASSET' },
-                        { type: 'LIABILITY' },
-                        { type: 'EQUITY' }
-                    ]
+                    type: { in: ['ASSET', 'LIABILITY', 'EQUITY'] }
+                },
+                include: {
+                    lines: {
+                        where: {
+                            entry: {
+                                date: { lte: date },
+                                status: 'POSTED',
+                            }
+                        },
+                        select: { debit: true, credit: true }
+                    }
                 },
                 orderBy: { code: 'asc' }
             })
@@ -630,7 +639,7 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 totalEquity: 0
             }
 
-            // Calculate retained earnings from journal entries
+            // Calculate retained earnings from P&L for the year up to asOfDate
             const currentYear = date.getFullYear()
             const yearStart = new Date(currentYear, 0, 1)
 
@@ -638,21 +647,28 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
             equity.retainedEarnings = pnlData.netIncome
 
             for (const account of accounts) {
-                const balance = Number(account.balance)
+                // Compute balance from journal entries (debit - credit for ASSET, credit - debit for LIABILITY/EQUITY)
+                const totalDebit = account.lines.reduce((sum, l) => sum + Number(l.debit), 0)
+                const totalCredit = account.lines.reduce((sum, l) => sum + Number(l.credit), 0)
+
+                // Normal balance: ASSET=DEBIT (debit-credit), LIABILITY/EQUITY=CREDIT (credit-debit)
+                const balance = account.type === 'ASSET'
+                    ? totalDebit - totalCredit
+                    : totalCredit - totalDebit
+
+                // Skip accounts with zero balance
+                if (Math.abs(balance) < 0.01) continue
 
                 switch (account.type) {
                     case 'ASSET':
-                        // Current assets: codes 1-1000 to 1-1999
                         if (account.code >= '1000' && account.code < '1500') {
                             assets.currentAssets.push({ name: account.name, amount: balance })
                             assets.totalCurrentAssets += balance
                         }
-                        // Fixed assets: codes 1-1500 to 1-1999
                         else if (account.code >= '1500' && account.code < '2000') {
                             assets.fixedAssets.push({ name: account.name, amount: balance })
                             assets.totalFixedAssets += balance
                         }
-                        // Other assets
                         else {
                             assets.otherAssets.push({ name: account.name, amount: balance })
                             assets.totalOtherAssets += balance
@@ -660,12 +676,10 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                         break
 
                     case 'LIABILITY':
-                        // Current liabilities: codes 2-1000 to 2-1999
                         if (account.code >= '2000' && account.code < '2500') {
                             liabilities.currentLiabilities.push({ name: account.name, amount: balance })
                             liabilities.totalCurrentLiabilities += balance
                         }
-                        // Long-term liabilities
                         else {
                             liabilities.longTermLiabilities.push({ name: account.name, amount: balance })
                             liabilities.totalLongTermLiabilities += balance
@@ -1175,8 +1189,13 @@ export async function getPendingSalesOrders() {
     return withPrismaAuth(async (prisma) => {
         const orders = await prisma.salesOrder.findMany({
             where: {
-                status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
-                invoices: { none: {} } // Only those without an invoice yet
+                status: { in: ['CONFIRMED', 'IN_PROGRESS', 'DELIVERED', 'COMPLETED'] },
+                invoices: {
+                    none: {
+                        type: 'INV_OUT',
+                        status: { notIn: ['CANCELLED', 'VOID'] }
+                    }
+                }
             },
             include: {
                 customer: { select: { id: true, name: true } }
@@ -1202,8 +1221,13 @@ export async function getPendingPurchaseOrders() {
     return withPrismaAuth(async (prisma) => {
         const orders = await prisma.purchaseOrder.findMany({
             where: {
-                status: { in: ['RECEIVED', 'ORDERED', 'APPROVED'] }, // Allow APPROVED for early billing
-                invoices: { none: {} } // Only those without a bill yet
+                status: { in: ['RECEIVED', 'ORDERED', 'APPROVED'] },
+                invoices: {
+                    none: {
+                        type: 'INV_IN',
+                        status: { notIn: ['CANCELLED', 'VOID'] }
+                    }
+                }
             },
             include: {
                 supplier: { select: { id: true, name: true } }

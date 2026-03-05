@@ -20,6 +20,11 @@ import {
     Zap,
     ZapOff,
     Factory,
+    FolderOpen,
+    ChevronDown,
+    ChevronRight,
+    Layers,
+    LayoutGrid,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -57,11 +62,14 @@ function getTypeConfig(stationType: string) {
     return STATION_TYPE_CONFIG.find((c) => c.type === stationType) || STATION_TYPE_CONFIG[STATION_TYPE_CONFIG.length - 1]
 }
 
+type ViewMode = "type" | "group"
+
 interface Props {
     stations: any[]
+    groups: any[]
 }
 
-export function StasiunClient({ stations: initialStations }: Props) {
+export function StasiunClient({ stations: initialStations, groups }: Props) {
     const queryClient = useQueryClient()
     const [searchQuery, setSearchQuery] = useState("")
     const [typeFilter, setTypeFilter] = useState<string | null>(null)
@@ -70,9 +78,12 @@ export function StasiunClient({ stations: initialStations }: Props) {
     const [formName, setFormName] = useState("")
     const [formType, setFormType] = useState("CUTTING")
     const [formCost, setFormCost] = useState("")
+    const [formGroupId, setFormGroupId] = useState<string>("__none__")
     const [saving, setSaving] = useState(false)
     const [deleting, setDeleting] = useState<string | null>(null)
     const [toggling, setToggling] = useState<string | null>(null)
+    const [viewMode, setViewMode] = useState<ViewMode>("type")
+    const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
     // Filter stations (only IN_HOUSE for this page)
     const inHouseStations = initialStations.filter((s: any) => s.operationType !== "SUBCONTRACTOR")
@@ -86,31 +97,59 @@ export function StasiunClient({ stations: initialStations }: Props) {
     })
 
     // Group by stationType
-    const grouped: Record<string, any[]> = {}
+    const groupedByType: Record<string, any[]> = {}
     for (const s of filtered) {
         const type = s.stationType || "OTHER"
-        if (!grouped[type]) grouped[type] = []
-        grouped[type].push(s)
+        if (!groupedByType[type]) groupedByType[type] = []
+        groupedByType[type].push(s)
     }
 
     // Sort by config order
-    const sortedTypes = STATION_TYPE_CONFIG.map((c) => c.type).filter((t) => grouped[t])
-    for (const t of Object.keys(grouped)) {
+    const sortedTypes = STATION_TYPE_CONFIG.map((c) => c.type).filter((t) => groupedByType[t])
+    for (const t of Object.keys(groupedByType)) {
         if (!sortedTypes.includes(t)) sortedTypes.push(t)
+    }
+
+    // Group by WorkCenterGroup
+    const groupedByGroup: Record<string, { group: any; stations: any[] }> = {}
+    const ungroupedStations: any[] = []
+    for (const s of filtered) {
+        const gId = s.group?.id || s.groupId
+        if (gId) {
+            if (!groupedByGroup[gId]) {
+                const grp = groups.find((g: any) => g.id === gId)
+                groupedByGroup[gId] = {
+                    group: grp || { id: gId, name: "Grup Tidak Dikenal", code: "?" },
+                    stations: [],
+                }
+            }
+            groupedByGroup[gId].stations.push(s)
+        } else {
+            ungroupedStations.push(s)
+        }
     }
 
     // KPI calculations
     const totalStations = inHouseStations.length
     const activeStations = inHouseStations.filter((s: any) => s.isActive !== false).length
     const inactiveStations = totalStations - activeStations
-    const uniqueTypes = new Set(inHouseStations.map((s: any) => s.stationType)).size
+    const groupedCount = inHouseStations.filter((s: any) => s.group?.id || s.groupId).length
 
     const kpis = [
         { label: "Total Stasiun", value: String(totalStations), detail: "Stasiun terdaftar", icon: Factory, color: "text-zinc-900" },
         { label: "Aktif", value: String(activeStations), detail: "Stasiun beroperasi", icon: Zap, color: "text-emerald-600", bg: "bg-emerald-50" },
         { label: "Nonaktif", value: String(inactiveStations), detail: "Stasiun nonaktif", icon: ZapOff, color: inactiveStations > 0 ? "text-red-600" : "text-zinc-400", bg: inactiveStations > 0 ? "bg-red-50" : "" },
-        { label: "Tipe Proses", value: String(uniqueTypes), detail: "Kategori proses", icon: Settings, color: "text-blue-600", bg: "bg-blue-50" },
+        { label: "Dalam Grup", value: `${groupedCount}/${totalStations}`, detail: `${groups.length} grup tersedia`, icon: Layers, color: "text-blue-600", bg: "bg-blue-50" },
     ]
+
+    const toggleCollapse = (id: string) => {
+        setCollapsedGroups((prev) => {
+            const next = new Set(prev)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
+            return next
+        })
+    }
 
     // Dialog handlers
     const openCreate = () => {
@@ -118,6 +157,7 @@ export function StasiunClient({ stations: initialStations }: Props) {
         setFormName("")
         setFormType("CUTTING")
         setFormCost("")
+        setFormGroupId("__none__")
         setDialogOpen(true)
     }
 
@@ -126,7 +166,13 @@ export function StasiunClient({ stations: initialStations }: Props) {
         setFormName(station.name)
         setFormType(station.stationType)
         setFormCost(String(Number(station.costPerUnit || 0)))
+        setFormGroupId(station.group?.id || station.groupId || "__none__")
         setDialogOpen(true)
+    }
+
+    const invalidateAll = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.mfgGroups.all })
     }
 
     const handleSave = async () => {
@@ -140,12 +186,13 @@ export function StasiunClient({ stations: initialStations }: Props) {
                 ? editingStation.code
                 : `STN-${formType.substring(0, 3)}-${String(Date.now()).slice(-4)}`
 
-            const body = {
+            const body: any = {
                 code,
                 name: formName.trim(),
                 stationType: formType,
                 operationType: "IN_HOUSE",
                 costPerUnit: Number(formCost) || 0,
+                groupId: formGroupId === "__none__" ? null : formGroupId,
             }
 
             const url = editingStation
@@ -161,7 +208,7 @@ export function StasiunClient({ stations: initialStations }: Props) {
 
             if (result.success) {
                 toast.success(editingStation ? "Stasiun berhasil diperbarui" : "Stasiun berhasil ditambahkan")
-                queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
+                invalidateAll()
                 setDialogOpen(false)
             } else {
                 toast.error(result.error || "Gagal menyimpan stasiun")
@@ -184,7 +231,7 @@ export function StasiunClient({ stations: initialStations }: Props) {
             const result = await res.json()
             if (result.success) {
                 toast.success("Stasiun berhasil dihapus")
-                queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
+                invalidateAll()
             } else {
                 toast.error(result.error || "Gagal menghapus stasiun")
             }
@@ -207,7 +254,7 @@ export function StasiunClient({ stations: initialStations }: Props) {
             const result = await res.json()
             if (result.success) {
                 toast.success(station.isActive ? "Stasiun dinonaktifkan" : "Stasiun diaktifkan")
-                queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
+                invalidateAll()
             } else {
                 toast.error(result.error || "Gagal mengubah status")
             }
@@ -216,6 +263,120 @@ export function StasiunClient({ stations: initialStations }: Props) {
         } finally {
             setToggling(null)
         }
+    }
+
+    // Shared station card renderer
+    const renderStationCard = (station: any) => {
+        const isActive = station.isActive !== false
+        const config = getTypeConfig(station.stationType)
+        const TypeIcon = config.icon
+
+        return (
+            <Card
+                key={station.id}
+                className={cn(
+                    "group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-none overflow-hidden flex flex-col",
+                    isActive ? "bg-white dark:bg-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 opacity-60"
+                )}
+            >
+                {/* Card Header */}
+                <div className="flex justify-between items-center p-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+                    <div className="flex items-center gap-2">
+                        <div className={cn("h-7 w-7 flex items-center justify-center border", config.color)}>
+                            <TypeIcon className="h-3.5 w-3.5" />
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            {station.code}
+                        </span>
+                    </div>
+                    <div className={cn(
+                        "px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border",
+                        isActive
+                            ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                            : "bg-zinc-200 text-zinc-500 border-zinc-300"
+                    )}>
+                        {isActive ? "AKTIF" : "NONAKTIF"}
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <div className="p-4 flex-1 flex flex-col gap-3">
+                    <h3 className="text-sm font-black uppercase tracking-wide leading-tight">
+                        {station.name}
+                    </h3>
+
+                    <div className="grid grid-cols-2 gap-2 mt-auto">
+                        <div className="border border-zinc-200 bg-zinc-50/50 p-2">
+                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Tipe</p>
+                            <div className={cn("text-xs font-black uppercase px-1.5 py-0.5 inline-block border", config.color)}>
+                                {config.label}
+                            </div>
+                        </div>
+                        <div className="border border-zinc-200 bg-zinc-50/50 p-2">
+                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Biaya/Unit</p>
+                            <div className="font-bold text-sm text-zinc-900">
+                                {Number(station.costPerUnit) > 0
+                                    ? `Rp ${Number(station.costPerUnit).toLocaleString("id-ID")}`
+                                    : "-"}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Group badge */}
+                    {station.group?.name && (
+                        <div className="flex items-center gap-1.5">
+                            <FolderOpen className="h-3 w-3 text-indigo-500" />
+                            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
+                                {station.group.name}
+                            </span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer / Actions */}
+                <div className="border-t-2 border-black p-2 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800">
+                    <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider px-2">
+                        In-House
+                    </p>
+                    <div className="flex gap-1">
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-none hover:bg-black hover:text-white border border-transparent hover:border-black transition-all"
+                            onClick={() => openEdit(station)}
+                            title="Edit Stasiun"
+                        >
+                            <Settings className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                                "h-7 w-7 rounded-none border border-transparent transition-all",
+                                isActive
+                                    ? "text-amber-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200"
+                                    : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
+                            )}
+                            onClick={(e) => handleToggleActive(e, station)}
+                            disabled={toggling === station.id}
+                            title={isActive ? "Nonaktifkan" : "Aktifkan"}
+                        >
+                            {isActive ? <ZapOff className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all"
+                            onClick={(e) => handleDelete(e, station)}
+                            disabled={deleting === station.id}
+                            title="Hapus Stasiun"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+        )
     }
 
     return (
@@ -271,54 +432,93 @@ export function StasiunClient({ stations: initialStations }: Props) {
                     </div>
                 </div>
 
-                {/* Search + Type Filter */}
+                {/* Search + Type Filter + View Mode */}
                 <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div className="relative w-full md:w-96">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
-                            <Search className="h-4 w-4" />
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <div className="relative w-full md:w-96">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
+                                <Search className="h-4 w-4" />
+                            </div>
+                            <Input
+                                placeholder="Cari stasiun atau kode..."
+                                className="pl-10 h-10 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] focus-visible:ring-0 focus-visible:translate-x-[1px] focus-visible:translate-y-[1px] focus-visible:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] transition-all bg-white dark:bg-zinc-900 rounded-none font-medium"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
-                        <Input
-                            placeholder="Cari stasiun atau kode..."
-                            className="pl-10 h-10 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.3)] focus-visible:ring-0 focus-visible:translate-x-[1px] focus-visible:translate-y-[1px] focus-visible:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)] transition-all bg-white dark:bg-zinc-900 rounded-none font-medium"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+
+                        {/* View Mode Toggle */}
+                        <div className="flex border-2 border-black shrink-0">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn(
+                                    "h-10 rounded-none border-r border-black text-[10px] font-black uppercase tracking-widest px-3",
+                                    viewMode === "type"
+                                        ? "bg-black text-white hover:bg-black hover:text-white"
+                                        : "bg-white text-zinc-600 hover:bg-zinc-100"
+                                )}
+                                onClick={() => setViewMode("type")}
+                                title="Kelompokkan per Tipe Proses"
+                            >
+                                <LayoutGrid className="h-4 w-4 mr-1.5" />
+                                Tipe
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className={cn(
+                                    "h-10 rounded-none text-[10px] font-black uppercase tracking-widest px-3",
+                                    viewMode === "group"
+                                        ? "bg-black text-white hover:bg-black hover:text-white"
+                                        : "bg-white text-zinc-600 hover:bg-zinc-100"
+                                )}
+                                onClick={() => setViewMode("group")}
+                                title="Kelompokkan per Grup Kerja"
+                            >
+                                <Layers className="h-4 w-4 mr-1.5" />
+                                Grup
+                            </Button>
+                        </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className={cn(
-                                "border-2 border-black rounded-none text-[10px] font-black uppercase tracking-widest h-8 transition-all hover:bg-black hover:text-white",
-                                !typeFilter
-                                    ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(100,100,100,1)]"
-                                    : "bg-white text-zinc-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)]"
-                            )}
-                            onClick={() => setTypeFilter(null)}
-                        >
-                            Semua
-                        </Button>
-                        {STATION_TYPE_CONFIG.map((cfg) => {
-                            const count = inHouseStations.filter((s: any) => s.stationType === cfg.type).length
-                            if (count === 0) return null
-                            return (
-                                <Button
-                                    key={cfg.type}
-                                    variant="outline"
-                                    size="sm"
-                                    className={cn(
-                                        "border-2 border-black rounded-none text-[10px] font-black uppercase tracking-widest h-8 transition-all hover:bg-black hover:text-white",
-                                        typeFilter === cfg.type
-                                            ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(100,100,100,1)]"
-                                            : "bg-white text-zinc-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)]"
-                                    )}
-                                    onClick={() => setTypeFilter(cfg.type)}
-                                >
-                                    {cfg.label} ({count})
-                                </Button>
-                            )
-                        })}
-                    </div>
+
+                    {viewMode === "type" && (
+                        <div className="flex flex-wrap gap-2 w-full md:w-auto justify-end">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className={cn(
+                                    "border-2 border-black rounded-none text-[10px] font-black uppercase tracking-widest h-8 transition-all hover:bg-black hover:text-white",
+                                    !typeFilter
+                                        ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(100,100,100,1)]"
+                                        : "bg-white text-zinc-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)]"
+                                )}
+                                onClick={() => setTypeFilter(null)}
+                            >
+                                Semua
+                            </Button>
+                            {STATION_TYPE_CONFIG.map((cfg) => {
+                                const count = inHouseStations.filter((s: any) => s.stationType === cfg.type).length
+                                if (count === 0) return null
+                                return (
+                                    <Button
+                                        key={cfg.type}
+                                        variant="outline"
+                                        size="sm"
+                                        className={cn(
+                                            "border-2 border-black rounded-none text-[10px] font-black uppercase tracking-widest h-8 transition-all hover:bg-black hover:text-white",
+                                            typeFilter === cfg.type
+                                                ? "bg-black text-white shadow-[2px_2px_0px_0px_rgba(100,100,100,1)]"
+                                                : "bg-white text-zinc-600 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.3)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)]"
+                                        )}
+                                        onClick={() => setTypeFilter(cfg.type)}
+                                    >
+                                        {cfg.label} ({count})
+                                    </Button>
+                                )
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Empty State */}
@@ -344,9 +544,9 @@ export function StasiunClient({ stations: initialStations }: Props) {
                     </div>
                 )}
 
-                {/* Station Grid — Grouped by Type */}
-                {sortedTypes.map((type) => {
-                    const typeStations = grouped[type]
+                {/* === VIEW: Grouped by Type === */}
+                {viewMode === "type" && sortedTypes.map((type) => {
+                    const typeStations = groupedByType[type]
                     const config = getTypeConfig(type)
                     const TypeIcon = config.icon
                     const groupLabel = type === "OTHER"
@@ -370,111 +570,98 @@ export function StasiunClient({ stations: initialStations }: Props) {
 
                             {/* Cards */}
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {typeStations.map((station: any) => {
-                                    const isActive = station.isActive !== false
-                                    return (
-                                        <Card
-                                            key={station.id}
-                                            className={cn(
-                                                "group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-none overflow-hidden flex flex-col",
-                                                isActive ? "bg-white dark:bg-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 opacity-60"
-                                            )}
-                                        >
-                                            {/* Card Header */}
-                                            <div className="flex justify-between items-center p-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={cn("h-7 w-7 flex items-center justify-center border", config.color)}>
-                                                        <TypeIcon className="h-3.5 w-3.5" />
-                                                    </div>
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                                        {station.code}
-                                                    </span>
-                                                </div>
-                                                <div className={cn(
-                                                    "px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border",
-                                                    isActive
-                                                        ? "bg-emerald-100 text-emerald-700 border-emerald-300"
-                                                        : "bg-zinc-200 text-zinc-500 border-zinc-300"
-                                                )}>
-                                                    {isActive ? "AKTIF" : "NONAKTIF"}
-                                                </div>
-                                            </div>
-
-                                            {/* Main Content */}
-                                            <div className="p-4 flex-1 flex flex-col gap-3">
-                                                <h3 className="text-sm font-black uppercase tracking-wide leading-tight">
-                                                    {station.name}
-                                                </h3>
-
-                                                <div className="grid grid-cols-2 gap-2 mt-auto">
-                                                    <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                                                        <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Tipe</p>
-                                                        <div className={cn("text-xs font-black uppercase px-1.5 py-0.5 inline-block border", config.color)}>
-                                                            {config.label}
-                                                        </div>
-                                                    </div>
-                                                    <div className="border border-zinc-200 bg-zinc-50/50 p-2">
-                                                        <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Biaya/Unit</p>
-                                                        <div className="font-bold text-sm text-zinc-900">
-                                                            {Number(station.costPerUnit) > 0
-                                                                ? `Rp ${Number(station.costPerUnit).toLocaleString("id-ID")}`
-                                                                : "-"}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Footer / Actions */}
-                                            <div className="border-t-2 border-black p-2 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800">
-                                                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider px-2">
-                                                    In-House
-                                                </p>
-                                                <div className="flex gap-1">
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-7 w-7 rounded-none hover:bg-black hover:text-white border border-transparent hover:border-black transition-all"
-                                                        onClick={() => openEdit(station)}
-                                                        title="Edit Stasiun"
-                                                    >
-                                                        <Settings className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className={cn(
-                                                            "h-7 w-7 rounded-none border border-transparent transition-all",
-                                                            isActive
-                                                                ? "text-amber-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200"
-                                                                : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
-                                                        )}
-                                                        onClick={(e) => handleToggleActive(e, station)}
-                                                        disabled={toggling === station.id}
-                                                        title={isActive ? "Nonaktifkan" : "Aktifkan"}
-                                                    >
-                                                        {isActive ? <ZapOff className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all"
-                                                        onClick={(e) => handleDelete(e, station)}
-                                                        disabled={deleting === station.id}
-                                                        title="Hapus Stasiun"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </Card>
-                                    )
-                                })}
+                                {typeStations.map(renderStationCard)}
                             </div>
                         </div>
                     )
                 })}
 
-                {/* Add Station Dialog */}
+                {/* === VIEW: Grouped by WorkCenterGroup === */}
+                {viewMode === "group" && (
+                    <div className="space-y-6">
+                        {/* Grouped stations */}
+                        {Object.entries(groupedByGroup).map(([gId, { group: grp, stations: grpStations }]) => {
+                            const isCollapsed = collapsedGroups.has(gId)
+                            const activeCount = grpStations.filter((s: any) => s.isActive !== false).length
+
+                            return (
+                                <div key={gId} className="space-y-3">
+                                    {/* Group Header */}
+                                    <button
+                                        className="flex items-center gap-3 w-full text-left group/header"
+                                        onClick={() => toggleCollapse(gId)}
+                                    >
+                                        <div className="flex items-center gap-2 px-3 py-2 border-2 border-indigo-400 bg-indigo-50 text-indigo-700 text-xs font-black uppercase tracking-widest transition-all group-hover/header:bg-indigo-100">
+                                            {isCollapsed ? (
+                                                <ChevronRight className="h-4 w-4" />
+                                            ) : (
+                                                <ChevronDown className="h-4 w-4" />
+                                            )}
+                                            <FolderOpen className="h-3.5 w-3.5" />
+                                            {grp.name}
+                                            <span className="text-[9px] font-bold text-indigo-400 ml-1">
+                                                ({grp.code})
+                                            </span>
+                                        </div>
+                                        <p className="text-[9px] font-bold text-zinc-400 uppercase">
+                                            {grpStations.length} stasiun
+                                            {activeCount < grpStations.length && ` (${activeCount} aktif)`}
+                                        </p>
+                                    </button>
+
+                                    {/* Cards */}
+                                    {!isCollapsed && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                            {grpStations.map(renderStationCard)}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+
+                        {/* Ungrouped stations */}
+                        {ungroupedStations.length > 0 && (
+                            <div className="space-y-3">
+                                <button
+                                    className="flex items-center gap-3 w-full text-left group/header"
+                                    onClick={() => toggleCollapse("__ungrouped__")}
+                                >
+                                    <div className="flex items-center gap-2 px-3 py-2 border-2 border-zinc-300 bg-zinc-100 text-zinc-600 text-xs font-black uppercase tracking-widest transition-all group-hover/header:bg-zinc-200">
+                                        {collapsedGroups.has("__ungrouped__") ? (
+                                            <ChevronRight className="h-4 w-4" />
+                                        ) : (
+                                            <ChevronDown className="h-4 w-4" />
+                                        )}
+                                        <FolderOpen className="h-3.5 w-3.5" />
+                                        Belum Ada Grup
+                                    </div>
+                                    <p className="text-[9px] font-bold text-zinc-400 uppercase">
+                                        {ungroupedStations.length} stasiun
+                                    </p>
+                                </button>
+
+                                {!collapsedGroups.has("__ungrouped__") && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {ungroupedStations.map(renderStationCard)}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* No groups exist hint */}
+                        {Object.keys(groupedByGroup).length === 0 && ungroupedStations.length > 0 && (
+                            <div className="border-2 border-dashed border-indigo-200 bg-indigo-50/50 p-4 flex items-center gap-3">
+                                <Layers className="h-5 w-5 text-indigo-400 shrink-0" />
+                                <p className="text-xs font-bold text-indigo-500">
+                                    Belum ada stasiun yang masuk ke dalam grup. Edit stasiun dan pilih grup untuk mengelompokkan.
+                                    Buat grup baru di halaman Grup Mesin.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Add/Edit Station Dialog */}
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogContent className="border-2 border-black rounded-none shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md">
                         <DialogHeader>
@@ -517,6 +704,31 @@ export function StasiunClient({ stations: initialStations }: Props) {
                                         ))}
                                     </SelectContent>
                                 </Select>
+                            </div>
+
+                            {/* Grup Kerja */}
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    Grup Kerja (Opsional)
+                                </label>
+                                <Select value={formGroupId} onValueChange={setFormGroupId}>
+                                    <SelectTrigger className="border-2 border-black rounded-none h-10 font-bold">
+                                        <SelectValue placeholder="Pilih grup..." />
+                                    </SelectTrigger>
+                                    <SelectContent className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                        <SelectItem value="__none__" className="rounded-none font-medium text-zinc-400">
+                                            Tanpa Grup
+                                        </SelectItem>
+                                        {groups.map((g: any) => (
+                                            <SelectItem key={g.id} value={g.id} className="rounded-none font-medium">
+                                                {g.name} ({g.code})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <p className="text-[9px] text-zinc-400 font-medium">
+                                    Kelompokkan stasiun berdasarkan area kerja atau departemen
+                                </p>
                             </div>
 
                             {/* Biaya per Unit */}

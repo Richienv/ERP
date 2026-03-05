@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 
 const STATION_TYPE_CONFIG: { type: string; label: string; icon: any; color: string; bg: string }[] = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "text-rose-700", bg: "bg-rose-50 border-rose-200" },
@@ -126,7 +127,10 @@ export default function ProcessesPage() {
                         <Cog className="h-6 w-6" /> Proses Produksi
                     </h1>
                     <p className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider mt-1">
-                        Tipe proses yang tersedia di BOM Canvas — tambah stasiun di halaman Stasiun
+                        Tipe proses yang tersedia di BOM Canvas — tambah work center di halaman{" "}
+                        <Link href="/manufacturing/work-centers" className="underline text-black hover:text-zinc-600 transition-colors">
+                            Work Center
+                        </Link>
                     </p>
                 </div>
                 <Button
@@ -169,7 +173,7 @@ export default function ProcessesPage() {
                                 {/* Station count */}
                                 <div className="flex items-center justify-between">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                        Stasiun
+                                        Work Center
                                     </span>
                                     <span className="text-sm font-black">
                                         {item.stationCount}
@@ -189,7 +193,7 @@ export default function ProcessesPage() {
                                     ) : (
                                         <div className="flex items-center gap-1 text-[10px] font-black text-zinc-400">
                                             <XCircle className="h-3 w-3" />
-                                            Belum ada stasiun
+                                            Belum ada work center
                                         </div>
                                     )}
                                 </div>

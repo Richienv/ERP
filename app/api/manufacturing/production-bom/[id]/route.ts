@@ -189,8 +189,11 @@ export async function PATCH(
                                 completedQty: step.completedQty ?? 0,
                                 startOffsetMinutes: step.startOffsetMinutes ?? 0,
                                 useSubkon: step.useSubkon ?? null,
+                                operatorName: step.operatorName || null,
                                 startedAt: step.startedAt ? new Date(step.startedAt) : null,
                                 completedAt: step.completedAt ? new Date(step.completedAt) : null,
+                                positionX: step.positionX ?? null,
+                                positionY: step.positionY ?? null,
                             },
                             select: { id: true },
                         })
@@ -205,7 +208,7 @@ export async function PATCH(
 
                 // Batch-create step materials and allocations
                 const stepMaterialRows: { stepId: string; bomItemId: string }[] = []
-                const allocationRows: { stepId: string; stationId: string; quantity: number; notes: string | null }[] = []
+                const allocationRows: { stepId: string; stationId: string; quantity: number; pricePerPcs: number | null; notes: string | null }[] = []
 
                 for (const step of steps) {
                     const newStepId = oldToNewStepId.get(step.id)
@@ -272,39 +275,48 @@ export async function PATCH(
                     where: { productionBomId: id },
                     select: { id: true, productionBomStepId: true, status: true, plannedQty: true },
                 })
-                // Match work orders to new steps by sequence order
-                const newStepIds = Object.values(stepIdMap)
+
+                // Build a map of new step IDs → step data for quick lookup
+                const newStepIds = Object.values(stepIdMap) as string[]
                 const newSteps = await tx.productionBOMStep.findMany({
                     where: { id: { in: newStepIds } },
                     select: { id: true, sequence: true, completedQty: true },
                     orderBy: { sequence: 'asc' },
                 })
+                const newStepMap = new Map(newSteps.map(s => [s.id, s]))
 
                 for (const wo of workOrders) {
-                    // Find matching step by sequence (work orders were created in sequence order)
-                    const matchedStep = newSteps.find(s => {
-                        // Try to match by the original step mapping
-                        return true // we'll update all WOs to re-link
-                    })
-                    if (newSteps.length > 0) {
-                        // Re-link to first unlinked step in sequence
-                        const stepForWO = newSteps.shift()
-                        if (stepForWO) {
-                            const completedQty = stepForWO.completedQty || 0
-                            const newStatus = completedQty >= wo.plannedQty ? 'COMPLETED'
-                                : completedQty > 0 ? 'IN_PROGRESS'
-                                : wo.status
-                            await tx.workOrder.update({
-                                where: { id: wo.id },
-                                data: {
-                                    productionBomStepId: stepForWO.id,
-                                    actualQty: completedQty,
-                                    ...(newStatus !== wo.status && { status: newStatus }),
-                                    ...(completedQty > 0 && !wo.status.includes('IN_PROGRESS') && { startDate: new Date() }),
-                                },
-                            })
-                        }
+                    // Find the new step ID that corresponds to this WO's old step
+                    let newStepId: string | null = null
+
+                    // Direct mapping: if WO's old stepId is a key in stepIdMap
+                    if (wo.productionBomStepId && stepIdMap[wo.productionBomStepId]) {
+                        newStepId = stepIdMap[wo.productionBomStepId]
                     }
+                    // If WO's stepId is already a new ID (wasn't remapped)
+                    if (!newStepId && wo.productionBomStepId && newStepMap.has(wo.productionBomStepId)) {
+                        newStepId = wo.productionBomStepId
+                    }
+
+                    if (!newStepId) continue // WO's step was deleted — skip
+
+                    const step = newStepMap.get(newStepId)
+                    if (!step) continue
+
+                    const completedQty = step.completedQty || 0
+                    const newStatus = completedQty >= wo.plannedQty ? 'COMPLETED'
+                        : completedQty > 0 ? 'IN_PROGRESS'
+                        : wo.status
+
+                    await tx.workOrder.update({
+                        where: { id: wo.id },
+                        data: {
+                            productionBomStepId: newStepId,
+                            actualQty: completedQty,
+                            ...(newStatus !== wo.status && { status: newStatus }),
+                            ...(completedQty > 0 && wo.status === 'PLANNED' && { startDate: new Date() }),
+                        },
+                    })
                 }
             }
 

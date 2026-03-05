@@ -33,12 +33,12 @@ export function NodeContextMenu({
     type DividerItem = { kind: "divider" }
 
     const items: (MenuItem | DividerItem)[] = [
-        { kind: "action", icon: Copy, label: "Duplikat Stasiun", action: () => onDuplicateStep(stepId), color: "text-blue-600" },
+        { kind: "action", icon: Copy, label: "Duplikat Work Center", action: () => onDuplicateStep(stepId), color: "text-blue-600" },
         { kind: "action", icon: GitBranch, label: "Tambah Paralel", action: () => onAddParallel(stepId), color: "text-purple-600" },
         { kind: "action", icon: Play, label: "Tandai Mulai", action: () => onMarkStarted(stepId), color: "text-emerald-600" },
         { kind: "action", icon: CheckCircle2, label: "Tandai Selesai", action: () => onMarkCompleted(stepId), color: "text-emerald-600" },
         { kind: "divider" },
-        { kind: "action", icon: Trash2, label: "Hapus Stasiun", action: () => onDeleteStep(stepId), color: "text-red-600" },
+        { kind: "action", icon: Trash2, label: "Hapus Work Center", action: () => onDeleteStep(stepId), color: "text-red-600" },
     ]
 
     return (

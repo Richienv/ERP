@@ -126,6 +126,10 @@ export const queryKeys = {
         all: ["mfgPlanning"] as const,
         list: () => [...queryKeys.mfgPlanning.all, "list"] as const,
     },
+    mfgGantt: {
+        all: ["mfgGantt"] as const,
+        list: () => [...queryKeys.mfgGantt.all, "list"] as const,
+    },
     spkOrders: {
         all: ["spkOrders"] as const,
         list: () => [...queryKeys.spkOrders.all, "list"] as const,

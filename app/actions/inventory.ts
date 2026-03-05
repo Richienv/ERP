@@ -239,6 +239,7 @@ export async function getWarehouses() {
             code: w.code,
             location: [w.city, w.province].filter(Boolean).join(', ') || w.address || 'Unknown Location',
             type: 'Warehouse',
+            warehouseType: w.warehouseType,
             capacity: capacity,
             utilization: utilization,
             manager: managerName,
@@ -748,6 +749,7 @@ export async function getWarehouseDetails(id: string) {
         code: warehouse.code,
         address: warehouse.address || '',
         capacity: warehouse.capacity,
+        warehouseType: warehouse.warehouseType,
         categories: Array.from(categoryMap.values())
     }
 }
@@ -755,7 +757,7 @@ export async function getWarehouseDetails(id: string) {
 // ==========================================
 // GOODS RECEIPT ACTION
 // ==========================================
-export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number }) {
+export async function createWarehouse(data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
     try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.create({
@@ -763,7 +765,8 @@ export async function createWarehouse(data: { name: string, code: string, addres
                     name: data.name,
                     code: data.code,
                     address: data.address,
-                    capacity: data.capacity
+                    capacity: data.capacity,
+                    warehouseType: (data.warehouseType as any) || 'GENERAL'
                 }
             })
             return { success: true }
@@ -1267,7 +1270,7 @@ export async function createManualMovement(data: {
     }
 }
 
-export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number }) {
+export async function updateWarehouse(id: string, data: { name: string, code: string, address: string, capacity: number, warehouseType?: string }) {
     try {
         return await withPrismaAuth(async (prisma) => {
             await prisma.warehouse.update({
@@ -1276,7 +1279,8 @@ export async function updateWarehouse(id: string, data: { name: string, code: st
                     name: data.name,
                     code: data.code,
                     address: data.address,
-                    capacity: data.capacity
+                    capacity: data.capacity,
+                    ...(data.warehouseType ? { warehouseType: data.warehouseType as any } : {})
                 }
             })
             return { success: true }

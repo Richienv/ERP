@@ -301,9 +301,9 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                             <button
                                                 type="button"
                                                 onClick={() => setIncludeTax(!includeTax)}
-                                                className={`relative w-11 h-6 rounded-full border-2 transition-colors ${includeTax ? 'bg-emerald-500 border-emerald-600' : 'bg-zinc-200 border-zinc-300'}`}
+                                                className={`relative w-11 h-6 rounded-none border-2 transition-colors ${includeTax ? 'bg-emerald-500 border-emerald-600' : 'bg-zinc-200 border-zinc-300'}`}
                                             >
-                                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${includeTax ? 'left-5' : 'left-0.5'}`} />
+                                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-none shadow transition-transform ${includeTax ? 'left-5' : 'left-0.5'}`} />
                                             </button>
                                         </div>
 

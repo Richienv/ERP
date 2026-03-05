@@ -1,13 +1,15 @@
 "use client"
 
+import { useState } from "react"
 import { SubkonSelector } from "./subkon-selector"
+import { InHouseAllocator } from "./inhouse-allocator"
 import { calcItemCostPerUnit, calcStepMaterialCost, calcLaborCostPerPcs, WORKING_HOURS_PER_MONTH, type BOMItemWithCost } from "./bom-cost-helpers"
 import { formatCurrency } from "@/lib/inventory-utils"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Paperclip, Upload, X, Clock, Cog, Building2, Truck, CheckCircle2 } from "lucide-react"
+import { Paperclip, Upload, X, Clock, Cog, Building2, Truck, CheckCircle2, Timer, User, GitBranch } from "lucide-react"
 
 interface DetailPanelProps {
     step: any
@@ -28,9 +30,12 @@ export function DetailPanel({
     onUploadAttachment, onDeleteAttachment,
     onToggleSubkon,
 }: DetailPanelProps) {
+    const [showInhouseAlloc, setShowInhouseAlloc] = useState(false)
+
     if (!step) return null
 
     const isSubkon = step.useSubkon ?? step.station?.operationType === "SUBCONTRACTOR"
+    const hasInhouseAllocations = !isSubkon && (step.allocations || []).length > 0
 
     // Get materials assigned to this step with cost data
     const stepMaterials = (step.materials || []).map((sm: any) => {
@@ -65,7 +70,7 @@ export function DetailPanel({
             {/* Station selector */}
             {sameTypeStations.length > 1 && onChangeStation && (
                 <div>
-                    <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Stasiun</label>
+                    <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Work Center</label>
                     <Select
                         value={step.stationId || step.station?.id || ""}
                         onValueChange={(val) => {
@@ -74,7 +79,7 @@ export function DetailPanel({
                         }}
                     >
                         <SelectTrigger className="h-8 text-xs font-bold border-zinc-200 rounded-none">
-                            <SelectValue placeholder="Pilih stasiun" />
+                            <SelectValue placeholder="Pilih work center" />
                         </SelectTrigger>
                         <SelectContent>
                             {sameTypeStations.map((s: any) => (
@@ -116,7 +121,7 @@ export function DetailPanel({
 
             <div>
                 <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">
-                    <Clock className="h-3 w-3 inline mr-1" /> Durasi /pcs (menit)
+                    <Clock className="h-3 w-3 inline mr-1" /> Durasi /pcs (menit) <span className="text-red-500">*</span>
                 </label>
                 <Input
                     type="number"
@@ -129,6 +134,20 @@ export function DetailPanel({
                     className="h-8 text-xs font-mono border-zinc-200 rounded-none"
                 />
             </div>
+
+            <div>
+                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">
+                    <User className="h-3 w-3 inline mr-1" /> Operator
+                </label>
+                <Input
+                    type="text"
+                    value={step.operatorName || ""}
+                    onChange={(e) => onUpdateStep("operatorName", e.target.value || null)}
+                    className="h-8 text-xs border-zinc-200 rounded-none"
+                    placeholder="Nama operator..."
+                />
+            </div>
+
             {/* Labour Cost Calculator */}
             <div className="border-t border-zinc-100 pt-2">
                 <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">
@@ -188,6 +207,75 @@ export function DetailPanel({
                         placeholder="0"
                     />
                     <span className="text-[10px] font-bold text-zinc-400 whitespace-nowrap">/ {totalQty} pcs</span>
+                </div>
+            </div>
+
+            {/* ── TIME STUDY ── */}
+            <div className="border-2 border-black bg-blue-50/40 p-2.5 mt-1">
+                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-2 flex items-center gap-1">
+                    <Timer className="h-3 w-3" /> Time Study
+                </label>
+                <div>
+                    <label className="text-[9px] font-bold text-zinc-400 mb-1 block">Hasil Time Study (menit/pcs)</label>
+                    <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={step.estimatedTimePerUnit ?? ""}
+                        onChange={(e) => {
+                            const val = parseFloat(e.target.value)
+                            onUpdateStep("estimatedTimePerUnit", isNaN(val) ? null : Math.max(0, val))
+                        }}
+                        className="h-8 text-xs font-mono border-zinc-200 rounded-none"
+                        placeholder="cth: 2.5"
+                    />
+                </div>
+                {Number(step.estimatedTimePerUnit || 0) > 0 && durationMin > 0 && (
+                    <div className="mt-2 space-y-1 bg-white border border-zinc-200 p-2">
+                        <div className="flex justify-between text-[9px]">
+                            <span className="text-zinc-400 font-bold">PCC (Durasi /pcs)</span>
+                            <span className="font-mono font-bold">{durationMin} menit</span>
+                        </div>
+                        <div className="flex justify-between text-[9px]">
+                            <span className="text-zinc-400 font-bold">Time Study</span>
+                            <span className="font-mono font-bold">{Number(step.estimatedTimePerUnit)} menit</span>
+                        </div>
+                        <div className="flex justify-between text-[9px] border-t border-zinc-200 pt-1 mt-1">
+                            <span className="text-zinc-500 font-black">Selisih</span>
+                            {(() => {
+                                const diff = Number(step.estimatedTimePerUnit) - durationMin
+                                const pct = ((diff / durationMin) * 100).toFixed(1)
+                                const isSlower = diff > 0
+                                const isFaster = diff < 0
+                                return (
+                                    <span className={`font-black ${isFaster ? "text-emerald-700" : isSlower ? "text-red-600" : "text-zinc-500"}`}>
+                                        {diff > 0 ? "+" : ""}{diff.toFixed(2)} menit ({diff > 0 ? "+" : ""}{pct}%)
+                                    </span>
+                                )
+                            })()}
+                        </div>
+                    </div>
+                )}
+                <div className="mt-2">
+                    <label className="text-[9px] font-bold text-zinc-400 mb-1 block">Waktu Aktual Total (menit)</label>
+                    <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={step.actualTimeTotal ?? ""}
+                        onChange={(e) => {
+                            const val = parseFloat(e.target.value)
+                            onUpdateStep("actualTimeTotal", isNaN(val) ? null : Math.max(0, val))
+                        }}
+                        className="h-8 text-xs font-mono border-zinc-200 rounded-none"
+                        placeholder="cth: 450.00"
+                    />
+                    {Number(step.actualTimeTotal || 0) > 0 && (step.completedQty || 0) > 0 && (
+                        <div className="mt-1 text-[9px] text-zinc-400 font-bold">
+                            Rata-rata: <span className="font-mono text-zinc-600">{(Number(step.actualTimeTotal) / step.completedQty).toFixed(2)} menit/pcs</span>
+                            {" "}({step.completedQty} pcs selesai)
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -302,21 +390,55 @@ export function DetailPanel({
         )
     }
 
-    // ── IN-HOUSE LAYOUT: 2 columns (original but simplified) ──
+    // ── IN-HOUSE LAYOUT: Config + Material + optional Allocation + Attachments ──
+    const showAllocPanel = showInhouseAlloc || hasInhouseAllocations
     return (
         <div className="border-t-2 border-black bg-white px-4 lg:px-6 py-3 shrink-0 max-h-[420px] overflow-y-auto">
             <div className="flex items-start gap-4 lg:gap-6">
                 {/* LEFT — Step Config */}
                 <div className="w-[220px] lg:w-[240px] shrink-0">
                     {StepConfig}
+                    {/* Toggle distribusi work center */}
+                    {!showAllocPanel && (
+                        <button
+                            onClick={() => setShowInhouseAlloc(true)}
+                            className="mt-3 flex items-center gap-1.5 text-[9px] font-bold text-blue-600 hover:underline"
+                        >
+                            <GitBranch className="h-3 w-3" /> Distribusi ke multi work center
+                        </button>
+                    )}
                 </div>
 
-                {/* CENTER — Material Cost Breakdown */}
-                <div className="flex-1 border-l-2 border-zinc-100 pl-4 lg:pl-6">
-                    {MaterialCostBreakdown}
-                </div>
+                {/* CENTER — Material Cost Breakdown OR In-House Allocator */}
+                {showAllocPanel ? (
+                    <>
+                        <div className="flex-1 border-l-2 border-emerald-200 pl-4 lg:pl-6 bg-emerald-50/30 py-2 px-4 border-2 border-emerald-300">
+                            <InHouseAllocator
+                                stationType={step.station?.stationType}
+                                allocations={step.allocations || []}
+                                totalQty={totalQty}
+                                onChange={onUpdateAllocations}
+                            />
+                            {(step.allocations || []).length === 0 && (
+                                <button
+                                    onClick={() => setShowInhouseAlloc(false)}
+                                    className="mt-2 text-[9px] font-bold text-zinc-400 hover:text-red-500"
+                                >
+                                    Batalkan distribusi
+                                </button>
+                            )}
+                        </div>
+                        <div className="w-[280px] shrink-0 border-l-2 border-zinc-100 pl-4">
+                            {MaterialCostBreakdown}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex-1 border-l-2 border-zinc-100 pl-4 lg:pl-6">
+                        {MaterialCostBreakdown}
+                    </div>
+                )}
 
-                {/* RIGHT — Attachments only (no subkon) */}
+                {/* RIGHT — Attachments */}
                 <div className="w-[180px] shrink-0 border-l-2 border-zinc-100 pl-4">
                     {Attachments}
                 </div>

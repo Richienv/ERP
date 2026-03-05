@@ -363,13 +363,13 @@ export default function InvoicesPage() {
                         <Button
                             onClick={() => router.push('/finance/transactions')}
                             variant="outline"
-                            className="border-2 border-black font-black uppercase text-[10px] tracking-wide h-10 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                            className="border-2 border-black font-black uppercase text-[10px] tracking-wide h-10 px-4 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
                         >
                             <BookOpen className="h-3.5 w-3.5 mr-1.5" /> Transaksi Akun
                         </Button>
                         <Button
                             onClick={() => setIsCreatorOpen(true)}
-                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
                         >
                             <FileText className="h-3.5 w-3.5 mr-1.5" /> Buat Invoice
                         </Button>
@@ -384,7 +384,7 @@ export default function InvoicesPage() {
                         <div className="relative flex-1">
                             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                             <Input
-                                className="border-2 border-black h-10 pl-9 font-medium"
+                                className="border-2 border-black h-10 pl-9 font-medium rounded-none"
                                 placeholder="Cari nomor invoice / customer / supplier..."
                                 value={searchText}
                                 onChange={(e) => setSearchText(e.target.value)}
@@ -413,14 +413,14 @@ export default function InvoicesPage() {
                         />
                         <Button
                             onClick={applyFilters}
-                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-4"
+                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
                         >
                             Terapkan
                         </Button>
                         <Button
                             variant="outline"
                             onClick={resetFilters}
-                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
+                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
                         >
                             Reset
                         </Button>
@@ -442,7 +442,7 @@ export default function InvoicesPage() {
                         className="flex items-center gap-2 px-4 py-2 border-2 border-zinc-200 bg-zinc-50 text-[11px] font-black uppercase tracking-widest"
                     >
                         {chip.label}
-                        <span className="text-[10px] font-black px-1.5 py-0.5 min-w-[22px] text-center rounded-sm bg-zinc-200 text-zinc-500">
+                        <span className="text-[10px] font-black px-1.5 py-0.5 min-w-[22px] text-center rounded-none bg-zinc-200 text-zinc-500">
                             {chip.count}
                         </span>
                     </div>
@@ -456,7 +456,7 @@ export default function InvoicesPage() {
                     <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
                         Daftar Invoice
                     </h3>
-                    <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+                    <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-none">
                         {filteredInvoices.length}
                     </span>
                 </div>
@@ -504,7 +504,7 @@ export default function InvoicesPage() {
 
                                         {/* Type */}
                                         <div>
-                                            <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${invoice.type === 'INV_OUT'
+                                            <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${invoice.type === 'INV_OUT'
                                                 ? 'bg-blue-50 border-blue-200 text-blue-600'
                                                 : 'bg-purple-50 border-purple-200 text-purple-600'
                                                 }`}>
@@ -523,8 +523,8 @@ export default function InvoicesPage() {
 
                                         {/* Status Badge */}
                                         <div>
-                                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide px-2.5 py-1 border rounded-sm ${cfg.bg} ${cfg.text}`}>
-                                                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                                            <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide px-2.5 py-1 border rounded-none ${cfg.bg} ${cfg.text}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-none ${cfg.dot}`} />
                                                 {cfg.label}
                                             </span>
                                             {invoice.status === 'ISSUED' && invoice.issueDate && (
@@ -548,14 +548,14 @@ export default function InvoicesPage() {
                                                     <button
                                                         onClick={() => openEditDialog(invoice)}
                                                         title="Edit Invoice"
-                                                        className="h-8 w-8 flex items-center justify-center border-2 border-orange-300 text-orange-500 hover:bg-orange-50 hover:border-orange-500 hover:text-orange-700 transition-colors rounded-sm"
+                                                        className="h-8 w-8 flex items-center justify-center border-2 border-orange-300 text-orange-500 hover:bg-orange-50 hover:border-orange-500 hover:text-orange-700 transition-colors rounded-none"
                                                     >
                                                         <Pencil className="h-3.5 w-3.5" />
                                                     </button>
                                                     <button
                                                         onClick={() => openSendDialog(invoice)}
                                                         title="Kirim Invoice"
-                                                        className="h-8 w-8 flex items-center justify-center border-2 border-blue-300 text-blue-500 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-700 transition-colors rounded-sm"
+                                                        className="h-8 w-8 flex items-center justify-center border-2 border-blue-300 text-blue-500 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-700 transition-colors rounded-none"
                                                     >
                                                         <Send className="h-3.5 w-3.5" />
                                                     </button>
@@ -565,7 +565,7 @@ export default function InvoicesPage() {
                                                 <button
                                                     onClick={() => openPayDialog(invoice)}
                                                     title="Catat Pembayaran"
-                                                    className="h-8 w-8 flex items-center justify-center border-2 border-emerald-300 text-emerald-500 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-700 transition-colors rounded-sm"
+                                                    className="h-8 w-8 flex items-center justify-center border-2 border-emerald-300 text-emerald-500 hover:bg-emerald-50 hover:border-emerald-500 hover:text-emerald-700 transition-colors rounded-none"
                                                 >
                                                     <Banknote className="h-3.5 w-3.5" />
                                                 </button>
@@ -588,7 +588,7 @@ export default function InvoicesPage() {
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 border-2 border-black"
+                                className="h-8 w-8 border-2 border-black rounded-none"
                                 disabled={page <= 1}
                                 onClick={() => setPage(p => p - 1)}
                             >
@@ -598,7 +598,7 @@ export default function InvoicesPage() {
                             <Button
                                 variant="outline"
                                 size="icon"
-                                className="h-8 w-8 border-2 border-black"
+                                className="h-8 w-8 border-2 border-black rounded-none"
                                 disabled={page >= totalPages}
                                 onClick={() => setPage(p => p + 1)}
                             >
@@ -616,7 +616,7 @@ export default function InvoicesPage() {
 
             {/* SEND DIALOG */}
             <Dialog open={isSendDialogOpen} onOpenChange={setIsSendDialogOpen}>
-                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
+                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none p-0 overflow-hidden bg-white">
                     <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
                         <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
                             <Send className="h-5 w-5" /> Kirim Invoice {activeInvoice?.number}
@@ -656,7 +656,7 @@ export default function InvoicesPage() {
                                 }
                                 setSendMessage(map[val] || '')
                             }}>
-                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                <SelectTrigger className="border-2 border-black h-10 font-medium rounded-none">
                                     <SelectValue placeholder="Pilih template" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -674,9 +674,9 @@ export default function InvoicesPage() {
                             </Label>
                             {sendMethod === 'WHATSAPP' ? (
                                 <div className="flex">
-                                    <span className="flex items-center px-3 border-2 border-r-0 border-black bg-zinc-100 text-xs font-bold text-zinc-500">+62</span>
+                                    <span className="flex items-center px-3 border-2 border-r-0 border-black bg-zinc-100 text-xs font-bold text-zinc-500 rounded-none">+62</span>
                                     <Input
-                                        className="border-2 border-black h-10 font-medium rounded-l-none"
+                                        className="border-2 border-black h-10 font-medium rounded-none"
                                         placeholder="Masukkan nomor WhatsApp"
                                         value={recipientContact}
                                         onChange={(e) => setRecipientContact(e.target.value)}
@@ -684,7 +684,7 @@ export default function InvoicesPage() {
                                 </div>
                             ) : (
                                 <Input
-                                    className="border-2 border-black h-10 font-medium"
+                                    className="border-2 border-black h-10 font-medium rounded-none"
                                     placeholder="Masukkan alamat email"
                                     value={recipientContact}
                                     onChange={(e) => setRecipientContact(e.target.value)}
@@ -695,20 +695,20 @@ export default function InvoicesPage() {
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Preview Pesan</Label>
                             <textarea
-                                className="w-full h-28 p-3 border-2 border-black text-sm font-medium resize-none"
+                                className="w-full h-28 p-3 border-2 border-black text-sm font-medium resize-none rounded-none"
                                 value={sendMessage}
                                 onChange={(e) => setSendMessage(e.target.value)}
                             />
                         </div>
                     </div>
                     <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
-                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsSendDialogOpen(false)}>Batal</Button>
+                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs rounded-none" onClick={() => setIsSendDialogOpen(false)}>Batal</Button>
                         {sendMethod === 'WHATSAPP' ? (
-                            <Button onClick={handleConfirmSend} className="bg-green-500 hover:bg-green-600 border-2 border-green-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
+                            <Button onClick={handleConfirmSend} className="bg-green-500 hover:bg-green-600 border-2 border-green-600 text-white font-black uppercase text-xs rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
                                 Kirim via WhatsApp
                             </Button>
                         ) : (
-                            <Button onClick={handleConfirmSend} className="bg-blue-500 hover:bg-blue-600 border-2 border-blue-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
+                            <Button onClick={handleConfirmSend} className="bg-blue-500 hover:bg-blue-600 border-2 border-blue-600 text-white font-black uppercase text-xs rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
                                 Kirim via Email
                             </Button>
                         )}
@@ -718,7 +718,7 @@ export default function InvoicesPage() {
 
             {/* EDIT DRAFT DIALOG */}
             <Dialog open={isEditDialogOpen} onOpenChange={(open) => { if (!editSaving) setIsEditDialogOpen(open) }}>
-                <DialogContent className="max-w-2xl border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-y-auto max-h-[90vh] bg-white">
+                <DialogContent className="max-w-2xl border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none p-0 overflow-y-auto max-h-[90vh] bg-white">
                     <DialogHeader className="p-6 pb-3 border-b-2 border-black bg-orange-50">
                         <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
                             <Pencil className="h-5 w-5" /> Edit Invoice Draft
@@ -729,7 +729,7 @@ export default function InvoicesPage() {
                         {editNumber && (
                             <div className="flex items-center gap-2 mt-2">
                                 <span className="font-mono text-sm font-black bg-white border-2 border-black px-3 py-1">{editNumber}</span>
-                                <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${editInvoiceType === 'INV_OUT' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-purple-50 border-purple-200 text-purple-600'}`}>
+                                <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${editInvoiceType === 'INV_OUT' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-purple-50 border-purple-200 text-purple-600'}`}>
                                     {editInvoiceType === 'INV_OUT' ? 'Invoice' : 'Bill'}
                                 </span>
                             </div>
@@ -749,7 +749,7 @@ export default function InvoicesPage() {
                                         {editInvoiceType === 'INV_OUT' ? 'Customer' : 'Vendor / Supplier'} <span className="text-red-500">*</span>
                                     </Label>
                                     <Select value={editPartyId} onValueChange={setEditPartyId}>
-                                        <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                        <SelectTrigger className="border-2 border-black h-10 font-medium rounded-none">
                                             <SelectValue placeholder={`Pilih ${editInvoiceType === 'INV_OUT' ? 'customer' : 'vendor'}`} />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -784,7 +784,7 @@ export default function InvoicesPage() {
                                             <div key={idx} className="grid grid-cols-[1fr_80px_120px_100px_36px] gap-0 border-b border-zinc-200 last:border-b-0 items-center">
                                                 <div className="px-1.5 py-1">
                                                     <Input
-                                                        className="border border-zinc-200 h-8 text-sm font-medium rounded-sm focus:border-orange-400"
+                                                        className="border border-zinc-200 h-8 text-sm font-medium rounded-none focus:border-orange-400"
                                                         placeholder="Deskripsi item..."
                                                         value={item.description}
                                                         onChange={(e) => {
@@ -809,7 +809,7 @@ export default function InvoicesPage() {
                                                 <div className="px-1.5 py-1">
                                                     <Input
                                                         type="number"
-                                                        className="border border-zinc-200 h-8 text-sm font-mono rounded-sm focus:border-orange-400"
+                                                        className="border border-zinc-200 h-8 text-sm font-mono rounded-none focus:border-orange-400"
                                                         value={item.unitPrice}
                                                         onChange={(e) => {
                                                             const next = [...editItems]
@@ -825,7 +825,7 @@ export default function InvoicesPage() {
                                                 </div>
                                                 <div className="px-1 py-1">
                                                     <button
-                                                        className="h-8 w-8 flex items-center justify-center border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-sm transition-colors"
+                                                        className="h-8 w-8 flex items-center justify-center border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-none transition-colors"
                                                         onClick={() => setEditItems(editItems.filter((_, i) => i !== idx))}
                                                         disabled={editItems.length <= 1}
                                                     >
@@ -838,7 +838,7 @@ export default function InvoicesPage() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="border-dashed border-2 text-[10px] font-bold uppercase w-full hover:bg-orange-50 hover:border-orange-300"
+                                        className="border-dashed border-2 text-[10px] font-bold uppercase w-full hover:bg-orange-50 hover:border-orange-300 rounded-none"
                                         onClick={() => setEditItems([...editItems, { description: '', quantity: 1, unitPrice: 0 }])}
                                     >
                                         + Tambah Item
@@ -849,11 +849,11 @@ export default function InvoicesPage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Terbit</Label>
-                                        <Input type="date" className="border-2 border-black h-9" value={editIssueDate} onChange={(e) => setEditIssueDate(e.target.value)} />
+                                        <Input type="date" className="border-2 border-black h-9 rounded-none" value={editIssueDate} onChange={(e) => setEditIssueDate(e.target.value)} />
                                     </div>
                                     <div className="space-y-1.5">
                                         <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jatuh Tempo</Label>
-                                        <Input type="date" className="border-2 border-black h-9" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
+                                        <Input type="date" className="border-2 border-black h-9 rounded-none" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} />
                                     </div>
                                 </div>
 
@@ -864,7 +864,7 @@ export default function InvoicesPage() {
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">Rp</span>
                                         <Input
                                             type="number"
-                                            className="border-2 border-black h-9 font-mono pl-9"
+                                            className="border-2 border-black h-9 font-mono pl-9 rounded-none"
                                             value={editDiscount || ''}
                                             placeholder="0"
                                             onChange={(e) => setEditDiscount(Math.max(0, Number(e.target.value) || 0))}
@@ -881,9 +881,9 @@ export default function InvoicesPage() {
                                     <button
                                         type="button"
                                         onClick={() => setEditIncludeTax(!editIncludeTax)}
-                                        className={`relative w-11 h-6 rounded-full border-2 transition-colors ${editIncludeTax ? 'bg-emerald-500 border-emerald-600' : 'bg-zinc-200 border-zinc-300'}`}
+                                        className={`relative w-11 h-6 rounded-none border-2 transition-colors ${editIncludeTax ? 'bg-emerald-500 border-emerald-600' : 'bg-zinc-200 border-zinc-300'}`}
                                     >
-                                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${editIncludeTax ? 'left-5' : 'left-0.5'}`} />
+                                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-none shadow transition-transform ${editIncludeTax ? 'left-5' : 'left-0.5'}`} />
                                     </button>
                                 </div>
 
@@ -922,11 +922,11 @@ export default function InvoicesPage() {
                         )}
                     </div>
                     <DialogFooter className="p-6 pt-3 border-t-2 border-black bg-zinc-50 flex gap-2">
-                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsEditDialogOpen(false)} disabled={editSaving}>Batal</Button>
+                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs rounded-none" onClick={() => setIsEditDialogOpen(false)} disabled={editSaving}>Batal</Button>
                         <Button
                             onClick={handleSaveEdit}
                             disabled={editSaving || editLoading}
-                            className="bg-orange-500 hover:bg-orange-600 border-2 border-orange-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                            className="bg-orange-500 hover:bg-orange-600 border-2 border-orange-600 text-white font-black uppercase text-xs rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
                         >
                             {editSaving ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Menyimpan...</> : "Simpan Perubahan"}
                         </Button>
@@ -936,7 +936,7 @@ export default function InvoicesPage() {
 
             {/* PAY DIALOG */}
             <Dialog open={isPayDialogOpen} onOpenChange={(open) => { if (!paying) setIsPayDialogOpen(open) }}>
-                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-y-auto max-h-[90vh] bg-white">
+                <DialogContent className="max-w-md border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none p-0 overflow-y-auto max-h-[90vh] bg-white">
                     <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
                         <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
                             <Banknote className="h-5 w-5" /> Catat Pembayaran {activeInvoice?.number}
@@ -949,20 +949,20 @@ export default function InvoicesPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Terima</Label>
-                                <Input type="date" className="border-2 border-black h-10 font-medium" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
+                                <Input type="date" className="border-2 border-black h-10 font-medium rounded-none" value={payDate} onChange={(e) => setPayDate(e.target.value)} />
                             </div>
                             <div className="space-y-1.5">
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jumlah Diterima</Label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">Rp</span>
-                                    <Input type="number" className="border-2 border-black h-10 font-bold pl-9" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
+                                    <Input type="number" className="border-2 border-black h-10 font-bold pl-9 rounded-none" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} />
                                 </div>
                             </div>
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Metode Pembayaran</Label>
                             <Select value={payMethod} onValueChange={(v: any) => setPayMethod(v)}>
-                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                <SelectTrigger className="border-2 border-black h-10 font-medium rounded-none">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -974,15 +974,15 @@ export default function InvoicesPage() {
                         </div>
                         <div className="space-y-1.5">
                             <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">No. Referensi (Opsional)</Label>
-                            <Input className="border-2 border-black h-10 font-medium" placeholder="Ref #123456" value={payReference} onChange={(e) => setPayReference(e.target.value)} />
+                            <Input className="border-2 border-black h-10 font-medium rounded-none" placeholder="Ref #123456" value={payReference} onChange={(e) => setPayReference(e.target.value)} />
                         </div>
                     </div>
                     <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
-                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs" onClick={() => setIsPayDialogOpen(false)} disabled={paying}>Batal</Button>
+                        <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs rounded-none" onClick={() => setIsPayDialogOpen(false)} disabled={paying}>Batal</Button>
                         <Button
                             onClick={handleConfirmPayment}
                             disabled={paying}
-                            className="bg-emerald-500 hover:bg-emerald-600 border-2 border-emerald-600 text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all disabled:opacity-50"
+                            className="bg-emerald-500 hover:bg-emerald-600 border-2 border-emerald-600 text-white font-black uppercase text-xs rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all disabled:opacity-50"
                         >
                             {paying ? (
                                 <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Memproses...</>

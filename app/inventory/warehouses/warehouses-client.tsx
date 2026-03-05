@@ -4,6 +4,13 @@ import {
     Plus, MapPin, Users, LayoutGrid, MoreVertical, Warehouse,
     Boxes, Activity, UserCheck
 } from "lucide-react"
+
+const WAREHOUSE_TYPE_CONFIG: Record<string, { label: string; badgeClass: string }> = {
+    RAW_MATERIAL: { label: "Bahan Baku", badgeClass: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100" },
+    WORK_IN_PROGRESS: { label: "WIP", badgeClass: "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100" },
+    FINISHED_GOODS: { label: "Barang Jadi", badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100" },
+    GENERAL: { label: "Umum", badgeClass: "bg-zinc-100 text-zinc-700 border-zinc-300 hover:bg-zinc-100" },
+}
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -96,14 +103,16 @@ export function WarehousesClient({ warehouses }: WarehousesClientProps) {
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
                                         <Badge variant="outline" className="border-black font-mono text-[10px] font-bold bg-white text-black h-5 px-1.5 rounded-none">{wh.code}</Badge>
-                                        <Badge className="bg-black text-white hover:bg-zinc-800 h-5 px-1.5 text-[9px] font-black uppercase rounded-none tracking-wider">{wh.type}</Badge>
+                                        <Badge className={`h-5 px-1.5 text-[9px] font-black uppercase rounded-none tracking-wider border ${WAREHOUSE_TYPE_CONFIG[wh.warehouseType]?.badgeClass || WAREHOUSE_TYPE_CONFIG.GENERAL.badgeClass}`}>
+                                            {WAREHOUSE_TYPE_CONFIG[wh.warehouseType]?.label || "Umum"}
+                                        </Badge>
                                     </div>
                                     <h3 className="text-lg font-black uppercase leading-tight line-clamp-1 group-hover:text-amber-600 transition-colors" title={wh.name}>{wh.name}</h3>
                                     <div className="flex items-center gap-1.5 mt-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wide"><MapPin className="h-3 w-3" /> {wh.location}</div>
                                 </div>
                                 <WarehouseFormDialog
                                     mode="edit"
-                                    warehouse={{ id: wh.id, name: wh.name, code: wh.code, address: wh.location, capacity: wh.capacity }}
+                                    warehouse={{ id: wh.id, name: wh.name, code: wh.code, address: wh.location, capacity: wh.capacity, warehouseType: wh.warehouseType }}
                                     trigger={
                                         <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white rounded-none -mr-1">
                                             <MoreVertical className="h-3.5 w-3.5" />

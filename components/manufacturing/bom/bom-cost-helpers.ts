@@ -83,15 +83,33 @@ export function calcTotalMaterialCost(
     return total * targetQty
 }
 
-/** Calculate grand total labor cost across all steps */
+/** Calculate grand total labor cost across all steps (in-house + subcon) */
 export function calcTotalLaborCost(
-    steps: { station?: { costPerUnit?: number | string }; laborMonthlySalary?: number | string | null; durationMinutes?: number | null }[],
+    steps: {
+        station?: { costPerUnit?: number | string; operationType?: string }
+        laborMonthlySalary?: number | string | null
+        durationMinutes?: number | null
+        useSubkon?: boolean | null
+        allocations?: { pricePerPcs?: number; quantity?: number }[]
+    }[],
     targetQty: number,
 ): number {
     let total = 0
     for (const step of steps) {
-        const calculated = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes)
-        total += calculated > 0 ? calculated : Number(step.station?.costPerUnit || 0)
+        const isSubkon = step.useSubkon ?? step.station?.operationType === "SUBCONTRACTOR"
+        if (isSubkon) {
+            // Subcon: sum(pricePerPcs × quantity) per allocation — already total, not per-unit
+            const allocs = step.allocations || []
+            total += allocs.reduce(
+                (s, a) => s + (Number(a.pricePerPcs) || 0) * (Number(a.quantity) || 0),
+                0,
+            )
+        } else {
+            // In-house: labor formula per pcs, or fallback to station costPerUnit, × targetQty
+            const calculated = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes)
+            const perPcs = calculated > 0 ? calculated : Number(step.station?.costPerUnit || 0)
+            total += perPcs * targetQty
+        }
     }
-    return total * targetQty
+    return total
 }

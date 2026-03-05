@@ -20,6 +20,7 @@ export async function GET(
             include: {
                 subcontractor: { select: { id: true, name: true } },
                 machine: { select: { id: true, code: true, name: true } },
+                group: { select: { id: true, code: true, name: true } },
                 childStations: {
                     include: {
                         subcontractor: { select: { id: true, name: true } },
@@ -60,16 +61,26 @@ export async function PATCH(
                 ...(body.name !== undefined && { name: body.name }),
                 ...(body.stationType !== undefined && { stationType: body.stationType }),
                 ...(body.operationType !== undefined && { operationType: body.operationType }),
-                ...(body.subcontractorId !== undefined && { subcontractorId: body.subcontractorId || null }),
-                ...(body.machineId !== undefined && { machineId: body.machineId || null }),
+                ...(body.subcontractorId !== undefined && (body.subcontractorId
+                    ? { subcontractor: { connect: { id: body.subcontractorId } } }
+                    : { subcontractor: { disconnect: true } })),
+                ...(body.machineId !== undefined && (body.machineId
+                    ? { machine: { connect: { id: body.machineId } } }
+                    : { machine: { disconnect: true } })),
                 ...(body.costPerUnit !== undefined && { costPerUnit: body.costPerUnit }),
                 ...(body.description !== undefined && { description: body.description }),
                 ...(body.isActive !== undefined && { isActive: body.isActive }),
-                ...(body.parentStationId !== undefined && { parentStationId: body.parentStationId || null }),
+                ...(body.parentStationId !== undefined && (body.parentStationId
+                    ? { parentStation: { connect: { id: body.parentStationId } } }
+                    : { parentStation: { disconnect: true } })),
+                ...(body.groupId !== undefined && (body.groupId
+                    ? { group: { connect: { id: body.groupId } } }
+                    : { group: { disconnect: true } })),
             },
             include: {
                 subcontractor: { select: { id: true, name: true } },
                 machine: { select: { id: true, code: true, name: true } },
+                group: { select: { id: true, code: true, name: true } },
             },
         })
 

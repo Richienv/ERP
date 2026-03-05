@@ -1,18 +1,14 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-    BookOpen, Search, Loader2, Filter, ChevronDown, ChevronRight,
-    Download, CalendarDays, Columns3, Settings2,
+    BookOpen, Search, Loader2, ChevronDown, ChevronRight, Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select"
+import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { formatIDR } from "@/lib/utils"
 import { getAccountTransactions } from "@/lib/actions/finance-invoices"
-import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 
 export const dynamic = "force-dynamic"
 
@@ -86,174 +82,6 @@ function sourceColor(source: string): string {
     return "bg-zinc-50 border-zinc-200 text-zinc-500"
 }
 
-// ─── Dummy data — comprehensive demo entries ──────
-const DUMMY_ENTRIES: TransactionEntry[] = [
-    // ── Accounts Payable (Hutang Usaha) cycle ──
-    {
-        id: "d-ap-1", date: "2025-12-24T00:00:00Z", description: "Xero",
-        reference: "AP", invoiceNumber: "BILL-AP-001", invoiceType: "INV_IN", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ap-1a", accountCode: "2000", accountName: "Hutang Usaha", accountType: "LIABILITY", description: "Xero", debit: 0, credit: 313900 },
-            { id: "d-ap-1b", accountCode: "6400", accountName: "Beban Software", accountType: "EXPENSE", description: "Langganan Xero", debit: 313900, credit: 0 },
-        ],
-    },
-    {
-        id: "d-ap-2", date: "2025-12-24T00:00:00Z", description: "Payment: Xero",
-        reference: "AP", invoiceNumber: null, invoiceType: null, paymentNumber: "PAY-AP-001", paymentMethod: "TRANSFER",
-        lines: [
-            { id: "d-ap-2a", accountCode: "2000", accountName: "Hutang Usaha", accountType: "LIABILITY", description: "Payment: Xero", debit: 313900, credit: 0 },
-            { id: "d-ap-2b", accountCode: "1010", accountName: "Bank BCA", accountType: "ASSET", description: "Transfer bayar Xero", debit: 0, credit: 313900 },
-        ],
-    },
-    {
-        id: "d-ap-3", date: "2026-01-01T00:00:00Z", description: "PowerDirect",
-        reference: "Rpt", invoiceNumber: "BILL-PD-002", invoiceType: "INV_IN", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ap-3a", accountCode: "2000", accountName: "Hutang Usaha", accountType: "LIABILITY", description: "PowerDirect", debit: 0, credit: 1190800 },
-            { id: "d-ap-3b", accountCode: "6100", accountName: "Beban Listrik", accountType: "EXPENSE", description: "Listrik Jan 2026", debit: 1190800, credit: 0 },
-        ],
-    },
-    {
-        id: "d-ap-4", date: "2026-01-01T00:00:00Z", description: "Central Copiers",
-        reference: "INS-OCon", invoiceNumber: "BILL-CC-003", invoiceType: "INV_IN", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ap-4a", accountCode: "2000", accountName: "Hutang Usaha", accountType: "LIABILITY", description: "Central Copiers", debit: 0, credit: 10635600 },
-            { id: "d-ap-4b", accountCode: "6200", accountName: "Beban Sewa Mesin", accountType: "EXPENSE", description: "Sewa mesin fotocopy", debit: 10635600, credit: 0 },
-        ],
-    },
-    {
-        id: "d-ap-5", date: "2026-01-02T00:00:00Z", description: "Net Connect",
-        reference: "S781", invoiceNumber: "BILL-NC-004", invoiceType: "INV_IN", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ap-5a", accountCode: "2000", accountName: "Hutang Usaha", accountType: "LIABILITY", description: "Net Connect", debit: 0, credit: 14638800 },
-            { id: "d-ap-5b", accountCode: "6200", accountName: "Beban Internet", accountType: "EXPENSE", description: "Internet Januari", debit: 14638800, credit: 0 },
-        ],
-    },
-    {
-        id: "d-ap-6", date: "2026-02-24T00:00:00Z", description: "Net Connect",
-        reference: "Rpt", invoiceNumber: "BILL-NC-010", invoiceType: "INV_IN", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ap-6a", accountCode: "2000", accountName: "Hutang Usaha", accountType: "LIABILITY", description: "Net Connect", debit: 0, credit: 541300 },
-            { id: "d-ap-6b", accountCode: "6200", accountName: "Beban Internet", accountType: "EXPENSE", description: "Internet Feb", debit: 541300, credit: 0 },
-        ],
-    },
-    {
-        id: "d-ap-7", date: "2026-02-24T00:00:00Z", description: "Capital Cab Co",
-        reference: "CS815", invoiceNumber: "BILL-CAB-011", invoiceType: "INV_IN", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ap-7a", accountCode: "2000", accountName: "Hutang Usaha", accountType: "LIABILITY", description: "Capital Cab Co", debit: 0, credit: 2420000 },
-            { id: "d-ap-7b", accountCode: "6300", accountName: "Beban Transportasi", accountType: "EXPENSE", description: "Travel National", debit: 2420000, credit: 0 },
-        ],
-    },
-    {
-        id: "d-ap-8", date: "2026-02-24T00:00:00Z", description: "Payment: Net Connect",
-        reference: "Rpt", invoiceNumber: null, invoiceType: null, paymentNumber: "PAY-NC-012", paymentMethod: "TRANSFER",
-        lines: [
-            { id: "d-ap-8a", accountCode: "2000", accountName: "Hutang Usaha", accountType: "LIABILITY", description: "Payment: Net Connect", debit: 541300, credit: 0 },
-            { id: "d-ap-8b", accountCode: "1010", accountName: "Bank BCA", accountType: "ASSET", description: "Transfer Net Connect", debit: 0, credit: 541300 },
-        ],
-    },
-    // ── Accounts Receivable (Piutang Usaha) cycle ──
-    {
-        id: "d-ar-1", date: "2025-12-25T00:00:00Z", description: "City Limousines",
-        reference: "P/O 6711", invoiceNumber: "INV-2025-0010", invoiceType: "INV_OUT", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ar-1a", accountCode: "1200", accountName: "Piutang Usaha", accountType: "ASSET", description: "City Limousines", debit: 2500000, credit: 0 },
-            { id: "d-ar-1b", accountCode: "4000", accountName: "Pendapatan Jasa", accountType: "REVENUE", description: "Jasa konsultasi", debit: 0, credit: 2252250 },
-            { id: "d-ar-1c", accountCode: "2100", accountName: "PPN Keluaran", accountType: "LIABILITY", description: "PPN 11%", debit: 0, credit: 247750 },
-        ],
-    },
-    {
-        id: "d-ar-2", date: "2025-12-24T00:00:00Z", description: "Rex Media Group",
-        reference: "Monthly Support", invoiceNumber: "INV-2025-0011", invoiceType: "INV_OUT", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ar-2a", accountCode: "1200", accountName: "Piutang Usaha", accountType: "ASSET", description: "Rex Media Group", debit: 5412500, credit: 0 },
-            { id: "d-ar-2b", accountCode: "4000", accountName: "Pendapatan Jasa", accountType: "REVENUE", description: "Monthly Support", debit: 0, credit: 4877930 },
-            { id: "d-ar-2c", accountCode: "2100", accountName: "PPN Keluaran", accountType: "LIABILITY", description: "PPN 11%", debit: 0, credit: 534570 },
-        ],
-    },
-    {
-        id: "d-ar-3", date: "2025-12-24T00:00:00Z", description: "Hamilton Smith Ltd",
-        reference: "Monthly Support", invoiceNumber: "INV-2025-0012", invoiceType: "INV_OUT", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ar-3a", accountCode: "1200", accountName: "Piutang Usaha", accountType: "ASSET", description: "Hamilton Smith Ltd", debit: 5412500, credit: 0 },
-            { id: "d-ar-3b", accountCode: "4000", accountName: "Pendapatan Jasa", accountType: "REVENUE", description: "Monthly Support", debit: 0, credit: 4877930 },
-            { id: "d-ar-3c", accountCode: "2100", accountName: "PPN Keluaran", accountType: "LIABILITY", description: "PPN 11%", debit: 0, credit: 534570 },
-        ],
-    },
-    {
-        id: "d-ar-4", date: "2025-12-24T00:00:00Z", description: "Young Bros Transport",
-        reference: "Monthly Support", invoiceNumber: "INV-2025-0013", invoiceType: "INV_OUT", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ar-4a", accountCode: "1200", accountName: "Piutang Usaha", accountType: "ASSET", description: "Young Bros Transport", debit: 5412500, credit: 0 },
-            { id: "d-ar-4b", accountCode: "4000", accountName: "Pendapatan Jasa", accountType: "REVENUE", description: "Monthly Support", debit: 0, credit: 4877930 },
-            { id: "d-ar-4c", accountCode: "2100", accountName: "PPN Keluaran", accountType: "LIABILITY", description: "PPN 11%", debit: 0, credit: 534570 },
-        ],
-    },
-    {
-        id: "d-ar-5", date: "2026-01-02T00:00:00Z", description: "Payment: Port & Philip Freight",
-        reference: "Monthly Support", invoiceNumber: null, invoiceType: "INV_OUT", paymentNumber: "PAY-2026-0001", paymentMethod: "TRANSFER",
-        lines: [
-            { id: "d-ar-5a", accountCode: "1200", accountName: "Piutang Usaha", accountType: "ASSET", description: "Payment: Port & Philip Freight", debit: 0, credit: 5412500 },
-            { id: "d-ar-5b", accountCode: "1010", accountName: "Bank BCA", accountType: "ASSET", description: "Transfer masuk BCA", debit: 5412500, credit: 0 },
-        ],
-    },
-    {
-        id: "d-ar-6", date: "2026-01-02T00:00:00Z", description: "Payment: Hamilton Smith Ltd",
-        reference: "Monthly Support", invoiceNumber: null, invoiceType: "INV_OUT", paymentNumber: "PAY-2026-0002", paymentMethod: "TRANSFER",
-        lines: [
-            { id: "d-ar-6a", accountCode: "1200", accountName: "Piutang Usaha", accountType: "ASSET", description: "Payment: Hamilton Smith Ltd", debit: 0, credit: 5412500 },
-            { id: "d-ar-6b", accountCode: "1010", accountName: "Bank BCA", accountType: "ASSET", description: "Transfer masuk BCA", debit: 5412500, credit: 0 },
-        ],
-    },
-    {
-        id: "d-ar-7", date: "2026-01-02T00:00:00Z", description: "Ridgeway University",
-        reference: "P/O CRM08-12", invoiceNumber: "INV-2026-0025", invoiceType: "INV_OUT", paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-ar-7a", accountCode: "1200", accountName: "Piutang Usaha", accountType: "ASSET", description: "Ridgeway University", debit: 61875000, credit: 0 },
-            { id: "d-ar-7b", accountCode: "4000", accountName: "Pendapatan Jasa", accountType: "REVENUE", description: "CRM Project 3", debit: 0, credit: 55742000 },
-            { id: "d-ar-7c", accountCode: "2100", accountName: "PPN Keluaran", accountType: "LIABILITY", description: "PPN 11%", debit: 0, credit: 6133000 },
-        ],
-    },
-    {
-        id: "d-ar-8", date: "2026-01-02T00:00:00Z", description: "Payment: Rex Media Group",
-        reference: "Monthly Support", invoiceNumber: null, invoiceType: "INV_OUT", paymentNumber: "PAY-2026-0003", paymentMethod: "TRANSFER",
-        lines: [
-            { id: "d-ar-8a", accountCode: "1200", accountName: "Piutang Usaha", accountType: "ASSET", description: "Payment: Rex Media Group", debit: 0, credit: 5412500 },
-            { id: "d-ar-8b", accountCode: "1010", accountName: "Bank BCA", accountType: "ASSET", description: "Transfer masuk BCA", debit: 5412500, credit: 0 },
-        ],
-    },
-    // ── Payroll ──
-    {
-        id: "d-pay-1", date: "2026-02-05T00:00:00Z", description: "Gaji karyawan Februari 2026",
-        reference: "PAYROLL-FEB-2026", invoiceNumber: null, invoiceType: null, paymentNumber: null, paymentMethod: null,
-        lines: [
-            { id: "d-pay-1a", accountCode: "6000", accountName: "Beban Gaji & Upah", accountType: "EXPENSE", description: "Gaji pokok + tunjangan", debit: 45000000, credit: 0 },
-            { id: "d-pay-1b", accountCode: "6010", accountName: "Beban BPJS", accountType: "EXPENSE", description: "BPJS Kesehatan + TK", debit: 3150000, credit: 0 },
-            { id: "d-pay-1c", accountCode: "1010", accountName: "Bank BCA", accountType: "ASSET", description: "Transfer gaji", debit: 0, credit: 42750000 },
-            { id: "d-pay-1d", accountCode: "2300", accountName: "Hutang PPh 21", accountType: "LIABILITY", description: "PPh 21 karyawan", debit: 0, credit: 2250000 },
-            { id: "d-pay-1e", accountCode: "2200", accountName: "Hutang BPJS", accountType: "LIABILITY", description: "BPJS yg harus dibayar", debit: 0, credit: 3150000 },
-        ],
-    },
-    // ── Rent ──
-    {
-        id: "d-rent-1", date: "2026-01-28T00:00:00Z", description: "Sewa gudang Cibitung Januari",
-        reference: "RENT-JAN-2026", invoiceNumber: null, invoiceType: null, paymentNumber: null, paymentMethod: "TRANSFER",
-        lines: [
-            { id: "d-rent-1a", accountCode: "6500", accountName: "Beban Sewa", accountType: "EXPENSE", description: "Sewa gudang Cibitung", debit: 12000000, credit: 0 },
-            { id: "d-rent-1b", accountCode: "1010", accountName: "Bank BCA", accountType: "ASSET", description: "Transfer sewa", debit: 0, credit: 12000000 },
-        ],
-    },
-    // ── Cash payment ──
-    {
-        id: "d-cash-1", date: "2026-02-12T00:00:00Z", description: "Pembelian ATK kantor",
-        reference: "PETTY-012", invoiceNumber: null, invoiceType: null, paymentNumber: null, paymentMethod: "CASH",
-        lines: [
-            { id: "d-cash-1a", accountCode: "6600", accountName: "Beban ATK & Perlengkapan", accountType: "EXPENSE", description: "Kertas, tinta, alat tulis", debit: 450000, credit: 0 },
-            { id: "d-cash-1b", accountCode: "1000", accountName: "Kas Kecil", accountType: "ASSET", description: "Kas keluar", debit: 0, credit: 450000 },
-        ],
-    },
-]
 
 // ─── Helpers ─────────────────────────────────────────────
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -268,8 +96,6 @@ const ACCOUNT_TYPE_COLORS: Record<string, { bg: string; text: string; border: st
 }
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
-const fmtMoney = (v: number) => v === 0 ? "—" : formatIDR(Math.abs(v))
-const fmtMoneyOrDash = (v: number) => v === 0 ? "—" : formatIDR(v)
 
 type GroupMode = "FLAT" | "ACCOUNT"
 type DatePreset = "CUSTOM" | "THIS_MONTH" | "LAST_MONTH" | "THIS_QUARTER" | "THIS_YEAR" | "ALL_TIME"
@@ -284,8 +110,6 @@ interface AccountRow {
     debit: number
     credit: number
     runningBalance: number
-    gross: number           // abs(debit - credit) of original entry line
-    tax: number             // PPN portion if applicable
     paymentMethod: string | null
     entryId: string
     invoiceNumber: string | null
@@ -299,22 +123,18 @@ export default function AccountTransactionsPage() {
 
     // Filters
     const [searchText, setSearchText] = useState("")
-    const [filterAccount, setFilterAccount] = useState("ALL")
+    const [filterAccounts, setFilterAccounts] = useState<string[]>([])
     const [filterTypes, setFilterTypes] = useState<string[]>([])
     const [datePreset, setDatePreset] = useState<DatePreset>("THIS_YEAR")
     const [dateFrom, setDateFrom] = useState("")
     const [dateTo, setDateTo] = useState("")
     const [groupMode, setGroupMode] = useState<GroupMode>("ACCOUNT")
-    const [accountsInclude, setAccountsInclude] = useState<AccountsInclude>("WITH_TRANSACTIONS")
-
-    // Visible columns
-    const [showGross, setShowGross] = useState(true)
-    const [showTax, setShowTax] = useState(true)
+    const [filterAccountsInclude, setFilterAccountsInclude] = useState<string[]>([])
 
     // Collapsible groups
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
-    useEffect(() => { loadData() }, [filterAccount])
+    useEffect(() => { loadData() }, [])
 
     // Date preset handler
     useEffect(() => {
@@ -344,18 +164,16 @@ export default function AccountTransactionsPage() {
         setLoading(true)
         try {
             const result = await getAccountTransactions({
-                accountCode: filterAccount !== "ALL" ? filterAccount : undefined,
                 limit: 500,
             }) as any
             if (result.success) {
                 const dbEntries = (result.entries || []) as TransactionEntry[]
-                const merged = [...dbEntries, ...DUMMY_ENTRIES.filter(d => !dbEntries.some(e => e.id === d.id))]
-                merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                setEntries(merged)
+                dbEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                setEntries(dbEntries)
                 setAccounts((result.accounts || []) as AccountInfo[])
             }
         } catch {
-            setEntries(DUMMY_ENTRIES)
+            setEntries([])
         } finally {
             setLoading(false)
         }
@@ -372,6 +190,9 @@ export default function AccountTransactionsPage() {
             const to = new Date(dateTo + "T23:59:59")
             result = result.filter(e => new Date(e.date) <= to)
         }
+        if (filterAccounts.length > 0) {
+            result = result.filter(e => e.lines.some(l => filterAccounts.includes(l.accountCode)))
+        }
         if (filterTypes.length > 0) {
             result = result.filter(e => e.lines.some(l => filterTypes.includes(l.accountType)))
         }
@@ -386,7 +207,7 @@ export default function AccountTransactionsPage() {
             )
         }
         return result
-    }, [entries, dateFrom, dateTo, filterTypes, searchText])
+    }, [entries, dateFrom, dateTo, filterAccounts, filterTypes, searchText])
 
     // ─── Group by Account (Xero-style) ──────────────────
     const groupedByAccount = useMemo(() => {
@@ -399,14 +220,6 @@ export default function AccountTransactionsPage() {
         }>()
 
         const sorted = [...filtered].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-        // Calculate tax portion per entry (PPN lines)
-        const entryTaxMap = new Map<string, number>()
-        for (const entry of sorted) {
-            const taxLines = entry.lines.filter(l => l.accountCode.startsWith("21") || l.accountName.toLowerCase().includes("ppn"))
-            const taxTotal = taxLines.reduce((s, l) => s + l.debit + l.credit, 0)
-            entryTaxMap.set(entry.id, taxTotal)
-        }
 
         for (const entry of sorted) {
             for (const line of entry.lines) {
@@ -421,11 +234,6 @@ export default function AccountTransactionsPage() {
                 const runningBalance = prevBalance + line.debit - line.credit
 
                 const source = deriveSource(entry, line)
-                const gross = line.debit > 0 ? line.debit : line.credit
-                const entryTax = entryTaxMap.get(entry.id) || 0
-                // Distribute tax proportionally or show on tax account lines only
-                const isTaxLine = line.accountCode.startsWith("21") || line.accountName.toLowerCase().includes("ppn")
-                const tax = isTaxLine ? gross : 0
 
                 group.rows.push({
                     date: entry.date,
@@ -435,8 +243,6 @@ export default function AccountTransactionsPage() {
                     debit: line.debit,
                     credit: line.credit,
                     runningBalance,
-                    gross,
-                    tax: isTaxLine ? 0 : (entryTax > 0 && !isTaxLine ? -Math.round(entryTax * (gross / (entry.lines.reduce((s, l) => s + l.debit + l.credit, 0) - entryTax || 1))) : 0),
                     paymentMethod: entry.paymentMethod,
                     entryId: entry.id,
                     invoiceNumber: entry.invoiceNumber,
@@ -448,12 +254,13 @@ export default function AccountTransactionsPage() {
             .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([, v]) => v)
 
-        if (accountsInclude === "WITH_TRANSACTIONS") {
+        const showOnlyWithTx = filterAccountsInclude.length === 0 || filterAccountsInclude.includes("WITH_TRANSACTIONS")
+        if (showOnlyWithTx && !filterAccountsInclude.includes("ALL")) {
             groups = groups.filter(g => g.rows.length > 0)
         }
 
         return groups
-    }, [filtered, groupMode, filterTypes, accountsInclude])
+    }, [filtered, groupMode, filterTypes, filterAccountsInclude])
 
     const toggleGroup = (code: string) => {
         setCollapsedGroups(prev => {
@@ -463,16 +270,35 @@ export default function AccountTransactionsPage() {
         })
     }
 
+    // ─── Export CSV ────────────────────────────
+    const handleExport = useCallback(() => {
+        const rows: string[][] = [["Tanggal", "Akun", "Kode", "Sumber", "Deskripsi", "Referensi", "Debit", "Kredit", "Saldo"]]
+        if (groupedByAccount) {
+            for (const group of groupedByAccount) {
+                for (const r of group.rows) {
+                    rows.push([
+                        fmtDate(r.date), group.name, group.code, r.source,
+                        `"${(r.description || "").replace(/"/g, '""')}"`, r.reference || "",
+                        r.debit > 0 ? r.debit.toString() : "", r.credit > 0 ? r.credit.toString() : "",
+                        r.runningBalance.toString(),
+                    ])
+                }
+            }
+        }
+        const csv = rows.map(r => r.join(",")).join("\n")
+        const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = `transaksi-akun-${dateFrom || "all"}-${dateTo || "all"}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+    }, [groupedByAccount, dateFrom, dateTo])
+
     // ─── Column grid template ────────────────────────────
-    const colTemplate = showGross && showTax
-        ? "grid-cols-[90px_140px_1fr_120px_100px_100px_120px_100px_80px]"
-        : showGross
-            ? "grid-cols-[90px_140px_1fr_120px_100px_100px_120px_100px]"
-            : "grid-cols-[90px_140px_1fr_120px_100px_100px_120px]"
+    const colTemplate = "grid-cols-[90px_140px_1fr_120px_100px_100px_120px]"
 
     const headers = ["Tanggal", "Sumber", "Deskripsi", "Referensi", "Debit", "Kredit", "Saldo Berjalan"]
-    if (showGross) headers.push("Gross")
-    if (showTax) headers.push("Pajak")
 
     return (
         <div className="mf-page">
@@ -482,14 +308,14 @@ export default function AccountTransactionsPage() {
                     <div className="flex items-center gap-3">
                         <BookOpen className="h-5 w-5 text-indigo-500" />
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight">Account Transactions</h1>
+                            <h1 className="text-xl font-black uppercase tracking-tight">Transaksi Akun</h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
                                 Periode {dateFrom ? fmtDate(dateFrom + "T00:00:00Z") : "—"} s/d {dateTo ? fmtDate(dateTo + "T00:00:00Z") : "—"}
                             </p>
                         </div>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" className="border-2 border-black font-black uppercase text-[10px] h-9 px-3">
+                        <Button variant="outline" className="border-2 border-black font-black uppercase text-[10px] h-9 px-3" onClick={handleExport} disabled={!groupedByAccount || groupedByAccount.length === 0}>
                             <Download className="h-3.5 w-3.5 mr-1.5" /> Export
                         </Button>
                     </div>
@@ -500,51 +326,32 @@ export default function AccountTransactionsPage() {
             <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white p-4 space-y-3">
                 {/* Row 1: Main filters */}
                 <div className="flex flex-wrap gap-3 items-end">
-                    <div>
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Akun</label>
-                        <Select value={filterAccount} onValueChange={setFilterAccount}>
-                            <SelectTrigger className="border-2 border-black h-9 font-medium w-[220px] text-xs">
-                                <SelectValue placeholder="Semua Akun" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="ALL">{accounts.length > 0 ? `${accounts.length} akun dipilih` : "Semua Akun"}</SelectItem>
-                                {accounts.map(a => (
-                                    <SelectItem key={a.code} value={a.code}>{a.code} — {a.name}</SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <CheckboxFilter
+                        label="Akun"
+                        options={accounts.map(a => ({ value: a.code, label: `${a.code} — ${a.name}` }))}
+                        selected={filterAccounts}
+                        onChange={setFilterAccounts}
+                    />
                     <div>
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Rentang Tanggal</label>
                         <div className="flex items-center gap-1.5">
-                            <Select value={datePreset} onValueChange={(v: any) => setDatePreset(v)}>
-                                <SelectTrigger className="border-2 border-black h-9 font-medium w-[130px] text-xs">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="THIS_MONTH">Bulan Ini</SelectItem>
-                                    <SelectItem value="LAST_MONTH">Bulan Lalu</SelectItem>
-                                    <SelectItem value="THIS_QUARTER">Kuartal Ini</SelectItem>
-                                    <SelectItem value="THIS_YEAR">Tahun Ini</SelectItem>
-                                    <SelectItem value="ALL_TIME">Semua</SelectItem>
-                                    <SelectItem value="CUSTOM">Custom</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <CheckboxFilter
+                                label=""
+                                options={[
+                                    { value: "THIS_MONTH", label: "Bulan Ini" },
+                                    { value: "LAST_MONTH", label: "Bulan Lalu" },
+                                    { value: "THIS_QUARTER", label: "Kuartal Ini" },
+                                    { value: "THIS_YEAR", label: "Tahun Ini" },
+                                    { value: "ALL_TIME", label: "Semua Waktu" },
+                                ]}
+                                selected={[datePreset === "CUSTOM" ? "" : datePreset].filter(Boolean)}
+                                onChange={(vals) => {
+                                    const last = vals[vals.length - 1]
+                                    if (last) setDatePreset(last as DatePreset)
+                                }}
+                            />
                             <Input type="date" className="border-2 border-black h-9 font-mono text-[11px] w-[130px]" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setDatePreset("CUSTOM") }} />
                             <Input type="date" className="border-2 border-black h-9 font-mono text-[11px] w-[130px]" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setDatePreset("CUSTOM") }} />
-                        </div>
-                    </div>
-                    <div>
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Kolom</label>
-                        <div className="flex gap-1">
-                            {[
-                                { key: "gross", label: "Gross", active: showGross, toggle: () => setShowGross(!showGross) },
-                                { key: "tax", label: "Pajak", active: showTax, toggle: () => setShowTax(!showTax) },
-                            ].map(col => (
-                                <button key={col.key} onClick={col.toggle} className={`px-2.5 py-1.5 text-[10px] font-black uppercase border-2 transition-all ${col.active ? "border-black bg-black text-white" : "border-zinc-200 text-zinc-400 hover:border-zinc-400"}`}>
-                                    {col.label}
-                                </button>
-                            ))}
                         </div>
                     </div>
                     <div>
@@ -558,18 +365,15 @@ export default function AccountTransactionsPage() {
 
                 {/* Row 2: Secondary filters */}
                 <div className="flex flex-wrap gap-3 items-end">
-                    <div>
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Akun ditampilkan</label>
-                        <Select value={accountsInclude} onValueChange={(v: any) => setAccountsInclude(v)}>
-                            <SelectTrigger className="border-2 border-black h-9 font-medium w-[200px] text-xs">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="WITH_TRANSACTIONS">Hanya yang ada transaksi</SelectItem>
-                                <SelectItem value="ALL">Semua akun</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <CheckboxFilter
+                        label="Akun Ditampilkan"
+                        options={[
+                            { value: "WITH_TRANSACTIONS", label: "Hanya yang ada transaksi" },
+                            { value: "ALL", label: "Semua akun" },
+                        ]}
+                        selected={filterAccountsInclude}
+                        onChange={setFilterAccountsInclude}
+                    />
                     <CheckboxFilter
                         label="Tipe Akun"
                         options={[
@@ -616,7 +420,6 @@ export default function AccountTransactionsPage() {
                                 const groupDebit = group.rows.reduce((s, r) => s + r.debit, 0)
                                 const groupCredit = group.rows.reduce((s, r) => s + r.credit, 0)
                                 const closingBalance = group.rows.length > 0 ? group.rows[group.rows.length - 1].runningBalance : group.openingBalance
-                                const groupGross = group.rows.reduce((s, r) => s + r.gross, 0)
 
                                 return (
                                     <div key={group.code}>
@@ -627,7 +430,7 @@ export default function AccountTransactionsPage() {
                                         >
                                             {isCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-zinc-400" /> : <ChevronDown className="h-3.5 w-3.5 text-zinc-400" />}
                                             <span className="font-black text-sm text-zinc-900">{group.name}</span>
-                                            <span className={`text-[10px] font-black uppercase tracking-wide px-1.5 py-0.5 border rounded-sm ${colors.bg} ${colors.text}`}>
+                                            <span className={`text-[10px] font-black uppercase tracking-wide px-1.5 py-0.5 border ${colors.bg} ${colors.text}`}>
                                                 {group.code}
                                             </span>
                                             <span className="text-[10px] font-mono text-zinc-400 ml-auto">{group.rows.length} transaksi</span>
@@ -645,12 +448,10 @@ export default function AccountTransactionsPage() {
                                                 {/* Opening Balance */}
                                                 <div className={`grid ${colTemplate} border-b border-zinc-100 bg-zinc-50/50`}>
                                                     <span className="px-3 py-1.5" />
-                                                    <span className="text-[10px] font-bold text-zinc-500 italic px-3 py-1.5" style={{ gridColumn: "2 / 5" }}>Opening Balance</span>
+                                                    <span className="text-[10px] font-bold text-zinc-500 italic px-3 py-1.5" style={{ gridColumn: "2 / 5" }}>Saldo Awal</span>
                                                     <span className="text-xs font-mono text-right px-3 py-1.5">—</span>
                                                     <span className="text-xs font-mono text-right px-3 py-1.5">—</span>
                                                     <span className="text-xs font-mono text-right px-3 py-1.5">—</span>
-                                                    {showGross && <span className="text-xs font-mono text-right px-3 py-1.5">—</span>}
-                                                    {showTax && <span className="text-xs font-mono text-right px-3 py-1.5">—</span>}
                                                 </div>
 
                                                 {/* Transaction Rows */}
@@ -660,31 +461,21 @@ export default function AccountTransactionsPage() {
                                                         <div key={`${row.entryId}-${idx}`} className={`grid ${colTemplate} border-b border-zinc-100 items-center hover:bg-indigo-50/20 transition-colors ${idx % 2 !== 0 ? "bg-zinc-50/30" : ""}`}>
                                                             <span className="text-[11px] font-mono text-zinc-500 px-3 py-1.5">{fmtDate(row.date)}</span>
                                                             <span className="px-3 py-1.5">
-                                                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border rounded-sm inline-block ${srcColor}`}>
+                                                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border inline-block ${srcColor}`}>
                                                                     {row.source}
                                                                 </span>
                                                             </span>
                                                             <span className="text-[11px] font-medium text-zinc-700 px-3 py-1.5 truncate">{row.description}</span>
                                                             <span className="text-[11px] font-mono text-zinc-400 px-3 py-1.5 truncate">{row.reference || "—"}</span>
                                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
-                                                                {row.debit > 0 ? <span className="text-zinc-900">{formatIDR(row.debit)}</span> : <span className="text-zinc-200">—</span>}
+                                                                {row.debit > 0 ? <span className="text-zinc-900">{formatIDR(row.debit)}</span> : <span className="text-zinc-200">{"\u2014"}</span>}
                                                             </span>
                                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
-                                                                {row.credit > 0 ? <span className="text-zinc-900">{formatIDR(row.credit)}</span> : <span className="text-zinc-200">—</span>}
+                                                                {row.credit > 0 ? <span className="text-zinc-900">({formatIDR(row.credit)})</span> : <span className="text-zinc-200">{"\u2014"}</span>}
                                                             </span>
                                                             <span className={`text-[11px] font-mono font-bold text-right px-3 py-1.5 ${row.runningBalance < 0 ? "text-red-600" : "text-zinc-900"}`}>
                                                                 {formatIDR(Math.abs(row.runningBalance))}
                                                             </span>
-                                                            {showGross && (
-                                                                <span className="text-[11px] font-mono text-right px-3 py-1.5 text-zinc-600">{formatIDR(row.gross)}</span>
-                                                            )}
-                                                            {showTax && (
-                                                                <span className="text-[11px] font-mono text-right px-3 py-1.5 text-zinc-400">
-                                                                    {row.tax !== 0 ? (
-                                                                        <span className={row.tax < 0 ? "" : ""}>{row.tax < 0 ? `(${formatIDR(Math.abs(row.tax))})` : formatIDR(row.tax)}</span>
-                                                                    ) : "—"}
-                                                                </span>
-                                                            )}
                                                         </div>
                                                     )
                                                 })}
@@ -695,26 +486,22 @@ export default function AccountTransactionsPage() {
                                                         Total {group.name}
                                                     </span>
                                                     <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900">{formatIDR(groupDebit)}</span>
-                                                    <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900">{formatIDR(groupCredit)}</span>
+                                                    <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900">({formatIDR(groupCredit)})</span>
                                                     <span className={`text-[11px] font-mono text-right px-3 py-2 ${closingBalance < 0 ? "text-red-600" : "text-zinc-900"}`}>
                                                         {formatIDR(Math.abs(closingBalance))}
                                                     </span>
-                                                    {showGross && <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-600">{formatIDR(groupGross)}</span>}
-                                                    {showTax && <span className="px-3 py-2" />}
                                                 </div>
 
                                                 {/* Closing Balance */}
                                                 <div className={`grid ${colTemplate} bg-zinc-50/70 border-b-2 border-zinc-300`}>
                                                     <span className="text-[10px] font-bold text-zinc-500 italic px-3 py-1.5" style={{ gridColumn: "1 / 5" }}>
-                                                        Closing Balance
+                                                        Saldo Akhir
                                                     </span>
                                                     <span className="text-[11px] font-mono text-right px-3 py-1.5">—</span>
                                                     <span className="text-[11px] font-mono text-right px-3 py-1.5">—</span>
                                                     <span className={`text-[11px] font-mono font-black text-right px-3 py-1.5 ${closingBalance < 0 ? "text-red-600" : "text-zinc-900"}`}>
                                                         {formatIDR(Math.abs(closingBalance))}
                                                     </span>
-                                                    {showGross && <span className="px-3 py-1.5" />}
-                                                    {showTax && <span className="px-3 py-1.5">—</span>}
                                                 </div>
                                             </>
                                         )}
@@ -730,7 +517,7 @@ export default function AccountTransactionsPage() {
                     <div className="bg-indigo-50 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-indigo-400">
                         <BookOpen className="h-4 w-4 text-indigo-600" />
                         <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700">Jurnal Transaksi</h3>
-                        <span className="bg-indigo-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">{filtered.length}</span>
+                        <span className="bg-indigo-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center">{filtered.length}</span>
                     </div>
 
                     {filtered.length === 0 ? (
@@ -751,13 +538,11 @@ export default function AccountTransactionsPage() {
                                 entry.lines.map((line, li) => {
                                     const source = deriveSource(entry, line)
                                     const srcColor = sourceColor(source)
-                                    const gross = line.debit > 0 ? line.debit : line.credit
-                                    const isTaxLine = line.accountCode.startsWith("21") || line.accountName.toLowerCase().includes("ppn")
                                     return (
                                         <div key={`${entry.id}-${li}`} className={`grid ${colTemplate} border-b border-zinc-100 items-center hover:bg-indigo-50/20 transition-colors`}>
                                             <span className="text-[11px] font-mono text-zinc-500 px-3 py-1.5">{li === 0 ? fmtDate(entry.date) : ""}</span>
                                             <span className="px-3 py-1.5">
-                                                {li === 0 && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border rounded-sm ${srcColor}`}>{source}</span>}
+                                                {li === 0 && <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border ${srcColor}`}>{source}</span>}
                                             </span>
                                             <span className="text-[11px] font-medium text-zinc-700 px-3 py-1.5 truncate">
                                                 {line.description || entry.description}
@@ -765,14 +550,12 @@ export default function AccountTransactionsPage() {
                                             </span>
                                             <span className="text-[11px] font-mono text-zinc-400 px-3 py-1.5">{li === 0 ? (entry.reference || "—") : ""}</span>
                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
-                                                {line.debit > 0 ? formatIDR(line.debit) : <span className="text-zinc-200">—</span>}
+                                                {line.debit > 0 ? formatIDR(line.debit) : <span className="text-zinc-200">{"\u2014"}</span>}
                                             </span>
                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
-                                                {line.credit > 0 ? formatIDR(line.credit) : <span className="text-zinc-200">—</span>}
+                                                {line.credit > 0 ? <span className="text-zinc-900">({formatIDR(line.credit)})</span> : <span className="text-zinc-200">{"\u2014"}</span>}
                                             </span>
-                                            <span className="text-[11px] font-mono text-right px-3 py-1.5 text-zinc-300">—</span>
-                                            {showGross && <span className="text-[11px] font-mono text-right px-3 py-1.5 text-zinc-600">{formatIDR(gross)}</span>}
-                                            {showTax && <span className="text-[11px] font-mono text-right px-3 py-1.5 text-zinc-400">{isTaxLine ? formatIDR(gross) : "—"}</span>}
+                                            <span className="text-[11px] font-mono text-right px-3 py-1.5 text-zinc-300">{"\u2014"}</span>
                                         </div>
                                     )
                                 })

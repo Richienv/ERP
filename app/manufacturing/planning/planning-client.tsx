@@ -154,7 +154,7 @@ export function PlanningClient({ initialData, initialSummary }: Props) {
     };
 
     return (
-        <div className="mf-page">
+        <div className="space-y-4">
 
             {/* ── Page Header ─────────────────────────────────────────── */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">

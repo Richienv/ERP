@@ -219,7 +219,7 @@ const data = {
           url: "/manufacturing",
         },
         {
-          title: "Stasiun",
+          title: "Work Center",
           url: "/manufacturing/work-centers",
         },
         {

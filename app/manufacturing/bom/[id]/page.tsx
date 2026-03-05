@@ -110,16 +110,36 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const totalLabor = calcTotalLaborCost(steps, totalQty)
         const grandTotal = totalMaterial + totalLabor
         const perUnit = totalQty > 0 ? grandTotal / totalQty : 0
-        const totalDuration = steps.reduce((sum, s) => sum + (s.durationMinutes || 0), 0)
-        // Time estimates — durationMinutes is total step duration (not per-unit)
-        const estTimeTotalMin = steps.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0)
+        const totalDuration = steps.reduce((sum, s) => sum + ((s.durationMinutes || 0) * totalQty), 0)
+        // Time estimates — durationMinutes is per-piece, multiply by totalQty for total
+        const estTimeTotalMin = steps.reduce((sum, s) => sum + ((Number(s.durationMinutes) || 0) * totalQty), 0)
         const estTimeHours = Math.floor(estTimeTotalMin / 60)
         const estTimeMinutes = Math.round(estTimeTotalMin % 60)
         const estTimeLabel = estTimeTotalMin > 0
             ? `${estTimeHours > 0 ? `${estTimeHours} jam ` : ""}${estTimeMinutes} menit`
             : null
-        // Progress — per action type, not per box
-        // Group steps by stationType, sum completedQty per group, average across action types
+        // Progress — per step, using step-specific targets
+        // Compute step targets (same logic as bom-canvas)
+        const stepTargets = new Map<string, number>()
+        for (const step of steps) {
+            const allocs = (step as any).allocations || []
+            const allocTotal = allocs.reduce((s: number, a: any) => s + (a.quantity || 0), 0)
+            if (allocTotal > 0) {
+                stepTargets.set(step.id, allocTotal)
+            } else {
+                const stationType = step.station?.stationType
+                const siblings = stationType ? steps.filter((s: any) => s.station?.stationType === stationType) : [step]
+                if (siblings.length > 1) {
+                    const idx = siblings.indexOf(step)
+                    const share = Math.floor(totalQty / siblings.length)
+                    const remainder = totalQty % siblings.length
+                    stepTargets.set(step.id, share + (idx < remainder ? 1 : 0))
+                } else {
+                    stepTargets.set(step.id, totalQty)
+                }
+            }
+        }
+        // Group by stationType, sum progress per group capped at 100%
         const actionGroups: Record<string, any[]> = {}
         for (const s of steps) {
             const type = s.station?.stationType || "OTHER"
@@ -131,8 +151,10 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (actionTypes.length > 0 && totalQty > 0) {
             let totalActionProgress = 0
             for (const type of actionTypes) {
-                const groupCompleted = actionGroups[type].reduce((sum: number, s: any) => sum + (s.completedQty || 0), 0)
-                totalActionProgress += Math.min(1, groupCompleted / totalQty)
+                const group = actionGroups[type]
+                const groupTarget = group.reduce((sum: number, s: any) => sum + (stepTargets.get(s.id) || 0), 0)
+                const groupCompleted = group.reduce((sum: number, s: any) => sum + (s.completedQty || 0), 0)
+                totalActionProgress += groupTarget > 0 ? Math.min(1, groupCompleted / groupTarget) : 0
             }
             progressPct = Math.round((totalActionProgress / actionTypes.length) * 100)
         }
@@ -157,14 +179,26 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (noDurationSteps.length > 0) {
             issues.push(`${noDurationSteps.length} proses belum ada durasi: ${noDurationSteps.map(s => s.station?.name || `Step ${s.sequence}`).join(', ')}`)
         }
-        const subkonSteps = steps.filter(s => (s.useSubkon ?? s.station?.operationType === 'SUBCONTRACTOR'))
-        for (const s of subkonSteps) {
+        // Validate allocations for both subkon and in-house steps
+        for (const s of steps) {
+            const isStepSubkon = s.useSubkon ?? s.station?.operationType === 'SUBCONTRACTOR'
             const allocs = s.allocations || []
-            const allocTotal = allocs.reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
-            if (allocs.length === 0) {
-                issues.push(`${s.station?.name}: belum ada alokasi subkon`)
-            } else if (allocTotal !== totalQty) {
-                issues.push(`${s.station?.name}: alokasi ${allocTotal}/${totalQty} pcs (kurang ${totalQty - allocTotal})`)
+            if (isStepSubkon) {
+                // Subkon steps MUST have allocations
+                if (allocs.length === 0) {
+                    issues.push(`${s.station?.name}: belum ada alokasi subkon`)
+                } else {
+                    const allocTotal = allocs.reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
+                    if (allocTotal !== totalQty) {
+                        issues.push(`${s.station?.name}: alokasi subkon ${allocTotal}/${totalQty} pcs (kurang ${totalQty - allocTotal})`)
+                    }
+                }
+            } else if (allocs.length > 0) {
+                // In-house steps with allocations must also total correctly
+                const allocTotal = allocs.reduce((sum: number, a: any) => sum + (a.quantity || 0), 0)
+                if (allocTotal !== totalQty) {
+                    issues.push(`${s.station?.name}: alokasi in-house ${allocTotal}/${totalQty} pcs (kurang ${totalQty - allocTotal})`)
+                }
             }
         }
         return { ready: issues.length === 0, issues }
@@ -288,12 +322,12 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         materials: [], allocations: [], attachments: [],
                     }]
                 })
-                toast.success(`Stasiun "${label}" dibuat & ditambahkan`)
+                toast.success(`Work center "${label}" dibuat & ditambahkan`)
             } else {
-                toast.error(result.error || "Gagal membuat stasiun")
+                toast.error(result.error || "Gagal membuat work center")
             }
         } catch {
-            toast.error("Gagal membuat stasiun")
+            toast.error("Gagal membuat work center")
         } finally {
             setCreatingStationType(null)
         }
@@ -463,7 +497,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 attachments: [],
             }]
         })
-        toast.success("Stasiun berhasil diduplikat")
+        toast.success("Work center berhasil diduplikat")
     }, [steps])
 
     // Add a parallel step — same parents as the clicked step (sibling, not child)
@@ -488,7 +522,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 attachments: [],
             }]
         })
-        toast.success("Proses paralel ditambahkan — ganti stasiun di panel detail")
+        toast.success("Proses paralel ditambahkan — ganti work center di panel detail")
     }, [steps])
 
     const handleAddSequential = useCallback((stepId: string) => {
@@ -512,7 +546,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 attachments: [],
             }]
         })
-        toast.success("Proses berikutnya ditambahkan — ganti stasiun di panel detail")
+        toast.success("Proses berikutnya ditambahkan — ganti work center di panel detail")
     }, [steps])
 
     // --- CANVAS POSITION HANDLER ---
@@ -530,18 +564,11 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         ))
     }, [])
 
-    // Resize bar → change durationMinutes
-    const handleUpdateDuration = useCallback((stepId: string, durationMinutes: number) => {
-        dirtySetSteps(prev => prev.map(s =>
-            s.id === stepId ? { ...s, durationMinutes } : s
-        ))
-    }, [])
-
     const handleMarkStarted = useCallback((stepId: string) => {
         dirtySetSteps((prev) => prev.map((step) =>
             step.id === stepId ? { ...step, startedAt: new Date().toISOString() } : step
         ))
-        toast.success("Stasiun ditandai mulai")
+        toast.success("Work center ditandai mulai")
     }, [])
 
     const handleMarkCompleted = useCallback((stepId: string) => {
@@ -555,14 +582,19 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 target = allocTotal
             } else {
                 const siblings = prev.filter(s => s.station?.stationType === step.station?.stationType)
-                if (siblings.length > 1) target = Math.ceil(totalQty / siblings.length)
+                if (siblings.length > 1) {
+                    const idx = siblings.indexOf(step)
+                    const share = Math.floor(totalQty / siblings.length)
+                    const remainder = totalQty % siblings.length
+                    target = share + (idx < remainder ? 1 : 0)
+                }
             }
             return prev.map(s => s.id === stepId
                 ? { ...s, completedAt: new Date().toISOString(), completedQty: target }
                 : s
             )
         })
-        toast.success("Stasiun ditandai selesai")
+        toast.success("Work center ditandai selesai")
     }, [totalQty])
 
     // --- ATTACHMENT HANDLERS ---
@@ -647,12 +679,15 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 parentStepIds: step.parentStepIds || [],
                 startOffsetMinutes: step.startOffsetMinutes ?? 0,
                 useSubkon: step.useSubkon ?? null,
+                operatorName: step.operatorName || null,
                 laborMonthlySalary: step.laborMonthlySalary ?? null,
                 estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
                 actualTimeTotal: step.actualTimeTotal ?? null,
                 completedQty: step.completedQty ?? 0,
                 startedAt: step.startedAt || null,
                 completedAt: step.completedAt || null,
+                positionX: step.positionX ?? null,
+                positionY: step.positionY ?? null,
                 materialProductIds: (step.materials || []).map((m: any) => {
                     const item = items.find((i) => i.id === m.bomItemId)
                     return item?.materialId || item?.material?.id
@@ -826,7 +861,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         onClick={() => setAddStationDialogOpen(true)}
                         className="h-8 font-bold text-[10px] uppercase border-2 border-black rounded-none"
                     >
-                        <Plus className="mr-1 h-3.5 w-3.5" /> Stasiun Kustom
+                        <Plus className="mr-1 h-3.5 w-3.5" /> Work Center Kustom
                     </Button>
 
                     <Button
@@ -842,7 +877,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         variant="outline"
                         size="sm"
                         onClick={handleGenerateSPK}
-                        disabled={generating || steps.length === 0}
+                        disabled={generating || !spkReadiness.ready}
                         title={spkReadiness.ready ? "Semua siap — klik untuk generate SPK" : `Belum siap:\n${spkReadiness.issues.join('\n')}`}
                         className={`h-8 font-black text-[10px] uppercase border-2 rounded-none ${spkReadiness.ready
                                 ? "border-orange-500 text-orange-600 hover:bg-orange-50"
@@ -903,7 +938,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                                 <PopoverContent className="w-60 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
                                     <div className="px-3 py-2 bg-zinc-50 border-b-2 border-black">
                                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                            Pilih Stasiun {cfg.label}
+                                            Pilih Work Center {cfg.label}
                                         </p>
                                     </div>
                                     <div className="py-1 max-h-48 overflow-y-auto">
@@ -1063,6 +1098,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                             onNodeContextMenu={handleNodeContextMenu}
                             onAddParallel={handleAddParallel}
                             onAddSequential={handleAddSequential}
+                            onNodePositionChange={handleNodePositionChange}
                         />
                     ) : (
                         <TimelineView
@@ -1213,7 +1249,14 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                                         <div key={wo.id || i} className="flex items-center gap-3 px-3 py-1.5 bg-zinc-50 border border-zinc-200">
                                             <span className="bg-black text-white text-[9px] font-black px-1.5 py-0.5 shrink-0">{wo.stepSequence}</span>
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[11px] font-bold truncate">{wo.stationName}</p>
+                                                <p className="text-[11px] font-bold truncate">
+                                                    {wo.stationName}
+                                                    {wo.allocStationName && wo.allocStationName !== wo.stationName && (
+                                                        <span className="text-zinc-400 font-normal ml-1">
+                                                            &rarr; {wo.allocStationName}
+                                                        </span>
+                                                    )}
+                                                </p>
                                                 <p className="text-[9px] text-zinc-400 font-mono">{wo.number}</p>
                                             </div>
                                             <span className="text-[11px] font-bold text-emerald-600">{wo.plannedQty} pcs</span>
@@ -1222,12 +1265,22 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                                 </div>
                             </div>
 
-                            <DialogFooter>
+                            <DialogFooter className="flex gap-2 sm:gap-2">
                                 <Button
                                     onClick={() => setSpkResult(null)}
-                                    className="bg-black hover:bg-zinc-800 text-white font-bold border-2 border-black rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                                    variant="outline"
+                                    className="font-bold border-2 border-black rounded-none"
                                 >
                                     Tutup
+                                </Button>
+                                <Button
+                                    onClick={() => {
+                                        setSpkResult(null)
+                                        router.push("/manufacturing/orders")
+                                    }}
+                                    className="bg-black hover:bg-zinc-800 text-white font-bold border-2 border-black rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                                >
+                                    Lihat Perintah Kerja
                                 </Button>
                             </DialogFooter>
                         </>
