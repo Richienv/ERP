@@ -87,7 +87,7 @@ async function fetchPnL(start: Date, end: Date) {
 
 // ─── 2. Balance Sheet ──────────────────────────────────────────────────────
 
-async function fetchBalanceSheet(asOfDate: Date, start: Date) {
+async function fetchBalanceSheet(asOfDate: Date) {
     const accounts = await prisma.gLAccount.findMany({
         where: { type: { in: ['ASSET', 'LIABILITY', 'EQUITY'] } },
         include: {
@@ -191,9 +191,20 @@ async function fetchCashFlow(start: Date, end: Date) {
                 { code: { startsWith: '1020' } },
             ],
         },
+        include: {
+            lines: {
+                where: { entry: { date: { lt: start }, status: 'POSTED' } },
+                select: { debit: true, credit: true },
+            },
+        },
     })
 
-    const beginningCash = cashAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0)
+    // Beginning cash = sum of cash account balances before the start date (historical, not current)
+    const beginningCash = cashAccounts.reduce((sum, acc) => {
+        const d = acc.lines.reduce((s, l) => s + Number(l.debit), 0)
+        const c = acc.lines.reduce((s, l) => s + Number(l.credit), 0)
+        return sum + d - c
+    }, 0)
 
     const cashJournalLines = await prisma.journalLine.findMany({
         where: {
@@ -793,7 +804,7 @@ export async function GET(request: NextRequest) {
         // 3. Fetch all reports in parallel
         const results = await Promise.allSettled([
             fetchPnL(start, end),                   // 0
-            fetchBalanceSheet(end, start),           // 1
+            fetchBalanceSheet(end),                   // 1
             fetchCashFlow(start, end),               // 2
             fetchTrialBalance(start, end),           // 3
             fetchARaging(),                          // 4

@@ -124,7 +124,7 @@ export default function FinancialReportsPage() {
     const equityData = data?.reports?.equity_changes ?? null
     const inventoryTurnoverData = data?.reports?.inventory_turnover ?? null
     const taxData = data?.reports?.tax_report ?? null
-    const budgetVsActualData = data?.reports?.budget_vs_actual?.data ?? null
+    const budgetVsActualData = data?.reports?.budget_vs_actual ?? null
 
     function applyDateRange() {
         const nextStart = new Date(draftStartDate)
