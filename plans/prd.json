@@ -1,152 +1,324 @@
 {
-  "branchName": "fix/meeting-19feb-bugs",
+  "branchName": "feat/csa-parity",
+  "source": "docs/csa_vs_erp_comparison.json — filtered for Indonesian textile SME relevance",
   "features": [
     {
-      "id": "T-001",
-      "title": "BUG-004: Fix inventory dashboard data mismatch",
+      "id": "CSA-001",
+      "title": "UOM Conversion System (1.11, 2.8)",
       "priority": "high",
-      "passes": true,
+      "passes": false,
       "acceptance_criteria": [
-        "Dashboard KPIs (total products, low stock count, total value) match actual product table data",
-        "Stock level numbers on dashboard match sum of stock levels across all warehouses for each product",
-        "Status indicators (OK, RESTOCK_NEEDED, CRITICAL, OUT_OF_STOCK) correctly reflect actual stock vs minStock/reorderLevel/safetyStock",
-        "Material Gap Analysis kanban cards match the computed gap from inventory-logic.ts",
-        "No new test failures, no new TypeScript errors"
+        "New Prisma model `UomConversion` with fields: fromUnitId, toUnitId, factor (Decimal)",
+        "Migration applied successfully with `npx prisma db push`",
+        "Server action `getUomConversions()` and `createUomConversion()` in lib/actions/master-data.ts",
+        "Product form shows secondary UOM field with conversion factor when product has multiple UOMs",
+        "Conversion logic helper `convertUom(qty, fromUnit, toUnit)` in lib/inventory-utils.ts",
+        "All existing tests pass, no new TypeScript errors"
       ],
-      "notes": "Root cause likely in getInventoryKPIs() or getMaterialGapAnalysis() in app/actions/inventory.ts. Compare computed values against raw DB data. Check if calculateProductStatus in lib/inventory-logic.ts matches dashboard logic."
+      "notes": "Textile uses meters, yards, kg, rolls — conversion is critical. Model: UomConversion { id, fromUnitId, toUnitId, factor }. Example: 1 yard = 0.9144 meter. Add relations to Unit model."
     },
     {
-      "id": "T-002",
-      "title": "BUG-005: Fix inventory dashboard action buttons",
+      "id": "CSA-002",
+      "title": "Opening Balances — GL & Bank Accounts (5.10, 5.11)",
       "priority": "high",
-      "passes": true,
+      "passes": false,
       "acceptance_criteria": [
-        "All action buttons at bottom of inventory dashboard product section trigger correct operations",
-        "Restock button creates PR and refreshes procurement + inventory dashboards",
-        "Alert toggle (manualAlert) updates product and refreshes dashboard",
-        "Quick view popover Update/Delete buttons work and refresh connected data",
-        "All mutations invalidate correct query keys per ralph-loop-audit-results.csv",
-        "No new test failures"
+        "New page /finance/opening-balances with form to enter opening GL balances",
+        "Form shows all GLAccounts grouped by type (Asset, Liability, Equity, Revenue, Expense)",
+        "Each account row has editable Debit and Credit fields",
+        "Submit creates a JournalEntry with description 'Saldo Awal' and date = fiscal year start",
+        "Total Debits must equal Total Credits before submission (balanced check)",
+        "Success toast + redirect to /finance/chart-accounts",
+        "Sidebar link added under Keuangan section",
+        "All existing tests pass, no new TypeScript errors"
       ],
-      "notes": "Check components/inventory/inventory-kanban-board.tsx, components/inventory/product-quick-view.tsx, and components/inventory/purchase-request-dialog.tsx for action handler wiring."
+      "notes": "Essential for go-live. Users need to enter their existing balances when starting the ERP. Use existing JournalEntry model with a special reference like 'OPENING-BALANCE-2026'."
     },
     {
-      "id": "T-003",
-      "title": "FEAT-001: Extend vendor form with missing fields",
+      "id": "CSA-003",
+      "title": "Opening Balances — AP & AR (5.8, 5.9)",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "Opening AP section: form to create opening vendor bills (Invoice type INV_IN, status ISSUED)",
+        "Opening AR section: form to create opening customer invoices (Invoice type INV_OUT, status ISSUED)",
+        "Each row: select customer/vendor, invoice number, amount, due date",
+        "Bulk creation — user can add multiple rows and submit all at once",
+        "Created invoices appear in /finance/payables and /finance/receivables",
+        "Page accessible from /finance/opening-balances (same page as CSA-002, new tab)",
+        "All existing tests pass, no new TypeScript errors"
+      ],
+      "notes": "Part of the opening balances page. Add as tabs: 'Saldo GL' and 'Saldo AP/AR'. Reuse existing Invoice model."
+    },
+    {
+      "id": "CSA-004",
+      "title": "Opening Stock Quantities (2.14, 2.15)",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "New page or section in /inventory for entering opening stock quantities",
+        "Form: select product, select warehouse, enter quantity, enter unit cost",
+        "Bulk entry — multiple products at once",
+        "Submit creates InventoryTransaction with type INITIAL for each product/warehouse",
+        "Updates StockLevel records accordingly",
+        "Also creates GL journal entry: DR Inventory Asset, CR Opening Balance Equity",
+        "All existing tests pass, no new TypeScript errors"
+      ],
+      "notes": "Uses existing TransactionType.INITIAL. Need a form to make it easy to enter bulk opening stock. Add link to inventory sidebar."
+    },
+    {
+      "id": "CSA-005",
+      "title": "Costing Method Configuration (10.10)",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "New field `costingMethod` on Product model (enum: AVERAGE, FIFO) with default AVERAGE",
+        "Settings page or product form shows costing method selector",
+        "Average cost calculation: weighted average on each receipt (PO receive, production in)",
+        "FIFO tracking: new model `CostLayer` with qty, unitCost, remainingQty for FIFO products",
+        "Cost calculation used in: inventory valuation report, COGS calculation, PnL report",
+        "Migration applied, all existing tests pass"
+      ],
+      "notes": "Most textile SMEs use average costing. FIFO is optional but good to have. Start with average as default. CostLayer model: { id, productId, warehouseId, qty, unitCost, remainingQty, createdAt }."
+    },
+    {
+      "id": "CSA-006",
+      "title": "Negative Stock Policy (10.9)",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "New system setting `allowNegativeStock` (boolean, default false)",
+        "When false: stock transactions that would make quantity < 0 are rejected with error message",
+        "When true: stock can go negative (useful for pre-selling fabric)",
+        "Check enforced in: SO shipment, stock adjustment, production material issue, manual transfer",
+        "Setting accessible from /settings or /inventory settings section",
+        "Clear error message in Bahasa: 'Stok tidak cukup. Sisa stok: X unit'",
+        "All existing tests pass"
+      ],
+      "notes": "Add to a settings table or use a simple key-value config. Check at InventoryTransaction creation time."
+    },
+    {
+      "id": "CSA-007",
+      "title": "Direct Purchase / Pembelian Langsung (9.4)",
+      "priority": "high",
+      "passes": false,
+      "acceptance_criteria": [
+        "New 'Pembelian Langsung' button on /procurement or /inventory page",
+        "Dialog: select vendor, add items (product, qty, unit price), set warehouse",
+        "Submit creates PO (status COMPLETED), GRN (auto-received), and vendor bill (DRAFT) in one action",
+        "Stock levels updated immediately",
+        "GL entry: DR Inventory, CR Accounts Payable",
+        "Transaction appears in stock movements and journal",
+        "All existing tests pass, no new TypeScript errors"
+      ],
+      "notes": "Shortcut for walk-in purchases. Skip the PR->PO->GRN workflow. Create PO+GRN+Bill atomically."
+    },
+    {
+      "id": "CSA-008",
+      "title": "Purchase Return Workflow (9.3, 9.5, 9.7)",
       "priority": "medium",
-      "passes": true,
+      "passes": false,
       "acceptance_criteria": [
-        "Vendor form has: contact title (Bpk/Ibu dropdown), address2 (secondary), office phone, PIC phone (separate fields), payment terms (TOP dropdown: CASH, DP, NET_15, NET_30, NET_45, NET_60, NET_90, COD)",
-        "New fields saved to DB via Prisma schema update (add columns to Supplier model)",
-        "Vendor card displays new fields where appropriate (payment terms badge, both phone numbers)",
-        "Edit vendor dialog pre-fills all fields",
-        "No new test failures, no new TypeScript errors"
+        "New 'Retur Pembelian' button on /procurement/orders or /finance/payables",
+        "Dialog: select original PO or bill, select items to return, enter qty and reason",
+        "Creates InventoryTransaction type RETURN_OUT (stock decreases)",
+        "Creates DebitCreditNote type DEBIT linked to the original bill",
+        "GL entry: DR Accounts Payable, CR Inventory",
+        "Returned quantity reflected in PO and bill balances",
+        "All existing tests pass"
       ],
-      "notes": "Add contactTitle, address2, officePhone, picPhone, paymentTerm to Supplier model in prisma/schema.prisma. Use PaymentTerm enum already defined in schema. Update app/actions/vendor.ts createVendor/getVendors. Update components/procurement/new-vendor-dialog.tsx form. Update vendors-view.tsx cards."
+      "notes": "TransactionType.RETURN_OUT exists but no UI workflow. DebitCreditNote model exists. Wire them together."
     },
     {
-      "id": "T-004",
-      "title": "FEAT-002: Add vendor deactivate/reactivate button",
+      "id": "CSA-009",
+      "title": "Sales Return Receipt Workflow (8.2)",
       "priority": "medium",
-      "passes": true,
+      "passes": false,
       "acceptance_criteria": [
-        "Each vendor card has a toggle/button to deactivate (set isActive=false) or reactivate (set isActive=true)",
-        "Deactivated vendors show visual indication (greyed out, 'Nonaktif' badge)",
-        "Confirmation dialog before deactivating ('Yakin nonaktifkan vendor ini?')",
-        "After toggle, vendor list refreshes via queryClient.invalidateQueries",
-        "Deactivated vendors still visible when filter is set to 'Nonaktif' or 'Semua'",
-        "No new test failures"
+        "New 'Retur Penjualan' button on /sales/orders or /finance/receivables",
+        "Dialog: select original SO or invoice, select items to return, enter qty and reason",
+        "Creates InventoryTransaction type RETURN_IN (stock increases back)",
+        "Creates CreditNote linked to the original invoice",
+        "GL entry: DR Sales Returns (contra-revenue), CR Accounts Receivable",
+        "Returned quantity reflected in SO and invoice balances",
+        "All existing tests pass"
       ],
-      "notes": "Add toggleVendorStatus server action to app/actions/vendor.ts. Add toggle button to components/procurement/vendor-actions.tsx. Wire up with TanStack Query invalidation."
+      "notes": "CreditNote model exists. RETURN_IN transaction type exists. Need to create the workflow UI connecting them."
     },
     {
-      "id": "T-005",
-      "title": "FEAT-003: Vendor duplicate detection with fuzzy matching",
+      "id": "CSA-010",
+      "title": "Production Return / Retur Produksi (11.4)",
       "priority": "medium",
-      "passes": true,
+      "passes": false,
       "acceptance_criteria": [
-        "When typing vendor name in create form, system checks for exact match (case-insensitive) and shows warning",
-        "System also checks for similar names (Levenshtein distance <= 2) and shows 'Mungkin duplikat' warning with list of similar vendors",
-        "Warning is non-blocking — user can dismiss and proceed",
-        "Check runs on blur or after 500ms debounce of name input",
-        "No new test failures"
+        "New 'Retur Produksi' action on work order detail or /manufacturing/orders",
+        "Allows returning finished goods back to raw materials (un-produce)",
+        "Creates InventoryTransaction: type PRODUCTION_RETURN for finished goods (decrease)",
+        "Creates InventoryTransaction: type MATERIAL_RETURN for raw materials (increase back)",
+        "Work order completed quantity adjusted",
+        "GL entry reversal: DR Raw Materials, CR WIP/Finished Goods",
+        "All existing tests pass"
       ],
-      "notes": "Implement fuzzy check as a server action checkDuplicateVendor(name) in app/actions/vendor.ts. Use simple Levenshtein or trigram matching. Add warning UI below the name field in new-vendor-dialog.tsx."
+      "notes": "Add new TransactionTypes PRODUCTION_RETURN and MATERIAL_RETURN to enum if they don't exist. This is for defective batches that need to be undone."
     },
     {
-      "id": "T-006",
-      "title": "FEAT-004: Complete inline entity creation across all forms",
+      "id": "CSA-011",
+      "title": "HPP/COGS from BOM Formula (11.5)",
       "priority": "medium",
-      "passes": true,
+      "passes": false,
       "acceptance_criteria": [
-        "PO form: supplier/vendor selector has '+ Tambah Vendor Baru' inline create option",
-        "Product form: category, brand, unit, color selectors have inline create (already done for category — verify others)",
-        "Quotation form: customer selector has '+ Tambah Pelanggan Baru' inline create",
-        "Sales order form: customer selector has inline create",
-        "All inline creates use ComboboxWithCreate pattern with onCreate callback",
-        "After inline create, new entity is auto-selected in the form field",
-        "Related caches invalidated after inline create",
-        "No new test failures"
+        "Function `calculateBOMCost(bomId)` returns total material cost from BOM items",
+        "Each BOM item cost = quantity * product.costPrice (or latest purchase price)",
+        "Include waste percentage in calculation: effective qty = qty * (1 + waste%/100)",
+        "BOM detail page shows calculated cost breakdown per material",
+        "Cost summary card: Total Material Cost, Cost per Unit (total / BOM output qty)",
+        "Cost feeds into product costPrice field (manual or auto-update option)",
+        "All existing tests pass"
       ],
-      "notes": "Pattern already established in components/inventory/material-input-form.tsx for supplier. Extend to: components/procurement/new-po-dialog.tsx (vendor), components/sales/quotation-form.tsx (customer), components/sales/sales-order-form.tsx (customer). Check which selectors already use ComboboxWithCreate vs plain Select."
+      "notes": "BOM already has items with quantity and waste%. Product has costPrice. Calculate aggregate cost and show on BOM detail page."
     },
     {
-      "id": "T-007",
-      "title": "FEAT-005: Incomplete data warning badges on entity cards",
-      "priority": "low",
-      "passes": true,
-      "acceptance_criteria": [
-        "Vendor cards show orange 'Data Belum Lengkap' warning badge if missing: phone AND email AND address",
-        "Product cards show warning badge if missing: costPrice or category",
-        "Customer cards show warning badge if missing: phone AND email AND address",
-        "Warning badge links to edit form on click",
-        "Warnings visible on respective list pages",
-        "No new test failures"
-      ],
-      "notes": "Add isIncomplete computed property to vendor/product/customer data mappers. Render conditional badge in card components. Keep it simple — just check for null/empty required fields."
-    },
-    {
-      "id": "T-008",
-      "title": "BUG-006: Complete TanStack Query caching rollout to all pages",
+      "id": "CSA-012",
+      "title": "Closing Journal / Jurnal Penutup (12.6)",
       "priority": "medium",
-      "passes": true,
+      "passes": false,
       "acceptance_criteria": [
-        "All pages use TanStack Query useQuery hooks (no useEffect+fetch+useState pattern remaining)",
-        "All pages have entries in hooks/use-nav-prefetch.ts routePrefetchMap for sidebar hover prefetch",
-        "All pages have appropriate skeleton loading states via page-skeleton components",
-        "All pages load within 1-2 seconds on subsequent navigation (cache hit)",
-        "No new test failures"
+        "New 'Jurnal Penutup' action on /finance/journal or /finance/reports page",
+        "Dialog: select fiscal year to close, shows preview of closing entries",
+        "Closing entries: zero out all Revenue accounts (DR Revenue, CR Income Summary)",
+        "Closing entries: zero out all Expense accounts (DR Income Summary, CR Expense)",
+        "Transfer net income to Retained Earnings (DR/CR Income Summary to Equity)",
+        "All closing entries posted as a single JournalEntry with reference 'CLOSING-YYYY'",
+        "Prevents double-closing (check if closing entry already exists for that year)",
+        "All existing tests pass"
       ],
-      "notes": "Audit all page.tsx files for remaining useEffect+fetch patterns. Convert to useQuery hooks following hooks/use-products-query.ts pattern. Add to routePrefetchMap in hooks/use-nav-prefetch.ts. Reference: MEMORY.md 0s Instant Loading standard."
+      "notes": "Standard year-end closing. Creates journal entries that zero revenue/expense accounts and transfer net income to retained earnings."
     },
     {
-      "id": "T-009",
-      "title": "BUG-008: Mobile web view optimization for key pages",
-      "priority": "low",
-      "passes": true,
+      "id": "CSA-013",
+      "title": "Discount Type & Scheme System (4.1, 4.2)",
+      "priority": "medium",
+      "passes": false,
       "acceptance_criteria": [
-        "Vendor list: cards stack vertically, text not truncated on important fields",
-        "Inventory dashboard: KPI strip wraps to 2 rows on mobile, kanban scrollable horizontally",
-        "All forms: inputs full-width on mobile, touch targets >= 44px",
-        "Tables: horizontal scroll with sticky first column on mobile",
-        "Navigation: sidebar collapses to hamburger menu on mobile (already implemented — verify)",
-        "No new test failures"
+        "New Prisma model `DiscountScheme` with: name, type (PERCENTAGE/FIXED/TIERED), rules (JSON)",
+        "Tiered rules structure: [{minQty, maxQty, discount}] for quantity-based discounts",
+        "Discount can be assigned to: PriceList, Customer, Product, or Category level",
+        "Quotation and SO forms show applicable discounts and auto-calculate",
+        "Discount line items appear on invoice with breakdown",
+        "Admin page to manage discount schemes (CRUD)",
+        "All existing tests pass"
       ],
-      "notes": "Focus on the 5 most-used pages: /inventory, /procurement/vendors, /sales, /procurement, /dashboard. Use Tailwind responsive prefixes (sm:, md:). Check existing responsive classes in globals.css mf-page."
+      "notes": "Textile industry uses tiered discounts heavily (buy 100m get 5% off, 500m get 10% off). Model should be flexible for both percentage and fixed discounts."
     },
     {
-      "id": "T-010",
-      "title": "FEAT-006: Subcontract module review prep",
+      "id": "CSA-014",
+      "title": "AP Payment Expansion — Multi-Bill & Partial (9.8)",
+      "priority": "medium",
+      "passes": false,
+      "acceptance_criteria": [
+        "Vendor payment page supports paying multiple bills in one payment",
+        "Partial payment: pay less than full amount, bill status changes to PARTIAL",
+        "Payment allocation: user selects which bills to pay and how much per bill",
+        "Running AP balance shown per vendor",
+        "Payment creates GL entry: DR Accounts Payable, CR Bank/Cash",
+        "Payment history linked to specific bill line items",
+        "All existing tests pass"
+      ],
+      "notes": "Current AP payment is limited. Expand to support multi-bill payment, partial payments, and proper allocation tracking."
+    },
+    {
+      "id": "CSA-015",
+      "title": "Order Revision / Amendment Tracking (7.9)",
       "priority": "low",
       "passes": false,
-      "skip": true,
-      "skipReason": "Requires human (Darren) to test against real-world subcontracting workflow and provide feedback",
       "acceptance_criteria": [
-        "Subcontract module pages all load without errors",
-        "Basic CRUD operations work (create order, update status, view registry)",
-        "Data refresh works after mutations"
+        "Sales Order supports revision: new field `revision` (integer, default 0)",
+        "When SO is amended, revision increments and previous version is stored",
+        "SO detail page shows revision history with diff (what changed)",
+        "Purchase Order supports same revision tracking",
+        "Revision requires reason/notes field",
+        "Original document number stays the same, revision appended (e.g., SO-001 Rev.2)",
+        "All existing tests pass"
       ],
-      "notes": "This task is blocked on human review. Darren will test the subcontract module and provide feedback on missing features/bugs."
+      "notes": "Quotation already has versioning. Extend same pattern to SO and PO. Store revision history as JSON or separate model."
+    },
+    {
+      "id": "CSA-016",
+      "title": "Exchange Rate Table (5.2, 1.12, 5.1)",
+      "priority": "low",
+      "passes": false,
+      "acceptance_criteria": [
+        "New Prisma model `Currency` with: code (USD, EUR, SGD, CNY), name, symbol",
+        "New Prisma model `ExchangeRate` with: currencyId, date, buyRate, sellRate, middleRate",
+        "Admin page /finance/currencies to manage currencies and rates",
+        "Rate entry: manual input per date (no API integration needed)",
+        "PO and Invoice forms show currency selector when vendor/customer uses foreign currency",
+        "Automatic IDR conversion using latest rate on transaction date",
+        "All existing tests pass"
+      ],
+      "notes": "Indonesian textile imports fabric from China/Korea. USD and CNY exchange rates are essential. Start simple: manual rate entry, auto-conversion on forms."
+    },
+    {
+      "id": "CSA-017",
+      "title": "Batch Price Update for Products (10.4)",
+      "priority": "low",
+      "passes": false,
+      "acceptance_criteria": [
+        "New 'Update Harga Massal' button on /inventory/products page",
+        "Dialog shows product list with current sellPrice and costPrice",
+        "User can: set new price per product, or apply % increase/decrease to selected products",
+        "Preview shows old price vs new price before confirming",
+        "Submit updates all selected products in one transaction",
+        "Price change history logged (optional: who changed, when, old vs new)",
+        "All existing tests pass"
+      ],
+      "notes": "Textile prices change frequently with raw material costs. Batch update saves time vs editing each product individually."
+    },
+    {
+      "id": "CSA-018",
+      "title": "Salesperson Master & Commission Tracking (3.4)",
+      "priority": "low",
+      "passes": false,
+      "acceptance_criteria": [
+        "New Prisma model `Salesperson` with: code, name, phone, email, commissionRate (Decimal)",
+        "Salesperson CRUD page or section in /sales",
+        "Sales Order and Quotation forms have salesperson selector",
+        "Commission calculation: commissionRate % of SO total amount",
+        "Commission report: list salespeople with total sales and commission earned per period",
+        "All existing tests pass"
+      ],
+      "notes": "Textile factories have sales reps with commission. Simple model + assignment to SO + basic reporting."
+    },
+    {
+      "id": "CSA-019",
+      "title": "Barcode Label Printing (2.19)",
+      "priority": "low",
+      "passes": false,
+      "acceptance_criteria": [
+        "Product detail page shows 'Cetak Label' button",
+        "Generates printable barcode label using product barcode or SKU field",
+        "Label layout: barcode image, product name, SKU, price",
+        "Supports printing multiple labels (quantity selector)",
+        "Uses browser print dialog (no special printer driver needed)",
+        "Barcode format: Code128 or EAN-13",
+        "All existing tests pass"
+      ],
+      "notes": "Product already has barcode field. Generate barcode image client-side using a library like JsBarcode. Print via window.print() with a print-friendly CSS layout."
+    },
+    {
+      "id": "CSA-020",
+      "title": "Fiscal Period Management (1.14)",
+      "priority": "low",
+      "passes": false,
+      "acceptance_criteria": [
+        "New Prisma model `FiscalPeriod` with: year, month, startDate, endDate, isClosed (boolean)",
+        "Auto-generate 12 periods for a fiscal year",
+        "Closing a period prevents posting journal entries to that period",
+        "Period status shown on /finance dashboard or reports page",
+        "Admin can reopen a closed period if needed",
+        "All existing tests pass"
+      ],
+      "notes": "Prevents users from accidentally posting to closed months. Simple model + check on JournalEntry creation."
     }
   ]
 }

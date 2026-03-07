@@ -11,7 +11,7 @@ Project: ERP Textile (Indonesian SME)
 - **State:** TanStack Query for reads, server actions for writes
 - **Auth:** Supabase Auth (SSR, cookie-based)
 - **Localization:** Bahasa Indonesia, IDR currency
-- **Test baseline:** 296/301 pass (5 pre-existing failures)
+- **Test baseline:** 316/321 pass (5 pre-existing failures)
 
 ## Key Files
 
@@ -39,3 +39,11 @@ Project: ERP Textile (Indonesian SME)
 - **Already fixed from prior work:** BUG-001, BUG-002, BUG-003, BUG-007, FEAT-001 (categories), FEAT-004 (supplier inline)
 - **Remaining:** T-001 to T-009 (T-010 skipped — needs human review)
 - **Approach:** Parallel agents via dispatching-parallel-agents skill
+
+## Session 2026-03-08 — CSA Parity Sprint (CSA-001 to CSA-020)
+- **Source:** docs/csa_vs_erp_comparison.json — 274 CSA features mapped against ERP
+- **Filtered:** 20 tasks selected for Indonesian textile SME relevance (skipped enterprise bloat like multi-site, POS, complex security)
+- **Priority:** 7 high, 7 medium, 6 low
+- **Key areas:** UOM conversion, opening balances (GL/AP/AR/Stock), costing methods, direct purchase, returns workflows, closing journal, discount system, exchange rates
+- **Branch:** feat/csa-parity
+- **Verify command:** `npx vitest run && npx tsc --noEmit && npm run lint`
