@@ -24,6 +24,33 @@ import {
 
 type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "budget_vs_actual"
 
+// ── Consolidated: fetches ALL reports + KPI in one API call ──
+export interface AllReportsData {
+    kpi: { revenue: number; netIncome: number; arOutstanding: number; apOutstanding: number }
+    reports: {
+        pnl: any; bs: any; cf: any; tb: any
+        ar_aging: any; ap_aging: any; equity_changes: any
+        inventory_turnover: any; tax_report: any; budget_vs_actual: any
+    }
+    period: { start: string; end: string }
+}
+
+export function useFinanceReportsAll(startDate: Date, endDate: Date) {
+    const startISO = startDate.toISOString().slice(0, 10)
+    const endISO = endDate.toISOString().slice(0, 10)
+
+    return useQuery<AllReportsData>({
+        queryKey: queryKeys.financeReports.list(startISO, endISO),
+        queryFn: async () => {
+            const res = await fetch(`/api/finance/reports?start=${startISO}&end=${endISO}`)
+            const json = await res.json()
+            if (!json.success) throw new Error(json.error || "Failed to load reports")
+            return { kpi: json.kpi, reports: json.reports, period: json.period }
+        },
+        staleTime: 2 * 60 * 1000,
+    })
+}
+
 // ── KPI strip: only fetches 4 lightweight queries (PnL + AR/AP aging) ──
 export function useFinanceKPI(startDate: Date, endDate: Date) {
     return useQuery({
