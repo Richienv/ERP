@@ -25,7 +25,6 @@ import { getReconciliations, getBankAccounts } from "@/lib/actions/finance-recon
 import { getDocumentSystemOverview } from "@/app/actions/documents-system"
 import { getHCMDashboardData } from "@/app/actions/hcm"
 import { getRecentAudits, getProductsForKanban, getWarehouses } from "@/app/actions/inventory"
-
 /**
  * Maps sidebar routes to their data prefetch config.
  * Used for both hover-prefetch and warm-cache-on-mount.
@@ -407,6 +406,17 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             ])
             return { plans, fabricProducts }
         },
+    },
+    "/finance/reports": {
+        queryKey: queryKeys.financeReports.list(
+            new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10),
+            new Date().toISOString().slice(0, 10)
+        ),
+        queryFn: () => fetch("/api/finance/reports").then((r) => r.json()).then((p) => ({
+            kpi: p.kpi,
+            reports: p.reports,
+            period: p.period,
+        })),
     },
     "/finance/reconciliation": {
         queryKey: queryKeys.reconciliation.list(),
