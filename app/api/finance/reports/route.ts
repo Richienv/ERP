@@ -823,15 +823,10 @@ export async function GET(request: NextRequest) {
 
         // 4. Build KPI from results
         const kpi = {
-            revenue: pnl?.revenue ?? 0,
+            revenue: revenueInv?.totalRevenue ?? pnl?.revenue ?? 0,
             netIncome: pnl?.netIncome ?? 0,
-            grossMargin: pnl && pnl.revenue > 0
-                ? ((pnl.grossProfit / pnl.revenue) * 100)
-                : 0,
-            totalAR: arAging?.summary?.totalOutstanding ?? 0,
-            totalAP: apAging?.summary?.totalOutstanding ?? 0,
-            invoiceRevenue: revenueInv?.totalRevenue ?? 0,
-            cashPosition: cf?.endingCash ?? 0,
+            arOutstanding: arAging?.summary?.totalOutstanding ?? 0,
+            apOutstanding: apAging?.summary?.totalOutstanding ?? 0,
         }
 
         // Log any rejected promises for debugging
