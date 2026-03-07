@@ -21,7 +21,7 @@ export default function ReconciliationPage() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="mf-page">
             <BankReconciliationView
                 reconciliations={data.reconciliations}
                 bankAccounts={data.bankAccounts}
