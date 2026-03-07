@@ -418,6 +418,13 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             period: p.period,
         })),
     },
+    "/finance/transactions": {
+        queryKey: queryKeys.accountTransactions.list(),
+        queryFn: () => fetch("/api/finance/transactions?limit=500").then((r) => r.json()).then((p) => ({
+            entries: p.entries ?? [],
+            accounts: p.accounts ?? [],
+        })),
+    },
     "/finance/reconciliation": {
         queryKey: queryKeys.reconciliation.list(),
         queryFn: async () => {
