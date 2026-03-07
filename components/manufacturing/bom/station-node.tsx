@@ -3,6 +3,7 @@
 import { memo } from "react"
 import { Handle, Position, type NodeProps } from "@xyflow/react"
 import { Scissors, Shirt, Droplets, Printer, Sparkles, ShieldCheck, Package, Wrench, Cog, X, Trash2, Clock, Plus } from "lucide-react"
+import { getIconByName } from "./station-config"
 
 const STATION_ICONS: Record<string, any> = {
     CUTTING: Scissors, SEWING: Shirt, WASHING: Droplets,
@@ -33,7 +34,9 @@ export interface StationNodeData {
 
 function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
     const { station, sequence, materials, isSelected, onRemoveMaterial, onDrop, onRemoveStep } = data
-    const Icon = STATION_ICONS[station?.stationType] || Cog
+    const Icon = station?.stationType === "OTHER" && station?.iconName
+        ? getIconByName(station.iconName)
+        : STATION_ICONS[station?.stationType] || Cog
     // useSubkon is explicitly set by detail panel toggle; if undefined, fall back to station.operationType
     const isSubcon = data.useSubkon !== undefined ? data.useSubkon : station?.operationType === "SUBCONTRACTOR"
 

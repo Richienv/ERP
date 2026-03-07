@@ -233,6 +233,13 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.bills.list(),
         queryFn: async () => await getVendorBillsRegistry(),
     },
+    "/finance/credit-notes": {
+        queryKey: queryKeys.dcNotes.list(),
+        queryFn: async () => {
+            const { getDCNotes } = await import("@/lib/actions/finance-dcnotes")
+            return await getDCNotes()
+        },
+    },
     "/finance/receivables": {
         queryKey: queryKeys.arPayments.list(),
         queryFn: async () => {

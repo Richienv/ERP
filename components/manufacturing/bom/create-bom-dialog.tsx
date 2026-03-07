@@ -338,7 +338,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                         <div className="grid grid-cols-2 gap-2">
                                             <div className="col-span-2">
                                                 <label className={NB.label}>Nama Produk <span className={NB.labelRequired}>*</span></label>
-                                                <Input value={newProductName} onChange={(e) => setNewProductName(e.target.value)} placeholder="Contoh: Kemeja Flanel Pria" className="h-8 text-xs rounded-none border-2 border-black" />
+                                                <Input value={newProductName} onChange={(e) => setNewProductName(e.target.value)} placeholder="Nama produk..." className="h-8 text-xs rounded-none border-2 border-black placeholder:text-zinc-300" />
                                             </div>
                                             <div>
                                                 <label className={NB.label}>Tipe Produk</label>
@@ -397,8 +397,8 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                                 <Input
                                                     value={productSearch}
                                                     onChange={(e) => setProductSearch(e.target.value)}
-                                                    placeholder="Cari produk..."
-                                                    className="pl-9 h-9 rounded-none border-2 border-black"
+                                                    placeholder="Cari..."
+                                                    className="pl-9 h-9 rounded-none border-2 border-black placeholder:text-zinc-300"
                                                 />
                                             </div>
                                             <Button
@@ -466,8 +466,8 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                         <Input
                                             value={materialSearch}
                                             onChange={(e) => setMaterialSearch(e.target.value)}
-                                            placeholder="Cari material (kancing, zipper, kain...)"
-                                            className="pl-9 h-9 rounded-none border-2 border-black"
+                                            placeholder="Cari..."
+                                            className="pl-9 h-9 rounded-none border-2 border-black placeholder:text-zinc-300"
                                         />
                                     </div>
                                     <Button
@@ -491,7 +491,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                                         <div className="grid grid-cols-2 gap-2">
                                             <div className="col-span-2">
                                                 <label className={NB.label}>Nama Material <span className={NB.labelRequired}>*</span></label>
-                                                <Input value={newMatName} onChange={(e) => setNewMatName(e.target.value)} placeholder="Contoh: Kancing Plastik 2cm" className="h-8 text-xs rounded-none border-2 border-black" />
+                                                <Input value={newMatName} onChange={(e) => setNewMatName(e.target.value)} placeholder="Nama material..." className="h-8 text-xs rounded-none border-2 border-black placeholder:text-zinc-300" />
                                             </div>
                                             <div>
                                                 <label className={NB.label}>Unit <span className={NB.labelRequired}>*</span></label>
@@ -610,7 +610,7 @@ export function CreateBOMDialog({ open, onOpenChange, onCreated }: CreateBOMDial
                         {/* Notes */}
                         <div>
                             <label className={NB.label}>Catatan</label>
-                            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Catatan opsional..." className={NB.textarea} />
+                            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Catatan..." className={NB.textarea} />
                         </div>
 
                         {/* Footer */}

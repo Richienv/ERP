@@ -9,8 +9,55 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Paperclip, Upload, X, Clock, Cog, Building2, Truck, CheckCircle2, Timer, User, GitBranch } from "lucide-react"
+import {
+    Paperclip, Upload, X, Clock, Cog, Building2, Truck,
+    CheckCircle2, Timer, User, GitBranch, ChevronDown, Banknote,
+    FileText, BarChart3,
+} from "lucide-react"
 
+/* ── Section Card ── */
+function SectionCard({ title, icon, accent = "border-zinc-300", children, collapsible, defaultOpen = true, className }: {
+    title: string
+    icon?: React.ReactNode
+    accent?: string
+    children: React.ReactNode
+    collapsible?: boolean
+    defaultOpen?: boolean
+    className?: string
+}) {
+    const [open, setOpen] = useState(defaultOpen)
+    return (
+        <div className={`border border-zinc-200 bg-white overflow-hidden ${className || ""}`}>
+            <button
+                type="button"
+                onClick={collapsible ? () => setOpen(!open) : undefined}
+                className={`w-full flex items-center gap-2 px-3 py-2 border-l-[3px] ${accent} ${collapsible ? "cursor-pointer hover:bg-zinc-50" : "cursor-default"} transition-colors`}
+            >
+                {icon}
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 flex-1 text-left">{title}</span>
+                {collapsible && (
+                    <ChevronDown className={`h-3 w-3 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                )}
+            </button>
+            {(!collapsible || open) && (
+                <div className="px-3 pb-3 pt-2">{children}</div>
+            )}
+        </div>
+    )
+}
+
+/* ── Field Label ── */
+function FieldLabel({ icon, children, required }: { icon?: React.ReactNode; children: React.ReactNode; required?: boolean }) {
+    return (
+        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 flex items-center gap-1">
+            {icon}
+            {children}
+            {required && <span className="text-red-500">*</span>}
+        </label>
+    )
+}
+
+/* ── Props ── */
 interface DetailPanelProps {
     step: any
     totalQty: number
@@ -36,8 +83,9 @@ export function DetailPanel({
 
     const isSubkon = step.useSubkon ?? step.station?.operationType === "SUBCONTRACTOR"
     const hasInhouseAllocations = !isSubkon && (step.allocations || []).length > 0
+    const showAllocPanel = showInhouseAlloc || hasInhouseAllocations
 
-    // Get materials assigned to this step with cost data
+    // Materials
     const stepMaterials = (step.materials || []).map((sm: any) => {
         const item = (allItems || []).find((i: any) => i.id === sm.bomItemId)
         return { ...sm, item }
@@ -47,71 +95,52 @@ export function DetailPanel({
     const laborCostPerPcs = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes)
     const stepLaborTotal = laborCostPerPcs > 0 ? laborCostPerPcs * totalQty : Number(step.station?.costPerUnit || 0) * totalQty
 
-    // Labour calculation breakdown
+    // Labour calculation
     const durationMin = Number(step.durationMinutes || 0)
     const hoursPerPcs = durationMin > 0 ? durationMin / 60 : 0
     const pcsPerMonth = hoursPerPcs > 0 ? WORKING_HOURS_PER_MONTH / hoursPerPcs : 0
 
-    // Filter stations of same type for the selector
+    // Stations of same type
     const sameTypeStations = (allStations || []).filter((s: any) =>
         s.stationType === step.station?.stationType &&
         s.operationType !== "SUBCONTRACTOR" &&
         s.isActive !== false
     )
 
-    // Shared: Step config column
-    const StepConfig = (
-        <div className="space-y-3">
-            <div className="flex items-center gap-2 mb-2">
-                <Cog className="h-4 w-4" />
-                <h3 className="font-black text-sm uppercase">{step.station?.name}</h3>
-            </div>
+    // Progress
+    const completedQty = step.completedQty ?? 0
+    const progressPct = totalQty > 0 ? Math.min(100, (completedQty / totalQty) * 100) : 0
 
-            {/* Station selector */}
-            {sameTypeStations.length > 1 && onChangeStation && (
-                <div>
-                    <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Work Center</label>
-                    <Select
-                        value={step.stationId || step.station?.id || ""}
-                        onValueChange={(val) => {
-                            const station = allStations?.find((s: any) => s.id === val)
-                            if (station) onChangeStation(val, station)
-                        }}
-                    >
-                        <SelectTrigger className="h-8 text-xs font-bold border-zinc-200 rounded-none">
-                            <SelectValue placeholder="Pilih work center" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {sameTypeStations.map((s: any) => (
-                                <SelectItem key={s.id} value={s.id} className="text-xs">
-                                    {s.name} {s.code ? `(${s.code})` : ""}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+    return (
+        <div className="border-t-2 border-black bg-zinc-50/50 shrink-0">
+            {/* ── HEADER BAR ── */}
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b border-zinc-200">
+                <div className={`p-1.5 ${isSubkon ? "bg-amber-500" : "bg-emerald-500"} text-white shrink-0`}>
+                    <Cog className="h-4 w-4" />
                 </div>
-            )}
+                <div className="flex-1 min-w-0">
+                    <h3 className="font-black text-sm uppercase truncate">{step.station?.name}</h3>
+                    {isSubkon && step.subkonProcessType && (
+                        <p className="text-[10px] font-bold text-amber-600 truncate">{step.subkonProcessType}</p>
+                    )}
+                </div>
 
-            {/* In-House / Subkontrak toggle */}
-            <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1.5 block">Tipe Operasi</label>
-                <div className="flex gap-0">
+                {/* In-House / Subkon toggle */}
+                <div className="flex border-2 border-black shrink-0">
                     <button
+                        type="button"
                         onClick={() => onToggleSubkon(false)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-black text-[10px] font-black uppercase transition-colors ${
-                            !isSubkon
-                                ? "bg-emerald-400 text-black"
-                                : "bg-white text-zinc-400 hover:bg-zinc-50"
+                        className={`px-3 py-1 text-[9px] font-black uppercase flex items-center gap-1 transition-colors ${
+                            !isSubkon ? "bg-emerald-400 text-black" : "bg-white text-zinc-400 hover:bg-zinc-50"
                         }`}
                     >
                         <Building2 className="h-3 w-3" /> In-House
                     </button>
                     <button
+                        type="button"
                         onClick={() => onToggleSubkon(true)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-l-0 border-black text-[10px] font-black uppercase transition-colors ${
-                            isSubkon
-                                ? "bg-amber-400 text-black"
-                                : "bg-white text-zinc-400 hover:bg-zinc-50"
+                        className={`px-3 py-1 text-[9px] font-black uppercase flex items-center gap-1 border-l-2 border-black transition-colors ${
+                            isSubkon ? "bg-amber-400 text-black" : "bg-white text-zinc-400 hover:bg-zinc-50"
                         }`}
                     >
                         <Truck className="h-3 w-3" /> Subkon
@@ -119,329 +148,389 @@ export function DetailPanel({
                 </div>
             </div>
 
-            <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">
-                    <Clock className="h-3 w-3 inline mr-1" /> Durasi /pcs (menit) <span className="text-red-500">*</span>
-                </label>
-                <Input
-                    type="number"
-                    min={0}
-                    value={step.durationMinutes || ""}
-                    onChange={(e) => {
-                        const val = parseInt(e.target.value)
-                        onUpdateStep("durationMinutes", isNaN(val) ? null : Math.max(0, val))
-                    }}
-                    className="h-8 text-xs font-mono border-zinc-200 rounded-none"
-                />
-            </div>
+            {/* ── BODY ── */}
+            <div className="max-h-[380px] overflow-y-auto px-4 py-3 space-y-3">
 
-            <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">
-                    <User className="h-3 w-3 inline mr-1" /> Operator
-                </label>
-                <Input
-                    type="text"
-                    value={step.operatorName || ""}
-                    onChange={(e) => onUpdateStep("operatorName", e.target.value || null)}
-                    className="h-8 text-xs border-zinc-200 rounded-none"
-                    placeholder="Nama operator..."
-                />
-            </div>
+                {/* ROW 1: Config + Allocation/Subkon + Attachments */}
+                <div className="flex gap-3 items-start">
 
-            {/* Labour Cost Calculator */}
-            <div className="border-t border-zinc-100 pt-2">
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">
-                    Gaji Bulanan (Rp)
-                </label>
-                <Input
-                    type="number"
-                    min={0}
-                    value={step.laborMonthlySalary || ""}
-                    onChange={(e) => {
-                        const val = parseFloat(e.target.value)
-                        onUpdateStep("laborMonthlySalary", isNaN(val) ? null : Math.max(0, val))
-                    }}
-                    className="h-8 text-xs font-mono border-zinc-200 rounded-none"
-                    placeholder="cth: 4000000"
-                />
-                {durationMin > 0 && Number(step.laborMonthlySalary || 0) > 0 && (
-                    <div className="mt-1.5 space-y-0.5 bg-zinc-50 border border-zinc-200 p-2">
-                        <div className="flex justify-between text-[9px]">
-                            <span className="text-zinc-400 font-bold">Jam/pcs</span>
-                            <span className="font-mono font-bold">{hoursPerPcs.toFixed(2)} jam</span>
-                        </div>
-                        <div className="flex justify-between text-[9px]">
-                            <span className="text-zinc-400 font-bold">Kapasitas/bulan</span>
-                            <span className="font-mono font-bold">{Math.floor(pcsPerMonth).toLocaleString("id-ID")} pcs</span>
-                        </div>
-                        <div className="flex justify-between text-[9px] border-t border-zinc-200 pt-1 mt-1">
-                            <span className="text-zinc-500 font-black">Biaya TK/pcs</span>
-                            <span className="font-black text-emerald-700">{formatCurrency(laborCostPerPcs)}</span>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Catatan</label>
-                <Textarea
-                    value={step.notes || ""}
-                    onChange={(e) => onUpdateStep("notes", e.target.value)}
-                    className="text-xs border-zinc-200 rounded-none min-h-[32px] h-8"
-                />
-            </div>
-
-            {/* Completion tracking */}
-            <div>
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">
-                    <CheckCircle2 className="h-3 w-3 inline mr-1" /> Selesai (pcs)
-                </label>
-                <div className="flex items-center gap-2">
-                    <Input
-                        type="number"
-                        min={0}
-                        max={totalQty}
-                        value={step.completedQty ?? ""}
-                        onChange={(e) => onUpdateStep("completedQty", e.target.value ? parseInt(e.target.value) : 0)}
-                        className="h-8 text-xs font-mono border-zinc-200 rounded-none flex-1"
-                        placeholder="0"
-                    />
-                    <span className="text-[10px] font-bold text-zinc-400 whitespace-nowrap">/ {totalQty} pcs</span>
-                </div>
-            </div>
-
-            {/* ── TIME STUDY ── */}
-            <div className="border-2 border-black bg-blue-50/40 p-2.5 mt-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-2 flex items-center gap-1">
-                    <Timer className="h-3 w-3" /> Time Study
-                </label>
-                <div>
-                    <label className="text-[9px] font-bold text-zinc-400 mb-1 block">Hasil Time Study (menit/pcs)</label>
-                    <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={step.estimatedTimePerUnit ?? ""}
-                        onChange={(e) => {
-                            const val = parseFloat(e.target.value)
-                            onUpdateStep("estimatedTimePerUnit", isNaN(val) ? null : Math.max(0, val))
-                        }}
-                        className="h-8 text-xs font-mono border-zinc-200 rounded-none"
-                        placeholder="cth: 2.5"
-                    />
-                </div>
-                {Number(step.estimatedTimePerUnit || 0) > 0 && durationMin > 0 && (
-                    <div className="mt-2 space-y-1 bg-white border border-zinc-200 p-2">
-                        <div className="flex justify-between text-[9px]">
-                            <span className="text-zinc-400 font-bold">PCC (Durasi /pcs)</span>
-                            <span className="font-mono font-bold">{durationMin} menit</span>
-                        </div>
-                        <div className="flex justify-between text-[9px]">
-                            <span className="text-zinc-400 font-bold">Time Study</span>
-                            <span className="font-mono font-bold">{Number(step.estimatedTimePerUnit)} menit</span>
-                        </div>
-                        <div className="flex justify-between text-[9px] border-t border-zinc-200 pt-1 mt-1">
-                            <span className="text-zinc-500 font-black">Selisih</span>
-                            {(() => {
-                                const diff = Number(step.estimatedTimePerUnit) - durationMin
-                                const pct = ((diff / durationMin) * 100).toFixed(1)
-                                const isSlower = diff > 0
-                                const isFaster = diff < 0
-                                return (
-                                    <span className={`font-black ${isFaster ? "text-emerald-700" : isSlower ? "text-red-600" : "text-zinc-500"}`}>
-                                        {diff > 0 ? "+" : ""}{diff.toFixed(2)} menit ({diff > 0 ? "+" : ""}{pct}%)
-                                    </span>
-                                )
-                            })()}
-                        </div>
-                    </div>
-                )}
-                <div className="mt-2">
-                    <label className="text-[9px] font-bold text-zinc-400 mb-1 block">Waktu Aktual Total (menit)</label>
-                    <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={step.actualTimeTotal ?? ""}
-                        onChange={(e) => {
-                            const val = parseFloat(e.target.value)
-                            onUpdateStep("actualTimeTotal", isNaN(val) ? null : Math.max(0, val))
-                        }}
-                        className="h-8 text-xs font-mono border-zinc-200 rounded-none"
-                        placeholder="cth: 450.00"
-                    />
-                    {Number(step.actualTimeTotal || 0) > 0 && (step.completedQty || 0) > 0 && (
-                        <div className="mt-1 text-[9px] text-zinc-400 font-bold">
-                            Rata-rata: <span className="font-mono text-zinc-600">{(Number(step.actualTimeTotal) / step.completedQty).toFixed(2)} menit/pcs</span>
-                            {" "}({step.completedQty} pcs selesai)
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    )
-
-    // Shared: Material cost breakdown
-    const MaterialCostBreakdown = (
-        <div className="min-w-0">
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">Rincian Biaya Material</h4>
-            {stepMaterials.length === 0 ? (
-                <p className="text-xs text-zinc-300 font-bold py-4 text-center">Belum ada material di proses ini</p>
-            ) : (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                        <thead>
-                            <tr className="border-b border-zinc-200">
-                                <th className="text-left text-[9px] font-black uppercase text-zinc-400 pb-1 pr-3">Material</th>
-                                <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">Qty/Unit</th>
-                                <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">Harga</th>
-                                <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">&times; {totalQty} pcs</th>
-                                <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 pl-2">Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {stepMaterials.map((sm: any) => {
-                                const item = sm.item as BOMItemWithCost
-                                const costPerUnit = calcItemCostPerUnit(item)
-                                const subtotal = costPerUnit * totalQty
-                                return (
-                                    <tr key={sm.bomItemId} className="border-b border-zinc-50">
-                                        <td className="py-1 pr-3 font-bold truncate max-w-[160px]">{item.material?.name || "-"}</td>
-                                        <td className="py-1 px-2 text-right font-mono text-zinc-600">
-                                            {Number(item.quantityPerUnit || 0)} {item.unit || item.material?.unit || ""}
-                                        </td>
-                                        <td className="py-1 px-2 text-right font-mono text-zinc-600">{formatCurrency(Number(item.material?.costPrice || 0))}</td>
-                                        <td className="py-1 px-2 text-right font-mono text-zinc-600">{(Number(item.quantityPerUnit || 0) * totalQty).toLocaleString("id-ID")}</td>
-                                        <td className="py-1 pl-2 text-right font-bold">{formatCurrency(subtotal)}</td>
-                                    </tr>
-                                )
-                            })}
-                        </tbody>
-                        <tfoot>
-                            <tr className="border-t border-zinc-200">
-                                <td colSpan={4} className="py-1.5 text-right text-[9px] font-black uppercase text-zinc-400 pr-2">Total Material</td>
-                                <td className="py-1.5 text-right font-bold">{formatCurrency(stepMaterialTotal)}</td>
-                            </tr>
-                            {stepLaborTotal > 0 && (
-                                <tr>
-                                    <td colSpan={4} className="py-1 text-right text-[9px] font-black uppercase text-zinc-400 pr-2">
-                                        Labor/Proses
-                                        {laborCostPerPcs > 0 && <span className="text-zinc-300 ml-1">({formatCurrency(laborCostPerPcs)}/pcs)</span>}
-                                    </td>
-                                    <td className="py-1 text-right font-bold">{formatCurrency(stepLaborTotal)}</td>
-                                </tr>
-                            )}
-                            <tr className="border-t-2 border-black">
-                                <td colSpan={4} className="py-1.5 text-right text-[10px] font-black uppercase pr-2">Total Proses</td>
-                                <td className="py-1.5 text-right font-black text-emerald-700">{formatCurrency(stepMaterialTotal + stepLaborTotal)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-            )}
-        </div>
-    )
-
-    // Shared: Attachments
-    const Attachments = (
-        <div>
-            <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2">
-                <Paperclip className="h-3 w-3 inline mr-1" /> Lampiran
-            </h4>
-            <div className="space-y-1.5">
-                {(step.attachments || []).map((att: any) => (
-                    <div key={att.id} className="flex items-center gap-2 text-xs group">
-                        <Paperclip className="h-3 w-3 text-zinc-400 shrink-0" />
-                        <a href={att.fileUrl} target="_blank" rel="noreferrer" className="font-bold truncate flex-1 hover:underline">{att.fileName}</a>
-                        <span className="text-[9px] text-zinc-400">{(att.fileSize / 1024).toFixed(0)}KB</span>
-                        <button onClick={() => onDeleteAttachment(att.id)} className="opacity-0 group-hover:opacity-100">
-                            <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
-                        </button>
-                    </div>
-                ))}
-            </div>
-            <Button onClick={onUploadAttachment} variant="outline" size="sm" className="h-7 text-[10px] font-bold rounded-none border-dashed w-full mt-2">
-                <Upload className="mr-1 h-3 w-3" /> Upload File
-            </Button>
-        </div>
-    )
-
-    // ── SUBKON LAYOUT: Config + SubkonSelector + Attachments ──
-    if (isSubkon) {
-        return (
-            <div className="border-t-2 border-black bg-white px-4 lg:px-6 py-3 shrink-0 max-h-[420px] overflow-y-auto">
-                <div className="flex items-start gap-4 lg:gap-6">
-                    <div className="w-[220px] lg:w-[240px] shrink-0">
-                        {StepConfig}
-                    </div>
-                    <div className="flex-1 border-l-2 border-amber-200 pl-4 lg:pl-6 bg-amber-50/30 -ml-0 py-2 px-4 border-2 border-amber-300">
-                        <SubkonSelector
-                            stationType={step.station?.stationType}
-                            allocations={step.allocations || []}
-                            totalQty={totalQty}
-                            onChange={onUpdateAllocations}
-                        />
-                    </div>
-                    <div className="w-[180px] shrink-0 border-l-2 border-zinc-100 pl-4">
-                        {Attachments}
-                    </div>
-                </div>
-            </div>
-        )
-    }
-
-    // ── IN-HOUSE LAYOUT: Config + Material + optional Allocation + Attachments ──
-    const showAllocPanel = showInhouseAlloc || hasInhouseAllocations
-    return (
-        <div className="border-t-2 border-black bg-white px-4 lg:px-6 py-3 shrink-0 max-h-[420px] overflow-y-auto">
-            <div className="flex items-start gap-4 lg:gap-6">
-                {/* LEFT — Step Config */}
-                <div className="w-[220px] lg:w-[240px] shrink-0">
-                    {StepConfig}
-                    {/* Toggle distribusi work center */}
-                    {!showAllocPanel && (
-                        <button
-                            onClick={() => setShowInhouseAlloc(true)}
-                            className="mt-3 flex items-center gap-1.5 text-[9px] font-bold text-blue-600 hover:underline"
+                    {/* LEFT: Pengaturan Proses */}
+                    <div className="w-[260px] shrink-0">
+                        <SectionCard
+                            title="Pengaturan Proses"
+                            icon={<Cog className="h-3 w-3 text-zinc-400" />}
+                            accent={isSubkon ? "border-amber-400" : "border-emerald-400"}
                         >
-                            <GitBranch className="h-3 w-3" /> Distribusi ke multi work center
-                        </button>
-                    )}
+                            <div className="space-y-3">
+                                {/* Work Center select — in-house only, multiple options */}
+                                {!isSubkon && sameTypeStations.length > 1 && onChangeStation && (
+                                    <div>
+                                        <FieldLabel icon={<Building2 className="h-3 w-3" />}>Work Center</FieldLabel>
+                                        <Select
+                                            value={step.stationId || step.station?.id || ""}
+                                            onValueChange={(val) => {
+                                                const station = allStations?.find((s: any) => s.id === val)
+                                                if (station) onChangeStation(val, station)
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs font-bold border-zinc-200 rounded-none">
+                                                <SelectValue placeholder="Pilih work center" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {sameTypeStations.map((s: any) => (
+                                                    <SelectItem key={s.id} value={s.id} className="text-xs">
+                                                        {s.name} {s.code ? `(${s.code})` : ""}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
+
+                                {/* Tipe Proses — subkon only */}
+                                {isSubkon && (
+                                    <div>
+                                        <FieldLabel icon={<Cog className="h-3 w-3" />}>Tipe Proses</FieldLabel>
+                                        <Input
+                                            type="text"
+                                            value={step.subkonProcessType || ""}
+                                            onChange={(e) => onUpdateStep("subkonProcessType", e.target.value || null)}
+                                            className="h-8 text-xs border-zinc-200 rounded-none placeholder:text-zinc-300"
+                                            placeholder="Jahit, Obras..."
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Duration */}
+                                <div>
+                                    <FieldLabel icon={<Clock className="h-3 w-3" />} required>Durasi /pcs (menit)</FieldLabel>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        value={step.durationMinutes || ""}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value)
+                                            onUpdateStep("durationMinutes", isNaN(val) ? null : Math.max(0, val))
+                                        }}
+                                        className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
+                                        placeholder="0"
+                                    />
+                                </div>
+
+                                {/* Operator — in-house only */}
+                                {!isSubkon && (
+                                    <div>
+                                        <FieldLabel icon={<User className="h-3 w-3" />}>Operator</FieldLabel>
+                                        <Input
+                                            type="text"
+                                            value={step.operatorName || ""}
+                                            onChange={(e) => onUpdateStep("operatorName", e.target.value || null)}
+                                            className="h-8 text-xs border-zinc-200 rounded-none placeholder:text-zinc-300"
+                                            placeholder="Nama..."
+                                        />
+                                    </div>
+                                )}
+
+                                {/* Gaji Bulanan — in-house only */}
+                                {!isSubkon && (
+                                    <div>
+                                        <FieldLabel icon={<Banknote className="h-3 w-3" />}>Gaji Bulanan (Rp)</FieldLabel>
+                                        <Input
+                                            type="number"
+                                            min={0}
+                                            value={step.laborMonthlySalary || ""}
+                                            onChange={(e) => {
+                                                const val = parseFloat(e.target.value)
+                                                onUpdateStep("laborMonthlySalary", isNaN(val) ? null : Math.max(0, val))
+                                            }}
+                                            className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
+                                            placeholder="4000000"
+                                        />
+                                        {durationMin > 0 && Number(step.laborMonthlySalary || 0) > 0 && (
+                                            <div className="mt-2 space-y-1 bg-emerald-50 border border-emerald-200 p-2">
+                                                <div className="flex justify-between text-[9px]">
+                                                    <span className="text-zinc-400 font-bold">Jam/pcs</span>
+                                                    <span className="font-mono font-bold">{hoursPerPcs.toFixed(2)} jam</span>
+                                                </div>
+                                                <div className="flex justify-between text-[9px]">
+                                                    <span className="text-zinc-400 font-bold">Kapasitas/bulan</span>
+                                                    <span className="font-mono font-bold">{Math.floor(pcsPerMonth).toLocaleString("id-ID")} pcs</span>
+                                                </div>
+                                                <div className="flex justify-between text-[9px] border-t border-emerald-200 pt-1 mt-1">
+                                                    <span className="text-zinc-600 font-black">Biaya TK/pcs</span>
+                                                    <span className="font-black text-emerald-700">{formatCurrency(laborCostPerPcs)}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Catatan */}
+                                <div>
+                                    <FieldLabel icon={<FileText className="h-3 w-3" />}>Catatan</FieldLabel>
+                                    <Textarea
+                                        value={step.notes || ""}
+                                        onChange={(e) => onUpdateStep("notes", e.target.value)}
+                                        className="text-xs border-zinc-200 rounded-none min-h-[32px] h-8 placeholder:text-zinc-300"
+                                        placeholder="Tulis catatan..."
+                                    />
+                                </div>
+                            </div>
+                        </SectionCard>
+                    </div>
+
+                    {/* RIGHT: Subkon/Allocation + Attachments */}
+                    <div className="flex-1 space-y-3 min-w-0">
+                        {/* Subkon selector or In-House allocator */}
+                        {isSubkon ? (
+                            <SectionCard
+                                title="Subkontraktor"
+                                icon={<Truck className="h-3 w-3 text-amber-500" />}
+                                accent="border-amber-400"
+                            >
+                                <SubkonSelector
+                                    stationType={step.station?.stationType}
+                                    allocations={step.allocations || []}
+                                    totalQty={totalQty}
+                                    onChange={onUpdateAllocations}
+                                />
+                            </SectionCard>
+                        ) : showAllocPanel ? (
+                            <SectionCard
+                                title="Distribusi Work Center"
+                                icon={<GitBranch className="h-3 w-3 text-emerald-500" />}
+                                accent="border-emerald-400"
+                            >
+                                <InHouseAllocator
+                                    stationType={step.station?.stationType}
+                                    allocations={step.allocations || []}
+                                    totalQty={totalQty}
+                                    onChange={onUpdateAllocations}
+                                />
+                                {(step.allocations || []).length === 0 && (
+                                    <button
+                                        onClick={() => setShowInhouseAlloc(false)}
+                                        className="mt-2 text-[9px] font-bold text-zinc-400 hover:text-red-500"
+                                    >
+                                        Batalkan distribusi
+                                    </button>
+                                )}
+                            </SectionCard>
+                        ) : (
+                            <button
+                                onClick={() => setShowInhouseAlloc(true)}
+                                className="w-full flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-zinc-300 text-[10px] font-bold text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
+                            >
+                                <GitBranch className="h-3 w-3" /> Distribusi ke multi work center
+                            </button>
+                        )}
+
+                        {/* Attachments */}
+                        <SectionCard
+                            title="Lampiran"
+                            icon={<Paperclip className="h-3 w-3 text-blue-500" />}
+                            accent="border-blue-400"
+                        >
+                            <div className="space-y-1.5">
+                                {(step.attachments || []).map((att: any) => (
+                                    <div key={att.id} className="flex items-center gap-2 text-xs group">
+                                        <Paperclip className="h-3 w-3 text-zinc-400 shrink-0" />
+                                        <a href={att.fileUrl} target="_blank" rel="noreferrer" className="font-bold truncate flex-1 hover:underline">{att.fileName}</a>
+                                        <span className="text-[9px] text-zinc-400">{(att.fileSize / 1024).toFixed(0)}KB</span>
+                                        <button onClick={() => onDeleteAttachment(att.id)} className="opacity-0 group-hover:opacity-100">
+                                            <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
+                                        </button>
+                                    </div>
+                                ))}
+                                {(step.attachments || []).length === 0 && (
+                                    <p className="text-[10px] text-zinc-300 font-bold text-center py-1">Belum ada lampiran</p>
+                                )}
+                            </div>
+                            <Button onClick={onUploadAttachment} variant="outline" size="sm" className="h-7 text-[10px] font-bold rounded-none border-dashed w-full mt-2">
+                                <Upload className="mr-1 h-3 w-3" /> Upload File
+                            </Button>
+                        </SectionCard>
+                    </div>
                 </div>
 
-                {/* CENTER — Material Cost Breakdown OR In-House Allocator */}
-                {showAllocPanel ? (
-                    <>
-                        <div className="flex-1 border-l-2 border-emerald-200 pl-4 lg:pl-6 bg-emerald-50/30 py-2 px-4 border-2 border-emerald-300">
-                            <InHouseAllocator
-                                stationType={step.station?.stationType}
-                                allocations={step.allocations || []}
-                                totalQty={totalQty}
-                                onChange={onUpdateAllocations}
-                            />
-                            {(step.allocations || []).length === 0 && (
-                                <button
-                                    onClick={() => setShowInhouseAlloc(false)}
-                                    className="mt-2 text-[9px] font-bold text-zinc-400 hover:text-red-500"
-                                >
-                                    Batalkan distribusi
-                                </button>
+                {/* ROW 2: Production + Material Costs */}
+                <div className="grid grid-cols-[240px_1fr] gap-3">
+                    {/* Production tracking */}
+                    <SectionCard
+                        title="Produksi"
+                        icon={<CheckCircle2 className="h-3 w-3 text-emerald-500" />}
+                        accent="border-emerald-400"
+                    >
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={totalQty}
+                                    value={completedQty || ""}
+                                    onChange={(e) => onUpdateStep("completedQty", e.target.value ? parseInt(e.target.value) : 0)}
+                                    className="h-8 text-xs font-mono border-zinc-200 rounded-none flex-1 placeholder:text-zinc-300"
+                                    placeholder="0"
+                                />
+                                <span className="text-[10px] font-bold text-zinc-400 whitespace-nowrap">/ {totalQty} pcs</span>
+                            </div>
+                            {totalQty > 0 && (
+                                <div>
+                                    <div className="h-2 bg-zinc-200 rounded-full overflow-hidden">
+                                        <div
+                                            className={`h-full rounded-full transition-all ${
+                                                progressPct >= 100 ? "bg-emerald-500" : progressPct > 0 ? "bg-amber-400" : "bg-zinc-200"
+                                            }`}
+                                            style={{ width: `${progressPct}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-[9px] font-bold text-zinc-400 mt-0.5 text-right">
+                                        {progressPct.toFixed(0)}% selesai
+                                    </p>
+                                </div>
                             )}
                         </div>
-                        <div className="w-[280px] shrink-0 border-l-2 border-zinc-100 pl-4">
-                            {MaterialCostBreakdown}
-                        </div>
-                    </>
-                ) : (
-                    <div className="flex-1 border-l-2 border-zinc-100 pl-4 lg:pl-6">
-                        {MaterialCostBreakdown}
-                    </div>
-                )}
+                    </SectionCard>
 
-                {/* RIGHT — Attachments */}
-                <div className="w-[180px] shrink-0 border-l-2 border-zinc-100 pl-4">
-                    {Attachments}
+                    {/* Material cost breakdown — ALWAYS visible */}
+                    <SectionCard
+                        title="Biaya Material"
+                        icon={<BarChart3 className="h-3 w-3 text-emerald-500" />}
+                        accent="border-emerald-400"
+                    >
+                        {stepMaterials.length === 0 ? (
+                            <p className="text-xs text-zinc-300 font-bold py-2 text-center">Belum ada material di proses ini</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                    <thead>
+                                        <tr className="border-b border-zinc-200">
+                                            <th className="text-left text-[9px] font-black uppercase text-zinc-400 pb-1 pr-3">Material</th>
+                                            <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">Qty/Unit</th>
+                                            <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">Harga</th>
+                                            <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">&times; {totalQty}</th>
+                                            <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 pl-2">Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {stepMaterials.map((sm: any) => {
+                                            const item = sm.item as BOMItemWithCost
+                                            const costPerUnit = calcItemCostPerUnit(item)
+                                            const subtotal = costPerUnit * totalQty
+                                            return (
+                                                <tr key={sm.bomItemId} className="border-b border-zinc-50">
+                                                    <td className="py-1 pr-3 font-bold truncate max-w-[160px]">{item.material?.name || "-"}</td>
+                                                    <td className="py-1 px-2 text-right font-mono text-zinc-600">
+                                                        {Number(item.quantityPerUnit || 0)} {item.unit || item.material?.unit || ""}
+                                                    </td>
+                                                    <td className="py-1 px-2 text-right font-mono text-zinc-600">{formatCurrency(Number(item.material?.costPrice || 0))}</td>
+                                                    <td className="py-1 px-2 text-right font-mono text-zinc-600">{(Number(item.quantityPerUnit || 0) * totalQty).toLocaleString("id-ID")}</td>
+                                                    <td className="py-1 pl-2 text-right font-bold">{formatCurrency(subtotal)}</td>
+                                                </tr>
+                                            )
+                                        })}
+                                    </tbody>
+                                    <tfoot>
+                                        <tr className="border-t border-zinc-200">
+                                            <td colSpan={4} className="py-1.5 text-right text-[9px] font-black uppercase text-zinc-400 pr-2">Total Material</td>
+                                            <td className="py-1.5 text-right font-bold">{formatCurrency(stepMaterialTotal)}</td>
+                                        </tr>
+                                        {stepLaborTotal > 0 && (
+                                            <tr>
+                                                <td colSpan={4} className="py-1 text-right text-[9px] font-black uppercase text-zinc-400 pr-2">
+                                                    Labor/Proses
+                                                    {laborCostPerPcs > 0 && <span className="text-zinc-300 ml-1">({formatCurrency(laborCostPerPcs)}/pcs)</span>}
+                                                </td>
+                                                <td className="py-1 text-right font-bold">{formatCurrency(stepLaborTotal)}</td>
+                                            </tr>
+                                        )}
+                                        <tr className="border-t-2 border-black">
+                                            <td colSpan={4} className="py-1.5 text-right text-[10px] font-black uppercase pr-2">Total Proses</td>
+                                            <td className="py-1.5 text-right font-black text-emerald-700">{formatCurrency(stepMaterialTotal + stepLaborTotal)}</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        )}
+                    </SectionCard>
                 </div>
+
+                {/* ROW 3: Time Study — collapsible */}
+                <SectionCard
+                    title="Time Study"
+                    icon={<Timer className="h-3 w-3 text-blue-500" />}
+                    accent="border-blue-400"
+                    collapsible
+                    defaultOpen={false}
+                >
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <FieldLabel>Hasil Time Study (menit/pcs)</FieldLabel>
+                            <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={step.estimatedTimePerUnit ?? ""}
+                                onChange={(e) => {
+                                    const val = parseFloat(e.target.value)
+                                    onUpdateStep("estimatedTimePerUnit", isNaN(val) ? null : Math.max(0, val))
+                                }}
+                                className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
+                                placeholder="2.5"
+                            />
+                            {Number(step.estimatedTimePerUnit || 0) > 0 && durationMin > 0 && (
+                                <div className="mt-2 space-y-1 bg-blue-50 border border-blue-200 p-2">
+                                    <div className="flex justify-between text-[9px]">
+                                        <span className="text-zinc-400 font-bold">PCC (Durasi /pcs)</span>
+                                        <span className="font-mono font-bold">{durationMin} menit</span>
+                                    </div>
+                                    <div className="flex justify-between text-[9px]">
+                                        <span className="text-zinc-400 font-bold">Time Study</span>
+                                        <span className="font-mono font-bold">{Number(step.estimatedTimePerUnit)} menit</span>
+                                    </div>
+                                    <div className="flex justify-between text-[9px] border-t border-blue-200 pt-1 mt-1">
+                                        <span className="text-zinc-500 font-black">Selisih</span>
+                                        {(() => {
+                                            const diff = Number(step.estimatedTimePerUnit) - durationMin
+                                            const pct = ((diff / durationMin) * 100).toFixed(1)
+                                            return (
+                                                <span className={`font-black ${diff < 0 ? "text-emerald-700" : diff > 0 ? "text-red-600" : "text-zinc-500"}`}>
+                                                    {diff > 0 ? "+" : ""}{diff.toFixed(2)} menit ({diff > 0 ? "+" : ""}{pct}%)
+                                                </span>
+                                            )
+                                        })()}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                        <div>
+                            <FieldLabel>Waktu Aktual Total (menit)</FieldLabel>
+                            <Input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={step.actualTimeTotal ?? ""}
+                                onChange={(e) => {
+                                    const val = parseFloat(e.target.value)
+                                    onUpdateStep("actualTimeTotal", isNaN(val) ? null : Math.max(0, val))
+                                }}
+                                className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
+                                placeholder="450"
+                            />
+                            {Number(step.actualTimeTotal || 0) > 0 && completedQty > 0 && (
+                                <div className="mt-2 bg-blue-50 border border-blue-200 p-2">
+                                    <div className="flex justify-between text-[9px]">
+                                        <span className="text-zinc-400 font-bold">Rata-rata</span>
+                                        <span className="font-mono font-bold">{(Number(step.actualTimeTotal) / completedQty).toFixed(2)} menit/pcs</span>
+                                    </div>
+                                    <div className="text-[9px] text-zinc-400 mt-0.5">
+                                        Berdasarkan {completedQty} pcs selesai
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </SectionCard>
             </div>
         </div>
     )

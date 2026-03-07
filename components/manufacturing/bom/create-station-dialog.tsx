@@ -22,6 +22,7 @@ import { toast } from "sonner"
 import { queryKeys } from "@/lib/query-keys"
 import { NB } from "@/lib/dialog-styles"
 import { Loader2, Cog, Truck, Package, Clock, Star } from "lucide-react"
+import { COLOR_THEMES, ICON_OPTIONS } from "./station-config"
 
 const STATION_TYPES = [
     { value: "CUTTING", label: "Potong (Cutting)" },
@@ -49,6 +50,8 @@ const stationSchema = z.object({
     subcontractorId: z.string().optional(),
     costPerUnit: z.coerce.number().min(0).default(0),
     description: z.string().optional(),
+    iconName: z.string().optional(),
+    colorTheme: z.string().optional(),
 })
 
 // Schema for subkon creation (creates Subcontractor + ProcessStation)
@@ -125,10 +128,15 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
             subcontractorId: "",
             costPerUnit: 0,
             description: "",
+            iconName: "Cog",
+            colorTheme: "zinc",
         },
     })
 
     const operationType = stationForm.watch("operationType")
+    const stationType = stationForm.watch("stationType")
+    const selectedIcon = stationForm.watch("iconName")
+    const selectedColor = stationForm.watch("colorTheme")
 
     const onSubkonSubmit = async (values: z.infer<typeof subkonSchema>) => {
         setLoading(true)
@@ -217,7 +225,7 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                     <FormField control={subkonForm.control as any} name="companyName" render={({ field }) => (
                                         <FormItem>
                                             <label className={NB.label}>Nama Perusahaan <span className={NB.labelRequired}>*</span></label>
-                                            <FormControl><Input {...field} placeholder="CV. Jaya Konveksi" className={NB.input} /></FormControl>
+                                            <FormControl><Input {...field} placeholder="CV. ..." className={NB.input} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )} />
@@ -227,14 +235,14 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                         <FormField control={subkonForm.control as any} name="contactPerson" render={({ field }) => (
                                             <FormItem>
                                                 <label className={NB.label}>Kontak PIC</label>
-                                                <FormControl><Input {...field} placeholder="Nama PIC" className={NB.input} /></FormControl>
+                                                <FormControl><Input {...field} placeholder="Nama..." className={NB.input} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )} />
                                         <FormField control={subkonForm.control as any} name="phone" render={({ field }) => (
                                             <FormItem>
                                                 <label className={NB.label}>No. Telepon</label>
-                                                <FormControl><Input {...field} placeholder="08xx-xxxx-xxxx" className={NB.input} /></FormControl>
+                                                <FormControl><Input {...field} placeholder="08..." className={NB.input} /></FormControl>
                                                 <FormMessage />
                                             </FormItem>
                                         )} />
@@ -285,7 +293,7 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                     <FormField control={subkonForm.control as any} name="description" render={({ field }) => (
                                         <FormItem>
                                             <label className={NB.label}>Catatan</label>
-                                            <FormControl><Textarea {...field} placeholder="Spesialisasi, alamat, dll..." className={NB.textarea} /></FormControl>
+                                            <FormControl><Textarea {...field} placeholder="Catatan..." className={NB.textarea} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )} />
@@ -324,14 +332,14 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                     <FormField control={stationForm.control as any} name="code" render={({ field }) => (
                                         <FormItem>
                                             <label className={NB.label}>Kode <span className={NB.labelRequired}>*</span></label>
-                                            <FormControl><Input {...field} placeholder="STN-CUT-01" className={NB.inputMono} /></FormControl>
+                                            <FormControl><Input {...field} placeholder="STN-01" className={NB.inputMono} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )} />
                                     <FormField control={stationForm.control as any} name="name" render={({ field }) => (
                                         <FormItem>
                                             <label className={NB.label}>Nama <span className={NB.labelRequired}>*</span></label>
-                                            <FormControl><Input {...field} placeholder="Potong Utama" className={NB.input} /></FormControl>
+                                            <FormControl><Input {...field} placeholder="Nama..." className={NB.input} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
                                     )} />
@@ -396,10 +404,79 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                 <FormField control={stationForm.control as any} name="description" render={({ field }) => (
                                     <FormItem>
                                         <label className={NB.label}>Deskripsi</label>
-                                        <FormControl><Textarea {...field} placeholder="Catatan opsional..." className={NB.textarea} /></FormControl>
+                                        <FormControl><Textarea {...field} placeholder="Catatan..." className={NB.textarea} /></FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )} />
+
+                                {/* Color & Icon pickers — only for OTHER/custom type */}
+                                {stationType === "OTHER" && (
+                                    <div className="border-t border-zinc-200 pt-3 space-y-3">
+                                        <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1">
+                                            Tampilan di Toolbar
+                                        </p>
+
+                                        {/* Preview */}
+                                        {(() => {
+                                            const theme = COLOR_THEMES[selectedColor || "zinc"] || COLOR_THEMES.zinc
+                                            const PreviewIcon = ICON_OPTIONS.find(o => o.name === selectedIcon)?.icon || Cog
+                                            return (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] text-zinc-400 font-bold">Preview:</span>
+                                                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 border text-[10px] font-bold ${theme.toolbar}`}>
+                                                        <PreviewIcon className="h-3 w-3" />
+                                                        {stationForm.watch("name") || "Nama Proses"}
+                                                    </span>
+                                                </div>
+                                            )
+                                        })()}
+
+                                        {/* Color Picker */}
+                                        <div>
+                                            <label className={NB.label}>Warna</label>
+                                            <div className="grid grid-cols-6 gap-1.5">
+                                                {Object.entries(COLOR_THEMES).map(([key, theme]) => (
+                                                    <button
+                                                        key={key}
+                                                        type="button"
+                                                        onClick={() => stationForm.setValue("colorTheme", key)}
+                                                        className={`h-7 w-full border-2 rounded-none transition-all ${theme.toolbar.split(" ").slice(0, 1).join(" ")} ${
+                                                            selectedColor === key
+                                                                ? "border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                                : "border-transparent hover:border-zinc-300"
+                                                        }`}
+                                                        title={key}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Icon Picker */}
+                                        <div>
+                                            <label className={NB.label}>Ikon</label>
+                                            <div className="grid grid-cols-8 gap-1.5">
+                                                {ICON_OPTIONS.map((opt) => {
+                                                    const Ic = opt.icon
+                                                    return (
+                                                        <button
+                                                            key={opt.name}
+                                                            type="button"
+                                                            onClick={() => stationForm.setValue("iconName", opt.name)}
+                                                            className={`h-8 w-full flex items-center justify-center border-2 rounded-none transition-all ${
+                                                                selectedIcon === opt.name
+                                                                    ? "border-black bg-zinc-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                                    : "border-zinc-200 hover:border-black"
+                                                            }`}
+                                                            title={opt.label}
+                                                        >
+                                                            <Ic className="h-4 w-4" />
+                                                        </button>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className={NB.footer}>
                                     <Button type="button" variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>Batal</Button>

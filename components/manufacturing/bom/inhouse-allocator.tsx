@@ -96,8 +96,8 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                 <Input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Cari work center..."
-                    className="h-7 text-[10px] pl-7 border-zinc-200 rounded-none"
+                    placeholder="Cari..."
+                    className="h-7 text-[10px] pl-7 border-zinc-200 rounded-none placeholder:text-zinc-300"
                 />
             </div>
 

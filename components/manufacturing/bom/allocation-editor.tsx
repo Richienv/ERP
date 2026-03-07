@@ -68,8 +68,8 @@ export function AllocationEditor({ allocations, totalQty, stations, onChange }: 
                         type="number"
                         value={alloc.quantity}
                         onChange={(e) => updateAllocation(index, "quantity", parseInt(e.target.value) || 0)}
-                        className="h-8 w-20 text-xs font-mono border-zinc-200 rounded-none"
-                        placeholder="Qty"
+                        className="h-8 w-20 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
+                        placeholder="0"
                     />
                     <span className="text-[10px] font-bold text-zinc-400 shrink-0">pcs</span>
                     <Button variant="ghost" size="sm" onClick={() => removeAllocation(index)} className="h-8 w-8 p-0 rounded-none">

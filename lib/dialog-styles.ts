@@ -27,10 +27,10 @@ export const NB = {
   // Form elements
   label: "text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block",
   labelRequired: "text-red-500",
-  input: "border-2 border-black font-bold h-10 rounded-none",
-  inputMono: "border-2 border-black font-mono font-bold h-10 rounded-none",
+  input: "border-2 border-black font-bold h-10 rounded-none placeholder:text-zinc-300 placeholder:font-normal",
+  inputMono: "border-2 border-black font-mono font-bold h-10 rounded-none placeholder:text-zinc-300 placeholder:font-normal",
   select: "border-2 border-black font-bold h-10 w-full rounded-none",
-  textarea: "border-2 border-black font-medium min-h-[60px] rounded-none",
+  textarea: "border-2 border-black font-medium min-h-[60px] rounded-none placeholder:text-zinc-300 placeholder:font-normal",
 
   // Buttons
   cancelBtn: "border-2 border-black font-black uppercase text-xs tracking-wider px-6 h-9 rounded-none bg-white hover:bg-zinc-100",

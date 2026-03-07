@@ -38,6 +38,7 @@ export async function GET(
                             select: {
                                 id: true, code: true, name: true, stationType: true,
                                 operationType: true, costPerUnit: true,
+                                iconName: true, colorTheme: true,
                                 subcontractor: { select: { id: true, name: true } },
                             },
                         },
@@ -189,6 +190,7 @@ export async function PATCH(
                                 completedQty: step.completedQty ?? 0,
                                 startOffsetMinutes: step.startOffsetMinutes ?? 0,
                                 useSubkon: step.useSubkon ?? null,
+                                subkonProcessType: step.subkonProcessType || null,
                                 operatorName: step.operatorName || null,
                                 startedAt: step.startedAt ? new Date(step.startedAt) : null,
                                 completedAt: step.completedAt ? new Date(step.completedAt) : null,

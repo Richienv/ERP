@@ -5,6 +5,7 @@ import {
     Scissors, Shirt, Droplets, Printer, Sparkles,
     ShieldCheck, Package, Wrench, Cog, Clock, Building2, ArrowLeftRight,
 } from "lucide-react"
+import { getIconByName, getColorTheme } from "./station-config"
 
 /* ── Station visuals ── */
 const STATION_ICONS: Record<string, typeof Scissors> = {
@@ -23,6 +24,24 @@ const STATION_COLORS: Record<string, { bg: string; border: string; text: string;
     PACKING:    { bg: "#fffbeb", border: "#fcd34d", text: "#b45309", accent: "#fbbf24" },
     FINISHING:  { bg: "#f4f4f5", border: "#a1a1aa", text: "#3f3f46", accent: "#71717a" },
     OTHER:      { bg: "#f4f4f5", border: "#a1a1aa", text: "#3f3f46", accent: "#71717a" },
+}
+
+/* Helper: get colors for a step, using stored colorTheme for OTHER types */
+function getStepColors(step: any) {
+    const st = step.station?.stationType || "OTHER"
+    if (st === "OTHER" && step.station?.colorTheme) {
+        return getColorTheme(step.station.colorTheme).hex
+    }
+    return STATION_COLORS[st] || STATION_COLORS.OTHER
+}
+
+/* Helper: get icon for a step, using stored iconName for OTHER types */
+function getStepIcon(step: any) {
+    const st = step.station?.stationType || "OTHER"
+    if (st === "OTHER" && step.station?.iconName) {
+        return getIconByName(step.station.iconName)
+    }
+    return STATION_ICONS[st] || Cog
 }
 
 /* ── Types ── */
@@ -336,9 +355,8 @@ export function TimelineView({
 
                         {/* ── Bars ── */}
                         {bars.map((bar) => {
-                            const st = bar.step.station?.stationType || "OTHER"
-                            const c = STATION_COLORS[st] || STATION_COLORS.OTHER
-                            const Icon = STATION_ICONS[st] || Cog
+                            const c = getStepColors(bar.step)
+                            const Icon = getStepIcon(bar.step)
                             const isSelected = bar.step.id === selectedStepId
                             const isDragging = drag?.active && drag.stepId === bar.step.id
                             const barWidth = Math.max(bar.durationMin * PIXELS_PER_MINUTE, 60)

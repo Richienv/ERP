@@ -28,6 +28,7 @@ import {
     ShieldCheck, PackageIcon, Wrench, Cog, FileDown,
     Clock, Copy, LayoutTemplate, History, GitBranch, CheckCircle2,
 } from "lucide-react"
+import { getIconByName, getColorTheme } from "@/components/manufacturing/bom/station-config"
 
 const STATION_TYPE_CONFIG = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" },
@@ -258,14 +259,19 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         )
         const customDescriptions = [...new Set(otherStations.map((s: any) => s.description).filter(Boolean))] as string[]
 
-        const custom = customDescriptions.map(desc => ({
-            type: `OTHER:${desc}`,
-            label: desc,
-            icon: Cog,
-            color: "bg-zinc-50 text-zinc-600 border-zinc-300 hover:bg-zinc-100",
-            isCustom: true,
-            description: desc,
-        }))
+        const custom = customDescriptions.map(desc => {
+            const repStation = otherStations.find((s: any) => s.description === desc)
+            const theme = getColorTheme(repStation?.colorTheme)
+            const IconComp = getIconByName(repStation?.iconName)
+            return {
+                type: `OTHER:${desc}`,
+                label: desc,
+                icon: IconComp,
+                color: theme.toolbar,
+                isCustom: true,
+                description: desc,
+            }
+        })
 
         return [...fixed, ...custom]
     }, [allStations])
@@ -679,6 +685,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 parentStepIds: step.parentStepIds || [],
                 startOffsetMinutes: step.startOffsetMinutes ?? 0,
                 useSubkon: step.useSubkon ?? null,
+                subkonProcessType: step.subkonProcessType || null,
                 operatorName: step.operatorName || null,
                 laborMonthlySalary: step.laborMonthlySalary ?? null,
                 estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
@@ -707,6 +714,10 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             body: JSON.stringify(payload),
         })
         const result = await res.json()
+
+        if (!res.ok) {
+            console.error("BOM save failed:", res.status, result)
+        }
 
         if (result.success) {
             // C2 fix: update local state with server-assigned IDs so subsequent saves work

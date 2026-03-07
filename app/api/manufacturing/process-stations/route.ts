@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
         }
 
         // ── MODE: generic station creation (original) ──
-        const { code, name, stationType, operationType, subcontractorId, machineId, costPerUnit, description, parentStationId, groupId } = body
+        const { code, name, stationType, operationType, subcontractorId, machineId, costPerUnit, description, parentStationId, groupId, iconName, colorTheme } = body
 
         if (!code || !name || !stationType || !operationType) {
             return NextResponse.json(
@@ -136,6 +136,8 @@ export async function POST(request: NextRequest) {
                 ...(machineId ? { machine: { connect: { id: machineId } } } : {}),
                 costPerUnit: costPerUnit || 0,
                 description: description || null,
+                iconName: iconName || null,
+                colorTheme: colorTheme || null,
                 ...(parentStationId ? { parentStation: { connect: { id: parentStationId } } } : {}),
                 ...(groupId ? { group: { connect: { id: groupId } } } : {}),
             },

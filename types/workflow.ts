@@ -7,7 +7,7 @@ export type WorkflowModel =
     | 'StockMovement'
     | 'Product'
     | 'Warehouse'
-    | 'CreditNote';
+    | 'DebitCreditNote';
 
 export type WorkflowAction =
     | 'CREATE'

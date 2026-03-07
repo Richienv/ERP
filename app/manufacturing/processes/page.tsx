@@ -224,8 +224,8 @@ export default function ProcessesPage() {
                             <Input
                                 value={formLabel}
                                 onChange={(e) => setFormLabel(e.target.value)}
-                                placeholder="cth: Glazing, Embossing, Laser Cut"
-                                className="border-2 border-black rounded-none h-10 font-bold"
+                                placeholder="Nama..."
+                                className="border-2 border-black rounded-none h-10 font-bold placeholder:text-zinc-300 placeholder:font-normal"
                                 onKeyDown={(e) => e.key === "Enter" && handleAddCustom()}
                             />
                             <p className="text-[9px] text-zinc-400">

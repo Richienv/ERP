@@ -70,7 +70,7 @@ export function AddMaterialDialog({ open, onOpenChange, existingMaterialIds, onA
                 <div className="p-4 space-y-3">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari material..." className="pl-9 h-9 rounded-none border-2 border-black" />
+                        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari..." className="pl-9 h-9 rounded-none border-2 border-black placeholder:text-zinc-300" />
                     </div>
 
                     <ScrollArea className="h-[200px] border-2 border-zinc-200">

@@ -36,8 +36,8 @@ export function MaterialPanel({ items, steps, onAddItem, onRemoveItem }: Materia
                     <Input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Cari material..."
-                        className="pl-8 h-8 text-xs border-zinc-200 rounded-none"
+                        placeholder="Cari..."
+                        className="pl-8 h-8 text-xs border-zinc-200 rounded-none placeholder:text-zinc-300"
                     />
                 </div>
             </div>

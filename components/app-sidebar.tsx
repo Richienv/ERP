@@ -180,6 +180,10 @@ const data = {
           url: "/finance/payables",
         },
         {
+          title: "Nota Kredit/Debit",
+          url: "/finance/credit-notes",
+        },
+        {
           title: "Chart of Accounts",
           url: "/finance/chart-accounts",
         },

@@ -316,4 +316,10 @@ export const queryKeys = {
         all: ["manufacturing"] as const,
         stationWorkload: () => [...queryKeys.manufacturing.all, "stationWorkload"] as const,
     },
+    dcNotes: {
+        all: ["dcNotes"] as const,
+        list: (filters?: any) => ["dcNotes", "list", filters] as const,
+        detail: (id: string) => ["dcNotes", "detail", id] as const,
+        formData: () => ["dcNotes", "formData"] as const,
+    },
 } as const

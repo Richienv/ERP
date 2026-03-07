@@ -253,10 +253,11 @@ model Product {
   BOMItem            BOMItem[]
   productionBOMs     ProductionBOM[]
   productionBOMItems ProductionBOMItem[] @relation("ProductionBOMMaterial")
-  inspections     QualityInspection[]
-  supplierItems   SupplierProduct[]
-  grnItems        GRNItem[]
-  routingSteps    RoutingStep[]
+  inspections            QualityInspection[]
+  supplierItems          SupplierProduct[]
+  grnItems               GRNItem[]
+  routingSteps           RoutingStep[]
+  debitCreditNoteItems   DebitCreditNoteItem[]
 
   // Alternative / Substitute Products (Self-relation)
   alternativeProductId String?   @db.Uuid
@@ -499,7 +500,7 @@ model Customer {
   contacts    CustomerContact[]
   quotations  Quotation[]
   salesOrders SalesOrder[]
-  creditNotes CreditNote[]
+  debitCreditNotes DebitCreditNote[]
   leads       Lead[]
 
   createdAt DateTime  @default(now())
@@ -798,38 +799,6 @@ model Lead {
   @@map("leads")
 }
 
-// Credit Notes
-model CreditNote {
-  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  number     String @unique
-  customerId String @db.Uuid
-
-  // Reference
-  reference String? // Invoice or SO reference
-  reason    CreditReason
-
-  // Amounts
-  amount    Decimal @db.Decimal(15, 2)
-  taxAmount Decimal @default(0) @db.Decimal(15, 2)
-  total     Decimal @db.Decimal(15, 2)
-
-  // Status
-  status CreditNoteStatus @default(DRAFT)
-
-  // Dates
-  issueDate DateTime @default(now())
-
-  // Notes
-  notes String?
-
-  customer Customer @relation(fields: [customerId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("credit_notes")
-}
-
 // ================================
 // Sales & CRM Enums
 // ================================
@@ -914,20 +883,42 @@ enum Priority {
   URGENT // Mendesak
 }
 
-enum CreditReason {
-  RETURN // Retur Barang
-  DISCOUNT // Diskon Tambahan
-  DAMAGED // Barang Rusak
-  OVERPAYMENT // Kelebihan Bayar
-  ADJUSTMENT // Penyesuaian
-  OTHER // Lainnya
+// ================================
+// Debit/Credit Note Enums
+// ================================
+
+enum DCNoteType {
+  SALES_CN      // Nota Kredit Penjualan (seller issues to buyer — reduces AR)
+  SALES_DN      // Nota Debit Penjualan (buyer requests from seller — claim)
+  PURCHASE_DN   // Nota Debit Pembelian (buyer issues to seller — reduces AP)
+  PURCHASE_CN   // Nota Kredit Pembelian (seller issues to buyer — reduces AP)
 }
 
-enum CreditNoteStatus {
-  DRAFT // Draft
-  APPROVED // Disetujui
-  APPLIED // Diterapkan
-  CANCELLED // Dibatalkan
+enum DCNoteStatus {
+  DRAFT
+  POSTED
+  APPLIED      // Fully settled against invoice(s)
+  PARTIAL      // Partially settled
+  VOID
+  CANCELLED
+}
+
+enum DCNoteReasonCode {
+  RET_DEFECT       // Barang cacat/rusak
+  RET_WRONG        // Barang tidak sesuai pesanan
+  RET_QUALITY      // Kualitas tidak standar
+  RET_EXCESS       // Kelebihan kirim
+  RET_EXPIRED      // Barang kadaluarsa
+  ADJ_OVERCHARGE   // Kelebihan tagih
+  ADJ_DISCOUNT     // Diskon belum dipotong
+  ADJ_UNDERCHARGE  // Kekurangan tagih
+  ADJ_ADDCHARGE    // Biaya tambahan
+  SVC_CANCEL       // Pembatalan jasa
+  SVC_SHORT        // Jasa tidak lengkap
+  ORD_CANCEL       // Pembatalan pesanan
+  ADJ_PENALTY      // Penalti/denda
+  ADJ_REBATE       // Potongan volume
+  ADJ_GOODWILL     // Penyesuaian goodwill
 }
 
 // ================================
@@ -1011,9 +1002,10 @@ model Supplier {
 
   isActive Boolean @default(true)
 
-  purchaseOrders PurchaseOrder[]
-  supplierItems  SupplierProduct[]
-  categories     SupplierCategory[]
+  purchaseOrders   PurchaseOrder[]
+  supplierItems    SupplierProduct[]
+  categories       SupplierCategory[]
+  debitCreditNotes DebitCreditNote[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1718,9 +1710,11 @@ model Invoice {
   supplier       Supplier?      @relation(fields: [supplierId], references: [id])
   salesOrder     SalesOrder?    @relation(fields: [salesOrderId], references: [id])
   purchaseOrder  PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-  items          InvoiceItem[]
-  payments       Payment[]
-  journalEntries JournalEntry[]
+  items              InvoiceItem[]
+  payments           Payment[]
+  journalEntries     JournalEntry[]
+  dcNoteOrigins      DebitCreditNote[]           @relation("DCNoteOriginalInvoice")
+  dcNoteSettlements  DebitCreditNoteSettlement[]  @relation("DCNoteSettlements")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2028,6 +2022,7 @@ model JournalEntry {
   purchaseOrder        PurchaseOrder?        @relation(fields: [purchaseOrderId], references: [id])
   inventoryTransaction InventoryTransaction? @relation(fields: [inventoryTransactionId], references: [id])
   pettyCashTransaction  PettyCashTransaction?
+  debitCreditNote      DebitCreditNote?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2692,6 +2687,8 @@ model ProcessStation {
   machine         Machine?       @relation(fields: [machineId], references: [id])
   costPerUnit     Decimal        @default(0) @db.Decimal(12, 2)
   description     String?
+  iconName        String?                // Lucide icon name for custom OTHER stations (e.g. "Flame", "Zap")
+  colorTheme      String?                // Color theme key (e.g. "red", "orange") for toolbar/canvas
   isActive        Boolean        @default(true)
   groupId         String?        @db.Uuid
   group           WorkCenterGroup? @relation(fields: [groupId], references: [id])
@@ -2754,6 +2751,7 @@ model ProductionBOMStep {
   positionX          Float?                 // Canvas node X position (persisted)
   positionY          Float?                 // Canvas node Y position (persisted)
   useSubkon          Boolean?               // per-step override: true=subkon, false=in-house, null=use station default
+  subkonProcessType  String?                // Label tipe proses subkon (e.g. "Jahit Lining", "Obras")
   operatorName       String?                // Nama operator yang ditugaskan ke step ini
 
   // Labour cost calculation
@@ -2848,6 +2846,89 @@ model PettyCashTransaction {
   createdAt        DateTime       @default(now())
 
   @@map("petty_cash_transactions")
+}
+
+// ================================
+// Debit/Credit Notes
+// ================================
+
+model DebitCreditNote {
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  number        String         @unique
+  type          DCNoteType
+  status        DCNoteStatus   @default(DRAFT)
+  reasonCode    DCNoteReasonCode
+
+  customerId    String?        @db.Uuid
+  supplierId    String?        @db.Uuid
+
+  originalInvoiceId  String?   @db.Uuid
+  originalReference  String?
+
+  subtotal      Decimal        @db.Decimal(15, 2)
+  ppnAmount     Decimal        @default(0) @db.Decimal(15, 2)
+  totalAmount   Decimal        @db.Decimal(15, 2)
+  settledAmount Decimal        @default(0) @db.Decimal(15, 2)
+
+  issueDate     DateTime       @default(now())
+  postingDate   DateTime?
+
+  notes         String?
+  description   String?
+
+  journalEntryId String?       @unique @db.Uuid
+
+  customer      Customer?      @relation(fields: [customerId], references: [id])
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id])
+  originalInvoice Invoice?     @relation("DCNoteOriginalInvoice", fields: [originalInvoiceId], references: [id])
+  journalEntry  JournalEntry?  @relation(fields: [journalEntryId], references: [id])
+  items         DebitCreditNoteItem[]
+  settlements   DebitCreditNoteSettlement[]
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([customerId])
+  @@index([supplierId])
+  @@map("debit_credit_notes")
+}
+
+model DebitCreditNoteItem {
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  noteId        String         @db.Uuid
+
+  productId     String?        @db.Uuid
+  description   String
+
+  quantity      Decimal        @db.Decimal(15, 2)
+  unitPrice     Decimal        @db.Decimal(15, 2)
+  amount        Decimal        @db.Decimal(15, 2)
+  ppnAmount     Decimal        @default(0) @db.Decimal(15, 2)
+  totalAmount   Decimal        @db.Decimal(15, 2)
+
+  note          DebitCreditNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  product       Product?       @relation(fields: [productId], references: [id])
+
+  createdAt     DateTime       @default(now())
+
+  @@map("debit_credit_note_items")
+}
+
+model DebitCreditNoteSettlement {
+  id            String         @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  noteId        String         @db.Uuid
+  invoiceId     String         @db.Uuid
+
+  amount        Decimal        @db.Decimal(15, 2)
+
+  note          DebitCreditNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  invoice       Invoice        @relation("DCNoteSettlements", fields: [invoiceId], references: [id])
+
+  createdAt     DateTime       @default(now())
+
+  @@map("debit_credit_note_settlements")
 }
 
 // ================================
