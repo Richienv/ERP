@@ -2,15 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import {
-    BookOpen, Search, Loader2, ChevronDown, ChevronRight, Download,
+    BookOpen, Search, ChevronDown, ChevronRight, Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { formatIDR } from "@/lib/utils"
-import { getAccountTransactions } from "@/lib/actions/finance-invoices"
-
-export const dynamic = "force-dynamic"
+import { useAccountTransactions } from "@/hooks/use-account-transactions"
+import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
 // ─── Types ───────────────────────────────────────────────
 interface TransactionLine {
@@ -117,9 +116,7 @@ interface AccountRow {
 
 // ─── Page Component ──────────────────────────────────────
 export default function AccountTransactionsPage() {
-    const [loading, setLoading] = useState(true)
-    const [entries, setEntries] = useState<TransactionEntry[]>([])
-    const [accounts, setAccounts] = useState<AccountInfo[]>([])
+    const { data, isLoading } = useAccountTransactions()
 
     // Filters
     const [searchText, setSearchText] = useState("")
@@ -133,8 +130,6 @@ export default function AccountTransactionsPage() {
 
     // Collapsible groups
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
-
-    useEffect(() => { loadData() }, [])
 
     // Date preset handler
     useEffect(() => {
@@ -160,24 +155,8 @@ export default function AccountTransactionsPage() {
         }
     }, [datePreset])
 
-    const loadData = async () => {
-        setLoading(true)
-        try {
-            const result = await getAccountTransactions({
-                limit: 500,
-            }) as any
-            if (result.success) {
-                const dbEntries = (result.entries || []) as TransactionEntry[]
-                dbEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                setEntries(dbEntries)
-                setAccounts((result.accounts || []) as AccountInfo[])
-            }
-        } catch {
-            setEntries([])
-        } finally {
-            setLoading(false)
-        }
-    }
+    const entries = data?.entries ?? []
+    const accounts = data?.accounts ?? []
 
     // ─── Filtering ───────────────────────────────────────
     const filtered = useMemo(() => {
@@ -300,6 +279,10 @@ export default function AccountTransactionsPage() {
 
     const headers = ["Tanggal", "Sumber", "Deskripsi", "Referensi", "Debit", "Kredit", "Saldo Berjalan"]
 
+    if (isLoading || !data) {
+        return <TablePageSkeleton accentColor="bg-indigo-400" />
+    }
+
     return (
         <div className="mf-page">
             {/* Header */}
@@ -393,19 +376,11 @@ export default function AccountTransactionsPage() {
                             <Input className="border-2 border-black h-9 pl-9 font-medium text-xs" placeholder="Cari deskripsi, referensi, nama akun..." value={searchText} onChange={(e) => setSearchText(e.target.value)} />
                         </div>
                     </div>
-                    <Button onClick={loadData} className="bg-indigo-600 hover:bg-indigo-700 border-2 border-indigo-700 text-white font-black uppercase text-[10px] h-9 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px]">
-                        Update
-                    </Button>
                 </div>
             </div>
 
             {/* Main Content */}
-            {loading ? (
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white flex items-center justify-center py-20 text-zinc-400">
-                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                    <span className="text-xs font-bold uppercase tracking-widest">Memuat transaksi akun...</span>
-                </div>
-            ) : groupMode === "ACCOUNT" && groupedByAccount ? (
+            {groupMode === "ACCOUNT" && groupedByAccount ? (
                 /* ─── GROUPED BY ACCOUNT — Xero-style ─── */
                 <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white overflow-x-auto">
                     {groupedByAccount.length === 0 ? (
