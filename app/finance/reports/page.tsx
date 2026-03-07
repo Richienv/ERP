@@ -42,7 +42,7 @@ import {
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
-import { useFinanceKPI, useFinanceReport } from "@/hooks/use-finance-reports"
+import { useFinanceReportsAll } from "@/hooks/use-finance-reports"
 import { Loader2 } from "lucide-react"
 
 type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "budget_vs_actual"
@@ -108,23 +108,23 @@ export default function FinancialReportsPage() {
     const [draftStartDate, setDraftStartDate] = useState(new Date(currentYear, 0, 1).toISOString().slice(0, 10))
     const [draftEndDate, setDraftEndDate] = useState(new Date().toISOString().slice(0, 10))
 
-    // KPI strip: lightweight (3 queries) — loads fast
-    const { data: kpi, isLoading: kpiLoading } = useFinanceKPI(startDate, endDate)
+    // All reports + KPI in one consolidated API call
+    const { data, isLoading, isError, error } = useFinanceReportsAll(startDate, endDate)
+    const kpi = data?.kpi
+    const kpiLoading = isLoading
+    const reportLoading = isLoading
 
-    // Active report tab: only fetches the one selected report
-    const { data: reportResult, isLoading: reportLoading, isError, error } = useFinanceReport(reportType, startDate, endDate)
-
-    // Extract typed data from the active report result
-    const pnlData = reportResult?.type === "pnl" ? reportResult.data : null
-    const balanceSheetData = reportResult?.type === "bs" ? reportResult.data : null
-    const cashFlowData = reportResult?.type === "cf" ? reportResult.data : null
-    const trialBalanceData = reportResult?.type === "tb" ? reportResult.data : null
-    const arAgingData = reportResult?.type === "ar_aging" ? reportResult.data : null
-    const apAgingData = reportResult?.type === "ap_aging" ? reportResult.data : null
-    const equityData = reportResult?.type === "equity_changes" ? reportResult.data : null
-    const inventoryTurnoverData = reportResult?.type === "inventory_turnover" ? reportResult.data : null
-    const taxData = reportResult?.type === "tax_report" ? reportResult.data : null
-    const budgetVsActualData = reportResult?.type === "budget_vs_actual" ? reportResult.data : null
+    // Extract typed data from the consolidated response — tab switching is instant
+    const pnlData = data?.reports?.pnl ?? null
+    const balanceSheetData = data?.reports?.bs ?? null
+    const cashFlowData = data?.reports?.cf ?? null
+    const trialBalanceData = data?.reports?.tb ?? null
+    const arAgingData = data?.reports?.ar_aging ?? null
+    const apAgingData = data?.reports?.ap_aging ?? null
+    const equityData = data?.reports?.equity_changes ?? null
+    const inventoryTurnoverData = data?.reports?.inventory_turnover ?? null
+    const taxData = data?.reports?.tax_report ?? null
+    const budgetVsActualData = data?.reports?.budget_vs_actual?.data ?? null
 
     function applyDateRange() {
         const nextStart = new Date(draftStartDate)
@@ -1350,7 +1350,7 @@ export default function FinancialReportsPage() {
                             )}
 
                             {/* Fallback: no data for active report */}
-                            {reportResult && !reportResult.data && (
+                            {data && !(data.reports as any)?.[reportType] && (
                                 <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] p-12 text-center">
                                     <BarChart3 className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
                                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Data laporan tidak tersedia</p>
