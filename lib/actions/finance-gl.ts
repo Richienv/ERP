@@ -504,3 +504,284 @@ export async function processRecurringEntries(): Promise<{
         return { success: false, processedCount: 0, error: msg }
     }
 }
+
+// ==========================================
+// CLOSING JOURNAL (JURNAL PENUTUP)
+// ==========================================
+
+export interface ClosingJournalPreviewLine {
+    accountId: string
+    accountCode: string
+    accountName: string
+    accountType: string
+    debit: number
+    credit: number
+    description: string
+}
+
+export interface ClosingJournalPreview {
+    fiscalYear: number
+    alreadyClosed: boolean
+    revenueTotal: number
+    expenseTotal: number
+    netIncome: number
+    lines: ClosingJournalPreviewLine[]
+    retainedEarningsAccount: { id: string; code: string; name: string } | null
+}
+
+/**
+ * Preview closing journal entries for a fiscal year.
+ * Calculates net balances of all REVENUE and EXPENSE accounts for the year,
+ * then generates closing entries to zero them out and transfer net income
+ * to Retained Earnings (equity account).
+ */
+export async function previewClosingJournal(fiscalYear: number): Promise<{
+    success: boolean
+    data?: ClosingJournalPreview
+    error?: string
+}> {
+    try {
+        const result = await withPrismaAuth(async (prisma) => {
+            // 1. Check if closing entry already exists for this year
+            const existingClosing = await prisma.journalEntry.findFirst({
+                where: {
+                    reference: `CLOSING-${fiscalYear}`,
+                    status: 'POSTED',
+                },
+            })
+
+            if (existingClosing) {
+                return {
+                    fiscalYear,
+                    alreadyClosed: true,
+                    revenueTotal: 0,
+                    expenseTotal: 0,
+                    netIncome: 0,
+                    lines: [],
+                    retainedEarningsAccount: null,
+                } satisfies ClosingJournalPreview
+            }
+
+            // 2. Get date range for the fiscal year
+            const startDate = new Date(fiscalYear, 0, 1) // Jan 1
+            const endDate = new Date(fiscalYear, 11, 31, 23, 59, 59, 999) // Dec 31
+
+            // 3. Get all REVENUE and EXPENSE accounts
+            const accounts = await prisma.gLAccount.findMany({
+                where: { type: { in: ['REVENUE', 'EXPENSE'] } },
+                orderBy: { code: 'asc' },
+            })
+
+            // 4. Calculate net balance for each account within the fiscal year
+            const accountBalances = await prisma.journalLine.groupBy({
+                by: ['accountId'],
+                where: {
+                    accountId: { in: accounts.map(a => a.id) },
+                    entry: {
+                        date: { gte: startDate, lte: endDate },
+                        status: 'POSTED',
+                    },
+                },
+                _sum: { debit: true, credit: true },
+            })
+
+            const balanceMap = new Map(
+                accountBalances.map(b => [
+                    b.accountId,
+                    { debit: Number(b._sum.debit || 0), credit: Number(b._sum.credit || 0) },
+                ])
+            )
+
+            // 5. Find Retained Earnings account (equity, typically code starting with "3" and named "Laba Ditahan" or "Retained Earnings")
+            const retainedEarnings = await prisma.gLAccount.findFirst({
+                where: {
+                    type: 'EQUITY',
+                    OR: [
+                        { name: { contains: 'Laba Ditahan', mode: 'insensitive' } },
+                        { name: { contains: 'Retained', mode: 'insensitive' } },
+                        { name: { contains: 'Saldo Laba', mode: 'insensitive' } },
+                    ],
+                },
+            })
+
+            // 6. Build closing entries
+            const lines: ClosingJournalPreviewLine[] = []
+            let revenueTotal = 0
+            let expenseTotal = 0
+
+            // Close Revenue accounts: DR Revenue, CR Income Summary
+            // Revenue normal balance is CREDIT, so net = credit - debit
+            for (const account of accounts.filter(a => a.type === 'REVENUE')) {
+                const bal = balanceMap.get(account.id)
+                if (!bal) continue
+                const netBalance = bal.credit - bal.debit // Revenue normal = credit side
+                if (Math.abs(netBalance) < 0.01) continue
+
+                revenueTotal += netBalance
+
+                // Debit Revenue to zero it out
+                lines.push({
+                    accountId: account.id,
+                    accountCode: account.code,
+                    accountName: account.name,
+                    accountType: 'REVENUE',
+                    debit: netBalance > 0 ? netBalance : 0,
+                    credit: netBalance < 0 ? Math.abs(netBalance) : 0,
+                    description: `Penutupan akun pendapatan ${account.code} - ${account.name}`,
+                })
+            }
+
+            // Close Expense accounts: DR Income Summary, CR Expense
+            // Expense normal balance is DEBIT, so net = debit - credit
+            for (const account of accounts.filter(a => a.type === 'EXPENSE')) {
+                const bal = balanceMap.get(account.id)
+                if (!bal) continue
+                const netBalance = bal.debit - bal.credit // Expense normal = debit side
+                if (Math.abs(netBalance) < 0.01) continue
+
+                expenseTotal += netBalance
+
+                // Credit Expense to zero it out
+                lines.push({
+                    accountId: account.id,
+                    accountCode: account.code,
+                    accountName: account.name,
+                    accountType: 'EXPENSE',
+                    debit: netBalance < 0 ? Math.abs(netBalance) : 0,
+                    credit: netBalance > 0 ? netBalance : 0,
+                    description: `Penutupan akun beban ${account.code} - ${account.name}`,
+                })
+            }
+
+            // Transfer net income to Retained Earnings
+            const netIncome = revenueTotal - expenseTotal
+            if (retainedEarnings && Math.abs(netIncome) >= 0.01) {
+                lines.push({
+                    accountId: retainedEarnings.id,
+                    accountCode: retainedEarnings.code,
+                    accountName: retainedEarnings.name,
+                    accountType: 'EQUITY',
+                    debit: netIncome < 0 ? Math.abs(netIncome) : 0,
+                    credit: netIncome > 0 ? netIncome : 0,
+                    description: `Transfer laba bersih ke Laba Ditahan tahun ${fiscalYear}`,
+                })
+            }
+
+            return {
+                fiscalYear,
+                alreadyClosed: false,
+                revenueTotal,
+                expenseTotal,
+                netIncome,
+                lines,
+                retainedEarningsAccount: retainedEarnings
+                    ? { id: retainedEarnings.id, code: retainedEarnings.code, name: retainedEarnings.name }
+                    : null,
+            } satisfies ClosingJournalPreview
+        })
+
+        return { success: true, data: result }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal memuat preview jurnal penutup'
+        console.error("[previewClosingJournal] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Post the closing journal entries for a fiscal year.
+ * Creates a single JournalEntry with reference CLOSING-YYYY that zeros out
+ * all REVENUE and EXPENSE accounts and transfers net income to Retained Earnings.
+ */
+export async function postClosingJournal(fiscalYear: number): Promise<{
+    success: boolean
+    entryId?: string
+    error?: string
+}> {
+    try {
+        // First get the preview to know what to post
+        const preview = await previewClosingJournal(fiscalYear)
+        if (!preview.success || !preview.data) {
+            return { success: false, error: preview.error || 'Gagal memuat data penutupan' }
+        }
+
+        if (preview.data.alreadyClosed) {
+            return { success: false, error: `Tahun fiskal ${fiscalYear} sudah ditutup` }
+        }
+
+        if (preview.data.lines.length === 0) {
+            return { success: false, error: 'Tidak ada saldo untuk ditutup' }
+        }
+
+        if (!preview.data.retainedEarningsAccount) {
+            return { success: false, error: 'Akun Laba Ditahan (Retained Earnings) tidak ditemukan. Buat akun ekuitas dengan nama "Laba Ditahan" terlebih dahulu.' }
+        }
+
+        const entryId = await withPrismaAuth(async (prisma) => {
+            // Double-check no closing entry exists (race condition guard)
+            const existingClosing = await prisma.journalEntry.findFirst({
+                where: {
+                    reference: `CLOSING-${fiscalYear}`,
+                    status: 'POSTED',
+                },
+            })
+
+            if (existingClosing) {
+                throw new Error(`Tahun fiskal ${fiscalYear} sudah ditutup`)
+            }
+
+            const lines = preview.data!.lines
+
+            // Verify balance: total debit must equal total credit
+            const totalDebit = lines.reduce((sum, l) => sum + l.debit, 0)
+            const totalCredit = lines.reduce((sum, l) => sum + l.credit, 0)
+
+            if (Math.abs(totalDebit - totalCredit) > 0.01) {
+                throw new Error(`Jurnal tidak seimbang: Debit (${totalDebit}) != Kredit (${totalCredit})`)
+            }
+
+            return await prisma.$transaction(async (tx) => {
+                // Create the closing journal entry
+                const entry = await tx.journalEntry.create({
+                    data: {
+                        date: new Date(fiscalYear, 11, 31), // Dec 31 of fiscal year
+                        description: `Jurnal Penutup Tahun Fiskal ${fiscalYear}`,
+                        reference: `CLOSING-${fiscalYear}`,
+                        status: 'POSTED',
+                        lines: {
+                            create: lines.map(line => ({
+                                accountId: line.accountId,
+                                debit: line.debit,
+                                credit: line.credit,
+                                description: line.description,
+                            })),
+                        },
+                    },
+                })
+
+                // Update GL account balances
+                for (const line of lines) {
+                    let balanceChange = 0
+                    if (['ASSET', 'EXPENSE'].includes(line.accountType)) {
+                        balanceChange = line.debit - line.credit
+                    } else {
+                        balanceChange = line.credit - line.debit
+                    }
+
+                    await tx.gLAccount.update({
+                        where: { id: line.accountId },
+                        data: { balance: { increment: balanceChange } },
+                    })
+                }
+
+                return entry.id
+            })
+        })
+
+        return { success: true, entryId }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal memposting jurnal penutup'
+        console.error("[postClosingJournal] Error:", error)
+        return { success: false, error: msg }
+    }
+}

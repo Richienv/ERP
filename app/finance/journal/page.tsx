@@ -13,6 +13,7 @@ import {
     ChevronDown,
     ChevronUp,
     Calendar,
+    Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,6 +33,7 @@ import { useJournal } from "@/hooks/use-journal"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { ClosingJournalDialog } from "@/components/finance/closing-journal-dialog"
 
 export default function GeneralLedgerPage() {
     const { data, isLoading: loading } = useJournal()
@@ -47,6 +49,7 @@ export default function GeneralLedgerPage() {
     const [posting, setPosting] = useState(false)
     const [exportOpen, setExportOpen] = useState(false)
     const [showForm, setShowForm] = useState(false)
+    const [closingOpen, setClosingOpen] = useState(false)
 
     const totalDebit = lines.reduce((acc, curr) => acc + (Number(curr.debit) || 0), 0)
     const totalCredit = lines.reduce((acc, curr) => acc + (Number(curr.credit) || 0), 0)
@@ -158,6 +161,13 @@ export default function GeneralLedgerPage() {
                                 <Button onClick={handleExport} className="w-full">Download CSV</Button>
                             </DialogContent>
                         </Dialog>
+                        <Button
+                            onClick={() => setClosingOpen(true)}
+                            variant="outline"
+                            className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none"
+                        >
+                            <Lock className="mr-2 h-3.5 w-3.5" /> Jurnal Penutup
+                        </Button>
                         <Button
                             onClick={() => setShowForm(!showForm)}
                             className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"
@@ -398,6 +408,9 @@ export default function GeneralLedgerPage() {
                     ))
                 )}
             </div>
+
+            {/* Closing Journal Dialog */}
+            <ClosingJournalDialog open={closingOpen} onOpenChange={setClosingOpen} />
         </div>
     )
 }
