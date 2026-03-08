@@ -280,6 +280,28 @@ model Product {
 }
 
 // ================================
+// Salesperson Master
+// ================================
+
+model Salesperson {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code           String   @unique // SP-001
+  name           String
+  phone          String?
+  email          String?
+  commissionRate Decimal  @default(0) @db.Decimal(5, 2) // percentage of SO total
+  isActive       Boolean  @default(true)
+
+  salesOrders SalesOrder[]
+  quotations  Quotation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("salespersons")
+}
+
+// ================================
 // Master Data (Units, Brands, Colors)
 // ================================
 
@@ -641,8 +663,12 @@ model Quotation {
   notes         String?
   internalNotes String?
 
+  // Salesperson
+  salespersonId String? @db.Uuid
+
   // Relations
   customer    Customer        @relation(fields: [customerId], references: [id])
+  salesperson Salesperson?    @relation(fields: [salespersonId], references: [id])
   items       QuotationItem[]
   salesOrders SalesOrder[]
 
@@ -655,6 +681,7 @@ model Quotation {
 
   @@index([status])
   @@index([customerId])
+  @@index([salespersonId])
   @@index([updatedAt])
   @@map("quotations")
 }
@@ -715,9 +742,13 @@ model SalesOrder {
   notes         String?
   internalNotes String?
 
+  // Salesperson
+  salespersonId String? @db.Uuid
+
   // Relations
   customer       Customer               @relation(fields: [customerId], references: [id])
   quotation      Quotation?             @relation(fields: [quotationId], references: [id])
+  salesperson    Salesperson?           @relation(fields: [salespersonId], references: [id])
   items          SalesOrderItem[]
   transactions   InventoryTransaction[]
   invoices       Invoice[]
@@ -731,6 +762,7 @@ model SalesOrder {
 
   @@index([status])
   @@index([customerId])
+  @@index([salespersonId])
   @@index([orderDate])
   @@index([updatedAt])
   @@map("sales_orders")

@@ -113,6 +113,13 @@ export async function GET(request: NextRequest) {
             number: true,
           },
         },
+        salesperson: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+          },
+        },
         _count: {
           select: {
             items: true,
@@ -131,6 +138,7 @@ export async function GET(request: NextRequest) {
       number: order.revision > 0 ? `${order.number} Rev.${order.revision}` : order.number,
       customer: order.customer,
       quotationNumber: order.quotation?.number || null,
+      salesperson: order.salesperson || null,
       customerRef: order.customerRef,
       orderDate: order.orderDate,
       requestedDate: order.requestedDate,
@@ -373,6 +381,7 @@ export async function POST(request: NextRequest) {
           number,
           customerId,
           quotationId: quotationId || null,
+          salespersonId: toText(orderPayload.salespersonId) || null,
           customerRef: toText(orderPayload.customerRef),
           orderDate,
           requestedDate: requestedDate && !Number.isNaN(requestedDate.getTime()) ? requestedDate : null,

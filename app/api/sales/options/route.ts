@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const customerId = searchParams.get('customerId') || undefined
 
-    const [customers, products, quotations, employees, customerCategories] = await Promise.all([
+    const [customers, products, quotations, employees, customerCategories, salespersons] = await Promise.all([
       prisma.customer.findMany({
         where: {
           isActive: true,
@@ -118,6 +118,19 @@ export async function GET(request: NextRequest) {
           name: 'asc',
         },
       }),
+      prisma.salesperson.findMany({
+        where: {
+          isActive: true,
+        },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+        orderBy: {
+          name: 'asc',
+        },
+      }),
     ])
 
     const mappedProducts = products.map((product) => ({
@@ -160,6 +173,7 @@ export async function GET(request: NextRequest) {
         quotations: mappedQuotations,
         users: mappedUsers,
         customerCategories,
+        salespersons,
       },
     })
   } catch (error) {

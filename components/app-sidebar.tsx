@@ -133,6 +133,10 @@ const data = {
           title: "Skema Diskon",
           url: "/sales/discounts",
         },
+        {
+          title: "Salesperson & Komisi",
+          url: "/sales/salespersons",
+        },
       ],
     },
     {
