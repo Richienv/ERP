@@ -167,6 +167,7 @@ model Warehouse {
   fabricRolls        FabricRoll[]
   transfersFrom      StockTransfer[]        @relation("TransferFrom")
   transfersTo        StockTransfer[]        @relation("TransferTo")
+  costLayers         CostLayer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -214,8 +215,9 @@ model Product {
   categoryId   String?     @db.Uuid
   productType  ProductType @default(TRADING)
   unit         String // pcs, kg, liter, etc
-  costPrice    Decimal     @default(0) @db.Decimal(15, 2)
-  sellingPrice Decimal     @default(0) @db.Decimal(15, 2)
+  costPrice      Decimal       @default(0) @db.Decimal(15, 2)
+  costingMethod  CostingMethod @default(AVERAGE)
+  sellingPrice   Decimal       @default(0) @db.Decimal(15, 2)
   minStock     Int         @default(0)
   maxStock     Int         @default(0)
   reorderLevel Int         @default(0)
@@ -259,6 +261,7 @@ model Product {
   grnItems               GRNItem[]
   routingSteps           RoutingStep[]
   debitCreditNoteItems   DebitCreditNoteItem[]
+  costLayers             CostLayer[]
 
   // Alternative / Substitute Products (Self-relation)
   alternativeProductId String?   @db.Uuid
@@ -311,6 +314,9 @@ model Unit {
   name      String // Pieces, Kilogram, Meter, Yard
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
+
+  conversionsFrom UomConversion[] @relation("FromUnit")
+  conversionsTo   UomConversion[] @relation("ToUnit")
 
   @@map("units")
 }
@@ -425,6 +431,10 @@ enum TransactionType {
   SUBCONTRACT_OUT // Material issued to CMT subcontractor
   SUBCONTRACT_IN // Material returned from CMT subcontractor
   CUT_CONSUME // Fabric consumed by cutting plan
+
+  // Returns
+  PRODUCTION_RETURN // Unused material returned from production
+  MATERIAL_RETURN // General material return
 }
 
 // ================================
@@ -1180,6 +1190,7 @@ model PurchaseOrderItem {
 
   quantity    Int
   receivedQty Int     @default(0)
+  returnedQty Int     @default(0)
   unitPrice   Decimal @db.Decimal(15, 2)
   totalPrice  Decimal @db.Decimal(15, 2)
 
@@ -3132,4 +3143,64 @@ model DiscountScheme {
   @@index([productId])
   @@index([categoryId])
   @@map("discount_schemes")
+}
+
+// ================================
+// Costing
+// ================================
+
+enum CostingMethod {
+  AVERAGE
+  FIFO
+}
+
+model CostLayer {
+  id            String     @id @default(cuid())
+  productId     String     @db.Uuid
+  product       Product    @relation(fields: [productId], references: [id])
+  warehouseId   String?    @db.Uuid
+  warehouse     Warehouse? @relation(fields: [warehouseId], references: [id])
+  qty           Decimal    @db.Decimal(15, 4)
+  unitCost      Decimal    @db.Decimal(15, 4)
+  remainingQty  Decimal    @db.Decimal(15, 4)
+  referenceType String?
+  referenceId   String?
+  createdAt     DateTime   @default(now())
+
+  @@index([productId])
+  @@index([productId, warehouseId])
+  @@index([createdAt])
+  @@map("cost_layers")
+}
+
+// ================================
+// UoM Conversion
+// ================================
+
+model UomConversion {
+  id         String   @id @default(cuid())
+  fromUnitId String   @db.Uuid
+  fromUnit   Unit     @relation("FromUnit", fields: [fromUnitId], references: [id])
+  toUnitId   String   @db.Uuid
+  toUnit     Unit     @relation("ToUnit", fields: [toUnitId], references: [id])
+  factor     Decimal  @db.Decimal(15, 6)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([fromUnitId, toUnitId])
+  @@map("uom_conversions")
+}
+
+// ================================
+// System Settings
+// ================================
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_settings")
 }
