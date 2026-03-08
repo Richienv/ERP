@@ -322,4 +322,8 @@ export const queryKeys = {
         detail: (id: string) => ["dcNotes", "detail", id] as const,
         formData: () => ["dcNotes", "formData"] as const,
     },
+    currencies: {
+        all: ["currencies"] as const,
+        list: () => [...queryKeys.currencies.all, "list"] as const,
+    },
 } as const

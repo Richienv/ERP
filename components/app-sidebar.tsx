@@ -207,6 +207,10 @@ const data = {
           title: "Rekonsiliasi Bank",
           url: "/finance/reconciliation",
         },
+        {
+          title: "Kurs Mata Uang",
+          url: "/finance/currencies",
+        },
       ],
     },
     {
