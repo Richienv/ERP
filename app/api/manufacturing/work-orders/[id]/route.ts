@@ -386,6 +386,122 @@ async function executeProductionReturn(
     })
 }
 
+// --- Stock Reservation Helpers ---
+// Reserve BOM materials when a Work Order starts production (IN_PROGRESS).
+async function reserveStockForWorkOrder(workOrderId: string) {
+    const wo = await prisma.workOrder.findUnique({
+        where: { id: workOrderId },
+        include: {
+            productionBom: {
+                include: { items: true },
+            },
+            product: {
+                include: {
+                    BillOfMaterials: {
+                        where: { isActive: true },
+                        include: { items: true },
+                        take: 1,
+                    },
+                },
+            },
+        },
+    })
+    if (!wo) return
+
+    // Use ProductionBOM if available, fallback to legacy BOM
+    const bomItems = wo.productionBom?.items ?? wo.product.BillOfMaterials[0]?.items ?? []
+    if (bomItems.length === 0) return
+
+    const defaultWarehouse = await prisma.warehouse.findFirst({
+        where: { isActive: true },
+        select: { id: true },
+        orderBy: { createdAt: "asc" },
+    })
+    if (!defaultWarehouse) return
+
+    for (const item of bomItems) {
+        const perUnit = Number("quantityPerUnit" in item ? item.quantityPerUnit : (item as any).quantity)
+        const waste = Number("wastePct" in item ? item.wastePct : 0) / 100
+        const requiredQty = Math.ceil(perUnit * wo.plannedQty * (1 + waste))
+        if (requiredQty <= 0) continue
+
+        const stockLevel = await prisma.stockLevel.findFirst({
+            where: { productId: item.materialId, warehouseId: defaultWarehouse.id },
+        })
+
+        const reserveQty = Math.min(requiredQty, stockLevel?.availableQty ?? 0)
+        if (reserveQty <= 0) continue
+
+        if (stockLevel) {
+            await prisma.stockLevel.update({
+                where: { id: stockLevel.id },
+                data: {
+                    availableQty: { decrement: reserveQty },
+                    reservedQty: { increment: reserveQty },
+                },
+            })
+        }
+
+        await prisma.stockReservation.upsert({
+            where: {
+                workOrderId_productId_warehouseId: {
+                    workOrderId,
+                    productId: item.materialId,
+                    warehouseId: defaultWarehouse.id,
+                },
+            },
+            create: {
+                workOrderId,
+                productId: item.materialId,
+                warehouseId: defaultWarehouse.id,
+                reservedQty: reserveQty,
+                status: "ACTIVE",
+            },
+            update: {
+                reservedQty: reserveQty,
+                status: "ACTIVE",
+            },
+        })
+    }
+
+    console.log(`[StockReservation] Reserved materials for WO ${wo.number}`)
+}
+
+// Release all active reservations when a Work Order is cancelled.
+async function releaseReservationsForWorkOrder(workOrderId: string) {
+    const reservations = await prisma.stockReservation.findMany({
+        where: { workOrderId, status: "ACTIVE" },
+    })
+
+    for (const reservation of reservations) {
+        const releaseQty = reservation.reservedQty - reservation.consumedQty
+        if (releaseQty <= 0) continue
+
+        const stockLevel = await prisma.stockLevel.findFirst({
+            where: { productId: reservation.productId, warehouseId: reservation.warehouseId },
+        })
+
+        if (stockLevel) {
+            await prisma.stockLevel.update({
+                where: { id: stockLevel.id },
+                data: {
+                    availableQty: { increment: releaseQty },
+                    reservedQty: { decrement: releaseQty },
+                },
+            })
+        }
+
+        await prisma.stockReservation.update({
+            where: { id: reservation.id },
+            data: { releasedQty: releaseQty, status: "RELEASED" },
+        })
+    }
+
+    if (reservations.length > 0) {
+        console.log(`[StockReservation] Released ${reservations.length} reservation(s) for WO ${workOrderId}`)
+    }
+}
+
 // GET /api/manufacturing/work-orders/[id] - Get single work order
 export async function GET(
     request: NextRequest,
@@ -494,12 +610,15 @@ export async function PATCH(
 
         const action = body.action as string | undefined
 
+        let previousStatus: string | null = null
+
         const workOrder = await prisma.$transaction(async (tx) => {
             const existing = await tx.workOrder.findUnique({
                 where: { id },
                 include: { product: true },
             })
             if (!existing) throw new Error('Work order not found')
+            previousStatus = existing.status
 
             if (action === 'REPORT_PRODUCTION') {
                 if (existing.status !== 'IN_PROGRESS') {
@@ -652,6 +771,20 @@ export async function PATCH(
                 include: { product: true },
             })
         })
+
+        // --- Stock Reservation Logic (post-transaction, non-blocking) ---
+        const newStatus = workOrder.status
+        if (previousStatus && newStatus !== previousStatus) {
+            try {
+                if (newStatus === 'IN_PROGRESS' && previousStatus !== 'IN_PROGRESS') {
+                    await reserveStockForWorkOrder(id)
+                } else if (newStatus === 'CANCELLED') {
+                    await releaseReservationsForWorkOrder(id)
+                }
+            } catch (reservationError) {
+                console.error('[StockReservation] Non-blocking error:', reservationError)
+            }
+        }
 
         return NextResponse.json({
             success: true,

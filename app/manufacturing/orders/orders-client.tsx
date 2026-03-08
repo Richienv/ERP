@@ -42,6 +42,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { CreateWorkOrderDialog } from "@/components/manufacturing/create-work-order-dialog";
 import { ProductionReturnDialog } from "@/components/manufacturing/production-return-dialog";
+import { ShortageDialog } from "@/components/manufacturing/shortage-dialog";
+import { MaterialVarianceSection } from "@/components/manufacturing/material-variance-section";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import Link from "next/link";
 
 interface WorkOrder {
@@ -124,6 +127,7 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
     const [warehouseOptions, setWarehouseOptions] = useState<WarehouseOption[]>([]);
     const [updating, setUpdating] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
+    const [shortageDialogOpen, setShortageDialogOpen] = useState(false);
 
     const fetchWorkOrders = async () => {
         setRefreshing(true);
@@ -836,8 +840,25 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                                                         onSuccess={refreshSelectedOrder}
                                                     />
                                                 </div>
+                                                {(selectedOrder.status === 'PLANNED' || selectedOrder.status === 'IN_PROGRESS') && (
+                                                    <Button
+                                                        variant="outline"
+                                                        className="w-full border-2 border-black font-black uppercase text-[10px] tracking-wide h-10 hover:bg-amber-50 transition-colors rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                                        onClick={() => setShortageDialogOpen(true)}
+                                                    >
+                                                        <IconAlertTriangle className="h-4 w-4 mr-2" />
+                                                        Cek Kebutuhan Material
+                                                    </Button>
+                                                )}
                                             </div>
                                         </div>
+
+                                        {/* Material Cost Variance — only for active/completed WOs */}
+                                        {(selectedOrder.status === 'IN_PROGRESS' || selectedOrder.status === 'COMPLETED') && (
+                                            <div className="mt-4 px-4">
+                                                <MaterialVarianceSection workOrderId={selectedOrder.id} />
+                                            </div>
+                                        )}
                                     </ScrollArea>
                                 </>
                             )}
@@ -999,6 +1020,20 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                 onCreated={fetchWorkOrders}
                 orderType="MO"
             />
+
+            {selectedOrder && (
+                <ShortageDialog
+                    workOrderId={selectedOrder.id}
+                    open={shortageDialogOpen}
+                    onOpenChange={setShortageDialogOpen}
+                    onPRCreated={() => {
+                        queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all });
+                        queryClient.invalidateQueries({ queryKey: queryKeys.procurementRequestForm.all });
+                        queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
+                        fetchWorkOrders();
+                    }}
+                />
+            )}
         </div>
     );
 }
