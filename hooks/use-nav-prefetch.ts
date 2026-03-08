@@ -418,13 +418,6 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             period: p.period,
         })),
     },
-    "/finance/transactions": {
-        queryKey: queryKeys.accountTransactions.list(),
-        queryFn: () => fetch("/api/finance/transactions?limit=500").then((r) => r.json()).then((p) => ({
-            entries: p.entries ?? [],
-            accounts: p.accounts ?? [],
-        })),
-    },
     "/finance/reconciliation": {
         queryKey: queryKeys.reconciliation.list(),
         queryFn: async () => {
@@ -449,13 +442,9 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             return await getHCMDashboardData()
         },
     },
-    "/inventory/opening-stock": {
-        queryKey: queryKeys.openingStock.list(),
-        queryFn: () => fetch("/api/inventory/opening-stock").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            warehouses: p.warehouses ?? [],
-            existingTransactions: p.existingTransactions ?? [],
-        })),
+    "/finance/opening-balances": {
+        queryKey: queryKeys.openingBalances.list(),
+        queryFn: () => fetch("/api/finance/opening-balances").then((r) => r.json()).then((p) => p.success ? p.data : {}),
     },
     "/inventory/audit": {
         queryKey: queryKeys.inventoryAudit.list(),

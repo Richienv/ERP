@@ -211,6 +211,10 @@ const data = {
           title: "Rekonsiliasi Bank",
           url: "/finance/reconciliation",
         },
+        {
+          title: "Saldo Awal",
+          url: "/finance/opening-balances",
+        },
       ],
     },
     {
