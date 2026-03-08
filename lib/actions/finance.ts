@@ -2327,6 +2327,10 @@ export async function recordVendorPayment(data: {
     }
 }
 
+// Re-export multi-bill payment from finance-ap
+export { recordMultiBillPayment, getVendorAPBalances } from "./finance-ap"
+export type { BillAllocation } from "./finance-ap"
+
 // ==========================================
 // CHART OF ACCOUNTS (COA)
 // ==========================================

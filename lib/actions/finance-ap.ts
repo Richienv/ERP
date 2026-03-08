@@ -449,6 +449,185 @@ export async function recordVendorPayment(data: {
 }
 
 // ==========================================
+// MULTI-BILL VENDOR PAYMENT (AP Multi-Pay)
+// ==========================================
+
+export interface BillAllocation {
+    billId: string
+    amount: number
+}
+
+/**
+ * Record a payment that covers multiple bills (partial or full).
+ * Each allocation updates the corresponding bill's balanceDue & status.
+ * A single GL entry is posted: DR Accounts Payable, CR Bank/Cash.
+ */
+export async function recordMultiBillPayment(data: {
+    supplierId: string
+    allocations: BillAllocation[]
+    method?: 'CASH' | 'TRANSFER' | 'CHECK'
+    reference?: string
+    notes?: string
+    bankAccountCode?: string // GL code for bank/cash account (default 1010)
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            if (!data.supplierId) {
+                throw new Error("Supplier wajib dipilih")
+            }
+            if (!data.allocations || data.allocations.length === 0) {
+                throw new Error("Minimal satu tagihan harus dialokasikan")
+            }
+
+            const totalAmount = data.allocations.reduce((sum, a) => sum + a.amount, 0)
+            if (totalAmount <= 0) {
+                throw new Error("Total pembayaran harus lebih dari 0")
+            }
+
+            // Validate all allocations
+            for (const alloc of data.allocations) {
+                if (!alloc.billId) throw new Error("Bill ID wajib diisi")
+                if (alloc.amount <= 0) throw new Error("Jumlah alokasi harus lebih dari 0")
+            }
+
+            if (data.method === 'CHECK' && !data.reference) {
+                throw new Error("Nomor cek/referensi wajib diisi untuk metode CHECK")
+            }
+
+            // Generate payment number
+            const year = new Date().getFullYear()
+            const count = await prisma.payment.count({
+                where: { number: { startsWith: `VPAY-${year}` } }
+            })
+            const paymentNumber = `VPAY-${year}-${String(count + 1).padStart(4, '0')}`
+
+            // For multi-bill, we create one payment per bill allocation
+            // so that payment history is properly linked to each bill
+            const paymentIds: string[] = []
+
+            for (const alloc of data.allocations) {
+                const bill = await prisma.invoice.findUnique({
+                    where: { id: alloc.billId },
+                    include: { supplier: { select: { name: true } } }
+                })
+                if (!bill) throw new Error(`Tagihan ${alloc.billId} tidak ditemukan`)
+                if (bill.supplierId !== data.supplierId) {
+                    throw new Error(`Tagihan ${bill.number} bukan milik vendor yang dipilih`)
+                }
+
+                const currentBalance = Number(bill.balanceDue)
+                if (alloc.amount > currentBalance + 0.01) {
+                    throw new Error(`Alokasi untuk ${bill.number} (${alloc.amount}) melebihi sisa tagihan (${currentBalance})`)
+                }
+
+                // Allocate suffix for multi-bill payments
+                const suffix = data.allocations.length > 1
+                    ? `-${String(paymentIds.length + 1).padStart(2, '0')}`
+                    : ''
+                const allocPaymentNumber = `${paymentNumber}${suffix}`
+
+                const payment = await prisma.payment.create({
+                    data: {
+                        number: allocPaymentNumber,
+                        supplierId: data.supplierId,
+                        invoiceId: alloc.billId,
+                        amount: alloc.amount,
+                        date: new Date(),
+                        method: data.method || 'TRANSFER',
+                        reference: data.reference,
+                        notes: data.notes
+                    }
+                })
+                paymentIds.push(payment.id)
+
+                // Update bill balance & status
+                const newBalance = Math.max(0, currentBalance - alloc.amount)
+                let newStatus: InvoiceStatus
+                if (newBalance <= 0.01) {
+                    newStatus = 'PAID' as InvoiceStatus
+                } else {
+                    newStatus = 'PARTIAL' as InvoiceStatus
+                }
+
+                await prisma.invoice.update({
+                    where: { id: alloc.billId },
+                    data: {
+                        balanceDue: Math.max(0, newBalance),
+                        status: newStatus
+                    }
+                })
+            }
+
+            // Post single GL entry for total amount: DR AP, CR Bank/Cash
+            const bankCode = data.bankAccountCode || '1010'
+            await postJournalEntry({
+                description: `Pembayaran Vendor Multi-Bill ${paymentNumber}`,
+                date: new Date(),
+                reference: paymentNumber,
+                lines: [
+                    { accountCode: '2100', debit: totalAmount, credit: 0, description: 'Pelunasan Hutang Usaha' },
+                    { accountCode: bankCode, debit: 0, credit: totalAmount, description: `Pembayaran via ${data.method || 'TRANSFER'}` }
+                ]
+            })
+
+            return { success: true, paymentNumber, paymentIds, totalAmount }
+        })
+    } catch (error: any) {
+        console.error("Failed to record multi-bill payment:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+/**
+ * Get AP balance per vendor (total outstanding)
+ */
+export async function getVendorAPBalances(): Promise<Array<{
+    vendorId: string
+    vendorName: string
+    totalOutstanding: number
+    billCount: number
+}>> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const results = await prisma.invoice.groupBy({
+                by: ['supplierId'],
+                where: {
+                    type: 'INV_IN',
+                    status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED'] },
+                    supplierId: { not: null }
+                },
+                _sum: { balanceDue: true },
+                _count: true
+            })
+
+            // Get supplier names
+            const supplierIds = results
+                .map(r => r.supplierId)
+                .filter((id): id is string => id !== null)
+
+            const suppliers = await prisma.supplier.findMany({
+                where: { id: { in: supplierIds } },
+                select: { id: true, name: true }
+            })
+            const supplierMap = new Map(suppliers.map(s => [s.id, s.name]))
+
+            return results
+                .filter(r => r.supplierId !== null)
+                .map(r => ({
+                    vendorId: r.supplierId!,
+                    vendorName: supplierMap.get(r.supplierId!) || 'Unknown',
+                    totalOutstanding: Number(r._sum.balanceDue || 0),
+                    billCount: r._count
+                }))
+                .sort((a, b) => b.totalOutstanding - a.totalOutstanding)
+        })
+    } catch (error) {
+        console.error("Failed to fetch vendor AP balances:", error)
+        return []
+    }
+}
+
+// ==========================================
 // FINANCE STATS FOR DASHBOARD
 // ==========================================
 

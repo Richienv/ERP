@@ -34,6 +34,7 @@ import { toast } from "sonner"
 import { useVendorPayments } from "@/hooks/use-vendor-payments"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { VendorMultiPaymentDialog } from "@/components/finance/vendor-multi-payment-dialog"
 
 type PaymentMethod = "TRANSFER" | "CHECK" | "CASH"
 
@@ -61,7 +62,9 @@ export default function APCheckbookPage() {
     const payments = data?.payments ?? []
     const vendors = data?.vendors ?? []
     const openBills = data?.openBills ?? []
+    const apBalances = data?.apBalances ?? []
     const [showForm, setShowForm] = useState(false)
+    const [showMultiPay, setShowMultiPay] = useState(false)
 
     const [selectedVendorId, setSelectedVendorId] = useState("")
     const [amount, setAmount] = useState("")
@@ -274,12 +277,20 @@ export default function APCheckbookPage() {
                             </p>
                         </div>
                     </div>
-                    <Button
-                        onClick={() => setShowForm(!showForm)}
-                        className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"
-                    >
-                        {showForm ? <><ChevronUp className="mr-2 h-3.5 w-3.5" /> Tutup Form</> : <><Plus className="mr-2 h-3.5 w-3.5" /> Buat Pembayaran</>}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            onClick={() => setShowMultiPay(true)}
+                            className="bg-emerald-700 text-white hover:bg-emerald-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"
+                        >
+                            <Banknote className="mr-2 h-3.5 w-3.5" /> Multi-Bayar
+                        </Button>
+                        <Button
+                            onClick={() => setShowForm(!showForm)}
+                            className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"
+                        >
+                            {showForm ? <><ChevronUp className="mr-2 h-3.5 w-3.5" /> Tutup Form</> : <><Plus className="mr-2 h-3.5 w-3.5" /> Buat Pembayaran</>}
+                        </Button>
+                    </div>
                 </div>
             </div>
 
@@ -499,6 +510,15 @@ export default function APCheckbookPage() {
                     </div>
                 </DialogContent>
             </Dialog>
+
+            {/* ═══ MULTI-PAYMENT DIALOG ═══ */}
+            <VendorMultiPaymentDialog
+                open={showMultiPay}
+                onOpenChange={setShowMultiPay}
+                vendors={vendors}
+                openBills={openBills}
+                vendorAPBalances={apBalances}
+            />
 
             {/* ═══ PAYMENT HISTORY TABLE ═══ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
