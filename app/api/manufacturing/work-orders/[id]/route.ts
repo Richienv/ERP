@@ -228,6 +228,164 @@ async function executeProductionPosting(
     return { workOrder, totalMaterialCost }
 }
 
+async function executeProductionReturn(
+    tx: Prisma.TransactionClient,
+    params: {
+        workOrderId: string
+        returnQty: number
+        warehouseId: string
+        reason: string
+        performedBy?: string
+    }
+) {
+    const workOrder = await tx.workOrder.findUnique({
+        where: { id: params.workOrderId },
+        include: {
+            product: {
+                include: {
+                    BillOfMaterials: {
+                        where: { isActive: true },
+                        include: {
+                            items: {
+                                include: { material: true },
+                            },
+                        },
+                        take: 1,
+                    },
+                },
+            },
+        },
+    })
+
+    if (!workOrder) {
+        throw new Error('Work order not found')
+    }
+
+    if (workOrder.actualQty < params.returnQty) {
+        throw new Error(
+            `Qty retur (${params.returnQty}) melebihi qty aktual (${workOrder.actualQty})`
+        )
+    }
+
+    const bom = workOrder.product.BillOfMaterials[0]
+    if (!bom || bom.items.length === 0) {
+        throw new Error(`No active BOM found for product ${workOrder.product.code}`)
+    }
+
+    // 1. Decrease finished goods stock
+    const fgLevel = await tx.stockLevel.findFirst({
+        where: { productId: workOrder.productId, warehouseId: params.warehouseId },
+    })
+
+    if (!fgLevel || fgLevel.quantity < params.returnQty) {
+        throw new Error(
+            `Stok barang jadi tidak cukup untuk retur. Tersedia: ${fgLevel?.quantity || 0}, dibutuhkan: ${params.returnQty}`
+        )
+    }
+
+    await tx.stockLevel.update({
+        where: { id: fgLevel.id },
+        data: {
+            quantity: { decrement: params.returnQty },
+            availableQty: { decrement: params.returnQty },
+        },
+    })
+
+    const fgUnitCost = Number(workOrder.product.costPrice || 0)
+    const fgTotalValue = fgUnitCost * params.returnQty
+
+    // InventoryTransaction: PRODUCTION_RETURN (finished goods decrease)
+    await tx.inventoryTransaction.create({
+        data: {
+            productId: workOrder.productId,
+            warehouseId: params.warehouseId,
+            workOrderId: workOrder.id,
+            type: 'PRODUCTION_RETURN',
+            quantity: -params.returnQty,
+            unitCost: fgUnitCost,
+            totalValue: fgTotalValue,
+            performedBy: params.performedBy,
+            notes: `Retur produksi WO ${workOrder.number}: ${params.reason}`,
+        },
+    })
+
+    // 2. Increase raw materials stock (reverse BOM consumption)
+    let totalMaterialCost = 0
+
+    for (const item of bom.items) {
+        const perUnit = Number(item.quantity)
+        const waste = Number(item.wastePct || 0) / 100
+        const returnMaterialQty = Math.ceil(perUnit * params.returnQty * (1 + waste))
+        if (returnMaterialQty <= 0) continue
+
+        const materialLevel = await tx.stockLevel.findFirst({
+            where: { productId: item.materialId, warehouseId: params.warehouseId },
+        })
+
+        const unitCost = Number(item.material.costPrice || 0)
+        totalMaterialCost += unitCost * returnMaterialQty
+
+        if (materialLevel) {
+            await tx.stockLevel.update({
+                where: { id: materialLevel.id },
+                data: {
+                    quantity: { increment: returnMaterialQty },
+                    availableQty: { increment: returnMaterialQty },
+                },
+            })
+        } else {
+            await tx.stockLevel.create({
+                data: {
+                    productId: item.materialId,
+                    warehouseId: params.warehouseId,
+                    quantity: returnMaterialQty,
+                    availableQty: returnMaterialQty,
+                },
+            })
+        }
+
+        // InventoryTransaction: MATERIAL_RETURN (raw material increase)
+        await tx.inventoryTransaction.create({
+            data: {
+                productId: item.materialId,
+                warehouseId: params.warehouseId,
+                workOrderId: workOrder.id,
+                type: 'MATERIAL_RETURN',
+                quantity: returnMaterialQty,
+                unitCost: unitCost,
+                totalValue: unitCost * returnMaterialQty,
+                performedBy: params.performedBy,
+                notes: `Retur material WO ${workOrder.number}: ${params.reason}`,
+            },
+        })
+    }
+
+    // 3. GL reversal: DR Raw Materials (1310), CR Finished Goods (1300)
+    if (totalMaterialCost > 0) {
+        await postJournalWithBalanceUpdate(tx, {
+            description: `WO ${workOrder.number} - Retur Produksi: ${params.reason}`,
+            reference: workOrder.number,
+            lines: [
+                { accountCode: '1310', debit: totalMaterialCost, credit: 0, description: 'Retur bahan baku masuk' },
+                { accountCode: '1300', debit: 0, credit: totalMaterialCost, description: 'Barang jadi dikurangi' },
+            ],
+        })
+    }
+
+    // 4. Adjust work order completed qty
+    const newActualQty = workOrder.actualQty - params.returnQty
+    const newStatus = newActualQty <= 0 ? 'IN_PROGRESS' : workOrder.status
+
+    return await tx.workOrder.update({
+        where: { id: workOrder.id },
+        data: {
+            actualQty: newActualQty,
+            status: newStatus === 'COMPLETED' ? 'IN_PROGRESS' : newStatus,
+        },
+        include: { product: true },
+    })
+}
+
 // GET /api/manufacturing/work-orders/[id] - Get single work order
 export async function GET(
     request: NextRequest,
@@ -388,6 +546,43 @@ export async function PATCH(
                 })
             }
 
+            if (action === 'PRODUCTION_RETURN') {
+                if (existing.actualQty <= 0) {
+                    throw new Error('Tidak ada qty produksi yang bisa diretur')
+                }
+
+                const returnQty = Number(body.returnQty || 0)
+                if (!Number.isFinite(returnQty) || returnQty <= 0) {
+                    throw new Error('Qty retur harus lebih dari 0')
+                }
+
+                if (returnQty > existing.actualQty) {
+                    throw new Error(
+                        `Qty retur (${returnQty}) melebihi qty aktual (${existing.actualQty})`
+                    )
+                }
+
+                const warehouseId = body.warehouseId || (await tx.warehouse.findFirst({
+                    where: { isActive: true },
+                    select: { id: true },
+                    orderBy: { createdAt: 'asc' },
+                }))?.id
+
+                if (!warehouseId) {
+                    throw new Error('Tidak ada gudang aktif untuk proses retur')
+                }
+
+                const reason = body.reason || 'Batch defective'
+
+                return await executeProductionReturn(tx, {
+                    workOrderId: existing.id,
+                    returnQty,
+                    warehouseId,
+                    reason,
+                    performedBy: body.performedBy,
+                })
+            }
+
             const targetStatus = body.toStatus || body.status
             if (targetStatus) {
                 assertWorkOrderTransition(existing.status, targetStatus)
@@ -463,6 +658,8 @@ export async function PATCH(
             data: workOrder,
             message: action === 'REPORT_PRODUCTION'
                 ? 'Production report posted with inventory and finance entries'
+                : action === 'PRODUCTION_RETURN'
+                ? 'Retur produksi berhasil. Stok & jurnal telah diperbarui.'
                 : 'Work order updated successfully',
         })
     } catch (error) {

@@ -441,6 +441,10 @@ enum TransactionType {
   RETURN_OUT // To Supplier
   SCRAP // Waste/Damaged
 
+  // Reversals
+  PRODUCTION_RETURN // Retur barang jadi (decrease finished goods)
+  MATERIAL_RETURN // Retur bahan baku dari produksi (increase raw materials)
+
   // Internal
   TRANSFER // Warehouse Transfer
   ADJUSTMENT // Cycle Count Correction
