@@ -220,13 +220,12 @@ const data = {
           url: "/finance/reconciliation",
         },
         {
-<<<<<<< HEAD
           title: "Saldo Awal",
           url: "/finance/opening-balances",
-=======
+        },
+        {
           title: "Kurs Mata Uang",
           url: "/finance/currencies",
->>>>>>> worktree-agent-a31a9d31
         },
       ],
     },
