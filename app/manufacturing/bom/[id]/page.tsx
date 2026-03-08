@@ -26,8 +26,9 @@ import {
     ArrowLeft, Save, Loader2, Plus, Zap, Package,
     Scissors, Shirt, Droplets, Printer, Sparkles,
     ShieldCheck, PackageIcon, Wrench, Cog, FileDown,
-    Clock, Copy, LayoutTemplate, History, GitBranch, CheckCircle2,
+    Clock, Copy, LayoutTemplate, History, GitBranch, CheckCircle2, ChevronDown, Calculator,
 } from "lucide-react"
+import { BOMCostCard } from "@/components/manufacturing/bom/bom-cost-card"
 import { getIconByName, getColorTheme } from "@/components/manufacturing/bom/station-config"
 
 const STATION_TYPE_CONFIG = [
@@ -83,6 +84,9 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     const [addMaterialOpen, setAddMaterialOpen] = useState(false)
     const [addStationDialogOpen, setAddStationDialogOpen] = useState(false)
     const [historyOpen, setHistoryOpen] = useState(false)
+
+    // Cost breakdown panel
+    const [costCardOpen, setCostCardOpen] = useState(false)
 
     // View mode: canvas or timeline
     const [viewMode, setViewMode] = useState<"canvas" | "timeline">("canvas")
@@ -1070,7 +1074,30 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     <span className="text-[9px] font-black uppercase text-zinc-400">Total ({totalQty} pcs):</span>
                     <span className="text-sm font-black text-emerald-700">{formatCurrency(costSummary.grandTotal)}</span>
                 </div>
+                <button
+                    onClick={() => setCostCardOpen(!costCardOpen)}
+                    className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1 shrink-0 text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-800 transition-colors"
+                >
+                    <Calculator className="h-3 w-3" />
+                    Detail HPP
+                    <ChevronDown className={`h-3 w-3 transition-transform ${costCardOpen ? "rotate-180" : ""}`} />
+                </button>
             </div>
+
+            {/* HPP/COGS Cost Breakdown Panel */}
+            {costCardOpen && bom && (
+                <div className="border-b-2 border-black shrink-0 max-h-[400px] overflow-y-auto">
+                    <BOMCostCard
+                        mode="inline"
+                        bomId={id}
+                        productId={bom.productId || ""}
+                        productName={bom.product?.name || ""}
+                        productUnit={bom.product?.unit || "pcs"}
+                        currentCostPrice={Number(bom.product?.costPrice || 0)}
+                        items={items}
+                    />
+                </div>
+            )}
 
             {/* SPK READINESS WARNING */}
             {!spkReadiness.ready && steps.length > 0 && (
