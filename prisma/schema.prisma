@@ -124,9 +124,10 @@ model Category {
   parentId    String? @db.Uuid
   isActive    Boolean @default(true)
 
-  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryHierarchy")
-  products Product[]
+  parent          Category?        @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[]       @relation("CategoryHierarchy")
+  products        Product[]
+  discountSchemes DiscountScheme[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -271,6 +272,7 @@ model Product {
   subcontractOrderItems SubcontractOrderItem[]
   cutPlans              CutPlan[]              @relation("CutPlanFabric")
   garmentCostSheets     GarmentCostSheet[]
+  discountSchemes       DiscountScheme[]
 
   @@index([categoryId])
   @@index([updatedAt])
@@ -505,8 +507,9 @@ model Customer {
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  Invoice   Invoice[]
-  Payment   Payment[]
+  Invoice         Invoice[]
+  Payment         Payment[]
+  discountSchemes DiscountScheme[]
 
   @@index([customerType])
   @@index([updatedAt])
@@ -575,8 +578,9 @@ model PriceList {
   currency    String  @default("IDR")
   isActive    Boolean @default(true)
 
-  customers  Customer[]
-  priceItems PriceListItem[]
+  customers       Customer[]
+  priceItems      PriceListItem[]
+  discountSchemes DiscountScheme[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2960,4 +2964,67 @@ model BudgetLine {
 
   @@unique([budgetId, accountId, month])
   @@map("budget_lines")
+}
+
+// ================================
+// Discount Scheme (CSA-013)
+// ================================
+
+enum DiscountType {
+  PERCENTAGE // Persentase potongan (5%, 10%)
+  FIXED      // Potongan tetap (Rp 5.000/unit)
+  TIERED     // Bertingkat berdasarkan kuantitas
+}
+
+enum DiscountScope {
+  GLOBAL      // Berlaku untuk semua produk
+  PRICELIST   // Berlaku pada daftar harga tertentu
+  CUSTOMER    // Berlaku untuk pelanggan tertentu
+  PRODUCT     // Berlaku untuk produk tertentu
+  CATEGORY    // Berlaku untuk kategori tertentu
+}
+
+model DiscountScheme {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String        @unique
+  name        String
+  description String?
+  type        DiscountType
+  scope       DiscountScope @default(GLOBAL)
+  isActive    Boolean       @default(true)
+
+  // Flat discount fields (PERCENTAGE / FIXED)
+  value Decimal? @db.Decimal(15, 2) // percentage value or fixed amount
+
+  // Tiered rules (TIERED type) — JSON array: [{minQty, maxQty, discount}]
+  tieredRules Json?
+
+  // Scope relations (nullable — set based on scope)
+  priceListId String?   @db.Uuid
+  customerId  String?   @db.Uuid
+  productId   String?   @db.Uuid
+  categoryId  String?   @db.Uuid
+
+  priceList PriceList? @relation(fields: [priceListId], references: [id])
+  customer  Customer?  @relation(fields: [customerId], references: [id])
+  product   Product?   @relation(fields: [productId], references: [id])
+  category  Category?  @relation(fields: [categoryId], references: [id])
+
+  // Validity period
+  validFrom DateTime?
+  validTo   DateTime?
+
+  // Minimum order value (optional)
+  minOrderValue Decimal? @db.Decimal(15, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, isActive])
+  @@index([scope])
+  @@index([priceListId])
+  @@index([customerId])
+  @@index([productId])
+  @@index([categoryId])
+  @@map("discount_schemes")
 }

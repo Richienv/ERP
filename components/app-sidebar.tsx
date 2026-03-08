@@ -121,6 +121,10 @@ const data = {
           title: "Daftar Harga",
           url: "/sales/pricelists",
         },
+        {
+          title: "Skema Diskon",
+          url: "/sales/discounts",
+        },
       ],
     },
     {

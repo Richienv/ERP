@@ -51,6 +51,13 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             summary: p.summary || {},
         })),
     },
+    "/sales/discounts": {
+        queryKey: queryKeys.discounts.list(),
+        queryFn: () => fetch("/api/sales/discounts").then((r) => r.json()).then((p) => ({
+            schemes: p.data || [],
+            summary: p.summary || {},
+        })),
+    },
     "/inventory/categories": {
         queryKey: queryKeys.categories.list(),
         queryFn: async () => {
