@@ -358,6 +358,52 @@ export const INDONESIAN_PROVINCES = [
   'Papua Pegunungan'
 ]
 
+// =====================================================================
+// NEGATIVE STOCK GUARD
+// =====================================================================
+
+export interface StockCheckResult {
+  allowed: boolean
+  /** Error message in Bahasa Indonesia when not allowed */
+  message: string | null
+  /** Remaining stock after the proposed transaction */
+  remainingStock: number
+}
+
+/**
+ * Check whether a stock-reducing transaction is allowed.
+ *
+ * @param currentStock  Current quantity on hand
+ * @param requestedQty  Quantity to deduct (positive number)
+ * @param allowNegative Whether the system allows negative stock
+ * @param unit          Unit label for the error message (default: "unit")
+ * @returns StockCheckResult
+ *
+ * Enforced in: SO shipment, stock adjustment, production material issue, manual transfer.
+ */
+export function checkStockAvailability(
+  currentStock: number,
+  requestedQty: number,
+  allowNegative: boolean,
+  unit: string = "unit",
+): StockCheckResult {
+  const remaining = currentStock - requestedQty
+
+  if (remaining < 0 && !allowNegative) {
+    return {
+      allowed: false,
+      message: `Stok tidak cukup. Sisa stok: ${formatNumber(currentStock)} ${unit}`,
+      remainingStock: remaining,
+    }
+  }
+
+  return {
+    allowed: true,
+    message: null,
+    remainingStock: remaining,
+  }
+}
+
 /**
  * Common Indonesian units for products
  */

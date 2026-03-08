@@ -3010,3 +3010,19 @@ model BudgetLine {
   @@unique([budgetId, accountId, month])
   @@map("budget_lines")
 }
+
+// ================================
+// System Settings (Key-Value Store)
+// ================================
+
+model SystemSetting {
+  id    String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  key   String @unique
+  value String
+  label String? // Human-readable label (Bahasa Indonesia)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}

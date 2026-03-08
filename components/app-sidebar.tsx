@@ -85,6 +85,10 @@ const data = {
           title: "Saldo Awal Stok",
           url: "/inventory/opening-stock",
         },
+        {
+          title: "Pengaturan Inventori",
+          url: "/inventory/settings",
+        },
       ],
     },
     {
