@@ -1086,6 +1086,345 @@ export async function generateInvoiceFromSalesOrder(salesOrderId: string) {
 // Cancel Sales Order
 // ==============================================================================
 
+// ==========================================
+// SALES RETURN (Retur Penjualan)
+// ==========================================
+
+export interface SalesReturnItem {
+    salesOrderItemId: string
+    productId: string
+    quantity: number
+    unitPrice: number
+    reason: string
+}
+
+export interface CreateSalesReturnInput {
+    salesOrderId: string
+    invoiceId?: string
+    items: SalesReturnItem[]
+    notes?: string
+}
+
+/**
+ * Process a sales return: restore stock, create credit note, post GL entry.
+ * GL: DR Sales Returns (4010), CR Accounts Receivable (1100)
+ */
+export async function createSalesReturn(
+    input: CreateSalesReturnInput
+): Promise<{ success: boolean; creditNoteId?: string; creditNoteNumber?: string; error?: string }> {
+    try {
+        const result = await withPrismaAuth(async (prisma) => {
+            return await prisma.$transaction(async (tx) => {
+                // 1. Load Sales Order with items
+                const so = await tx.salesOrder.findUniqueOrThrow({
+                    where: { id: input.salesOrderId },
+                    include: {
+                        customer: { select: { id: true, name: true } },
+                        items: {
+                            include: { product: { select: { id: true, name: true, code: true } } },
+                        },
+                        invoices: {
+                            where: {
+                                type: 'INV_OUT',
+                                status: { notIn: ['CANCELLED', 'VOID'] },
+                            },
+                            orderBy: { createdAt: 'desc' },
+                            take: 1,
+                        },
+                    },
+                })
+
+                // Determine which invoice to link
+                const invoiceId = input.invoiceId || so.invoices[0]?.id || null
+
+                // 2. Validate return quantities
+                for (const returnItem of input.items) {
+                    const soItem = so.items.find(i => i.id === returnItem.salesOrderItemId)
+                    if (!soItem) {
+                        throw new Error(`Item pesanan tidak ditemukan: ${returnItem.salesOrderItemId}`)
+                    }
+                    if (returnItem.quantity <= 0) {
+                        throw new Error(`Qty retur harus > 0 untuk ${soItem.product.name}`)
+                    }
+                    const maxReturnable = Number(soItem.qtyDelivered)
+                    if (returnItem.quantity > maxReturnable) {
+                        throw new Error(
+                            `Qty retur (${returnItem.quantity}) melebihi qty terkirim (${maxReturnable}) untuk ${soItem.product.name}`
+                        )
+                    }
+                }
+
+                // 3. Calculate totals
+                let subtotal = 0
+                for (const item of input.items) {
+                    subtotal += item.quantity * item.unitPrice
+                }
+                const ppnAmount = Math.round(subtotal * 0.11)
+                const totalAmount = subtotal + ppnAmount
+
+                // 4. Generate credit note number
+                const cnCount = await tx.debitCreditNote.count({ where: { type: 'SALES_CN' } })
+                const year = new Date().getFullYear()
+                const cnNumber = `CN-${year}-${String(cnCount + 1).padStart(4, '0')}`
+
+                // 5. Determine reason code from first item
+                const reasonMap: Record<string, 'RET_DEFECT' | 'RET_WRONG' | 'RET_QUALITY' | 'RET_EXCESS' | 'RET_EXPIRED'> = {
+                    'cacat': 'RET_DEFECT',
+                    'rusak': 'RET_DEFECT',
+                    'salah': 'RET_WRONG',
+                    'tidak_sesuai': 'RET_WRONG',
+                    'kualitas': 'RET_QUALITY',
+                    'kelebihan': 'RET_EXCESS',
+                    'kadaluarsa': 'RET_EXPIRED',
+                }
+                const firstReason = input.items[0]?.reason?.toLowerCase() || ''
+                const reasonCode = reasonMap[firstReason] || 'RET_DEFECT'
+
+                // 6. Create DebitCreditNote (Credit Note)
+                const creditNote = await tx.debitCreditNote.create({
+                    data: {
+                        number: cnNumber,
+                        type: 'SALES_CN',
+                        status: 'POSTED',
+                        reasonCode,
+                        customerId: so.customer.id,
+                        originalInvoiceId: invoiceId,
+                        originalReference: so.number,
+                        subtotal,
+                        ppnAmount,
+                        totalAmount,
+                        issueDate: new Date(),
+                        postingDate: new Date(),
+                        notes: input.notes || `Retur penjualan dari ${so.number}`,
+                        description: `Retur penjualan - ${so.customer.name} - ${so.number}`,
+                        items: {
+                            create: input.items.map((item) => {
+                                const soItem = so.items.find(i => i.id === item.salesOrderItemId)!
+                                const lineAmount = item.quantity * item.unitPrice
+                                const linePpn = Math.round(lineAmount * 0.11)
+                                return {
+                                    productId: item.productId,
+                                    description: `Retur: ${soItem.product.name} (${soItem.product.code}) - ${item.reason}`,
+                                    quantity: item.quantity,
+                                    unitPrice: item.unitPrice,
+                                    amount: lineAmount,
+                                    ppnAmount: linePpn,
+                                    totalAmount: lineAmount + linePpn,
+                                }
+                            }),
+                        },
+                    },
+                })
+
+                // 7. Create RETURN_IN inventory transactions + update stock
+                for (const item of input.items) {
+                    const soItem = so.items.find(i => i.id === item.salesOrderItemId)!
+
+                    // Find a warehouse with existing stock level for this product
+                    const stockLevel = await tx.stockLevel.findFirst({
+                        where: { productId: item.productId },
+                        select: { id: true, warehouseId: true },
+                    })
+
+                    // Use existing warehouse or find any warehouse
+                    let warehouseId: string
+                    if (stockLevel) {
+                        warehouseId = stockLevel.warehouseId
+                    } else {
+                        const warehouse = await tx.warehouse.findFirst({ select: { id: true } })
+                        if (!warehouse) throw new Error("Tidak ada gudang tersedia")
+                        warehouseId = warehouse.id
+                    }
+
+                    // Create inventory transaction (positive qty for RETURN_IN)
+                    await tx.inventoryTransaction.create({
+                        data: {
+                            productId: item.productId,
+                            warehouseId,
+                            type: 'RETURN_IN',
+                            quantity: item.quantity,
+                            unitCost: item.unitPrice,
+                            totalValue: item.quantity * item.unitPrice,
+                            salesOrderId: so.id,
+                            referenceId: creditNote.id,
+                            notes: `Retur dari ${so.number} - ${soItem.product.name}: ${item.reason}`,
+                        },
+                    })
+
+                    // Update stock level
+                    if (stockLevel) {
+                        await tx.stockLevel.update({
+                            where: { id: stockLevel.id },
+                            data: {
+                                quantity: { increment: item.quantity },
+                                availableQty: { increment: item.quantity },
+                            },
+                        })
+                    } else {
+                        await tx.stockLevel.create({
+                            data: {
+                                productId: item.productId,
+                                warehouseId,
+                                quantity: item.quantity,
+                                availableQty: item.quantity,
+                                reservedQty: 0,
+                            },
+                        })
+                    }
+
+                    // Update SO item qtyDelivered (reduce by returned qty)
+                    const currentDelivered = Number(soItem.qtyDelivered)
+                    const newDelivered = Math.max(0, currentDelivered - item.quantity)
+                    await tx.salesOrderItem.update({
+                        where: { id: item.salesOrderItemId },
+                        data: { qtyDelivered: newDelivered },
+                    })
+                }
+
+                // 8. Update invoice balance if linked
+                if (invoiceId) {
+                    await tx.invoice.update({
+                        where: { id: invoiceId },
+                        data: {
+                            balanceDue: { decrement: totalAmount },
+                        },
+                    })
+
+                    // Create settlement record
+                    await tx.debitCreditNoteSettlement.create({
+                        data: {
+                            noteId: creditNote.id,
+                            invoiceId,
+                            amount: totalAmount,
+                        },
+                    })
+
+                    // Update credit note settled amount
+                    await tx.debitCreditNote.update({
+                        where: { id: creditNote.id },
+                        data: { settledAmount: totalAmount, status: 'APPLIED' },
+                    })
+                }
+
+                return {
+                    creditNoteId: creditNote.id,
+                    creditNoteNumber: creditNote.number,
+                }
+            })
+        })
+
+        // 9. Post GL entry outside transaction
+        // DR Sales Returns (contra-revenue 4010), CR Accounts Receivable (1100)
+        const subtotal = input.items.reduce((s, i) => s + i.quantity * i.unitPrice, 0)
+        const ppn = Math.round(subtotal * 0.11)
+        const total = subtotal + ppn
+
+        await postJournalEntry({
+            description: `Retur Penjualan ${result.creditNoteNumber}`,
+            date: new Date(),
+            reference: result.creditNoteId,
+            lines: [
+                {
+                    accountCode: '4010', // Retur Penjualan (contra-revenue)
+                    debit: subtotal,
+                    credit: 0,
+                    description: 'Retur Penjualan',
+                },
+                {
+                    accountCode: '2110', // PPN Keluaran
+                    debit: ppn,
+                    credit: 0,
+                    description: 'Koreksi PPN Keluaran',
+                },
+                {
+                    accountCode: '1100', // Piutang Usaha (AR)
+                    debit: 0,
+                    credit: total,
+                    description: 'Pengurangan Piutang',
+                },
+            ],
+        })
+
+        return {
+            success: true,
+            creditNoteId: result.creditNoteId,
+            creditNoteNumber: result.creditNoteNumber,
+        }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal memproses retur penjualan'
+        console.error("[createSalesReturn] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Fetch sales order data for the return dialog (items with delivered qty > 0)
+ */
+export async function getSalesOrderForReturn(salesOrderId: string) {
+    try {
+        const supabase = await createClient()
+        const { data: { user }, error } = await supabase.auth.getUser()
+        if (error || !user) throw new Error("Unauthorized")
+
+        const so = await basePrisma.salesOrder.findUnique({
+            where: { id: salesOrderId },
+            include: {
+                customer: { select: { id: true, name: true, code: true } },
+                items: {
+                    include: {
+                        product: { select: { id: true, name: true, code: true, unit: true } },
+                    },
+                },
+                invoices: {
+                    where: {
+                        type: 'INV_OUT',
+                        status: { notIn: ['CANCELLED', 'VOID'] },
+                    },
+                    select: { id: true, number: true, totalAmount: true, balanceDue: true, status: true },
+                    orderBy: { createdAt: 'desc' },
+                },
+            },
+        })
+
+        if (!so) return null
+
+        return {
+            id: so.id,
+            number: so.number,
+            customer: so.customer,
+            status: so.status,
+            items: so.items
+                .filter(i => Number(i.qtyDelivered) > 0)
+                .map(i => ({
+                    id: i.id,
+                    productId: i.product.id,
+                    productName: i.product.name,
+                    productCode: i.product.code,
+                    unit: i.product.unit,
+                    qtyOrdered: Number(i.quantity),
+                    qtyDelivered: Number(i.qtyDelivered),
+                    unitPrice: Number(i.unitPrice),
+                    color: i.color,
+                    size: i.size,
+                })),
+            invoices: so.invoices.map(inv => ({
+                id: inv.id,
+                number: inv.number,
+                totalAmount: Number(inv.totalAmount),
+                balanceDue: Number(inv.balanceDue),
+                status: inv.status,
+            })),
+        }
+    } catch (error) {
+        console.error("[getSalesOrderForReturn] Error:", error)
+        return null
+    }
+}
+
+// ==============================================================================
+// Cancel Sales Order
+// ==============================================================================
+
 export async function cancelSalesOrder(
     salesOrderId: string,
     reason?: string
