@@ -184,6 +184,7 @@ export async function POST(request: NextRequest) {
         maxStock: parseInt(maxStock || 0),
         reorderLevel: parseInt(reorderLevel || 0),
         barcode: body.barcode || null,
+        costingMethod: body.costingMethod || undefined,
         isActive: true,
       },
       include: {

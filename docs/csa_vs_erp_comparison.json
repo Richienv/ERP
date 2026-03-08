@@ -1,0 +1,1335 @@
+{
+  "metadata": {
+    "title": "CSA Software vs OIC ERP - Feature Comparison",
+    "description": "Complete feature mapping from CSA Software (530-page help manual) against OIC ERP for Indonesian textile/garment SMEs. Use this to track what exists, what's partial, what's missing, and what's planned.",
+    "generated": "2026-02-25",
+    "source": "CSA Help Manual (530 pages) vs OIC Indonesian Textile ERP",
+    "legend": {
+      "done": "✅ Feature exists and is functional",
+      "partial": "⚠️ Partially implemented",
+      "missing": "❌ Not yet built",
+      "planned": "🔜 Planned / placeholder exists"
+    },
+    "total_csa_features": 274,
+    "erp_extras_count": 33
+  },
+  "categories": [
+    {
+      "id": 1,
+      "name": "Arsitektur & Fitur Inti",
+      "name_en": "Architecture & Core",
+      "total": 14,
+      "done": 5,
+      "partial": 4,
+      "missing": 5,
+      "planned": 0,
+      "features": [
+        {
+          "code": "1.1",
+          "csa_feature": "Simple / Consistent UI",
+          "csa_detail": "Pola interaksi sama di semua modul",
+          "status": "done",
+          "erp_notes": "Neo-brutalist design system, shared shadcn/ui components"
+        },
+        {
+          "code": "1.2",
+          "csa_feature": "Flexible Configuration",
+          "csa_detail": "Policy, numbering, print format bisa dikonfigurasi",
+          "status": "partial",
+          "erp_notes": "Document numbering ada; policy toggle terbatas"
+        },
+        {
+          "code": "1.3",
+          "csa_feature": "On-line Help (context-sensitive)",
+          "csa_detail": "Help per modul dengan hyperlink",
+          "status": "missing",
+          "erp_notes": "Halaman help ada tapi tidak context-sensitive per modul"
+        },
+        {
+          "code": "1.4",
+          "csa_feature": "Powerful Security",
+          "csa_detail": "7 hak akses per modul per user",
+          "status": "partial",
+          "erp_notes": "Role-based module access; belum ada 7-right system"
+        },
+        {
+          "code": "1.5",
+          "csa_feature": "Transaction Tracking",
+          "csa_detail": "Setiap transaksi tercatat user-nya",
+          "status": "done",
+          "erp_notes": "PurchaseOrderEvent audit trail, timestamps"
+        },
+        {
+          "code": "1.6",
+          "csa_feature": "Data Drill-down",
+          "csa_detail": "Telusuri transaksi terkait multi-level",
+          "status": "done",
+          "erp_notes": "FK relationships antar modul enable drill-down"
+        },
+        {
+          "code": "1.7",
+          "csa_feature": "Cross-reference Functions",
+          "csa_detail": "Auto-trigger transaksi terkait",
+          "status": "partial",
+          "erp_notes": "SO→WO auto-creation ada; belum ada auto-produksi-saat-kirim"
+        },
+        {
+          "code": "1.8",
+          "csa_feature": "Import / Send Data (multi-site)",
+          "csa_detail": "Import data dari cabang",
+          "status": "missing",
+          "erp_notes": "Single-site; tidak ada multi-site sync"
+        },
+        {
+          "code": "1.9",
+          "csa_feature": "Export / Receive Data (multi-site)",
+          "csa_detail": "Export daftar transaksi ke pusat",
+          "status": "missing",
+          "erp_notes": "Tidak ada multi-site export/consolidation"
+        },
+        {
+          "code": "1.10",
+          "csa_feature": "Multi-Warehouse",
+          "csa_detail": "Multi gudang dalam 1 database",
+          "status": "done",
+          "erp_notes": "Full warehouse management dengan lokasi/bin"
+        },
+        {
+          "code": "1.11",
+          "csa_feature": "UOM Conversion",
+          "csa_detail": "Multi satuan per barang + faktor konversi",
+          "status": "missing",
+          "erp_notes": "Master Unit ada tapi TIDAK ada logika konversi"
+        },
+        {
+          "code": "1.12",
+          "csa_feature": "Multi-Currency",
+          "csa_detail": "Mata uang asing + kurs",
+          "status": "partial",
+          "erp_notes": "Field currency ada; belum ada tabel kurs"
+        },
+        {
+          "code": "1.13",
+          "csa_feature": "Expandable / Backward Compatible",
+          "csa_detail": "Upgrade versi tidak merusak workflow",
+          "status": "done",
+          "erp_notes": "Prisma migrations handle schema evolution"
+        },
+        {
+          "code": "1.14",
+          "csa_feature": "Period-based Data Organization",
+          "csa_detail": "Organisasi data per bulan/tahun",
+          "status": "missing",
+          "erp_notes": "Tidak ada period management"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Master Data — Inventori & Stock",
+      "name_en": "Master Data — Inventory & Stock",
+      "total": 19,
+      "done": 11,
+      "partial": 3,
+      "missing": 5,
+      "planned": 0,
+      "features": [
+        {
+          "code": "2.1",
+          "csa_feature": "Stock/Item Master",
+          "csa_detail": "Master barang: kode, nama, unit, harga",
+          "status": "done",
+          "erp_notes": "Product model lengkap"
+        },
+        {
+          "code": "2.2",
+          "csa_feature": "Stock Group/Category",
+          "csa_detail": "Kelompok Stock",
+          "status": "done",
+          "erp_notes": "Category model dengan hierarki"
+        },
+        {
+          "code": "2.3",
+          "csa_feature": "Family Code Grouping",
+          "csa_detail": "Pengelompokan Family Code",
+          "status": "missing",
+          "erp_notes": "Tidak ada family code; hanya category"
+        },
+        {
+          "code": "2.4",
+          "csa_feature": "Bill of Materials (BOM/Formula)",
+          "csa_detail": "Formula Produk / BOM",
+          "status": "done",
+          "erp_notes": "BillOfMaterials + BOMItem + versioning + waste %"
+        },
+        {
+          "code": "2.5",
+          "csa_feature": "Serial Number Master",
+          "csa_detail": "Master S/N",
+          "status": "partial",
+          "erp_notes": "FabricRoll punya rollNumber; tidak ada generic S/N"
+        },
+        {
+          "code": "2.6",
+          "csa_feature": "Serial Number Group",
+          "csa_detail": "Kelompok S/N",
+          "status": "missing",
+          "erp_notes": "Tidak ada S/N group"
+        },
+        {
+          "code": "2.7",
+          "csa_feature": "Unit of Measure Master",
+          "csa_detail": "Master Satuan (UOM)",
+          "status": "done",
+          "erp_notes": "Unit model (pcs, kg, m, yard, roll, dll)"
+        },
+        {
+          "code": "2.8",
+          "csa_feature": "UOM Conversion Factors",
+          "csa_detail": "Konversi UOM",
+          "status": "missing",
+          "erp_notes": "Tidak ada tabel konversi; 1 unit per produk"
+        },
+        {
+          "code": "2.9",
+          "csa_feature": "Warehouse List",
+          "csa_detail": "Daftar Gudang",
+          "status": "done",
+          "erp_notes": "Warehouse model dengan full CRUD"
+        },
+        {
+          "code": "2.10",
+          "csa_feature": "Stock per Warehouse",
+          "csa_detail": "Stock per Gudang",
+          "status": "done",
+          "erp_notes": "StockLevel model (product × warehouse × location)"
+        },
+        {
+          "code": "2.11",
+          "csa_feature": "Reason Codes",
+          "csa_detail": "Kode Reason",
+          "status": "partial",
+          "erp_notes": "CreditReason enum + TransactionType enum"
+        },
+        {
+          "code": "2.12",
+          "csa_feature": "Stock/Supplier Mapping",
+          "csa_detail": "Stock/Supplier",
+          "status": "done",
+          "erp_notes": "SupplierProduct model (price, leadTime, minOrderQty)"
+        },
+        {
+          "code": "2.13",
+          "csa_feature": "Stock/Customer Mapping",
+          "csa_detail": "Stock/Customer",
+          "status": "missing",
+          "erp_notes": "Tidak ada setting item per customer"
+        },
+        {
+          "code": "2.14",
+          "csa_feature": "Opening Qty & Value",
+          "csa_detail": "Qty & Nilai Awal Stock",
+          "status": "partial",
+          "erp_notes": "TransactionType.INITIAL ada; belum ada form khusus"
+        },
+        {
+          "code": "2.15",
+          "csa_feature": "Opening Qty (Outside WH)",
+          "csa_detail": "Qty Awal Stock (Luar Gudang)",
+          "status": "missing",
+          "erp_notes": "Tidak ada konsep outside warehouse"
+        },
+        {
+          "code": "2.16",
+          "csa_feature": "Stock Detail View",
+          "csa_detail": "Detail Stock",
+          "status": "done",
+          "erp_notes": "Halaman detail dengan stock level, movement, alerts"
+        },
+        {
+          "code": "2.17",
+          "csa_feature": "Stock per Warehouse Detail",
+          "csa_detail": "Detail Stock per Gudang",
+          "status": "done",
+          "erp_notes": "Breakdown StockLevel per gudang/lokasi"
+        },
+        {
+          "code": "2.18",
+          "csa_feature": "Stock Analysis (Requirements)",
+          "csa_detail": "Analisa Kebutuhan Stock",
+          "status": "done",
+          "erp_notes": "getMaterialGapAnalysis() — reorder point, gap detection"
+        },
+        {
+          "code": "2.19",
+          "csa_feature": "Barcode Management",
+          "csa_detail": "Label Barcode",
+          "status": "partial",
+          "erp_notes": "Product punya field barcode; belum ada cetak label"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Master Data — Partner Bisnis",
+      "name_en": "Master Data — Business Partners",
+      "total": 9,
+      "done": 7,
+      "partial": 0,
+      "missing": 2,
+      "planned": 0,
+      "features": [
+        {
+          "code": "3.1",
+          "csa_feature": "Supplier/Vendor Master",
+          "csa_detail": "Master Supplier",
+          "status": "done",
+          "erp_notes": "Supplier model lengkap — nama, kode, kontak, bank, rating"
+        },
+        {
+          "code": "3.2",
+          "csa_feature": "Customer Master",
+          "csa_detail": "Master Customer",
+          "status": "done",
+          "erp_notes": "Customer model — nama, tipe, NPWP, credit limit, alamat"
+        },
+        {
+          "code": "3.3",
+          "csa_feature": "Member Master (POS)",
+          "csa_detail": "Master Member",
+          "status": "missing",
+          "erp_notes": "Tidak ada sistem membership POS"
+        },
+        {
+          "code": "3.4",
+          "csa_feature": "Salesperson Master",
+          "csa_detail": "Master Sales Person",
+          "status": "missing",
+          "erp_notes": "Tidak ada model salesperson; tidak ada tracking komisi"
+        },
+        {
+          "code": "3.5",
+          "csa_feature": "Supplier Performance",
+          "csa_detail": "Performa Supplier",
+          "status": "done",
+          "erp_notes": "rating, onTimeRate, qualityScore, responsiveness"
+        },
+        {
+          "code": "3.6",
+          "csa_feature": "Customer Credit Limit",
+          "csa_detail": "Limit Kredit Customer",
+          "status": "done",
+          "erp_notes": "Customer.creditLimit + creditStatus"
+        },
+        {
+          "code": "3.7",
+          "csa_feature": "Customer Multiple Addresses",
+          "csa_detail": "Multi Alamat Customer",
+          "status": "done",
+          "erp_notes": "CustomerAddress model (BILLING/SHIPPING/OFFICE/WAREHOUSE)"
+        },
+        {
+          "code": "3.8",
+          "csa_feature": "Customer Contacts",
+          "csa_detail": "Kontak Customer",
+          "status": "done",
+          "erp_notes": "CustomerContact model (nama, email, telp, jabatan)"
+        },
+        {
+          "code": "3.9",
+          "csa_feature": "Customer Categories",
+          "csa_detail": "Kategori Customer",
+          "status": "done",
+          "erp_notes": "CustomerCategory model untuk segmentasi"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Master Data — Harga & Diskon",
+      "name_en": "Master Data — Pricing & Discounts",
+      "total": 5,
+      "done": 3,
+      "partial": 0,
+      "missing": 2,
+      "planned": 0,
+      "features": [
+        {
+          "code": "4.1",
+          "csa_feature": "Discount Type Definitions",
+          "csa_detail": "Tipe Diskon",
+          "status": "missing",
+          "erp_notes": "Tidak ada master tipe diskon; hanya % per baris"
+        },
+        {
+          "code": "4.2",
+          "csa_feature": "Discount Scheme (Tiers)",
+          "csa_detail": "Skema Diskon",
+          "status": "missing",
+          "erp_notes": "Tidak ada skema diskon bertingkat"
+        },
+        {
+          "code": "4.3",
+          "csa_feature": "Price Lists",
+          "csa_detail": "Daftar Harga",
+          "status": "done",
+          "erp_notes": "PriceList + PriceListItem + validity dates"
+        },
+        {
+          "code": "4.4",
+          "csa_feature": "Quantity-based Pricing",
+          "csa_detail": "Harga per Qty",
+          "status": "done",
+          "erp_notes": "PriceListItem.minQty untuk volume pricing"
+        },
+        {
+          "code": "4.5",
+          "csa_feature": "Line-level Discounts",
+          "csa_detail": "Diskon per Baris",
+          "status": "done",
+          "erp_notes": "Discount field di Quotation/SO/Invoice items"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Master Data — Keuangan & Bank",
+      "name_en": "Master Data — Finance & Banking",
+      "total": 11,
+      "done": 1,
+      "partial": 2,
+      "missing": 8,
+      "planned": 0,
+      "features": [
+        {
+          "code": "5.1",
+          "csa_feature": "Currency Master",
+          "csa_detail": "Master Mata Uang",
+          "status": "partial",
+          "erp_notes": "Field currency ada (IDR default); belum ada tabel master. PENDING TUNGGU XERO"
+        },
+        {
+          "code": "5.2",
+          "csa_feature": "Exchange Rate Table",
+          "csa_detail": "Tabel Kurs",
+          "status": "missing",
+          "erp_notes": "Tidak ada model kurs atau histori kurs"
+        },
+        {
+          "code": "5.3",
+          "csa_feature": "Bank Code List",
+          "csa_detail": "Daftar Kode Bank",
+          "status": "partial",
+          "erp_notes": "Bank list Xendit (API-driven); belum ada master internal"
+        },
+        {
+          "code": "5.4",
+          "csa_feature": "Bank Receipt Distribution Code",
+          "csa_detail": "Kode Dist. Penerimaan Bank",
+          "status": "missing",
+          "erp_notes": "Tidak ada kode distribusi untuk auto GL posting"
+        },
+        {
+          "code": "5.5",
+          "csa_feature": "Bank Disbursement Distribution Code",
+          "csa_detail": "Kode Dist. Pengeluaran Bank",
+          "status": "missing",
+          "erp_notes": "Tidak ada kode distribusi untuk auto GL posting"
+        },
+        {
+          "code": "5.6",
+          "csa_feature": "Chart of Accounts",
+          "csa_detail": "Chart of Accounts",
+          "status": "done",
+          "erp_notes": "GLAccount model dengan hierarki dan tipe"
+        },
+        {
+          "code": "5.7",
+          "csa_feature": "Journal Types",
+          "csa_detail": "Jenis Journal",
+          "status": "missing",
+          "erp_notes": "Tidak ada klasifikasi jenis journal"
+        },
+        {
+          "code": "5.8",
+          "csa_feature": "Opening AP Balances",
+          "csa_detail": "Saldo Awal Utang",
+          "status": "missing",
+          "erp_notes": "Tidak ada mekanisme input saldo awal AP"
+        },
+        {
+          "code": "5.9",
+          "csa_feature": "Opening AR Balances",
+          "csa_detail": "Saldo Awal Piutang",
+          "status": "missing",
+          "erp_notes": "Tidak ada mekanisme input saldo awal AR"
+        },
+        {
+          "code": "5.10",
+          "csa_feature": "Opening Bank Balances",
+          "csa_detail": "Saldo Awal Bank",
+          "status": "missing",
+          "erp_notes": "Tidak ada input saldo awal bank"
+        },
+        {
+          "code": "5.11",
+          "csa_feature": "Opening GL Balances",
+          "csa_detail": "Saldo Awal GL",
+          "status": "missing",
+          "erp_notes": "Tidak ada input saldo awal GL"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Master Data — HR & User",
+      "name_en": "Master Data — HR & User",
+      "total": 9,
+      "done": 3,
+      "partial": 3,
+      "missing": 3,
+      "planned": 0,
+      "features": [
+        {
+          "code": "6.1",
+          "csa_feature": "Employee Master",
+          "csa_detail": "Master Karyawan",
+          "status": "done",
+          "erp_notes": "Employee model — nama, departemen, posisi, gaji, BPJS"
+        },
+        {
+          "code": "6.2",
+          "csa_feature": "User Account Data",
+          "csa_detail": "Data User",
+          "status": "done",
+          "erp_notes": "User model via Supabase Auth"
+        },
+        {
+          "code": "6.3",
+          "csa_feature": "User Group Definitions",
+          "csa_detail": "Master User Group",
+          "status": "partial",
+          "erp_notes": "SystemRole ada; belum sefleksibel group-copy CSA"
+        },
+        {
+          "code": "6.4",
+          "csa_feature": "Group Access Rights",
+          "csa_detail": "Hak Akses Group",
+          "status": "partial",
+          "erp_notes": "Role-based permissions ada; 7-level per-modul belum"
+        },
+        {
+          "code": "6.5",
+          "csa_feature": "User Access Rights",
+          "csa_detail": "Hak Akses User",
+          "status": "partial",
+          "erp_notes": "Module-level permissions; belum ada per-field control"
+        },
+        {
+          "code": "6.6",
+          "csa_feature": "Menu per Group",
+          "csa_detail": "Menu untuk Group",
+          "status": "missing",
+          "erp_notes": "Tidak ada kustomisasi menu per group"
+        },
+        {
+          "code": "6.7",
+          "csa_feature": "Menu per User",
+          "csa_detail": "Menu untuk User",
+          "status": "missing",
+          "erp_notes": "Tidak ada menu per user; sidebar role-based"
+        },
+        {
+          "code": "6.8",
+          "csa_feature": "Bank Access per User",
+          "csa_detail": "Bank yg Boleh Diakses",
+          "status": "missing",
+          "erp_notes": "Tidak ada restricsi bank per user"
+        },
+        {
+          "code": "6.9",
+          "csa_feature": "Module Registry",
+          "csa_detail": "Daftar Modul",
+          "status": "done",
+          "erp_notes": "modules.json + TenantConfig.enabledModules"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Order Management",
+      "name_en": "Order Management",
+      "total": 10,
+      "done": 7,
+      "partial": 1,
+      "missing": 2,
+      "planned": 0,
+      "features": [
+        {
+          "code": "7.1",
+          "csa_feature": "Sales Order",
+          "csa_detail": "Sales Order",
+          "status": "done",
+          "erp_notes": "SalesOrder model + status workflow"
+        },
+        {
+          "code": "7.2",
+          "csa_feature": "Transfer Item between SOs",
+          "csa_detail": "Transfer Item SO",
+          "status": "missing",
+          "erp_notes": "Tidak ada transfer item antar SO"
+        },
+        {
+          "code": "7.3",
+          "csa_feature": "Delivery Note (Surat Jalan)",
+          "csa_detail": "Surat Jalan Penjualan",
+          "status": "done",
+          "erp_notes": "SJ PDF generation + fulfillment tracking"
+        },
+        {
+          "code": "7.4",
+          "csa_feature": "Purchase Request",
+          "csa_detail": "Purchase Request",
+          "status": "done",
+          "erp_notes": "PurchaseRequest model + approval workflow"
+        },
+        {
+          "code": "7.5",
+          "csa_feature": "Purchase Order",
+          "csa_detail": "Purchase Order",
+          "status": "done",
+          "erp_notes": "PurchaseOrder model + 13-step state machine"
+        },
+        {
+          "code": "7.6",
+          "csa_feature": "Inter-Warehouse Transfer",
+          "csa_detail": "Transfer Antar Gudang",
+          "status": "done",
+          "erp_notes": "StockTransfer model + approval workflow"
+        },
+        {
+          "code": "7.7",
+          "csa_feature": "Inter-Site Transfer",
+          "csa_detail": "Transfer Antar Site",
+          "status": "missing",
+          "erp_notes": "Single-site; tidak ada inter-site transfer"
+        },
+        {
+          "code": "7.8",
+          "csa_feature": "Partial Fulfillment",
+          "csa_detail": "Pemenuhan Parsial",
+          "status": "done",
+          "erp_notes": "Partial shipment, partial PO receipt supported"
+        },
+        {
+          "code": "7.9",
+          "csa_feature": "Order Revision / Amendment",
+          "csa_detail": "Revisi Order",
+          "status": "partial",
+          "erp_notes": "Quotation versioning ada; SO/PO revision belum"
+        },
+        {
+          "code": "7.10",
+          "csa_feature": "Order Print/Reprint",
+          "csa_detail": "Cetak Order",
+          "status": "done",
+          "erp_notes": "PDF generation untuk PO, SJ, Invoice"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Transaksi — Penjualan & AR",
+      "name_en": "Transactions — Sales & AR",
+      "total": 6,
+      "done": 5,
+      "partial": 1,
+      "missing": 0,
+      "planned": 0,
+      "features": [
+        {
+          "code": "8.1",
+          "csa_feature": "Goods Shipment from SJ",
+          "csa_detail": "Pengiriman Barang dari SJ",
+          "status": "done",
+          "erp_notes": "recordPartialShipment() — kirim barang dari SO"
+        },
+        {
+          "code": "8.2",
+          "csa_feature": "Sales Return from SJ",
+          "csa_detail": "Retur dari SJ",
+          "status": "partial",
+          "erp_notes": "CreditNote+RETURN; belum ada receipt workflow khusus"
+        },
+        {
+          "code": "8.3",
+          "csa_feature": "Direct/Cash Sales (POS)",
+          "csa_detail": "Penjualan Langsung",
+          "status": "planned",
+          "erp_notes": "Halaman POS ada (placeholder); belum fungsional"
+        },
+        {
+          "code": "8.4",
+          "csa_feature": "Create Invoice/Faktur",
+          "csa_detail": "Buat Invoice/Faktur",
+          "status": "done",
+          "erp_notes": "createCustomerInvoice(), generateInvoiceFromSO()"
+        },
+        {
+          "code": "8.5",
+          "csa_feature": "Create Credit Memo",
+          "csa_detail": "Buat Credit Memo",
+          "status": "done",
+          "erp_notes": "createCreditNote() dengan reasons"
+        },
+        {
+          "code": "8.6",
+          "csa_feature": "AR Payment Receipt",
+          "csa_detail": "Pembayaran Piutang",
+          "status": "done",
+          "erp_notes": "recordARPayment(), matchPaymentToInvoice()"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Transaksi — Pembelian & AP",
+      "name_en": "Transactions — Purchasing & AP",
+      "total": 8,
+      "done": 5,
+      "partial": 1,
+      "missing": 2,
+      "planned": 0,
+      "features": [
+        {
+          "code": "9.1",
+          "csa_feature": "Multiple Goods Receipt",
+          "csa_detail": "Penerimaan Berganda",
+          "status": "done",
+          "erp_notes": "GRN support multiple PO items dalam 1 receipt"
+        },
+        {
+          "code": "9.2",
+          "csa_feature": "Goods Receipt from PO",
+          "csa_detail": "Penerimaan dari PO",
+          "status": "done",
+          "erp_notes": "createGoodsReceivedNote() + QC inspection"
+        },
+        {
+          "code": "9.3",
+          "csa_feature": "Purchase Return from PO",
+          "csa_detail": "Retur dari PO",
+          "status": "partial",
+          "erp_notes": "TransactionType.RETURN_OUT ada; belum ada workflow khusus"
+        },
+        {
+          "code": "9.4",
+          "csa_feature": "Direct Purchase",
+          "csa_detail": "Pembelian Langsung",
+          "status": "missing",
+          "erp_notes": "Semua pembelian butuh PO; tidak ada shortcut. PIKIRIN SAFETY MEASURE"
+        },
+        {
+          "code": "9.5",
+          "csa_feature": "Purchase Return (Direct)",
+          "csa_detail": "Retur Pembelian Langsung",
+          "status": "missing",
+          "erp_notes": "Tidak ada workflow retur pembelian langsung"
+        },
+        {
+          "code": "9.6",
+          "csa_feature": "Create AP Voucher from PO",
+          "csa_detail": "Buat Voucher AP dari PO",
+          "status": "done",
+          "erp_notes": "recordPendingBillFromPO(), createBillFromPOId()"
+        },
+        {
+          "code": "9.7",
+          "csa_feature": "Create Debit Memo from Return",
+          "csa_detail": "Buat Debit Memo dari Retur",
+          "status": "missing",
+          "erp_notes": "Tidak ada workflow debit memo"
+        },
+        {
+          "code": "9.8",
+          "csa_feature": "AP Payment",
+          "csa_detail": "Pembayaran Utang",
+          "status": "partial",
+          "erp_notes": "recordVendorPayment(), approveAndPayBill(), BELUM BISA EXPAND"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Transaksi — Inventori/Stock",
+      "name_en": "Transactions — Inventory/Stock",
+      "total": 10,
+      "done": 5,
+      "partial": 1,
+      "missing": 4,
+      "planned": 0,
+      "features": [
+        {
+          "code": "10.1",
+          "csa_feature": "Transfer Realization",
+          "csa_detail": "Realisasi Transfer",
+          "status": "done",
+          "erp_notes": "transitionStockTransfer()"
+        },
+        {
+          "code": "10.2",
+          "csa_feature": "Goods Shipment (General)",
+          "csa_detail": "Pengiriman Barang",
+          "status": "done",
+          "erp_notes": "InventoryTransaction + SO_SHIPMENT"
+        },
+        {
+          "code": "10.3",
+          "csa_feature": "Goods Receipt (General)",
+          "csa_detail": "Penerimaan Barang",
+          "status": "done",
+          "erp_notes": "InventoryTransaction + PO_RECEIVE"
+        },
+        {
+          "code": "10.4",
+          "csa_feature": "Price Update for Stock",
+          "csa_detail": "Update Harga Barang",
+          "status": "partial",
+          "erp_notes": "Cost/price editable; belum ada batch update"
+        },
+        {
+          "code": "10.5",
+          "csa_feature": "Stock Correction/Adjustment",
+          "csa_detail": "Koreksi Stock",
+          "status": "done",
+          "erp_notes": "Adjustment form + ADJUSTMENT type"
+        },
+        {
+          "code": "10.6",
+          "csa_feature": "Stock Opname",
+          "csa_detail": "Stok Opname",
+          "status": "done",
+          "erp_notes": "StockAudit + scheduled audits + variance tracking"
+        },
+        {
+          "code": "10.7",
+          "csa_feature": "Discount Sale",
+          "csa_detail": "Penjualan Diskon",
+          "status": "missing",
+          "erp_notes": "Tidak ada tipe transaksi diskon sale"
+        },
+        {
+          "code": "10.8",
+          "csa_feature": "Inter-Warehouse Transfer",
+          "csa_detail": "Transfer Antar Gudang",
+          "status": "done",
+          "erp_notes": "StockTransfer + TRANSFER type"
+        },
+        {
+          "code": "10.9",
+          "csa_feature": "Negative Stock Handling",
+          "csa_detail": "Kebijakan Stock Negatif",
+          "status": "missing",
+          "erp_notes": "Tidak ada policy (Ignore/Warn/Reject)"
+        },
+        {
+          "code": "10.10",
+          "csa_feature": "Costing Method",
+          "csa_detail": "Metode Costing",
+          "status": "missing",
+          "erp_notes": "Tidak ada FIFO/Average/LIFO; cost manual"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Transaksi — Produksi",
+      "name_en": "Transactions — Production",
+      "total": 5,
+      "done": 2,
+      "partial": 0,
+      "missing": 3,
+      "planned": 0,
+      "features": [
+        {
+          "code": "11.1",
+          "csa_feature": "Production & Material Consumption",
+          "csa_detail": "Produksi & Pemakaian Bahan",
+          "status": "done",
+          "erp_notes": "WorkOrder + BOM explosion + material tracking"
+        },
+        {
+          "code": "11.2",
+          "csa_feature": "BOM Explosion for Work Order",
+          "csa_detail": "Ekspansi BOM ke WO",
+          "status": "done",
+          "erp_notes": "BOM → WO auto dari Sales Order"
+        },
+        {
+          "code": "11.3",
+          "csa_feature": "Material Requirements Analysis",
+          "csa_detail": "Analisa Kebutuhan Material",
+          "status": "done",
+          "erp_notes": "getMaterialGapAnalysis() + reorder suggestions"
+        },
+        {
+          "code": "11.4",
+          "csa_feature": "Production Return",
+          "csa_detail": "Retur Produksi",
+          "status": "missing",
+          "erp_notes": "Tidak ada workflow retur produksi"
+        },
+        {
+          "code": "11.5",
+          "csa_feature": "Cost from BOM Formula",
+          "csa_detail": "Reset HPP dari Formula",
+          "status": "missing",
+          "erp_notes": "Tidak ada auto-calculate cost dari BOM"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Transaksi — Bank & Keuangan",
+      "name_en": "Transactions — Banking & Finance",
+      "total": 7,
+      "done": 4,
+      "partial": 0,
+      "missing": 3,
+      "planned": 0,
+      "features": [
+        {
+          "code": "12.1",
+          "csa_feature": "Bank Receipt (Incoming)",
+          "csa_detail": "Penerimaan Bank",
+          "status": "done",
+          "erp_notes": "recordARPayment(), Payment model. PENDING TUNGGU XERO"
+        },
+        {
+          "code": "12.2",
+          "csa_feature": "Bank Disbursement (Outgoing)",
+          "csa_detail": "Pengeluaran Bank",
+          "status": "done",
+          "erp_notes": "recordVendorPayment(), Xendit payouts"
+        },
+        {
+          "code": "12.3",
+          "csa_feature": "Bank Receipt Distribution",
+          "csa_detail": "Distribusi Penerimaan",
+          "status": "missing",
+          "erp_notes": "Tidak ada auto GL posting via kode distribusi"
+        },
+        {
+          "code": "12.4",
+          "csa_feature": "Bank Disbursement Distribution",
+          "csa_detail": "Distribusi Pengeluaran",
+          "status": "missing",
+          "erp_notes": "Tidak ada auto GL posting via kode distribusi"
+        },
+        {
+          "code": "12.5",
+          "csa_feature": "Manual Journal Entry",
+          "csa_detail": "Journal Manual",
+          "status": "done",
+          "erp_notes": "postJournalEntry() multi-line debit/credit"
+        },
+        {
+          "code": "12.6",
+          "csa_feature": "Closing Journal",
+          "csa_detail": "Journal Penutup",
+          "status": "missing",
+          "erp_notes": "Tidak ada generate journal tutup tahun"
+        },
+        {
+          "code": "12.7",
+          "csa_feature": "Recurring Journal",
+          "csa_detail": "Journal Berulang",
+          "status": "done",
+          "erp_notes": "createRecurringJournalTemplate()"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Transaksi — HR & Absensi",
+      "name_en": "Transactions — HR & Attendance",
+      "total": 4,
+      "done": 4,
+      "partial": 0,
+      "missing": 0,
+      "planned": 0,
+      "features": [
+        {
+          "code": "13.1",
+          "csa_feature": "Employee Clock-in",
+          "csa_detail": "Karyawan Datang",
+          "status": "done",
+          "erp_notes": "Attendance model + checkIn timestamp"
+        },
+        {
+          "code": "13.2",
+          "csa_feature": "Employee Clock-out",
+          "csa_detail": "Karyawan Pulang",
+          "status": "done",
+          "erp_notes": "Attendance model + checkOut timestamp"
+        },
+        {
+          "code": "13.3",
+          "csa_feature": "Employee Absence Recording",
+          "csa_detail": "Karyawan Tidak Masuk",
+          "status": "done",
+          "erp_notes": "AttendanceStatus: ABSENT, LEAVE, SICK"
+        },
+        {
+          "code": "13.4",
+          "csa_feature": "Attendance Status Types",
+          "csa_detail": "6 status (Masuk/Off/Sakit/Ijin/Alpa/Salah)",
+          "status": "done",
+          "erp_notes": "5 status: PRESENT/ABSENT/LEAVE/SICK/REMOTE"
+        }
+      ]
+    }
+  ],
+  "priority_gaps": [
+    {
+      "priority": "HIGH",
+      "feature": "Period Management (Close/Open)",
+      "impact": "Tidak bisa tutup buku; posting transaksi tanpa batas",
+      "related_codes": [
+        "1.14"
+      ]
+    },
+    {
+      "priority": "HIGH",
+      "feature": "Opening Balances (AR/AP/GL/Bank)",
+      "impact": "Tidak bisa migrasi dari sistem lain",
+      "related_codes": [
+        "5.8",
+        "5.9",
+        "5.10",
+        "5.11"
+      ]
+    },
+    {
+      "priority": "HIGH",
+      "feature": "Inventory Costing (FIFO/Average)",
+      "impact": "Tidak bisa valuasi stok dengan benar",
+      "related_codes": [
+        "10.10"
+      ]
+    },
+    {
+      "priority": "HIGH",
+      "feature": "Trial Balance Report",
+      "impact": "Kebutuhan dasar akuntansi",
+      "related_codes": []
+    },
+    {
+      "priority": "HIGH",
+      "feature": "UOM Conversion",
+      "impact": "Tidak bisa handle multi-satuan (1 roll = 200m)",
+      "related_codes": [
+        "1.11",
+        "2.8"
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "feature": "Distribution Codes (Auto GL)",
+      "impact": "Jurnal manual rawan error",
+      "related_codes": [
+        "5.4",
+        "5.5",
+        "12.3",
+        "12.4"
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "feature": "Negative Stock Policy",
+      "impact": "Tidak ada guard terhadap overselling",
+      "related_codes": [
+        "10.9"
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "feature": "Salesperson & Commission",
+      "impact": "Gap manajemen tim sales",
+      "related_codes": [
+        "3.4"
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "feature": "POS / Direct Sales",
+      "impact": "Penjualan tunai belum support",
+      "related_codes": [
+        "8.3",
+        "3.3"
+      ]
+    },
+    {
+      "priority": "MEDIUM",
+      "feature": "Print layouts (PR, GRN, SO, WO)",
+      "impact": "Sebagian besar dokumen tidak bisa dicetak",
+      "related_codes": []
+    },
+    {
+      "priority": "LOW",
+      "feature": "Per-action CRUD Permissions",
+      "impact": "Role-based cukup untuk kebanyakan UKM",
+      "related_codes": [
+        "1.4",
+        "6.4",
+        "6.5"
+      ]
+    },
+    {
+      "priority": "LOW",
+      "feature": "Fast/Slow/Dead Stock Analysis",
+      "impact": "Analitik nice-to-have",
+      "related_codes": []
+    },
+    {
+      "priority": "LOW",
+      "feature": "Cash Flow Projection",
+      "impact": "Fitur forecasting",
+      "related_codes": []
+    },
+    {
+      "priority": "LOW",
+      "feature": "Custom Financial Report Designer",
+      "impact": "Fitur power-user",
+      "related_codes": []
+    }
+  ],
+  "erp_extras": {
+    "description": "33 features in OIC ERP that DO NOT exist in CSA Software — these are competitive advantages",
+    "features": [
+      {
+        "code": "25.1",
+        "feature": "Textile/Garment Manufacturing",
+        "module": "Manufacturing",
+        "description": "Garment-stage tracking (Cut→Sew→Finish→QC→Pack), cutting plans, fabric rolls"
+      },
+      {
+        "code": "25.2",
+        "feature": "Subcontracting (CMT)",
+        "module": "Manufacturing",
+        "description": "Kirim material ke penjahit eksternal, track retur, rate management"
+      },
+      {
+        "code": "25.3",
+        "feature": "Garment Costing Sheets",
+        "module": "Costing",
+        "description": "Breakdown biaya produk: kain, trim, tenaga kerja, overhead, subkon"
+      },
+      {
+        "code": "25.4",
+        "feature": "Fabric Roll Tracking",
+        "module": "Inventory",
+        "description": "Tracking per roll: meter, dye lot, grade, lebar"
+      },
+      {
+        "code": "25.5",
+        "feature": "Fabric Inspection",
+        "module": "Quality",
+        "description": "Inspeksi kualitas per roll kain"
+      },
+      {
+        "code": "25.6",
+        "feature": "Garment Measurement QC",
+        "module": "Quality",
+        "description": "Pengukuran size dengan validasi toleransi"
+      },
+      {
+        "code": "25.7",
+        "feature": "Machine Management",
+        "module": "Manufacturing",
+        "description": "Status, health score, maintenance preventif/korektif"
+      },
+      {
+        "code": "25.8",
+        "feature": "Production Scheduling (Gantt)",
+        "module": "Manufacturing",
+        "description": "Visual scheduling + penugasan mesin"
+      },
+      {
+        "code": "25.9",
+        "feature": "Manufacturing Routing",
+        "module": "Manufacturing",
+        "description": "Proses step-by-step: durasi, material, mesin"
+      },
+      {
+        "code": "25.10",
+        "feature": "Work Center Calendar",
+        "module": "Manufacturing",
+        "description": "Jadwal shift per hari per work center"
+      },
+      {
+        "code": "25.11",
+        "feature": "Operator Skill Tracking",
+        "module": "HCM",
+        "description": "Level skill: Trainee/Certified/Expert per work center"
+      },
+      {
+        "code": "25.12",
+        "feature": "Lead/CRM Pipeline",
+        "module": "Sales",
+        "description": "Manajemen lead Kanban (NEW→FOLLOW_UP→WON/LOST)"
+      },
+      {
+        "code": "25.13",
+        "feature": "Quotation Versioning",
+        "module": "Sales",
+        "description": "Revisi histori quotation + convert ke SO"
+      },
+      {
+        "code": "25.14",
+        "feature": "Executive Dashboard/KPIs",
+        "module": "Dashboard",
+        "description": "KPI real-time, OEE, strategic goals"
+      },
+      {
+        "code": "25.15",
+        "feature": "Invoice Kanban",
+        "module": "Finance",
+        "description": "Pipeline visual (Draft→Sent→Overdue→Paid)"
+      },
+      {
+        "code": "25.16",
+        "feature": "Bank Reconciliation",
+        "module": "Finance",
+        "description": "Import statement, auto-match, manual match"
+      },
+      {
+        "code": "25.17",
+        "feature": "Recurring Journal Entries",
+        "module": "Finance",
+        "description": "Template-based automated entries"
+      },
+      {
+        "code": "25.18",
+        "feature": "E-Faktur CSV Export",
+        "module": "Finance",
+        "description": "Compliance e-Faktur Indonesia"
+      },
+      {
+        "code": "25.19",
+        "feature": "Xendit Payment Gateway",
+        "module": "Finance",
+        "description": "Automated supplier payouts via bank Indonesia"
+      },
+      {
+        "code": "25.20",
+        "feature": "GIRO Clearing",
+        "module": "Finance",
+        "description": "Proses pembayaran bank otomatis"
+      },
+      {
+        "code": "25.21",
+        "feature": "WhatsApp/Email Invoice",
+        "module": "Finance",
+        "description": "Pengiriman invoice digital"
+      },
+      {
+        "code": "25.22",
+        "feature": "PO Templates",
+        "module": "Procurement",
+        "description": "Template PO yang bisa dipakai ulang"
+      },
+      {
+        "code": "25.23",
+        "feature": "Landed Cost Tracking",
+        "module": "Procurement",
+        "description": "Alokasi freight, customs, asuransi"
+      },
+      {
+        "code": "25.24",
+        "feature": "Supplier Scorecard",
+        "module": "Procurement",
+        "description": "Rating, on-time %, quality score, responsiveness"
+      },
+      {
+        "code": "25.25",
+        "feature": "Employee Onboarding",
+        "module": "HCM",
+        "description": "Workflow onboarding berbasis checklist"
+      },
+      {
+        "code": "25.26",
+        "feature": "Leave Management",
+        "module": "HCM",
+        "description": "Annual/sick/maternity leave + approval"
+      },
+      {
+        "code": "25.27",
+        "feature": "Piece-Rate Payroll",
+        "module": "HCM",
+        "description": "Kalkulasi upah berdasarkan produksi per unit"
+      },
+      {
+        "code": "25.28",
+        "feature": "Shift Scheduling",
+        "module": "HCM",
+        "description": "Kalender shift + batch assignment"
+      },
+      {
+        "code": "25.29",
+        "feature": "Approval Workflows",
+        "module": "System",
+        "description": "Multi-level approval: PO, PR, GRN, invoice"
+      },
+      {
+        "code": "25.30",
+        "feature": "Real-time Dashboards",
+        "module": "Dashboard",
+        "description": "KPI live di semua modul"
+      },
+      {
+        "code": "25.31",
+        "feature": "Document Management",
+        "module": "Documents",
+        "description": "Health check master data, batch traceability, BOM version"
+      },
+      {
+        "code": "25.32",
+        "feature": "Style Variants (Color-Size)",
+        "module": "Inventory",
+        "description": "Varian produk per warna + ukuran dengan SKU individual"
+      },
+      {
+        "code": "25.33",
+        "feature": "AI Integration (Planned)",
+        "module": "System",
+        "description": "AI sidebar, floating button, context provider"
+      }
+    ]
+  },
+  "ai_instructions": {
+    "how_to_use": "This JSON is the single source of truth for feature parity between CSA Software and OIC ERP. Use it to determine what to build, what already exists, and what needs improvement.",
+    "status_values": {
+      "done": "Feature is built and functional — no action needed unless improving",
+      "partial": "Foundation exists but incomplete — check erp_notes for what's missing",
+      "missing": "Not built at all — check priority_gaps for business impact",
+      "planned": "Placeholder/UI exists but not functional yet"
+    },
+    "workflow": [
+      "1. Check priority_gaps first — these are the most critical missing features ranked by business impact",
+      "2. For any feature, look up its code in categories[].features[] to get full context",
+      "3. erp_notes contains the current implementation details (model names, function names, what works and what doesn't)",
+      "4. erp_extras lists 33 features that are OIC ERP competitive advantages over CSA — protect and enhance these",
+      "5. When implementing a missing feature, cross-reference related_codes in priority_gaps to find all connected features"
+    ],
+    "key_dependencies": {
+      "xero_pending": [
+        "5.1 Currency Master",
+        "12.1 Bank Receipt"
+      ],
+      "safety_review_needed": [
+        "9.4 Direct Purchase — needs safety measure discussion"
+      ]
+    }
+  }
+}

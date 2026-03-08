@@ -143,6 +143,7 @@ export async function PUT(
         ...(body.reorderLevel !== undefined && { reorderLevel: parseInt(body.reorderLevel) }),
         ...(body.barcode !== undefined && { barcode: body.barcode }),
         ...(body.isActive !== undefined && { isActive: body.isActive }),
+        ...(body.costingMethod && { costingMethod: body.costingMethod }),
         updatedAt: new Date(),
       },
       include: {
