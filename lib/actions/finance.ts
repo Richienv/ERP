@@ -2327,8 +2327,18 @@ export async function recordVendorPayment(data: {
     }
 }
 
-// Re-export multi-bill payment from finance-ap
-export { recordMultiBillPayment, getVendorAPBalances } from "./finance-ap"
+// Re-export multi-bill payment from finance-ap as async wrapper functions
+// ("use server" files can only export async functions)
+export async function recordMultiBillPayment(...args: Parameters<typeof import("./finance-ap").recordMultiBillPayment>) {
+    const { recordMultiBillPayment: fn } = await import("./finance-ap")
+    return fn(...args)
+}
+
+export async function getVendorAPBalances() {
+    const { getVendorAPBalances: fn } = await import("./finance-ap")
+    return fn()
+}
+
 export type { BillAllocation } from "./finance-ap"
 
 // ==========================================

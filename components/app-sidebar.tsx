@@ -228,10 +228,6 @@ const data = {
           url: "/finance/reconciliation",
         },
         {
-          title: "Saldo Awal",
-          url: "/finance/opening-balances",
-        },
-        {
           title: "Kurs Mata Uang",
           url: "/finance/currencies",
         },

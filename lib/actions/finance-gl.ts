@@ -23,14 +23,8 @@ export async function getGLAccounts() {
     }
 }
 
-export interface GLAccountNode {
-    id: string
-    code: string
-    name: string
-    type: string
-    balance: number
-    children: GLAccountNode[]
-}
+export type { GLAccountNode } from "@/lib/finance-gl-helpers"
+import type { GLAccountNode } from "@/lib/finance-gl-helpers"
 
 export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
     try {
@@ -207,20 +201,8 @@ export async function postJournalEntry(data: {
     }
 }
 
-export interface JournalEntryItem {
-    id: string
-    date: Date
-    description: string
-    reference?: string
-    lines: {
-        account: { code: string; name: string }
-        debit: number
-        credit: number
-        description?: string
-    }[]
-    totalDebit: number
-    totalCredit: number
-}
+export type { JournalEntryItem } from "@/lib/finance-gl-helpers"
+import type { JournalEntryItem } from "@/lib/finance-gl-helpers"
 
 export async function getJournalEntries(limit = 50): Promise<JournalEntryItem[]> {
     try {
@@ -428,22 +410,11 @@ export async function postOpeningBalances(data: {
 // ==========================================
 
 import { calculateNextDate } from "@/lib/finance-gl-helpers"
-export type { RecurringPattern } from "@/lib/finance-gl-helpers"
+export type { RecurringPattern, OpeningBalanceGLRow, OpeningInvoiceRow } from "@/lib/finance-gl-helpers"
+import type { RecurringPattern, OpeningBalanceGLRow, OpeningInvoiceRow } from "@/lib/finance-gl-helpers"
 
-export interface RecurringTemplate {
-    id: string
-    description: string
-    reference: string | null
-    recurringPattern: string
-    nextRecurringDate: string
-    lines: {
-        accountCode: string
-        accountName: string
-        debit: number
-        credit: number
-    }[]
-    totalAmount: number
-}
+export type { RecurringTemplate } from "@/lib/finance-gl-helpers"
+import type { RecurringTemplate } from "@/lib/finance-gl-helpers"
 
 /**
  * Create a recurring journal entry template.
@@ -648,25 +619,8 @@ export async function processRecurringEntries(): Promise<{
 // CLOSING JOURNAL (JURNAL PENUTUP)
 // ==========================================
 
-export interface ClosingJournalPreviewLine {
-    accountId: string
-    accountCode: string
-    accountName: string
-    accountType: string
-    debit: number
-    credit: number
-    description: string
-}
-
-export interface ClosingJournalPreview {
-    fiscalYear: number
-    alreadyClosed: boolean
-    revenueTotal: number
-    expenseTotal: number
-    netIncome: number
-    lines: ClosingJournalPreviewLine[]
-    retainedEarningsAccount: { id: string; code: string; name: string } | null
-}
+export type { ClosingJournalPreviewLine, ClosingJournalPreview } from "@/lib/finance-gl-helpers"
+import type { ClosingJournalPreviewLine, ClosingJournalPreview } from "@/lib/finance-gl-helpers"
 
 /**
  * Preview closing journal entries for a fiscal year.
@@ -824,6 +778,172 @@ export async function previewClosingJournal(fiscalYear: number): Promise<{
         const msg = error instanceof Error ? error.message : 'Gagal memuat preview jurnal penutup'
         console.error("[previewClosingJournal] Error:", error)
         return { success: false, error: msg }
+    }
+}
+
+// ==========================================
+// OPENING BALANCES — GL (new form)
+// ==========================================
+
+/**
+ * Post a balanced journal entry for GL opening balances.
+ * Each row becomes a JournalLine under a single JournalEntry.
+ */
+export async function postOpeningBalancesGL(data: {
+    date: Date
+    rows: OpeningBalanceGLRow[]
+}): Promise<{ success: boolean; error?: string }> {
+    try {
+        const filledRows = data.rows.filter(r => r.accountCode && (r.debit > 0 || r.credit > 0))
+        if (filledRows.length === 0) {
+            return { success: false, error: "Tidak ada baris yang valid" }
+        }
+
+        const totalDebit = filledRows.reduce((sum, r) => sum + r.debit, 0)
+        const totalCredit = filledRows.reduce((sum, r) => sum + r.credit, 0)
+
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            return { success: false, error: `Total Debit (${totalDebit.toLocaleString('id-ID')}) harus sama dengan Total Kredit (${totalCredit.toLocaleString('id-ID')})` }
+        }
+
+        const year = new Date(data.date).getFullYear()
+
+        return await withPrismaAuth(async (prisma) => {
+            const codes = filledRows.map(r => r.accountCode)
+            const accounts = await prisma.gLAccount.findMany({
+                where: { code: { in: codes } }
+            })
+            const accountMap = new Map(accounts.map(a => [a.code, a]))
+
+            await prisma.$transaction(async (tx) => {
+                await tx.journalEntry.create({
+                    data: {
+                        date: data.date,
+                        description: 'Saldo Awal',
+                        reference: `OPENING-BALANCE-${year}`,
+                        status: 'POSTED',
+                        lines: {
+                            create: filledRows.map(row => {
+                                const account = accountMap.get(row.accountCode)
+                                if (!account) throw new Error(`Kode akun tidak ditemukan: ${row.accountCode}`)
+                                return {
+                                    accountId: account.id,
+                                    debit: row.debit,
+                                    credit: row.credit,
+                                    description: 'Saldo Awal',
+                                }
+                            })
+                        }
+                    }
+                })
+
+                // Update GL account balances
+                for (const row of filledRows) {
+                    const account = accountMap.get(row.accountCode)!
+                    let balanceChange = 0
+                    if (['ASSET', 'EXPENSE'].includes(account.type)) {
+                        balanceChange = row.debit - row.credit
+                    } else {
+                        balanceChange = row.credit - row.debit
+                    }
+                    await tx.gLAccount.update({
+                        where: { id: account.id },
+                        data: { balance: { increment: balanceChange } }
+                    })
+                }
+            })
+
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("[postOpeningBalancesGL] Error:", error)
+        return { success: false, error: error?.message || "Gagal menyimpan saldo awal GL" }
+    }
+}
+
+// ==========================================
+// OPENING BALANCES — AP/AR INVOICES
+// ==========================================
+
+/**
+ * Bulk create opening AP/AR invoices.
+ * Creates Invoice records with status ISSUED so they appear in the
+ * Hutang Usaha (AP) or Piutang Usaha (AR) pages.
+ */
+export async function createOpeningInvoices(data: {
+    type: "AP" | "AR"
+    rows: OpeningInvoiceRow[]
+}): Promise<{ success: boolean; createdCount?: number; error?: string }> {
+    try {
+        const validRows = data.rows.filter(r => r.partyId && r.invoiceNumber.trim() && r.amount > 0 && r.dueDate)
+        if (validRows.length === 0) {
+            return { success: false, error: "Tidak ada baris yang valid untuk disimpan" }
+        }
+
+        const invoiceType = data.type === "AP" ? "INV_IN" : "INV_OUT"
+
+        const createdCount = await withPrismaAuth(async (prisma) => {
+            let count = 0
+
+            for (const row of validRows) {
+                const invoiceData: any = {
+                    number: row.invoiceNumber.trim(),
+                    type: invoiceType,
+                    issueDate: new Date(),
+                    dueDate: new Date(row.dueDate),
+                    subtotal: row.amount,
+                    taxAmount: 0,
+                    discountAmount: 0,
+                    totalAmount: row.amount,
+                    balanceDue: row.amount,
+                    status: 'ISSUED',
+                }
+
+                if (data.type === "AP") {
+                    invoiceData.supplierId = row.partyId
+                } else {
+                    invoiceData.customerId = row.partyId
+                }
+
+                await prisma.invoice.create({ data: invoiceData })
+                count++
+            }
+
+            return count
+        })
+
+        return { success: true, createdCount }
+    } catch (error: any) {
+        console.error("[createOpeningInvoices] Error:", error)
+        return { success: false, error: error?.message || "Gagal membuat saldo awal invoice" }
+    }
+}
+
+/**
+ * Fetch customers and suppliers for AP/AR opening balance dropdown menus.
+ */
+export async function getOpeningBalanceParties(): Promise<{
+    customers: Array<{ id: string; name: string }>
+    suppliers: Array<{ id: string; name: string }>
+}> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const [customers, suppliers] = await Promise.all([
+                prisma.customer.findMany({
+                    select: { id: true, name: true },
+                    orderBy: { name: 'asc' },
+                }),
+                prisma.supplier.findMany({
+                    select: { id: true, name: true },
+                    orderBy: { name: 'asc' },
+                }),
+            ])
+
+            return { customers, suppliers }
+        })
+    } catch (error) {
+        console.error("[getOpeningBalanceParties] Error:", error)
+        return { customers: [], suppliers: [] }
     }
 }
 

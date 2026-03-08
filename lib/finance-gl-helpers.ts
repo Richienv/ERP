@@ -1,7 +1,81 @@
-// Pure functions extracted from finance-gl server actions (Next.js requires
+// Pure functions and types extracted from finance-gl server actions (Next.js requires
 // all exports from "use server" files to be async).
 
 export type RecurringPattern = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY'
+
+/** A single row in the GL opening balance entry form */
+export interface OpeningBalanceGLRow {
+    accountCode: string
+    debit: number
+    credit: number
+}
+
+/** A single row in the AP/AR opening invoice form */
+export interface OpeningInvoiceRow {
+    partyId: string
+    invoiceNumber: string
+    amount: number
+    dueDate: string
+}
+
+export interface GLAccountNode {
+    id: string
+    code: string
+    name: string
+    type: string
+    balance: number
+    children: GLAccountNode[]
+}
+
+export interface JournalEntryItem {
+    id: string
+    date: Date
+    description: string
+    reference?: string
+    lines: {
+        account: { code: string; name: string }
+        debit: number
+        credit: number
+        description?: string
+    }[]
+    totalDebit: number
+    totalCredit: number
+}
+
+export interface RecurringTemplate {
+    id: string
+    description: string
+    reference: string | null
+    recurringPattern: string
+    nextRecurringDate: string
+    lines: {
+        accountCode: string
+        accountName: string
+        debit: number
+        credit: number
+    }[]
+    totalAmount: number
+}
+
+export interface ClosingJournalPreviewLine {
+    accountId: string
+    accountCode: string
+    accountName: string
+    accountType: string
+    debit: number
+    credit: number
+    description: string
+}
+
+export interface ClosingJournalPreview {
+    fiscalYear: number
+    alreadyClosed: boolean
+    revenueTotal: number
+    expenseTotal: number
+    netIncome: number
+    lines: ClosingJournalPreviewLine[]
+    retainedEarningsAccount: { id: string; code: string; name: string } | null
+}
 
 /**
  * Calculate the next occurrence date given a pattern and current date.
