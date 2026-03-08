@@ -343,8 +343,14 @@ export const queryKeys = {
         detail: (id: string) => ["dcNotes", "detail", id] as const,
         formData: () => ["dcNotes", "formData"] as const,
     },
+<<<<<<< HEAD
     openingBalances: {
         all: ["openingBalances"] as const,
         list: () => [...["openingBalances"], "list"] as const,
+=======
+    currencies: {
+        all: ["currencies"] as const,
+        list: () => [...queryKeys.currencies.all, "list"] as const,
+>>>>>>> worktree-agent-a31a9d31
     },
 } as const

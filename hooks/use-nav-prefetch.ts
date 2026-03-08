@@ -435,6 +435,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             return { reconciliations, bankAccounts }
         },
     },
+    "/finance/currencies": {
+        queryKey: queryKeys.currencies.list(),
+        queryFn: () => fetch("/api/finance/currencies").then((r) => r.json()).then((p) => p.data ?? []),
+    },
     "/documents": {
         queryKey: queryKeys.documents.list(),
         queryFn: async () => {

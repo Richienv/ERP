@@ -2944,6 +2944,47 @@ model DebitCreditNoteSettlement {
 }
 
 // ================================
+// Currency & Exchange Rate
+// ================================
+
+model Currency {
+  id     String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code   String  @unique // ISO 4217: USD, EUR, SGD, CNY, KRW, JPY
+  name   String // e.g. "Dolar Amerika", "Yuan Tiongkok"
+  symbol String // e.g. "$", "¥", "€"
+
+  isActive Boolean @default(true)
+
+  rates ExchangeRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("currencies")
+}
+
+model ExchangeRate {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  currencyId String @db.Uuid
+
+  date       DateTime @db.Date
+  buyRate    Decimal  @db.Decimal(15, 4) // Bank beli (IDR per 1 unit mata uang asing)
+  sellRate   Decimal  @db.Decimal(15, 4) // Bank jual
+  middleRate Decimal  @db.Decimal(15, 4) // Kurs tengah (rata-rata beli & jual)
+
+  source String? // e.g. "BI", "Manual", "Bank BCA"
+
+  currency Currency @relation(fields: [currencyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([currencyId, date])
+  @@index([currencyId])
+  @@index([date])
+  @@map("exchange_rates")
+}
+
+// ================================
 // Budget Module
 // ================================
 
