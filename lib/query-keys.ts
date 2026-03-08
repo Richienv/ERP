@@ -322,4 +322,8 @@ export const queryKeys = {
         detail: (id: string) => ["dcNotes", "detail", id] as const,
         formData: () => ["dcNotes", "formData"] as const,
     },
+    fiscalPeriods: {
+        all: ["fiscalPeriods"] as const,
+        list: (year?: number) => [...["fiscalPeriods"], "list", year] as const,
+    },
 } as const

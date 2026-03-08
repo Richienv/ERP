@@ -2063,6 +2063,30 @@ enum EntryStatus {
 }
 
 // ================================
+// Fiscal Period Management
+// ================================
+
+model FiscalPeriod {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  year      Int
+  month     Int // 1-12
+  name      String // e.g. "Januari 2026"
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  isClosed  Boolean  @default(false)
+  closedAt  DateTime?
+  closedBy  String? // user email who closed the period
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([year, month])
+  @@index([year])
+  @@index([isClosed])
+  @@map("fiscal_periods")
+}
+
+// ================================
 // Textile Upgrade Enums (Phase 1A)
 // ================================
 

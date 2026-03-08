@@ -139,6 +139,17 @@ export async function postJournalEntry(data: {
         }
 
         return await withPrismaAuth(async (prisma) => {
+            // Check if fiscal period is closed for the journal date
+            const entryDate = new Date(data.date)
+            const entryMonth = entryDate.getMonth() + 1
+            const entryYear = entryDate.getFullYear()
+            const fiscalPeriod = await prisma.fiscalPeriod.findUnique({
+                where: { year_month: { year: entryYear, month: entryMonth } }
+            })
+            if (fiscalPeriod?.isClosed) {
+                throw new Error(`Periode fiskal ${fiscalPeriod.name} sudah ditutup. Tidak bisa posting jurnal ke periode ini.`)
+            }
+
             const codes = data.lines.map(l => l.accountCode)
             const accounts = await prisma.gLAccount.findMany({
                 where: { code: { in: codes } }
