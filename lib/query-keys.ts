@@ -351,4 +351,9 @@ export const queryKeys = {
         all: ["currencies"] as const,
         list: () => [...["currencies"], "list"] as const,
     },
+    salespersons: {
+        all: ["salespersons"] as const,
+        list: () => [...["salespersons"], "list"] as const,
+        commissionReport: (start?: string, end?: string) => [...["salespersons"], "commissionReport", start, end] as const,
+    },
 } as const

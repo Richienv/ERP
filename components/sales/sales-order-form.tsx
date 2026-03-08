@@ -46,12 +46,19 @@ interface QuotationOption {
   status: string
 }
 
+interface SalespersonOption {
+  id: string
+  code: string
+  name: string
+}
+
 interface SalesOptionsResponse {
   success: boolean
   data?: {
     customers?: CustomerOption[]
     products?: ProductOption[]
     quotations?: QuotationOption[]
+    salespersons?: SalespersonOption[]
   }
   error?: string
 }
@@ -83,10 +90,12 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [products, setProducts] = useState<ProductOption[]>([])
   const [quotations, setQuotations] = useState<QuotationOption[]>([])
+  const [salespersons, setSalespersons] = useState<SalespersonOption[]>([])
 
   const [form, setForm] = useState({
     customerId: (!quotationId && initialCustomerId) ? initialCustomerId : "",
     quotationId: quotationId || "",
+    salespersonId: "",
     customerRef: "",
     orderDate: new Date().toISOString().slice(0, 10),
     requestedDate: "",
@@ -123,10 +132,12 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
         const incomingCustomers = payload.data.customers || []
         const incomingProducts = payload.data.products || []
         const incomingQuotations = payload.data.quotations || []
+        const incomingSalespersons = payload.data.salespersons || []
 
         setCustomers(incomingCustomers)
         setProducts(incomingProducts)
         setQuotations(incomingQuotations)
+        setSalespersons(incomingSalespersons)
 
         if (quotationId) {
           const selectedQuote = incomingQuotations.find((quote) => quote.id === quotationId)
@@ -311,6 +322,7 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
           salesOrder: {
             customerId: form.customerId,
             quotationId: form.quotationId || undefined,
+            salespersonId: form.salespersonId || undefined,
             customerRef: form.customerRef || undefined,
             orderDate: form.orderDate,
             requestedDate: form.requestedDate || undefined,
@@ -418,6 +430,23 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
                   <SelectItem value="NET_60">NET 60</SelectItem>
                   <SelectItem value="NET_90">NET 90</SelectItem>
                   <SelectItem value="COD">COD</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Salesperson</Label>
+              <Select value={form.salespersonId || "none"} onValueChange={(value) => updateForm("salespersonId", value === "none" ? "" : value)} disabled={loadingOptions}>
+                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                  <SelectValue placeholder="Pilih salesperson" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Tanpa salesperson</SelectItem>
+                  {salespersons.map((sp) => (
+                    <SelectItem key={sp.id} value={sp.id}>
+                      <span className="font-mono text-xs text-zinc-400 mr-1">{sp.code}</span> {sp.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
