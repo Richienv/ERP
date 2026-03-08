@@ -11,6 +11,11 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
@@ -20,6 +25,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  useSidebar,
 } from "@/components/ui/sidebar"
 
 export function NavMain({
@@ -41,6 +47,8 @@ export function NavMain({
 }) {
   const pathname = usePathname()
   const { prefetchRoute } = useNavPrefetch()
+  const { state } = useSidebar()
+  const isCollapsed = state === "collapsed"
 
   return (
     <SidebarGroup>
@@ -64,6 +72,67 @@ export function NavMain({
                       <IconLock className="ml-auto !size-3.5 text-zinc-400" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                )
+              }
+
+              // When sidebar is collapsed, use Popover to show sub-items as floating menu
+              if (isCollapsed) {
+                return (
+                  <Popover key={item.title}>
+                    <SidebarMenuItem>
+                      <PopoverTrigger asChild>
+                        <SidebarMenuButton
+                          className={
+                            isActive
+                              ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
+                              : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
+                          }
+                        >
+                          {item.icon && <item.icon className="!size-4" />}
+                          <span className="text-[13px] tracking-tight">{item.title}</span>
+                        </SidebarMenuButton>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        side="right"
+                        align="start"
+                        sideOffset={8}
+                        className="w-56 p-1 rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                      >
+                        <p className="px-3 py-2 text-[11px] font-black uppercase tracking-wider text-zinc-400">{item.title}</p>
+                        {item.items!.map((subItem) => {
+                          if (subItem.locked) {
+                            return (
+                              <div key={subItem.title} className="flex items-center px-3 py-1.5 text-[12px] text-zinc-400 cursor-not-allowed">
+                                <span>{subItem.title}</span>
+                                <IconLock className="ml-auto !size-3" />
+                              </div>
+                            )
+                          }
+                          const isSubActive = pathname === subItem.url
+                          return (
+                            <Link
+                              key={subItem.title}
+                              href={subItem.url}
+                              prefetch
+                              onMouseEnter={() => prefetchRoute(subItem.url)}
+                              className={`flex items-center px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                                isSubActive
+                                  ? "bg-zinc-900 text-white font-bold"
+                                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                              }`}
+                            >
+                              <span>{subItem.title}</span>
+                              {subItem.badge && subItem.badge > 0 ? (
+                                <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white tabular-nums">
+                                  {subItem.badge > 99 ? "99+" : subItem.badge}
+                                </span>
+                              ) : null}
+                            </Link>
+                          )
+                        })}
+                      </PopoverContent>
+                    </SidebarMenuItem>
+                  </Popover>
                 )
               }
 
