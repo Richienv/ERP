@@ -506,161 +506,282 @@ export async function processRecurringEntries(): Promise<{
 }
 
 // ==========================================
-// OPENING BALANCES — GL
+// CLOSING JOURNAL (JURNAL PENUTUP)
 // ==========================================
 
-export interface OpeningBalanceGLRow {
+export interface ClosingJournalPreviewLine {
+    accountId: string
     accountCode: string
+    accountName: string
+    accountType: string
     debit: number
     credit: number
+    description: string
+}
+
+export interface ClosingJournalPreview {
+    fiscalYear: number
+    alreadyClosed: boolean
+    revenueTotal: number
+    expenseTotal: number
+    netIncome: number
+    lines: ClosingJournalPreviewLine[]
+    retainedEarningsAccount: { id: string; code: string; name: string } | null
 }
 
 /**
- * Post opening balance journal entries for GL accounts.
- * Creates a single POSTED journal entry with all lines.
+ * Preview closing journal entries for a fiscal year.
+ * Calculates net balances of all REVENUE and EXPENSE accounts for the year,
+ * then generates closing entries to zero them out and transfer net income
+ * to Retained Earnings (equity account).
  */
-export async function postOpeningBalancesGL(data: {
-    date: Date
-    rows: OpeningBalanceGLRow[]
-}): Promise<{ success: boolean; error?: string }> {
-    if (!data.rows.length) return { success: false, error: "Tidak ada baris saldo awal" }
-
-    const totalDebit = data.rows.reduce((s, r) => s + r.debit, 0)
-    const totalCredit = data.rows.reduce((s, r) => s + r.credit, 0)
-    if (Math.abs(totalDebit - totalCredit) > 0.01) {
-        return { success: false, error: `Tidak seimbang: Debit (${totalDebit.toLocaleString()}) != Kredit (${totalCredit.toLocaleString()})` }
-    }
-
-    return postJournalEntry({
-        description: "Saldo Awal GL",
-        date: data.date,
-        reference: "OPENING-GL",
-        lines: data.rows.map(r => ({
-            accountCode: r.accountCode,
-            debit: r.debit,
-            credit: r.credit,
-            description: "Saldo Awal",
-        })),
-    })
-}
-
-// ==========================================
-// OPENING BALANCES — AP & AR
-// ==========================================
-
-export interface OpeningInvoiceRow {
-    /** Customer ID (for AR / INV_OUT) or Supplier ID (for AP / INV_IN) */
-    partyId: string
-    /** User-supplied invoice/bill number */
-    invoiceNumber: string
-    /** Total amount (already includes tax if any) */
-    amount: number
-    /** Due date */
-    dueDate: string // ISO date string
-}
-
-/**
- * Bulk-create opening balance invoices (AP bills or AR invoices).
- * Created with status ISSUED so they appear immediately in payables/receivables.
- */
-export async function createOpeningInvoices(data: {
-    type: 'AP' | 'AR'
-    rows: OpeningInvoiceRow[]
-    issueDate?: string // ISO date string, defaults to today
-}): Promise<{ success: boolean; createdCount?: number; error?: string }> {
-    if (!data.rows.length) return { success: false, error: "Tidak ada baris yang diisi" }
-
-    // Validate all rows have required fields
-    for (let i = 0; i < data.rows.length; i++) {
-        const row = data.rows[i]
-        if (!row.partyId) return { success: false, error: `Baris ${i + 1}: Pilih ${data.type === 'AP' ? 'vendor' : 'pelanggan'}` }
-        if (!row.invoiceNumber.trim()) return { success: false, error: `Baris ${i + 1}: Nomor invoice wajib diisi` }
-        if (row.amount <= 0) return { success: false, error: `Baris ${i + 1}: Jumlah harus lebih dari 0` }
-        if (!row.dueDate) return { success: false, error: `Baris ${i + 1}: Tanggal jatuh tempo wajib diisi` }
-    }
-
+export async function previewClosingJournal(fiscalYear: number): Promise<{
+    success: boolean
+    data?: ClosingJournalPreview
+    error?: string
+}> {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const issueDate = data.issueDate ? new Date(data.issueDate) : new Date()
-            const invoiceType = data.type === 'AP' ? 'INV_IN' : 'INV_OUT'
-
-            // Check for duplicate invoice numbers
-            const numbers = data.rows.map(r => r.invoiceNumber.trim())
-            const existing = await prisma.invoice.findMany({
-                where: { number: { in: numbers } },
-                select: { number: true },
+        const result = await withPrismaAuth(async (prisma) => {
+            // 1. Check if closing entry already exists for this year
+            const existingClosing = await prisma.journalEntry.findFirst({
+                where: {
+                    reference: `CLOSING-${fiscalYear}`,
+                    status: 'POSTED',
+                },
             })
-            if (existing.length > 0) {
-                const dupes = existing.map(e => e.number).join(", ")
-                return { success: false, error: `Nomor invoice sudah ada: ${dupes}` }
+
+            if (existingClosing) {
+                return {
+                    fiscalYear,
+                    alreadyClosed: true,
+                    revenueTotal: 0,
+                    expenseTotal: 0,
+                    netIncome: 0,
+                    lines: [],
+                    retainedEarningsAccount: null,
+                } satisfies ClosingJournalPreview
             }
 
-            // Create all invoices in a transaction
-            let createdCount = 0
-            await prisma.$transaction(async (tx) => {
-                for (const row of data.rows) {
-                    const amount = row.amount
-                    await tx.invoice.create({
-                        data: {
-                            number: row.invoiceNumber.trim(),
-                            type: invoiceType,
-                            customerId: data.type === 'AR' ? row.partyId : null,
-                            supplierId: data.type === 'AP' ? row.partyId : null,
-                            issueDate,
-                            dueDate: new Date(row.dueDate),
-                            subtotal: amount,
-                            taxAmount: 0,
-                            totalAmount: amount,
-                            balanceDue: amount,
-                            status: 'ISSUED',
-                            items: {
-                                create: [{
-                                    description: `Saldo Awal — ${row.invoiceNumber.trim()}`,
-                                    quantity: 1,
-                                    unitPrice: amount,
-                                    amount: amount,
-                                }]
-                            }
-                        }
-                    })
-                    createdCount++
-                }
+            // 2. Get date range for the fiscal year
+            const startDate = new Date(fiscalYear, 0, 1) // Jan 1
+            const endDate = new Date(fiscalYear, 11, 31, 23, 59, 59, 999) // Dec 31
+
+            // 3. Get all REVENUE and EXPENSE accounts
+            const accounts = await prisma.gLAccount.findMany({
+                where: { type: { in: ['REVENUE', 'EXPENSE'] } },
+                orderBy: { code: 'asc' },
             })
 
-            return { success: true, createdCount }
+            // 4. Calculate net balance for each account within the fiscal year
+            const accountBalances = await prisma.journalLine.groupBy({
+                by: ['accountId'],
+                where: {
+                    accountId: { in: accounts.map(a => a.id) },
+                    entry: {
+                        date: { gte: startDate, lte: endDate },
+                        status: 'POSTED',
+                    },
+                },
+                _sum: { debit: true, credit: true },
+            })
+
+            const balanceMap = new Map(
+                accountBalances.map(b => [
+                    b.accountId,
+                    { debit: Number(b._sum.debit || 0), credit: Number(b._sum.credit || 0) },
+                ])
+            )
+
+            // 5. Find Retained Earnings account (equity, typically code starting with "3" and named "Laba Ditahan" or "Retained Earnings")
+            const retainedEarnings = await prisma.gLAccount.findFirst({
+                where: {
+                    type: 'EQUITY',
+                    OR: [
+                        { name: { contains: 'Laba Ditahan', mode: 'insensitive' } },
+                        { name: { contains: 'Retained', mode: 'insensitive' } },
+                        { name: { contains: 'Saldo Laba', mode: 'insensitive' } },
+                    ],
+                },
+            })
+
+            // 6. Build closing entries
+            const lines: ClosingJournalPreviewLine[] = []
+            let revenueTotal = 0
+            let expenseTotal = 0
+
+            // Close Revenue accounts: DR Revenue, CR Income Summary
+            // Revenue normal balance is CREDIT, so net = credit - debit
+            for (const account of accounts.filter(a => a.type === 'REVENUE')) {
+                const bal = balanceMap.get(account.id)
+                if (!bal) continue
+                const netBalance = bal.credit - bal.debit // Revenue normal = credit side
+                if (Math.abs(netBalance) < 0.01) continue
+
+                revenueTotal += netBalance
+
+                // Debit Revenue to zero it out
+                lines.push({
+                    accountId: account.id,
+                    accountCode: account.code,
+                    accountName: account.name,
+                    accountType: 'REVENUE',
+                    debit: netBalance > 0 ? netBalance : 0,
+                    credit: netBalance < 0 ? Math.abs(netBalance) : 0,
+                    description: `Penutupan akun pendapatan ${account.code} - ${account.name}`,
+                })
+            }
+
+            // Close Expense accounts: DR Income Summary, CR Expense
+            // Expense normal balance is DEBIT, so net = debit - credit
+            for (const account of accounts.filter(a => a.type === 'EXPENSE')) {
+                const bal = balanceMap.get(account.id)
+                if (!bal) continue
+                const netBalance = bal.debit - bal.credit // Expense normal = debit side
+                if (Math.abs(netBalance) < 0.01) continue
+
+                expenseTotal += netBalance
+
+                // Credit Expense to zero it out
+                lines.push({
+                    accountId: account.id,
+                    accountCode: account.code,
+                    accountName: account.name,
+                    accountType: 'EXPENSE',
+                    debit: netBalance < 0 ? Math.abs(netBalance) : 0,
+                    credit: netBalance > 0 ? netBalance : 0,
+                    description: `Penutupan akun beban ${account.code} - ${account.name}`,
+                })
+            }
+
+            // Transfer net income to Retained Earnings
+            const netIncome = revenueTotal - expenseTotal
+            if (retainedEarnings && Math.abs(netIncome) >= 0.01) {
+                lines.push({
+                    accountId: retainedEarnings.id,
+                    accountCode: retainedEarnings.code,
+                    accountName: retainedEarnings.name,
+                    accountType: 'EQUITY',
+                    debit: netIncome < 0 ? Math.abs(netIncome) : 0,
+                    credit: netIncome > 0 ? netIncome : 0,
+                    description: `Transfer laba bersih ke Laba Ditahan tahun ${fiscalYear}`,
+                })
+            }
+
+            return {
+                fiscalYear,
+                alreadyClosed: false,
+                revenueTotal,
+                expenseTotal,
+                netIncome,
+                lines,
+                retainedEarningsAccount: retainedEarnings
+                    ? { id: retainedEarnings.id, code: retainedEarnings.code, name: retainedEarnings.name }
+                    : null,
+            } satisfies ClosingJournalPreview
         })
+
+        return { success: true, data: result }
     } catch (error) {
-        const msg = error instanceof Error ? error.message : "Gagal membuat saldo awal invoice"
-        console.error("[createOpeningInvoices] Error:", error)
+        const msg = error instanceof Error ? error.message : 'Gagal memuat preview jurnal penutup'
+        console.error("[previewClosingJournal] Error:", error)
         return { success: false, error: msg }
     }
 }
 
 /**
- * Fetch customers and suppliers for opening balance form dropdowns.
+ * Post the closing journal entries for a fiscal year.
+ * Creates a single JournalEntry with reference CLOSING-YYYY that zeros out
+ * all REVENUE and EXPENSE accounts and transfers net income to Retained Earnings.
  */
-export async function getOpeningBalanceParties(): Promise<{
-    customers: Array<{ id: string; name: string }>
-    suppliers: Array<{ id: string; name: string }>
+export async function postClosingJournal(fiscalYear: number): Promise<{
+    success: boolean
+    entryId?: string
+    error?: string
 }> {
     try {
-        return await withPrismaAuth(async (prisma) => {
-            const [customers, suppliers] = await Promise.all([
-                prisma.customer.findMany({
-                    where: { isActive: true },
-                    select: { id: true, name: true },
-                    orderBy: { name: 'asc' },
-                }),
-                prisma.supplier.findMany({
-                    where: { isActive: true },
-                    select: { id: true, name: true },
-                    orderBy: { name: 'asc' },
-                }),
-            ])
-            return { customers, suppliers }
+        // First get the preview to know what to post
+        const preview = await previewClosingJournal(fiscalYear)
+        if (!preview.success || !preview.data) {
+            return { success: false, error: preview.error || 'Gagal memuat data penutupan' }
+        }
+
+        if (preview.data.alreadyClosed) {
+            return { success: false, error: `Tahun fiskal ${fiscalYear} sudah ditutup` }
+        }
+
+        if (preview.data.lines.length === 0) {
+            return { success: false, error: 'Tidak ada saldo untuk ditutup' }
+        }
+
+        if (!preview.data.retainedEarningsAccount) {
+            return { success: false, error: 'Akun Laba Ditahan (Retained Earnings) tidak ditemukan. Buat akun ekuitas dengan nama "Laba Ditahan" terlebih dahulu.' }
+        }
+
+        const entryId = await withPrismaAuth(async (prisma) => {
+            // Double-check no closing entry exists (race condition guard)
+            const existingClosing = await prisma.journalEntry.findFirst({
+                where: {
+                    reference: `CLOSING-${fiscalYear}`,
+                    status: 'POSTED',
+                },
+            })
+
+            if (existingClosing) {
+                throw new Error(`Tahun fiskal ${fiscalYear} sudah ditutup`)
+            }
+
+            const lines = preview.data!.lines
+
+            // Verify balance: total debit must equal total credit
+            const totalDebit = lines.reduce((sum, l) => sum + l.debit, 0)
+            const totalCredit = lines.reduce((sum, l) => sum + l.credit, 0)
+
+            if (Math.abs(totalDebit - totalCredit) > 0.01) {
+                throw new Error(`Jurnal tidak seimbang: Debit (${totalDebit}) != Kredit (${totalCredit})`)
+            }
+
+            return await prisma.$transaction(async (tx) => {
+                // Create the closing journal entry
+                const entry = await tx.journalEntry.create({
+                    data: {
+                        date: new Date(fiscalYear, 11, 31), // Dec 31 of fiscal year
+                        description: `Jurnal Penutup Tahun Fiskal ${fiscalYear}`,
+                        reference: `CLOSING-${fiscalYear}`,
+                        status: 'POSTED',
+                        lines: {
+                            create: lines.map(line => ({
+                                accountId: line.accountId,
+                                debit: line.debit,
+                                credit: line.credit,
+                                description: line.description,
+                            })),
+                        },
+                    },
+                })
+
+                // Update GL account balances
+                for (const line of lines) {
+                    let balanceChange = 0
+                    if (['ASSET', 'EXPENSE'].includes(line.accountType)) {
+                        balanceChange = line.debit - line.credit
+                    } else {
+                        balanceChange = line.credit - line.debit
+                    }
+
+                    await tx.gLAccount.update({
+                        where: { id: line.accountId },
+                        data: { balance: { increment: balanceChange } },
+                    })
+                }
+
+                return entry.id
+            })
         })
+
+        return { success: true, entryId }
     } catch (error) {
-        console.error("[getOpeningBalanceParties] Error:", error)
-        return { customers: [], suppliers: [] }
+        const msg = error instanceof Error ? error.message : 'Gagal memposting jurnal penutup'
+        console.error("[postClosingJournal] Error:", error)
+        return { success: false, error: msg }
     }
 }
