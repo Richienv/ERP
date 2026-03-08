@@ -124,9 +124,10 @@ model Category {
   parentId    String? @db.Uuid
   isActive    Boolean @default(true)
 
-  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryHierarchy")
-  products Product[]
+  parent          Category?        @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[]       @relation("CategoryHierarchy")
+  products        Product[]
+  discountSchemes DiscountScheme[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -166,7 +167,6 @@ model Warehouse {
   fabricRolls        FabricRoll[]
   transfersFrom      StockTransfer[]        @relation("TransferFrom")
   transfersTo        StockTransfer[]        @relation("TransferTo")
-  costLayers         CostLayer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -206,11 +206,6 @@ enum ProductType {
   WIP // WIP — Work In Process (intermediate: greige, dyed, printed)
 }
 
-enum CostingMethod {
-  AVERAGE // Rata-rata tertimbang (default, cocok untuk kebanyakan UKM tekstil)
-  FIFO    // First In First Out (untuk bahan yang harga fluktuatif)
-}
-
 model Product {
   id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   code         String      @unique
@@ -225,8 +220,7 @@ model Product {
   maxStock     Int         @default(0)
   reorderLevel Int         @default(0)
   barcode      String?
-  isActive       Boolean       @default(true)
-  costingMethod  CostingMethod @default(AVERAGE) // Metode penetapan biaya: Rata-rata atau FIFO
+  isActive     Boolean     @default(true)
 
   // Textile-specific fields
   color       String?
@@ -278,34 +272,11 @@ model Product {
   subcontractOrderItems SubcontractOrderItem[]
   cutPlans              CutPlan[]              @relation("CutPlanFabric")
   garmentCostSheets     GarmentCostSheet[]
-  costLayers            CostLayer[]
+  discountSchemes       DiscountScheme[]
 
   @@index([categoryId])
   @@index([updatedAt])
   @@map("products")
-}
-
-// ================================
-// Cost Layers (FIFO tracking)
-// ================================
-
-model CostLayer {
-  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  productId    String    @db.Uuid
-  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  warehouseId  String?   @db.Uuid
-  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
-  qty          Decimal   @db.Decimal(15, 4) // Jumlah awal masuk
-  unitCost     Decimal   @db.Decimal(15, 4) // Biaya per unit saat masuk
-  remainingQty Decimal   @db.Decimal(15, 4) // Sisa qty yang belum terpakai
-  referenceType String?  // PO_RECEIVE, PRODUCTION_IN, ADJUSTMENT, etc.
-  referenceId   String?  @db.Uuid // ID dokumen sumber (GRN, WorkOrder, dll.)
-  createdAt    DateTime  @default(now())
-
-  @@index([productId])
-  @@index([productId, warehouseId])
-  @@index([createdAt])
-  @@map("cost_layers")
 }
 
 // ================================
@@ -319,25 +290,7 @@ model Unit {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  conversionsFrom UomConversion[] @relation("FromUnit")
-  conversionsTo   UomConversion[] @relation("ToUnit")
-
   @@map("units")
-}
-
-model UomConversion {
-  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  fromUnitId String   @db.Uuid
-  toUnitId   String   @db.Uuid
-  factor     Decimal  @db.Decimal(15, 6) // 1 fromUnit = factor toUnit
-
-  fromUnit Unit @relation("FromUnit", fields: [fromUnitId], references: [id])
-  toUnit   Unit @relation("ToUnit", fields: [toUnitId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@unique([fromUnitId, toUnitId])
-  @@map("uom_conversions")
 }
 
 model Brand {
@@ -440,10 +393,6 @@ enum TransactionType {
   PRODUCTION_OUT // Raw Material Consumption
   RETURN_OUT // To Supplier
   SCRAP // Waste/Damaged
-
-  // Reversals
-  PRODUCTION_RETURN // Retur barang jadi (decrease finished goods)
-  MATERIAL_RETURN // Retur bahan baku dari produksi (increase raw materials)
 
   // Internal
   TRANSFER // Warehouse Transfer
@@ -558,8 +507,9 @@ model Customer {
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  Invoice   Invoice[]
-  Payment   Payment[]
+  Invoice         Invoice[]
+  Payment         Payment[]
+  discountSchemes DiscountScheme[]
 
   @@index([customerType])
   @@index([updatedAt])
@@ -628,8 +578,9 @@ model PriceList {
   currency    String  @default("IDR")
   isActive    Boolean @default(true)
 
-  customers  Customer[]
-  priceItems PriceListItem[]
+  customers       Customer[]
+  priceItems      PriceListItem[]
+  discountSchemes DiscountScheme[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1189,7 +1140,6 @@ model PurchaseOrderItem {
 
   quantity    Int
   receivedQty Int     @default(0)
-  returnedQty Int     @default(0)
   unitPrice   Decimal @db.Decimal(15, 2)
   totalPrice  Decimal @db.Decimal(15, 2)
 
@@ -3017,17 +2967,64 @@ model BudgetLine {
 }
 
 // ================================
-// System Settings (Key-Value Store)
+// Discount Scheme (CSA-013)
 // ================================
 
-model SystemSetting {
-  id    String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
-  key   String @unique
-  value String
-  label String? // Human-readable label (Bahasa Indonesia)
+enum DiscountType {
+  PERCENTAGE // Persentase potongan (5%, 10%)
+  FIXED      // Potongan tetap (Rp 5.000/unit)
+  TIERED     // Bertingkat berdasarkan kuantitas
+}
+
+enum DiscountScope {
+  GLOBAL      // Berlaku untuk semua produk
+  PRICELIST   // Berlaku pada daftar harga tertentu
+  CUSTOMER    // Berlaku untuk pelanggan tertentu
+  PRODUCT     // Berlaku untuk produk tertentu
+  CATEGORY    // Berlaku untuk kategori tertentu
+}
+
+model DiscountScheme {
+  id          String        @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String        @unique
+  name        String
+  description String?
+  type        DiscountType
+  scope       DiscountScope @default(GLOBAL)
+  isActive    Boolean       @default(true)
+
+  // Flat discount fields (PERCENTAGE / FIXED)
+  value Decimal? @db.Decimal(15, 2) // percentage value or fixed amount
+
+  // Tiered rules (TIERED type) — JSON array: [{minQty, maxQty, discount}]
+  tieredRules Json?
+
+  // Scope relations (nullable — set based on scope)
+  priceListId String?   @db.Uuid
+  customerId  String?   @db.Uuid
+  productId   String?   @db.Uuid
+  categoryId  String?   @db.Uuid
+
+  priceList PriceList? @relation(fields: [priceListId], references: [id])
+  customer  Customer?  @relation(fields: [customerId], references: [id])
+  product   Product?   @relation(fields: [productId], references: [id])
+  category  Category?  @relation(fields: [categoryId], references: [id])
+
+  // Validity period
+  validFrom DateTime?
+  validTo   DateTime?
+
+  // Minimum order value (optional)
+  minOrderValue Decimal? @db.Decimal(15, 2)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@map("system_settings")
+  @@index([type, isActive])
+  @@index([scope])
+  @@index([priceListId])
+  @@index([customerId])
+  @@index([productId])
+  @@index([categoryId])
+  @@map("discount_schemes")
 }
