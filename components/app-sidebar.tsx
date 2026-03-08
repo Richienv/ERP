@@ -81,6 +81,10 @@ const data = {
           title: "Fabric Rolls",
           url: "/inventory/fabric-rolls",
         },
+        {
+          title: "Pengaturan Inventori",
+          url: "/inventory/settings",
+        },
       ],
     },
     {

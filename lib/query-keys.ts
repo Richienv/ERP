@@ -154,6 +154,10 @@ export const queryKeys = {
         all: ["inventoryDashboard"] as const,
         list: () => [...queryKeys.inventoryDashboard.all, "list"] as const,
     },
+    inventorySettings: {
+        all: ["inventorySettings"] as const,
+        list: () => [...queryKeys.inventorySettings.all, "list"] as const,
+    },
     procurementDashboard: {
         all: ["procurementDashboard"] as const,
         list: () => [...queryKeys.procurementDashboard.all, "list"] as const,
