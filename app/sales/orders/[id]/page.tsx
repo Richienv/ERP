@@ -7,6 +7,8 @@ import { ArrowLeft, Package, FileText, Users, Calendar, CreditCard } from "lucid
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
+import { RevisionHistoryPanel } from "@/components/sales/revision-history-panel"
+import { AmendOrderDialog } from "@/components/sales/amend-order-dialog"
 
 const formatIDR = (value: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value)
@@ -39,6 +41,9 @@ export default function SalesOrderDetailPage() {
     }
 
     const sc = statusConfig[order.status] || statusConfig.DRAFT
+    const displayNumber = order.displayNumber || order.number
+    const currentRevision = order.revision || 0
+    const revisionHistory = order.revisionHistory || []
 
     return (
         <div className="mf-page">
@@ -50,15 +55,30 @@ export default function SalesOrderDetailPage() {
                             <Link href="/sales/orders"><ArrowLeft className="h-4 w-4" /></Link>
                         </Button>
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight">{order.number}</h1>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-xl font-black uppercase tracking-tight">{displayNumber}</h1>
+                                {currentRevision > 0 && (
+                                    <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider border-2 border-amber-500 text-amber-700 bg-amber-50 rounded-none px-2 py-0.5">
+                                        Revisi ke-{currentRevision}
+                                    </Badge>
+                                )}
+                            </div>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
                                 {order.customer.name} • {new Date(order.orderDate).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
                             </p>
                         </div>
                     </div>
-                    <Badge className={`text-xs font-black uppercase px-3 py-1 border-2 border-black ${sc.color}`}>
-                        {sc.label}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                        <AmendOrderDialog
+                            orderId={order.id}
+                            orderNumber={displayNumber}
+                            currentItems={order.items}
+                            status={order.status}
+                        />
+                        <Badge className={`text-xs font-black uppercase px-3 py-1 border-2 border-black ${sc.color}`}>
+                            {sc.label}
+                        </Badge>
+                    </div>
                 </div>
             </div>
 
@@ -91,6 +111,12 @@ export default function SalesOrderDetailPage() {
                             <span className="text-zinc-500 font-bold">Payment Term</span>
                             <span className="font-black">{order.paymentTerm}</span>
                         </div>
+                        {currentRevision > 0 && (
+                            <div className="flex justify-between">
+                                <span className="text-zinc-500 font-bold">Revisi</span>
+                                <span className="font-black text-amber-700">Rev.{currentRevision}</span>
+                            </div>
+                        )}
                         {order.quotation && (
                             <div className="flex justify-between">
                                 <span className="text-zinc-500 font-bold">Dari Quotation</span>
@@ -159,6 +185,13 @@ export default function SalesOrderDetailPage() {
                     </table>
                 </div>
             </div>
+
+            {/* Revision History */}
+            <RevisionHistoryPanel
+                currentRevision={currentRevision}
+                history={revisionHistory}
+                documentType="SO"
+            />
 
             {/* Invoices */}
             {order.invoices.length > 0 && (
