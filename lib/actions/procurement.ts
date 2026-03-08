@@ -1940,3 +1940,256 @@ export async function deactivateVendor(
         return { success: false, error: error.message || "Gagal menonaktifkan vendor" }
     }
 }
+
+// ==========================================
+// PURCHASE RETURN (Retur Pembelian)
+// ==========================================
+
+interface PurchaseReturnItemInput {
+    poItemId: string
+    productId: string
+    quantity: number
+    unitPrice: number
+    reason: string
+}
+
+interface CreatePurchaseReturnInput {
+    purchaseOrderId: string
+    warehouseId: string
+    notes?: string
+    items: PurchaseReturnItemInput[]
+}
+
+export async function getReturnablePurchaseOrders() {
+    await getAuthzUser()
+
+    try {
+        const orders = await (prisma as any).purchaseOrder.findMany({
+            where: {
+                status: {
+                    in: ['RECEIVED', 'COMPLETED', 'PARTIAL_RECEIVED'] as any
+                }
+            },
+            orderBy: { orderDate: 'desc' },
+            include: {
+                supplier: { select: { id: true, name: true } },
+                items: {
+                    include: {
+                        product: { select: { id: true, name: true, code: true } }
+                    }
+                }
+            }
+        })
+
+        return {
+            success: true,
+            data: orders.map((po: any) => ({
+                id: po.id,
+                number: po.number,
+                supplierName: po.supplier?.name || "Unknown",
+                supplierId: po.supplier?.id,
+                orderDate: po.orderDate,
+                items: po.items.map((item: any) => ({
+                    id: item.id,
+                    productId: item.productId,
+                    productName: item.product?.name || "Unknown",
+                    productCode: item.product?.code || "",
+                    quantity: item.quantity,
+                    receivedQty: item.receivedQty,
+                    returnedQty: item.returnedQty || 0,
+                    returnableQty: item.receivedQty - (item.returnedQty || 0),
+                    unitPrice: Number(item.unitPrice),
+                }))
+            }))
+        }
+    } catch (error: any) {
+        console.error("[getReturnablePurchaseOrders] Error:", error)
+        return { success: false, error: error.message, data: [] }
+    }
+}
+
+export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
+    const user = await getAuthzUser()
+
+    return withPrismaAuth(async (tx) => {
+        const { purchaseOrderId, warehouseId, notes, items } = input
+
+        if (!items || items.length === 0) {
+            throw new Error("Minimal 1 item untuk retur")
+        }
+
+        // Validate PO exists and is in returnable status
+        const po = await (tx as any).purchaseOrder.findUnique({
+            where: { id: purchaseOrderId },
+            include: {
+                supplier: true,
+                items: { include: { product: true } },
+                invoices: { where: { type: 'INV_IN' as any }, take: 1 }
+            }
+        })
+
+        if (!po) throw new Error("PO tidak ditemukan")
+        if (!['RECEIVED', 'COMPLETED', 'PARTIAL_RECEIVED'].includes(po.status)) {
+            throw new Error("PO belum bisa diretur — status harus RECEIVED, COMPLETED, atau PARTIAL_RECEIVED")
+        }
+
+        // Validate warehouse
+        const warehouse = await (tx as any).warehouse.findUnique({ where: { id: warehouseId } })
+        if (!warehouse) throw new Error("Gudang tidak ditemukan")
+
+        // Validate quantities
+        let subtotal = 0
+        for (const item of items) {
+            if (item.quantity <= 0) throw new Error("Jumlah retur harus lebih dari 0")
+            const poItem = po.items.find((pi: any) => pi.id === item.poItemId)
+            if (!poItem) throw new Error(`Item PO ${item.poItemId} tidak ditemukan`)
+            const maxReturnable = poItem.receivedQty - (poItem.returnedQty || 0)
+            if (item.quantity > maxReturnable) {
+                throw new Error(`Jumlah retur (${item.quantity}) melebihi sisa yang bisa diretur (${maxReturnable}) untuk ${poItem.product?.name}`)
+            }
+            subtotal += item.quantity * item.unitPrice
+        }
+
+        const ppnAmount = Math.round(subtotal * 0.11)
+        const totalAmount = subtotal + ppnAmount
+
+        // 1. Create DebitCreditNote (PURCHASE_DN — buyer issues debit note to reduce AP)
+        const noteCount = await (tx as any).debitCreditNote.count()
+        const noteNumber = `DN-${String(noteCount + 1).padStart(5, "0")}`
+
+        const dcNote = await (tx as any).debitCreditNote.create({
+            data: {
+                number: noteNumber,
+                type: 'PURCHASE_DN' as any,
+                status: 'POSTED' as any,
+                reasonCode: items[0].reason as any || 'RET_DEFECT',
+                supplierId: po.supplierId,
+                originalInvoiceId: po.invoices?.[0]?.id || null,
+                originalReference: po.number,
+                subtotal,
+                ppnAmount,
+                totalAmount,
+                settledAmount: 0,
+                issueDate: new Date(),
+                postingDate: new Date(),
+                notes: notes || `Retur pembelian dari PO ${po.number}`,
+                description: `Nota Debit — Retur barang ke ${po.supplier?.name}`,
+                items: {
+                    create: items.map(item => ({
+                        productId: item.productId,
+                        description: `Retur: ${item.reason || "Barang cacat/rusak"}`,
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        amount: item.quantity * item.unitPrice,
+                        ppnAmount: Math.round(item.quantity * item.unitPrice * 0.11),
+                        totalAmount: Math.round(item.quantity * item.unitPrice * 1.11),
+                    }))
+                }
+            }
+        })
+
+        // 2. Create InventoryTransaction RETURN_OUT for each item (stock decreases)
+        for (const item of items) {
+            await (tx as any).inventoryTransaction.create({
+                data: {
+                    productId: item.productId,
+                    warehouseId,
+                    type: 'RETURN_OUT' as any,
+                    quantity: -item.quantity, // Negative for outbound
+                    unitCost: item.unitPrice,
+                    totalValue: item.quantity * item.unitPrice,
+                    purchaseOrderId,
+                    referenceId: dcNote.id,
+                    performedBy: user.id,
+                    notes: `Retur ke supplier: ${item.reason || "Barang cacat"}`,
+                }
+            })
+
+            // Update stock level
+            const stockLevel = await (tx as any).stockLevel.findFirst({
+                where: { productId: item.productId, warehouseId }
+            })
+            if (stockLevel) {
+                await (tx as any).stockLevel.update({
+                    where: { id: stockLevel.id },
+                    data: { quantity: { decrement: item.quantity } }
+                })
+            }
+
+            // Update PO item returnedQty
+            await (tx as any).purchaseOrderItem.update({
+                where: { id: item.poItemId },
+                data: { returnedQty: { increment: item.quantity } }
+            })
+        }
+
+        // 3. Create GL journal entry: DR Accounts Payable, CR Inventory
+        const apAccount = await (tx as any).gLAccount.findFirst({
+            where: { code: '2100' } // Accounts Payable
+        })
+        const inventoryAccount = await (tx as any).gLAccount.findFirst({
+            where: { code: '1300' } // Inventory
+        })
+
+        if (apAccount && inventoryAccount) {
+            const journalEntry = await (tx as any).journalEntry.create({
+                data: {
+                    date: new Date(),
+                    description: `Retur pembelian — ${po.number} → ${po.supplier?.name}`,
+                    reference: noteNumber,
+                    status: 'POSTED' as any,
+                    purchaseOrderId,
+                    lines: {
+                        create: [
+                            {
+                                accountId: apAccount.id,
+                                description: `Retur barang ke supplier — ${po.number}`,
+                                debit: totalAmount,
+                                credit: 0,
+                            },
+                            {
+                                accountId: inventoryAccount.id,
+                                description: `Pengurangan stok — retur ${po.number}`,
+                                debit: 0,
+                                credit: totalAmount,
+                            }
+                        ]
+                    }
+                }
+            })
+
+            // Link journal entry to DC note
+            await (tx as any).debitCreditNote.update({
+                where: { id: dcNote.id },
+                data: { journalEntryId: journalEntry.id }
+            })
+
+            // Update GL balances
+            await (tx as any).gLAccount.update({
+                where: { id: apAccount.id },
+                data: { balance: { decrement: totalAmount } }
+            })
+            await (tx as any).gLAccount.update({
+                where: { id: inventoryAccount.id },
+                data: { balance: { decrement: totalAmount } }
+            })
+        }
+
+        // 4. Update invoice balance if linked
+        if (po.invoices?.[0]) {
+            await (tx as any).invoice.update({
+                where: { id: po.invoices[0].id },
+                data: { balanceDue: { decrement: totalAmount } }
+            })
+        }
+
+        return {
+            success: true,
+            data: {
+                debitNoteId: dcNote.id,
+                debitNoteNumber: noteNumber,
+                totalAmount,
+            }
+        }
+    })
+}
