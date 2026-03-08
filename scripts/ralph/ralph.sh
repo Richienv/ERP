@@ -373,7 +373,7 @@ EOF
   # Use claude CLI with print mode and JSON output to capture tokens
   # The prompt re-anchors from files every iteration
   # --dangerously-skip-permissions required for non-interactive mode
-  claude --print --output-format json --dangerously-skip-permissions \
+  env -u CLAUDECODE claude --print --output-format json --dangerously-skip-permissions \
     "You are in a Ralph loop (fresh-context mode). Read .claude/ralph-state.local.md for instructions, \
      then read $PRD_FILE to find the next failing task, \
      and $PROGRESS_FILE for context. Follow all guardrails in the state file. \
