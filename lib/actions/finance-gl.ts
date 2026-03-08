@@ -504,3 +504,163 @@ export async function processRecurringEntries(): Promise<{
         return { success: false, processedCount: 0, error: msg }
     }
 }
+
+// ==========================================
+// OPENING BALANCES — GL
+// ==========================================
+
+export interface OpeningBalanceGLRow {
+    accountCode: string
+    debit: number
+    credit: number
+}
+
+/**
+ * Post opening balance journal entries for GL accounts.
+ * Creates a single POSTED journal entry with all lines.
+ */
+export async function postOpeningBalancesGL(data: {
+    date: Date
+    rows: OpeningBalanceGLRow[]
+}): Promise<{ success: boolean; error?: string }> {
+    if (!data.rows.length) return { success: false, error: "Tidak ada baris saldo awal" }
+
+    const totalDebit = data.rows.reduce((s, r) => s + r.debit, 0)
+    const totalCredit = data.rows.reduce((s, r) => s + r.credit, 0)
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+        return { success: false, error: `Tidak seimbang: Debit (${totalDebit.toLocaleString()}) != Kredit (${totalCredit.toLocaleString()})` }
+    }
+
+    return postJournalEntry({
+        description: "Saldo Awal GL",
+        date: data.date,
+        reference: "OPENING-GL",
+        lines: data.rows.map(r => ({
+            accountCode: r.accountCode,
+            debit: r.debit,
+            credit: r.credit,
+            description: "Saldo Awal",
+        })),
+    })
+}
+
+// ==========================================
+// OPENING BALANCES — AP & AR
+// ==========================================
+
+export interface OpeningInvoiceRow {
+    /** Customer ID (for AR / INV_OUT) or Supplier ID (for AP / INV_IN) */
+    partyId: string
+    /** User-supplied invoice/bill number */
+    invoiceNumber: string
+    /** Total amount (already includes tax if any) */
+    amount: number
+    /** Due date */
+    dueDate: string // ISO date string
+}
+
+/**
+ * Bulk-create opening balance invoices (AP bills or AR invoices).
+ * Created with status ISSUED so they appear immediately in payables/receivables.
+ */
+export async function createOpeningInvoices(data: {
+    type: 'AP' | 'AR'
+    rows: OpeningInvoiceRow[]
+    issueDate?: string // ISO date string, defaults to today
+}): Promise<{ success: boolean; createdCount?: number; error?: string }> {
+    if (!data.rows.length) return { success: false, error: "Tidak ada baris yang diisi" }
+
+    // Validate all rows have required fields
+    for (let i = 0; i < data.rows.length; i++) {
+        const row = data.rows[i]
+        if (!row.partyId) return { success: false, error: `Baris ${i + 1}: Pilih ${data.type === 'AP' ? 'vendor' : 'pelanggan'}` }
+        if (!row.invoiceNumber.trim()) return { success: false, error: `Baris ${i + 1}: Nomor invoice wajib diisi` }
+        if (row.amount <= 0) return { success: false, error: `Baris ${i + 1}: Jumlah harus lebih dari 0` }
+        if (!row.dueDate) return { success: false, error: `Baris ${i + 1}: Tanggal jatuh tempo wajib diisi` }
+    }
+
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const issueDate = data.issueDate ? new Date(data.issueDate) : new Date()
+            const invoiceType = data.type === 'AP' ? 'INV_IN' : 'INV_OUT'
+
+            // Check for duplicate invoice numbers
+            const numbers = data.rows.map(r => r.invoiceNumber.trim())
+            const existing = await prisma.invoice.findMany({
+                where: { number: { in: numbers } },
+                select: { number: true },
+            })
+            if (existing.length > 0) {
+                const dupes = existing.map(e => e.number).join(", ")
+                return { success: false, error: `Nomor invoice sudah ada: ${dupes}` }
+            }
+
+            // Create all invoices in a transaction
+            let createdCount = 0
+            await prisma.$transaction(async (tx) => {
+                for (const row of data.rows) {
+                    const amount = row.amount
+                    await tx.invoice.create({
+                        data: {
+                            number: row.invoiceNumber.trim(),
+                            type: invoiceType,
+                            customerId: data.type === 'AR' ? row.partyId : null,
+                            supplierId: data.type === 'AP' ? row.partyId : null,
+                            issueDate,
+                            dueDate: new Date(row.dueDate),
+                            subtotal: amount,
+                            taxAmount: 0,
+                            totalAmount: amount,
+                            balanceDue: amount,
+                            status: 'ISSUED',
+                            items: {
+                                create: [{
+                                    description: `Saldo Awal — ${row.invoiceNumber.trim()}`,
+                                    quantity: 1,
+                                    unitPrice: amount,
+                                    amount: amount,
+                                }]
+                            }
+                        }
+                    })
+                    createdCount++
+                }
+            })
+
+            return { success: true, createdCount }
+        })
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : "Gagal membuat saldo awal invoice"
+        console.error("[createOpeningInvoices] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Fetch customers and suppliers for opening balance form dropdowns.
+ */
+export async function getOpeningBalanceParties(): Promise<{
+    customers: Array<{ id: string; name: string }>
+    suppliers: Array<{ id: string; name: string }>
+}> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const [customers, suppliers] = await Promise.all([
+                prisma.customer.findMany({
+                    where: { isActive: true },
+                    select: { id: true, name: true },
+                    orderBy: { name: 'asc' },
+                }),
+                prisma.supplier.findMany({
+                    where: { isActive: true },
+                    select: { id: true, name: true },
+                    orderBy: { name: 'asc' },
+                }),
+            ])
+            return { customers, suppliers }
+        })
+    } catch (error) {
+        console.error("[getOpeningBalanceParties] Error:", error)
+        return { customers: [], suppliers: [] }
+    }
+}
