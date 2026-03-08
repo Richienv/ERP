@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { cancelSalesOrder } from "@/lib/actions/sales"
@@ -15,8 +15,10 @@ import {
     Loader2,
     Clock,
     MoreHorizontal,
-    Package
+    Package,
+    Undo2,
 } from "lucide-react"
+import { SalesReturnDialog } from "@/components/sales/sales-return-dialog"
 import {
     Tooltip,
     TooltipContent,
@@ -107,6 +109,11 @@ function getProgress(status: string) {
 export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutionCardProps) {
     const router = useRouter()
     const [isCreatingWO, setIsCreatingWO] = useState(false)
+    const [showReturnDialog, setShowReturnDialog] = useState(false)
+    const canReturn = useMemo(
+        () => ["DELIVERED", "INVOICED", "COMPLETED", "IN_PROGRESS"].includes(order.status),
+        [order.status]
+    )
 
     const handleCancel = useCallback(async () => {
         if (!confirm(`Batalkan pesanan ${order.number}? Aksi ini tidak dapat diurungkan.`)) return
@@ -307,6 +314,14 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                                 <Package className="mr-2 h-3.5 w-3.5" /> Invoice
                             </Link>
                         </DropdownMenuItem>
+                        {canReturn && (
+                            <DropdownMenuItem
+                                className="text-xs font-bold cursor-pointer focus:bg-amber-50 rounded-none text-amber-700"
+                                onClick={() => setShowReturnDialog(true)}
+                            >
+                                <Undo2 className="mr-2 h-3.5 w-3.5" /> Retur Penjualan
+                            </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator className="bg-zinc-200" />
                         <DropdownMenuItem
                             className="text-xs font-bold text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700 rounded-none"
@@ -318,6 +333,19 @@ export function OrderExecutionCard({ order, onWorkOrdersCreated }: OrderExecutio
                     </DropdownMenuContent>
                 </DropdownMenu>
             </div>
+
+            {/* Sales Return Dialog */}
+            {canReturn && (
+                <SalesReturnDialog
+                    open={showReturnDialog}
+                    onOpenChange={setShowReturnDialog}
+                    salesOrderId={order.id}
+                    salesOrderNumber={order.number}
+                    onSuccess={() => {
+                        onWorkOrdersCreated?.(order.id, 0) // trigger refresh
+                    }}
+                />
+            )}
         </div>
     )
 }
