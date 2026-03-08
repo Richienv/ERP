@@ -16,6 +16,7 @@ export default function PurchaseOrdersPage() {
             initialOrders={data.orders}
             vendors={data.vendors}
             products={data.products}
+            warehouses={data.warehouses}
         />
     )
 }

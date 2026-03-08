@@ -31,6 +31,7 @@ import {
 import { formatIDR } from "@/lib/utils"
 import { NewPurchaseOrderDialog } from "@/components/procurement/new-po-dialog"
 import { POFinalizeDialog } from "@/components/procurement/po-finalize-dialog"
+import { PurchaseReturnDialog } from "@/components/procurement/purchase-return-dialog"
 import { markAsOrdered } from "@/lib/actions/procurement"
 import { toast } from "sonner"
 
@@ -51,9 +52,10 @@ interface OrdersViewProps {
     initialOrders: Order[]
     vendors: { id: string, name: string }[]
     products: { id: string, name: string, code: string, unit: string, defaultPrice: number }[]
+    warehouses: { id: string, name: string, code: string }[]
 }
 
-export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps) {
+export function OrdersView({ initialOrders, vendors, products, warehouses }: OrdersViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
     const [filterStatus, setFilterStatus] = useState<string>("ALL")
     const [sendingOrderId, setSendingOrderId] = useState<string | null>(null)
@@ -163,7 +165,10 @@ export function OrdersView({ initialOrders, vendors, products }: OrdersViewProps
                             </p>
                         </div>
                     </div>
-                    <NewPurchaseOrderDialog vendors={vendors} products={products} />
+                    <div className="flex items-center gap-2">
+                        <PurchaseReturnDialog warehouses={warehouses} />
+                        <NewPurchaseOrderDialog vendors={vendors} products={products} />
+                    </div>
                 </div>
             </div>
 
