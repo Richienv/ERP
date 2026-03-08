@@ -49,6 +49,7 @@ export const queryKeys = {
     bom: {
         all: ["bom"] as const,
         list: () => [...queryKeys.bom.all, "list"] as const,
+        cost: (id: string) => [...queryKeys.bom.all, "cost", id] as const,
     },
     processStations: {
         all: ["processStations"] as const,
