@@ -13,6 +13,7 @@ import {
     ChevronDown,
     ClipboardList,
     ArrowDownToLine,
+    DollarSign,
 } from "lucide-react"
 import * as XLSX from "xlsx"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,7 @@ import { InventoryKanbanBoard } from "@/components/inventory/inventory-kanban-bo
 import { ProductDataTable } from "@/components/inventory/product-data-table"
 import { ProductCreateDialog } from "@/components/inventory/product-create-dialog"
 import { ImportProductsDialog } from "@/components/inventory/import-products-dialog"
+import { BatchPriceDialog } from "@/components/inventory/batch-price-dialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -70,6 +72,7 @@ function exportProducts(products: any[], format: "csv" | "xlsx") {
 
 export function ProductsPageClient({ products, categories, warehouses, stats }: ProductsPageClientProps) {
     const [view, setView] = useState<"kanban" | "list">("kanban")
+    const [batchPriceOpen, setBatchPriceOpen] = useState(false)
 
     return (
         <div className="mf-page">
@@ -114,6 +117,14 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
                                 Tabel
                             </button>
                         </div>
+                        <Button
+                            variant="outline"
+                            onClick={() => setBatchPriceOpen(true)}
+                            className="border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold text-xs uppercase tracking-wide h-9"
+                        >
+                            <DollarSign className="h-3.5 w-3.5 mr-1.5" />
+                            Update Harga Massal
+                        </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
@@ -262,6 +273,12 @@ export function ProductsPageClient({ products, categories, warehouses, stats }: 
             ) : (
                 <ProductDataTable data={products} categories={categories} />
             )}
+
+            <BatchPriceDialog
+                products={products}
+                open={batchPriceOpen}
+                onOpenChange={setBatchPriceOpen}
+            />
         </div>
     )
 }
