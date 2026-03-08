@@ -28,6 +28,7 @@ export const queryKeys = {
         all: ["products"] as const,
         list: () => [...queryKeys.products.all, "list"] as const,
         detail: (id: string) => [...queryKeys.products.all, id] as const,
+        manufacturing: (id: string) => [...queryKeys.products.all, "manufacturing", id] as const,
     },
     vendors: {
         all: ["vendors"] as const,
@@ -332,6 +333,10 @@ export const queryKeys = {
     manufacturing: {
         all: ["manufacturing"] as const,
         stationWorkload: () => [...queryKeys.manufacturing.all, "stationWorkload"] as const,
+    },
+    materialDemand: {
+        all: ["materialDemand"] as const,
+        list: () => [...queryKeys.materialDemand.all, "list"] as const,
     },
     discounts: {
         all: ["discounts"] as const,

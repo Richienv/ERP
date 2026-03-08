@@ -227,6 +227,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.mfgRouting.list(),
         queryFn: () => fetch("/api/manufacturing/routing").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
     },
+    "/manufacturing/material-demand": {
+        queryKey: queryKeys.materialDemand.list(),
+        queryFn: () => fetch("/api/manufacturing/material-demand").then((r) => r.json()),
+    },
     "/manufacturing/planning": {
         queryKey: queryKeys.mfgPlanning.list(),
         queryFn: () => fetch("/api/manufacturing/planning?weeks=4").then((r) => r.json()).then((p) => ({

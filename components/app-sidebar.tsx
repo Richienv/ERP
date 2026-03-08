@@ -259,6 +259,10 @@ const data = {
           url: "/manufacturing/bom",
         },
         {
+          title: "Kebutuhan Material",
+          url: "/manufacturing/material-demand",
+        },
+        {
           title: "Perencanaan (MPS)",
           url: "/manufacturing/planning",
         },

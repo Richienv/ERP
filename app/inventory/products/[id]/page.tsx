@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { formatCurrency } from "@/lib/utils"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { ProductManufacturingTab } from "@/components/inventory/product-manufacturing-tab"
 
 // Transaction type label mapping
 const TRANSACTION_TYPE_LABELS: Record<string, { label: string; variant: "masuk" | "keluar" | "internal" }> = {
@@ -234,6 +235,7 @@ export default function ProductDetailPage() {
             { key: "overview", label: "Overview" },
             { key: "stock", label: "Lokasi Stok" },
             { key: "movements", label: "Riwayat Gerakan" },
+            { key: "manufacturing", label: "Manufaktur" },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -465,6 +467,10 @@ export default function ProductDetailPage() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {activeTab === "manufacturing" && (
+        <ProductManufacturingTab productId={productId} />
       )}
 
       {/* Barcode Label Print Dialog */}
