@@ -442,6 +442,14 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             return await getHCMDashboardData()
         },
     },
+    "/inventory/opening-stock": {
+        queryKey: queryKeys.openingStock.list(),
+        queryFn: () => fetch("/api/inventory/opening-stock").then((r) => r.json()).then((p) => ({
+            products: p.products ?? [],
+            warehouses: p.warehouses ?? [],
+            existingTransactions: p.existingTransactions ?? [],
+        })),
+    },
     "/inventory/audit": {
         queryKey: queryKeys.inventoryAudit.list(),
         queryFn: async () => {

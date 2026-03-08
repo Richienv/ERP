@@ -275,6 +275,10 @@ export const queryKeys = {
         all: ["stockMovements"] as const,
         list: () => [...queryKeys.stockMovements.all, "list"] as const,
     },
+    openingStock: {
+        all: ["openingStock"] as const,
+        list: () => [...queryKeys.openingStock.all, "list"] as const,
+    },
     fabricRolls: {
         all: ["fabricRolls"] as const,
         list: () => [...queryKeys.fabricRolls.all, "list"] as const,
