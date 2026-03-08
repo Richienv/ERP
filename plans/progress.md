@@ -47,3 +47,17 @@ Project: ERP Textile (Indonesian SME)
 - **Key areas:** UOM conversion, opening balances (GL/AP/AR/Stock), costing methods, direct purchase, returns workflows, closing journal, discount system, exchange rates
 - **Branch:** feat/csa-parity
 - **Verify command:** `npx vitest run && npx tsc --noEmit && npm run lint`
+
+### CSA-001: UOM Conversion System — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Added `UomConversion` model to Prisma schema with `fromUnitId`, `toUnitId`, `factor` fields
+  - Added bidirectional relations to `Unit` model (`conversionsFrom`, `conversionsTo`)
+  - Added server actions: `getUomConversions()`, `createUomConversion()`, `deleteUomConversion()` in `lib/actions/master-data.ts`
+  - Auto-creates reverse conversion (1/factor) atomically
+  - Added `convertUom()` helper in `lib/inventory-utils.ts`
+  - Added `useUomConversions` hook + `invalidateUomConversions` in `hooks/use-master-data.ts`
+  - Added `uomConversions` query key in `lib/query-keys.ts`
+  - Product form now shows secondary UOM section with conversion factor input and save button
+  - Auto-fills conversion factor if existing conversion found in DB
+- **Tests:** 316/321 pass (5 pre-existing failures, unchanged)

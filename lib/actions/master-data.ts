@@ -110,6 +110,57 @@ export async function createCustomerQuick(name: string) {
     return customer
 }
 
+// ─── UOM Conversions ────────────────────────────────────
+
+export async function getUomConversions() {
+    await requireAuth()
+    return prisma.uomConversion.findMany({
+        include: {
+            fromUnit: { select: { id: true, code: true, name: true } },
+            toUnit: { select: { id: true, code: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+    })
+}
+
+export async function createUomConversion(fromUnitId: string, toUnitId: string, factor: number) {
+    await requireAuth()
+    if (fromUnitId === toUnitId) throw new Error("Satuan asal dan tujuan tidak boleh sama")
+    if (factor <= 0) throw new Error("Faktor konversi harus lebih dari 0")
+
+    // Create both directions atomically
+    const [forward] = await prisma.$transaction([
+        prisma.uomConversion.create({
+            data: { fromUnitId, toUnitId, factor },
+            include: {
+                fromUnit: { select: { id: true, code: true, name: true } },
+                toUnit: { select: { id: true, code: true, name: true } },
+            },
+        }),
+        prisma.uomConversion.upsert({
+            where: { fromUnitId_toUnitId: { fromUnitId: toUnitId, toUnitId: fromUnitId } },
+            create: { fromUnitId: toUnitId, toUnitId: fromUnitId, factor: 1 / factor },
+            update: { factor: 1 / factor },
+        }),
+    ])
+    return forward
+}
+
+export async function deleteUomConversion(id: string) {
+    await requireAuth()
+    const conversion = await prisma.uomConversion.findUnique({ where: { id } })
+    if (!conversion) throw new Error("Konversi tidak ditemukan")
+
+    // Delete both directions
+    await prisma.$transaction([
+        prisma.uomConversion.delete({ where: { id } }),
+        prisma.uomConversion.deleteMany({
+            where: { fromUnitId: conversion.toUnitId, toUnitId: conversion.fromUnitId },
+        }),
+    ])
+    return { success: true }
+}
+
 // ─── Suppliers (existing model) ──────────────────────────
 
 export async function getSuppliers() {

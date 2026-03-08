@@ -288,7 +288,25 @@ model Unit {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
+  conversionsFrom UomConversion[] @relation("FromUnit")
+  conversionsTo   UomConversion[] @relation("ToUnit")
+
   @@map("units")
+}
+
+model UomConversion {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  fromUnitId String   @db.Uuid
+  toUnitId   String   @db.Uuid
+  factor     Decimal  @db.Decimal(15, 6) // 1 fromUnit = factor toUnit
+
+  fromUnit Unit @relation("FromUnit", fields: [fromUnitId], references: [id])
+  toUnit   Unit @relation("ToUnit", fields: [toUnitId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([fromUnitId, toUnitId])
+  @@map("uom_conversions")
 }
 
 model Brand {

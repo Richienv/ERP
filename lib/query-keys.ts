@@ -255,6 +255,10 @@ export const queryKeys = {
         all: ["units"] as const,
         list: () => [...queryKeys.units.all, "list"] as const,
     },
+    uomConversions: {
+        all: ["uomConversions"] as const,
+        list: () => [...queryKeys.uomConversions.all, "list"] as const,
+    },
     brands: {
         all: ["brands"] as const,
         list: () => [...queryKeys.brands.all, "list"] as const,

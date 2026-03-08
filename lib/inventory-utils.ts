@@ -6,6 +6,34 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// ─── UOM Conversion ─────────────────────────────────────
+
+export type UomConversionEntry = {
+  fromUnitCode: string
+  toUnitCode: string
+  factor: number
+}
+
+/**
+ * Convert quantity from one unit to another using a conversion table.
+ * Returns null if no conversion path is found.
+ *
+ * @example convertUom(100, 'yard', 'm', conversions) → 91.44
+ */
+export function convertUom(
+  qty: number,
+  fromUnit: string,
+  toUnit: string,
+  conversions: UomConversionEntry[],
+): number | null {
+  if (fromUnit === toUnit) return qty
+  const entry = conversions.find(
+    (c) => c.fromUnitCode === fromUnit && c.toUnitCode === toUnit,
+  )
+  if (!entry) return null
+  return qty * entry.factor
+}
+
 // Inventory-specific utility functions
 
 /**

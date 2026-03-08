@@ -19,9 +19,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { toast } from "sonner"
 import { createProductSchema, type CreateProductInput } from "@/lib/validations"
-import { createUnit, createCategory } from "@/lib/actions/master-data"
-import { useUnits, useMasterCategories, useInvalidateMasterData } from "@/hooks/use-master-data"
-import { Save, X, Package, DollarSign, BarChart3 } from "lucide-react"
+import { createUnit, createCategory, createUomConversion } from "@/lib/actions/master-data"
+import { useUnits, useMasterCategories, useUomConversions, useInvalidateMasterData } from "@/hooks/use-master-data"
+import { Save, X, Package, DollarSign, BarChart3, ArrowRightLeft } from "lucide-react"
 
 interface ProductFormProps {
   initialData?: Partial<CreateProductInput>
@@ -39,11 +39,14 @@ export function ProductForm({
   isEdit = false,
 }: ProductFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [secondaryUnit, setSecondaryUnit] = useState("")
+  const [conversionFactor, setConversionFactor] = useState("")
 
   // DB-backed master data
   const { data: dbUnits = [], isLoading: unitsLoading } = useUnits()
   const { data: dbCategories = [], isLoading: categoriesLoading } = useMasterCategories()
-  const { invalidateUnits, invalidateCategories } = useInvalidateMasterData()
+  const { data: uomConversions = [] } = useUomConversions()
+  const { invalidateUnits, invalidateCategories, invalidateUomConversions } = useInvalidateMasterData()
 
   const unitOptions = useMemo(() =>
     dbUnits.map((u: { code: string; name: string }) => ({ value: u.code, label: u.name, subtitle: u.code })), [dbUnits])
@@ -246,6 +249,82 @@ export function ProductForm({
                     </FormItem>
                   )}
                 />
+
+                {/* Secondary UOM with conversion factor */}
+                <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <ArrowRightLeft className="h-4 w-4" />
+                    Satuan Sekunder (opsional)
+                  </div>
+                  <ComboboxWithCreate
+                    options={unitOptions}
+                    value={secondaryUnit}
+                    onChange={(val) => {
+                      setSecondaryUnit(val)
+                      // Auto-fill factor if conversion exists
+                      const primaryCode = form.getValues("unit")
+                      const existing = uomConversions.find(
+                        (c: { fromUnit: { code: string }; toUnit: { code: string } }) =>
+                          c.fromUnit.code === primaryCode && c.toUnit.code === val
+                      )
+                      if (existing) {
+                        setConversionFactor(String(existing.factor))
+                      } else {
+                        setConversionFactor("")
+                      }
+                    }}
+                    placeholder="Satuan kedua..."
+                    searchPlaceholder="Cari satuan..."
+                    emptyMessage="Satuan tidak ditemukan."
+                    createLabel="+ Buat Satuan Baru"
+                    onCreate={handleCreateUnit}
+                    isLoading={unitsLoading}
+                  />
+                  {secondaryUnit && secondaryUnit !== form.watch("unit") && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        1 {form.watch("unit")} =
+                      </span>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="Faktor..."
+                        value={conversionFactor}
+                        onChange={(e) => setConversionFactor(e.target.value)}
+                        className="w-28"
+                      />
+                      <span className="text-sm text-muted-foreground whitespace-nowrap">
+                        {secondaryUnit}
+                      </span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={!conversionFactor || parseFloat(conversionFactor) <= 0}
+                        onClick={async () => {
+                          const primaryCode = form.getValues("unit")
+                          const fromUnit = dbUnits.find((u: { code: string }) => u.code === primaryCode)
+                          const toUnit = dbUnits.find((u: { code: string }) => u.code === secondaryUnit)
+                          if (!fromUnit || !toUnit) return
+                          try {
+                            await createUomConversion(
+                              (fromUnit as { id: string }).id,
+                              (toUnit as { id: string }).id,
+                              parseFloat(conversionFactor)
+                            )
+                            await invalidateUomConversions()
+                            toast.success(`Konversi ${primaryCode} → ${secondaryUnit} disimpan`)
+                          } catch (err: unknown) {
+                            const msg = err instanceof Error ? err.message : "Gagal menyimpan konversi"
+                            toast.error(msg)
+                          }
+                        }}
+                      >
+                        Simpan
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
 

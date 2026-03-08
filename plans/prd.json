@@ -6,7 +6,8 @@
       "id": "CSA-001",
       "title": "UOM Conversion System (1.11, 2.8)",
       "priority": "high",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-08T10:05:00Z",
       "acceptance_criteria": [
         "New Prisma model `UomConversion` with fields: fromUnitId, toUnitId, factor (Decimal)",
         "Migration applied successfully with `npx prisma db push`",
