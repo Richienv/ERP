@@ -1,7 +1,8 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { IconChevronRight, IconLock, type Icon } from "@tabler/icons-react"
 import { useNavPrefetch } from "@/hooks/use-nav-prefetch"
 
@@ -46,9 +47,11 @@ export function NavMain({
   }[]
 }) {
   const pathname = usePathname()
+  const router = useRouter()
   const { prefetchRoute } = useNavPrefetch()
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
+  const [openPopover, setOpenPopover] = useState<string | null>(null)
 
   return (
     <SidebarGroup>
@@ -78,19 +81,23 @@ export function NavMain({
               // When sidebar is collapsed, use Popover to show sub-items as floating menu
               if (isCollapsed) {
                 return (
-                  <Popover key={item.title}>
+                  <Popover key={item.title} open={openPopover === item.title} onOpenChange={(open) => setOpenPopover(open ? item.title : null)}>
                     <SidebarMenuItem>
                       <PopoverTrigger asChild>
-                        <SidebarMenuButton
-                          className={
+                        <button
+                          type="button"
+                          data-slot="sidebar-menu-button"
+                          data-sidebar="menu-button"
+                          data-size="default"
+                          className={`flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground h-8 text-sm group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 ${
                             isActive
                               ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
                               : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
-                          }
+                          }`}
                         >
                           {item.icon && <item.icon className="!size-4" />}
                           <span className="text-[13px] tracking-tight">{item.title}</span>
-                        </SidebarMenuButton>
+                        </button>
                       </PopoverTrigger>
                       <PopoverContent
                         side="right"
@@ -110,12 +117,15 @@ export function NavMain({
                           }
                           const isSubActive = pathname === subItem.url
                           return (
-                            <Link
+                            <button
                               key={subItem.title}
-                              href={subItem.url}
-                              prefetch
+                              type="button"
+                              onClick={() => {
+                                setOpenPopover(null)
+                                router.push(subItem.url)
+                              }}
                               onMouseEnter={() => prefetchRoute(subItem.url)}
-                              className={`flex items-center px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                              className={`flex w-full items-center px-3 py-1.5 text-[12px] font-medium transition-colors ${
                                 isSubActive
                                   ? "bg-zinc-900 text-white font-bold"
                                   : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
@@ -127,7 +137,7 @@ export function NavMain({
                                   {subItem.badge > 99 ? "99+" : subItem.badge}
                                 </span>
                               ) : null}
-                            </Link>
+                            </button>
                           )
                         })}
                       </PopoverContent>
