@@ -17,8 +17,10 @@ import {
   ArrowLeft,
   Package,
   Warehouse,
-  BarChart3
+  BarChart3,
+  Printer,
 } from "lucide-react"
+import { BarcodeLabelDialog } from "@/components/inventory/barcode-label-dialog"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
@@ -57,6 +59,7 @@ export default function ProductDetailPage() {
   const params = useParams()
   const productId = params.id as string
   const [activeTab, setActiveTab] = useState("overview")
+  const [barcodeLabelOpen, setBarcodeLabelOpen] = useState(false)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.products.detail(productId),
@@ -158,6 +161,14 @@ export default function ProductDetailPage() {
           {!product.isActive && (
             <Badge className="bg-red-100 text-red-800">Nonaktif</Badge>
           )}
+          <Button
+            variant="outline"
+            className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-bold text-xs"
+            onClick={() => setBarcodeLabelOpen(true)}
+          >
+            <Printer className="h-4 w-4 mr-2" />
+            Cetak Label
+          </Button>
         </div>
       </div>
 
@@ -455,6 +466,18 @@ export default function ProductDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Barcode Label Print Dialog */}
+      <BarcodeLabelDialog
+        open={barcodeLabelOpen}
+        onOpenChange={setBarcodeLabelOpen}
+        product={{
+          name: product.name,
+          code: product.code,
+          barcode: product.barcode,
+          sellingPrice: product.sellingPrice,
+        }}
+      />
     </div>
   )
 }
