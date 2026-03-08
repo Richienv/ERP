@@ -231,6 +231,10 @@ const data = {
           title: "Kurs Mata Uang",
           url: "/finance/currencies",
         },
+        {
+          title: "Periode Fiskal",
+          url: "/finance/fiscal-periods",
+        },
       ],
     },
     {

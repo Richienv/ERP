@@ -356,4 +356,8 @@ export const queryKeys = {
         list: () => [...["salespersons"], "list"] as const,
         commissionReport: (start?: string, end?: string) => [...["salespersons"], "commissionReport", start, end] as const,
     },
+    fiscalPeriods: {
+        all: ["fiscalPeriods"] as const,
+        list: (year?: number) => [...["fiscalPeriods"], "list", year] as const,
+    },
 } as const
