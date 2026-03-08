@@ -168,6 +168,7 @@ model Warehouse {
   transfersFrom      StockTransfer[]        @relation("TransferFrom")
   transfersTo        StockTransfer[]        @relation("TransferTo")
   costLayers         CostLayer[]
+  stockReservations  StockReservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,6 +263,7 @@ model Product {
   routingSteps           RoutingStep[]
   debitCreditNoteItems   DebitCreditNoteItem[]
   costLayers             CostLayer[]
+  stockReservations      StockReservation[]
 
   // Alternative / Substitute Products (Self-relation)
   alternativeProductId String?   @db.Uuid
@@ -1715,6 +1717,7 @@ model WorkOrder {
   // Textile upgrade relations
   subcontractOrders SubcontractOrder[]
   cutPlans          CutPlan[]
+  reservations      StockReservation[]
 
   @@index([salesOrderId])
   @@index([machineId])
@@ -3203,4 +3206,35 @@ model SystemSetting {
   updatedAt   DateTime @updatedAt
 
   @@map("system_settings")
+}
+
+// ================================
+// Stock Reservations (Manufacturing)
+// ================================
+
+enum ReservationStatus {
+  ACTIVE
+  CONSUMED
+  RELEASED
+}
+
+model StockReservation {
+  id          String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  workOrderId String            @db.Uuid
+  productId   String            @db.Uuid
+  warehouseId String            @db.Uuid
+  reservedQty Int
+  consumedQty Int               @default(0)
+  releasedQty Int               @default(0)
+  status      ReservationStatus @default(ACTIVE)
+  workOrder   WorkOrder         @relation(fields: [workOrderId], references: [id])
+  product     Product           @relation(fields: [productId], references: [id])
+  warehouse   Warehouse         @relation(fields: [warehouseId], references: [id])
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([workOrderId, productId, warehouseId])
+  @@index([workOrderId])
+  @@index([productId, warehouseId])
+  @@map("stock_reservations")
 }
