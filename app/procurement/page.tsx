@@ -3,7 +3,7 @@
 import {
   Activity, AlertCircle, ArrowDownRight, ArrowUpRight, CheckSquare,
   ChevronLeft, ChevronRight, Clock, DollarSign, FileText, Package,
-  Plus, Star, Truck, Users
+  Plus, Star, Truck, Users, ShoppingCart
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { formatIDR } from "@/lib/utils"
@@ -13,7 +13,9 @@ import { ProcurementPerformanceProvider } from "@/components/procurement/procure
 import { InlineApprovalList } from "@/components/procurement/inline-approval-list"
 import { useProcurementDashboard } from "@/hooks/use-procurement-dashboard"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
+import { DirectPurchaseDialog } from "@/components/procurement/direct-purchase-dialog"
+import { useDirectPurchaseOptions } from "@/hooks/use-direct-purchase-options"
 
 function statusLabel(status: string) {
   const map: Record<string, { label: string; dot: string; bg: string; text: string }> = {
@@ -42,6 +44,8 @@ export default function ProcurementPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { data, isLoading } = useProcurementDashboard(searchParams.toString())
+  const [dpHovered, setDpHovered] = useState(false)
+  const dpOptions = useDirectPurchaseOptions(dpHovered)
 
   const buildHref = useCallback((overrides: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams.toString())
@@ -91,6 +95,13 @@ export default function ProcurementPage() {
                   <Users className="mr-1.5 h-3.5 w-3.5" /> Vendors
                 </Button>
               </Link>
+              <div onMouseEnter={() => setDpHovered(true)}>
+                <DirectPurchaseDialog
+                  vendors={dpOptions.vendors}
+                  products={dpOptions.products}
+                  warehouses={dpOptions.warehouses}
+                />
+              </div>
               <Link href="/procurement/requests/new">
                 <Button className="bg-violet-500 text-white hover:bg-violet-600 border-2 border-violet-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all">
                   <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Request

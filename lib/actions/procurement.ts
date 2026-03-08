@@ -1940,3 +1940,262 @@ export async function deactivateVendor(
         return { success: false, error: error.message || "Gagal menonaktifkan vendor" }
     }
 }
+
+// ==============================================================================
+// Direct Purchase (Pembelian Langsung)
+// ==============================================================================
+
+interface DirectPurchaseItem {
+    productId: string
+    quantity: number
+    unitPrice: number
+}
+
+interface DirectPurchaseInput {
+    supplierId: string
+    warehouseId: string
+    items: DirectPurchaseItem[]
+    notes?: string
+}
+
+/**
+ * Creates a direct purchase: PO (COMPLETED) + GRN (ACCEPTED) + Bill (DRAFT) atomically.
+ * Also updates stock levels, creates inventory transactions, and posts GL journal entry.
+ * Shortcut for walk-in / cash purchases that skip the PR->PO->GRN workflow.
+ */
+export async function createDirectPurchase(input: DirectPurchaseInput) {
+    try {
+        const user = await getAuthzUser()
+        assertRole(user, PURCHASING_ROLES)
+
+        if (!input.supplierId) throw new Error("Vendor wajib dipilih")
+        if (!input.warehouseId) throw new Error("Gudang wajib dipilih")
+        if (!input.items || input.items.length === 0) throw new Error("Minimal 1 item diperlukan")
+
+        for (const item of input.items) {
+            if (!item.productId) throw new Error("Produk wajib dipilih untuk setiap item")
+            if (!item.quantity || item.quantity <= 0) throw new Error("Kuantitas harus lebih dari 0")
+            if (!item.unitPrice || item.unitPrice < 0) throw new Error("Harga satuan tidak valid")
+        }
+
+        // Get employee ID for GRN receivedBy
+        const employeeId = await getEmployeeIdForUserEmail(user.email)
+        if (!employeeId) throw new Error("Data karyawan tidak ditemukan untuk user ini")
+
+        const result = await withPrismaAuth(async (prisma) => {
+            return await prisma.$transaction(async (tx) => {
+                const txAny = tx as any
+                const now = new Date()
+                const year = now.getFullYear()
+                const month = String(now.getMonth() + 1).padStart(2, '0')
+
+                // ─── 1. Generate PO number ───
+                const poPrefix = `PO-${year}${month}`
+                const poCount = await tx.purchaseOrder.count({
+                    where: { number: { startsWith: poPrefix } }
+                })
+                const poNumber = `${poPrefix}-${String(poCount + 1).padStart(4, '0')}`
+
+                // ─── 2. Calculate totals ───
+                const poItems = input.items.map(item => ({
+                    productId: item.productId,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    totalPrice: item.quantity * item.unitPrice,
+                }))
+                const subtotal = poItems.reduce((sum, i) => sum + i.totalPrice, 0)
+                const taxAmount = Math.round(subtotal * 0.11)
+                const netAmount = subtotal + taxAmount
+
+                // ─── 3. Create PO (COMPLETED) ───
+                const po = await tx.purchaseOrder.create({
+                    data: {
+                        number: poNumber,
+                        supplierId: input.supplierId,
+                        status: 'COMPLETED',
+                        previousStatus: 'RECEIVED',
+                        createdBy: user.id,
+                        orderDate: now,
+                        totalAmount: subtotal,
+                        taxAmount,
+                        netAmount,
+                        items: {
+                            create: poItems.map(item => ({
+                                productId: item.productId,
+                                quantity: item.quantity,
+                                receivedQty: item.quantity,
+                                unitPrice: item.unitPrice,
+                                totalPrice: item.totalPrice,
+                            }))
+                        }
+                    },
+                    include: { items: true }
+                })
+
+                // ─── 4. Record PO events ───
+                await txAny.purchaseOrderEvent.create({
+                    data: {
+                        purchaseOrderId: po.id,
+                        status: 'COMPLETED',
+                        changedBy: user.id,
+                        action: 'DIRECT_PURCHASE',
+                        notes: input.notes || 'Pembelian langsung — PO+GRN+Bill dibuat otomatis',
+                        metadata: { source: 'DIRECT_PURCHASE' },
+                    }
+                })
+
+                // ─── 5. Generate GRN number & create GRN (ACCEPTED) ───
+                const grnPrefix = `SJM-${year}${month}`
+                const grnCount = await txAny.goodsReceivedNote.count({
+                    where: { number: { startsWith: grnPrefix } }
+                })
+                const grnNumber = `${grnPrefix}-${String(grnCount + 1).padStart(4, '0')}`
+
+                const grn = await txAny.goodsReceivedNote.create({
+                    data: {
+                        number: grnNumber,
+                        purchaseOrderId: po.id,
+                        warehouseId: input.warehouseId,
+                        receivedById: employeeId,
+                        status: 'ACCEPTED',
+                        acceptedBy: employeeId,
+                        acceptedAt: now,
+                        notes: input.notes || 'Pembelian langsung — otomatis diterima',
+                        items: {
+                            create: po.items.map(poItem => ({
+                                poItemId: poItem.id,
+                                productId: poItem.productId,
+                                quantityOrdered: poItem.quantity,
+                                quantityReceived: poItem.quantity,
+                                quantityAccepted: poItem.quantity,
+                                quantityRejected: 0,
+                                unitCost: poItem.unitPrice,
+                            }))
+                        }
+                    }
+                })
+
+                // ─── 6. Update stock levels & create inventory transactions ───
+                for (const poItem of po.items) {
+                    // Create inventory transaction
+                    await tx.inventoryTransaction.create({
+                        data: {
+                            productId: poItem.productId,
+                            warehouseId: input.warehouseId,
+                            type: 'PO_RECEIVE',
+                            quantity: poItem.quantity,
+                            unitCost: poItem.unitPrice,
+                            totalValue: Number(poItem.unitPrice) * poItem.quantity,
+                            purchaseOrderId: po.id,
+                            referenceId: grnNumber,
+                            performedBy: user.id,
+                            notes: `Pembelian Langsung via ${poNumber}`,
+                        }
+                    })
+
+                    // Upsert stock level
+                    await tx.stockLevel.upsert({
+                        where: {
+                            productId_warehouseId_locationId: {
+                                productId: poItem.productId,
+                                warehouseId: input.warehouseId,
+                                locationId: null as any,
+                            }
+                        },
+                        create: {
+                            productId: poItem.productId,
+                            warehouseId: input.warehouseId,
+                            quantity: poItem.quantity,
+                            availableQty: poItem.quantity,
+                            reservedQty: 0,
+                        },
+                        update: {
+                            quantity: { increment: poItem.quantity },
+                            availableQty: { increment: poItem.quantity },
+                        }
+                    })
+                }
+
+                // ─── 7. Create vendor bill (INV_IN, DRAFT) ───
+                const billPrefix = `BILL-${year}`
+                const billCount = await tx.invoice.count({
+                    where: { type: 'INV_IN', number: { startsWith: billPrefix } }
+                })
+                const billNumber = `${billPrefix}-${String(billCount + 1).padStart(4, '0')}`
+
+                const bill = await tx.invoice.create({
+                    data: {
+                        number: billNumber,
+                        type: 'INV_IN',
+                        supplierId: input.supplierId,
+                        purchaseOrderId: po.id,
+                        orderId: po.id,
+                        status: 'DRAFT',
+                        issueDate: now,
+                        dueDate: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
+                        subtotal,
+                        taxAmount,
+                        totalAmount: netAmount,
+                        balanceDue: netAmount,
+                        items: {
+                            create: po.items.map(poItem => ({
+                                description: `Produk ${poItem.productId}`,
+                                quantity: poItem.quantity,
+                                unitPrice: poItem.unitPrice,
+                                amount: poItem.totalPrice,
+                                productId: poItem.productId,
+                            }))
+                        }
+                    }
+                })
+
+                return {
+                    poId: po.id,
+                    poNumber: po.number,
+                    grnId: grn.id,
+                    grnNumber: grn.number,
+                    billId: bill.id,
+                    billNumber: bill.number,
+                    totalAmount: netAmount,
+                }
+            })
+        })
+
+        // ─── 8. Post GL journal entry (outside transaction to avoid nested deadlock) ───
+        try {
+            const { postJournalEntry } = await import("./finance-gl")
+            await postJournalEntry({
+                description: `Pembelian Langsung ${result.poNumber}`,
+                date: new Date(),
+                reference: result.poNumber,
+                invoiceId: result.billId,
+                lines: [
+                    {
+                        accountCode: '1300',
+                        debit: result.totalAmount,
+                        credit: 0,
+                        description: `Persediaan masuk — ${result.poNumber}`,
+                    },
+                    {
+                        accountCode: '2100',
+                        debit: 0,
+                        credit: result.totalAmount,
+                        description: `Hutang Usaha — ${result.poNumber}`,
+                    },
+                ]
+            })
+        } catch (glError: any) {
+            console.warn("[createDirectPurchase] GL posting failed (non-blocking):", glError?.message)
+            return {
+                success: true,
+                ...result,
+                glWarning: `Pembelian berhasil dicatat, tetapi jurnal GL gagal: ${glError?.message || 'Akun GL tidak ditemukan'}`,
+            }
+        }
+
+        return { success: true, ...result }
+    } catch (error: any) {
+        console.error("[createDirectPurchase] Error:", error)
+        return { success: false, error: error.message || "Gagal membuat pembelian langsung" }
+    }
+}
