@@ -296,6 +296,134 @@ export async function getJournalEntryById(entryId: string): Promise<JournalEntry
 }
 
 // ==========================================
+// OPENING BALANCES
+// ==========================================
+
+export async function getGLAccountsGrouped() {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const accounts = await prisma.gLAccount.findMany({
+                select: { id: true, code: true, name: true, type: true, balance: true },
+                orderBy: { code: 'asc' }
+            })
+
+            const grouped: Record<string, typeof accounts> = {
+                ASSET: [],
+                LIABILITY: [],
+                EQUITY: [],
+                REVENUE: [],
+                EXPENSE: [],
+            }
+
+            for (const account of accounts) {
+                if (grouped[account.type]) {
+                    grouped[account.type].push(account)
+                }
+            }
+
+            return { success: true, data: grouped }
+        })
+    } catch (error) {
+        console.error("Failed to fetch grouped GL accounts:", error)
+        return { success: false, error: "Gagal memuat akun" }
+    }
+}
+
+export async function checkOpeningBalanceExists(year: number) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const existing = await prisma.journalEntry.findFirst({
+                where: { reference: `OPENING-BALANCE-${year}` }
+            })
+            return { exists: !!existing }
+        })
+    } catch (error) {
+        return { exists: false }
+    }
+}
+
+export async function postOpeningBalances(data: {
+    year: number
+    lines: { accountCode: string; debit: number; credit: number }[]
+}) {
+    try {
+        const filledLines = data.lines.filter(l => l.debit > 0 || l.credit > 0)
+        if (filledLines.length === 0) {
+            return { success: false, error: "Tidak ada saldo yang diisi" }
+        }
+
+        const totalDebit = filledLines.reduce((sum, l) => sum + l.debit, 0)
+        const totalCredit = filledLines.reduce((sum, l) => sum + l.credit, 0)
+
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            return {
+                success: false,
+                error: `Total Debit (${totalDebit.toLocaleString('id-ID')}) harus sama dengan Total Kredit (${totalCredit.toLocaleString('id-ID')})`
+            }
+        }
+
+        return await withPrismaAuth(async (prisma) => {
+            // Check for existing opening balance entry
+            const existing = await prisma.journalEntry.findFirst({
+                where: { reference: `OPENING-BALANCE-${data.year}` }
+            })
+            if (existing) {
+                return { success: false, error: `Saldo awal tahun ${data.year} sudah pernah dibuat` }
+            }
+
+            const codes = filledLines.map(l => l.accountCode)
+            const accounts = await prisma.gLAccount.findMany({
+                where: { code: { in: codes } }
+            })
+            const accountMap = new Map(accounts.map(a => [a.code, a]))
+
+            await prisma.$transaction(async (tx) => {
+                await tx.journalEntry.create({
+                    data: {
+                        date: new Date(`${data.year}-01-01T00:00:00Z`),
+                        description: 'Saldo Awal',
+                        reference: `OPENING-BALANCE-${data.year}`,
+                        status: 'POSTED',
+                        lines: {
+                            create: filledLines.map(line => {
+                                const account = accountMap.get(line.accountCode)
+                                if (!account) throw new Error(`Kode akun tidak ditemukan: ${line.accountCode}`)
+                                return {
+                                    accountId: account.id,
+                                    debit: line.debit,
+                                    credit: line.credit,
+                                    description: 'Saldo Awal'
+                                }
+                            })
+                        }
+                    }
+                })
+
+                // Update account balances
+                for (const line of filledLines) {
+                    const account = accountMap.get(line.accountCode)!
+                    let balanceChange = 0
+                    if (['ASSET', 'EXPENSE'].includes(account.type)) {
+                        balanceChange = line.debit - line.credit
+                    } else {
+                        balanceChange = line.credit - line.debit
+                    }
+                    await tx.gLAccount.update({
+                        where: { id: account.id },
+                        data: { balance: { increment: balanceChange } }
+                    })
+                }
+            })
+
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("Opening Balance Error:", error)
+        return { success: false, error: error?.message || "Gagal menyimpan saldo awal" }
+    }
+}
+
+// ==========================================
 // RECURRING JOURNAL ENTRIES
 // ==========================================
 

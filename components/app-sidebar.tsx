@@ -204,6 +204,10 @@ const data = {
           url: "/finance/chart-accounts",
         },
         {
+          title: "Saldo Awal",
+          url: "/finance/opening-balances",
+        },
+        {
           title: "Transaksi Akun",
           url: "/finance/transactions",
         },
