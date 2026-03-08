@@ -1243,7 +1243,7 @@ export async function getAllPurchaseOrders() {
                 : '-'
 
             return {
-                id: po.number,
+                id: po.revision > 0 ? `${po.number} Rev.${po.revision}` : po.number,
                 dbId: po.id,
                 vendor: po.supplier?.name || 'Unknown',
                 vendorEmail: po.supplier?.email || '',
@@ -1251,6 +1251,7 @@ export async function getAllPurchaseOrders() {
                 date: new Date(po.orderDate).toLocaleDateString('id-ID'),
                 total: Number(po.totalAmount),
                 status: po.status,
+                revision: po.revision,
                 items: po.items?.reduce((sum, item) => sum + Number(item.quantity || 0), 0) || 0,
                 eta: po.expectedDate ? new Date(po.expectedDate).toLocaleDateString('id-ID') : '-',
                 requester: requesterName,

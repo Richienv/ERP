@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
 
     const mapped = orders.map((order) => ({
       id: order.id,
-      number: order.number,
+      number: order.revision > 0 ? `${order.number} Rev.${order.revision}` : order.number,
       customer: order.customer,
       quotationNumber: order.quotation?.number || null,
       customerRef: order.customerRef,
@@ -142,6 +142,7 @@ export async function GET(request: NextRequest) {
       total: toNumber(order.total),
       itemCount: order._count.items,
       workOrderCount: order._count.workOrders,
+      revision: order.revision,
       notes: order.notes || '',
       updatedAt: order.updatedAt,
     }))

@@ -707,6 +707,10 @@ model SalesOrder {
   // Status
   status SalesOrderStatus @default(DRAFT)
 
+  // Revision tracking
+  revision        Int    @default(0)
+  revisionHistory Json?  // Array of { revision, changedAt, changedBy, reason, snapshot }
+
   // Notes
   notes         String?
   internalNotes String?
@@ -1082,6 +1086,10 @@ model PurchaseOrder {
   rejectionReason String?
 
   datePaid DateTime?
+
+  // Revision tracking
+  revision        Int    @default(0)
+  revisionHistory Json?  // Array of { revision, changedAt, changedBy, reason, snapshot }
 
   // Textile upgrade: templates & landed cost
   templateName    String?
