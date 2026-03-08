@@ -19,6 +19,7 @@ export const createProductSchemaBase = z.object({
   maxStock: z.number().int().min(0, 'Stok maksimum tidak boleh negatif').optional().default(0),
   reorderLevel: z.number().int().min(0, 'Level reorder tidak boleh negatif').optional().default(0),
   barcode: z.string().optional(),
+  costingMethod: z.enum(['AVERAGE', 'FIFO']).optional().default('AVERAGE'),
 })
 
 // Product validation schema with refinements

@@ -166,6 +166,7 @@ model Warehouse {
   fabricRolls        FabricRoll[]
   transfersFrom      StockTransfer[]        @relation("TransferFrom")
   transfersTo        StockTransfer[]        @relation("TransferTo")
+  costLayers         CostLayer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -205,6 +206,11 @@ enum ProductType {
   WIP // WIP — Work In Process (intermediate: greige, dyed, printed)
 }
 
+enum CostingMethod {
+  AVERAGE // Rata-rata tertimbang (default, cocok untuk kebanyakan UKM tekstil)
+  FIFO    // First In First Out (untuk bahan yang harga fluktuatif)
+}
+
 model Product {
   id           String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   code         String      @unique
@@ -219,7 +225,8 @@ model Product {
   maxStock     Int         @default(0)
   reorderLevel Int         @default(0)
   barcode      String?
-  isActive     Boolean     @default(true)
+  isActive       Boolean       @default(true)
+  costingMethod  CostingMethod @default(AVERAGE) // Metode penetapan biaya: Rata-rata atau FIFO
 
   // Textile-specific fields
   color       String?
@@ -271,10 +278,34 @@ model Product {
   subcontractOrderItems SubcontractOrderItem[]
   cutPlans              CutPlan[]              @relation("CutPlanFabric")
   garmentCostSheets     GarmentCostSheet[]
+  costLayers            CostLayer[]
 
   @@index([categoryId])
   @@index([updatedAt])
   @@map("products")
+}
+
+// ================================
+// Cost Layers (FIFO tracking)
+// ================================
+
+model CostLayer {
+  id           String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  productId    String    @db.Uuid
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouseId  String?   @db.Uuid
+  warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
+  qty          Decimal   @db.Decimal(15, 4) // Jumlah awal masuk
+  unitCost     Decimal   @db.Decimal(15, 4) // Biaya per unit saat masuk
+  remainingQty Decimal   @db.Decimal(15, 4) // Sisa qty yang belum terpakai
+  referenceType String?  // PO_RECEIVE, PRODUCTION_IN, ADJUSTMENT, etc.
+  referenceId   String?  @db.Uuid // ID dokumen sumber (GRN, WorkOrder, dll.)
+  createdAt    DateTime  @default(now())
+
+  @@index([productId])
+  @@index([productId, warehouseId])
+  @@index([createdAt])
+  @@map("cost_layers")
 }
 
 // ================================

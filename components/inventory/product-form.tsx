@@ -21,6 +21,13 @@ import { toast } from "sonner"
 import { createProductSchema, type CreateProductInput } from "@/lib/validations"
 import { createUnit, createCategory } from "@/lib/actions/master-data"
 import { useUnits, useMasterCategories, useInvalidateMasterData } from "@/hooks/use-master-data"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Save, X, Package, DollarSign, BarChart3 } from "lucide-react"
 
 interface ProductFormProps {
@@ -64,6 +71,7 @@ export function ProductForm({
       maxStock: initialData?.maxStock || 0,
       reorderLevel: initialData?.reorderLevel || 0,
       barcode: initialData?.barcode || "",
+      costingMethod: initialData?.costingMethod || "AVERAGE",
     },
   })
 
@@ -325,6 +333,31 @@ export function ProductForm({
                     </div>
                   </div>
                 )}
+
+                <FormField
+                  control={form.control}
+                  name="costingMethod"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Metode Biaya</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value || "AVERAGE"}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih metode biaya..." />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="AVERAGE">Rata-rata Tertimbang</SelectItem>
+                          <SelectItem value="FIFO">FIFO (First In First Out)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Rata-rata cocok untuk kebanyakan produk. FIFO untuk bahan dengan harga fluktuatif.
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
           </div>
