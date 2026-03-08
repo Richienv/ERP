@@ -41,6 +41,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { CreateWorkOrderDialog } from "@/components/manufacturing/create-work-order-dialog";
+import { ProductionReturnDialog } from "@/components/manufacturing/production-return-dialog";
 import Link from "next/link";
 
 interface WorkOrder {
@@ -820,6 +821,20 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                                                     >
                                                         Selesai
                                                     </Button>
+                                                </div>
+                                                {/* Retur Produksi */}
+                                                <div className="flex gap-2">
+                                                    <ProductionReturnDialog
+                                                        workOrderId={selectedOrder.id}
+                                                        workOrderNumber={selectedOrder.number}
+                                                        productName={selectedOrder.product.name}
+                                                        productCode={selectedOrder.product.code}
+                                                        productUnit={selectedOrder.product.unit}
+                                                        actualQty={selectedOrder.actualQty}
+                                                        warehouseOptions={warehouseOptions}
+                                                        defaultWarehouseId={warehouseId}
+                                                        onSuccess={refreshSelectedOrder}
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
