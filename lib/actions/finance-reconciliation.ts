@@ -39,6 +39,7 @@ export interface ReconciliationDetail {
     periodEnd: string
     status: string
     items: ReconciliationItemData[]
+    systemEntries: SystemEntryData[]
 }
 
 export interface ReconciliationItemData {
@@ -51,6 +52,16 @@ export interface ReconciliationItemData {
     systemDescription: string | null
     matchStatus: string
     matchedAt: string | null
+}
+
+export interface SystemEntryData {
+    entryId: string
+    date: string
+    description: string
+    reference: string | null
+    amount: number // positive = debit (money in), negative = credit (money out)
+    lineDescription: string | null
+    alreadyMatchedItemId: string | null
 }
 
 export interface BankStatementRow {
@@ -118,7 +129,7 @@ export async function getReconciliationDetail(
         const rec = await prisma.bankReconciliation.findUnique({
             where: { id: reconciliationId },
             include: {
-                glAccount: { select: { code: true, name: true, balance: true } },
+                glAccount: { select: { id: true, code: true, name: true, balance: true } },
                 items: {
                     orderBy: { bankDate: 'asc' },
                 },
@@ -126,6 +137,67 @@ export async function getReconciliationDetail(
         })
 
         if (!rec) return null
+
+        // Fetch journal lines for this GL account within the reconciliation period
+        const journalLines = await prisma.journalLine.findMany({
+            where: {
+                accountId: rec.glAccount.id,
+                entry: {
+                    status: 'POSTED',
+                    date: {
+                        gte: rec.periodStart,
+                        lte: rec.periodEnd,
+                    },
+                },
+            },
+            select: {
+                id: true,
+                entryId: true,
+                description: true,
+                debit: true,
+                credit: true,
+                entry: {
+                    select: {
+                        id: true,
+                        date: true,
+                        description: true,
+                        reference: true,
+                    },
+                },
+            },
+        })
+
+        // Build a map: entryId → matched bank item ID (from already-matched items)
+        const entryToItemMap = new Map<string, string>()
+        for (const item of rec.items) {
+            if (item.systemTransactionId && item.matchStatus === 'MATCHED') {
+                entryToItemMap.set(item.systemTransactionId, item.id)
+            }
+        }
+
+        // Build a map: entryId → entry description (for resolving systemDescription)
+        const entryDescriptionMap = new Map<string, string>()
+        for (const line of journalLines) {
+            entryDescriptionMap.set(line.entryId, line.entry.description)
+        }
+
+        // Map journal lines to SystemEntryData[]
+        const systemEntries: SystemEntryData[] = journalLines.map((line) => {
+            const debit = Number(line.debit)
+            const credit = Number(line.credit)
+            // Positive = debit (money in), negative = credit (money out)
+            const amount = debit > 0 ? debit : -credit
+
+            return {
+                entryId: line.entryId,
+                date: line.entry.date.toISOString(),
+                description: line.entry.description,
+                reference: line.entry.reference,
+                amount,
+                lineDescription: line.description,
+                alreadyMatchedItemId: entryToItemMap.get(line.entryId) ?? null,
+            }
+        })
 
         return {
             id: rec.id,
@@ -143,10 +215,13 @@ export async function getReconciliationDetail(
                 bankDate: i.bankDate?.toISOString() || null,
                 bankAmount: Number(i.bankAmount),
                 systemTransactionId: i.systemTransactionId,
-                systemDescription: null,
+                systemDescription: i.systemTransactionId
+                    ? (entryDescriptionMap.get(i.systemTransactionId) ?? null)
+                    : null,
                 matchStatus: i.matchStatus,
                 matchedAt: i.matchedAt?.toISOString() || null,
             })),
+            systemEntries,
         }
     } catch (error) {
         console.error("[getReconciliationDetail] Error:", error)
@@ -163,16 +238,11 @@ export async function getBankAccounts(): Promise<
     try {
         await requireAuth()
 
-        // Bank & Cash accounts: type ASSET, name contains bank/kas/cash, or specific codes
+        // Cash & Bank accounts only: 10xx codes (Kas, Bank BCA, Bank Mandiri, etc.)
         const accounts = await prisma.gLAccount.findMany({
             where: {
                 type: 'ASSET',
-                OR: [
-                    { name: { contains: 'bank', mode: 'insensitive' as const } },
-                    { name: { contains: 'kas', mode: 'insensitive' as const } },
-                    { name: { contains: 'cash', mode: 'insensitive' as const } },
-                    { code: { in: ['1000', '1010', '1020', '1100', '1110'] } },
-                ],
+                code: { startsWith: '10' },
             },
             select: { id: true, code: true, name: true, balance: true },
             orderBy: { code: 'asc' },
