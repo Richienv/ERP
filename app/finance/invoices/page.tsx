@@ -13,6 +13,8 @@ import {
     Receipt,
     Pencil,
     BookOpen,
+    Download,
+    Paperclip,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -48,6 +50,7 @@ import { useInvoiceKanban } from "@/hooks/use-invoices"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { CreateInvoiceDialog } from "@/components/finance/create-invoice-dialog"
+import { InvoiceAttachmentSection } from "@/components/finance/invoice-attachments"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 
@@ -68,6 +71,7 @@ export default function InvoicesPage() {
     const [activeInvoice, setActiveInvoice] = useState<InvoiceKanbanItem | null>(null)
     const [isSendDialogOpen, setIsSendDialogOpen] = useState(false)
     const [isPayDialogOpen, setIsPayDialogOpen] = useState(false)
+    const [attachmentInvoiceId, setAttachmentInvoiceId] = useState<string | null>(null)
 
     // Send form
     const [sendMethod, setSendMethod] = useState<'WHATSAPP' | 'EMAIL'>('WHATSAPP')
@@ -576,7 +580,31 @@ export default function InvoicesPage() {
                                                     <Banknote className="h-3.5 w-3.5" />
                                                 </button>
                                             )}
+                                            <button
+                                                onClick={() => window.open(`/api/documents/invoice/${invoice.id}?disposition=inline`, '_blank')}
+                                                title="Cetak Invoice PDF"
+                                                className="h-8 w-8 flex items-center justify-center border-2 border-zinc-300 text-zinc-500 hover:bg-zinc-50 hover:border-zinc-500 hover:text-zinc-700 transition-colors rounded-none"
+                                            >
+                                                <Download className="h-3.5 w-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => setAttachmentInvoiceId(attachmentInvoiceId === invoice.id ? null : invoice.id)}
+                                                title="Lampiran"
+                                                className={`h-8 w-8 flex items-center justify-center border-2 transition-colors rounded-none ${
+                                                    attachmentInvoiceId === invoice.id
+                                                        ? "border-violet-500 text-violet-700 bg-violet-50"
+                                                        : "border-zinc-300 text-zinc-500 hover:bg-zinc-50 hover:border-zinc-500 hover:text-zinc-700"
+                                                }`}
+                                            >
+                                                <Paperclip className="h-3.5 w-3.5" />
+                                            </button>
                                         </div>
+                                        {/* Inline Attachment Section */}
+                                        {attachmentInvoiceId === invoice.id && (
+                                            <div className="col-span-full mt-2 pt-2 border-t border-zinc-200">
+                                                <InvoiceAttachmentSection invoiceId={invoice.id} />
+                                            </div>
+                                        )}
                                     </div>
                                 )
                             })}
@@ -924,10 +952,25 @@ export default function InvoicesPage() {
                                         </div>
                                     )
                                 })()}
+                                {/* Attachments */}
+                                {activeInvoice && (
+                                    <div className="border-t-2 border-zinc-200 pt-4">
+                                        <InvoiceAttachmentSection invoiceId={activeInvoice.id} />
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
                     <DialogFooter className="p-6 pt-3 border-t-2 border-black bg-zinc-50 flex gap-2">
+                        <Button
+                            variant="outline"
+                            className="border-2 border-zinc-300 font-bold uppercase text-xs rounded-none"
+                            onClick={() => activeInvoice && window.open(`/api/documents/invoice/${activeInvoice.id}?disposition=inline`, '_blank')}
+                            disabled={!activeInvoice}
+                        >
+                            <Download className="h-3.5 w-3.5 mr-1.5" /> Cetak PDF
+                        </Button>
+                        <div className="flex-1" />
                         <Button variant="outline" className="border-2 border-zinc-300 font-bold uppercase text-xs rounded-none" onClick={() => setIsEditDialogOpen(false)} disabled={editSaving}>Batal</Button>
                         <Button
                             onClick={handleSaveEdit}
