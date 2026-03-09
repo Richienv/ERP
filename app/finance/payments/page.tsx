@@ -29,6 +29,7 @@ export default function ARPaymentsPage() {
         <ARPaymentsView
             unallocated={data.registry.unallocated}
             openInvoices={data.registry.openInvoices}
+            recentPayments={data.registry.recentPayments ?? []}
             allCustomers={data.registry.allCustomers ?? []}
             stats={data.stats}
             registryMeta={data.registry.meta}

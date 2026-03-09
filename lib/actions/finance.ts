@@ -2892,7 +2892,7 @@ export async function getARPaymentRegistry(params: {
     const invoicePage = Math.max(1, params.invoicePage || 1)
 
     try {
-        const [unallocated, openInvoices, allCustomers] = await Promise.all([
+        const [unallocated, openInvoices, allCustomers, recentPayments] = await Promise.all([
             getUnallocatedPayments(),
             getOpenInvoices(),
             basePrisma.customer.findMany({
@@ -2900,6 +2900,18 @@ export async function getARPaymentRegistry(params: {
                 select: { id: true, name: true, code: true },
                 orderBy: { name: 'asc' },
                 take: 500,
+            }),
+            basePrisma.payment.findMany({
+                where: {
+                    invoiceId: { not: null },
+                    customerId: { not: null },
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 20,
+                select: {
+                    id: true, amount: true, method: true, reference: true, createdAt: true,
+                    invoice: { select: { id: true, number: true, status: true } },
+                },
             }),
         ])
 
@@ -2934,6 +2946,14 @@ export async function getARPaymentRegistry(params: {
         return {
             unallocated: paginatedPayments,
             openInvoices: paginatedInvoices,
+            recentPayments: recentPayments.map(p => ({
+                id: p.id,
+                amount: Number(p.amount),
+                method: p.method,
+                reference: p.reference,
+                createdAt: p.createdAt,
+                invoice: p.invoice ? { id: p.invoice.id, number: p.invoice.number, status: p.invoice.status } : null,
+            })),
             allCustomers: allCustomers.map(c => ({ id: c.id, name: c.name, code: c.code })),
             meta: {
                 payments: { page: paymentPage, pageSize, total: filteredPayments.length, totalPages: Math.ceil(filteredPayments.length / pageSize) },
@@ -2950,6 +2970,7 @@ export async function getARPaymentRegistry(params: {
         return {
             unallocated: [],
             openInvoices: [],
+            recentPayments: [] as { id: string; amount: number; method: string; reference: string | null; createdAt: Date; invoice: { id: string; number: string; status: string } | null }[],
             allCustomers: [],
             meta: {
                 payments: { page: 1, pageSize, total: 0, totalPages: 0 },

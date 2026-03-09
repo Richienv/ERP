@@ -17,6 +17,7 @@ import {
     RefreshCcw,
     Search,
     AlertTriangle,
+    History,
     Wallet
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -65,9 +66,19 @@ interface OpenInvoice {
     isOverdue: boolean
 }
 
+interface RecentPayment {
+    id: string
+    amount: number
+    method: string
+    reference: string | null
+    createdAt: Date
+    invoice: { id: string; number: string; status: string } | null
+}
+
 interface ARPaymentsViewProps {
     unallocated: UnallocatedPayment[]
     openInvoices: OpenInvoice[]
+    recentPayments: RecentPayment[]
     allCustomers: { id: string; name: string; code: string | null }[]
     stats: {
         unallocatedCount: number
@@ -98,7 +109,7 @@ const EMPTY_INVOICE_VALUE = "__NO_INVOICE__"
 
 const todayAsInput = () => new Date().toISOString().slice(0, 10)
 
-export function ARPaymentsView({ unallocated, openInvoices, allCustomers, stats, registryMeta, registryQuery }: ARPaymentsViewProps) {
+export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allCustomers, stats, registryMeta, registryQuery }: ARPaymentsViewProps) {
     const router = useRouter()
     const queryClient = useQueryClient()
     const pathname = usePathname()
@@ -699,6 +710,62 @@ export function ARPaymentsView({ unallocated, openInvoices, allCustomers, stats,
                     </div>
                 </div>
             </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* RECENT ALLOCATED PAYMENTS                   */}
+            {/* ═══════════════════════════════════════════ */}
+            {recentPayments.length > 0 && (
+                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
+                        <History className="h-4 w-4 text-violet-600" />
+                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
+                            Riwayat Pembayaran Terakhir
+                        </h3>
+                        <span className="bg-violet-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
+                            {recentPayments.length}
+                        </span>
+                    </div>
+                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[360px] overflow-auto">
+                        {recentPayments.map((payment) => (
+                            <div key={payment.id} className="px-5 py-3 flex items-center gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        {payment.invoice && (
+                                            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
+                                                {payment.invoice.number}
+                                            </span>
+                                        )}
+                                        <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${
+                                            payment.method === "TRANSFER" ? "bg-blue-50 border-blue-200 text-blue-600" :
+                                            payment.method === "CASH" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
+                                            payment.method === "CHECK" ? "bg-amber-50 border-amber-200 text-amber-600" :
+                                            "bg-violet-50 border-violet-200 text-violet-600"
+                                        }`}>
+                                            {METHOD_LABEL[payment.method as PaymentMethod] ?? payment.method}
+                                        </span>
+                                        <Badge variant="outline" className="text-[10px] font-black uppercase border-emerald-300 text-emerald-600 bg-emerald-50">
+                                            Teralokasi
+                                        </Badge>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        {payment.reference && (
+                                            <span className="text-[10px] font-medium text-zinc-400 truncate">Ref: {payment.reference}</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="text-right shrink-0">
+                                    <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-400 block">
+                                        {formatIDR(payment.amount)}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-zinc-400">
+                                        {new Date(payment.createdAt).toLocaleDateString("id-ID")}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* ═══════════════════════════════════════════ */}
             {/* CONFIRMATION PANEL                         */}
