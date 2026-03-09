@@ -7,7 +7,7 @@ import {
     createReconciliation,
     importBankStatementRows,
     autoMatchReconciliation,
-    matchReconciliationItem,
+    matchMultipleItems,
     unmatchReconciliationItem,
     closeReconciliation,
     getReconciliationDetail,
@@ -28,7 +28,7 @@ export default function ReconciliationPage() {
                 onCreateReconciliation={createReconciliation}
                 onImportRows={importBankStatementRows}
                 onAutoMatch={autoMatchReconciliation}
-                onMatchItem={matchReconciliationItem}
+                onMatchItems={matchMultipleItems}
                 onUnmatchItem={unmatchReconciliationItem}
                 onClose={closeReconciliation}
                 onLoadDetail={getReconciliationDetail}

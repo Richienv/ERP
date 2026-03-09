@@ -624,6 +624,86 @@ export async function autoMatchReconciliation(
 }
 
 /**
+ * Match multiple bank items to multiple system journal entries (checkbox multi-select).
+ * User selects 1+ bank items and 1+ system entries, totals must match within Rp 1.
+ */
+export async function matchMultipleItems(data: {
+    bankItemIds: string[]
+    systemEntryIds: string[]
+}): Promise<{ success: boolean; error?: string }> {
+    if (!data.bankItemIds.length || !data.systemEntryIds.length) {
+        return { success: false, error: 'Pilih minimal 1 item bank dan 1 transaksi sistem' }
+    }
+
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            const supabase = await (await import('@/lib/supabase/server')).createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+
+            // Fetch bank items
+            const bankItems = await prisma.bankReconciliationItem.findMany({
+                where: { id: { in: data.bankItemIds } },
+                include: { reconciliation: { select: { glAccountId: true } } },
+            })
+
+            if (bankItems.length === 0) {
+                throw new Error('Item bank tidak ditemukan')
+            }
+
+            // Get GL account from first bank item's reconciliation
+            const glAccountId = bankItems[0].reconciliation.glAccountId
+
+            // Fetch journal lines for the system entry IDs filtered to that GL account
+            const journalLines = await prisma.journalLine.findMany({
+                where: {
+                    entryId: { in: data.systemEntryIds },
+                    accountId: glAccountId,
+                },
+                select: {
+                    entryId: true,
+                    debit: true,
+                    credit: true,
+                },
+            })
+
+            // Calculate totals
+            const bankTotal = bankItems.reduce(
+                (sum, item) => sum + Math.abs(Number(item.bankAmount)),
+                0
+            )
+            const systemTotal = journalLines.reduce(
+                (sum, line) => sum + Math.max(Number(line.debit), Number(line.credit)),
+                0
+            )
+
+            // Validate totals match within Rp 1 tolerance
+            if (Math.abs(bankTotal - systemTotal) > 1) {
+                throw new Error(
+                    `Total tidak cocok: Bank Rp ${bankTotal.toLocaleString('id-ID')} vs Sistem Rp ${systemTotal.toLocaleString('id-ID')}`
+                )
+            }
+
+            // Update all bank items as matched
+            await prisma.bankReconciliationItem.updateMany({
+                where: { id: { in: data.bankItemIds } },
+                data: {
+                    systemTransactionId: data.systemEntryIds[0],
+                    matchStatus: 'MATCHED',
+                    matchedBy: user?.id || null,
+                    matchedAt: new Date(),
+                },
+            })
+        })
+
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal mencocokkan item'
+        console.error("[matchMultipleItems] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
  * Close/complete a reconciliation.
  */
 export async function closeReconciliation(
