@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
     BookOpen, Search, ChevronDown, ChevronRight, Download,
 } from "lucide-react"
@@ -96,6 +97,37 @@ const ACCOUNT_TYPE_COLORS: Record<string, { bg: string; text: string; border: st
 
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
 
+// ─── Clickable reference helper ─────────────────────────
+function ReferenceLink({ reference, invoiceNumber, router }: { reference: string | null; invoiceNumber: string | null; router: ReturnType<typeof useRouter> }) {
+    const ref = reference || "—"
+    const isInvoice = ref.startsWith("INV-") || ref.startsWith("BILL-")
+    const isPayment = ref.startsWith("PAY-")
+
+    if (isInvoice && invoiceNumber) {
+        return (
+            <button
+                onClick={() => router.push(`/finance/invoices?highlight=${invoiceNumber}`)}
+                className="text-[11px] font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
+                title={`Buka invoice ${ref}`}
+            >
+                {ref}
+            </button>
+        )
+    }
+    if (isPayment) {
+        return (
+            <button
+                onClick={() => router.push(`/finance/payments`)}
+                className="text-[11px] font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
+                title={`Buka pembayaran ${ref}`}
+            >
+                {ref}
+            </button>
+        )
+    }
+    return <span className="text-[11px] font-mono text-zinc-400 px-3 py-1.5 truncate">{ref}</span>
+}
+
 type GroupMode = "FLAT" | "ACCOUNT"
 type DatePreset = "CUSTOM" | "THIS_MONTH" | "LAST_MONTH" | "THIS_QUARTER" | "THIS_YEAR" | "ALL_TIME"
 type AccountsInclude = "ALL" | "WITH_TRANSACTIONS"
@@ -116,6 +148,7 @@ interface AccountRow {
 
 // ─── Page Component ──────────────────────────────────────
 export default function AccountTransactionsPage() {
+    const router = useRouter()
     const { data, isLoading } = useAccountTransactions()
 
     // Filters
@@ -127,6 +160,8 @@ export default function AccountTransactionsPage() {
     const [dateTo, setDateTo] = useState("")
     const [groupMode, setGroupMode] = useState<GroupMode>("ACCOUNT")
     const [filterAccountsInclude, setFilterAccountsInclude] = useState<string[]>([])
+    const [amountMin, setAmountMin] = useState("")
+    const [amountMax, setAmountMax] = useState("")
 
     // Collapsible groups
     const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
@@ -185,8 +220,21 @@ export default function AccountTransactionsPage() {
                 e.lines.some(l => l.accountName.toLowerCase().includes(q) || l.accountCode.includes(q))
             )
         }
+        // Amount filter: check if any line's debit or credit falls within range
+        const minAmt = amountMin ? parseFloat(amountMin) : null
+        const maxAmt = amountMax ? parseFloat(amountMax) : null
+        if (minAmt !== null || maxAmt !== null) {
+            result = result.filter(e =>
+                e.lines.some(l => {
+                    const amt = Math.max(l.debit, l.credit)
+                    if (minAmt !== null && amt < minAmt) return false
+                    if (maxAmt !== null && amt > maxAmt) return false
+                    return true
+                })
+            )
+        }
         return result
-    }, [entries, dateFrom, dateTo, filterAccounts, filterTypes, searchText])
+    }, [entries, dateFrom, dateTo, filterAccounts, filterTypes, searchText, amountMin, amountMax])
 
     // ─── Group by Account (Xero-style) ──────────────────
     const groupedByAccount = useMemo(() => {
@@ -275,7 +323,7 @@ export default function AccountTransactionsPage() {
     }, [groupedByAccount, dateFrom, dateTo])
 
     // ─── Column grid template ────────────────────────────
-    const colTemplate = "grid-cols-[90px_140px_1fr_120px_100px_100px_120px]"
+    const colTemplate = "grid-cols-[90px_140px_1fr_120px_140px_140px_150px]"
 
     const headers = ["Tanggal", "Sumber", "Deskripsi", "Referensi", "Debit", "Kredit", "Saldo Berjalan"]
 
@@ -369,6 +417,14 @@ export default function AccountTransactionsPage() {
                         selected={filterTypes}
                         onChange={setFilterTypes}
                     />
+                    <div>
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Rentang Nominal</label>
+                        <div className="flex items-center gap-1.5">
+                            <Input type="number" className="border-2 border-black h-9 font-mono text-[11px] w-[120px]" placeholder="Min..." value={amountMin} onChange={(e) => setAmountMin(e.target.value)} />
+                            <span className="text-zinc-400 text-xs">—</span>
+                            <Input type="number" className="border-2 border-black h-9 font-mono text-[11px] w-[120px]" placeholder="Max..." value={amountMax} onChange={(e) => setAmountMax(e.target.value)} />
+                        </div>
+                    </div>
                     <div className="relative flex-1 min-w-[200px]">
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Cari</label>
                         <div className="relative">
@@ -388,7 +444,7 @@ export default function AccountTransactionsPage() {
                             Tidak ada transaksi ditemukan
                         </div>
                     ) : (
-                        <div className="min-w-[900px]">
+                        <div className="min-w-[1020px]">
                             {groupedByAccount.map((group) => {
                                 const colors = ACCOUNT_TYPE_COLORS[group.type] || ACCOUNT_TYPE_COLORS.ASSET
                                 const isCollapsed = collapsedGroups.has(group.code)
@@ -441,7 +497,7 @@ export default function AccountTransactionsPage() {
                                                                 </span>
                                                             </span>
                                                             <span className="text-[11px] font-medium text-zinc-700 px-3 py-1.5 truncate">{row.description}</span>
-                                                            <span className="text-[11px] font-mono text-zinc-400 px-3 py-1.5 truncate">{row.reference || "—"}</span>
+                                                            <ReferenceLink reference={row.reference} invoiceNumber={row.invoiceNumber} router={router} />
                                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
                                                                 {row.debit > 0 ? <span className="text-zinc-900">{formatIDR(row.debit)}</span> : <span className="text-zinc-200">{"\u2014"}</span>}
                                                             </span>
@@ -457,12 +513,12 @@ export default function AccountTransactionsPage() {
 
                                                 {/* Total Row */}
                                                 <div className={`grid ${colTemplate} bg-zinc-100 border-b border-zinc-300 font-black`}>
-                                                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 px-3 py-2" style={{ gridColumn: "1 / 5" }}>
+                                                    <span className="text-[10px] uppercase tracking-widest text-zinc-500 px-3 py-2 truncate" style={{ gridColumn: "1 / 5" }}>
                                                         Total {group.name}
                                                     </span>
-                                                    <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900">{formatIDR(groupDebit)}</span>
-                                                    <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900">({formatIDR(groupCredit)})</span>
-                                                    <span className={`text-[11px] font-mono text-right px-3 py-2 ${closingBalance < 0 ? "text-red-600" : "text-zinc-900"}`}>
+                                                    <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900 truncate">{formatIDR(groupDebit)}</span>
+                                                    <span className="text-[11px] font-mono text-right px-3 py-2 text-zinc-900 truncate">({formatIDR(groupCredit)})</span>
+                                                    <span className={`text-[11px] font-mono text-right px-3 py-2 truncate ${closingBalance < 0 ? "text-red-600" : "text-zinc-900"}`}>
                                                         {formatIDR(Math.abs(closingBalance))}
                                                     </span>
                                                 </div>
@@ -500,7 +556,7 @@ export default function AccountTransactionsPage() {
                             Tidak ada transaksi ditemukan
                         </div>
                     ) : (
-                        <div className="min-w-[900px]">
+                        <div className="min-w-[1020px]">
                             {/* Header */}
                             <div className={`grid ${colTemplate} bg-zinc-50 border-b border-zinc-200`}>
                                 {headers.map(h => (
@@ -523,7 +579,7 @@ export default function AccountTransactionsPage() {
                                                 {line.description || entry.description}
                                                 <span className="text-zinc-300 ml-1.5 text-[9px]">({line.accountCode} {line.accountName})</span>
                                             </span>
-                                            <span className="text-[11px] font-mono text-zinc-400 px-3 py-1.5">{li === 0 ? (entry.reference || "—") : ""}</span>
+                                            {li === 0 ? <ReferenceLink reference={entry.reference} invoiceNumber={entry.invoiceNumber} router={router} /> : <span className="px-3 py-1.5" />}
                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
                                                 {line.debit > 0 ? formatIDR(line.debit) : <span className="text-zinc-200">{"\u2014"}</span>}
                                             </span>
