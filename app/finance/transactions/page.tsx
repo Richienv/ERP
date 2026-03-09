@@ -133,6 +133,9 @@ function ReferenceLink({ reference, invoiceId, paymentId, router }: {
             </button>
         )
     }
+    if (!reference) {
+        return <span className="text-[11px] font-mono text-zinc-300 px-3 py-1.5">-</span>
+    }
     return <span className="text-[11px] font-mono text-zinc-400 px-3 py-1.5 truncate">{ref}</span>
 }
 
