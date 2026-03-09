@@ -834,7 +834,7 @@ export async function GET(request: NextRequest) {
 
         // 4. Build KPI from results
         const kpi = {
-            revenue: revenueInv?.totalRevenue ?? pnl?.revenue ?? 0,
+            revenue: (pnl?.revenue ?? 0) + (pnl?.otherIncome ?? 0),
             netIncome: pnl?.netIncome ?? 0,
             arOutstanding: arAging?.summary?.totalOutstanding ?? 0,
             apOutstanding: apAging?.summary?.totalOutstanding ?? 0,
