@@ -23,6 +23,8 @@ export const queryKeys = {
         all: ["invoices"] as const,
         kanban: (params?: { q?: string; type?: string }) =>
             [...queryKeys.invoices.all, "kanban", params ?? {}] as const,
+        attachments: (invoiceId: string) =>
+            [...queryKeys.invoices.all, "attachments", invoiceId] as const,
     },
     products: {
         all: ["products"] as const,
