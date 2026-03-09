@@ -28,8 +28,10 @@ interface TransactionEntry {
     date: string
     description: string
     reference: string | null
+    invoiceId: string | null
     invoiceNumber: string | null
     invoiceType: string | null
+    paymentId: string | null
     paymentNumber: string | null
     paymentMethod: string | null
     lines: TransactionLine[]
@@ -98,15 +100,20 @@ const ACCOUNT_TYPE_COLORS: Record<string, { bg: string; text: string; border: st
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
 
 // ─── Clickable reference helper ─────────────────────────
-function ReferenceLink({ reference, invoiceNumber, router }: { reference: string | null; invoiceNumber: string | null; router: ReturnType<typeof useRouter> }) {
+function ReferenceLink({ reference, invoiceId, paymentId, router }: {
+    reference: string | null
+    invoiceId: string | null
+    paymentId: string | null
+    router: ReturnType<typeof useRouter>
+}) {
     const ref = reference || "—"
-    const isInvoice = ref.startsWith("INV-") || ref.startsWith("BILL-")
-    const isPayment = ref.startsWith("PAY-")
 
-    if (isInvoice && invoiceNumber) {
+    // Only link if we have the actual ID to navigate to
+    if (invoiceId) {
         return (
             <button
-                onClick={() => router.push(`/finance/invoices?highlight=${invoiceNumber}`)}
+                type="button"
+                onClick={() => router.push(`/finance/invoices?highlight=${invoiceId}`)}
                 className="text-[11px] font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
                 title={`Buka invoice ${ref}`}
             >
@@ -114,10 +121,11 @@ function ReferenceLink({ reference, invoiceNumber, router }: { reference: string
             </button>
         )
     }
-    if (isPayment) {
+    if (paymentId) {
         return (
             <button
-                onClick={() => router.push(`/finance/payments`)}
+                type="button"
+                onClick={() => router.push(`/finance/payments?highlight=${paymentId}`)}
                 className="text-[11px] font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
                 title={`Buka pembayaran ${ref}`}
             >
@@ -143,7 +151,9 @@ interface AccountRow {
     runningBalance: number
     paymentMethod: string | null
     entryId: string
+    invoiceId: string | null
     invoiceNumber: string | null
+    paymentId: string | null
 }
 
 // ─── Page Component ──────────────────────────────────────
@@ -272,7 +282,9 @@ export default function AccountTransactionsPage() {
                     runningBalance,
                     paymentMethod: entry.paymentMethod,
                     entryId: entry.id,
+                    invoiceId: entry.invoiceId,
                     invoiceNumber: entry.invoiceNumber,
+                    paymentId: entry.paymentId,
                 })
             }
         }
@@ -497,7 +509,7 @@ export default function AccountTransactionsPage() {
                                                                 </span>
                                                             </span>
                                                             <span className="text-[11px] font-medium text-zinc-700 px-3 py-1.5 truncate">{row.description}</span>
-                                                            <ReferenceLink reference={row.reference} invoiceNumber={row.invoiceNumber} router={router} />
+                                                            <ReferenceLink reference={row.reference} invoiceId={row.invoiceId} paymentId={row.paymentId} router={router} />
                                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
                                                                 {row.debit > 0 ? <span className="text-zinc-900">{formatIDR(row.debit)}</span> : <span className="text-zinc-200">{"\u2014"}</span>}
                                                             </span>
@@ -579,7 +591,7 @@ export default function AccountTransactionsPage() {
                                                 {line.description || entry.description}
                                                 <span className="text-zinc-300 ml-1.5 text-[9px]">({line.accountCode} {line.accountName})</span>
                                             </span>
-                                            {li === 0 ? <ReferenceLink reference={entry.reference} invoiceNumber={entry.invoiceNumber} router={router} /> : <span className="px-3 py-1.5" />}
+                                            {li === 0 ? <ReferenceLink reference={entry.reference} invoiceId={entry.invoiceId} paymentId={entry.paymentId} router={router} /> : <span className="px-3 py-1.5" />}
                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
                                                 {line.debit > 0 ? formatIDR(line.debit) : <span className="text-zinc-200">{"\u2014"}</span>}
                                             </span>

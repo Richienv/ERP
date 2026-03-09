@@ -18,8 +18,10 @@ interface TransactionEntry {
     date: string
     description: string
     reference: string | null
+    invoiceId: string | null
     invoiceNumber: string | null
     invoiceType: string | null
+    paymentId: string | null
     paymentNumber: string | null
     paymentMethod: string | null
     lines: TransactionLine[]

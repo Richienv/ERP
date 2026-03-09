@@ -45,8 +45,10 @@ export async function GET(request: NextRequest) {
                 date: e.date,
                 description: e.description,
                 reference: e.reference,
+                invoiceId: e.invoice?.id || null,
                 invoiceNumber: e.invoice?.number || null,
                 invoiceType: e.invoice?.type || null,
+                paymentId: e.payment?.id || null,
                 paymentNumber: e.payment?.number || null,
                 paymentMethod: e.payment?.method || null,
                 lines: e.lines.map((l) => ({
