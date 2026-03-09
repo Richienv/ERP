@@ -1773,6 +1773,7 @@ model Invoice {
   journalEntries     JournalEntry[]
   dcNoteOrigins      DebitCreditNote[]           @relation("DCNoteOriginalInvoice")
   dcNoteSettlements  DebitCreditNoteSettlement[]  @relation("DCNoteSettlements")
+  attachments        InvoiceAttachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1801,6 +1802,19 @@ model InvoiceItem {
   @@index([invoiceId])
   @@index([productId])
   @@map("invoice_items")
+}
+
+model InvoiceAttachment {
+  id         String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  invoiceId  String   @db.Uuid
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  fileName   String
+  fileUrl    String
+  fileType   String
+  fileSize   Int
+  uploadedAt DateTime @default(now())
+
+  @@index([invoiceId])
 }
 
 model Payment {
