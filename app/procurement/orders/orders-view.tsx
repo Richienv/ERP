@@ -34,6 +34,7 @@ import { POFinalizeDialog } from "@/components/procurement/po-finalize-dialog"
 import { PurchaseReturnDialog } from "@/components/procurement/purchase-return-dialog"
 import { markAsOrdered } from "@/lib/actions/procurement"
 import { toast } from "sonner"
+import { exportToExcel } from "@/lib/table-export"
 
 interface Order {
     id: string
@@ -166,6 +167,24 @@ export function OrdersView({ initialOrders, vendors, products, warehouses }: Ord
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                const cols = [
+                                    { header: "No. PO", accessorKey: "id" },
+                                    { header: "Vendor", accessorKey: "vendor" },
+                                    { header: "Total", accessorKey: "total" },
+                                    { header: "Items", accessorKey: "items" },
+                                    { header: "Status", accessorKey: "status" },
+                                    { header: "Tanggal", accessorKey: "date" },
+                                    { header: "ETA", accessorKey: "eta" },
+                                ]
+                                exportToExcel(cols, filteredOrders as unknown as Record<string, unknown>[], { filename: "pesanan-pembelian" })
+                            }}
+                            className="border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"
+                        >
+                            <Download className="mr-2 h-3.5 w-3.5" /> Export
+                        </Button>
                         <PurchaseReturnDialog warehouses={warehouses} />
                         <NewPurchaseOrderDialog vendors={vendors} products={products} />
                     </div>

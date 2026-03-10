@@ -11,6 +11,7 @@ import {
     AlertTriangle,
     ClipboardCheck,
     Microscope,
+    Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet";
 import { CreateInspectionDialog } from "@/components/manufacturing/create-inspection-dialog";
+import { exportToExcel } from "@/lib/table-export";
 
 interface Inspection {
     id: string;
@@ -215,6 +217,37 @@ export function QualityClient({ initialInspections, initialPendingQueue, initial
                         >
                             <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                         </button>
+                        <Button
+                            variant="outline"
+                            className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-9 px-4 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all"
+                            onClick={() => {
+                                const cols = [
+                                    { header: "Batch #", accessorKey: "batchNumber" },
+                                    { header: "Produk", accessorKey: "materialName" },
+                                    { header: "Kode Produk", accessorKey: "materialCode" },
+                                    { header: "Work Order", accessorKey: "workOrderNumber" },
+                                    { header: "Inspektor", accessorKey: "inspectorName" },
+                                    { header: "Hasil", accessorKey: "result" },
+                                    { header: "Skor (%)", accessorKey: "score" },
+                                    { header: "Defect", accessorKey: "defectCount" },
+                                    { header: "Tanggal", accessorKey: "inspectionDate" },
+                                ]
+                                const rows = inspections.map(i => ({
+                                    batchNumber: i.batchNumber,
+                                    materialName: i.material.name,
+                                    materialCode: i.material.code,
+                                    workOrderNumber: i.workOrder?.number || "-",
+                                    inspectorName: i.inspectorName,
+                                    result: i.result,
+                                    score: i.score,
+                                    defectCount: i.defectCount,
+                                    inspectionDate: i.inspectionDate,
+                                }))
+                                exportToExcel(cols, rows as unknown as Record<string, unknown>[], { filename: "inspeksi-qc" })
+                            }}
+                        >
+                            <Download className="mr-2 h-3.5 w-3.5" /> Export
+                        </Button>
                         <Button
                             className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-none"
                             onClick={() => setCreateOpen(true)}

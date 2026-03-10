@@ -789,6 +789,38 @@ async function fetchTaxMetrics(prisma: PrismaClient) {
     return { ppnOut, ppnIn, ppnNet: ppnOut - ppnIn }
 }
 
+async function fetchInventorySummary(prisma: PrismaClient) {
+    const [productCount, warehouseCount] = await Promise.all([
+        prisma.product.count({ where: { isActive: true } }),
+        prisma.warehouse.count({ where: { isActive: true } }),
+    ])
+    return { productCount, warehouseCount }
+}
+
+async function fetchSalesFulfillment(prisma: PrismaClient) {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+
+    const [totalOrders, deliveredOrders] = await Promise.all([
+        prisma.salesOrder.count({
+            where: { orderDate: { gte: startOfMonth }, status: { not: 'CANCELLED' } }
+        }),
+        prisma.salesOrder.count({
+            where: {
+                orderDate: { gte: startOfMonth },
+                status: { in: ['DELIVERED', 'COMPLETED', 'INVOICED'] }
+            }
+        }),
+    ])
+
+    return {
+        totalOrders,
+        deliveredOrders,
+        fulfillmentRate: totalOrders > 0 ? Math.round((deliveredOrders / totalOrders) * 100) : 0
+    }
+}
+
 // ==============================================================================
 // PUBLIC AGGREGATED ACTION (Fetch Everything in One Transaction)
 // ==============================================================================
@@ -936,7 +968,7 @@ export async function getDashboardOperations() {
     try {
         await requireAuth()
         const prisma = basePrisma
-        const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax] = await Promise.all([
+        const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment] = await Promise.all([
             fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
             fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
             fetchMaterialStatus(prisma).catch(() => []),
@@ -946,8 +978,10 @@ export async function getDashboardOperations() {
             fetchTotalInventoryValue(prisma).catch(() => ({ value: 0, itemCount: 0, warehouses: [] })),
             fetchHRMetrics(prisma).catch(() => ({ totalSalary: 0, lateEmployees: [] })),
             fetchTaxMetrics(prisma).catch(() => ({ ppnOut: 0, ppnIn: 0, ppnNet: 0 })),
+            fetchInventorySummary(prisma).catch(() => ({ productCount: 0, warehouseCount: 0 })),
+            fetchSalesFulfillment(prisma).catch(() => ({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 })),
         ])
-        return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax }
+        return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment }
     } catch (error) {
         console.error("getDashboardOperations failed:", error)
         return {
@@ -960,6 +994,8 @@ export async function getDashboardOperations() {
             inventoryValue: { value: 0, itemCount: 0, warehouses: [] },
             hr: { totalSalary: 0, lateEmployees: [] },
             tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
+            inventorySummary: { productCount: 0, warehouseCount: 0 },
+            salesFulfillment: { totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 },
         }
     }
 }

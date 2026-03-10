@@ -110,42 +110,39 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                 </div>
             )}
 
-            <ScrollArea className="max-h-[160px]">
+            <ScrollArea className="max-h-[200px]">
                 <div className="space-y-1.5">
-                    {/* Allocated stations first */}
-                    {allocations.map((alloc) => {
-                        const station = filtered.find((s: any) => s.id === alloc.stationId) ||
-                            (allStations || []).find((s: any) => s.id === alloc.stationId)
-                        return (
-                            <div key={alloc.stationId}
-                                className="flex items-center gap-2 p-2 border border-emerald-400 bg-emerald-50 text-[10px]"
-                            >
-                                <p className="font-black truncate min-w-0 flex-1">
-                                    {station?.name || "—"}
-                                    {station?.code && <span className="text-zinc-400 font-mono ml-1">({station.code})</span>}
-                                </p>
-                                <div className="flex items-center gap-1 shrink-0">
-                                    <Input
-                                        type="number"
-                                        value={alloc.quantity}
-                                        onChange={(e) => updateQty(alloc.stationId, parseInt(e.target.value) || 0)}
-                                        className="h-6 w-16 text-[10px] font-mono border-emerald-300 rounded-none text-right"
-                                    />
-                                    <span className="text-[9px] text-zinc-400 font-mono">/{totalQty}</span>
-                                    <button onClick={() => removeAllocation(alloc.stationId)}>
-                                        <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
-                                    </button>
+                    {/* Unified list — each station appears once, either allocated or available */}
+                    {filtered.map((station: any) => {
+                        const alloc = allocations.find(a => a.stationId === station.id)
+                        if (alloc) {
+                            return (
+                                <div key={station.id}
+                                    className="flex items-center gap-2 p-2 border-2 border-emerald-400 bg-emerald-50 text-[10px]"
+                                >
+                                    <p className="font-black truncate min-w-0 flex-1">
+                                        {station.name}
+                                        {station.code && <span className="text-zinc-400 font-mono ml-1">({station.code})</span>}
+                                    </p>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <Input
+                                            type="number"
+                                            value={alloc.quantity}
+                                            onChange={(e) => updateQty(station.id, parseInt(e.target.value) || 0)}
+                                            className="h-6 w-16 text-[10px] font-mono border-emerald-300 rounded-none text-right"
+                                        />
+                                        <span className="text-[9px] text-zinc-400 font-mono">/{totalQty}</span>
+                                        <button onClick={() => removeAllocation(station.id)}>
+                                            <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        )
-                    })}
-
-                    {/* Unallocated stations */}
-                    {filtered.filter((s: any) => !allocations.some(a => a.stationId === s.id)).map((station: any) => (
-                        <div key={station.id}
-                            className="p-2 border border-zinc-200 hover:border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] transition-all"
-                        >
-                            <div className="flex items-center justify-between gap-2">
+                            )
+                        }
+                        return (
+                            <div key={station.id}
+                                className="flex items-center justify-between gap-2 p-2 border border-zinc-200 hover:border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] text-[10px] transition-all"
+                            >
                                 <div className="min-w-0">
                                     <p className="font-black truncate">{station.name}</p>
                                     {station.code && (
@@ -160,8 +157,38 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                                     <Plus className="h-3 w-3" /> Alokasi
                                 </Button>
                             </div>
-                        </div>
-                    ))}
+                        )
+                    })}
+
+                    {/* Show allocated stations that are outside search filter */}
+                    {allocations
+                        .filter(alloc => !filtered.some((s: any) => s.id === alloc.stationId))
+                        .map((alloc) => {
+                            const station = (allStations || []).find((s: any) => s.id === alloc.stationId)
+                            return (
+                                <div key={alloc.stationId}
+                                    className="flex items-center gap-2 p-2 border-2 border-emerald-400 bg-emerald-50 text-[10px]"
+                                >
+                                    <p className="font-black truncate min-w-0 flex-1">
+                                        {station?.name || "—"}
+                                        {station?.code && <span className="text-zinc-400 font-mono ml-1">({station.code})</span>}
+                                    </p>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <Input
+                                            type="number"
+                                            value={alloc.quantity}
+                                            onChange={(e) => updateQty(alloc.stationId, parseInt(e.target.value) || 0)}
+                                            className="h-6 w-16 text-[10px] font-mono border-emerald-300 rounded-none text-right"
+                                        />
+                                        <span className="text-[9px] text-zinc-400 font-mono">/{totalQty}</span>
+                                        <button onClick={() => removeAllocation(alloc.stationId)}>
+                                            <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
+                                        </button>
+                                    </div>
+                                </div>
+                            )
+                        })
+                    }
 
                     {filtered.length === 0 && allocations.length === 0 && (
                         <p className="text-[10px] text-zinc-300 font-bold py-3 text-center">

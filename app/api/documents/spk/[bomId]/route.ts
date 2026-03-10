@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { DocumentService } from '@/lib/services/document-service'
+import { calcCriticalPathDuration } from '@/components/manufacturing/bom/bom-step-helpers'
 
 // GET /api/documents/spk/[bomId] — Generate SPK PDF from Production BOM
 export async function GET(
@@ -68,8 +69,8 @@ export async function GET(
             PACKING: 'Packing', FINISHING: 'Finishing', OTHER: 'Lainnya',
         }
 
-        // Calculate estimated time from canvas steps
-        const estTimeTotalMin = bom.steps.reduce((sum, step) => sum + (Number(step.durationMinutes) || 0), 0)
+        // Calculate estimated time from canvas steps (critical path — parallel steps take max, not sum)
+        const estTimeTotalMin = calcCriticalPathDuration(bom.steps)
         const estHours = Math.floor(estTimeTotalMin / 60)
         const estMinutes = Math.round(estTimeTotalMin % 60)
         const estTimeLabel = estTimeTotalMin > 0

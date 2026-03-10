@@ -18,7 +18,8 @@ import {
     Search,
     AlertTriangle,
     History,
-    Wallet
+    Wallet,
+    Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -43,6 +44,7 @@ import { matchPaymentToInvoice, recordARPayment } from "@/lib/actions/finance"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { exportToExcel } from "@/lib/table-export"
 
 type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "CARD"
 
@@ -323,6 +325,33 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                const cols = [
+                                    { header: "No. Pembayaran", accessorKey: "number" },
+                                    { header: "Dari", accessorKey: "from" },
+                                    { header: "Jumlah", accessorKey: "amount" },
+                                    { header: "Metode", accessorKey: "method" },
+                                    { header: "Referensi", accessorKey: "reference" },
+                                    { header: "Tanggal", accessorKey: "date" },
+                                    { header: "Status", accessorKey: "allocated" },
+                                ]
+                                const rows = unallocated.map(p => ({
+                                    number: p.number,
+                                    from: p.from,
+                                    amount: p.amount,
+                                    method: p.method,
+                                    reference: p.reference || "-",
+                                    date: new Date(p.date).toLocaleDateString("id-ID"),
+                                    allocated: p.allocated ? "Teralokasi" : "Belum",
+                                }))
+                                exportToExcel(cols, rows as Record<string, unknown>[], { filename: "penerimaan-ar" })
+                            }}
+                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
+                        >
+                            <Download className="mr-1.5 h-3.5 w-3.5" /> Export
+                        </Button>
                         <Button
                             variant="outline"
                             onClick={() => {

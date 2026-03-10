@@ -16,6 +16,7 @@ import {
     Plus,
     ChevronDown,
     ChevronUp,
+    Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +38,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { VendorMultiPaymentDialog } from "@/components/finance/vendor-multi-payment-dialog"
 import { useBankAccounts } from "@/hooks/use-bank-accounts"
+import { exportToExcel } from "@/lib/table-export"
 
 type PaymentMethod = "TRANSFER" | "CHECK" | "CASH"
 
@@ -295,6 +297,34 @@ export default function APCheckbookPage() {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                const cols = [
+                                    { header: "Vendor", accessorKey: "vendorName" },
+                                    { header: "Jumlah", accessorKey: "amount" },
+                                    { header: "Metode", accessorKey: "method" },
+                                    { header: "Referensi", accessorKey: "reference" },
+                                    { header: "No. Tagihan", accessorKey: "billNumber" },
+                                    { header: "Tanggal", accessorKey: "date" },
+                                ]
+                                const rows = payments.map((p: any) => {
+                                    const meta = parsePaymentMeta(p.notes)
+                                    return {
+                                        vendorName: p.vendor?.name || "-",
+                                        amount: Number(p.amount),
+                                        method: meta.method || p.method || "-",
+                                        reference: p.reference || "-",
+                                        billNumber: p.invoice?.number || "-",
+                                        date: new Date(p.createdAt).toLocaleDateString("id-ID"),
+                                    }
+                                })
+                                exportToExcel(cols, rows as Record<string, unknown>[], { filename: "pembayaran-ap" })
+                            }}
+                            className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-9 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all"
+                        >
+                            <Download className="mr-2 h-3.5 w-3.5" /> Export
+                        </Button>
                         <Button
                             onClick={() => setShowMultiPay(true)}
                             className="bg-emerald-700 text-white hover:bg-emerald-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useAuth } from "@/lib/auth-context"
 import { useWorkflowConfig } from "@/components/workflow/workflow-config-context"
 import { NavMain } from "@/components/nav-main"
@@ -15,7 +16,6 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
@@ -29,24 +29,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="border-b-2 border-zinc-200 dark:border-zinc-800 pb-3">
+      <SidebarHeader className="pb-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-2 rounded-none hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            <Link
+              href="/dashboard"
+              data-slot="sidebar-menu-button"
+              data-sidebar="menu-button"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors"
             >
-              <a href="/dashboard">
-                <div className="flex items-center justify-center h-8 w-8 bg-black dark:bg-white">
-                  <span className="text-[11px] font-black text-emerald-400 dark:text-zinc-900 leading-none tracking-tight">
-                    {tenantBranding.tenantName ? tenantBranding.tenantName.slice(0, 2).toUpperCase() : "EP"}
-                  </span>
-                </div>
-                <span className="text-sm font-black uppercase tracking-tight">
-                  {tenantBranding.tenantName || "Sistem ERP"}
+              <div className="flex items-center justify-center h-7 w-7 rounded-md bg-zinc-900 dark:bg-zinc-100">
+                <span className="text-[10px] font-bold text-white dark:text-zinc-900 leading-none">
+                  {tenantBranding.tenantName ? tenantBranding.tenantName.slice(0, 2).toUpperCase() : "EP"}
                 </span>
-              </a>
-            </SidebarMenuButton>
+              </div>
+              <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 group-data-[collapsible=icon]:hidden">
+                {tenantBranding.tenantName || "Sistem ERP"}
+              </span>
+            </Link>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

@@ -21,11 +21,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar"
 
@@ -37,58 +33,40 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
   const isCollapsed = state === "collapsed"
   const [openPopover, setOpenPopover] = useState<string | null>(null)
 
-  const GroupSeparator = ({ label }: { label: string }) => (
-    <li className="px-3 pt-4 pb-1.5">
-      <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.15em]">
-        {label}
-      </span>
-    </li>
-  )
+  // Match both exact and child routes (e.g. /inventory/products matches /inventory/products/123)
+  const isPathActive = (url: string) => pathname === url || pathname.startsWith(url + "/")
 
   const getBadgeColor = (severity?: "info" | "warning" | "critical") => {
     switch (severity) {
-      case "info": return "bg-amber-500"
-      case "warning": return "bg-orange-500"
-      case "critical": return "bg-red-500"
-      default: return "bg-red-500"
+      case "info": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+      case "warning": return "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
+      case "critical": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+      default: return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
     }
   }
 
-  const AccentIcon = ({ item }: { item: SidebarNavItem }) => (
-    <span className="relative inline-flex">
-      {item.icon && <item.icon className="!size-[18px]" />}
-      {item.accentColor && (
-        <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${item.accentColor}`} />
-      )}
-    </span>
-  )
-
   return (
     <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col gap-1">
-        <SidebarMenu>
+      <SidebarGroupContent>
+        <SidebarMenu className="gap-0.5 px-2">
           {items.map((item) => {
-            const isActive = pathname === item.url || pathname.startsWith(item.url + "/")
+            const isActive = isPathActive(item.url)
             const hasSubItems = item.items && item.items.length > 0
 
             if (hasSubItems) {
               if (item.locked) {
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      tooltip={`${item.title} (Locked)`}
-                      disabled
-                      className="opacity-40 cursor-not-allowed pointer-events-none"
-                    >
-                      <AccentIcon item={item} />
-                      <span className="text-[13.5px] font-medium tracking-tight">{item.title}</span>
-                      <IconLock className="ml-auto !size-3.5 text-zinc-400" />
-                    </SidebarMenuButton>
+                    <div className="flex items-center gap-2.5 px-3 py-2 opacity-35 cursor-not-allowed select-none">
+                      {item.icon && <item.icon className="size-[18px]" />}
+                      <span className="text-[13px]">{item.title}</span>
+                      <IconLock className="ml-auto size-3.5" />
+                    </div>
                   </SidebarMenuItem>
                 )
               }
 
-              // When sidebar is collapsed, use Popover to show sub-items as floating menu
+              // Collapsed: popover
               if (isCollapsed) {
                 return (
                   <Popover key={item.title} open={openPopover === item.title} onOpenChange={(open) => setOpenPopover(open ? item.title : null)}>
@@ -99,37 +77,37 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                           data-slot="sidebar-menu-button"
                           data-sidebar="menu-button"
                           data-size="default"
-                          className={`flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground h-9 text-sm group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 ${
+                          className={`flex w-full items-center gap-2.5 overflow-hidden p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-colors focus-visible:ring-2 h-9 group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 rounded-lg ${
                             isActive
-                              ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
-                              : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
+                              ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
+                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
                           }`}
                         >
-                          <AccentIcon item={item} />
-                          <span className="text-[13.5px] tracking-tight">{item.title}</span>
+                          {item.icon && <item.icon className="size-[18px]" />}
+                          <span className="text-[13px]">{item.title}</span>
                         </button>
                       </PopoverTrigger>
                       <PopoverContent
                         side="right"
                         align="start"
                         sideOffset={8}
-                        className="w-56 p-1 rounded-none border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                        className="w-52 p-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 shadow-lg"
                       >
-                        <p className="px-3 py-2 text-[11px] font-black uppercase tracking-wider text-zinc-400">{item.title}</p>
+                        <p className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">{item.title}</p>
                         {item.items!.map((subItem) => {
                           if (subItem.locked) {
                             return (
-                              <div key={subItem.title} className="flex items-center px-3 py-2 text-[12.5px] text-zinc-400 cursor-not-allowed">
+                              <div key={subItem.title} className="flex items-center px-2.5 py-1.5 text-[12.5px] text-zinc-300 dark:text-zinc-600 cursor-not-allowed">
                                 <span>{subItem.title}</span>
-                                <IconLock className="ml-auto !size-3" />
+                                <IconLock className="ml-auto size-3" />
                               </div>
                             )
                           }
-                          const isSubActive = pathname === subItem.url
+                          const isSubActive = isPathActive(subItem.url)
                           return (
                             <React.Fragment key={subItem.title}>
                               {subItem.group && (
-                                <p className="px-3 pt-2 pb-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                                <p className="px-2.5 pt-3 pb-1 text-[10px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">
                                   {subItem.group}
                                 </p>
                               )}
@@ -140,15 +118,15 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                                   router.push(subItem.url)
                                 }}
                                 onMouseEnter={() => prefetchRoute(subItem.url)}
-                                className={`flex w-full items-center px-3 py-2 text-[12.5px] font-medium transition-colors ${
+                                className={`flex w-full items-center px-2.5 py-1.5 text-[12.5px] rounded-md transition-all duration-150 ${
                                   isSubActive
-                                    ? "bg-zinc-900 text-white font-bold"
-                                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                                    ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium"
+                                    : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 active:bg-zinc-100 dark:active:bg-zinc-800"
                                 }`}
                               >
                                 <span>{subItem.title}</span>
                                 {subItem.badge && subItem.badge > 0 ? (
-                                  <span className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full ${getBadgeColor(subItem.badgeSeverity)} px-1 text-[9px] font-black text-white tabular-nums`}>
+                                  <span className={`ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-md ${getBadgeColor(subItem.badgeSeverity)}`}>
                                     {subItem.badge > 99 ? "99+" : subItem.badge}
                                   </span>
                                 ) : null}
@@ -162,6 +140,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                 )
               }
 
+              // Expanded: collapsible
               return (
                 <Collapsible
                   key={item.title}
@@ -171,91 +150,106 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        tooltip={item.title}
-                        className={
+                      <button
+                        type="button"
+                        data-slot="sidebar-menu-button"
+                        data-sidebar="menu-button"
+                        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition-all duration-150 outline-none ${
                           isActive
-                            ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
-                            : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
-                        }
+                            ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+                            : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200 active:bg-zinc-100 dark:active:bg-zinc-800 active:scale-[0.98]"
+                        }`}
                       >
-                        <AccentIcon item={item} />
-                        <span className="text-[13.5px] tracking-tight">{item.title}</span>
+                        {item.icon && <item.icon className="size-[18px] shrink-0" />}
+                        <span className={`text-[13px] ${isActive ? "font-medium" : ""}`}>{item.title}</span>
                         {item.badge && item.badge > 0 ? (
-                          <span className="ml-auto mr-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white tabular-nums">
+                          <span className={`ml-auto mr-1 text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-md ${getBadgeColor("critical")}`}>
                             {item.badge > 99 ? "99+" : item.badge}
                           </span>
                         ) : null}
-                        <IconChevronRight className={`!size-3.5 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 ${item.badge && item.badge > 0 ? "" : "ml-auto"}`} />
-                      </SidebarMenuButton>
+                        <IconChevronRight className={`size-3.5 shrink-0 text-zinc-400 dark:text-zinc-500 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 ${item.badge && item.badge > 0 ? "" : "ml-auto"}`} />
+                      </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenuSub className="border-l border-zinc-200 dark:border-zinc-700 ml-4 pl-3 mr-0 py-1.5">
-                        {item.items!.map((subItem) => {
-                          if (subItem.locked) {
+                      <div className="ml-[18px] pl-4 border-l border-zinc-200 dark:border-zinc-800 mt-1 mb-2">
+                        {(() => {
+                          let lastGroup: string | undefined
+                          return item.items!.map((subItem) => {
+                            const showGroupHeader = subItem.group && subItem.group !== lastGroup
+                            const isFirstGroup = !lastGroup && subItem.group
+                            if (subItem.group) lastGroup = subItem.group
+
+                            if (subItem.locked) {
+                              return (
+                                <React.Fragment key={subItem.title}>
+                                  {showGroupHeader && (
+                                    <div className={`flex items-center gap-2 px-2.5 ${isFirstGroup ? "pt-1.5 pb-1.5" : "pt-4 pb-1.5"}`}>
+                                      <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">{subItem.group}</span>
+                                      {!isFirstGroup && <div className="flex-1 h-px bg-zinc-150 dark:bg-zinc-800" />}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center px-2.5 py-[7px] text-[12.5px] text-zinc-300 dark:text-zinc-600 cursor-not-allowed select-none">
+                                    <span>{subItem.title}</span>
+                                    <IconLock className="ml-auto size-3" />
+                                  </div>
+                                </React.Fragment>
+                              )
+                            }
+                            const isSubActive = isPathActive(subItem.url)
                             return (
                               <React.Fragment key={subItem.title}>
-                                {subItem.group && <GroupSeparator label={subItem.group} />}
-                                <SidebarMenuSubItem>
-                                  <SidebarMenuSubButton
-                                    className="opacity-40 cursor-not-allowed pointer-events-none text-[12.5px] font-medium"
-                                  >
-                                    <span>{subItem.title}</span>
-                                    <IconLock className="ml-auto !size-3 text-zinc-400" />
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
+                                {showGroupHeader && (
+                                  <div className={`flex items-center gap-2 px-2.5 ${isFirstGroup ? "pt-1.5 pb-1.5" : "pt-4 pb-1.5"}`}>
+                                    <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 uppercase tracking-wider whitespace-nowrap">{subItem.group}</span>
+                                    {!isFirstGroup && <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />}
+                                  </div>
+                                )}
+                                <Link
+                                  href={subItem.url}
+                                  prefetch
+                                  onMouseEnter={() => prefetchRoute(subItem.url)}
+                                  className={`flex items-center px-2.5 py-[7px] rounded-md text-[12.5px] transition-all duration-150 ${
+                                    isSubActive
+                                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium shadow-sm"
+                                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800/60 active:bg-zinc-200 dark:active:bg-zinc-700 active:scale-[0.98]"
+                                  }`}
+                                >
+                                  <span>{subItem.title}</span>
+                                  {subItem.badge && subItem.badge > 0 ? (
+                                    <span className={`ml-auto text-[10px] font-semibold tabular-nums px-1.5 py-0.5 rounded-md ${getBadgeColor(subItem.badgeSeverity)}`}>
+                                      {subItem.badge > 99 ? "99+" : subItem.badge}
+                                    </span>
+                                  ) : null}
+                                </Link>
                               </React.Fragment>
                             )
-                          }
-                          const isSubActive = pathname === subItem.url
-                          return (
-                            <React.Fragment key={subItem.title}>
-                              {subItem.group && <GroupSeparator label={subItem.group} />}
-                              <SidebarMenuSubItem>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  className={
-                                    isSubActive
-                                      ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none text-[12.5px] border-l-2 border-black -ml-[2px] pl-[calc(0.5rem+2px)]"
-                                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-none text-[12.5px] font-medium"
-                                  }
-                                >
-                                  <Link href={subItem.url} prefetch onMouseEnter={() => prefetchRoute(subItem.url)} className="flex items-center w-full">
-                                    <span>{subItem.title}</span>
-                                    {subItem.badge && subItem.badge > 0 ? (
-                                      <span className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full ${getBadgeColor(subItem.badgeSeverity)} px-1 text-[9px] font-black text-white tabular-nums`}>
-                                        {subItem.badge > 99 ? "99+" : subItem.badge}
-                                      </span>
-                                    ) : null}
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            </React.Fragment>
-                          )
-                        })}
-                      </SidebarMenuSub>
+                          })
+                        })()}
+                      </div>
                     </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
               )
             }
 
+            // Simple item (no sub-items) like Dasbor
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  tooltip={item.title}
-                  asChild
-                  className={
+                <Link
+                  href={item.url}
+                  prefetch
+                  onMouseEnter={() => prefetchRoute(item.url)}
+                  data-slot="sidebar-menu-button"
+                  data-sidebar="menu-button"
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 transition-all duration-150 outline-none group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2! group-data-[collapsible=icon]:justify-center ${
                     isActive
-                      ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
-                      : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
-                  }
+                      ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-medium shadow-sm"
+                      : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/60 hover:text-zinc-900 dark:hover:text-zinc-200 active:bg-zinc-100 dark:active:bg-zinc-800 active:scale-[0.98]"
+                  }`}
                 >
-                  <Link href={item.url} prefetch onMouseEnter={() => prefetchRoute(item.url)}>
-                    <AccentIcon item={item} />
-                    <span className="text-[13.5px] tracking-tight">{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
+                  {item.icon && <item.icon className="size-[18px] shrink-0" />}
+                  <span className="text-[13px] group-data-[collapsible=icon]:hidden">{item.title}</span>
+                </Link>
               </SidebarMenuItem>
             )
           })}

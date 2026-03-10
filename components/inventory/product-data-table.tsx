@@ -43,11 +43,14 @@ import {
   Eye,
   Trash2,
   Package,
+  Download,
 } from "lucide-react"
 import { StockStatusBadge, CurrencyDisplay } from "@/components/inventory"
 import { formatNumber, getStockStatus } from "@/lib/inventory-utils"
 import { type ProductWithRelations } from "@/lib/types"
 import { ProductQuickView } from "@/components/inventory/product-quick-view"
+import { BulkActionsBar } from "@/components/ui/bulk-actions-bar"
+import { exportToExcel, exportTableToExcel } from "@/lib/table-export"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
@@ -62,6 +65,30 @@ export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'selling
 }
 
 export const columns: ColumnDef<ProductWithStock>[] = [
+  {
+    id: "select",
+    header: ({ table }) => (
+      <input
+        type="checkbox"
+        checked={table.getIsAllPageRowsSelected()}
+        onChange={(e) => table.toggleAllPageRowsSelected(e.target.checked)}
+        className="h-4 w-4 accent-zinc-900 cursor-pointer"
+        aria-label="Pilih semua"
+      />
+    ),
+    cell: ({ row }) => (
+      <input
+        type="checkbox"
+        checked={row.getIsSelected()}
+        onChange={(e) => row.toggleSelected(e.target.checked)}
+        onClick={(e) => e.stopPropagation()}
+        className="h-4 w-4 accent-zinc-900 cursor-pointer"
+        aria-label="Pilih baris"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     accessorKey: "code",
     header: "Kode",
@@ -390,6 +417,14 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
                   })}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant="outline"
+              className="border-2 border-black font-bold uppercase text-[10px] tracking-wide h-10 px-4 rounded-none"
+              onClick={() => exportTableToExcel(table, { filename: "produk" })}
+            >
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Export
+            </Button>
           </div>
         </div>
       </div>
@@ -501,6 +536,51 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
         open={quickViewOpen}
         onOpenChange={setQuickViewOpen}
         categories={categories}
+      />
+
+      <BulkActionsBar
+        selectedCount={Object.keys(rowSelection).length}
+        onClearSelection={() => setRowSelection({})}
+        actions={[
+          {
+            label: "Export Excel",
+            icon: <Download className="h-3.5 w-3.5 mr-1.5" />,
+            onClick: () => {
+              const selectedRows = table.getFilteredSelectedRowModel().rows
+              if (selectedRows.length === 0) return
+              const cols = [
+                { header: "Kode", accessorKey: "code" },
+                { header: "Nama Produk", accessorKey: "name" },
+                { header: "Satuan", accessorKey: "unit" },
+                { header: "Harga Beli", accessorKey: "costPrice" },
+                { header: "Harga Jual", accessorKey: "sellingPrice" },
+                { header: "Stok", accessorKey: "currentStock" },
+              ]
+              exportToExcel(cols, selectedRows.map(r => r.original as Record<string, unknown>), { filename: "produk-terpilih" })
+            },
+          },
+          {
+            label: "Hapus",
+            icon: <Trash2 className="h-3.5 w-3.5 mr-1.5" />,
+            variant: "destructive" as const,
+            onClick: async () => {
+              const selectedRows = table.getFilteredSelectedRowModel().rows
+              if (selectedRows.length === 0) return
+              const confirmed = window.confirm(`Hapus ${selectedRows.length} produk? Tindakan ini tidak dapat dibatalkan.`)
+              if (!confirmed) return
+              let successCount = 0
+              for (const row of selectedRows) {
+                try {
+                  const res = await fetch(`/api/products/${row.original.id}`, { method: "DELETE" })
+                  if (res.ok) successCount++
+                } catch { /* skip */ }
+              }
+              toast.success(`${successCount} produk berhasil dihapus`)
+              setRowSelection({})
+              queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            },
+          },
+        ]}
       />
     </div>
   )

@@ -7,9 +7,21 @@ export function useExecutiveDashboard() {
     return useQuery({
         queryKey: queryKeys.executiveDashboard.list(),
         queryFn: async () => {
-            const res = await fetch("/api/dashboard")
-            if (!res.ok) throw new Error("Failed to fetch dashboard data")
-            return await res.json()
+            const [dashRes, mfgRes] = await Promise.all([
+                fetch("/api/dashboard"),
+                fetch("/api/manufacturing/dashboard").catch(() => null),
+            ])
+
+            if (!dashRes.ok) throw new Error("Failed to fetch dashboard data")
+            const dashData = await dashRes.json()
+
+            let mfgData = null
+            if (mfgRes?.ok) {
+                const mfgJson = await mfgRes.json()
+                mfgData = mfgJson?.data ?? null
+            }
+
+            return { ...dashData, manufacturing: mfgData }
         },
     })
 }

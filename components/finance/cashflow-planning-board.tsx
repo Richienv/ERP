@@ -837,68 +837,92 @@ function RunningBalanceTable({
                 <table className="w-full text-xs">
                     <thead>
                         <tr className="border-b-2 border-black bg-zinc-50">
-                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
+                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500 w-[70px]">
                                 Tanggal
                             </th>
                             <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
                                 Deskripsi
                             </th>
-                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
+                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500 w-[90px]">
                                 Kategori
                             </th>
-                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-emerald-600">
+                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-400 w-[70px]">
+                                Rek.
+                            </th>
+                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-emerald-600 w-[120px]">
                                 Masuk
                             </th>
-                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-red-600">
+                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-red-600 w-[120px]">
                                 Keluar
                             </th>
-                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
+                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500 w-[140px]">
                                 Saldo
                             </th>
                         </tr>
                     </thead>
                     <tbody>
                         {/* Starting balance row */}
-                        <tr className="border-b border-zinc-200 bg-emerald-50">
-                            <td className="px-3 py-2 font-bold">01/{String(month).padStart(2, "0")}</td>
-                            <td className="px-3 py-2 font-bold" colSpan={2}>Saldo Awal</td>
-                            <td className="px-3 py-2 text-right">—</td>
-                            <td className="px-3 py-2 text-right">—</td>
-                            <td className="px-3 py-2 text-right font-black">{formatCurrency(startingBalance)}</td>
+                        <tr className="border-b-2 border-zinc-300 bg-zinc-100">
+                            <td className="px-3 py-2.5 font-black text-zinc-600 tabular-nums">01/{String(month).padStart(2, "0")}</td>
+                            <td className="px-3 py-2.5 font-black uppercase text-[10px] tracking-wider" colSpan={3}>Saldo Awal</td>
+                            <td className="px-3 py-2.5 text-right text-zinc-400">—</td>
+                            <td className="px-3 py-2.5 text-right text-zinc-400">—</td>
+                            <td className="px-3 py-2.5 text-right font-black text-sm">{formatCurrency(startingBalance)}</td>
                         </tr>
-                        {rows.map(row => {
+                        {rows.map((row, idx) => {
                             const dateStr = row.date.split("-")
                             const displayDate = `${dateStr[2]}/${dateStr[1]}`
                             const catLabel = CATEGORY_LABELS[row.category] ?? row.category
                             const catColor = CATEGORY_COLORS[row.category] ?? ""
+                            const bank = shortBankName(row.glAccountName, row.glAccountCode)
+
+                            // Week separator
+                            const prevDay = idx > 0 ? parseInt(rows[idx - 1].date.split("-")[2], 10) : 0
+                            const curDay = parseInt(dateStr[2], 10)
+                            const weekBorder = prevDay > 0 && Math.floor((curDay - 1) / 7) !== Math.floor((prevDay - 1) / 7)
+                                ? "border-t-2 border-t-zinc-300"
+                                : "border-b border-zinc-100"
 
                             return (
-                                <tr key={row.id} className="border-b border-zinc-100 hover:bg-zinc-50">
-                                    <td className="px-3 py-2 font-bold text-zinc-600">{displayDate}</td>
+                                <tr key={row.id} className={`${weekBorder} hover:bg-zinc-50 transition-colors`}>
+                                    <td className="px-3 py-2 font-bold text-zinc-500 tabular-nums">{displayDate}</td>
                                     <td className="px-3 py-2 max-w-[300px] truncate" title={row.description}>
                                         {row.description}
                                     </td>
                                     <td className="px-3 py-1.5">
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 border ${catColor}`}>
+                                        <span className={`text-[8px] font-bold px-1.5 py-0.5 border ${catColor}`}>
                                             {catLabel}
                                         </span>
                                     </td>
-                                    <td className="px-3 py-2 text-right font-bold text-emerald-600">
-                                        {row.direction === "IN" ? formatCurrency(row.amount) : "—"}
+                                    <td className="px-3 py-2 text-[9px] font-bold text-zinc-400">
+                                        {bank || "—"}
                                     </td>
-                                    <td className="px-3 py-2 text-right font-bold text-red-600">
-                                        {row.direction === "OUT" ? formatCurrency(row.amount) : "—"}
+                                    <td className="px-3 py-2 text-right font-bold text-emerald-600 tabular-nums">
+                                        {row.direction === "IN" ? formatCurrency(row.amount) : ""}
                                     </td>
-                                    <td className={`px-3 py-2 text-right font-black ${row.balance < 0 ? "text-red-600" : ""}`}>
-                                        {formatCurrency(row.balance)}
+                                    <td className="px-3 py-2 text-right font-bold text-red-600 tabular-nums">
+                                        {row.direction === "OUT" ? formatCurrency(row.amount) : ""}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums">
+                                        <span className={`font-black ${row.balance < 0 ? "text-red-600" : ""}`}>
+                                            {formatCurrency(row.balance)}
+                                        </span>
+                                        {/* Balance health indicator */}
+                                        <div className="h-[2px] mt-1 w-full bg-zinc-100 overflow-hidden">
+                                            <div
+                                                className={`h-full ${row.balance < 0 ? "bg-red-400" : row.balance < startingBalance * 0.3 ? "bg-amber-400" : "bg-emerald-400"}`}
+                                                style={{ width: `${Math.min(100, Math.max(5, (row.balance / Math.max(startingBalance, 1)) * 100))}%` }}
+                                            />
+                                        </div>
                                     </td>
                                 </tr>
                             )
                         })}
                         {rows.length === 0 && (
                             <tr>
-                                <td colSpan={6} className="px-3 py-8 text-center text-zinc-400 font-bold">
-                                    Belum ada item untuk bulan ini
+                                <td colSpan={7} className="px-3 py-12 text-center">
+                                    <div className="text-zinc-300 font-black uppercase text-sm tracking-wider">Belum ada item</div>
+                                    <div className="text-zinc-400 text-[10px] mt-1">Tambah item manual atau tunggu data auto-pull</div>
                                 </td>
                             </tr>
                         )}

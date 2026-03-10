@@ -170,6 +170,14 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (noDurationSteps.length > 0) {
             issues.push(`${noDurationSteps.length} proses belum ada durasi: ${noDurationSteps.map(s => s.station?.name || `Step ${s.sequence}`).join(', ')}`)
         }
+        // Validate work center group assignment for in-house steps
+        const unassignedWC = steps.filter(s => {
+            const isStepSubkon = s.useSubkon ?? s.station?.operationType === 'SUBCONTRACTOR'
+            return !isStepSubkon && !s.station?.group && !s.station?.groupId
+        })
+        if (unassignedWC.length > 0) {
+            issues.push(`${unassignedWC.length} proses belum di-assign ke work center: ${unassignedWC.map(s => s.station?.name || `Step ${s.sequence}`).join(', ')}`)
+        }
         // Validate allocations for both subkon and in-house steps
         for (const s of steps) {
             const isStepSubkon = s.useSubkon ?? s.station?.operationType === 'SUBCONTRACTOR'
@@ -331,15 +339,18 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
     // Apply a process template (adds multiple connected stations)
     const [applyingTemplate, setApplyingTemplate] = useState(false)
+    const [pendingTemplate, setPendingTemplate] = useState<readonly string[] | null>(null)
     const handleApplyTemplate = useCallback(async (types: readonly string[]) => {
-        // If steps exist, confirm before replacing
+        // If steps exist, show confirmation dialog instead of window.confirm
         if (steps.length > 0) {
-            const confirmed = window.confirm(
-                `Sudah ada ${steps.length} proses di canvas.\n\nApakah Anda yakin ingin menghapus semua proses saat ini dan menggunakan template ini?`
-            )
-            if (!confirmed) return
+            setPendingTemplate(types)
+            return
         }
+        applyTemplateNow(types)
+    }, [steps.length])
 
+    const applyTemplateNow = useCallback(async (types: readonly string[]) => {
+        setPendingTemplate(null)
         setApplyingTemplate(true)
         try {
             const newStations: any[] = []
@@ -400,7 +411,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         } finally {
             setApplyingTemplate(false)
         }
-    }, [allStations, queryClient, steps.length])
+    }, [allStations, queryClient])
 
     const handleRemoveStep = useCallback((stepId: string) => {
         dirtySetSteps((prev) => {
@@ -1288,6 +1299,33 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     onMarkCompleted={(stepId) => { handleMarkCompleted(stepId); setContextMenu(null) }}
                 />
             )}
+
+            {/* Template overwrite confirmation dialog */}
+            <Dialog open={!!pendingTemplate} onOpenChange={(open) => { if (!open) setPendingTemplate(null) }}>
+                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="font-black text-base">Ganti Proses dengan Template?</DialogTitle>
+                        <DialogDescription className="text-zinc-500 text-sm">
+                            Sudah ada {steps.length} proses di canvas. Menggunakan template akan <span className="font-bold text-red-600">menghapus semua proses saat ini</span> dan menggantinya dengan template baru.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex gap-2 sm:gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setPendingTemplate(null)}
+                            className="border-2 border-black rounded-none font-bold"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={() => pendingTemplate && applyTemplateNow(pendingTemplate)}
+                            className="bg-black text-white rounded-none font-bold hover:bg-zinc-800"
+                        >
+                            Ya, Ganti Semua
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* SPK Progress / Result Dialog */}
             <Dialog open={!!spkProgress || !!spkResult} onOpenChange={(open) => { if (!open && !spkProgress) setSpkResult(null) }}>

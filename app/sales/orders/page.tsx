@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react"
 import Link from "next/link"
-import { Filter, Package, Plus, RefreshCcw, Search, ShoppingBag, Truck } from "lucide-react"
+import { Download, Filter, Package, Plus, RefreshCcw, Search, ShoppingBag, Truck } from "lucide-react"
 import { IconTrendingUp } from "@tabler/icons-react"
 import { useQueryClient } from "@tanstack/react-query"
 
 import { useSalesOrders } from "@/hooks/use-sales-orders"
 import { queryKeys } from "@/lib/query-keys"
+import { exportToExcel } from "@/lib/table-export"
 import { OrderExecutionCard } from "@/components/sales/order-execution-card"
 import { Button } from "@/components/ui/button"
 import {
@@ -75,6 +76,32 @@ export default function SalesOrdersPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const cols = [
+                  { header: "No. Pesanan", accessorKey: "number" },
+                  { header: "Customer", accessorKey: "customerName" },
+                  { header: "Status", accessorKey: "status" },
+                  { header: "Total", accessorKey: "totalAmount" },
+                  { header: "No. Quotation", accessorKey: "quotationNumber" },
+                  { header: "Tanggal", accessorKey: "orderDate" },
+                ]
+                const rows = filteredOrders.map((o: any) => ({
+                  number: o.number,
+                  customerName: o.customer?.name || "-",
+                  status: o.status,
+                  totalAmount: Number(o.totalAmount || 0),
+                  quotationNumber: o.quotationNumber || "-",
+                  orderDate: o.orderDate ? new Date(o.orderDate).toLocaleDateString("id-ID") : "-",
+                }))
+                exportToExcel(cols, rows as Record<string, unknown>[], { filename: "pesanan-penjualan" })
+              }}
+              className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all rounded-none bg-white"
+            >
+              <Download className="mr-2 h-3.5 w-3.5" />
+              Export
+            </Button>
             <Button
               variant="outline"
               onClick={() => refetch()}

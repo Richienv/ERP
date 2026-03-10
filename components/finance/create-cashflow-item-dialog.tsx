@@ -102,6 +102,10 @@ export function CreateCashflowItemDialog({
             toast.error("Jumlah harus lebih dari 0")
             return
         }
+        if (!glAccountId) {
+            toast.error("Rekening wajib dipilih")
+            return
+        }
 
         setSubmitting(true)
         try {
@@ -249,7 +253,9 @@ export function CreateCashflowItemDialog({
 
                     {/* Rekening — GL Account select */}
                     <div>
-                        <label className={NB.label}>Rekening</label>
+                        <label className={NB.label}>
+                            Rekening <span className={NB.labelRequired}>*</span>
+                        </label>
                         <select
                             value={glAccountId}
                             onChange={(e) => setGlAccountId(e.target.value)}

@@ -203,17 +203,36 @@ export function DetailPanel({
                                     </div>
                                 )}
 
-                                {/* Tipe Proses — subkon only */}
+                                {/* Tipe Proses — subkon only (dropdown) */}
                                 {isSubkon && (
                                     <div>
                                         <FieldLabel icon={<Cog className="h-3 w-3" />}>Tipe Proses</FieldLabel>
-                                        <Input
-                                            type="text"
-                                            value={step.subkonProcessType || ""}
-                                            onChange={(e) => onUpdateStep("subkonProcessType", e.target.value || null)}
-                                            className="h-8 text-xs border-zinc-200 rounded-none placeholder:text-zinc-300"
-                                            placeholder="Jahit, Obras..."
-                                        />
+                                        <Select
+                                            value={step.subkonProcessType || "__none__"}
+                                            onValueChange={(val) => onUpdateStep("subkonProcessType", val === "__none__" ? null : val)}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs border-zinc-200 rounded-none">
+                                                <SelectValue placeholder="Pilih tipe..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="__none__" className="text-xs text-zinc-400">— Pilih tipe —</SelectItem>
+                                                {[
+                                                    { value: "CUTTING", label: "Potong" },
+                                                    { value: "SEWING", label: "Jahit" },
+                                                    { value: "WASHING", label: "Cuci" },
+                                                    { value: "PRINTING", label: "Sablon" },
+                                                    { value: "EMBROIDERY", label: "Bordir" },
+                                                    { value: "QC", label: "Quality Control" },
+                                                    { value: "PACKING", label: "Packing" },
+                                                    { value: "FINISHING", label: "Finishing" },
+                                                    { value: "OTHER", label: "Lainnya" },
+                                                ].map((opt) => (
+                                                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                                        {opt.label}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 )}
 
@@ -281,40 +300,34 @@ export function DetailPanel({
                                     </div>
                                 )}
 
-                                {/* Gaji Bulanan — in-house only */}
+                                {/* Gaji Bulanan — in-house only, read-only from employee master */}
                                 {!isSubkon && (
                                     <div>
                                         <FieldLabel icon={<Banknote className="h-3 w-3" />}>Gaji Bulanan (Rp)</FieldLabel>
-                                        <Input
-                                            type="number"
-                                            min={0}
-                                            value={step.laborMonthlySalary || ""}
-                                            onChange={(e) => {
-                                                const val = parseFloat(e.target.value)
-                                                onUpdateStep("laborMonthlySalary", isNaN(val) ? null : Math.max(0, val))
-                                            }}
-                                            className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
-                                            placeholder="4000000"
-                                        />
                                         {(() => {
                                             const matchedEmp = employeeOptions.find((e: any) => e.name === step.operatorName)
                                             const salaryFromEmp = matchedEmp?.salary || 0
                                             const currentSalary = Number(step.laborMonthlySalary || 0)
-                                            if (matchedEmp && salaryFromEmp > 0 && currentSalary === salaryFromEmp) {
-                                                return (
-                                                    <p className="text-[9px] text-emerald-600 font-bold mt-1">
-                                                        Dari data karyawan ({matchedEmp.name})
-                                                    </p>
-                                                )
-                                            }
-                                            if (matchedEmp && salaryFromEmp > 0 && currentSalary !== salaryFromEmp) {
-                                                return (
-                                                    <p className="text-[9px] text-amber-600 font-bold mt-1">
-                                                        Override manual (karyawan: {formatCurrency(salaryFromEmp)})
-                                                    </p>
-                                                )
-                                            }
-                                            return null
+                                            return (
+                                                <>
+                                                    <div className="h-8 flex items-center px-3 text-xs font-mono bg-zinc-50 border border-zinc-200 text-zinc-600">
+                                                        {currentSalary > 0
+                                                            ? formatCurrency(currentSalary)
+                                                            : <span className="text-zinc-300">Pilih operator dulu</span>
+                                                        }
+                                                    </div>
+                                                    {matchedEmp && salaryFromEmp > 0 && (
+                                                        <p className="text-[9px] text-emerald-600 font-bold mt-1">
+                                                            Dari data karyawan ({matchedEmp.name})
+                                                        </p>
+                                                    )}
+                                                    {!matchedEmp && currentSalary > 0 && (
+                                                        <p className="text-[9px] text-zinc-400 font-bold mt-1">
+                                                            Atur gaji di modul HCM → Master Karyawan
+                                                        </p>
+                                                    )}
+                                                </>
+                                            )
                                         })()}
                                         {durationMin > 0 && Number(step.laborMonthlySalary || 0) > 0 && (
                                             <div className="mt-2 space-y-1 bg-emerald-50 border border-emerald-200 p-2">

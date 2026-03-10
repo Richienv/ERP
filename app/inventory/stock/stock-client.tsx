@@ -9,7 +9,8 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Layers,
-    ClipboardEdit
+    ClipboardEdit,
+    Download,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,6 +28,7 @@ import { formatIDR } from "@/lib/utils"
 import { AdjustmentForm } from "@/components/inventory/adjustment-form"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { NB } from "@/lib/dialog-styles"
+import { exportToExcel } from "@/lib/table-export"
 
 interface StockClientProps {
     products: any[]
@@ -119,6 +121,27 @@ export function StockClient({ products, warehouses }: StockClientProps) {
                         </div>
                     </div>
                     <div className="flex gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                const cols = [
+                                    { header: "SKU", accessorKey: "sku" },
+                                    { header: "Nama Produk", accessorKey: "name" },
+                                    { header: "Kategori", accessorKey: "category" },
+                                    { header: "Lokasi", accessorKey: "location" },
+                                    { header: "Qty", accessorKey: "qty" },
+                                    { header: "Satuan", accessorKey: "unit" },
+                                    { header: "Min", accessorKey: "min" },
+                                    { header: "Max", accessorKey: "max" },
+                                    { header: "Status", accessorKey: "status" },
+                                    { header: "Harga Beli", accessorKey: "cost" },
+                                ]
+                                exportToExcel(cols, filteredItems as Record<string, unknown>[], { filename: "level-stok" })
+                            }}
+                            className="border-2 border-black font-bold uppercase text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"
+                        >
+                            <Download className="mr-2 h-3.5 w-3.5" /> Export
+                        </Button>
                         <Button
                             onClick={() => setAdjustmentOpen(true)}
                             className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold text-[10px] tracking-wide hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"

@@ -24,6 +24,8 @@ const FALLBACK_OPERATIONS = {
     inventoryValue: { value: 0, itemCount: 0, warehouses: [] },
     hr: { totalSalary: 0, lateEmployees: [] },
     tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
+    inventorySummary: { productCount: 0, warehouseCount: 0 },
+    salesFulfillment: { totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 },
 }
 const FALLBACK_SALES = { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] }
 const FALLBACK_CHARTS = { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }

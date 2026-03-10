@@ -103,6 +103,9 @@ export default function FinancialReportsPage() {
     const [dateDialogOpen, setDateDialogOpen] = useState(false)
     const [exportDialogOpen, setExportDialogOpen] = useState(false)
     const [exportFormat, setExportFormat] = useState<"CSV" | "XLS">("CSV")
+    const [bsExpanded, setBsExpanded] = useState<{ currentAssets: boolean; currentLiabilities: boolean; capital: boolean }>({
+        currentAssets: false, currentLiabilities: false, capital: false,
+    })
 
     const currentYear = new Date().getFullYear()
     const [startDate, setStartDate] = useState(new Date(currentYear, 0, 1))
@@ -768,7 +771,12 @@ export default function FinancialReportsPage() {
                             )}
 
                             {/* Balance Sheet */}
-                            {reportType === "bs" && balanceSheetData && (
+                            {reportType === "bs" && balanceSheetData && (() => {
+                                const currentAssets = balanceSheetData.assets?.currentAssets || []
+                                const currentLiabilities = balanceSheetData.liabilities?.currentLiabilities || []
+                                const capitalItems = balanceSheetData.equity?.capital || []
+                                const PREVIEW_COUNT = 3
+                                return (
                                 <div className="space-y-4">
                                 {/* Balance Check Banner */}
                                 {(() => {
@@ -800,16 +808,36 @@ export default function FinancialReportsPage() {
                                         </div>
                                         <Table>
                                             <TableBody>
-                                                <TableRow className="bg-emerald-50/50 dark:bg-emerald-900/10 font-bold">
-                                                    <TableCell>Aset Lancar</TableCell>
+                                                <TableRow
+                                                    className="bg-emerald-50/50 dark:bg-emerald-900/10 font-bold cursor-pointer hover:bg-emerald-100/50 transition-colors"
+                                                    onClick={() => setBsExpanded(prev => ({ ...prev, currentAssets: !prev.currentAssets }))}
+                                                >
+                                                    <TableCell className="flex items-center gap-1">
+                                                        {bsExpanded.currentAssets ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                                        Aset Lancar
+                                                        {currentAssets.length > PREVIEW_COUNT && (
+                                                            <span className="text-[9px] font-medium text-zinc-400 ml-1">({currentAssets.length} akun)</span>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalCurrentAssets)}</TableCell>
                                                 </TableRow>
-                                                {balanceSheetData.assets?.currentAssets?.slice(0, 5).map((asset: any, idx: number) => (
+                                                {(bsExpanded.currentAssets ? currentAssets : currentAssets.slice(0, PREVIEW_COUNT)).map((asset: any, idx: number) => (
                                                     <TableRow key={idx}>
-                                                        <TableCell className="pl-8 text-sm text-zinc-500">{asset.name}</TableCell>
+                                                        <TableCell className="pl-10 text-sm text-zinc-500">{asset.name}</TableCell>
                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(asset.amount)}</TableCell>
                                                     </TableRow>
                                                 ))}
+                                                {!bsExpanded.currentAssets && currentAssets.length > PREVIEW_COUNT && (
+                                                    <TableRow>
+                                                        <TableCell
+                                                            colSpan={2}
+                                                            className="text-center text-[10px] font-bold text-emerald-600 cursor-pointer hover:bg-emerald-50 py-1.5"
+                                                            onClick={() => setBsExpanded(prev => ({ ...prev, currentAssets: true }))}
+                                                        >
+                                                            + {currentAssets.length - PREVIEW_COUNT} akun lainnya
+                                                        </TableCell>
+                                                    </TableRow>
+                                                )}
                                                 <TableRow className="bg-zinc-50 dark:bg-zinc-800 font-bold">
                                                     <TableCell>Aset Tetap</TableCell>
                                                     <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalFixedAssets)}</TableCell>
@@ -830,16 +858,36 @@ export default function FinancialReportsPage() {
                                             </div>
                                             <Table>
                                                 <TableBody>
-                                                    <TableRow className="bg-red-50/50 dark:bg-red-900/10 font-bold">
-                                                        <TableCell>Kewajiban Lancar</TableCell>
+                                                    <TableRow
+                                                        className="bg-red-50/50 dark:bg-red-900/10 font-bold cursor-pointer hover:bg-red-100/50 transition-colors"
+                                                        onClick={() => setBsExpanded(prev => ({ ...prev, currentLiabilities: !prev.currentLiabilities }))}
+                                                    >
+                                                        <TableCell className="flex items-center gap-1">
+                                                            {bsExpanded.currentLiabilities ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                                            Kewajiban Lancar
+                                                            {currentLiabilities.length > PREVIEW_COUNT && (
+                                                                <span className="text-[9px] font-medium text-zinc-400 ml-1">({currentLiabilities.length} akun)</span>
+                                                            )}
+                                                        </TableCell>
                                                         <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.liabilities?.totalCurrentLiabilities)}</TableCell>
                                                     </TableRow>
-                                                    {balanceSheetData.liabilities?.currentLiabilities?.slice(0, 3).map((liab: any, idx: number) => (
+                                                    {(bsExpanded.currentLiabilities ? currentLiabilities : currentLiabilities.slice(0, PREVIEW_COUNT)).map((liab: any, idx: number) => (
                                                         <TableRow key={idx}>
-                                                            <TableCell className="pl-8 text-sm text-zinc-500">{liab.name}</TableCell>
+                                                            <TableCell className="pl-10 text-sm text-zinc-500">{liab.name}</TableCell>
                                                             <TableCell className="text-right font-mono text-sm">{formatIDR(liab.amount)}</TableCell>
                                                         </TableRow>
                                                     ))}
+                                                    {!bsExpanded.currentLiabilities && currentLiabilities.length > PREVIEW_COUNT && (
+                                                        <TableRow>
+                                                            <TableCell
+                                                                colSpan={2}
+                                                                className="text-center text-[10px] font-bold text-red-600 cursor-pointer hover:bg-red-50 py-1.5"
+                                                                onClick={() => setBsExpanded(prev => ({ ...prev, currentLiabilities: true }))}
+                                                            >
+                                                                + {currentLiabilities.length - PREVIEW_COUNT} akun lainnya
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
                                                     <TableRow className="font-black bg-red-100 dark:bg-red-900/30 border-t-2 border-black">
                                                         <TableCell>TOTAL KEWAJIBAN</TableCell>
                                                         <TableCell className="text-right font-mono text-red-700">{formatIDR(balanceSheetData.liabilities?.totalLiabilities)}</TableCell>
@@ -855,12 +903,23 @@ export default function FinancialReportsPage() {
                                             </div>
                                             <Table>
                                                 <TableBody>
-                                                    {balanceSheetData.equity?.capital?.slice(0, 3).map((cap: any, idx: number) => (
+                                                    {(bsExpanded.capital ? capitalItems : capitalItems.slice(0, PREVIEW_COUNT)).map((cap: any, idx: number) => (
                                                         <TableRow key={idx}>
                                                             <TableCell className="text-sm text-zinc-500">{cap.name}</TableCell>
                                                             <TableCell className="text-right font-mono text-sm">{formatIDR(cap.amount)}</TableCell>
                                                         </TableRow>
                                                     ))}
+                                                    {!bsExpanded.capital && capitalItems.length > PREVIEW_COUNT && (
+                                                        <TableRow>
+                                                            <TableCell
+                                                                colSpan={2}
+                                                                className="text-center text-[10px] font-bold text-blue-600 cursor-pointer hover:bg-blue-50 py-1.5"
+                                                                onClick={() => setBsExpanded(prev => ({ ...prev, capital: true }))}
+                                                            >
+                                                                + {capitalItems.length - PREVIEW_COUNT} akun lainnya
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )}
                                                     <TableRow>
                                                         <TableCell className="text-sm text-zinc-500">Laba Ditahan (Tahun Sebelumnya)</TableCell>
                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(balanceSheetData.equity?.retainedEarnings)}</TableCell>
@@ -901,7 +960,8 @@ export default function FinancialReportsPage() {
                                     </div>
                                 </div>
                                 </div>
-                            )}
+                                )
+                            })()}
 
                             {/* Cash Flow */}
                             {reportType === "cf" && cashFlowData && (

@@ -9,7 +9,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
@@ -28,25 +27,26 @@ export function NavSecondary({
   return (
     <SidebarGroup {...props}>
       <SidebarGroupContent>
-        <SidebarMenu>
+        <div className="mx-4 mb-2 border-t border-zinc-100 dark:border-zinc-800/60" />
+        <SidebarMenu className="gap-px px-2">
           {items.map((item) => {
             const isActive = pathname === item.url
             return (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive}
-                  className={
+                <Link
+                  href={item.url}
+                  prefetch
+                  data-slot="sidebar-menu-button"
+                  data-sidebar="menu-button"
+                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-1.5 transition-colors outline-none group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! group-data-[collapsible=icon]:justify-center ${
                     isActive
-                      ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
-                      : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100 rounded-none font-medium"
-                  }
+                      ? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 font-medium"
+                      : "text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                  }`}
                 >
-                  <Link href={item.url} prefetch>
-                    <item.icon className="!size-4" />
-                    <span className="text-[13.5px] tracking-tight">{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
+                  <item.icon className="size-3.5 shrink-0" />
+                  <span className="text-[12px] group-data-[collapsible=icon]:hidden">{item.title}</span>
+                </Link>
               </SidebarMenuItem>
             )
           })}
