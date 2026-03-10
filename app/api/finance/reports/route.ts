@@ -101,10 +101,18 @@ async function fetchBalanceSheet(asOfDate: Date) {
         orderBy: { code: 'asc' },
     })
 
-    // Retained earnings: ALL-TIME net income from revenue & expense accounts
-    // This ensures Assets = Liabilities + Equity + All-time(Revenue - Expenses)
-    const allTimeStart = new Date(2000, 0, 1)
-    const pnlForRetained = await fetchPnL(allTimeStart, asOfDate)
+    // Retained earnings: split into prior-year retained + current-year net income
+    // Prior years: 2000-01-01 to Dec 31 of previous year
+    // Current year: Jan 1 of asOfDate's year to asOfDate
+    const currentYearStart = new Date(asOfDate.getFullYear(), 0, 1)
+    const priorYearEnd = new Date(asOfDate.getFullYear() - 1, 11, 31, 23, 59, 59)
+
+    const [priorPnL, currentPnL] = await Promise.all([
+        asOfDate.getFullYear() > 2000
+            ? fetchPnL(new Date(2000, 0, 1), priorYearEnd)
+            : Promise.resolve({ netIncome: 0 } as Awaited<ReturnType<typeof fetchPnL>>),
+        fetchPnL(currentYearStart, asOfDate),
+    ])
 
     const assets = {
         currentAssets: [] as { name: string; amount: number }[],
@@ -124,7 +132,8 @@ async function fetchBalanceSheet(asOfDate: Date) {
     }
     const equity = {
         capital: [] as { name: string; amount: number }[],
-        retainedEarnings: pnlForRetained.netIncome,
+        retainedEarnings: priorPnL.netIncome,
+        currentYearNetIncome: currentPnL.netIncome,
         totalEquity: 0,
     }
 
@@ -166,13 +175,26 @@ async function fetchBalanceSheet(asOfDate: Date) {
 
     assets.totalAssets = assets.totalCurrentAssets + assets.totalFixedAssets + assets.totalOtherAssets
     liabilities.totalLiabilities = liabilities.totalCurrentLiabilities + liabilities.totalLongTermLiabilities
-    equity.totalEquity = equity.capital.reduce((sum, c) => sum + c.amount, 0) + equity.retainedEarnings
+    const capitalTotal = equity.capital.reduce((sum, c) => sum + c.amount, 0)
+    equity.totalEquity = capitalTotal + priorPnL.netIncome + currentPnL.netIncome
+
+    const totalAssets = assets.totalAssets
+    const totalLiabilities = liabilities.totalLiabilities
+    const totalEquity = equity.totalEquity
+
+    const balanceCheck = {
+        totalAssets,
+        totalLiabilitiesAndEquity: totalLiabilities + totalEquity,
+        difference: totalAssets - (totalLiabilities + totalEquity),
+        isBalanced: Math.abs(totalAssets - (totalLiabilities + totalEquity)) < 1,
+    }
 
     return {
         assets,
         liabilities,
         equity,
-        totalLiabilitiesAndEquity: liabilities.totalLiabilities + equity.totalEquity,
+        totalLiabilitiesAndEquity: totalLiabilities + totalEquity,
+        balanceCheck,
         asOfDate: asOfDate.toISOString(),
     }
 }
