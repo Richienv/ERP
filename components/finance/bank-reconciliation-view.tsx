@@ -92,7 +92,7 @@ interface BankReconciliationViewProps {
         reconciliationId: string,
         rows: { date: string; description: string; amount: number; reference?: string }[]
     ) => Promise<{ success: boolean; importedCount?: number; error?: string }>
-    onAutoMatch: (reconciliationId: string) => Promise<{ success: boolean; matchedCount?: number; error?: string }>
+    onAutoMatch: (reconciliationId: string) => Promise<{ success: boolean; matched?: number; suggestions?: unknown[]; error?: string }>
     onMatchItem: (itemId: string, transactionId: string) => Promise<{ success: boolean; error?: string }>
     onUnmatchItem: (itemId: string) => Promise<{ success: boolean; error?: string }>
     onClose: (reconciliationId: string) => Promise<{ success: boolean; error?: string }>
@@ -238,7 +238,8 @@ export function BankReconciliationView({
         try {
             const result = await onAutoMatch(selectedRec.id)
             if (result.success) {
-                toast.success(`${result.matchedCount} item berhasil dicocokkan otomatis`)
+                const sugCount = Array.isArray(result.suggestions) ? result.suggestions.length : 0
+                toast.success(`${result.matched ?? 0} item cocok otomatis${sugCount > 0 ? `, ${sugCount} saran tersedia` : ''}`)
                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
                 const reloadTake = Math.max(100, selectedRec.items.length)
                 const detail = await onLoadDetail(selectedRec.id, 0, reloadTake)

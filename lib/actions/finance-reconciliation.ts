@@ -3,6 +3,7 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
+import { findMatches, type BankLine, type SystemTransaction, type MatchResult } from "@/lib/finance-reconciliation-helpers"
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -372,13 +373,19 @@ export async function unmatchReconciliationItem(
 }
 
 /**
- * Auto-match bank items with journal entries by amount and date range.
+ * Auto-match bank items with journal entries using 3-pass confidence scoring.
+ * HIGH confidence matches are auto-applied; MEDIUM/LOW are returned as suggestions.
  */
 export async function autoMatchReconciliation(
     reconciliationId: string
-): Promise<{ success: boolean; matchedCount?: number; error?: string }> {
+): Promise<{
+    success: boolean
+    matched?: number
+    suggestions?: { bankItemId: string; matches: MatchResult[] }[]
+    error?: string
+}> {
     try {
-        const matchedCount = await withPrismaAuth(async (prisma: PrismaClient) => {
+        const result = await withPrismaAuth(async (prisma: PrismaClient) => {
             const rec = await prisma.bankReconciliation.findUniqueOrThrow({
                 where: { id: reconciliationId },
                 include: {
@@ -388,57 +395,126 @@ export async function autoMatchReconciliation(
                 },
             })
 
+            // Expand date range by ±5 days for broader matching
+            const dateFrom = new Date(rec.periodStart)
+            dateFrom.setDate(dateFrom.getDate() - 5)
+            const dateTo = new Date(rec.periodEnd)
+            dateTo.setDate(dateTo.getDate() + 5)
+
+            // Fetch POSTED journal lines for the GL account within expanded date range
+            const journalLines = await prisma.journalLine.findMany({
+                where: {
+                    accountId: rec.glAccountId,
+                    entry: {
+                        date: { gte: dateFrom, lte: dateTo },
+                        status: 'POSTED',
+                    },
+                },
+                include: {
+                    entry: {
+                        select: { id: true, date: true, description: true, reference: true },
+                    },
+                },
+            })
+
+            // Get already-matched transaction IDs to exclude
+            const alreadyMatchedItems = await prisma.bankReconciliationItem.findMany({
+                where: {
+                    reconciliationId,
+                    matchStatus: 'MATCHED',
+                    systemTransactionId: { not: null },
+                },
+                select: { systemTransactionId: true },
+            })
+            const matchedTxnIds = new Set(
+                alreadyMatchedItems.map((i) => i.systemTransactionId).filter(Boolean) as string[]
+            )
+
+            // Convert journal lines to SystemTransaction[], de-duplicate by entry ID
+            const seenEntryIds = new Set<string>()
+            const systemTransactions: SystemTransaction[] = []
+
+            for (const line of journalLines) {
+                const entryId = line.entry.id
+                if (seenEntryIds.has(entryId) || matchedTxnIds.has(entryId)) continue
+                seenEntryIds.add(entryId)
+
+                const debit = Number(line.debit)
+                const credit = Number(line.credit)
+                const amount = debit > 0 ? debit : -credit
+
+                systemTransactions.push({
+                    id: entryId,
+                    date: line.entry.date,
+                    amount,
+                    description: line.entry.description || '',
+                    reference: line.entry.reference,
+                })
+            }
+
             const supabase = await (await import('@/lib/supabase/server')).createClient()
             const { data: { user } } = await supabase.auth.getUser()
 
-            let count = 0
+            let matched = 0
+            const suggestions: { bankItemId: string; matches: MatchResult[] }[] = []
+
+            // Pool of available transactions — remove after each HIGH match
+            const availablePool = [...systemTransactions]
 
             for (const item of rec.items) {
                 if (!item.bankDate) continue
 
-                // Look for journal entries with matching amount within ±2 days
-                const dateFrom = new Date(item.bankDate)
-                dateFrom.setDate(dateFrom.getDate() - 2)
-                const dateTo = new Date(item.bankDate)
-                dateTo.setDate(dateTo.getDate() + 2)
+                const bankLine: BankLine = {
+                    id: item.id,
+                    bankDate: item.bankDate,
+                    bankAmount: Number(item.bankAmount),
+                    bankDescription: item.bankDescription || '',
+                    bankRef: item.bankRef || '',
+                }
 
-                const amount = Number(item.bankAmount)
-                const absAmount = Math.abs(amount)
+                const matches = findMatches(bankLine, availablePool)
 
-                // Find journal lines with matching debit or credit
-                const matchingLines = await prisma.journalLine.findMany({
-                    where: {
-                        entry: {
-                            date: { gte: dateFrom, lte: dateTo },
-                            status: 'POSTED',
-                        },
-                        OR: [
-                            { debit: absAmount },
-                            { credit: absAmount },
-                        ],
-                    },
-                    select: { entryId: true },
-                    take: 1,
-                })
+                if (matches.length === 0) continue
 
-                if (matchingLines.length > 0) {
+                // Auto-apply only HIGH confidence single matches
+                const highMatches = matches.filter((m) => m.confidence === 'HIGH')
+
+                if (highMatches.length === 1) {
+                    const best = highMatches[0]
+
                     await prisma.bankReconciliationItem.update({
                         where: { id: item.id },
                         data: {
-                            systemTransactionId: matchingLines[0].entryId,
+                            systemTransactionId: best.transactionId,
                             matchStatus: 'MATCHED',
                             matchedBy: user?.id || null,
                             matchedAt: new Date(),
                         },
                     })
-                    count++
+
+                    // Remove matched transaction from pool
+                    const poolIdx = availablePool.findIndex((t) => t.id === best.transactionId)
+                    if (poolIdx !== -1) availablePool.splice(poolIdx, 1)
+
+                    matched++
+                } else {
+                    // Store MEDIUM/LOW (or multiple HIGH) as suggestions
+                    suggestions.push({ bankItemId: item.id, matches })
                 }
             }
 
-            return count
+            // Update reconciliation status if matches were made
+            if (matched > 0) {
+                await prisma.bankReconciliation.update({
+                    where: { id: reconciliationId },
+                    data: { status: 'REC_IN_PROGRESS' },
+                })
+            }
+
+            return { matched, suggestions }
         })
 
-        return { success: true, matchedCount }
+        return { success: true, matched: result.matched, suggestions: result.suggestions }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal auto-match'
         console.error("[autoMatchReconciliation] Error:", error)
