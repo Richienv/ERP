@@ -472,6 +472,46 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.openingBalances.list(),
         queryFn: () => fetch("/api/finance/opening-balances").then((r) => r.json()).then((p) => p.success ? p.data : {}),
     },
+    "/inventory/stock": {
+        queryKey: queryKeys.products.list(),
+        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
+            products: p.products ?? [],
+            categories: p.categories ?? [],
+            warehouses: p.warehouses ?? [],
+            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, totalValue: 0 },
+        })),
+    },
+    "/inventory/alerts": {
+        queryKey: queryKeys.products.list(),
+        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
+            products: p.products ?? [],
+            categories: p.categories ?? [],
+            warehouses: p.warehouses ?? [],
+            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, totalValue: 0 },
+        })),
+    },
+    "/inventory/reports": {
+        queryKey: queryKeys.products.list(),
+        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
+            products: p.products ?? [],
+            categories: p.categories ?? [],
+            warehouses: p.warehouses ?? [],
+            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, totalValue: 0 },
+        })),
+    },
+    "/inventory/warehouses": {
+        queryKey: queryKeys.warehouses.list(),
+        queryFn: async () => await getWarehouses(),
+    },
+    "/finance/planning": {
+        queryKey: queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()),
+        queryFn: async () => {
+            const m = new Date().getMonth() + 1
+            const y = new Date().getFullYear()
+            const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}`)
+            return res.json()
+        },
+    },
     "/inventory/audit": {
         queryKey: queryKeys.inventoryAudit.list(),
         queryFn: async () => {

@@ -6,17 +6,12 @@ import {
   IconDatabase,
   IconFileDescription,
   IconHelp,
-  IconInnerShadowTop,
   IconSearch,
   IconSettings,
   IconShoppingCart,
   IconUsers,
   IconTool,
   IconCurrencyDollar,
-  IconChartLine,
-  IconTruck,
-  IconWorld,
-  IconScissors,
 } from "@tabler/icons-react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/lib/auth-context"
@@ -70,16 +65,36 @@ const data = {
           url: "/inventory/categories",
         },
         {
+          title: "Level Stok",
+          url: "/inventory/stock",
+        },
+        {
           title: "Pergerakan Stok",
           url: "/inventory/movements",
+        },
+        {
+          title: "Transfer Stok",
+          url: "/inventory/transfers",
         },
         {
           title: "Gudang & Lokasi",
           url: "/inventory/warehouses",
         },
         {
+          title: "Stok Opname",
+          url: "/inventory/audit",
+        },
+        {
+          title: "Peringatan Stok",
+          url: "/inventory/alerts",
+        },
+        {
           title: "Fabric Rolls",
           url: "/inventory/fabric-rolls",
+        },
+        {
+          title: "Laporan Inventori",
+          url: "/inventory/reports",
         },
         {
           title: "Saldo Awal Stok",
@@ -136,18 +151,6 @@ const data = {
         {
           title: "Salesperson & Komisi",
           url: "/sales/salespersons",
-        },
-      ],
-    },
-    {
-      title: "E-commerce",
-      url: "/dashboard/ecommerce",
-      icon: IconWorld,
-      locked: true,
-      items: [
-        {
-          title: "Dashboard Toko",
-          url: "/dashboard/ecommerce",
         },
       ],
     },
@@ -235,6 +238,10 @@ const data = {
           title: "Periode Fiskal",
           url: "/finance/fiscal-periods",
         },
+        {
+          title: "Perencanaan Kas",
+          url: "/finance/planning",
+        },
       ],
     },
     {
@@ -274,50 +281,17 @@ const data = {
           title: "Kontrol Kualitas (QC)",
           url: "/manufacturing/quality",
         },
-      ],
-    },
-    {
-      title: "Subkontrak",
-      url: "/subcontract",
-      icon: IconTruck,
-      items: [
-        {
-          title: "Dashboard CMT",
-          url: "/subcontract",
-        },
-        {
-          title: "Registri Mitra",
-          url: "/subcontract/registry",
-        },
         {
           title: "Order Subkontrak",
           url: "/subcontract/orders",
         },
-      ],
-    },
-    {
-      title: "Pemotongan",
-      url: "/cutting",
-      icon: IconScissors,
-      items: [
         {
-          title: "Dashboard Potong",
-          url: "/cutting",
+          title: "Registri Mitra CMT",
+          url: "/subcontract/registry",
         },
         {
           title: "Daftar Cut Plan",
           url: "/cutting/plans",
-        },
-      ],
-    },
-    {
-      title: "Kalkulasi Biaya",
-      url: "/costing",
-      icon: IconCurrencyDollar,
-      items: [
-        {
-          title: "Dashboard Biaya",
-          url: "/costing",
         },
         {
           title: "Daftar Cost Sheet",
@@ -368,62 +342,6 @@ const data = {
         {
           title: "Dokumentasi",
           url: "/documents/docs",
-        },
-      ],
-    },
-  ],
-  navClouds: [
-    {
-      title: "Analitik",
-      icon: IconChartLine,
-      isActive: true,
-      url: "/analytics",
-      items: [
-        {
-          title: "Analitik Penjualan",
-          url: "/analytics/sales",
-        },
-        {
-          title: "Laporan Inventori",
-          url: "/analytics/inventory",
-        },
-        {
-          title: "Laporan Keuangan",
-          url: "/analytics/finance",
-        },
-      ],
-    },
-    {
-      title: "Operasional",
-      icon: IconTruck,
-      url: "/operations",
-      items: [
-        {
-          title: "Manajemen Gudang",
-          url: "/operations/warehouse",
-        },
-        {
-          title: "Pengiriman & Delivery",
-          url: "/operations/shipping",
-        },
-        {
-          title: "Kontrol Kualitas",
-          url: "/operations/quality",
-        },
-      ],
-    },
-    {
-      title: "Kepatuhan",
-      icon: IconFileDescription,
-      url: "/compliance",
-      items: [
-        {
-          title: "Jejak Audit",
-          url: "/compliance/audit",
-        },
-        {
-          title: "Laporan Regulasi",
-          url: "/compliance/regulatory",
         },
       ],
     },
@@ -543,9 +461,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (title.includes("Financial Command Center")) relevantKeys = ["FINANCE", "ACCOUNTING", "INVOICE", "PAYMENT", "BILL"];
     if (title.includes("Pengadaan")) relevantKeys = ["PURCHASING", "PURCHASE", "VENDOR", "PO", "PR", "RECEIVING"];
     if (title.includes("Manufaktur")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "MO", "SPK", "BOM", "ROUTING", "WORK_ORDER"];
-    if (title.includes("Subkontrak")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "SUBCONTRACT", "CMT"];
-    if (title.includes("Pemotongan")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "CUTTING", "CUT_PLAN"];
-    if (title.includes("Kalkulasi Biaya")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "COSTING", "FINANCE"];
     if (title.includes("Factory Command Center")) relevantKeys = ["MANUFACTURING", "PRODUCTION", "INVENTORY", "PURCHASING", "WORK_ORDER"];
     if (title.includes("SDM")) relevantKeys = ["HR", "SDM", "PAYROLL", "EMPLOYEE", "ATTENDANCE"];
     if (title.includes("Dokumen")) relevantKeys = ["DOCUMENTS", "SYSTEM", "REPORT"];
