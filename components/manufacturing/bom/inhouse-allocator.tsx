@@ -8,7 +8,8 @@ import { CreateStationDialog } from "./create-station-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Search, Plus, X, Building2 } from "lucide-react"
+import { Search, Plus, X, Building2, Shuffle } from "lucide-react"
+import { toast } from "sonner"
 
 interface Allocation {
     stationId: string
@@ -45,7 +46,10 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
     const remaining = totalQty - allocated
 
     const addAllocation = (stationId: string) => {
-        if (allocations.some(a => a.stationId === stationId)) return
+        if (allocations.some(a => a.stationId === stationId)) {
+            toast.info("Work center ini sudah dialokasikan")
+            return
+        }
         onChange([...allocations, { stationId, quantity: 0, pricePerPcs: 0, notes: "" }])
     }
 
@@ -57,10 +61,6 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
         onChange(allocations.filter(a => a.stationId !== stationId))
     }
 
-    const getStationInfo = (stationId: string) =>
-        inhouseStations.find((s: any) => s.id === stationId)
-
-    // Auto-distribute evenly
     const autoDistribute = () => {
         if (allocations.length === 0) return
         const share = Math.floor(totalQty / allocations.length)
@@ -73,24 +73,46 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
 
     return (
         <div className="space-y-3">
+            {/* Header */}
             <div className="flex items-center justify-between">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                     <Building2 className="h-3 w-3 inline mr-1" />
-                    Distribusi ke Work Center
+                    Distribusi Work Center
                 </h4>
-                <Button
-                    variant="outline" size="sm"
-                    onClick={() => setCreateOpen(true)}
-                    className="h-6 text-[9px] font-bold rounded-none border-dashed px-2"
-                >
-                    <Plus className="h-3 w-3 mr-1" /> Buat Baru
-                </Button>
+                <div className="flex items-center gap-2">
+                    {allocations.length >= 2 && (
+                        <button
+                            onClick={autoDistribute}
+                            className="text-[9px] font-bold text-blue-600 hover:underline flex items-center gap-0.5"
+                        >
+                            <Shuffle className="h-3 w-3" /> Bagi Rata
+                        </button>
+                    )}
+                    <Button
+                        variant="outline" size="sm"
+                        onClick={() => setCreateOpen(true)}
+                        className="h-6 text-[9px] font-bold rounded-none border-dashed px-2"
+                    >
+                        <Plus className="h-3 w-3 mr-1" /> Buat Baru
+                    </Button>
+                </div>
             </div>
 
-            <p className="text-[9px] text-zinc-400 -mt-1">
-                Bagi kuantitas produksi ke beberapa work center in-house
-            </p>
+            {/* Summary bar */}
+            {allocations.length > 0 && (
+                <div className={`flex items-center justify-between px-2 py-1.5 border-2 text-[10px] font-black ${
+                    remaining === 0 ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                        : remaining < 0 ? "border-red-400 bg-red-50 text-red-700"
+                        : "border-amber-400 bg-amber-50 text-amber-700"
+                }`}>
+                    <span>{allocated}/{totalQty} pcs teralokasi</span>
+                    {remaining > 0 && <span>{remaining} sisa</span>}
+                    {remaining < 0 && <span>{Math.abs(remaining)} kelebihan!</span>}
+                    {remaining === 0 && <span>Lengkap</span>}
+                </div>
+            )}
 
+            {/* Search */}
             <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-400" />
                 <Input
@@ -101,26 +123,46 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                 />
             </div>
 
-            <ScrollArea className="max-h-[120px]">
+            {/* Unified station list */}
+            <ScrollArea className="max-h-[200px]">
                 <div className="space-y-1.5">
                     {filtered.map((station: any) => {
-                        const isAllocated = allocations.some(a => a.stationId === station.id)
+                        const alloc = allocations.find(a => a.stationId === station.id)
+                        const isAllocated = !!alloc
+
                         return (
-                            <div key={station.id}
+                            <div
+                                key={station.id}
                                 className={`p-2 border text-[10px] transition-all ${
                                     isAllocated
                                         ? "border-emerald-400 bg-emerald-50"
                                         : "border-zinc-200 hover:border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                                 }`}
                             >
-                                <div className="flex items-center justify-between gap-2">
-                                    <div className="min-w-0">
-                                        <p className="font-black truncate">{station.name}</p>
-                                        {station.code && (
-                                            <span className="text-zinc-400 font-mono">{station.code}</span>
-                                        )}
+                                <div className="flex items-center gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-black truncate">
+                                            {station.name}
+                                            {station.code && (
+                                                <span className="text-zinc-400 font-mono ml-1">({station.code})</span>
+                                            )}
+                                        </p>
                                     </div>
-                                    {!isAllocated && (
+
+                                    {isAllocated ? (
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <Input
+                                                type="number"
+                                                value={alloc.quantity}
+                                                onChange={(e) => updateQty(station.id, parseInt(e.target.value) || 0)}
+                                                className="h-6 w-20 text-[10px] font-mono border-emerald-300 rounded-none"
+                                            />
+                                            <span className="text-[9px] text-zinc-400">pcs</span>
+                                            <button onClick={() => removeAllocation(station.id)}>
+                                                <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
+                                            </button>
+                                        </div>
+                                    ) : (
                                         <Button
                                             variant="outline" size="sm"
                                             onClick={() => addAllocation(station.id)}
@@ -140,53 +182,6 @@ export function InHouseAllocator({ stationType, allocations, totalQty, onChange 
                     )}
                 </div>
             </ScrollArea>
-
-            {allocations.length > 0 && (
-                <div className="border-t border-zinc-200 pt-2 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                        <h4 className="text-[9px] font-black uppercase text-zinc-400">Alokasi Aktif</h4>
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={autoDistribute}
-                                className="text-[9px] font-bold text-blue-600 hover:underline"
-                            >
-                                Bagi Rata
-                            </button>
-                            <span className={`text-[10px] font-bold ${
-                                remaining === 0 ? "text-emerald-600" : remaining < 0 ? "text-red-600" : "text-amber-600"
-                            }`}>
-                                {allocated}/{totalQty} pcs
-                                {remaining > 0 && <span className="text-zinc-400 ml-1">({remaining} sisa)</span>}
-                            </span>
-                        </div>
-                    </div>
-                    {allocations.map((alloc) => {
-                        const info = getStationInfo(alloc.stationId)
-                        return (
-                            <div key={alloc.stationId} className="space-y-1 pb-1.5 border-b border-zinc-100 last:border-0">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-bold truncate flex-1">
-                                        {info?.name || "—"}
-                                        {info?.code ? ` (${info.code})` : ""}
-                                    </span>
-                                    <button onClick={() => removeAllocation(alloc.stationId)}>
-                                        <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
-                                    </button>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <Input
-                                        type="number"
-                                        value={alloc.quantity}
-                                        onChange={(e) => updateQty(alloc.stationId, parseInt(e.target.value) || 0)}
-                                        className="h-6 w-20 text-[10px] font-mono border-zinc-200 rounded-none"
-                                    />
-                                    <span className="text-[9px] text-zinc-400 shrink-0">pcs</span>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
-            )}
 
             <CreateStationDialog
                 open={createOpen}
