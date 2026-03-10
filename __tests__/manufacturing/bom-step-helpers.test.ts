@@ -55,6 +55,15 @@ describe("calcStepTarget", () => {
         expect(calcStepTarget(steps[1], steps, 600)).toBe(200)
     })
 
+    it("mixed: some siblings with allocs, some without → unallocated get leftover share", () => {
+        const steps = [
+            { id: "s1", station: { stationType: "SEWING" }, allocations: [{ stationId: "wc-a", quantity: 400 }] },
+            { id: "s2", station: { stationType: "SEWING" }, allocations: [] },
+        ]
+        expect(calcStepTarget(steps[0], steps, 600)).toBe(400)
+        expect(calcStepTarget(steps[1], steps, 600)).toBe(200) // leftover
+    })
+
     it("different stationTypes are not treated as siblings", () => {
         const steps = [
             { id: "s1", station: { stationType: "CUTTING" }, allocations: [] },
