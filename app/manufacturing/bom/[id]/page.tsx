@@ -918,14 +918,13 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             {/* TOOLBAR — Row 2: Quick-Add + Templates + View Toggle */}
             <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-1 flex items-center gap-1.5 shrink-0 overflow-x-auto">
                 <span className="text-[9px] font-black uppercase text-zinc-400 mr-1 shrink-0">Tambah Proses:</span>
-                {dynamicProcessTypes.map((cfg) => {
+                {/* Default process types */}
+                {dynamicProcessTypes.filter(cfg => !cfg.isCustom).map((cfg) => {
                     const Icon = cfg.icon
                     const isCreating = creatingStationType === cfg.type
                     const isPicking = stationPickerType === cfg.type
-                    const isCustom = cfg.isCustom
                     const candidates = (allStations || []).filter((s: any) => {
                         if (s.operationType === "SUBCONTRACTOR" || s.isActive === false) return false
-                        if (isCustom) return s.stationType === "OTHER" && s.description === cfg.description
                         return s.stationType === cfg.type
                     })
                     const hasMultiple = candidates.length > 1
@@ -979,6 +978,73 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         </Popover>
                     )
                 })}
+
+                {/* Custom process types — only show section if any exist */}
+                {dynamicProcessTypes.some(cfg => cfg.isCustom) && (
+                    <>
+                        <div className="border-l border-zinc-300 mx-1 h-5 shrink-0" />
+                        <span className="text-[9px] font-black uppercase text-zinc-400 shrink-0">Kustom:</span>
+                        {dynamicProcessTypes.filter(cfg => cfg.isCustom).map((cfg) => {
+                            const Icon = cfg.icon
+                            const isCreating = creatingStationType === cfg.type
+                            const isPicking = stationPickerType === cfg.type
+                            const candidates = (allStations || []).filter((s: any) => {
+                                if (s.operationType === "SUBCONTRACTOR" || s.isActive === false) return false
+                                return s.stationType === "OTHER" && s.description === cfg.description
+                            })
+                            const hasMultiple = candidates.length > 1
+
+                            return (
+                                <Popover key={cfg.type} open={isPicking} onOpenChange={(open) => { if (!open) setStationPickerType(null) }}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={isCreating}
+                                            onClick={() => handleQuickAddByType(cfg.type, cfg.description)}
+                                            className={`h-7 text-[10px] font-bold border rounded-none shrink-0 px-2.5 gap-1 ${cfg.color}`}
+                                        >
+                                            {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
+                                            {cfg.label}
+                                            {hasMultiple && <span className="text-[8px] opacity-60">({candidates.length})</span>}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    {isPicking && (
+                                        <PopoverContent className="w-60 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
+                                            <div className="px-3 py-2 bg-zinc-50 border-b-2 border-black">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                                    Pilih Work Center {cfg.label}
+                                                </p>
+                                            </div>
+                                            <div className="py-1 max-h-48 overflow-y-auto">
+                                                {candidates.map((station: any) => (
+                                                    <button
+                                                        key={station.id}
+                                                        onClick={() => {
+                                                            handleAddStationToCanvas(station.id)
+                                                            setStationPickerType(null)
+                                                        }}
+                                                        className="w-full text-left px-3 py-2 hover:bg-zinc-100 transition-colors flex items-center justify-between"
+                                                    >
+                                                        <div>
+                                                            <p className="text-xs font-bold">{station.name}</p>
+                                                            <p className="text-[9px] font-mono text-zinc-400">{station.code}</p>
+                                                        </div>
+                                                        {Number(station.costPerUnit) > 0 && (
+                                                            <span className="text-[9px] font-bold text-emerald-600">
+                                                                Rp {Number(station.costPerUnit).toLocaleString("id-ID")}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </PopoverContent>
+                                    )}
+                                </Popover>
+                            )
+                        })}
+                    </>
+                )}
 
                 <div className="border-l border-zinc-300 mx-1 h-5 shrink-0" />
 
