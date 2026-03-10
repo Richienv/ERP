@@ -146,7 +146,9 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             }
             progressPct = Math.round((totalActionProgress / actionTypes.length) * 100)
         }
-        return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration, estTimeLabel, progressPct }
+        // Per-piece total = sum of all step durations (each step's durationMinutes is already per-piece)
+        const durationPerPiece = steps.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0)
+        return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration, durationPerPiece, estTimeLabel, progressPct }
     }, [steps, items, totalQty])
 
     // --- SPK READINESS CHECK ---
@@ -1016,17 +1018,17 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     <span className="text-[9px] font-black uppercase text-zinc-400">HPP/Unit:</span>
                     <span className="text-xs font-bold text-black">{formatCurrency(costSummary.perUnit)}</span>
                 </div>
-                <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Estimasi:</span>
-                    <span className="text-xs font-bold text-blue-600">
-                        {costSummary.totalDuration > 0 ? `${costSummary.totalDuration} min/pcs` : "—"}
-                    </span>
-                </div>
-                {costSummary.estTimeLabel && (
+                {costSummary.durationPerPiece > 0 && (
                     <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
-                        <Clock className="h-3 w-3 text-indigo-400" />
-                        <span className="text-[9px] font-black uppercase text-zinc-400">Est. Waktu:</span>
-                        <span className="text-xs font-bold text-indigo-600">{costSummary.estTimeLabel}</span>
+                        <Clock className="h-3.5 w-3.5 text-blue-500" />
+                        <span className="text-[10px] font-bold text-blue-600">
+                            {costSummary.durationPerPiece} menit/pcs
+                        </span>
+                        {costSummary.estTimeLabel && (
+                            <span className="text-[9px] text-zinc-400 font-normal ml-1">
+                                (Total: {costSummary.estTimeLabel})
+                            </span>
+                        )}
                     </div>
                 )}
                 {costSummary.progressPct > 0 && (
