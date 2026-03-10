@@ -153,6 +153,7 @@ export const queryKeys = {
     glAccounts: {
         all: ["glAccounts"] as const,
         list: () => [...queryKeys.glAccounts.all, "list"] as const,
+        bankAccounts: () => [...queryKeys.glAccounts.all, "bankAccounts"] as const,
     },
     executiveDashboard: {
         all: ["executiveDashboard"] as const,
@@ -366,5 +367,9 @@ export const queryKeys = {
     fiscalPeriods: {
         all: ["fiscalPeriods"] as const,
         list: (year?: number) => [...["fiscalPeriods"], "list", year] as const,
+    },
+    cashflowPlan: {
+        all: ["cashflowPlan"] as const,
+        list: (month: number, year: number) => [...["cashflowPlan"], "list", month, year] as const,
     },
 } as const
