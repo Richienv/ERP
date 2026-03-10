@@ -330,10 +330,18 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
     // Apply a process template (adds multiple connected stations)
     const [applyingTemplate, setApplyingTemplate] = useState(false)
+    const [templateConfirm, setTemplateConfirm] = useState<{ types: readonly string[] } | null>(null)
     const handleApplyTemplate = useCallback(async (types: readonly string[]) => {
+        // If steps already exist, ask for confirmation first
+        if (steps.length > 0 && !templateConfirm) {
+            setTemplateConfirm({ types })
+            return
+        }
+        setTemplateConfirm(null)
         setApplyingTemplate(true)
         try {
             const newStations: any[] = []
+            const errors: string[] = []
             for (const stationType of types) {
                 let station = (allStations || []).find((s: any) =>
                     s.stationType === stationType && s.operationType !== "SUBCONTRACTOR" && s.isActive !== false
@@ -351,33 +359,46 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     if (result.success) {
                         station = result.data
                         queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
-                    } else continue
+                    } else {
+                        errors.push(`Gagal membuat station ${label}: ${result.error || "Unknown error"}`)
+                        continue
+                    }
                 }
                 newStations.push(station)
             }
-            dirtySetSteps((prev) => {
-                let baseSequence = prev.length + 1
-                let prevStepId = prev[prev.length - 1]?.id || null
-                const added = newStations.map((station, i) => {
+
+            if (errors.length > 0) {
+                toast.error(errors.join("; "), { duration: 5000 })
+            }
+
+            if (newStations.length === 0) {
+                toast.error("Tidak ada proses yang berhasil dibuat dari template")
+                return
+            }
+
+            // REPLACE existing steps (not append)
+            dirtySetSteps(() => {
+                let prevStepId: string | null = null
+                return newStations.map((station, i) => {
                     const tempId = `step-tmpl-${Date.now()}-${i}`
                     const step = {
                         id: tempId, stationId: station.id, station,
-                        sequence: baseSequence + i, durationMinutes: null, notes: null,
+                        sequence: i + 1, durationMinutes: null, notes: null,
                         parentStepIds: prevStepId ? [prevStepId] : [],
                         materials: [], allocations: [], attachments: [],
                     }
                     prevStepId = tempId
                     return step
                 })
-                return [...prev, ...added]
             })
-            toast.success(`Template diterapkan: ${newStations.length} proses ditambahkan`)
+            setSelectedStepId(null)
+            toast.success(`Template diterapkan: ${newStations.length} proses`)
         } catch {
             toast.error("Gagal menerapkan template")
         } finally {
             setApplyingTemplate(false)
         }
-    }, [allStations, queryClient])
+    }, [allStations, queryClient, steps.length, templateConfirm])
 
     const handleRemoveStep = useCallback((stepId: string) => {
         dirtySetSteps((prev) => {
@@ -1295,6 +1316,35 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                             </DialogFooter>
                         </>
                     ) : null}
+                </DialogContent>
+            </Dialog>
+
+            {/* Template overwrite confirmation */}
+            <Dialog open={!!templateConfirm} onOpenChange={(open) => { if (!open) setTemplateConfirm(null) }}>
+                <DialogContent className="sm:max-w-[420px] rounded-none border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                    <DialogHeader>
+                        <DialogTitle className="font-black uppercase">Ganti Proses?</DialogTitle>
+                        <DialogDescription className="text-sm">
+                            Form sudah berisi {steps.length} proses. Menerapkan template akan <strong>menghapus semua proses saat ini</strong> dan menggantinya dengan template baru.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => setTemplateConfirm(null)}
+                            className="rounded-none border-2 border-black font-bold"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                if (templateConfirm) handleApplyTemplate(templateConfirm.types)
+                            }}
+                            className="rounded-none border-2 border-black bg-orange-500 hover:bg-orange-600 text-white font-black"
+                        >
+                            Ya, Ganti Semua
+                        </Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>
