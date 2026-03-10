@@ -2059,6 +2059,7 @@ model GLAccount {
   pettyCashBankTxns     PettyCashTransaction[] @relation("PettyCashBank")
   pettyCashExpenseTxns  PettyCashTransaction[] @relation("PettyCashExpense")
   budgetLines           BudgetLine[]
+  cashflowPlanItems     CashflowPlanItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3252,4 +3253,66 @@ model StockReservation {
   @@index([workOrderId])
   @@index([productId, warehouseId])
   @@map("stock_reservations")
+}
+
+// ================================
+// Cashflow Planning (MTG-007)
+// ================================
+
+enum CashflowDirection {
+  IN
+  OUT
+}
+
+enum CashflowCategory {
+  AR_INVOICE
+  AP_BILL
+  PAYROLL
+  BPJS
+  PETTY_CASH
+  RECURRING_JOURNAL
+  BUDGET_ALLOCATION
+  MANUAL
+  RECURRING_EXPENSE
+  RECURRING_INCOME
+}
+
+model CashflowPlanItem {
+  id               String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  date             DateTime          @db.Date
+  description      String
+  amount           Decimal           @db.Decimal(18, 2)
+  direction        CashflowDirection
+  category         CashflowCategory  @default(MANUAL)
+  glAccountId      String?           @db.Uuid
+  glAccount        GLAccount?        @relation(fields: [glAccountId], references: [id])
+  isRecurring      Boolean           @default(false)
+  recurringPattern String?
+  recurringEndDate DateTime?         @db.Date
+  notes            String?
+  createdBy        String?           @db.Uuid
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([date])
+  @@index([direction])
+  @@index([category])
+  @@map("cashflow_plan_items")
+}
+
+model CashflowSnapshot {
+  id                      String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  month                   Int
+  year                    Int
+  startingBalance         Decimal  @db.Decimal(18, 2)
+  startingBalanceOverride Decimal? @db.Decimal(18, 2)
+  items                   Json
+  totalPlannedIn          Decimal  @db.Decimal(18, 2)
+  totalPlannedOut         Decimal  @db.Decimal(18, 2)
+  plannedEndBalance       Decimal  @db.Decimal(18, 2)
+  snapshotDate            DateTime @default(now())
+  createdAt               DateTime @default(now())
+
+  @@unique([month, year])
+  @@map("cashflow_snapshots")
 }
