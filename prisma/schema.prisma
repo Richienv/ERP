@@ -3330,3 +3330,20 @@ model CashflowSnapshot {
   @@unique([month, year])
   @@map("cashflow_snapshots")
 }
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  entityType  String   // "JournalEntry", "Invoice", "Payment", "Product", etc.
+  entityId    String
+  action      String   // "CREATE", "UPDATE", "DELETE", "STATUS_CHANGE"
+  userId      String
+  userName    String?  // Denormalized for display
+  changes     Json?    // { field: { from: oldVal, to: newVal } }
+  narrative   String?  // Auto-generated Indonesian description
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
