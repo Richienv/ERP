@@ -1095,13 +1095,23 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 </div>
             )}
 
-            {/* SPK READINESS WARNING */}
-            {!spkReadiness.ready && steps.length > 0 && (
-                <div className="border-b border-red-200 bg-red-50 px-4 py-1.5 flex items-center gap-2 shrink-0">
-                    <span className="bg-red-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center shrink-0">!</span>
-                    <span className="text-[10px] font-bold text-red-700">
-                        SPK belum siap: {spkReadiness.issues.join(' · ')}
-                    </span>
+            {/* SPK Readiness Banner */}
+            {steps.length > 0 && !spkReadiness.ready && (
+                <div className="border-b border-amber-300 bg-amber-50 px-4 py-2 flex items-start gap-2 shrink-0">
+                    <Zap className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                    <div>
+                        <p className="text-[10px] font-black uppercase text-amber-700">
+                            Belum bisa Generate SPK — {spkReadiness.issues.length} hal perlu dilengkapi:
+                        </p>
+                        <ul className="mt-1 space-y-0.5">
+                            {spkReadiness.issues.map((issue, i) => (
+                                <li key={i} className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
+                                    <span className="w-1 h-1 bg-amber-500 rounded-full shrink-0" />
+                                    {issue}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
                 </div>
             )}
 
