@@ -585,9 +585,11 @@ export interface BalanceSheetData {
     equity: {
         capital: { name: string; amount: number }[]
         retainedEarnings: number
+        currentYearNetIncome: number
         totalEquity: number
     }
     totalLiabilitiesAndEquity: number
+    balanceCheck?: { assets: number; liabilitiesAndEquity: number; difference: number }
     asOfDate: string
 }
 
@@ -639,15 +641,24 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
             const equity = {
                 capital: [] as { name: string; amount: number }[],
                 retainedEarnings: 0,
+                currentYearNetIncome: 0,
                 totalEquity: 0
             }
 
-            // Calculate retained earnings from P&L for the year up to asOfDate
+            // Calculate retained earnings: prior years + current year net income
             const currentYear = date.getFullYear()
-            const yearStart = new Date(currentYear, 0, 1)
+            const priorYearEnd = new Date(currentYear - 1, 11, 31, 23, 59, 59)
+            const currentYearStart = new Date(currentYear, 0, 1)
 
-            const pnlData = await getProfitLossStatement(yearStart, date)
-            equity.retainedEarnings = pnlData.netIncome
+            // Prior-year retained earnings (all P&L from inception to end of last year)
+            if (currentYear > 2000) {
+                const priorPnl = await getProfitLossStatement(new Date(2000, 0, 1), priorYearEnd)
+                equity.retainedEarnings = priorPnl.netIncome
+            }
+
+            // Current-year net income (YTD)
+            const currentPnl = await getProfitLossStatement(currentYearStart, date)
+            equity.currentYearNetIncome = currentPnl.netIncome
 
             for (const account of accounts) {
                 // Compute balance from journal entries (debit - credit for ASSET, credit - debit for LIABILITY/EQUITY)
@@ -699,13 +710,20 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
 
             assets.totalAssets = assets.totalCurrentAssets + assets.totalFixedAssets + assets.totalOtherAssets
             liabilities.totalLiabilities = liabilities.totalCurrentLiabilities + liabilities.totalLongTermLiabilities
-            equity.totalEquity = equity.capital.reduce((sum, c) => sum + c.amount, 0) + equity.retainedEarnings
+            equity.totalEquity = equity.capital.reduce((sum, c) => sum + c.amount, 0) + equity.retainedEarnings + equity.currentYearNetIncome
+
+            const totalLiabilitiesAndEquity = liabilities.totalLiabilities + equity.totalEquity
 
             return {
                 assets,
                 liabilities,
                 equity,
-                totalLiabilitiesAndEquity: liabilities.totalLiabilities + equity.totalEquity,
+                totalLiabilitiesAndEquity,
+                balanceCheck: {
+                    assets: assets.totalAssets,
+                    liabilitiesAndEquity: totalLiabilitiesAndEquity,
+                    difference: assets.totalAssets - totalLiabilitiesAndEquity
+                },
                 asOfDate: date.toISOString()
             }
     } catch (error) {
@@ -719,7 +737,7 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 currentLiabilities: [], longTermLiabilities: [],
                 totalCurrentLiabilities: 0, totalLongTermLiabilities: 0, totalLiabilities: 0
             },
-            equity: { capital: [], retainedEarnings: 0, totalEquity: 0 },
+            equity: { capital: [], retainedEarnings: 0, currentYearNetIncome: 0, totalEquity: 0 },
             totalLiabilitiesAndEquity: 0,
             asOfDate: ''
         }
