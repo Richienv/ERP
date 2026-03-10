@@ -2,6 +2,8 @@
 
 import { InvoiceStatus } from "@prisma/client"
 import { withPrismaAuth } from "@/lib/db"
+import { createClient } from "@/lib/supabase/server"
+import { logAudit } from "@/lib/audit-helpers"
 import { postJournalEntry } from "./finance-gl"
 
 // ==========================================
@@ -222,6 +224,22 @@ export async function approveVendorBill(billId: string) {
                 data: { status: 'ISSUED' } // Ready for payment
             })
 
+            // Audit trail
+            try {
+                const sbClient = await createClient()
+                const { data: { user: authUser } } = await sbClient.auth.getUser()
+                if (authUser) {
+                    await logAudit(prisma, {
+                        entityType: "Invoice",
+                        entityId: billId,
+                        action: "STATUS_CHANGE",
+                        userId: authUser.id,
+                        userName: authUser.email || undefined,
+                        changes: { status: { from: "DRAFT", to: "ISSUED" } },
+                    })
+                }
+            } catch { /* audit is best-effort */ }
+
             // 3. Post to General Ledger (Accrual Basis)
             // Debit: Expense / Asset
             // Credit: Accounts Payable (Liability)
@@ -412,6 +430,21 @@ export async function recordVendorPayment(data: {
                     notes: data.notes
                 }
             })
+
+            // Audit trail
+            try {
+                const sbClient = await createClient()
+                const { data: { user: authUser } } = await sbClient.auth.getUser()
+                if (authUser) {
+                    await logAudit(prisma, {
+                        entityType: "Payment",
+                        entityId: payment.id,
+                        action: "CREATE",
+                        userId: authUser.id,
+                        userName: authUser.email || undefined,
+                    })
+                }
+            } catch { /* audit is best-effort */ }
 
             // If linked to bill, update bill balance
             if (data.billId) {

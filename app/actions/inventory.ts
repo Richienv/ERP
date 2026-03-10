@@ -15,6 +15,7 @@ import {
 } from "@/lib/db-fallbacks"
 import { createProductSchema, createCategorySchema, type CreateProductInput, type CreateCategoryInput } from "@/lib/validations"
 import { generateBarcode } from "@/lib/inventory-utils"
+import { logAudit, computeChanges } from "@/lib/audit-helpers"
 import { z } from "zod"
 
 export async function getNextCategoryCode(): Promise<string> {
@@ -849,6 +850,17 @@ export async function deleteWarehouse(warehouseId: string) {
             data: { isActive: false },
         })
 
+        // Audit trail
+        try {
+            await logAudit(prisma, {
+                entityType: "Warehouse",
+                entityId: warehouseId,
+                action: "DELETE",
+                userId: user.id,
+                userName: user.email || undefined,
+            })
+        } catch { /* audit is best-effort */ }
+
         return { success: true }
     } catch (e: any) {
         console.error("Failed to delete warehouse", e)
@@ -1658,6 +1670,21 @@ export async function createProduct(input: CreateProductInput) {
             })
         })
 
+        // Audit trail
+        try {
+            const sbClient = await createClient()
+            const { data: { user: authUser } } = await sbClient.auth.getUser()
+            if (authUser) {
+                await logAudit(prisma, {
+                    entityType: "Product",
+                    entityId: product.id,
+                    action: "CREATE",
+                    userId: authUser.id,
+                    userName: authUser.email || undefined,
+                })
+            }
+        } catch { /* audit is best-effort */ }
+
         const safeProduct = JSON.parse(JSON.stringify(product))
         return { success: true, data: safeProduct }
     } catch (error) {
@@ -1779,10 +1806,36 @@ export async function updateProduct(productId: string, data: {
         if (data.reorderLevel !== undefined) updateData.reorderLevel = data.reorderLevel
         if (data.barcode !== undefined) updateData.barcode = data.barcode || null
 
+        // Fetch old values for audit diff
+        const oldProduct = await prisma.product.findUnique({
+            where: { id: productId },
+            select: { name: true, description: true, categoryId: true, unit: true, costPrice: true, sellingPrice: true, minStock: true, maxStock: true, reorderLevel: true, barcode: true },
+        })
+
         await prisma.product.update({
             where: { id: productId },
             data: updateData,
         })
+
+        // Audit trail
+        try {
+            const sbClient = await createClient()
+            const { data: { user: authUser } } = await sbClient.auth.getUser()
+            if (authUser && oldProduct) {
+                const changes = computeChanges(
+                    oldProduct as unknown as Record<string, unknown>,
+                    updateData as Record<string, unknown>
+                )
+                await logAudit(prisma, {
+                    entityType: "Product",
+                    entityId: productId,
+                    action: "UPDATE",
+                    userId: authUser.id,
+                    userName: authUser.email || undefined,
+                    changes: Object.keys(changes).length > 0 ? changes : undefined,
+                })
+            }
+        } catch { /* audit is best-effort */ }
 
         return { success: true }
     } catch (error) {

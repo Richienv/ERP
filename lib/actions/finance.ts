@@ -4,6 +4,7 @@ import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { createClient } from "@/lib/supabase/server"
+import { logAudit } from "@/lib/audit-helpers"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -387,6 +388,21 @@ export async function postJournalEntry(data: {
                     }
                 }
             })
+
+            // Audit trail
+            try {
+                const sbClient = await createClient()
+                const { data: { user: authUser } } = await sbClient.auth.getUser()
+                if (authUser) {
+                    await logAudit(prisma, {
+                        entityType: "JournalEntry",
+                        entityId: _entry.id,
+                        action: "CREATE",
+                        userId: authUser.id,
+                        userName: authUser.email || undefined,
+                    })
+                }
+            } catch { /* audit is best-effort */ }
 
             // Update Account Balances
             for (const line of data.lines) {
@@ -989,6 +1005,20 @@ export async function createCustomerInvoice(data: {
                 }
             })
 
+            // Audit trail
+            try {
+                const sbClient = await createClient()
+                const { data: { user: authUser } } = await sbClient.auth.getUser()
+                if (authUser) {
+                    await logAudit(prisma, {
+                        entityType: "Invoice",
+                        entityId: invoice.id,
+                        action: "CREATE",
+                        userId: authUser.id,
+                        userName: authUser.email || undefined,
+                    })
+                }
+            } catch { /* audit is best-effort */ }
 
             return {
                 success: true,
@@ -1517,6 +1547,21 @@ export async function recordInvoicePayment(data: {
                     supplierId: invoice.supplierId
                 }
             })
+
+            // Audit trail
+            try {
+                const sbClient = await createClient()
+                const { data: { user: authUser } } = await sbClient.auth.getUser()
+                if (authUser) {
+                    await logAudit(prisma, {
+                        entityType: "Payment",
+                        entityId: payment.id,
+                        action: "CREATE",
+                        userId: authUser.id,
+                        userName: authUser.email || undefined,
+                    })
+                }
+            } catch { /* audit is best-effort */ }
 
             // Update Invoice Status
             const newBalance = Number(invoice.balanceDue) - data.amount
@@ -3547,6 +3592,21 @@ export async function recordExpense(input: RecordExpenseInput) {
 
             await prisma.gLAccount.update({ where: { id: expenseAccountId }, data: { balance: { increment: amount } } })
             await prisma.gLAccount.update({ where: { id: cashAccountId }, data: { balance: { decrement: amount } } })
+
+            // Audit trail
+            try {
+                const sbClient = await createClient()
+                const { data: { user: authUser } } = await sbClient.auth.getUser()
+                if (authUser) {
+                    await logAudit(prisma, {
+                        entityType: "JournalEntry",
+                        entityId: entry.id,
+                        action: "CREATE",
+                        userId: authUser.id,
+                        userName: authUser.email || undefined,
+                    })
+                }
+            } catch { /* audit is best-effort */ }
 
             return { success: true, entryId: entry.id, number: num }
         })
