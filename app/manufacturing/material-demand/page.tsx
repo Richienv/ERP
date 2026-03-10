@@ -196,17 +196,18 @@ export default function MaterialDemandPage() {
 }
 
 function MaterialDemandTableRow({ row }: { row: MaterialDemandRow }) {
-    const cfg = statusConfig[row.status]
+    const cfg = statusConfig[row.status] ?? statusConfig["Kurang"]
+    const woNumbers = row.workOrderNumbers ?? []
     return (
         <TableRow className="border-b border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800/30">
-            <TableCell className="font-mono text-xs font-bold">{row.materialCode}</TableCell>
-            <TableCell className="text-sm font-medium">{row.materialName}</TableCell>
-            <TableCell className="text-xs text-zinc-500">{row.unit}</TableCell>
-            <TableCell className="text-right font-mono text-sm font-bold">{formatNumber(row.requiredQty)}</TableCell>
-            <TableCell className="text-right font-mono text-sm">{formatNumber(row.inStock)}</TableCell>
-            <TableCell className="text-right font-mono text-sm">{formatNumber(row.onOrder)}</TableCell>
+            <TableCell className="font-mono text-xs font-bold">{row.materialCode || "—"}</TableCell>
+            <TableCell className="text-sm font-medium">{row.materialName || "—"}</TableCell>
+            <TableCell className="text-xs text-zinc-500">{row.unit || "—"}</TableCell>
+            <TableCell className="text-right font-mono text-sm font-bold">{formatNumber(row.requiredQty ?? 0)}</TableCell>
+            <TableCell className="text-right font-mono text-sm">{formatNumber(row.inStock ?? 0)}</TableCell>
+            <TableCell className="text-right font-mono text-sm">{formatNumber(row.onOrder ?? 0)}</TableCell>
             <TableCell className="text-right font-mono text-sm font-bold">
-                {row.shortfall > 0 ? (
+                {(row.shortfall ?? 0) > 0 ? (
                     <span className="text-red-600 dark:text-red-400">{formatNumber(row.shortfall)}</span>
                 ) : (
                     <span className="text-zinc-400">0</span>
@@ -219,7 +220,7 @@ function MaterialDemandTableRow({ row }: { row: MaterialDemandRow }) {
             </TableCell>
             <TableCell>
                 <div className="flex flex-wrap gap-1">
-                    {row.workOrderNumbers.slice(0, 3).map((wo) => (
+                    {woNumbers.slice(0, 3).map((wo) => (
                         <span
                             key={wo}
                             className="inline-block px-1.5 py-0.5 text-[10px] font-mono bg-zinc-100 dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 rounded"
@@ -227,9 +228,9 @@ function MaterialDemandTableRow({ row }: { row: MaterialDemandRow }) {
                             {wo}
                         </span>
                     ))}
-                    {row.workOrderNumbers.length > 3 && (
+                    {woNumbers.length > 3 && (
                         <span className="text-[10px] text-zinc-400">
-                            +{row.workOrderNumbers.length - 3}
+                            +{woNumbers.length - 3}
                         </span>
                     )}
                 </div>

@@ -67,6 +67,9 @@ export async function GET() {
         for (const wo of workOrders) {
             if (!wo.productionBom?.items) continue
             for (const item of wo.productionBom.items) {
+                // Skip items where the material (product) was deleted
+                if (!item.material) continue
+
                 const qtyPerUnit = Number(item.quantityPerUnit)
                 const wastePct = Number(item.wastePct)
                 const required = Math.ceil(qtyPerUnit * wo.plannedQty * (1 + wastePct / 100))
@@ -80,9 +83,9 @@ export async function GET() {
                 } else {
                     materialMap.set(item.materialId, {
                         materialId: item.materialId,
-                        materialCode: item.material.code,
-                        materialName: item.material.name,
-                        unit: item.unit || item.material.unit,
+                        materialCode: item.material.code ?? "",
+                        materialName: item.material.name ?? "Material tidak ditemukan",
+                        unit: item.unit || item.material.unit || "",
                         requiredQty: required,
                         workOrderNumbers: [wo.number],
                     })
