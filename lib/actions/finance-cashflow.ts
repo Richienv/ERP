@@ -44,6 +44,12 @@ export interface CashflowPlanData {
         netFlow: number
         estimatedEndBalance: number
     }
+    lastMonthSummary: {
+        totalIn: number
+        totalOut: number
+        netFlow: number
+        itemCount: number
+    } | null
 }
 
 // ================================
@@ -151,7 +157,39 @@ async function getAPItems(monthStart: Date, monthEnd: Date): Promise<CashflowIte
 }
 
 // ================================
-// Auto-pull source #3: Payroll
+// Auto-pull source #3: PO Direct (approved/ordered but not yet billed)
+// ================================
+
+async function getPOItems(monthStart: Date, monthEnd: Date): Promise<CashflowItem[]> {
+    const pos = await prisma.purchaseOrder.findMany({
+        where: {
+            status: { in: ["APPROVED", "ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"] },
+            paymentStatus: { not: "PAID" },
+            invoices: { none: {} }, // No invoice yet = not yet billed
+            OR: [
+                { expectedDate: { gte: monthStart, lte: monthEnd } },
+                { expectedDate: null, orderDate: { gte: monthStart, lte: monthEnd } },
+            ],
+        },
+        include: { supplier: { select: { name: true } } },
+    })
+
+    return pos.map((po) => ({
+        id: `po-${po.id}`,
+        date: toDateStr(po.expectedDate || po.orderDate),
+        description: `PO ${po.number} — ${po.supplier?.name || "Pemasok"}`,
+        amount: toNum(po.totalAmount),
+        direction: "OUT" as const,
+        category: "PO_DIRECT",
+        glAccountCode: "2100",
+        sourceId: po.id,
+        isRecurring: false,
+        isManual: false,
+    }))
+}
+
+// ================================
+// Auto-pull source #4 (was #3): Payroll
 // ================================
 
 async function getPayrollItems(month: number, year: number): Promise<CashflowItem[]> {
@@ -306,7 +344,183 @@ async function getRecurringJournalItems(monthStart: Date, monthEnd: Date): Promi
 }
 
 // ================================
-// Auto-pull source #7: Budget Allocations
+// Auto-pull source #7: Capital Injections (Modal Masuk)
+// ================================
+
+async function getCapitalItems(monthStart: Date, monthEnd: Date): Promise<CashflowItem[]> {
+    const lines = await prisma.journalLine.findMany({
+        where: {
+            credit: { gt: 0 },
+            account: { type: "EQUITY" },
+            entry: {
+                status: "POSTED",
+                date: { gte: monthStart, lte: monthEnd },
+            },
+        },
+        include: {
+            account: { select: { code: true, name: true } },
+            entry: { select: { id: true, description: true, date: true } },
+        },
+    })
+
+    return lines.map((line) => ({
+        id: `capital-${line.id}`,
+        date: toDateStr(line.entry.date),
+        description: `Modal Masuk: ${line.entry.description} (${line.account.name})`,
+        amount: toNum(line.credit),
+        direction: "IN" as const,
+        category: "FUNDING_CAPITAL",
+        glAccountCode: line.account.code,
+        glAccountName: line.account.name,
+        sourceId: line.entry.id,
+        isRecurring: false,
+        isManual: false,
+    }))
+}
+
+// ================================
+// Auto-pull source #8: Equity Withdrawals (Penarikan Ekuitas)
+// ================================
+
+async function getEquityWithdrawalItems(monthStart: Date, monthEnd: Date): Promise<CashflowItem[]> {
+    const lines = await prisma.journalLine.findMany({
+        where: {
+            debit: { gt: 0 },
+            account: { type: "EQUITY" },
+            entry: {
+                status: "POSTED",
+                date: { gte: monthStart, lte: monthEnd },
+            },
+        },
+        include: {
+            account: { select: { code: true, name: true } },
+            entry: { select: { id: true, description: true, date: true } },
+        },
+    })
+
+    return lines.map((line) => ({
+        id: `equity-wd-${line.id}`,
+        date: toDateStr(line.entry.date),
+        description: `Penarikan Ekuitas: ${line.entry.description} (${line.account.name})`,
+        amount: toNum(line.debit),
+        direction: "OUT" as const,
+        category: "EQUITY_WITHDRAWAL",
+        glAccountCode: line.account.code,
+        glAccountName: line.account.name,
+        sourceId: line.entry.id,
+        isRecurring: false,
+        isManual: false,
+    }))
+}
+
+// ================================
+// Auto-pull source #9: Loan Disbursements (Pencairan Pinjaman)
+// ================================
+
+async function getLoanDisbursementItems(monthStart: Date, monthEnd: Date): Promise<CashflowItem[]> {
+    const lines = await prisma.journalLine.findMany({
+        where: {
+            credit: { gt: 0 },
+            account: {
+                type: "LIABILITY",
+                code: { startsWith: "23" },
+            },
+            entry: {
+                status: "POSTED",
+                date: { gte: monthStart, lte: monthEnd },
+            },
+        },
+        include: {
+            account: { select: { code: true, name: true } },
+            entry: { select: { id: true, description: true, date: true } },
+        },
+    })
+
+    return lines.map((line) => ({
+        id: `loan-in-${line.id}`,
+        date: toDateStr(line.entry.date),
+        description: `Pencairan Pinjaman: ${line.entry.description} (${line.account.name})`,
+        amount: toNum(line.credit),
+        direction: "IN" as const,
+        category: "LOAN_DISBURSEMENT",
+        glAccountCode: line.account.code,
+        glAccountName: line.account.name,
+        sourceId: line.entry.id,
+        isRecurring: false,
+        isManual: false,
+    }))
+}
+
+// ================================
+// Auto-pull source #10: Loan Repayments (Cicilan Pinjaman)
+// ================================
+
+async function getLoanRepaymentItems(monthStart: Date, monthEnd: Date): Promise<CashflowItem[]> {
+    const lines = await prisma.journalLine.findMany({
+        where: {
+            debit: { gt: 0 },
+            account: {
+                type: "LIABILITY",
+                code: { startsWith: "23" },
+            },
+            entry: {
+                status: "POSTED",
+                date: { gte: monthStart, lte: monthEnd },
+            },
+        },
+        include: {
+            account: { select: { code: true, name: true } },
+            entry: { select: { id: true, description: true, date: true } },
+        },
+    })
+
+    return lines.map((line) => ({
+        id: `loan-out-${line.id}`,
+        date: toDateStr(line.entry.date),
+        description: `Cicilan Pinjaman: ${line.entry.description} (${line.account.name})`,
+        amount: toNum(line.debit),
+        direction: "OUT" as const,
+        category: "LOAN_REPAYMENT",
+        glAccountCode: line.account.code,
+        glAccountName: line.account.name,
+        sourceId: line.entry.id,
+        isRecurring: false,
+        isManual: false,
+    }))
+}
+
+// ================================
+// Auto-pull source #12: Work Order Production Costs
+// ================================
+
+async function getWOCostItems(monthStart: Date, monthEnd: Date): Promise<CashflowItem[]> {
+    const workOrders = await prisma.workOrder.findMany({
+        where: {
+            status: { in: ["PLANNED", "IN_PROGRESS"] },
+            estimatedCostTotal: { gt: 0 },
+            OR: [
+                { scheduledStart: { gte: monthStart, lte: monthEnd } },
+                { startDate: { gte: monthStart, lte: monthEnd } },
+            ],
+        },
+        include: { product: { select: { name: true } } },
+    })
+
+    return workOrders.map((wo) => ({
+        id: `wo-${wo.id}`,
+        date: toDateStr(wo.scheduledStart || wo.startDate || monthStart),
+        description: `Produksi ${wo.number} — ${wo.product?.name || "Produk"}`,
+        amount: toNum(wo.estimatedCostTotal),
+        direction: "OUT" as const,
+        category: "WO_COST",
+        sourceId: wo.id,
+        isRecurring: false,
+        isManual: false,
+    }))
+}
+
+// ================================
+// Auto-pull source #11: Budget Allocations
 // ================================
 
 async function getBudgetItems(month: number, year: number): Promise<CashflowItem[]> {
@@ -396,26 +610,45 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
     const monthStart = new Date(year, month - 1, 1)
     const monthEnd = new Date(year, month, 0) // last day of month
 
+    // Calculate last month boundaries for historical reference
+    const lastMonth = month === 1 ? 12 : month - 1
+    const lastYear = month === 1 ? year - 1 : year
+    const lastMonthStart = new Date(lastYear, lastMonth - 1, 1)
+    const lastMonthEnd = new Date(lastYear, lastMonth, 0)
+
     const [
         arItems,
         apItems,
+        poItems,
         payrollItems,
         bpjsItems,
         pettyCashItems,
         recurringItems,
         budgetItems,
+        capitalItems,
+        equityWithdrawalItems,
+        loanDisbursementItems,
+        loanRepaymentItems,
+        woCostItems,
         manualDbItems,
         startingBalance,
         snapshot,
         actualItems,
+        lastMonthActuals,
     ] = await Promise.all([
         getARItems(monthStart, monthEnd),
         getAPItems(monthStart, monthEnd),
+        getPOItems(monthStart, monthEnd),
         getPayrollItems(month, year),
         getBPJSItems(month, year),
         getPettyCashItems(monthStart, monthEnd),
         getRecurringJournalItems(monthStart, monthEnd),
         getBudgetItems(month, year),
+        getCapitalItems(monthStart, monthEnd),
+        getEquityWithdrawalItems(monthStart, monthEnd),
+        getLoanDisbursementItems(monthStart, monthEnd),
+        getLoanRepaymentItems(monthStart, monthEnd),
+        getWOCostItems(monthStart, monthEnd),
         prisma.cashflowPlanItem.findMany({
             where: {
                 date: { gte: monthStart, lte: monthEnd },
@@ -430,6 +663,7 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
             where: { month_year: { month, year } },
         }),
         getActualTransactions(monthStart, monthEnd),
+        getActualTransactions(lastMonthStart, lastMonthEnd),
     ])
 
     // Map manual DB items to CashflowItem
@@ -450,11 +684,17 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
     const autoItems: CashflowItem[] = [
         ...arItems,
         ...apItems,
+        ...poItems,
         ...payrollItems,
         ...bpjsItems,
         ...pettyCashItems,
         ...recurringItems,
         ...budgetItems,
+        ...capitalItems,
+        ...equityWithdrawalItems,
+        ...loanDisbursementItems,
+        ...loanRepaymentItems,
+        ...woCostItems,
     ]
 
     // Effective starting balance (override takes precedence)
@@ -473,6 +713,18 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
         .reduce((sum, i) => sum + i.amount, 0)
     const netFlow = totalIn - totalOut
     const estimatedEndBalance = effectiveStartingBalance + netFlow
+
+    // Last month summary for historical reference
+    const lastMonthSummary = lastMonthActuals.length > 0 ? {
+        totalIn: lastMonthActuals.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0),
+        totalOut: lastMonthActuals.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0),
+        netFlow: 0,
+        itemCount: lastMonthActuals.length,
+    } : null
+
+    if (lastMonthSummary) {
+        lastMonthSummary.netFlow = lastMonthSummary.totalIn - lastMonthSummary.totalOut
+    }
 
     return {
         month,
@@ -493,6 +745,7 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
             }
             : null,
         summary: { totalIn, totalOut, netFlow, estimatedEndBalance },
+        lastMonthSummary,
     }
 }
 
