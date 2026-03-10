@@ -19,6 +19,7 @@ export interface StationNodeData {
     durationMinutes: number | null
     completedQty?: number
     totalProductionQty?: number
+    stepTarget?: number
     startedAt?: string | null
     useSubkon?: boolean
     allocations?: any[]
