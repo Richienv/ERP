@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import {
+    calcItemCostPerUnit,
+    calcLaborCostPerPcs,
+    calcOverheadCostPerPcs,
+} from '@/components/manufacturing/bom/bom-cost-helpers'
 
 // POST /api/manufacturing/production-bom/[id]/generate-spk
 export async function POST(
@@ -97,6 +102,61 @@ export async function POST(
 
         // Generate work orders in transaction
         const createdWOs = await prisma.$transaction(async (tx) => {
+            // ── Calculate estimated HPP from BOM items + steps ──
+            const [costItems, costSteps] = await Promise.all([
+                tx.productionBOMItem.findMany({
+                    where: { bomId: id },
+                    include: { material: { select: { costPrice: true } } },
+                }),
+                tx.productionBOMStep.findMany({
+                    where: { bomId: id },
+                    include: {
+                        station: {
+                            select: {
+                                costPerUnit: true,
+                                overheadPct: true,
+                                operationType: true,
+                                machine: { select: { overheadMaterialCostPerHour: true } },
+                            },
+                        },
+                    },
+                }),
+            ])
+
+            // Material cost per piece (sum across all BOM items)
+            let materialPerPcs = 0
+            for (const item of costItems) {
+                materialPerPcs += calcItemCostPerUnit({
+                    id: item.id,
+                    quantityPerUnit: Number(item.quantityPerUnit),
+                    wastePct: Number(item.wastePct),
+                    material: { id: item.materialId, costPrice: Number(item.material?.costPrice || 0) },
+                })
+            }
+
+            // Labor + overhead cost per piece (in-house steps only)
+            let laborPerPcs = 0
+            let overheadPerPcs = 0
+            for (const step of costSteps) {
+                const isSubkon = step.useSubkon ?? step.station?.operationType === 'SUBCONTRACTOR'
+                if (isSubkon) continue
+
+                const laborCost = calcLaborCostPerPcs(Number(step.laborMonthlySalary || 0), step.durationMinutes)
+                const perPcs = laborCost > 0 ? laborCost : Number(step.station?.costPerUnit || 0)
+                laborPerPcs += perPcs
+
+                overheadPerPcs += calcOverheadCostPerPcs(
+                    perPcs,
+                    Number(step.station?.overheadPct || 0),
+                    step.station?.machine
+                        ? { overheadMaterialCostPerHour: Number(step.station.machine.overheadMaterialCostPerHour || 0), durationMinutes: step.durationMinutes }
+                        : null,
+                )
+            }
+
+            const hppPerPcs = materialPerPcs + laborPerPcs + overheadPerPcs
+            // ── End cost calculation ──
+
             const today = new Date()
             const prefix = `SPK-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`
 
@@ -149,6 +209,7 @@ export async function POST(
                     for (const alloc of step.allocations) {
                         const woNumber = `${prefix}-${String(sequence).padStart(4, '0')}`
                         const allocStationName = alloc.station?.name || step.station.name
+                        const allocEstimatedCost = hppPerPcs > 0 ? hppPerPcs * alloc.quantity : null
                         const wo = await tx.workOrder.create({
                             data: {
                                 number: woNumber,
@@ -161,6 +222,7 @@ export async function POST(
                                 dueDate: dueDate ? new Date(dueDate) : woEndDate,
                                 status: 'PLANNED',
                                 dependsOnWorkOrderId: dependsOnId,
+                                ...(allocEstimatedCost != null && { estimatedCostTotal: allocEstimatedCost }),
                             },
                         })
                         currentStepWOIds.push(wo.id)
@@ -175,6 +237,7 @@ export async function POST(
                     }
                 } else {
                     const woNumber = `${prefix}-${String(sequence).padStart(4, '0')}`
+                    const singleEstimatedCost = hppPerPcs > 0 ? hppPerPcs * bom.totalProductionQty : null
                     const wo = await tx.workOrder.create({
                         data: {
                             number: woNumber,
@@ -187,6 +250,7 @@ export async function POST(
                             dueDate: dueDate ? new Date(dueDate) : woEndDate,
                             status: 'PLANNED',
                             dependsOnWorkOrderId: dependsOnId,
+                            ...(singleEstimatedCost != null && { estimatedCostTotal: singleEstimatedCost }),
                         },
                     })
                     currentStepWOIds.push(wo.id)
@@ -211,6 +275,7 @@ export async function POST(
                 stationName: wo.stationName,
                 allocStationName: wo.allocStationName || null,
                 status: wo.status,
+                estimatedCostTotal: wo.estimatedCostTotal ? Number(wo.estimatedCostTotal) : null,
             })),
         }, { status: 201 })
     } catch (error: any) {
