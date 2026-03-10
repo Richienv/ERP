@@ -918,3 +918,98 @@ export async function overrideStartingBalance(
         return { id: item.id }
     })
 }
+
+// ================================
+// Exported: Multi-month forecast (6 months forward)
+// ================================
+
+export interface CashflowForecastMonth {
+    month: number
+    year: number
+    label: string
+    totalIn: number
+    totalOut: number
+    netFlow: number
+    runningBalance: number
+    breakdown: {
+        category: string
+        direction: "IN" | "OUT"
+        amount: number
+        itemCount: number
+    }[]
+}
+
+export interface CashflowForecastData {
+    startingBalance: number
+    months: CashflowForecastMonth[]
+    totals: {
+        totalIn: number
+        totalOut: number
+        netFlow: number
+        endingBalance: number
+    }
+}
+
+export async function getCashflowForecast(monthsAhead: number = 6): Promise<CashflowForecastData> {
+    await requireAuth()
+
+    const startingBalance = await getStartingBalance()
+    const now = new Date()
+    const months: CashflowForecastMonth[] = []
+    let runningBalance = startingBalance
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+
+    for (let i = 0; i < monthsAhead; i++) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() + i, 1)
+        const month = targetDate.getMonth() + 1
+        const year = targetDate.getFullYear()
+
+        const data = await getCashflowPlanData(month, year)
+        const allItems = [...data.autoItems, ...data.manualItems]
+
+        // Build category breakdown
+        const categoryMap = new Map<string, { direction: "IN" | "OUT"; amount: number; count: number }>()
+        for (const item of allItems) {
+            const key = `${item.category}-${item.direction}`
+            const existing = categoryMap.get(key) || { direction: item.direction, amount: 0, count: 0 }
+            existing.amount += item.amount
+            existing.count += 1
+            categoryMap.set(key, existing)
+        }
+
+        const breakdown = Array.from(categoryMap.entries()).map(([key, val]) => ({
+            category: key.split("-")[0],
+            direction: val.direction,
+            amount: val.amount,
+            itemCount: val.count,
+        }))
+
+        runningBalance += data.summary.netFlow
+
+        months.push({
+            month,
+            year,
+            label: `${monthNames[month - 1]} ${year}`,
+            totalIn: data.summary.totalIn,
+            totalOut: data.summary.totalOut,
+            netFlow: data.summary.netFlow,
+            runningBalance,
+            breakdown,
+        })
+    }
+
+    const totalIn = months.reduce((s, m) => s + m.totalIn, 0)
+    const totalOut = months.reduce((s, m) => s + m.totalOut, 0)
+
+    return {
+        startingBalance,
+        months,
+        totals: {
+            totalIn,
+            totalOut,
+            netFlow: totalIn - totalOut,
+            endingBalance: runningBalance,
+        },
+    }
+}

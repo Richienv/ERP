@@ -292,6 +292,10 @@ export const queryKeys = {
         all: ["stockMovements"] as const,
         list: () => [...queryKeys.stockMovements.all, "list"] as const,
     },
+    cycleCounts: {
+        all: ["cycleCounts"] as const,
+        list: () => [...queryKeys.cycleCounts.all, "list"] as const,
+    },
     openingStock: {
         all: ["openingStock"] as const,
         list: () => [...queryKeys.openingStock.all, "list"] as const,
@@ -371,5 +375,13 @@ export const queryKeys = {
     cashflowPlan: {
         all: ["cashflowPlan"] as const,
         list: (month: number, year: number) => [...["cashflowPlan"], "list", month, year] as const,
+    },
+    cashflowForecast: {
+        all: ["cashflowForecast"] as const,
+        list: (months?: number) => [...["cashflowForecast"], "list", months] as const,
+    },
+    warehouseLocations: {
+        all: ["warehouseLocations"] as const,
+        list: (warehouseId: string) => ["warehouseLocations", "list", warehouseId] as const,
     },
 } as const
