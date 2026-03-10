@@ -7,6 +7,7 @@ import { useProductionBOM } from "@/hooks/use-production-bom"
 import { useProcessStations } from "@/hooks/use-process-stations"
 import { queryKeys } from "@/lib/query-keys"
 import { BOMCanvas } from "@/components/manufacturing/bom/bom-canvas"
+import { calcAllStepTargets, calcStepTarget } from "@/components/manufacturing/bom/bom-step-helpers"
 import { NodeContextMenu } from "@/components/manufacturing/bom/node-context-menu"
 import { MaterialPanel } from "@/components/manufacturing/bom/material-panel"
 import { DetailPanel } from "@/components/manufacturing/bom/detail-panel"
@@ -124,26 +125,8 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             ? `${estTimeHours > 0 ? `${estTimeHours} jam ` : ""}${estTimeMinutes} menit`
             : null
         // Progress — per step, using step-specific targets
-        // Compute step targets (same logic as bom-canvas)
-        const stepTargets = new Map<string, number>()
-        for (const step of steps) {
-            const allocs = (step as any).allocations || []
-            const allocTotal = allocs.reduce((s: number, a: any) => s + (a.quantity || 0), 0)
-            if (allocTotal > 0) {
-                stepTargets.set(step.id, allocTotal)
-            } else {
-                const stationType = step.station?.stationType
-                const siblings = stationType ? steps.filter((s: any) => s.station?.stationType === stationType) : [step]
-                if (siblings.length > 1) {
-                    const idx = siblings.indexOf(step)
-                    const share = Math.floor(totalQty / siblings.length)
-                    const remainder = totalQty % siblings.length
-                    stepTargets.set(step.id, share + (idx < remainder ? 1 : 0))
-                } else {
-                    stepTargets.set(step.id, totalQty)
-                }
-            }
-        }
+        // Compute step targets
+        const stepTargets = calcAllStepTargets(steps, totalQty)
         // Group by stationType, sum progress per group capped at 100%
         const actionGroups: Record<string, any[]> = {}
         for (const s of steps) {
@@ -585,20 +568,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         dirtySetSteps((prev) => {
             const step = prev.find(s => s.id === stepId)
             if (!step) return prev
-            const allocs = step.allocations || []
-            const allocTotal = allocs.reduce((s: number, a: any) => s + (a.quantity || 0), 0)
-            let target = totalQty
-            if (allocTotal > 0) {
-                target = allocTotal
-            } else {
-                const siblings = prev.filter(s => s.station?.stationType === step.station?.stationType)
-                if (siblings.length > 1) {
-                    const idx = siblings.indexOf(step)
-                    const share = Math.floor(totalQty / siblings.length)
-                    const remainder = totalQty % siblings.length
-                    target = share + (idx < remainder ? 1 : 0)
-                }
-            }
+            const target = calcStepTarget(step, prev, totalQty)
             return prev.map(s => s.id === stepId
                 ? { ...s, completedAt: new Date().toISOString(), completedQty: target }
                 : s

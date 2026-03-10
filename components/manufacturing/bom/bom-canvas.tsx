@@ -8,6 +8,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { StationNode, type StationNodeData } from "./station-node"
+import { calcAllStepTargets } from "./bom-step-helpers"
 import { calcStepMaterialCost, type BOMItemWithCost } from "./bom-cost-helpers"
 
 interface BOMCanvasProps {
@@ -95,27 +96,8 @@ export function BOMCanvas({
     const buildNodes = useCallback((): Node[] => {
         const layoutPositions = layoutNodes(steps)
 
-        // Compute per-step production target (split among parallel siblings)
-        const stepTargets = new Map<string, number>()
-        for (const step of steps) {
-            const allocs = step.allocations || []
-            const allocTotal = allocs.reduce((s: number, a: any) => s + (a.quantity || 0), 0)
-            if (allocTotal > 0) {
-                stepTargets.set(step.id, allocTotal)
-            } else {
-                const stationType = step.station?.stationType
-                const siblings = stationType ? steps.filter((s: any) => s.station?.stationType === stationType) : [step]
-                if (siblings.length > 1) {
-                    const qty = totalProductionQty || 0
-                    const idx = siblings.indexOf(step)
-                    const share = Math.floor(qty / siblings.length)
-                    const remainder = qty % siblings.length
-                    stepTargets.set(step.id, share + (idx < remainder ? 1 : 0))
-                } else {
-                    stepTargets.set(step.id, totalProductionQty || 0)
-                }
-            }
-        }
+        // Compute per-step production target
+        const stepTargets = calcAllStepTargets(steps, totalProductionQty || 0)
 
         return steps.map((step, index) => {
             // Use saved position if available, otherwise use layout algorithm
