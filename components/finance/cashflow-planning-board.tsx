@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { NB } from "@/lib/dialog-styles"
 import {
+    IconChevronDown,
     IconChevronLeft,
     IconChevronRight,
     IconPlus,
@@ -124,6 +125,8 @@ export function CashflowPlanningBoard({
     const [overrideDialogOpen, setOverrideDialogOpen] = useState(false)
     const [overrideAmount, setOverrideAmount] = useState("")
     const [savingOverride, setSavingOverride] = useState(false)
+    const [bankFilter, setBankFilter] = useState<string>("all")
+    const [bankCardsOpen, setBankCardsOpen] = useState(false)
 
     useEffect(() => {
         fetch("/api/finance/transactions")
@@ -202,7 +205,23 @@ export function CashflowPlanningBoard({
         }
     }
 
-    const planItems = [...data.autoItems, ...data.manualItems]
+    const bankAccounts = glAccounts.filter(a => a.code.startsWith("10"))
+
+    const allPlanItems = [...data.autoItems, ...data.manualItems]
+    const planItems = bankFilter === "all"
+        ? allPlanItems
+        : allPlanItems.filter(item => item.glAccountCode === bankFilter)
+
+    const perBankData = bankAccounts.map((bank) => {
+        const bankItems = allPlanItems.filter(i => i.glAccountCode === bank.code)
+        const inAmt = bankItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
+        const outAmt = bankItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
+        return { code: bank.code, name: bank.name, totalIn: inAmt, totalOut: outAmt, net: inAmt - outAmt, count: bankItems.length }
+    }).filter(b => b.count > 0)
+
+    const filteredActualItems = bankFilter === "all"
+        ? data.actualItems
+        : data.actualItems.filter(i => i.glAccountCode === bankFilter)
     const { startPad, totalDays } = getCalendarDays(month, year)
 
     return (
@@ -223,7 +242,7 @@ export function CashflowPlanningBoard({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <div className="flex items-center border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
                         <Button
                             variant="ghost"
@@ -245,6 +264,17 @@ export function CashflowPlanningBoard({
                             <IconChevronRight size={16} />
                         </Button>
                     </div>
+
+                    <select
+                        value={bankFilter}
+                        onChange={(e) => setBankFilter(e.target.value)}
+                        className="border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-9 px-3 text-xs font-black uppercase appearance-none cursor-pointer"
+                    >
+                        <option value="all">Semua Rekening</option>
+                        {bankAccounts.map((a) => (
+                            <option key={a.id} value={a.code}>{a.code} — {a.name}</option>
+                        ))}
+                    </select>
 
                     <Button
                         onClick={() => {
@@ -303,6 +333,42 @@ export function CashflowPlanningBoard({
                     highlight={data.summary.estimatedEndBalance < 0}
                 />
             </div>
+
+            {/* ─── Per-Bank Balance Cards ─────────────────────────────── */}
+            {perBankData.length > 0 && (
+                <div>
+                    <button
+                        onClick={() => setBankCardsOpen(!bankCardsOpen)}
+                        className="text-[10px] font-black uppercase tracking-wider text-zinc-500 hover:text-black flex items-center gap-1 mb-2"
+                    >
+                        {bankCardsOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                        Per Rekening ({perBankData.length})
+                    </button>
+                    {bankCardsOpen && (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                            {perBankData.map((bank) => (
+                                <div
+                                    key={bank.code}
+                                    className="border-2 border-black bg-white p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:ring-2 hover:ring-emerald-400"
+                                    onClick={() => setBankFilter(bankFilter === bank.code ? "all" : bank.code)}
+                                >
+                                    <div className="text-[9px] font-black uppercase tracking-wider text-zinc-500 mb-1">
+                                        {bank.code} — {bank.name}
+                                    </div>
+                                    <div className="flex justify-between text-[10px]">
+                                        <span className="text-emerald-600 font-bold">+{formatCompact(bank.totalIn)}</span>
+                                        <span className="text-red-600 font-bold">-{formatCompact(bank.totalOut)}</span>
+                                        <span className={`font-black ${bank.net >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                                            {bank.net >= 0 ? "+" : ""}{formatCompact(bank.net)}
+                                        </span>
+                                    </div>
+                                    <div className="text-[9px] text-zinc-400 mt-0.5">{bank.count} item</div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* ─── Last Month Reference ─────────────────────────────── */}
             {data.lastMonthSummary && (
@@ -372,7 +438,7 @@ export function CashflowPlanningBoard({
 
                 <TabsContent value="riil" className="mt-4">
                     <CalendarGrid
-                        items={data.actualItems}
+                        items={filteredActualItems}
                         month={month}
                         year={year}
                         startPad={startPad}
@@ -384,14 +450,14 @@ export function CashflowPlanningBoard({
 
             {/* ─── Weekly Summary ──────────────────────────────────── */}
             <WeeklySummary
-                items={activeTab === "planning" ? planItems : data.actualItems}
+                items={activeTab === "planning" ? planItems : filteredActualItems}
                 month={month}
                 year={year}
             />
 
             {/* ─── Running Balance Table ──────────────────────────── */}
             <RunningBalanceTable
-                items={activeTab === "planning" ? planItems : data.actualItems}
+                items={activeTab === "planning" ? planItems : filteredActualItems}
                 startingBalance={data.effectiveStartingBalance}
                 month={month}
                 year={year}
@@ -654,13 +720,15 @@ function ItemPill({ item, onEdit }: { item: CashflowItem; onEdit?: (item: Cashfl
     const colors = CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS.MANUAL
     const label = CATEGORY_LABELS[item.category] ?? item.category
     const isClickable = item.isManual && onEdit
+    const bankTag = item.glAccountCode?.startsWith("10") ? item.glAccountCode : null
 
     return (
         <div
             className={`text-[9px] font-bold px-1.5 py-0.5 border truncate ${colors} ${isClickable ? "cursor-pointer hover:ring-1 hover:ring-black" : ""}`}
-            title={`${item.description} — ${formatCurrency(item.amount)}`}
+            title={`${item.description} — ${formatCurrency(item.amount)}${item.glAccountName ? ` [${item.glAccountName}]` : ""}`}
             onClick={isClickable ? () => onEdit(item) : undefined}
         >
+            {bankTag && <span className="opacity-50 mr-0.5">[{bankTag}]</span>}
             <span className="opacity-60">{label}</span>{" "}
             <span>{item.direction === "IN" ? "+" : "-"}{formatCompact(item.amount)}</span>
         </div>
