@@ -233,7 +233,11 @@ export function CashflowPlanningBoard({
 
     const bankAccounts = glAccounts.filter(a => a.code.startsWith("10"))
 
-    const allPlanItems = [...data.autoItems, ...data.manualItems]
+    const autoItems = data.autoItems || []
+    const manualItems = data.manualItems || []
+    const actualItems = data.actualItems || []
+
+    const allPlanItems = [...autoItems, ...manualItems]
     const planItems = bankFilter === "all"
         ? allPlanItems
         : allPlanItems.filter(item => item.glAccountCode === bankFilter)
@@ -246,8 +250,8 @@ export function CashflowPlanningBoard({
     }).filter(b => b.count > 0)
 
     const filteredActualItems = bankFilter === "all"
-        ? data.actualItems
-        : data.actualItems.filter(i => i.glAccountCode === bankFilter)
+        ? actualItems
+        : actualItems.filter(i => i.glAccountCode === bankFilter)
     const { startPad, totalDays } = getCalendarDays(month, year)
 
     return (
@@ -508,7 +512,7 @@ export function CashflowPlanningBoard({
             {data.snapshot && activeTab === "planning" && (
                 <VarianceSummary
                     snapshot={data.snapshot}
-                    actualItems={data.actualItems}
+                    actualItems={actualItems}
                     accuracyTrend={accuracyTrend}
                 />
             )}

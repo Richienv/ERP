@@ -616,6 +616,10 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
     const lastMonthStart = new Date(lastYear, lastMonth - 1, 1)
     const lastMonthEnd = new Date(lastYear, lastMonth, 0)
 
+    // Safe wrapper: if an auto-pull source fails, return empty array instead of crashing all
+    const safe = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
+        p.catch(() => fallback)
+
     const [
         arItems,
         apItems,
@@ -636,19 +640,19 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
         actualItems,
         lastMonthActuals,
     ] = await Promise.all([
-        getARItems(monthStart, monthEnd),
-        getAPItems(monthStart, monthEnd),
-        getPOItems(monthStart, monthEnd),
-        getPayrollItems(month, year),
-        getBPJSItems(month, year),
-        getPettyCashItems(monthStart, monthEnd),
-        getRecurringJournalItems(monthStart, monthEnd),
-        getBudgetItems(month, year),
-        getCapitalItems(monthStart, monthEnd),
-        getEquityWithdrawalItems(monthStart, monthEnd),
-        getLoanDisbursementItems(monthStart, monthEnd),
-        getLoanRepaymentItems(monthStart, monthEnd),
-        getWOCostItems(monthStart, monthEnd),
+        safe(getARItems(monthStart, monthEnd), []),
+        safe(getAPItems(monthStart, monthEnd), []),
+        safe(getPOItems(monthStart, monthEnd), []),
+        safe(getPayrollItems(month, year), []),
+        safe(getBPJSItems(month, year), []),
+        safe(getPettyCashItems(monthStart, monthEnd), []),
+        safe(getRecurringJournalItems(monthStart, monthEnd), []),
+        safe(getBudgetItems(month, year), []),
+        safe(getCapitalItems(monthStart, monthEnd), []),
+        safe(getEquityWithdrawalItems(monthStart, monthEnd), []),
+        safe(getLoanDisbursementItems(monthStart, monthEnd), []),
+        safe(getLoanRepaymentItems(monthStart, monthEnd), []),
+        safe(getWOCostItems(monthStart, monthEnd), []),
         prisma.cashflowPlanItem.findMany({
             where: {
                 date: { gte: monthStart, lte: monthEnd },
@@ -658,12 +662,12 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
             },
             orderBy: { date: "asc" },
         }),
-        getStartingBalance(),
+        safe(getStartingBalance(), 0),
         prisma.cashflowSnapshot.findUnique({
             where: { month_year: { month, year } },
         }),
-        getActualTransactions(monthStart, monthEnd),
-        getActualTransactions(lastMonthStart, lastMonthEnd),
+        safe(getActualTransactions(monthStart, monthEnd), []),
+        safe(getActualTransactions(lastMonthStart, lastMonthEnd), []),
     ])
 
     // Map manual DB items to CashflowItem
