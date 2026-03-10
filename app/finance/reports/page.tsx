@@ -212,7 +212,8 @@ export default function FinancialReportsPage() {
                 ["", ""],
                 ["EKUITAS", ""],
                 ...(bs.equity?.items || []).map((e: any) => ([`  ${e.name}`, Number(e.balance || 0)])),
-                ["  Laba Ditahan", Number(bs.equity?.retainedEarnings || 0)],
+                ["  Laba Ditahan (Tahun Sebelumnya)", Number(bs.equity?.retainedEarnings || 0)],
+                ["  Laba Tahun Berjalan", Number(bs.equity?.currentYearNetIncome || 0)],
                 ["TOTAL EKUITAS", Number(bs.equity?.totalEquity || 0)],
                 ["", ""],
                 ["TOTAL KEWAJIBAN + EKUITAS", Number(bs.totalLiabilitiesAndEquity || 0)],
@@ -861,8 +862,12 @@ export default function FinancialReportsPage() {
                                                         </TableRow>
                                                     ))}
                                                     <TableRow>
-                                                        <TableCell className="text-sm text-zinc-500">Laba Ditahan</TableCell>
+                                                        <TableCell className="text-sm text-zinc-500">Laba Ditahan (Tahun Sebelumnya)</TableCell>
                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(balanceSheetData.equity?.retainedEarnings)}</TableCell>
+                                                    </TableRow>
+                                                    <TableRow>
+                                                        <TableCell className="text-sm text-blue-600">Laba Tahun Berjalan</TableCell>
+                                                        <TableCell className="text-right font-mono text-sm text-blue-600">{formatIDR(balanceSheetData.equity?.currentYearNetIncome || 0)}</TableCell>
                                                     </TableRow>
                                                     <TableRow className="font-black bg-blue-100 dark:bg-blue-900/30 border-t-2 border-black">
                                                         <TableCell>TOTAL EKUITAS</TableCell>
@@ -883,6 +888,16 @@ export default function FinancialReportsPage() {
                                                 {formatIDR(balanceSheetData.totalLiabilitiesAndEquity)}
                                             </span>
                                         </div>
+
+                                        {/* Balance check diagnostic */}
+                                        {balanceSheetData?.balanceCheck && !balanceSheetData.balanceCheck.isBalanced && (
+                                            <div className="border-2 border-red-300 bg-red-50 p-3 flex items-center gap-2">
+                                                <AlertTriangle className="h-4 w-4 text-red-500" />
+                                                <span className="text-xs font-bold text-red-700 uppercase tracking-wide">
+                                                    Neraca tidak seimbang — selisih {formatIDR(Math.abs(balanceSheetData.balanceCheck.difference))}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 </div>
