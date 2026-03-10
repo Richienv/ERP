@@ -46,6 +46,7 @@ import { ShortageDialog } from "@/components/manufacturing/shortage-dialog";
 import { MaterialVarianceSection } from "@/components/manufacturing/material-variance-section";
 import { IconAlertTriangle } from "@tabler/icons-react";
 import Link from "next/link";
+import { formatCurrency } from "@/lib/utils";
 
 interface WorkOrder {
     id: string;
@@ -63,6 +64,9 @@ interface WorkOrder {
     dueDate?: string | null;
     status: string;
     progress: number;
+    estimatedCostTotal?: number | string | null;
+    actualCostTotal?: number | string | null;
+    costVariancePct?: number | string | null;
     workers: string[];
     tasks: Array<{
         id: string;
@@ -550,13 +554,16 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                     </div>
 
                     {/* Table Header */}
-                    <div className="hidden md:grid grid-cols-12 gap-2 px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30">
+                    <div className="hidden md:grid grid-cols-[repeat(16,minmax(0,1fr))] gap-2 px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30">
                         <span className="col-span-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Order #</span>
-                        <span className="col-span-3 text-[10px] font-black uppercase tracking-widest text-zinc-400">Produk</span>
-                        <span className="col-span-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">Qty</span>
+                        <span className="col-span-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Produk</span>
+                        <span className="col-span-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">Qty</span>
                         <span className="col-span-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Status</span>
                         <span className="col-span-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Progress</span>
-                        <span className="col-span-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">Due</span>
+                        <span className="col-span-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-right">Est. HPP</span>
+                        <span className="col-span-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-right">Aktual HPP</span>
+                        <span className="col-span-1 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-right">Varians</span>
+                        <span className="col-span-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Due</span>
                     </div>
 
                     {/* Rows */}
@@ -570,17 +577,17 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                                     onClick={() => handleRowClick(order)}
                                 >
                                     {/* Desktop */}
-                                    <div className="hidden md:grid grid-cols-12 gap-2 items-center">
+                                    <div className="hidden md:grid grid-cols-[repeat(16,minmax(0,1fr))] gap-2 items-center">
                                         <span className="col-span-2 font-mono text-xs font-bold text-zinc-900 dark:text-zinc-100">
                                             {order.number}
                                         </span>
-                                        <div className="col-span-3 min-w-0">
+                                        <div className="col-span-2 min-w-0">
                                             <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100 block truncate">{order.product.name}</span>
                                             <span className="text-[10px] font-mono text-zinc-400">{order.product.code}</span>
                                         </div>
-                                        <div className="col-span-2 text-center">
+                                        <div className="col-span-1 text-center">
                                             <span className="text-xs font-black text-zinc-900 dark:text-white">{order.actualQty}</span>
-                                            <span className="text-[10px] text-zinc-400">/{order.plannedQty} {order.product.unit}</span>
+                                            <span className="text-[10px] text-zinc-400">/{order.plannedQty}</span>
                                         </div>
                                         <div className="col-span-2">
                                             <span className={`inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border whitespace-nowrap ${cfg.bg} ${cfg.text}`}>
@@ -597,7 +604,27 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
                                             </div>
                                             <span className="text-[10px] font-black text-zinc-600 dark:text-zinc-300 w-8">{order.progress}%</span>
                                         </div>
-                                        <div className="col-span-1 flex items-center justify-between">
+                                        <div className="col-span-2 text-right">
+                                            <span className="text-[11px] font-mono text-zinc-700 dark:text-zinc-300">
+                                                {Number(order.estimatedCostTotal || 0) > 0 ? formatCurrency(Number(order.estimatedCostTotal)) : "—"}
+                                            </span>
+                                        </div>
+                                        <div className="col-span-2 text-right">
+                                            <span className="text-[11px] font-mono text-zinc-700 dark:text-zinc-300">
+                                                {Number(order.actualCostTotal || 0) > 0 ? formatCurrency(Number(order.actualCostTotal)) : "—"}
+                                            </span>
+                                        </div>
+                                        <div className="col-span-1 text-right">
+                                            {(() => {
+                                                if (order.costVariancePct == null) return <span className="text-[11px] text-zinc-400">—</span>;
+                                                const pct = Number(order.costVariancePct);
+                                                if (isNaN(pct)) return <span className="text-[11px] text-zinc-400">—</span>;
+                                                const color = Math.abs(pct) <= 3 ? "text-green-600" : Math.abs(pct) <= 5 ? "text-yellow-600" : "text-red-600";
+                                                const sign = pct > 0 ? "+" : "";
+                                                return <span className={`text-[11px] font-bold ${color}`}>{sign}{pct.toFixed(1)}%</span>;
+                                            })()}
+                                        </div>
+                                        <div className="col-span-2 flex items-center justify-between">
                                             <span className="text-[10px] text-zinc-400">{formatDate(order.dueDate)}</span>
                                             <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />
                                         </div>
