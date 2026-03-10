@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useProcessStations } from "@/hooks/use-process-stations"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { CreateStationDialog } from "./create-station-dialog"
 import { formatCurrency } from "@/lib/inventory-utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -101,7 +100,6 @@ export function SubkonSelector({ stationType, allocations, totalQty, onChange }:
     const { data: allStations } = useProcessStations()
     const queryClient = useQueryClient()
     const [search, setSearch] = useState("")
-    const [createOpen, setCreateOpen] = useState(false)
     const [editingPriceStation, setEditingPriceStation] = useState<string | null>(null)
     const [priceSuggestion, setPriceSuggestion] = useState<{ stationId: string; name: string; price: number } | null>(null)
 
@@ -169,13 +167,6 @@ export function SubkonSelector({ stationType, allocations, totalQty, onChange }:
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                     Pilih Subkontraktor
                 </h4>
-                <Button
-                    variant="outline" size="sm"
-                    onClick={() => setCreateOpen(true)}
-                    className="h-6 text-[9px] font-bold rounded-none border-dashed px-2"
-                >
-                    <Plus className="h-3 w-3 mr-1" /> Buat Baru
-                </Button>
             </div>
 
             <div className="relative">
@@ -367,17 +358,6 @@ export function SubkonSelector({ stationType, allocations, totalQty, onChange }:
                     </div>
                 ) : null
             })()}
-
-            <CreateStationDialog
-                open={createOpen}
-                onOpenChange={setCreateOpen}
-                defaultStationType={stationType}
-                defaultOperationType="SUBCONTRACTOR"
-                onCreated={(station: any) => {
-                    queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
-                    addAllocation(station.id)
-                }}
-            />
 
             {editingPriceStation && (
                 <PriceEditDialog
