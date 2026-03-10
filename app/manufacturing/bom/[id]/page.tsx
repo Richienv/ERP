@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { formatCurrency } from "@/lib/inventory-utils"
-import { calcTotalMaterialCost, calcTotalLaborCost, type BOMItemWithCost } from "@/components/manufacturing/bom/bom-cost-helpers"
+import { calcTotalMaterialCost, calcTotalLaborCost, calcTotalOverheadCost, type BOMItemWithCost } from "@/components/manufacturing/bom/bom-cost-helpers"
 import { calcCriticalPathDuration } from "@/components/manufacturing/bom/bom-step-helpers"
 import { toast } from "sonner"
 import {
@@ -115,7 +115,8 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     const costSummary = useMemo(() => {
         const totalMaterial = calcTotalMaterialCost(items as BOMItemWithCost[], totalQty)
         const totalLabor = calcTotalLaborCost(steps, totalQty)
-        const grandTotal = totalMaterial + totalLabor
+        const totalOverhead = calcTotalOverheadCost(steps, totalQty)
+        const grandTotal = totalMaterial + totalLabor + totalOverhead
         const perUnit = totalQty > 0 ? grandTotal / totalQty : 0
         const durationPerPiece = calcCriticalPathDuration(steps)
         const totalDuration = durationPerPiece
@@ -148,7 +149,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             }
             progressPct = Math.round((totalActionProgress / actionTypes.length) * 100)
         }
-        return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration, durationPerPiece, estTimeLabel, progressPct }
+        return { totalMaterial, totalLabor, totalOverhead, grandTotal, perUnit, totalDuration, durationPerPiece, estTimeLabel, progressPct }
     }, [steps, items, totalQty])
 
     // --- SPK READINESS CHECK ---
@@ -1101,6 +1102,10 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
                     <span className="text-[9px] font-black uppercase text-zinc-400">Labor:</span>
                     <span className="text-xs font-bold text-black">{formatCurrency(costSummary.totalLabor)}</span>
+                </div>
+                <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
+                    <span className="text-[9px] font-black uppercase text-zinc-400">Overhead:</span>
+                    <span className="text-xs font-bold text-orange-700">{formatCurrency(costSummary.totalOverhead)}</span>
                 </div>
                 <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
                     <span className="text-[9px] font-black uppercase text-zinc-400">HPP/Unit:</span>
