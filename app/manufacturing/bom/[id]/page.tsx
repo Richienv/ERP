@@ -332,14 +332,15 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
     // Apply a process template (adds multiple connected stations)
     const [applyingTemplate, setApplyingTemplate] = useState(false)
-    const [templateConfirm, setTemplateConfirm] = useState<{ types: readonly string[] } | null>(null)
-    const handleApplyTemplate = useCallback(async (types: readonly string[], confirmed = false) => {
-        // If steps already exist, ask for confirmation first
-        if (steps.length > 0 && !confirmed) {
-            setTemplateConfirm({ types })
-            return
+    const handleApplyTemplate = useCallback(async (types: readonly string[]) => {
+        // If steps exist, confirm before replacing
+        if (steps.length > 0) {
+            const confirmed = window.confirm(
+                `Sudah ada ${steps.length} proses di canvas.\n\nApakah Anda yakin ingin menghapus semua proses saat ini dan menggunakan template ini?`
+            )
+            if (!confirmed) return
         }
-        setTemplateConfirm(null)
+
         setApplyingTemplate(true)
         try {
             const newStations: any[] = []
@@ -1321,34 +1322,6 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 </DialogContent>
             </Dialog>
 
-            {/* Template overwrite confirmation */}
-            <Dialog open={!!templateConfirm} onOpenChange={(open) => { if (!open) setTemplateConfirm(null) }}>
-                <DialogContent className="sm:max-w-[420px] rounded-none border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-                    <DialogHeader>
-                        <DialogTitle className="font-black uppercase">Ganti Proses?</DialogTitle>
-                        <DialogDescription className="text-sm">
-                            Form sudah berisi {steps.length} proses. Menerapkan template akan <strong>menghapus semua proses saat ini</strong> dan menggantinya dengan template baru.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter className="gap-2 sm:gap-0">
-                        <Button
-                            variant="outline"
-                            onClick={() => setTemplateConfirm(null)}
-                            className="rounded-none border-2 border-black font-bold"
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={() => {
-                                if (templateConfirm) handleApplyTemplate(templateConfirm.types, true)
-                            }}
-                            className="rounded-none border-2 border-black bg-orange-500 hover:bg-orange-600 text-white font-black"
-                        >
-                            Ya, Ganti Semua
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
         </div>
     )
 }
