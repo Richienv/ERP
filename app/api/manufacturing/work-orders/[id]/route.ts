@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
+import { calculateActualCostOnCompletion } from '@/lib/wo-cost-helpers'
 
 const WO_STATE_TRANSITIONS: Record<string, string[]> = {
     PLANNED: ['IN_PROGRESS', 'ON_HOLD', 'CANCELLED'],
@@ -654,7 +655,7 @@ export async function PATCH(
                 })
 
                 const nextStatus = nextActualQty >= existing.plannedQty ? 'COMPLETED' : 'IN_PROGRESS'
-                return await tx.workOrder.update({
+                const updated = await tx.workOrder.update({
                     where: { id: existing.id },
                     data: {
                         actualQty: nextActualQty,
@@ -663,6 +664,12 @@ export async function PATCH(
                     },
                     include: { product: true },
                 })
+
+                if (nextStatus === 'COMPLETED') {
+                    await calculateActualCostOnCompletion(tx, existing.id)
+                }
+
+                return updated
             }
 
             if (action === 'PRODUCTION_RETURN') {
@@ -710,11 +717,13 @@ export async function PATCH(
                 if (targetStatus === 'COMPLETED') {
                     const remainingQty = existing.plannedQty - existing.actualQty
                     if (remainingQty <= 0) {
-                        return await tx.workOrder.update({
+                        const completed = await tx.workOrder.update({
                             where: { id: existing.id },
                             data: { status: 'COMPLETED' },
                             include: { product: true },
                         })
+                        await calculateActualCostOnCompletion(tx, existing.id)
+                        return completed
                     }
 
                     const warehouseId = body.warehouseId || (await tx.warehouse.findFirst({
@@ -734,7 +743,7 @@ export async function PATCH(
                         note: body.note,
                     })
 
-                    return await tx.workOrder.update({
+                    const completedWo = await tx.workOrder.update({
                         where: { id: existing.id },
                         data: {
                             status: 'COMPLETED',
@@ -743,6 +752,8 @@ export async function PATCH(
                         },
                         include: { product: true },
                     })
+                    await calculateActualCostOnCompletion(tx, existing.id)
+                    return completedWo
                 }
 
                 const statusUpdate: any = { status: targetStatus }

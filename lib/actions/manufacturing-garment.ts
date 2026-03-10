@@ -4,6 +4,7 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, GarmentStage } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertStageTransition, STAGE_ORDER } from "@/lib/garment-stage-machine"
+import { calculateActualCostOnCompletion } from "@/lib/wo-cost-helpers"
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -171,6 +172,11 @@ export async function transitionWorkOrderStage(
                 where: { id: workOrderId },
                 data: updates,
             })
+
+            // Calculate actual cost when WO completes via garment stage
+            if (newStage === 'DONE') {
+                await calculateActualCostOnCompletion(prisma as any, workOrderId)
+            }
         })
 
         return { success: true }
