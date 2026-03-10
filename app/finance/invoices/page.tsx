@@ -15,6 +15,7 @@ import {
     BookOpen,
     Download,
     Paperclip,
+    Clock,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -50,9 +51,11 @@ import { useInvoiceKanban } from "@/hooks/use-invoices"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { CreateInvoiceDialog } from "@/components/finance/create-invoice-dialog"
+import { AuditLogTimeline } from "@/components/audit-log-timeline"
 import { InvoiceAttachmentSection } from "@/components/finance/invoice-attachments"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { exportToExcel } from "@/lib/table-export"
 
 const emptyKanban: InvoiceKanbanData = { draft: [], sent: [], overdue: [], paid: [] }
 const PAGE_SIZE = 15
@@ -379,6 +382,24 @@ export default function InvoicesPage() {
                         </div>
                     </div>
                     <div className="flex gap-2">
+                        <Button
+                            onClick={() => {
+                                const cols = [
+                                    { header: "No. Invoice", accessorKey: "number" },
+                                    { header: "Tipe", accessorKey: "type" },
+                                    { header: "Customer/Vendor", accessorKey: "partyName" },
+                                    { header: "Jumlah", accessorKey: "amount" },
+                                    { header: "Sisa", accessorKey: "balanceDue" },
+                                    { header: "Status", accessorKey: "_tab" },
+                                    { header: "Jatuh Tempo", accessorKey: "dueDate" },
+                                ]
+                                exportToExcel(cols, filteredInvoices as unknown as Record<string, unknown>[], { filename: "invoices" })
+                            }}
+                            variant="outline"
+                            className="border-2 border-black font-black uppercase text-[10px] tracking-wide h-10 px-4 rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
+                        >
+                            <Download className="h-3.5 w-3.5 mr-1.5" /> Export
+                        </Button>
                         <Button
                             onClick={() => router.push('/finance/transactions')}
                             variant="outline"
@@ -971,6 +992,19 @@ export default function InvoicesPage() {
                                 {activeInvoice && (
                                     <div className="border-t-2 border-zinc-200 pt-4">
                                         <InvoiceAttachmentSection invoiceId={activeInvoice.id} />
+                                    </div>
+                                )}
+
+                                {/* Riwayat Perubahan */}
+                                {activeInvoice && (
+                                    <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                                        <div className="px-5 py-3 border-b-2 border-black bg-zinc-50 flex items-center gap-2">
+                                            <Clock className="h-4 w-4 text-zinc-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                                Riwayat Perubahan
+                                            </span>
+                                        </div>
+                                        <AuditLogTimeline entityType="Invoice" entityId={activeInvoice.id} />
                                     </div>
                                 )}
                             </>
