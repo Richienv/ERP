@@ -77,6 +77,30 @@ const CATEGORY_LABELS: Record<string, string> = {
     LOAN_REPAYMENT: "Cicilan Pinjaman",
 }
 
+// ─── Short bank name mapping ────────────────────────────────────────────────
+
+function shortBankName(glAccountName?: string, glAccountCode?: string): string | null {
+    if (!glAccountCode?.startsWith("10")) return null
+    if (!glAccountName) return glAccountCode
+    // Extract short name: "Bank BCA" → "BCA", "Kas Kecil" → "Kas", "Bank Mandiri" → "Mandiri"
+    const name = glAccountName.replace(/^(Bank|Rek\.?|Rekening)\s+/i, "").trim()
+    // Truncate to max 8 chars
+    return name.length > 8 ? name.substring(0, 7) + "…" : name
+}
+
+// ─── Heat-map cell tint ─────────────────────────────────────────────────────
+
+function getDayHeatClass(totalIn: number, totalOut: number): string {
+    const net = totalIn - totalOut
+    if (net === 0) return ""
+    if (net > 0) {
+        if (totalIn >= 50_000_000) return "bg-emerald-50/80"
+        return "bg-emerald-50/40"
+    }
+    if (totalOut >= 50_000_000) return "bg-red-50/80"
+    return "bg-red-50/40"
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getCalendarDays(month: number, year: number) {
@@ -107,6 +131,7 @@ interface CashflowPlanningBoardProps {
     year: number
     onMonthChange: (month: number) => void
     onYearChange: (year: number) => void
+    accuracyTrend?: { month: number; year: number; label: string; accuracyScore: number | null }[]
 }
 
 export function CashflowPlanningBoard({
@@ -115,6 +140,7 @@ export function CashflowPlanningBoard({
     year,
     onMonthChange,
     onYearChange,
+    accuracyTrend,
 }: CashflowPlanningBoardProps) {
     const queryClient = useQueryClient()
     const [savingSnapshot, setSavingSnapshot] = useState(false)
@@ -421,7 +447,22 @@ export function CashflowPlanningBoard({
                     </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="planning" className="mt-4">
+                {/* ─── Category Legend ──────────────────────────── */}
+                <div className="flex flex-wrap gap-1.5 py-2.5 px-1">
+                    {(activeTab === "planning"
+                        ? [...new Set(planItems.map(i => i.category))]
+                        : [...new Set(filteredActualItems.map(i => i.category))]
+                    ).map(cat => (
+                        <span
+                            key={cat}
+                            className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-[2px] border ${CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.MANUAL}`}
+                        >
+                            {CATEGORY_LABELS[cat] ?? cat}
+                        </span>
+                    ))}
+                </div>
+
+                <TabsContent value="planning" className="mt-2">
                     <CalendarGrid
                         items={planItems}
                         month={month}
@@ -436,7 +477,7 @@ export function CashflowPlanningBoard({
                     />
                 </TabsContent>
 
-                <TabsContent value="riil" className="mt-4">
+                <TabsContent value="riil" className="mt-2">
                     <CalendarGrid
                         items={filteredActualItems}
                         month={month}
@@ -468,6 +509,7 @@ export function CashflowPlanningBoard({
                 <VarianceSummary
                     snapshot={data.snapshot}
                     actualItems={data.actualItems}
+                    accuracyTrend={accuracyTrend}
                 />
             )}
 
@@ -647,58 +689,80 @@ function CalendarGrid({
                     const day = i + 1
                     const dayItems = getItemsForDate(items, day, month, year)
                     const isToday = isCurrentMonth && day === currentDay
+                    const isPast = isCurrentMonth && day < currentDay
                     const totalIn = dayItems.filter(x => x.direction === "IN").reduce((s, x) => s + x.amount, 0)
                     const totalOut = dayItems.filter(x => x.direction === "OUT").reduce((s, x) => s + x.amount, 0)
+                    const heatClass = dayItems.length > 0 ? getDayHeatClass(totalIn, totalOut) : ""
 
                     return (
                         <div
                             key={day}
-                            className={`border-r border-b border-zinc-200 min-h-[100px] p-1.5 ${
-                                isToday ? "bg-emerald-50 ring-2 ring-inset ring-emerald-400" : ""
+                            className={`border-r border-b border-zinc-200 min-h-[110px] p-1.5 transition-colors ${heatClass} ${
+                                isToday
+                                    ? "ring-2 ring-inset ring-emerald-500 bg-emerald-50"
+                                    : isPast
+                                    ? "opacity-75"
+                                    : ""
                             }`}
                         >
                             <div className="flex items-center justify-between mb-1">
                                 <span
-                                    className={`text-xs font-black ${
+                                    className={`text-[11px] font-black leading-none ${
                                         isToday
-                                            ? "bg-emerald-500 text-white w-6 h-6 flex items-center justify-center"
-                                            : "text-zinc-600"
+                                            ? "bg-black text-white w-6 h-6 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(16,185,129,1)]"
+                                            : "text-zinc-500"
                                     }`}
                                 >
                                     {day}
                                 </span>
                                 {dayItems.length > 0 && (
-                                    <span className="text-[9px] font-bold text-zinc-400">
+                                    <span className="text-[8px] font-black text-zinc-400 bg-zinc-100 px-1 py-0.5 border border-zinc-200">
                                         {dayItems.length}
                                     </span>
                                 )}
                             </div>
 
                             {/* Item pills */}
-                            <div className="space-y-0.5">
+                            <div className="space-y-[3px]">
                                 {dayItems.slice(0, 3).map(item => (
                                     <ItemPill key={item.id} item={item} onEdit={onEditItem} />
                                 ))}
                                 {dayItems.length > 3 && (
-                                    <span className="text-[9px] text-zinc-500 font-bold block">
-                                        +{dayItems.length - 3} lainnya
+                                    <span className="text-[8px] text-zinc-400 font-black block pl-0.5">
+                                        +{dayItems.length - 3} lagi
                                     </span>
                                 )}
                             </div>
 
-                            {/* Day totals */}
+                            {/* Day totals — compact flow bar */}
                             {dayItems.length > 0 && (
-                                <div className="mt-1 pt-1 border-t border-zinc-100 flex gap-1 flex-wrap">
-                                    {totalIn > 0 && (
-                                        <span className="text-[9px] font-bold text-emerald-600">
-                                            +{formatCompact(totalIn)}
-                                        </span>
-                                    )}
-                                    {totalOut > 0 && (
-                                        <span className="text-[9px] font-bold text-red-600">
-                                            -{formatCompact(totalOut)}
-                                        </span>
-                                    )}
+                                <div className="mt-auto pt-1.5">
+                                    <div className="flex gap-0 h-[3px] w-full overflow-hidden border border-zinc-200">
+                                        {totalIn > 0 && (
+                                            <div
+                                                className="bg-emerald-400 h-full"
+                                                style={{ flex: totalIn }}
+                                            />
+                                        )}
+                                        {totalOut > 0 && (
+                                            <div
+                                                className="bg-red-400 h-full"
+                                                style={{ flex: totalOut }}
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="flex justify-between mt-0.5">
+                                        {totalIn > 0 && (
+                                            <span className="text-[8px] font-black text-emerald-600">
+                                                +{formatCompact(totalIn)}
+                                            </span>
+                                        )}
+                                        {totalOut > 0 && (
+                                            <span className="text-[8px] font-black text-red-600 ml-auto">
+                                                -{formatCompact(totalOut)}
+                                            </span>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -720,17 +784,17 @@ function ItemPill({ item, onEdit }: { item: CashflowItem; onEdit?: (item: Cashfl
     const colors = CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS.MANUAL
     const label = CATEGORY_LABELS[item.category] ?? item.category
     const isClickable = item.isManual && onEdit
-    const bankTag = item.glAccountCode?.startsWith("10") ? item.glAccountCode : null
+    const bank = shortBankName(item.glAccountName, item.glAccountCode)
 
     return (
         <div
-            className={`text-[9px] font-bold px-1.5 py-0.5 border truncate ${colors} ${isClickable ? "cursor-pointer hover:ring-1 hover:ring-black" : ""}`}
-            title={`${item.description} — ${formatCurrency(item.amount)}${item.glAccountName ? ` [${item.glAccountName}]` : ""}`}
+            className={`text-[8px] font-bold px-1 py-[2px] border truncate leading-tight ${colors} ${isClickable ? "cursor-pointer hover:ring-1 hover:ring-black hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)]" : ""}`}
+            title={`${item.description}\n${formatCurrency(item.amount)}${item.glAccountName ? `\nRek: ${item.glAccountName}` : ""}`}
             onClick={isClickable ? () => onEdit(item) : undefined}
         >
-            {bankTag && <span className="opacity-50 mr-0.5">[{bankTag}]</span>}
-            <span className="opacity-60">{label}</span>{" "}
-            <span>{item.direction === "IN" ? "+" : "-"}{formatCompact(item.amount)}</span>
+            <span className="opacity-50">{label}</span>
+            <span className="mx-0.5">{item.direction === "IN" ? "+" : "-"}{formatCompact(item.amount)}</span>
+            {bank && <span className="opacity-40 text-[7px]">{bank}</span>}
         </div>
     )
 }
@@ -950,9 +1014,11 @@ function getAccuracyLabel(variancePct: number | null): { label: string; color: s
 function VarianceSummary({
     snapshot,
     actualItems,
+    accuracyTrend,
 }: {
-    snapshot: { totalPlannedIn: number; totalPlannedOut: number; plannedEndBalance: number; snapshotDate: string }
+    snapshot: { totalPlannedIn: number; totalPlannedOut: number; plannedEndBalance: number; snapshotDate: string; items?: unknown }
     actualItems: CashflowItem[]
+    accuracyTrend?: { month: number; year: number; label: string; accuracyScore: number | null }[]
 }) {
     const actualIn = actualItems
         .filter(i => i.direction === "IN")
@@ -1156,6 +1222,39 @@ function VarianceSummary({
                             </tbody>
                         </table>
                     )}
+                </div>
+            )}
+
+            {accuracyTrend && accuracyTrend.length > 0 && (
+                <div className="border-t-2 border-black px-4 py-3">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-2">
+                        Tren Akurasi 3 Bulan Terakhir
+                    </div>
+                    <div className="flex items-end gap-3">
+                        {accuracyTrend.map((m) => {
+                            const score = m.accuracyScore
+                            const color = score === null
+                                ? "bg-zinc-200"
+                                : score >= 80
+                                    ? "bg-emerald-500"
+                                    : score >= 60
+                                        ? "bg-amber-500"
+                                        : "bg-red-500"
+                            return (
+                                <div key={`${m.month}-${m.year}`} className="flex flex-col items-center gap-1">
+                                    <div
+                                        className={`w-8 ${color} border border-black`}
+                                        style={{ height: score !== null ? `${Math.max(8, score * 0.4)}px` : "8px" }}
+                                        title={score !== null ? `${score}%` : "Tidak ada data"}
+                                    />
+                                    <span className="text-[9px] font-bold text-zinc-500">{m.label}</span>
+                                    <span className="text-[9px] font-black">
+                                        {score !== null ? `${score}%` : "\u2014"}
+                                    </span>
+                                </div>
+                            )
+                        })}
+                    </div>
                 </div>
             )}
         </div>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useCashflowPlan } from "@/hooks/use-cashflow-plan"
+import { useCashflowPlan, useAccuracyTrend } from "@/hooks/use-cashflow-plan"
 import { CashflowPlanningBoard } from "@/components/finance/cashflow-planning-board"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 
@@ -12,6 +12,7 @@ export default function CashflowPlanningPage() {
     const [month, setMonth] = useState(now.getMonth() + 1)
     const [year, setYear] = useState(now.getFullYear())
     const { data, isLoading } = useCashflowPlan(month, year)
+    const { data: accuracyTrend } = useAccuracyTrend(3)
 
     if (isLoading || !data) return <TablePageSkeleton accentColor="bg-emerald-400" />
 
@@ -23,6 +24,7 @@ export default function CashflowPlanningPage() {
                 year={year}
                 onMonthChange={setMonth}
                 onYearChange={setYear}
+                accuracyTrend={accuracyTrend}
             />
         </div>
     )
