@@ -645,7 +645,7 @@ export async function saveCashflowSnapshot(month: number, year: number): Promise
 export async function overrideStartingBalance(
     month: number,
     year: number,
-    amount: number
+    amount: number | null
 ): Promise<{ id: string }> {
     return withPrismaAuth(async (tx) => {
         const item = await tx.cashflowSnapshot.upsert({
@@ -658,7 +658,7 @@ export async function overrideStartingBalance(
                 items: [],
                 totalPlannedIn: 0,
                 totalPlannedOut: 0,
-                plannedEndBalance: amount,
+                plannedEndBalance: amount ?? 0,
             },
             update: {
                 startingBalanceOverride: amount,
