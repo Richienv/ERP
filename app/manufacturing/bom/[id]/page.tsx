@@ -148,8 +148,6 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             }
             progressPct = Math.round((totalActionProgress / actionTypes.length) * 100)
         }
-        // Per-piece total = sum of all step durations (each step's durationMinutes is already per-piece)
-        const durationPerPiece = steps.reduce((sum, s) => sum + (Number(s.durationMinutes) || 0), 0)
         return { totalMaterial, totalLabor, grandTotal, perUnit, totalDuration, durationPerPiece, estTimeLabel, progressPct }
     }, [steps, items, totalQty])
 
