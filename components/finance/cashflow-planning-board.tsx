@@ -930,6 +930,21 @@ function WeeklySummary({
     )
 }
 
+// ─── Variance Helpers ────────────────────────────────────────────────────────
+
+function calcVariancePct(actual: number, planned: number): number | null {
+    if (planned === 0) return null
+    return ((actual - planned) / planned) * 100
+}
+
+function getAccuracyLabel(variancePct: number | null): { label: string; color: string } {
+    if (variancePct === null) return { label: "—", color: "text-zinc-400" }
+    const abs = Math.abs(variancePct)
+    if (abs <= 10) return { label: "Akurat", color: "bg-emerald-100 text-emerald-800 border-emerald-300" }
+    if (abs <= 20) return { label: "Cukup", color: "bg-amber-100 text-amber-800 border-amber-300" }
+    return { label: "Meleset", color: "bg-red-100 text-red-800 border-red-300" }
+}
+
 // ─── Variance Summary ────────────────────────────────────────────────────────
 
 function VarianceSummary({
@@ -949,6 +964,49 @@ function VarianceSummary({
     const selisihIn = actualIn - snapshot.totalPlannedIn
     const selisihOut = actualOut - snapshot.totalPlannedOut
 
+    const [showBreakdown, setShowBreakdown] = useState(false)
+
+    const categoryVariance = (() => {
+        const snapshotItems = (Array.isArray((snapshot as any).items) ? (snapshot as any).items : []) as CashflowItem[]
+        if (snapshotItems.length === 0) return []
+
+        const plannedByCategory = new Map<string, { in: number; out: number }>()
+        for (const item of snapshotItems) {
+            const cat = item.category || "MANUAL"
+            const existing = plannedByCategory.get(cat) || { in: 0, out: 0 }
+            if (item.direction === "IN") existing.in += item.amount
+            else existing.out += item.amount
+            plannedByCategory.set(cat, existing)
+        }
+
+        const actualByCategory = new Map<string, { in: number; out: number }>()
+        for (const item of actualItems) {
+            const cat = item.category || "ACTUAL"
+            const existing = actualByCategory.get(cat) || { in: 0, out: 0 }
+            if (item.direction === "IN") existing.in += item.amount
+            else existing.out += item.amount
+            actualByCategory.set(cat, existing)
+        }
+
+        const allCategories = new Set([...plannedByCategory.keys(), ...actualByCategory.keys()])
+        return Array.from(allCategories).map(cat => {
+            const planned = plannedByCategory.get(cat) || { in: 0, out: 0 }
+            const actual = actualByCategory.get(cat) || { in: 0, out: 0 }
+            const plannedTotal = planned.in + planned.out
+            const actualTotal = actual.in + actual.out
+            const pct = calcVariancePct(actualTotal, plannedTotal)
+            return {
+                category: cat,
+                label: CATEGORY_LABELS[cat] || cat,
+                plannedTotal,
+                actualTotal,
+                variancePct: pct,
+                accuracy: getAccuracyLabel(pct),
+            }
+        }).filter(c => c.plannedTotal > 0 || c.actualTotal > 0)
+          .sort((a, b) => Math.abs(b.variancePct || 0) - Math.abs(a.variancePct || 0))
+    })()
+
     return (
         <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
             <div className="bg-black text-white px-4 py-2.5 flex items-center gap-2">
@@ -956,6 +1014,18 @@ function VarianceSummary({
                 <span className="text-xs font-black uppercase tracking-wider">
                     Variance: Rencana vs Realisasi
                 </span>
+                {(() => {
+                    const plannedNet = snapshot.totalPlannedIn - snapshot.totalPlannedOut
+                    const actualNet = actualIn - actualOut
+                    const pct = calcVariancePct(actualNet, plannedNet)
+                    const accuracy = pct !== null ? Math.max(0, 100 - Math.abs(pct)) : null
+                    if (accuracy === null) return null
+                    return (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 border ml-2 ${accuracy >= 80 ? "border-emerald-400 text-emerald-400" : accuracy >= 60 ? "border-amber-400 text-amber-400" : "border-red-400 text-red-400"}`}>
+                            Akurasi: {accuracy.toFixed(0)}%
+                        </span>
+                    )
+                })()}
                 <span className="text-[10px] text-zinc-400 ml-auto">
                     Snapshot: {new Date(snapshot.snapshotDate).toLocaleDateString("id-ID")}
                 </span>
@@ -975,6 +1045,12 @@ function VarianceSummary({
                             <th className="text-right px-4 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
                                 Nett
                             </th>
+                            <th className="text-right px-4 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
+                                Varians %
+                            </th>
+                            <th className="text-center px-4 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
+                                Akurasi
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -985,6 +1061,8 @@ function VarianceSummary({
                             <td className="px-4 py-3 text-right font-black">
                                 {formatCurrency(snapshot.totalPlannedIn - snapshot.totalPlannedOut)}
                             </td>
+                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3" />
                         </tr>
                         <tr className="border-b border-zinc-200">
                             <td className="px-4 py-3 font-black text-xs">Aktual</td>
@@ -993,6 +1071,8 @@ function VarianceSummary({
                             <td className="px-4 py-3 text-right font-black">
                                 {formatCurrency(actualIn - actualOut)}
                             </td>
+                            <td className="px-4 py-3" />
+                            <td className="px-4 py-3" />
                         </tr>
                         <tr className="border-t-2 border-black bg-zinc-50">
                             <td className="px-4 py-3 font-black text-xs">Selisih</td>
@@ -1006,10 +1086,78 @@ function VarianceSummary({
                                 {(actualIn - actualOut) - (snapshot.totalPlannedIn - snapshot.totalPlannedOut) >= 0 ? "+" : ""}
                                 {formatCurrency((actualIn - actualOut) - (snapshot.totalPlannedIn - snapshot.totalPlannedOut))}
                             </td>
+                            <td className="px-4 py-3 text-right font-black">
+                                {(() => {
+                                    const plannedNet = snapshot.totalPlannedIn - snapshot.totalPlannedOut
+                                    const actualNet = actualIn - actualOut
+                                    const pct = calcVariancePct(actualNet, plannedNet)
+                                    if (pct === null) return "—"
+                                    const color = Math.abs(pct) <= 10 ? "text-emerald-600" : Math.abs(pct) <= 20 ? "text-amber-600" : "text-red-600"
+                                    return <span className={color}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>
+                                })()}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                                {(() => {
+                                    const plannedNet = snapshot.totalPlannedIn - snapshot.totalPlannedOut
+                                    const actualNet = actualIn - actualOut
+                                    const pct = calcVariancePct(actualNet, plannedNet)
+                                    const { label, color } = getAccuracyLabel(pct)
+                                    return <span className={`text-[9px] font-bold px-2 py-0.5 border ${color}`}>{label}</span>
+                                })()}
+                            </td>
                         </tr>
                     </tbody>
                 </table>
             </div>
+
+            {categoryVariance.length > 0 && (
+                <div className="border-t-2 border-black">
+                    <button
+                        onClick={() => setShowBreakdown(!showBreakdown)}
+                        className="w-full px-4 py-2 text-left text-[10px] font-black uppercase tracking-wider text-zinc-500 hover:bg-zinc-50 flex items-center gap-1"
+                    >
+                        {showBreakdown ? "▼" : "▶"} Detail Per Kategori ({categoryVariance.length})
+                    </button>
+                    {showBreakdown && (
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="border-b border-zinc-200 bg-zinc-50">
+                                    <th className="text-left px-4 py-1.5 text-[10px] font-bold text-zinc-500">Kategori</th>
+                                    <th className="text-right px-4 py-1.5 text-[10px] font-bold text-zinc-500">Rencana</th>
+                                    <th className="text-right px-4 py-1.5 text-[10px] font-bold text-zinc-500">Aktual</th>
+                                    <th className="text-right px-4 py-1.5 text-[10px] font-bold text-zinc-500">Varians</th>
+                                    <th className="text-center px-4 py-1.5 text-[10px] font-bold text-zinc-500">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {categoryVariance.map((c) => (
+                                    <tr key={c.category} className="border-b border-zinc-100">
+                                        <td className="px-4 py-2">
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 border ${CATEGORY_COLORS[c.category] || ""}`}>
+                                                {c.label}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-2 text-right font-bold">{formatCurrency(c.plannedTotal)}</td>
+                                        <td className="px-4 py-2 text-right font-bold">{formatCurrency(c.actualTotal)}</td>
+                                        <td className="px-4 py-2 text-right font-bold">
+                                            {c.variancePct !== null ? (
+                                                <span className={Math.abs(c.variancePct) <= 10 ? "text-emerald-600" : Math.abs(c.variancePct) <= 20 ? "text-amber-600" : "text-red-600"}>
+                                                    {c.variancePct > 0 ? "+" : ""}{c.variancePct.toFixed(1)}%
+                                                </span>
+                                            ) : "—"}
+                                        </td>
+                                        <td className="px-4 py-2 text-center">
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 border ${c.accuracy.color}`}>
+                                                {c.accuracy.label}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+            )}
         </div>
     )
 }
