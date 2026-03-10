@@ -151,6 +151,9 @@ export function BankReconciliationView({
     // Pagination state
     const [loadingMore, setLoadingMore] = useState(false)
 
+    // Suggestions state (from auto-match)
+    const [suggestions, setSuggestions] = useState<{ bankItemId: string; matches: { transactionId: string; confidence: string; score: number; reason: string }[] }[]>([])
+
     // Import state
     const [importText, setImportText] = useState("")
 
@@ -238,8 +241,10 @@ export function BankReconciliationView({
         try {
             const result = await onAutoMatch(selectedRec.id)
             if (result.success) {
-                const sugCount = Array.isArray(result.suggestions) ? result.suggestions.length : 0
+                const sugArr = Array.isArray(result.suggestions) ? result.suggestions as typeof suggestions : []
+                const sugCount = sugArr.length
                 toast.success(`${result.matched ?? 0} item cocok otomatis${sugCount > 0 ? `, ${sugCount} saran tersedia` : ''}`)
+                setSuggestions(sugArr)
                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
                 const reloadTake = Math.max(100, selectedRec.items.length)
                 const detail = await onLoadDetail(selectedRec.id, 0, reloadTake)
@@ -251,6 +256,27 @@ export function BankReconciliationView({
             toast.error("Gagal melakukan auto-match")
         } finally {
             setLoading(false)
+        }
+    }
+
+    const handleApplySuggestion = async (bankItemId: string, transactionId: string) => {
+        try {
+            const result = await onMatchItem(bankItemId, transactionId)
+            if (result.error) {
+                toast.error(result.error)
+            } else {
+                toast.success("Transaksi berhasil dicocokkan")
+                setSuggestions(prev => prev.filter(s => s.bankItemId !== bankItemId))
+                queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+                // Reload detail to reflect the new match
+                if (selectedRec) {
+                    const reloadTake = Math.max(100, selectedRec.items.length)
+                    const detail = await onLoadDetail(selectedRec.id, 0, reloadTake)
+                    if (detail) setSelectedRec(detail)
+                }
+            }
+        } catch {
+            toast.error("Gagal mencocokkan transaksi")
         }
     }
 
@@ -599,6 +625,51 @@ export function BankReconciliationView({
                                     </>
                                 )}
                             </ScrollArea>
+
+                            {/* Auto-match suggestions */}
+                            {suggestions.length > 0 && (
+                                <div className="border-t-2 border-black p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            Saran Pencocokan ({suggestions.length})
+                                        </span>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setSuggestions([])}
+                                            className="h-6 px-2 text-[9px] font-bold rounded-none border-2 border-black"
+                                        >
+                                            Tutup
+                                        </Button>
+                                    </div>
+                                    {suggestions.map((s) => (
+                                        <div key={s.bankItemId} className="border-2 border-zinc-200 p-3 space-y-2">
+                                            <div className="text-xs font-bold text-zinc-700 mb-1">Bank Item: {s.bankItemId.slice(0, 8)}...</div>
+                                            {s.matches.map((m) => (
+                                                <div key={m.transactionId} className="flex items-center justify-between gap-2">
+                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                        <span className={`inline-block px-1.5 py-0.5 text-[9px] font-black border rounded-none ${
+                                                            m.confidence === "HIGH" ? "bg-emerald-100 text-emerald-800 border-emerald-300" :
+                                                            m.confidence === "MEDIUM" ? "bg-amber-100 text-amber-800 border-amber-300" :
+                                                            "bg-zinc-100 text-zinc-600 border-zinc-300"
+                                                        }`}>
+                                                            {m.confidence}
+                                                        </span>
+                                                        <span className="text-xs text-zinc-600 truncate">{m.reason}</span>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => handleApplySuggestion(s.bankItemId, m.transactionId)}
+                                                        className="h-6 px-2 text-[9px] font-bold rounded-none border-2 border-black bg-white hover:bg-zinc-50 shrink-0"
+                                                    >
+                                                        Terapkan
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="bg-white border-2 border-black p-12 text-center">
