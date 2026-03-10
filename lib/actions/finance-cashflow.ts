@@ -606,9 +606,6 @@ export async function saveCashflowSnapshot(month: number, year: number): Promise
     return withPrismaAuth(async (tx) => {
         // We need to call getCashflowPlanData but it uses requireAuth + prisma singleton.
         // Instead, replicate the essential logic inline using the tx client.
-        const monthStart = new Date(year, month - 1, 1)
-        const monthEnd = new Date(year, month, 0)
-
         // Get all planned items (auto + manual) by calling the read function
         // Since we're already authenticated via withPrismaAuth, call the main function
         const planData = await getCashflowPlanData(month, year)

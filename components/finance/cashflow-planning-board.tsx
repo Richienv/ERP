@@ -8,7 +8,7 @@ import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
+// import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { NB } from "@/lib/dialog-styles"
@@ -499,7 +499,7 @@ function CalendarGrid({
     year,
     startPad,
     totalDays,
-    startingBalance,
+    _startingBalance,
     onEditItem,
 }: {
     items: CashflowItem[]
