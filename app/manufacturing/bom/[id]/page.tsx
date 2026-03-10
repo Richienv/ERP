@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { formatCurrency } from "@/lib/inventory-utils"
 import { calcTotalMaterialCost, calcTotalLaborCost, type BOMItemWithCost } from "@/components/manufacturing/bom/bom-cost-helpers"
+import { calcCriticalPathDuration } from "@/components/manufacturing/bom/bom-step-helpers"
 import { toast } from "sonner"
 import {
     ArrowLeft, Save, Loader2, Plus, Zap, Package,
@@ -116,9 +117,10 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const totalLabor = calcTotalLaborCost(steps, totalQty)
         const grandTotal = totalMaterial + totalLabor
         const perUnit = totalQty > 0 ? grandTotal / totalQty : 0
-        const totalDuration = steps.reduce((sum, s) => sum + ((s.durationMinutes || 0) * totalQty), 0)
-        // Time estimates — durationMinutes is per-piece, multiply by totalQty for total
-        const estTimeTotalMin = steps.reduce((sum, s) => sum + ((Number(s.durationMinutes) || 0) * totalQty), 0)
+        const durationPerPiece = calcCriticalPathDuration(steps)
+        const totalDuration = durationPerPiece
+        // Time estimates — durationPerPiece is per-piece along critical path, multiply by totalQty for total
+        const estTimeTotalMin = durationPerPiece * totalQty
         const estTimeHours = Math.floor(estTimeTotalMin / 60)
         const estTimeMinutes = Math.round(estTimeTotalMin % 60)
         const estTimeLabel = estTimeTotalMin > 0

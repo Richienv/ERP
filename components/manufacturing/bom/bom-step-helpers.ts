@@ -54,3 +54,23 @@ export function calcAllStepTargets(
     }
     return targets
 }
+
+/**
+ * Calculate per-piece duration along the critical path.
+ * Parallel siblings (same stationType) run simultaneously → take max, not sum.
+ */
+export function calcCriticalPathDuration(
+    steps: { id: string; station?: { stationType?: string } | null; durationMinutes?: number | null }[]
+): number {
+    const groups: Record<string, number[]> = {}
+    for (const step of steps) {
+        const type = step.station?.stationType || step.id
+        if (!groups[type]) groups[type] = []
+        groups[type].push(Number(step.durationMinutes) || 0)
+    }
+    let total = 0
+    for (const durations of Object.values(groups)) {
+        total += Math.max(...durations, 0)
+    }
+    return total
+}
