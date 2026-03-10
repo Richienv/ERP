@@ -68,6 +68,7 @@ export async function PATCH(
                     ? { machine: { connect: { id: body.machineId } } }
                     : { machine: { disconnect: true } })),
                 ...(body.costPerUnit !== undefined && { costPerUnit: body.costPerUnit }),
+                ...(body.overheadPct !== undefined && { overheadPct: body.overheadPct }),
                 ...(body.description !== undefined && { description: body.description }),
                 ...(body.isActive !== undefined && { isActive: body.isActive }),
                 ...(body.parentStationId !== undefined && (body.parentStationId

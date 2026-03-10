@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
 
         // ── MODE: create-subkon (Subcontractor + ProcessStation in one go) ──
         if (body.mode === 'create-subkon') {
-            const { companyName, stationType, costPerUnit, contactPerson, phone,
+            const { companyName, stationType, costPerUnit, overheadPct, contactPerson, phone,
                     capacityUnitsPerDay, maxCapacityPerMonth, leadTimeDays, description } = body
 
             if (!companyName || !stationType) {
@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
                         operationType: 'SUBCONTRACTOR',
                         subcontractor: { connect: { id: subcontractor.id } },
                         costPerUnit: costPerUnit || 0,
+                        overheadPct: overheadPct ?? null,
                         description: description || null,
                     },
                     include: {
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
         }
 
         // ── MODE: generic station creation (original) ──
-        const { code, name, stationType, operationType, subcontractorId, machineId, costPerUnit, description, parentStationId, groupId, iconName, colorTheme } = body
+        const { code, name, stationType, operationType, subcontractorId, machineId, costPerUnit, description, parentStationId, groupId, iconName, colorTheme, overheadPct: genericOverheadPct } = body
 
         if (!code || !name || !stationType || !operationType) {
             return NextResponse.json(
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
                 ...(subcontractorId ? { subcontractor: { connect: { id: subcontractorId } } } : {}),
                 ...(machineId ? { machine: { connect: { id: machineId } } } : {}),
                 costPerUnit: costPerUnit || 0,
+                overheadPct: genericOverheadPct ?? null,
                 description: description || null,
                 iconName: iconName || null,
                 colorTheme: colorTheme || null,

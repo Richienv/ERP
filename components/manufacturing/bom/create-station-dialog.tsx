@@ -49,6 +49,7 @@ const stationSchema = z.object({
     operationType: z.string().min(1, "Tipe operasi wajib dipilih"),
     subcontractorId: z.string().optional(),
     costPerUnit: z.coerce.number().min(0).default(0),
+    overheadPct: z.coerce.number().min(0).max(100).optional().nullable(),
     description: z.string().optional(),
     iconName: z.string().optional(),
     colorTheme: z.string().optional(),
@@ -60,6 +61,7 @@ const subkonSchema = z.object({
     contactPerson: z.string().optional(),
     phone: z.string().optional(),
     costPerUnit: z.coerce.number().min(0, "Biaya harus ≥ 0").default(0),
+    overheadPct: z.coerce.number().min(0).max(100).optional().nullable(),
     capacityUnitsPerDay: z.coerce.number().min(0).optional(),
     maxCapacityPerMonth: z.coerce.number().min(0).optional(),
     leadTimeDays: z.coerce.number().min(0).optional(),
@@ -110,6 +112,7 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
             contactPerson: "",
             phone: "",
             costPerUnit: 0,
+            overheadPct: null,
             capacityUnitsPerDay: undefined,
             maxCapacityPerMonth: undefined,
             leadTimeDays: undefined,
@@ -127,6 +130,7 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
             operationType: defaultOperationType || "IN_HOUSE",
             subcontractorId: "",
             costPerUnit: 0,
+            overheadPct: null,
             description: "",
             iconName: "Cog",
             colorTheme: "zinc",
@@ -151,6 +155,7 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                     contactPerson: values.contactPerson || null,
                     phone: values.phone || null,
                     costPerUnit: values.costPerUnit,
+                    overheadPct: values.overheadPct ?? null,
                     capacityUnitsPerDay: values.capacityUnitsPerDay || null,
                     maxCapacityPerMonth: values.maxCapacityPerMonth || null,
                     leadTimeDays: values.leadTimeDays || null,
@@ -248,14 +253,35 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                         )} />
                                     </div>
 
-                                    {/* Cost per Unit */}
-                                    <FormField control={subkonForm.control as any} name="costPerUnit" render={({ field }) => (
-                                        <FormItem>
-                                            <label className={NB.label}>Biaya per Unit (Rp) <span className={NB.labelRequired}>*</span></label>
-                                            <FormControl><Input type="number" {...field} placeholder="0" className={NB.inputMono} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )} />
+                                    {/* Cost per Unit + Overhead */}
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <FormField control={subkonForm.control as any} name="costPerUnit" render={({ field }) => (
+                                            <FormItem>
+                                                <label className={NB.label}>Biaya per Unit (Rp) <span className={NB.labelRequired}>*</span></label>
+                                                <FormControl><Input type="number" {...field} placeholder="0" className={NB.inputMono} /></FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={subkonForm.control as any} name="overheadPct" render={({ field }) => (
+                                            <FormItem>
+                                                <label className={NB.label}>Overhead (%)</label>
+                                                <FormControl>
+                                                    <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        max="100"
+                                                        placeholder="15"
+                                                        className={`${NB.inputMono} placeholder:text-zinc-300`}
+                                                        value={field.value ?? ""}
+                                                        onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                    />
+                                                </FormControl>
+                                                <p className="text-xs text-muted-foreground">Persen overhead di atas biaya tenaga kerja</p>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                    </div>
 
                                     {/* Capacity section */}
                                     <div className="border-t border-zinc-200 pt-3">
@@ -393,13 +419,34 @@ export function CreateStationDialog({ open, onOpenChange, onCreated, subcontract
                                     )} />
                                 )}
 
-                                <FormField control={stationForm.control as any} name="costPerUnit" render={({ field }) => (
-                                    <FormItem>
-                                        <label className={NB.label}>Biaya per Unit (Rp)</label>
-                                        <FormControl><Input type="number" {...field} className={NB.inputMono} /></FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )} />
+                                <div className="grid grid-cols-2 gap-3">
+                                    <FormField control={stationForm.control as any} name="costPerUnit" render={({ field }) => (
+                                        <FormItem>
+                                            <label className={NB.label}>Biaya per Unit (Rp)</label>
+                                            <FormControl><Input type="number" {...field} className={NB.inputMono} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <FormField control={stationForm.control as any} name="overheadPct" render={({ field }) => (
+                                        <FormItem>
+                                            <label className={NB.label}>Overhead (%)</label>
+                                            <FormControl>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    max="100"
+                                                    placeholder="15"
+                                                    className={`${NB.inputMono} placeholder:text-zinc-300`}
+                                                    value={field.value ?? ""}
+                                                    onChange={(e) => field.onChange(e.target.value === "" ? null : Number(e.target.value))}
+                                                />
+                                            </FormControl>
+                                            <p className="text-xs text-muted-foreground">Persen overhead di atas biaya tenaga kerja</p>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                </div>
 
                                 <FormField control={stationForm.control as any} name="description" render={({ field }) => (
                                     <FormItem>
