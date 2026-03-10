@@ -24,7 +24,7 @@ import { getOnboardingTemplates } from "@/lib/actions/hcm-onboarding"
 import { getReconciliations, getBankAccounts } from "@/lib/actions/finance-reconciliation"
 import { getDocumentSystemOverview } from "@/app/actions/documents-system"
 import { getHCMDashboardData } from "@/app/actions/hcm"
-import { getRecentAudits, getProductsForKanban, getWarehouses } from "@/app/actions/inventory"
+import { getWarehouses } from "@/app/actions/inventory"
 /**
  * Maps sidebar routes to their data prefetch config.
  * Used for both hover-prefetch and warm-cache-on-mount.
@@ -246,10 +246,6 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.bills.list(),
         queryFn: async () => await getVendorBillsRegistry(),
     },
-    "/finance/payables": {
-        queryKey: queryKeys.bills.list(),
-        queryFn: async () => await getVendorBillsRegistry(),
-    },
     "/finance/credit-notes": {
         queryKey: queryKeys.dcNotes.list(),
         queryFn: async () => {
@@ -310,10 +306,12 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     "/manager": {
         queryKey: queryKeys.managerDashboard.list(),
         queryFn: async () => {
-            const tasks = await getManagerTasks()
-            const employees = await getDepartmentEmployees()
-            const orders = await getAssignableOrders()
-            const dashboard = await getManagerDashboardStats()
+            const [tasks, employees, orders, dashboard] = await Promise.all([
+                getManagerTasks(),
+                getDepartmentEmployees(),
+                getAssignableOrders(),
+                getManagerDashboardStats(),
+            ])
             return { tasks, employees, orders, dashboard }
         },
     },
@@ -472,36 +470,13 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.openingBalances.list(),
         queryFn: () => fetch("/api/finance/opening-balances").then((r) => r.json()).then((p) => p.success ? p.data : {}),
     },
-    "/inventory/stock": {
-        queryKey: queryKeys.products.list(),
-        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            categories: p.categories ?? [],
-            warehouses: p.warehouses ?? [],
-            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, totalValue: 0 },
-        })),
-    },
-    "/inventory/alerts": {
-        queryKey: queryKeys.products.list(),
-        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            categories: p.categories ?? [],
-            warehouses: p.warehouses ?? [],
-            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, totalValue: 0 },
-        })),
-    },
-    "/inventory/reports": {
-        queryKey: queryKeys.products.list(),
-        queryFn: () => fetch("/api/inventory/page-data").then((r) => r.json()).then((p) => ({
-            products: p.products ?? [],
-            categories: p.categories ?? [],
-            warehouses: p.warehouses ?? [],
-            stats: p.stats ?? { total: 0, healthy: 0, lowStock: 0, critical: 0, totalValue: 0 },
-        })),
-    },
     "/inventory/warehouses": {
         queryKey: queryKeys.warehouses.list(),
         queryFn: async () => await getWarehouses(),
+    },
+    "/finance/cashflow-forecast": {
+        queryKey: queryKeys.cashflowForecast.list(6),
+        queryFn: () => fetch("/api/finance/cashflow-forecast?months=6").then((r) => r.json()),
     },
     "/finance/planning": {
         queryKey: queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()),
@@ -510,19 +485,6 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             const y = new Date().getFullYear()
             const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}`)
             return res.json()
-        },
-    },
-    "/inventory/audit": {
-        queryKey: queryKeys.inventoryAudit.list(),
-        queryFn: async () => {
-            const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> =>
-                Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))])
-            const [logs, prods, whs] = await Promise.all([
-                withTimeout(getRecentAudits(), 8000, []),
-                withTimeout(getProductsForKanban(), 8000, []),
-                withTimeout(getWarehouses(), 5000, []),
-            ])
-            return { auditLogs: logs, products: prods, warehouses: whs }
         },
     },
 }
