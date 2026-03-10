@@ -256,11 +256,22 @@ export function CreateCashflowItemDialog({
                             className={NB.select}
                         >
                             <option value="">— Pilih rekening —</option>
-                            {glAccounts.map((a) => (
-                                <option key={a.id} value={a.id}>
-                                    {a.code} — {a.name}
-                                </option>
-                            ))}
+                            <optgroup label="Rekening Bank">
+                                {glAccounts.filter(a => a.code.startsWith("10")).map((a) => (
+                                    <option key={a.id} value={a.id}>
+                                        {a.code} — {a.name}
+                                    </option>
+                                ))}
+                            </optgroup>
+                            {glAccounts.filter(a => !a.code.startsWith("10")).length > 0 && (
+                                <optgroup label="Akun Lainnya">
+                                    {glAccounts.filter(a => !a.code.startsWith("10")).map((a) => (
+                                        <option key={a.id} value={a.id}>
+                                            {a.code} — {a.name}
+                                        </option>
+                                    ))}
+                                </optgroup>
+                            )}
                         </select>
                     </div>
 
