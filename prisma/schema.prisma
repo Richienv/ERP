@@ -1248,6 +1248,9 @@ model PurchaseRequest {
   convertedToPOId String?        @db.Uuid
   purchaseOrder   PurchaseOrder? @relation(fields: [convertedToPOId], references: [id])
 
+  // Relations to Invoice
+  invoices Invoice[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1689,6 +1692,10 @@ model WorkOrder {
 
   status WOStatus @default(PLANNED)
 
+  estimatedCostTotal  Decimal?  @db.Decimal(15, 2)
+  actualCostTotal     Decimal?  @db.Decimal(15, 2)
+  costVariancePct     Decimal?  @db.Decimal(8, 2)
+
   product        Product         @relation(fields: [productId], references: [id])
   salesOrder     SalesOrder?     @relation(fields: [salesOrderId], references: [id])
   salesOrderItem SalesOrderItem? @relation(fields: [salesOrderItemId], references: [id])
@@ -1741,8 +1748,9 @@ model Invoice {
   number          String  @unique
   quoteId         String? @db.Uuid // Optional link to quote
   orderId         String? @db.Uuid // Legacy polymorphic reference (prefer explicit relations below)
-  salesOrderId    String? @db.Uuid
-  purchaseOrderId String? @db.Uuid
+  salesOrderId       String? @db.Uuid
+  purchaseOrderId    String? @db.Uuid
+  purchaseRequestId  String? @db.Uuid
 
   // Polymorphic-ish Relation
   customerId String? @db.Uuid // For AR (Sales)
@@ -1767,7 +1775,8 @@ model Invoice {
   customer       Customer?      @relation(fields: [customerId], references: [id])
   supplier       Supplier?      @relation(fields: [supplierId], references: [id])
   salesOrder     SalesOrder?    @relation(fields: [salesOrderId], references: [id])
-  purchaseOrder  PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  purchaseOrder   PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id])
+  purchaseRequest PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
   items              InvoiceItem[]
   payments           Payment[]
   journalEntries     JournalEntry[]
@@ -2784,6 +2793,7 @@ model ProcessStation {
   machineId       String?        @db.Uuid
   machine         Machine?       @relation(fields: [machineId], references: [id])
   costPerUnit     Decimal        @default(0) @db.Decimal(12, 2)
+  overheadPct     Decimal?       @db.Decimal(5, 2)
   description     String?
   iconName        String?                // Lucide icon name for custom OTHER stations (e.g. "Flame", "Zap")
   colorTheme      String?                // Color theme key (e.g. "red", "orange") for toolbar/canvas
@@ -3275,6 +3285,10 @@ enum CashflowCategory {
   MANUAL
   RECURRING_EXPENSE
   RECURRING_INCOME
+  FUNDING_CAPITAL      // Modal masuk dari pemilik
+  EQUITY_WITHDRAWAL    // Dividen / penarikan pemilik
+  LOAN_DISBURSEMENT    // Pencairan pinjaman
+  LOAN_REPAYMENT       // Pembayaran cicilan pinjaman
 }
 
 model CashflowPlanItem {
