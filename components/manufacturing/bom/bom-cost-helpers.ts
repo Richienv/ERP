@@ -71,6 +71,65 @@ export function calcStepLaborCost(
     return Number(step.station?.costPerUnit || 0) * targetQty
 }
 
+/**
+ * Calculate overhead cost per piece for a single step.
+ * Two sources: (1) station overheadPct applied on labor cost, (2) machine overhead per hour.
+ */
+export function calcOverheadCostPerPcs(
+    laborCostPerPcs: number,
+    overheadPct: number | string | null | undefined,
+    machineOverhead: { overheadMaterialCostPerHour?: number | string; durationMinutes?: number | null } | null | undefined,
+): number {
+    let total = 0
+    const pct = Number(overheadPct || 0)
+    if (pct > 0) {
+        total += laborCostPerPcs * pct / 100
+    }
+    if (machineOverhead) {
+        const costPerHour = Number(machineOverhead.overheadMaterialCostPerHour || 0)
+        const minutes = Number(machineOverhead.durationMinutes || 0)
+        if (costPerHour > 0 && minutes > 0) {
+            total += costPerHour * (minutes / 60)
+        }
+    }
+    return total
+}
+
+/**
+ * Calculate total overhead cost across all in-house steps × target quantity.
+ */
+export function calcTotalOverheadCost(
+    steps: {
+        laborMonthlySalary?: number | string | null
+        durationMinutes?: number | null
+        station?: { overheadPct?: number | string | null; operationType?: string; machine?: { overheadMaterialCostPerHour?: number | string } | null } | null
+        useSubkon?: boolean | null
+        allocations?: unknown[]
+    }[],
+    targetQty: number,
+): number {
+    let total = 0
+    for (const step of steps) {
+        const isSubkon = step.useSubkon ?? step.station?.operationType === "SUBCONTRACTOR"
+        if (isSubkon) continue
+        const laborPerPcs = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes)
+        const overheadPerPcs = calcOverheadCostPerPcs(
+            laborPerPcs,
+            step.station?.overheadPct,
+            step.station?.machine
+                ? { overheadMaterialCostPerHour: step.station.machine.overheadMaterialCostPerHour, durationMinutes: step.durationMinutes }
+                : null,
+        )
+        total += overheadPerPcs * targetQty
+    }
+    return total
+}
+
+/** Simple HPP per piece = material + labor + overhead */
+export function calcHPPPerPcs(materialPerPcs: number, laborPerPcs: number, overheadPerPcs: number): number {
+    return materialPerPcs + laborPerPcs + overheadPerPcs
+}
+
 /** Calculate grand total material cost across all items (not per-step, avoids double counting) */
 export function calcTotalMaterialCost(
     items: BOMItemWithCost[],
