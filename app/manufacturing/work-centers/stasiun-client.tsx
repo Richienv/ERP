@@ -17,8 +17,8 @@ import {
     Package,
     Wrench,
     Cog,
-    Zap,
-    ZapOff,
+    Power,
+    Loader2,
     Factory,
     FolderOpen,
     ChevronDown,
@@ -163,8 +163,8 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
 
     const kpis = [
         { label: "Total Stasiun", value: String(totalStations), detail: "Stasiun terdaftar", icon: Factory, color: "text-zinc-900" },
-        { label: "Aktif", value: String(activeStations), detail: "Stasiun beroperasi", icon: Zap, color: "text-emerald-600", bg: "bg-emerald-50" },
-        { label: "Nonaktif", value: String(inactiveStations), detail: "Stasiun nonaktif", icon: ZapOff, color: inactiveStations > 0 ? "text-red-600" : "text-zinc-400", bg: inactiveStations > 0 ? "bg-red-50" : "" },
+        { label: "Aktif", value: String(activeStations), detail: "Stasiun beroperasi", icon: Power, color: "text-emerald-600", bg: "bg-emerald-50" },
+        { label: "Nonaktif", value: String(inactiveStations), detail: "Stasiun nonaktif", icon: Power, color: inactiveStations > 0 ? "text-red-600" : "text-zinc-400", bg: inactiveStations > 0 ? "bg-red-50" : "" },
         { label: "Dalam Grup", value: `${groupedCount}/${totalStations}`, detail: `${groups.length} grup tersedia`, icon: Layers, color: "text-blue-600", bg: "bg-blue-50" },
     ]
 
@@ -382,18 +382,21 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
         }
     }
 
+    const [togglingStation, setTogglingStation] = useState<{ id: string; name: string; turningOn: boolean } | null>(null)
     const handleToggleActive = async (e: React.MouseEvent, station: any) => {
         e.stopPropagation()
+        const turningOn = !station.isActive
         setToggling(station.id)
+        setTogglingStation({ id: station.id, name: station.name || station.code, turningOn })
         try {
             const res = await fetch(`/api/manufacturing/process-stations/${station.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ isActive: !station.isActive }),
+                body: JSON.stringify({ isActive: turningOn }),
             })
             const result = await res.json()
             if (result.success) {
-                toast.success(station.isActive ? "Dinonaktifkan" : "Diaktifkan")
+                toast.success(turningOn ? `${station.name} diaktifkan` : `${station.name} dinonaktifkan`)
                 invalidateAll()
             } else {
                 toast.error(result.error || "Gagal mengubah status")
@@ -402,6 +405,7 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
             toast.error("Gagal mengubah status")
         } finally {
             setToggling(null)
+            setTogglingStation(null)
         }
     }
 
@@ -483,8 +487,8 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                         <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-black hover:text-white border border-transparent hover:border-black transition-all" onClick={() => openEdit(station)} title="Edit">
                             <Settings className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className={cn("h-7 w-7 rounded-none border border-transparent transition-all", isActive ? "text-amber-500 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200" : "text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200")} onClick={(e) => handleToggleActive(e, station)} disabled={toggling === station.id} title={isActive ? "Nonaktifkan" : "Aktifkan"}>
-                            {isActive ? <ZapOff className="h-3.5 w-3.5" /> : <Zap className="h-3.5 w-3.5" />}
+                        <Button variant="ghost" size="icon" className={cn("h-7 w-7 rounded-none border-2 transition-all", isActive ? "bg-emerald-500 text-white border-emerald-600 hover:bg-red-500 hover:border-red-600" : "bg-red-500 text-white border-red-600 hover:bg-emerald-500 hover:border-emerald-600")} onClick={(e) => handleToggleActive(e, station)} disabled={toggling === station.id} title={isActive ? "Nonaktifkan" : "Aktifkan"}>
+                            {toggling === station.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Power className="h-3.5 w-3.5" />}
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all" onClick={(e) => handleDelete(e, station)} disabled={deleting === station.id} title="Hapus">
                             <Trash2 className="h-3.5 w-3.5" />
@@ -495,103 +499,86 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
         )
     }
 
-    // ── Subkon process card with expandable sub-processes ──
+    // ── Subkon process card — compact grid card matching in-house style ──
     const renderSubkonProcessCard = (station: any) => {
         const config = getTypeConfig(station.stationType)
         const TypeIcon = config.icon
         const children = station.childStations || []
-        const isExpanded = !collapsedGroups.has(station.id)
 
         return (
-            <Card key={station.id} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden">
-                {/* Process header */}
-                <button
-                    className="w-full flex items-center justify-between p-3 border-b border-zinc-200 bg-amber-50 hover:bg-amber-100 transition-all text-left"
-                    onClick={() => toggleCollapse(station.id)}
-                >
-                    <div className="flex items-center gap-3">
-                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <Card
+                key={station.id}
+                className="group relative border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all rounded-none overflow-hidden flex flex-col bg-white"
+            >
+                {/* Card header — amber for subkon */}
+                <div className="flex justify-between items-center p-3 border-b-2 border-black bg-amber-50">
+                    <div className="flex items-center gap-2">
                         <div className={cn("h-7 w-7 flex items-center justify-center border", config.color)}>
                             <TypeIcon className="h-3.5 w-3.5" />
                         </div>
-                        <div>
-                            <p className="text-sm font-black uppercase">{station.name}</p>
-                            <p className="text-[9px] font-mono text-zinc-400">{station.code}</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {station.subcontractor?.name && (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 border border-amber-300">
-                                {station.subcontractor.name}
-                            </span>
-                        )}
-                        {Number(station.costPerUnit) > 0 && (
-                            <span className="text-[10px] font-mono font-bold text-zinc-500">
-                                Rp {Number(station.costPerUnit).toLocaleString("id-ID")}/unit
-                            </span>
-                        )}
-                        <span className="text-[9px] font-bold text-zinc-400">
-                            {children.length} sub-proses
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                            {station.code}
                         </span>
-                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-amber-200" onClick={() => openEditSubkon(station)} title="Edit">
-                                <Settings className="h-3 w-3" />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50" onClick={(e) => handleDelete(e, station)} disabled={deleting === station.id} title="Hapus">
-                                <Trash2 className="h-3 w-3" />
-                            </Button>
+                    </div>
+                    {station.subcontractor?.name && (
+                        <span className="text-[9px] font-bold text-amber-700 bg-amber-200 px-2 py-0.5 border border-amber-300 uppercase">
+                            {station.subcontractor.name}
+                        </span>
+                    )}
+                </div>
+
+                {/* Card body */}
+                <div className="p-4 flex-1 flex flex-col gap-3">
+                    <h3 className="text-sm font-black uppercase tracking-wide leading-tight">
+                        {station.name}
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 mt-auto">
+                        <div className="border border-zinc-200 bg-zinc-50/50 p-2">
+                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Biaya/Unit</p>
+                            <div className="font-bold text-sm text-zinc-900">
+                                {Number(station.costPerUnit) > 0
+                                    ? `Rp ${Number(station.costPerUnit).toLocaleString("id-ID")}`
+                                    : "-"}
+                            </div>
+                        </div>
+                        <div className="border border-zinc-200 bg-zinc-50/50 p-2">
+                            <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-0.5">Sub-Proses</p>
+                            <div className="font-bold text-sm text-zinc-900">
+                                {children.length}
+                            </div>
                         </div>
                     </div>
-                </button>
+                    {/* Show sub-process tags if any */}
+                    {children.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                            {children.map((child: any) => (
+                                <span
+                                    key={child.id}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-50 border border-amber-200 text-[9px] font-bold text-amber-700"
+                                    title={child.subcontractor?.name ? `→ ${child.subcontractor.name}` : undefined}
+                                >
+                                    {child.description || child.name}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
-                {/* Sub-processes */}
-                {isExpanded && (
-                    <div className="divide-y divide-zinc-100">
-                        {children.length === 0 && (
-                            <p className="text-[10px] text-zinc-400 font-bold p-3 text-center">Belum ada sub-proses</p>
-                        )}
-                        {children.map((child: any) => (
-                            <div key={child.id} className="flex items-center justify-between p-3 hover:bg-zinc-50 transition-all">
-                                <div className="flex items-center gap-3">
-                                    <div className="h-6 w-6 border border-zinc-300 flex items-center justify-center bg-zinc-100">
-                                        <Cog className="h-3 w-3 text-zinc-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold">{child.description || child.name}</p>
-                                        {child.subcontractor?.name && (
-                                            <p className="text-[9px] text-amber-600 font-bold">
-                                                → {child.subcontractor.name}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    {Number(child.costPerUnit) > 0 && (
-                                        <span className="text-[10px] font-mono font-bold text-zinc-500">
-                                            Rp {Number(child.costPerUnit).toLocaleString("id-ID")}/unit
-                                        </span>
-                                    )}
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-zinc-100" onClick={() => handleDuplicateSubProcess(station, child)} title="Duplikat sub-proses">
-                                        <Copy className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-zinc-100" onClick={() => openEditSubkon(child)} title="Edit">
-                                        <Settings className="h-3 w-3" />
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50" onClick={(e) => handleDelete(e, child)} disabled={deleting === child.id} title="Hapus">
-                                        <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                </div>
-                            </div>
-                        ))}
-
-                        <button
-                            className="w-full p-2.5 flex items-center justify-center gap-1.5 text-[10px] font-bold text-amber-600 hover:bg-amber-50 transition-all"
-                            onClick={() => openAddSubProcess(station)}
-                        >
-                            <Plus className="h-3 w-3" /> Tambah Sub-Proses
-                        </button>
+                {/* Card footer — actions */}
+                <div className="border-t-2 border-black p-2 flex items-center justify-between bg-zinc-50">
+                    <p className="text-[9px] font-bold text-amber-600 uppercase tracking-wider px-2">Subkon</p>
+                    <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-amber-100 border border-transparent hover:border-amber-300 transition-all" onClick={() => openAddSubProcess(station)} title="Tambah Sub-Proses">
+                            <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none hover:bg-black hover:text-white border border-transparent hover:border-black transition-all" onClick={() => openEditSubkon(station)} title="Edit">
+                            <Settings className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-none text-red-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 border border-transparent transition-all" onClick={(e) => handleDelete(e, station)} disabled={deleting === station.id} title="Hapus">
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                     </div>
-                )}
+                </div>
             </Card>
         )
     }
@@ -850,11 +837,12 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                             </div>
                         )}
 
-                        {/* Process type groups */}
+                        {/* Process type groups — grid layout matching in-house */}
                         {subkonSortedTypes.map((type) => {
                             const typeProcesses = subkonByType[type]
                             const config = getTypeConfig(type)
                             const TypeIcon = config.icon
+                            const activeCount = typeProcesses.filter((s: any) => s.isActive !== false).length
 
                             return (
                                 <div key={type} className="space-y-3">
@@ -863,11 +851,11 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                                             <TypeIcon className="h-3.5 w-3.5" /> {config.label}
                                         </div>
                                         <p className="text-[9px] font-bold text-zinc-400 uppercase">
-                                            {typeProcesses.length} proses
+                                            {typeProcesses.length} proses {activeCount < typeProcesses.length && `(${activeCount} aktif)`}
                                         </p>
                                     </div>
 
-                                    <div className="space-y-3">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                                         {typeProcesses.map(renderSubkonProcessCard)}
                                     </div>
                                 </div>
@@ -875,6 +863,24 @@ export function StasiunClient({ stations: initialStations, groups }: Props) {
                         })}
                     </>
                 )}
+
+                {/* ── Toggle Active Loading Dialog ── */}
+                <Dialog open={!!togglingStation} onOpenChange={() => {}}>
+                    <DialogContent className="border-2 border-black rounded-none shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] sm:max-w-xs" onInteractOutside={(e) => e.preventDefault()}>
+                        <div className="flex flex-col items-center py-6 gap-4">
+                            <div className={cn("p-4 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]", togglingStation?.turningOn ? "bg-emerald-500" : "bg-red-500")}>
+                                <Power className="h-8 w-8 text-white animate-pulse" />
+                            </div>
+                            <div className="text-center">
+                                <p className="font-black text-sm uppercase">
+                                    {togglingStation?.turningOn ? "Mengaktifkan..." : "Menonaktifkan..."}
+                                </p>
+                                <p className="text-xs text-zinc-500 font-bold mt-1">{togglingStation?.name}</p>
+                            </div>
+                            <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
+                        </div>
+                    </DialogContent>
+                </Dialog>
 
                 {/* ── In-House Add/Edit Dialog ── */}
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

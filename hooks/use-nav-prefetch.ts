@@ -88,6 +88,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.productionBom.list(),
         queryFn: () => fetch("/api/manufacturing/production-bom").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
     },
+    "/manufacturing/process-stations": {
+        queryKey: queryKeys.processStations.list(),
+        queryFn: () => fetch("/api/manufacturing/process-stations").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
+    },
     "/manufacturing/orders": {
         queryKey: queryKeys.workOrders.list(),
         queryFn: () => fetch("/api/manufacturing/work-orders?orderType=MO").then((r) => r.json()).then((p) => ({

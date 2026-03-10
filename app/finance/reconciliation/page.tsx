@@ -7,7 +7,7 @@ import {
     createReconciliation,
     importBankStatementRows,
     autoMatchReconciliation,
-    matchReconciliationItem,
+    matchMultipleItems,
     unmatchReconciliationItem,
     closeReconciliation,
     getReconciliationDetail,
@@ -21,17 +21,17 @@ export default function ReconciliationPage() {
     }
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="mf-page">
             <BankReconciliationView
                 reconciliations={data.reconciliations}
                 bankAccounts={data.bankAccounts}
                 onCreateReconciliation={createReconciliation}
                 onImportRows={importBankStatementRows}
                 onAutoMatch={autoMatchReconciliation}
-                onMatchItem={matchReconciliationItem}
+                onMatchItems={matchMultipleItems}
                 onUnmatchItem={unmatchReconciliationItem}
                 onClose={closeReconciliation}
-                onLoadDetail={(id, skip, take) => getReconciliationDetail(id, skip, take)}
+                onLoadDetail={getReconciliationDetail}
             />
         </div>
     )

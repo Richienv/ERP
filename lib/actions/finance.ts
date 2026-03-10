@@ -605,7 +605,7 @@ export interface BalanceSheetData {
         totalEquity: number
     }
     totalLiabilitiesAndEquity: number
-    balanceCheck?: { assets: number; liabilitiesAndEquity: number; difference: number }
+    balanceCheck?: { assets: number; liabilitiesAndEquity: number; difference: number; isBalanced: boolean }
     asOfDate: string
 }
 
@@ -738,7 +738,8 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 balanceCheck: {
                     assets: assets.totalAssets,
                     liabilitiesAndEquity: totalLiabilitiesAndEquity,
-                    difference: assets.totalAssets - totalLiabilitiesAndEquity
+                    difference: assets.totalAssets - totalLiabilitiesAndEquity,
+                    isBalanced: Math.abs(assets.totalAssets - totalLiabilitiesAndEquity) < 0.01
                 },
                 asOfDate: date.toISOString()
             }
@@ -807,17 +808,24 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
             // Get beginning balance (start of period)
             const beginningCash = cashAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0)
 
-            // Get journal entries affecting cash
+            // Get journal entries affecting cash, including all sibling lines for counter-party analysis
+            const cashAccountIds = cashAccounts.map(a => a.id)
             const cashJournalLines = await basePrisma.journalLine.findMany({
                 where: {
-                    accountId: { in: cashAccounts.map(a => a.id) },
+                    accountId: { in: cashAccountIds },
                     entry: {
                         date: { gte: start, lte: end },
                         status: 'POSTED'
                     }
                 },
                 include: {
-                    entry: true,
+                    entry: {
+                        include: {
+                            lines: {
+                                include: { account: true }
+                            }
+                        }
+                    },
                     account: true
                 }
             })
@@ -839,20 +847,75 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
                 netCashFromFinancing: 0
             }
 
-            // Calculate cash flow by analyzing journal entries
+            // Helper: categorize cash flow by counter-party GL account code/type
+            // Priority: account code/type > description keyword fallback
+            function categorizeCashFlow(counterPartyLines: { account: { code: string; type: string } }[]): 'operating' | 'investing' | 'financing' | 'skip' {
+                for (const cp of counterPartyLines) {
+                    const code = cp.account.code
+                    const type = cp.account.type
+
+                    // Financing: Equity accounts (3xxx), long-term loans (2500+)
+                    if (type === 'EQUITY' || code.startsWith('3')) return 'financing'
+                    if (code >= '2500' && code < '3000') return 'financing' // Utang Bank Jangka Panjang
+
+                    // Investing: Fixed asset accounts (1500-1599), accumulated depreciation (1590)
+                    if (code >= '1500' && code < '1600') return 'investing'
+
+                    // Operating: Revenue (4xxx), COGS/Expense (5xxx, 6xxx, 7xxx),
+                    // AR (1200), AP (2000-2120), Inventory (1300-1320)
+                    if (type === 'REVENUE' || type === 'EXPENSE') return 'operating'
+                    if (code.startsWith('12')) return 'operating' // AR - Piutang Usaha
+                    if (code >= '2000' && code < '2500') return 'operating' // Short-term liabilities (AP, Utang Gaji, Pajak)
+                    if (code >= '1300' && code < '1400') return 'operating' // Inventory
+                }
+                return 'skip' // Unknown — don't categorize
+            }
+
+            // Fallback: categorize by description keywords (legacy behavior)
+            function categorizeCashFlowByDescription(description: string | null): 'operating' | 'investing' | 'financing' | 'skip' {
+                if (!description) return 'skip'
+                const desc = description.toLowerCase()
+                // Operating keywords
+                if (desc.includes('invoice') || desc.includes('faktur') || desc.includes('payment') || desc.includes('pembayaran') || desc.includes('gaji') || desc.includes('salary')) return 'operating'
+                // Investing keywords
+                if (desc.includes('asset') || desc.includes('aset') || desc.includes('equipment') || desc.includes('peralatan') || desc.includes('kendaraan') || desc.includes('bangunan')) return 'investing'
+                // Financing keywords
+                if (desc.includes('capital') || desc.includes('modal') || desc.includes('dividend') || desc.includes('dividen') || desc.includes('prive') || desc.includes('loan') || desc.includes('pinjaman')) return 'financing'
+                return 'skip'
+            }
+
+            // Calculate cash flow by analyzing counter-party accounts in each journal entry
             for (const line of cashJournalLines) {
                 const amount = Number(line.debit) - Number(line.credit)
                 const description = line.entry.description
 
-                // Categorize based on description or reference
-                if (description?.includes('Invoice') || description?.includes('Payment')) {
-                    // Already in netIncome, no adjustment needed
-                } else if (description?.includes('Asset') || description?.includes('Equipment')) {
-                    investingActivities.items.push({ description: description || 'Unknown', amount })
-                    investingActivities.netCashFromInvesting += amount
-                } else if (description?.includes('Capital') || description?.includes('Dividend')) {
-                    financingActivities.items.push({ description: description || 'Unknown', amount })
-                    financingActivities.netCashFromFinancing += amount
+                // Get counter-party lines (non-cash accounts in the same journal entry)
+                const counterPartyLines = line.entry.lines.filter(
+                    (l: { accountId: string }) => !cashAccountIds.includes(l.accountId)
+                )
+
+                // Primary: categorize by counter-party account code/type
+                let category = categorizeCashFlow(counterPartyLines)
+
+                // Fallback: if no counter-party match, try description keywords
+                if (category === 'skip') {
+                    category = categorizeCashFlowByDescription(description)
+                }
+
+                switch (category) {
+                    case 'operating':
+                        operatingActivities.adjustments.push({ description: description || 'Aktivitas Operasional', amount })
+                        operatingActivities.netCashFromOperating += amount
+                        break
+                    case 'investing':
+                        investingActivities.items.push({ description: description || 'Aktivitas Investasi', amount })
+                        investingActivities.netCashFromInvesting += amount
+                        break
+                    case 'financing':
+                        financingActivities.items.push({ description: description || 'Aktivitas Pendanaan', amount })
+                        financingActivities.netCashFromFinancing += amount
+                        break
+                    // 'skip' — uncategorized, don't include
                 }
             }
 
@@ -1518,7 +1581,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
 
 export async function recordInvoicePayment(data: {
     invoiceId: string
-    paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'CREDIT_CARD' | 'OTHER'
+    paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CREDIT_CARD' | 'OTHER'
     amount: number
     paymentDate: Date
     reference?: string
@@ -2280,7 +2343,13 @@ export async function approveVendorBill(billId: string) {
 export interface VendorPayment {
     id: string
     number: string
-    vendor: { id: string; name: string } | null
+    vendor: {
+        id: string
+        name: string
+        bankName?: string
+        bankAccountNumber?: string
+        bankAccountName?: string
+    } | null
     date: Date
     amount: number
     method: string
@@ -2300,7 +2369,7 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
                     supplierId: { not: null }
                 },
                 include: {
-                    supplier: { select: { id: true, name: true } },
+                    supplier: { select: { id: true, name: true, bankName: true, bankAccountNumber: true, bankAccountName: true } },
                     invoice: { select: { number: true } }
                 },
                 orderBy: { date: 'desc' },
@@ -2310,7 +2379,13 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
             return payments.map((p) => ({
                 id: p.id,
                 number: p.number,
-                vendor: p.supplier ? { id: p.supplier.id, name: p.supplier.name } : null,
+                vendor: p.supplier ? {
+                    id: p.supplier.id,
+                    name: p.supplier.name,
+                    bankName: p.supplier.bankName || undefined,
+                    bankAccountNumber: p.supplier.bankAccountNumber || undefined,
+                    bankAccountName: p.supplier.bankAccountName || undefined,
+                } : null,
                 date: p.date,
                 amount: Number(p.amount),
                 method: p.method,

@@ -71,6 +71,8 @@ export async function PATCH(
                 ...(body.overheadPct !== undefined && { overheadPct: body.overheadPct }),
                 ...(body.description !== undefined && { description: body.description }),
                 ...(body.isActive !== undefined && { isActive: body.isActive }),
+                ...(body.iconName !== undefined && { iconName: body.iconName || null }),
+                ...(body.colorTheme !== undefined && { colorTheme: body.colorTheme || null }),
                 ...(body.parentStationId !== undefined && (body.parentStationId
                     ? { parentStation: { connect: { id: body.parentStationId } } }
                     : { parentStation: { disconnect: true } })),

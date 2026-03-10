@@ -1,5 +1,5 @@
 -- AlterTable
-ALTER TABLE "WorkOrder" ADD COLUMN "estimatedCostTotal" DECIMAL(15, 2),
+ALTER TABLE "work_orders" ADD COLUMN "estimatedCostTotal" DECIMAL(15, 2),
 ADD COLUMN "actualCostTotal" DECIMAL(15, 2),
 ADD COLUMN "costVariancePct" DECIMAL(8, 2);
 

@@ -33,6 +33,29 @@ export function BOMListClient({ boms }: BOMListClientProps) {
     const [cloningId, setCloningId] = useState<string | null>(null)
     const [deletingId, setDeletingId] = useState<string | null>(null)
 
+    // Prefetch BOM detail + process stations on hover for instant canvas load
+    const handleCardHover = useCallback((bomId: string) => {
+        router.prefetch(`/manufacturing/bom/${bomId}`)
+        queryClient.prefetchQuery({
+            queryKey: queryKeys.productionBom.detail(bomId),
+            queryFn: async () => {
+                const res = await fetch(`/api/manufacturing/production-bom/${bomId}`)
+                if (!res.ok) return null
+                const result = await res.json()
+                return result.success ? result.data : null
+            },
+        })
+        // Also prefetch process stations (needed by canvas)
+        queryClient.prefetchQuery({
+            queryKey: queryKeys.processStations.list(),
+            queryFn: async () => {
+                const res = await fetch("/api/manufacturing/process-stations")
+                const result = await res.json()
+                return result.success ? result.data : []
+            },
+        })
+    }, [router, queryClient])
+
     const handleCardClick = useCallback(async (bom: any, e: React.MouseEvent) => {
         // New production BOMs — navigate directly
         if (bom._source !== 'legacy') {
@@ -213,6 +236,7 @@ export function BOMListClient({ boms }: BOMListClientProps) {
                                 return (
                                     <div
                                         key={bom.id}
+                                        onMouseEnter={() => !isLegacy && handleCardHover(bom.id)}
                                         onClick={(e) => !isMigrating && handleCardClick(bom, e)}
                                         className="block border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all group cursor-pointer"
                                     >

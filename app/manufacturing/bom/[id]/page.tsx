@@ -65,6 +65,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     const [totalQty, setTotalQty] = useState(0)
     const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
+    const [savingAs, setSavingAs] = useState(false)
     const [generating, setGenerating] = useState(false)
     const [spkProgress, setSpkProgress] = useState<string | null>(null)
     const [spkResult, setSpkResult] = useState<{ workOrders: any[]; bomId: string } | null>(null)
@@ -249,7 +250,19 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
     // Build dynamic process types: fixed types + custom OTHER types from allStations
     const dynamicProcessTypes = useMemo(() => {
-        const fixed = [...STATION_TYPE_CONFIG].map(cfg => ({ ...cfg, isCustom: false, description: null as string | null }))
+        const fixed = [...STATION_TYPE_CONFIG].map(cfg => {
+            // Check if any station of this type has a custom icon/color override
+            const repStation = (allStations || []).find((s: any) =>
+                s.stationType === cfg.type && s.operationType !== "SUBCONTRACTOR" && (s.iconName || s.colorTheme)
+            )
+            return {
+                ...cfg,
+                icon: repStation?.iconName ? getIconByName(repStation.iconName) : cfg.icon,
+                color: repStation?.colorTheme ? getColorTheme(repStation.colorTheme).toolbar : cfg.color,
+                isCustom: false,
+                description: null as string | null,
+            }
+        })
 
         // Find unique custom (OTHER) process types from allStations
         const otherStations = (allStations || []).filter((s: any) =>
@@ -530,29 +543,115 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     }, [steps])
 
     // Add a parallel step — same parents as the clicked step (sibling, not child)
+    // Auto-splits quantity evenly when siblings share the same stationType
     const handleAddParallel = useCallback((stepId: string) => {
         const source = steps.find((s) => s.id === stepId)
         if (!source) return
 
         const tempId = `step-par-${Date.now()}`
+        const stationType = source.station?.stationType
+
         dirtySetSteps((prev) => {
             const newSequence = prev.length + 1
-            return [...prev, {
+            const newStep = {
                 id: tempId,
                 stationId: source.stationId,
                 station: source.station,
                 sequence: newSequence,
                 durationMinutes: source.durationMinutes,
                 notes: null,
-                // Same parents = parallel sibling
                 parentStepIds: [...(source.parentStepIds || [])],
-                materials: [],
-                allocations: [],
-                attachments: [],
-            }]
+                materials: [] as any[],
+                allocations: [] as any[],
+                attachments: [] as any[],
+            }
+
+            const withNew = [...prev, newStep]
+
+            // Auto-split if siblings share same stationType
+            if (stationType && totalQty > 0) {
+                const parentKey = [...(source.parentStepIds || [])].sort().join(",")
+                const siblings = withNew.filter(s => {
+                    const sKey = [...(s.parentStepIds || [])].sort().join(",")
+                    return s.station?.stationType === stationType && sKey === parentKey
+                })
+
+                if (siblings.length >= 2) {
+                    const base = Math.floor(totalQty / siblings.length)
+                    const remainder = totalQty % siblings.length
+
+                    return withNew.map(s => {
+                        const sibIdx = siblings.findIndex(sib => sib.id === s.id)
+                        if (sibIdx === -1) return s
+                        const qty = base + (sibIdx < remainder ? 1 : 0)
+                        return {
+                            ...s,
+                            allocations: [{ id: `alloc-${s.id}-auto`, stepId: s.id, stationId: s.stationId, quantity: qty }],
+                        }
+                    })
+                }
+            }
+
+            return withNew
         })
-        toast.success("Proses paralel ditambahkan — ganti work center di panel detail")
-    }, [steps])
+        toast.success("Proses paralel ditambahkan — kuantitas dibagi rata")
+    }, [steps, totalQty])
+
+    // Handle percentage change from split group badge click
+    const handlePctChange = useCallback((stepId: string, newPct: number) => {
+        if (!totalQty) return
+
+        dirtySetSteps(prev => {
+            const step = prev.find(s => s.id === stepId)
+            if (!step) return prev
+
+            const stationType = step.station?.stationType
+            const parentKey = [...(step.parentStepIds || [])].sort().join(",")
+            const siblings = prev.filter(s => {
+                const sKey = [...(s.parentStepIds || [])].sort().join(",")
+                return s.station?.stationType === stationType && sKey === parentKey
+            })
+
+            if (siblings.length < 2) return prev
+
+            const clamped = Math.max(1, Math.min(100 - (siblings.length - 1), newPct))
+            const remaining = 100 - clamped
+            const otherSiblings = siblings.filter(s => s.id !== stepId)
+
+            // Distribute remaining proportionally among others
+            const otherTotal = otherSiblings.reduce((sum, s) => {
+                const allocQty = (s.allocations || []).reduce((a: number, b: any) => a + (b.quantity || 0), 0)
+                return sum + (allocQty || Math.floor(totalQty / siblings.length))
+            }, 0)
+
+            const otherPcts = new Map<string, number>()
+            let usedPct = 0
+            otherSiblings.forEach((s, i) => {
+                if (i < otherSiblings.length - 1) {
+                    const allocQty = (s.allocations || []).reduce((a: number, b: any) => a + (b.quantity || 0), 0)
+                    const oldPct = otherTotal > 0 ? allocQty / otherTotal : 1 / otherSiblings.length
+                    const pct = Math.max(1, Math.round(remaining * oldPct))
+                    otherPcts.set(s.id, pct)
+                    usedPct += pct
+                } else {
+                    otherPcts.set(s.id, Math.max(1, remaining - usedPct))
+                }
+            })
+
+            return prev.map(s => {
+                if (s.id === stepId) {
+                    const qty = Math.round((clamped / 100) * totalQty)
+                    return { ...s, allocations: [{ id: `alloc-${s.id}-auto`, stepId: s.id, stationId: s.stationId, quantity: qty }] }
+                }
+                const pct = otherPcts.get(s.id)
+                if (pct != null) {
+                    const qty = Math.round((pct / 100) * totalQty)
+                    return { ...s, allocations: [{ id: `alloc-${s.id}-auto`, stepId: s.id, stationId: s.stationId, quantity: qty }] }
+                }
+                return s
+            })
+        })
+    }, [totalQty])
 
     const handleAddSequential = useCallback((stepId: string) => {
         const source = steps.find((s) => s.id === stepId)
@@ -776,6 +875,35 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         }
     }
 
+    // --- SAVE AS NEW VERSION ---
+    const handleSaveAsNewVersion = async () => {
+        setSavingAs(true)
+        try {
+            // First save current changes
+            const saved = await doSave()
+            if (!saved) { setSavingAs(false); return }
+
+            // Clone BOM as new version
+            const res = await fetch("/api/manufacturing/production-bom", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ cloneFromId: id }),
+            })
+            const result = await res.json()
+            if (result.success) {
+                toast.success(`Versi baru ${result.data.version} berhasil dibuat`)
+                queryClient.invalidateQueries({ queryKey: queryKeys.productionBom.all })
+                router.push(`/manufacturing/bom/${result.data.id}`)
+            } else {
+                toast.error(result.error || "Gagal membuat versi baru")
+            }
+        } catch {
+            toast.error("Terjadi kesalahan")
+        } finally {
+            setSavingAs(false)
+        }
+    }
+
     // --- GENERATE SPK (pre-validates, auto-saves, then generates) ---
     const handleGenerateSPK = async () => {
         // Pre-validate client-side before even saving
@@ -839,96 +967,126 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
     return (
         <div className="flex flex-col overflow-hidden -mx-4 -mb-4 h-[calc(100svh-4rem)]">
-            {/* TOOLBAR — Row 1: Product info + actions */}
-            <div className="border-b-2 border-black bg-white px-3 lg:px-4 py-1.5 flex items-center justify-between shrink-0 gap-2">
-                <div className="flex items-center gap-2 lg:gap-4 min-w-0">
-                    <Button
-                        variant="ghost"
-                        size="sm"
+            {/* ═══ TOOLBAR — Row 1: Command Bar ═══ */}
+            <div className="border-b-2 border-black bg-white px-6 py-3 flex items-center justify-between shrink-0 gap-6">
+                {/* Left: Back + Product info + Version + Target */}
+                <div className="flex items-center gap-4 min-w-0">
+                    <button
                         onClick={() => {
                             if (isDirty) {
                                 if (!window.confirm("Ada perubahan yang belum disimpan. Yakin ingin keluar tanpa menyimpan?")) return
                             }
                             router.push("/manufacturing/bom")
                         }}
-                        className="h-8 rounded-none font-bold shrink-0"
+                        className="p-2 border-2 border-black hover:bg-zinc-100 transition-colors shrink-0"
                     >
-                        <ArrowLeft className="mr-1 h-4 w-4" /> Kembali
-                    </Button>
-                    <div className="border-l-2 border-zinc-200 pl-2 lg:pl-4 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2.5">
                             <Package className="h-4 w-4 text-orange-500 shrink-0" />
                             <span className="font-black text-sm uppercase truncate">{bom.product?.name}</span>
-                            <span className="bg-black text-white text-[9px] font-black px-2 py-0.5 shrink-0">{bom.version}</span>
+                            <span className="bg-orange-500 text-white text-[10px] font-black px-2.5 py-0.5 shrink-0 border border-orange-600">{bom.version}</span>
+                            {isDirty && <span className="w-2 h-2 bg-amber-400 rounded-full shrink-0" title="Ada perubahan belum disimpan" />}
                         </div>
-                        <p className="text-[10px] font-mono text-zinc-400 truncate">{bom.product?.code}</p>
+                        <p className="text-[10px] font-mono text-zinc-400 truncate mt-0.5">{bom.product?.code}</p>
                     </div>
-                    <div className="border-l-2 border-zinc-200 pl-2 lg:pl-4 flex items-center gap-2 shrink-0">
-                        <label className="text-[9px] font-black uppercase text-zinc-400">Target:</label>
+
+                    <div className="border-l-2 border-zinc-200 pl-4 flex items-center gap-2.5 shrink-0">
+                        <span className="text-[10px] font-black uppercase text-zinc-400">Target</span>
                         <Input
                             type="number"
                             value={totalQty}
                             onChange={(e) => dirtySetTotalQty(parseInt(e.target.value) || 0)}
-                            className="h-7 w-20 text-xs font-mono border-zinc-200 rounded-none"
+                            className="h-8 w-24 text-xs font-mono font-bold border-2 border-zinc-300 rounded-none hover:border-black transition-colors focus:border-black"
                         />
                         <span className="text-[10px] font-bold text-zinc-400">pcs</span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
+                {/* Right: Actions */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                    {/* View Toggle */}
+                    <div className="flex border-2 border-black overflow-hidden">
+                        <button
+                            onClick={() => setViewMode("canvas")}
+                            className={`px-3 py-1.5 text-[10px] font-black uppercase transition-colors ${viewMode === "canvas" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
+                        >
+                            Canvas
+                        </button>
+                        <button
+                            onClick={() => setViewMode("timeline")}
+                            className={`px-3 py-1.5 text-[10px] font-black uppercase border-l-2 border-black transition-colors ${viewMode === "timeline" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"}`}
+                        >
+                            Timeline
+                        </button>
+                    </div>
+
+                    <button
+                        onClick={() => setHistoryOpen(true)}
+                        className="h-9 px-3 border-2 border-black text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
+                        title="Riwayat Edit"
+                    >
+                        <History className="h-3.5 w-3.5" />
+                    </button>
+
+                    <button
                         onClick={() => setAddStationDialogOpen(true)}
-                        className="h-8 font-bold text-[10px] uppercase border-2 border-black rounded-none"
+                        className="h-9 px-3 border-2 border-black text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
                     >
-                        <Plus className="mr-1 h-3.5 w-3.5" /> Work Center Kustom
-                    </Button>
+                        <Plus className="h-3.5 w-3.5" /> Kustom
+                    </button>
 
-                    <Button
-                        variant="outline"
-                        size="sm"
+                    <button
                         onClick={() => window.open(`/api/manufacturing/production-bom/${id}/pdf`, "_blank")}
-                        className="h-8 font-bold text-[10px] uppercase border-2 border-black rounded-none"
+                        className="h-9 px-3 border-2 border-black text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-zinc-50 transition-colors"
                     >
-                        <FileDown className="mr-1 h-3.5 w-3.5" /> PDF
-                    </Button>
+                        <FileDown className="h-3.5 w-3.5" /> PDF
+                    </button>
 
-                    <Button
-                        variant="outline"
-                        size="sm"
+                    <button
                         onClick={handleGenerateSPK}
                         disabled={generating || !spkReadiness.ready}
                         title={spkReadiness.ready ? "Semua siap — klik untuk generate SPK" : `Belum siap:\n${spkReadiness.issues.join('\n')}`}
-                        className={`h-8 font-black text-[10px] uppercase border-2 rounded-none ${spkReadiness.ready
+                        className={`h-9 px-4 border-2 text-[10px] font-black uppercase flex items-center gap-1.5 transition-colors disabled:opacity-40 ${spkReadiness.ready
                                 ? "border-orange-500 text-orange-600 hover:bg-orange-50"
-                                : "border-zinc-300 text-zinc-400 hover:bg-zinc-50"
+                                : "border-zinc-300 text-zinc-400"
                             }`}
                     >
-                        {generating ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-1 h-3.5 w-3.5" />}
-                        Generate SPK
+                        {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                        SPK
                         {!spkReadiness.ready && steps.length > 0 && (
-                            <span className="ml-1.5 bg-red-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center">
+                            <span className="bg-red-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center">
                                 {spkReadiness.issues.length}
                             </span>
                         )}
-                    </Button>
+                    </button>
 
-                    <Button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="h-8 bg-black text-white font-black text-[10px] uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none rounded-none px-6"
-                    >
-                        {saving ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Save className="mr-1 h-3.5 w-3.5" />}
-                        Simpan
-                    </Button>
+                    {/* Save + Save As group */}
+                    <div className="flex border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden ml-1">
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="h-9 px-5 bg-black text-white text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                        >
+                            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                            Simpan
+                        </button>
+                        <button
+                            onClick={handleSaveAsNewVersion}
+                            disabled={savingAs}
+                            className="h-9 px-3 bg-zinc-800 text-white text-[10px] font-black uppercase flex items-center gap-1.5 border-l border-zinc-600 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+                            title="Simpan sebagai versi baru"
+                        >
+                            {savingAs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            {/* TOOLBAR — Row 2: Quick-Add + Templates + View Toggle */}
-            <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-1 flex items-center gap-1.5 shrink-0 overflow-x-auto">
-                <span className="text-[9px] font-black uppercase text-zinc-400 mr-1 shrink-0">Tambah Proses:</span>
-                {/* Default process types */}
+            {/* ═══ TOOLBAR — Row 2: Process Palette ═══ */}
+            <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-2.5 flex items-center gap-2 shrink-0 overflow-x-auto">
+                <span className="text-[10px] font-black uppercase text-zinc-400 mr-2 shrink-0">Proses</span>
                 {dynamicProcessTypes.filter(cfg => !cfg.isCustom).map((cfg) => {
                     const Icon = cfg.icon
                     const isCreating = creatingStationType === cfg.type
@@ -942,17 +1100,15 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     return (
                         <Popover key={cfg.type} open={isPicking} onOpenChange={(open) => { if (!open) setStationPickerType(null) }}>
                             <PopoverTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
+                                <button
                                     disabled={isCreating}
                                     onClick={() => handleQuickAddByType(cfg.type, cfg.description)}
-                                    className={`h-7 text-[10px] font-bold border rounded-none shrink-0 px-2.5 gap-1 ${cfg.color}`}
+                                    className={`h-8 px-3 text-[10px] font-black uppercase flex items-center gap-1.5 border-2 border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40 shrink-0 ${cfg.color}`}
                                 >
-                                    {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
+                                    {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
                                     {cfg.label}
                                     {hasMultiple && <span className="text-[8px] opacity-60">({candidates.length})</span>}
-                                </Button>
+                                </button>
                             </PopoverTrigger>
                             {isPicking && (
                                 <PopoverContent className="w-60 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
@@ -989,11 +1145,10 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     )
                 })}
 
-                {/* Custom process types — only show section if any exist */}
+                {/* Custom process types */}
                 {dynamicProcessTypes.some(cfg => cfg.isCustom) && (
                     <>
-                        <div className="border-l border-zinc-300 mx-1 h-5 shrink-0" />
-                        <span className="text-[9px] font-black uppercase text-zinc-400 shrink-0">Kustom:</span>
+                        <div className="border-l-2 border-zinc-300 mx-2 h-5 shrink-0" />
                         {dynamicProcessTypes.filter(cfg => cfg.isCustom).map((cfg) => {
                             const Icon = cfg.icon
                             const isCreating = creatingStationType === cfg.type
@@ -1007,17 +1162,15 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                             return (
                                 <Popover key={cfg.type} open={isPicking} onOpenChange={(open) => { if (!open) setStationPickerType(null) }}>
                                     <PopoverTrigger asChild>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
+                                        <button
                                             disabled={isCreating}
                                             onClick={() => handleQuickAddByType(cfg.type, cfg.description)}
-                                            className={`h-7 text-[10px] font-bold border rounded-none shrink-0 px-2.5 gap-1 ${cfg.color}`}
+                                            className={`h-8 px-3 text-[10px] font-black uppercase flex items-center gap-1.5 border-2 border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40 shrink-0 ${cfg.color}`}
                                         >
-                                            {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3 w-3" />}
+                                            {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
                                             {cfg.label}
                                             {hasMultiple && <span className="text-[8px] opacity-60">({candidates.length})</span>}
-                                        </Button>
+                                        </button>
                                     </PopoverTrigger>
                                     {isPicking && (
                                         <PopoverContent className="w-60 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
@@ -1056,107 +1209,73 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     </>
                 )}
 
-                <div className="border-l border-zinc-300 mx-1 h-5 shrink-0" />
+                <div className="border-l-2 border-zinc-300 mx-2 h-5 shrink-0" />
 
                 {/* Template Presets */}
-                <span className="text-[9px] font-black uppercase text-zinc-400 shrink-0">Template:</span>
                 {PROCESS_TEMPLATES.map((tmpl) => (
-                    <Button
+                    <button
                         key={tmpl.label}
-                        variant="outline"
-                        size="sm"
                         disabled={applyingTemplate}
                         onClick={() => handleApplyTemplate(tmpl.types)}
-                        className="h-7 text-[10px] font-bold border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-none shrink-0 px-2.5 gap-1"
+                        className="h-8 px-3 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 text-orange-600 border-2 border-orange-300 hover:bg-orange-100 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] transition-all disabled:opacity-40 shrink-0"
                     >
-                        {applyingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : <LayoutTemplate className="h-3 w-3" />}
+                        {applyingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : <LayoutTemplate className="h-3.5 w-3.5" />}
                         {tmpl.label}
-                    </Button>
+                    </button>
                 ))}
-
-                <div className="ml-auto flex items-center gap-1 shrink-0">
-                    {/* History button */}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setHistoryOpen(true)}
-                        className="h-7 text-[10px] font-bold rounded-none px-2"
-                        title="Riwayat Edit"
-                    >
-                        <History className="h-3.5 w-3.5" />
-                    </Button>
-
-                    {/* View Toggle */}
-                    <div className="flex border border-zinc-300 overflow-hidden">
-                        <button
-                            onClick={() => setViewMode("canvas")}
-                            className={`px-2 py-1 text-[9px] font-black uppercase ${viewMode === "canvas" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-100"}`}
-                        >
-                            Canvas
-                        </button>
-                        <button
-                            onClick={() => setViewMode("timeline")}
-                            className={`px-2 py-1 text-[9px] font-black uppercase ${viewMode === "timeline" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-100"}`}
-                        >
-                            Timeline
-                        </button>
-                    </div>
-                </div>
             </div>
 
-            {/* TOOLBAR — Row 3: Cost Summary Strip */}
-            <div className="border-b border-zinc-200 bg-white px-4 py-1.5 flex items-center gap-3 lg:gap-6 shrink-0 overflow-x-auto">
+            {/* ═══ TOOLBAR — Row 3: Cost Summary Strip ═══ */}
+            <div className="border-b border-zinc-200 bg-white px-6 py-2 flex items-center gap-5 lg:gap-8 shrink-0 overflow-x-auto text-[10px]">
                 <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Material:</span>
-                    <span className="text-xs font-bold text-black">{formatCurrency(costSummary.totalMaterial)}</span>
+                    <span className="font-black uppercase text-zinc-400">Material</span>
+                    <span className="font-bold text-black">{formatCurrency(costSummary.totalMaterial)}</span>
                 </div>
-                <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Labor:</span>
-                    <span className="text-xs font-bold text-black">{formatCurrency(costSummary.totalLabor)}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="font-black uppercase text-zinc-400">Labor</span>
+                    <span className="font-bold text-black">{formatCurrency(costSummary.totalLabor)}</span>
                 </div>
-                <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Overhead:</span>
-                    <span className="text-xs font-bold text-orange-700">{formatCurrency(costSummary.totalOverhead)}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="font-black uppercase text-zinc-400">Overhead</span>
+                    <span className="font-bold text-orange-700">{formatCurrency(costSummary.totalOverhead)}</span>
                 </div>
-                <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
-                    <span className="text-[9px] font-black uppercase text-zinc-400">HPP/Unit:</span>
-                    <span className="text-xs font-bold text-black">{formatCurrency(costSummary.perUnit)}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="font-black uppercase text-zinc-400">HPP/Unit</span>
+                    <span className="font-bold text-black">{formatCurrency(costSummary.perUnit)}</span>
                 </div>
                 {costSummary.durationPerPiece > 0 && (
-                    <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                         <Clock className="h-3.5 w-3.5 text-blue-500" />
-                        <span className="text-[10px] font-bold text-blue-600">
+                        <span className="font-bold text-blue-600">
                             {costSummary.durationPerPiece} menit/pcs
                         </span>
                         {costSummary.estTimeLabel && (
-                            <span className="text-[9px] text-zinc-400 font-normal ml-1">
-                                (Total: {costSummary.estTimeLabel})
+                            <span className="text-zinc-400 font-normal">
+                                ({costSummary.estTimeLabel})
                             </span>
                         )}
                     </div>
                 )}
                 {costSummary.progressPct > 0 && (
-                    <div className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
-                        <span className="text-[9px] font-black uppercase text-zinc-400">Progress:</span>
-                        <div className="flex items-center gap-1.5">
-                            <div className="h-1.5 w-16 bg-zinc-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${costSummary.progressPct}%` }} />
-                            </div>
-                            <span className="text-xs font-mono font-bold text-emerald-700">{costSummary.progressPct}%</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="font-black uppercase text-zinc-400">Progress</span>
+                        <div className="h-1.5 w-16 bg-zinc-200 overflow-hidden">
+                            <div className="h-full bg-emerald-500" style={{ width: `${costSummary.progressPct}%` }} />
                         </div>
+                        <span className="font-mono font-bold text-emerald-700">{costSummary.progressPct}%</span>
                     </div>
                 )}
-                <div className="border-l-2 border-black pl-3 lg:pl-6 flex items-center gap-1.5 shrink-0">
-                    <span className="text-[9px] font-black uppercase text-zinc-400">Total ({totalQty} pcs):</span>
+                <div className="border-l-2 border-black pl-5 flex items-center gap-2 shrink-0">
+                    <span className="font-black uppercase text-zinc-400">Total ({totalQty} pcs)</span>
                     <span className="text-sm font-black text-emerald-700">{formatCurrency(costSummary.grandTotal)}</span>
                 </div>
                 <button
                     onClick={() => setCostCardOpen(!costCardOpen)}
-                    className="border-l border-zinc-200 pl-3 lg:pl-6 flex items-center gap-1 shrink-0 text-[9px] font-black uppercase text-emerald-600 hover:text-emerald-800 transition-colors"
+                    className="ml-auto flex items-center gap-1.5 shrink-0 font-black uppercase text-emerald-600 hover:text-emerald-800 transition-colors"
                 >
-                    <Calculator className="h-3 w-3" />
+                    <Calculator className="h-3.5 w-3.5" />
                     Detail HPP
-                    <ChevronDown className={`h-3 w-3 transition-transform ${costCardOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${costCardOpen ? "rotate-180" : ""}`} />
                 </button>
             </div>
 
@@ -1175,22 +1294,23 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 </div>
             )}
 
-            {/* SPK Readiness Banner */}
+            {/* SPK Readiness — compact inline banner */}
             {steps.length > 0 && !spkReadiness.ready && (
-                <div className="border-b border-amber-300 bg-amber-50 px-4 py-2 flex items-start gap-2 shrink-0">
-                    <Zap className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
-                    <div>
-                        <p className="text-[10px] font-black uppercase text-amber-700">
-                            Belum bisa Generate SPK — {spkReadiness.issues.length} hal perlu dilengkapi:
-                        </p>
-                        <ul className="mt-1 space-y-0.5">
-                            {spkReadiness.issues.map((issue, i) => (
-                                <li key={i} className="text-[10px] text-amber-600 font-bold flex items-center gap-1">
-                                    <span className="w-1 h-1 bg-amber-500 rounded-full shrink-0" />
-                                    {issue}
-                                </li>
-                            ))}
-                        </ul>
+                <div className="border-b border-amber-200 bg-amber-50/60 px-6 py-1.5 flex items-center gap-3 shrink-0 overflow-x-auto">
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <Zap className="h-3.5 w-3.5 text-amber-500" />
+                        <span className="text-[10px] font-black uppercase text-amber-600">{spkReadiness.issues.length} hal perlu dilengkapi</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-amber-600 font-bold">
+                        {spkReadiness.issues.slice(0, 3).map((issue, i) => (
+                            <span key={i} className="flex items-center gap-1 shrink-0">
+                                <span className="w-1 h-1 bg-amber-400 rounded-full" />
+                                {issue}
+                            </span>
+                        ))}
+                        {spkReadiness.issues.length > 3 && (
+                            <span className="text-amber-400 shrink-0">+{spkReadiness.issues.length - 3} lainnya</span>
+                        )}
                     </div>
                 </div>
             )}
@@ -1223,6 +1343,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                             onAddParallel={handleAddParallel}
                             onAddSequential={handleAddSequential}
                             onNodePositionChange={handleNodePositionChange}
+                            onPctChange={handlePctChange}
                         />
                     ) : (
                         <TimelineView

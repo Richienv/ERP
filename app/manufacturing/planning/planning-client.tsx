@@ -119,6 +119,7 @@ export function PlanningClient({ initialData, initialSummary }: Props) {
     const [workOrders, setWorkOrders] = useState<WorkOrder[]>(initialData.workOrders);
     const [machines, setMachines] = useState<Machine[]>(initialData.machines);
     const [summary, setSummary] = useState<Summary>(initialSummary);
+    const matStatus = summary.materialStatus ?? { ready: 0, partial: 0, notReady: 0 };
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
@@ -131,10 +132,13 @@ export function PlanningClient({ initialData, initialSummary }: Props) {
             const data = await response.json();
 
             if (data.success) {
-                setWeeklySchedule(data.data.weeklySchedule);
-                setWorkOrders(data.data.workOrders);
-                setMachines(data.data.machines);
-                setSummary(data.summary);
+                setWeeklySchedule(data.data?.weeklySchedule ?? []);
+                setWorkOrders(data.data?.workOrders ?? []);
+                setMachines(data.data?.machines ?? []);
+                setSummary({
+                    ...data.summary,
+                    materialStatus: data.summary?.materialStatus ?? { ready: 0, partial: 0, notReady: 0 },
+                });
             } else {
                 setError(data.error || 'Failed to fetch planning data');
             }
@@ -483,22 +487,22 @@ export function PlanningClient({ initialData, initialSummary }: Props) {
                     <div className="grid grid-cols-3 gap-3">
                         <div className="text-center p-4 border-2 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/20">
                             <CheckCircle className="h-6 w-6 mx-auto text-emerald-500 mb-2" />
-                            <p className="text-3xl font-black text-emerald-600">{summary.materialStatus.ready}</p>
+                            <p className="text-3xl font-black text-emerald-600">{matStatus.ready}</p>
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide mt-1">Siap</p>
                         </div>
                         <div className="text-center p-4 border-2 border-amber-300 bg-amber-50 dark:bg-amber-950/20">
                             <AlertTriangle className="h-6 w-6 mx-auto text-amber-500 mb-2" />
-                            <p className="text-3xl font-black text-amber-600">{summary.materialStatus.partial}</p>
+                            <p className="text-3xl font-black text-amber-600">{matStatus.partial}</p>
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide mt-1">Sebagian</p>
                         </div>
                         <div className={`text-center p-4 border-2 ${
-                            summary.materialStatus.notReady > 0
+                            matStatus.notReady > 0
                                 ? 'border-red-400 bg-red-50 dark:bg-red-950/20'
                                 : 'border-red-300 bg-red-50 dark:bg-red-950/10'
                         }`}>
-                            <AlertCircle className={`h-6 w-6 mx-auto mb-2 ${summary.materialStatus.notReady > 0 ? 'text-red-500' : 'text-red-300'}`} />
-                            <p className={`text-3xl font-black ${summary.materialStatus.notReady > 0 ? 'text-red-600' : 'text-red-400'}`}>
-                                {summary.materialStatus.notReady}
+                            <AlertCircle className={`h-6 w-6 mx-auto mb-2 ${matStatus.notReady > 0 ? 'text-red-500' : 'text-red-300'}`} />
+                            <p className={`text-3xl font-black ${matStatus.notReady > 0 ? 'text-red-600' : 'text-red-400'}`}>
+                                {matStatus.notReady}
                             </p>
                             <p className="text-[10px] font-black text-zinc-500 uppercase tracking-wide mt-1">Belum Siap</p>
                         </div>

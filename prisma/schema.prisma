@@ -1872,6 +1872,7 @@ enum PaymentMethod {
   CASH
   TRANSFER
   CHECK
+  GIRO
   CREDIT_CARD
   OTHER
 }

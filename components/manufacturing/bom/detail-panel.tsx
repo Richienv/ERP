@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react"
 import { SubkonSelector } from "./subkon-selector"
 import { InHouseAllocator } from "./inhouse-allocator"
-import { calcItemCostPerUnit, calcStepMaterialCost, calcLaborCostPerPcs, WORKING_HOURS_PER_MONTH, type BOMItemWithCost } from "./bom-cost-helpers"
+import { calcItemCostPerUnit, calcStepMaterialCost, calcLaborCostPerPcs, type BOMItemWithCost } from "./bom-cost-helpers"
 import { formatCurrency } from "@/lib/inventory-utils"
 import { useEmployees } from "@/hooks/use-employees"
 import { Input } from "@/components/ui/input"
@@ -12,36 +12,40 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
     Paperclip, Upload, X, Clock, Cog, Building2, Truck,
-    CheckCircle2, Timer, User, GitBranch, ChevronDown, Banknote,
-    FileText, BarChart3,
+    CheckCircle2, Timer, User, GitBranch, ChevronDown, ChevronUp,
+    FileText, BarChart3, Maximize2, Minimize2,
 } from "lucide-react"
 
 /* ── Section Card ── */
-function SectionCard({ title, icon, accent = "border-zinc-300", children, collapsible, defaultOpen = true, className }: {
+function SectionCard({ title, icon, accent = "bg-zinc-500", tint = "bg-white", children, collapsible, defaultOpen = true, className, stretch }: {
     title: string
     icon?: React.ReactNode
     accent?: string
+    tint?: string
     children: React.ReactNode
     collapsible?: boolean
     defaultOpen?: boolean
     className?: string
+    stretch?: boolean
 }) {
     const [open, setOpen] = useState(defaultOpen)
     return (
-        <div className={`border border-zinc-200 bg-white overflow-hidden ${className || ""}`}>
+        <div className={`border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden ${stretch ? "flex flex-col" : ""} ${className || ""}`}>
             <button
                 type="button"
                 onClick={collapsible ? () => setOpen(!open) : undefined}
-                className={`w-full flex items-center gap-2 px-3 py-2 border-l-[3px] ${accent} ${collapsible ? "cursor-pointer hover:bg-zinc-50" : "cursor-default"} transition-colors`}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 ${tint} ${collapsible ? "cursor-pointer hover:brightness-95" : "cursor-default"} transition-all shrink-0`}
             >
-                {icon}
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600 flex-1 text-left">{title}</span>
+                <div className={`${accent} text-white p-1 shrink-0`}>
+                    {icon}
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-[0.15em] text-zinc-700 flex-1 text-left">{title}</span>
                 {collapsible && (
-                    <ChevronDown className={`h-3 w-3 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`h-3.5 w-3.5 text-zinc-400 transition-transform ${open ? "rotate-180" : ""}`} />
                 )}
             </button>
             {(!collapsible || open) && (
-                <div className="px-3 pb-3 pt-2">{children}</div>
+                <div className={`px-3 pb-3 pt-2.5 bg-white border-t border-zinc-100 ${stretch ? "flex-1" : ""}`}>{children}</div>
             )}
         </div>
     )
@@ -50,10 +54,10 @@ function SectionCard({ title, icon, accent = "border-zinc-300", children, collap
 /* ── Field Label ── */
 function FieldLabel({ icon, children, required }: { icon?: React.ReactNode; children: React.ReactNode; required?: boolean }) {
     return (
-        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 flex items-center gap-1">
-            {icon}
+        <label className="text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500 mb-1.5 flex items-center gap-1.5">
+            {icon && <span className="text-zinc-400">{icon}</span>}
             {children}
-            {required && <span className="text-red-500">*</span>}
+            {required && <span className="text-red-500 text-xs">*</span>}
         </label>
     )
 }
@@ -79,9 +83,10 @@ export function DetailPanel({
     onToggleSubkon,
 }: DetailPanelProps) {
     const [showInhouseAlloc, setShowInhouseAlloc] = useState(false)
+    const [expanded, setExpanded] = useState(false)
+    const [collapsed, setCollapsed] = useState(false)
     const { data: employees } = useEmployees()
 
-    // Build employee options for operator selector
     const employeeOptions = useMemo(() => {
         if (!employees) return []
         return employees
@@ -111,42 +116,55 @@ export function DetailPanel({
     const laborCostPerPcs = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes)
     const stepLaborTotal = laborCostPerPcs > 0 ? laborCostPerPcs * totalQty : Number(step.station?.costPerUnit || 0) * totalQty
 
-    // Labour calculation
     const durationMin = Number(step.durationMinutes || 0)
-    const hoursPerPcs = durationMin > 0 ? durationMin / 60 : 0
-    const pcsPerMonth = hoursPerPcs > 0 ? WORKING_HOURS_PER_MONTH / hoursPerPcs : 0
 
-    // Stations of same type
     const sameTypeStations = (allStations || []).filter((s: any) =>
         s.stationType === step.station?.stationType &&
         s.operationType !== "SUBCONTRACTOR" &&
         s.isActive !== false
     )
 
-    // Progress
     const completedQty = step.completedQty ?? 0
     const progressPct = totalQty > 0 ? Math.min(100, (completedQty / totalQty) * 100) : 0
 
     return (
-        <div className="border-t-2 border-black bg-zinc-50/50 shrink-0">
+        <div className={`border-t-2 border-black bg-zinc-50 shrink-0 flex flex-col ${expanded ? "absolute inset-0 z-50" : ""}`}>
             {/* ── HEADER BAR ── */}
-            <div className="flex items-center gap-3 px-4 py-2.5 bg-white border-b border-zinc-200">
-                <div className={`p-1.5 ${isSubkon ? "bg-amber-500" : "bg-emerald-500"} text-white shrink-0`}>
+            <div className="flex items-center gap-3 px-5 py-2.5 bg-white border-b-2 border-black shrink-0">
+                <div className={`p-2 ${isSubkon ? "bg-amber-500" : "bg-emerald-500"} text-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`}>
                     <Cog className="h-4 w-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <h3 className="font-black text-sm uppercase truncate">{step.station?.name}</h3>
+                    <h3 className="font-black text-base uppercase tracking-tight truncate">{step.station?.name}</h3>
                     {isSubkon && step.subkonProcessType && (
                         <p className="text-[10px] font-bold text-amber-600 truncate">{step.subkonProcessType}</p>
                     )}
                 </div>
 
+                {/* Expand / Collapse controls */}
+                <button
+                    type="button"
+                    onClick={() => { setCollapsed(!collapsed); if (expanded) setExpanded(false) }}
+                    className="p-1.5 border-2 border-black hover:bg-zinc-100 transition-colors"
+                    title={collapsed ? "Tampilkan detail" : "Sembunyikan detail"}
+                >
+                    {collapsed ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                    type="button"
+                    onClick={() => { setExpanded(!expanded); setCollapsed(false) }}
+                    className="p-1.5 border-2 border-black hover:bg-zinc-100 transition-colors"
+                    title={expanded ? "Kecilkan panel" : "Perbesar panel"}
+                >
+                    {expanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </button>
+
                 {/* In-House / Subkon toggle */}
-                <div className="flex border-2 border-black shrink-0">
+                <div className="flex border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0">
                     <button
                         type="button"
                         onClick={() => onToggleSubkon(false)}
-                        className={`px-3 py-1 text-[9px] font-black uppercase flex items-center gap-1 transition-colors ${
+                        className={`px-3.5 py-1.5 text-[10px] font-black uppercase flex items-center gap-1.5 transition-colors ${
                             !isSubkon ? "bg-emerald-400 text-black" : "bg-white text-zinc-400 hover:bg-zinc-50"
                         }`}
                     >
@@ -155,7 +173,7 @@ export function DetailPanel({
                     <button
                         type="button"
                         onClick={() => onToggleSubkon(true)}
-                        className={`px-3 py-1 text-[9px] font-black uppercase flex items-center gap-1 border-l-2 border-black transition-colors ${
+                        className={`px-3.5 py-1.5 text-[10px] font-black uppercase flex items-center gap-1.5 border-l-2 border-black transition-colors ${
                             isSubkon ? "bg-amber-400 text-black" : "bg-white text-zinc-400 hover:bg-zinc-50"
                         }`}
                     >
@@ -164,20 +182,22 @@ export function DetailPanel({
                 </div>
             </div>
 
-            {/* ── BODY ── */}
-            <div className="max-h-[380px] overflow-y-auto px-4 py-3 space-y-3">
+            {/* ── BODY — hidden when collapsed ── */}
+            {!collapsed && (
+                <div className={`overflow-y-auto px-5 py-4 space-y-4 ${expanded ? "flex-1" : "max-h-[420px]"}`}>
 
-                {/* ROW 1: Config + Allocation/Subkon + Attachments */}
-                <div className="flex gap-3 items-start">
+                    {/* ROW 1: 2-column grid — Config | Allocation + Attachments stacked */}
+                    <div className="grid grid-cols-2 gap-4 items-stretch">
 
-                    {/* LEFT: Pengaturan Proses */}
-                    <div className="w-[260px] shrink-0">
+                        {/* LEFT: Pengaturan Proses — stretches to match right column height */}
                         <SectionCard
                             title="Pengaturan Proses"
-                            icon={<Cog className="h-3 w-3 text-zinc-400" />}
-                            accent={isSubkon ? "border-amber-400" : "border-emerald-400"}
+                            icon={<Cog className="h-3 w-3" />}
+                            accent={isSubkon ? "bg-amber-500" : "bg-emerald-500"}
+                            tint={isSubkon ? "bg-amber-50" : "bg-emerald-50"}
+                            stretch
                         >
-                            <div className="space-y-3">
+                            <div className="space-y-4">
                                 {/* Work Center select — in-house only, multiple options */}
                                 {!isSubkon && sameTypeStations.length > 1 && onChangeStation && (
                                     <div>
@@ -189,7 +209,7 @@ export function DetailPanel({
                                                 if (station) onChangeStation(val, station)
                                             }}
                                         >
-                                            <SelectTrigger className="h-8 text-xs font-bold border-zinc-200 rounded-none">
+                                            <SelectTrigger className="h-9 text-xs font-bold border-2 border-zinc-300 rounded-none hover:border-black transition-colors focus:border-black">
                                                 <SelectValue placeholder="Pilih work center" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -203,7 +223,7 @@ export function DetailPanel({
                                     </div>
                                 )}
 
-                                {/* Tipe Proses — subkon only (dropdown) */}
+                                {/* Tipe Proses — subkon only */}
                                 {isSubkon && (
                                     <div>
                                         <FieldLabel icon={<Cog className="h-3 w-3" />}>Tipe Proses</FieldLabel>
@@ -211,7 +231,7 @@ export function DetailPanel({
                                             value={step.subkonProcessType || "__none__"}
                                             onValueChange={(val) => onUpdateStep("subkonProcessType", val === "__none__" ? null : val)}
                                         >
-                                            <SelectTrigger className="h-8 text-xs border-zinc-200 rounded-none">
+                                            <SelectTrigger className="h-9 text-xs border-2 border-zinc-300 rounded-none hover:border-black transition-colors focus:border-black">
                                                 <SelectValue placeholder="Pilih tipe..." />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -247,37 +267,34 @@ export function DetailPanel({
                                             const val = parseInt(e.target.value)
                                             onUpdateStep("durationMinutes", isNaN(val) ? null : Math.max(0, val))
                                         }}
-                                        className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
+                                        className="h-9 text-sm font-mono font-bold border-2 border-zinc-300 rounded-none placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
                                         placeholder="0"
                                     />
                                 </div>
 
-                                {/* Operator — in-house only (employee selector) */}
+                                {/* Operator — in-house only */}
                                 {!isSubkon && (
                                     <div>
                                         <FieldLabel icon={<User className="h-3 w-3" />}>Operator</FieldLabel>
                                         <Select
                                             value={
-                                                // Match by name to find employee id
                                                 employeeOptions.find((e: any) => e.name === step.operatorName)?.id || "__manual__"
                                             }
                                             onValueChange={(val) => {
                                                 if (val === "__manual__") {
-                                                    // Clear to manual mode
                                                     onUpdateStep("operatorName", null)
                                                     return
                                                 }
                                                 const emp = employeeOptions.find((e: any) => e.id === val)
                                                 if (emp) {
                                                     onUpdateStep("operatorName", emp.name)
-                                                    // Auto-populate salary from employee data
                                                     if (emp.salary > 0) {
                                                         onUpdateStep("laborMonthlySalary", emp.salary)
                                                     }
                                                 }
                                             }}
                                         >
-                                            <SelectTrigger className="h-8 text-xs border-zinc-200 rounded-none">
+                                            <SelectTrigger className="h-9 text-xs font-bold border-2 border-zinc-300 rounded-none hover:border-black transition-colors focus:border-black">
                                                 <SelectValue placeholder="Pilih karyawan..." />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -293,57 +310,22 @@ export function DetailPanel({
                                             </SelectContent>
                                         </Select>
                                         {step.operatorName && !employeeOptions.find((e: any) => e.name === step.operatorName) && (
-                                            <p className="text-[9px] text-amber-600 font-bold mt-1">
-                                                Manual: {step.operatorName}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Gaji Bulanan — in-house only, read-only from employee master */}
-                                {!isSubkon && (
-                                    <div>
-                                        <FieldLabel icon={<Banknote className="h-3 w-3" />}>Gaji Bulanan (Rp)</FieldLabel>
-                                        {(() => {
-                                            const matchedEmp = employeeOptions.find((e: any) => e.name === step.operatorName)
-                                            const salaryFromEmp = matchedEmp?.salary || 0
-                                            const currentSalary = Number(step.laborMonthlySalary || 0)
-                                            return (
-                                                <>
-                                                    <div className="h-8 flex items-center px-3 text-xs font-mono bg-zinc-50 border border-zinc-200 text-zinc-600">
-                                                        {currentSalary > 0
-                                                            ? formatCurrency(currentSalary)
-                                                            : <span className="text-zinc-300">Pilih operator dulu</span>
-                                                        }
-                                                    </div>
-                                                    {matchedEmp && salaryFromEmp > 0 && (
-                                                        <p className="text-[9px] text-emerald-600 font-bold mt-1">
-                                                            Dari data karyawan ({matchedEmp.name})
-                                                        </p>
-                                                    )}
-                                                    {!matchedEmp && currentSalary > 0 && (
-                                                        <p className="text-[9px] text-zinc-400 font-bold mt-1">
-                                                            Atur gaji di modul HCM → Master Karyawan
-                                                        </p>
-                                                    )}
-                                                </>
-                                            )
-                                        })()}
-                                        {durationMin > 0 && Number(step.laborMonthlySalary || 0) > 0 && (
-                                            <div className="mt-2 space-y-1 bg-emerald-50 border border-emerald-200 p-2">
-                                                <div className="flex justify-between text-[9px]">
-                                                    <span className="text-zinc-400 font-bold">Jam/pcs</span>
-                                                    <span className="font-mono font-bold">{hoursPerPcs.toFixed(2)} jam</span>
-                                                </div>
-                                                <div className="flex justify-between text-[9px]">
-                                                    <span className="text-zinc-400 font-bold">Kapasitas/bulan</span>
-                                                    <span className="font-mono font-bold">{Math.floor(pcsPerMonth).toLocaleString("id-ID")} pcs</span>
-                                                </div>
-                                                <div className="flex justify-between text-[9px] border-t border-emerald-200 pt-1 mt-1">
-                                                    <span className="text-zinc-600 font-black">Biaya TK/pcs</span>
-                                                    <span className="font-black text-emerald-700">{formatCurrency(laborCostPerPcs)}</span>
-                                                </div>
+                                            <div className="mt-1.5 px-2 py-1 bg-amber-50 border border-amber-200">
+                                                <p className="text-[10px] text-amber-700 font-bold">
+                                                    Manual: {step.operatorName}
+                                                </p>
                                             </div>
+                                        )}
+                                        {/* Inline salary indicator — value sourced from HCM */}
+                                        {Number(step.laborMonthlySalary || 0) > 0 ? (
+                                            <p className="mt-1 text-[9px] font-bold text-zinc-400" title="Atur gaji di modul HCM → Master Karyawan">
+                                                Gaji: {formatCurrency(Number(step.laborMonthlySalary))} /bln
+                                                {laborCostPerPcs > 0 && <span className="ml-1 text-emerald-600">({formatCurrency(laborCostPerPcs)}/pcs)</span>}
+                                            </p>
+                                        ) : (
+                                            <p className="mt-1 text-[9px] text-zinc-300 font-bold" title="Atur gaji di modul HCM → Master Karyawan">
+                                                Gaji dari HCM
+                                            </p>
                                         )}
                                     </div>
                                 )}
@@ -354,267 +336,281 @@ export function DetailPanel({
                                     <Textarea
                                         value={step.notes || ""}
                                         onChange={(e) => onUpdateStep("notes", e.target.value)}
-                                        className="text-xs border-zinc-200 rounded-none min-h-[32px] h-8 placeholder:text-zinc-300"
+                                        className="text-xs border-2 border-zinc-300 rounded-none min-h-[36px] h-9 placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
                                         placeholder="Tulis catatan..."
                                     />
                                 </div>
                             </div>
                         </SectionCard>
+
+                        {/* RIGHT: Allocation + Attachments stacked — stretches to match left */}
+                        <div className="flex flex-col gap-4">
+                            {/* Subkon selector or In-House allocator */}
+                            {isSubkon ? (
+                                <SectionCard
+                                    title="Subkontraktor"
+                                    icon={<Truck className="h-3 w-3" />}
+                                    accent="bg-amber-500"
+                                    tint="bg-amber-50"
+                                    stretch
+                                    className="flex-1"
+                                >
+                                    <SubkonSelector
+                                        stationType={step.station?.stationType}
+                                        allocations={step.allocations || []}
+                                        totalQty={totalQty}
+                                        onChange={onUpdateAllocations}
+                                    />
+                                </SectionCard>
+                            ) : showAllocPanel ? (
+                                <SectionCard
+                                    title="Distribusi Work Center"
+                                    icon={<GitBranch className="h-3 w-3" />}
+                                    accent="bg-indigo-500"
+                                    tint="bg-indigo-50"
+                                    stretch
+                                    className="flex-1"
+                                >
+                                    <InHouseAllocator
+                                        stationType={step.station?.stationType}
+                                        allocations={step.allocations || []}
+                                        totalQty={totalQty}
+                                        onChange={onUpdateAllocations}
+                                    />
+                                    {(step.allocations || []).length === 0 && (
+                                        <button
+                                            onClick={() => setShowInhouseAlloc(false)}
+                                            className="mt-2 text-[10px] font-bold text-zinc-400 hover:text-red-500 transition-colors"
+                                        >
+                                            Batalkan distribusi
+                                        </button>
+                                    )}
+                                </SectionCard>
+                            ) : (
+                                <button
+                                    onClick={() => setShowInhouseAlloc(true)}
+                                    className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-zinc-300 text-[11px] font-black uppercase tracking-wider text-indigo-600 hover:border-indigo-400 hover:bg-indigo-50 transition-all"
+                                >
+                                    <GitBranch className="h-3.5 w-3.5" /> Distribusi ke multi work center
+                                </button>
+                            )}
+
+                            {/* Attachments */}
+                            <SectionCard
+                                title="Lampiran"
+                                icon={<Paperclip className="h-3 w-3" />}
+                                accent="bg-blue-500"
+                                tint="bg-blue-50"
+                                stretch
+                                className="flex-1"
+                            >
+                                <div className="space-y-2">
+                                    {(step.attachments || []).map((att: any) => (
+                                        <div key={att.id} className="flex items-center gap-2 text-xs group px-2 py-1.5 bg-zinc-50 border border-zinc-200 hover:border-zinc-400 transition-colors">
+                                            <Paperclip className="h-3 w-3 text-blue-400 shrink-0" />
+                                            <a href={att.fileUrl} target="_blank" rel="noreferrer" className="font-bold truncate flex-1 hover:text-blue-600 transition-colors">{att.fileName}</a>
+                                            <span className="text-[9px] text-zinc-400 font-mono">{(att.fileSize / 1024).toFixed(0)}KB</span>
+                                            <button onClick={() => onDeleteAttachment(att.id)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {(step.attachments || []).length === 0 && (
+                                        <p className="text-[11px] text-zinc-300 font-bold text-center py-2">Belum ada lampiran</p>
+                                    )}
+                                </div>
+                                <Button onClick={onUploadAttachment} variant="outline" size="sm" className="h-8 text-[10px] font-black uppercase tracking-wider rounded-none border-2 border-dashed border-zinc-300 hover:border-black w-full mt-2.5 transition-colors">
+                                    <Upload className="mr-1.5 h-3 w-3" /> Upload File
+                                </Button>
+                            </SectionCard>
+                        </div>
                     </div>
 
-                    {/* RIGHT: Subkon/Allocation + Attachments */}
-                    <div className="flex-1 space-y-3 min-w-0">
-                        {/* Subkon selector or In-House allocator */}
-                        {isSubkon ? (
-                            <SectionCard
-                                title="Subkontraktor"
-                                icon={<Truck className="h-3 w-3 text-amber-500" />}
-                                accent="border-amber-400"
-                            >
-                                <SubkonSelector
-                                    stationType={step.station?.stationType}
-                                    allocations={step.allocations || []}
-                                    totalQty={totalQty}
-                                    onChange={onUpdateAllocations}
-                                />
-                            </SectionCard>
-                        ) : showAllocPanel ? (
-                            <SectionCard
-                                title="Distribusi Work Center"
-                                icon={<GitBranch className="h-3 w-3 text-emerald-500" />}
-                                accent="border-emerald-400"
-                            >
-                                <InHouseAllocator
-                                    stationType={step.station?.stationType}
-                                    allocations={step.allocations || []}
-                                    totalQty={totalQty}
-                                    onChange={onUpdateAllocations}
-                                />
-                                {(step.allocations || []).length === 0 && (
-                                    <button
-                                        onClick={() => setShowInhouseAlloc(false)}
-                                        className="mt-2 text-[9px] font-bold text-zinc-400 hover:text-red-500"
-                                    >
-                                        Batalkan distribusi
-                                    </button>
-                                )}
-                            </SectionCard>
-                        ) : (
-                            <button
-                                onClick={() => setShowInhouseAlloc(true)}
-                                className="w-full flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-zinc-300 text-[10px] font-bold text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
-                            >
-                                <GitBranch className="h-3 w-3" /> Distribusi ke multi work center
-                            </button>
-                        )}
-
-                        {/* Attachments */}
+                    {/* ROW 2: 2-column grid — Production | Material Costs */}
+                    <div className="grid grid-cols-2 gap-4 items-stretch">
+                        {/* Production tracking */}
                         <SectionCard
-                            title="Lampiran"
-                            icon={<Paperclip className="h-3 w-3 text-blue-500" />}
-                            accent="border-blue-400"
+                            title="Produksi"
+                            icon={<CheckCircle2 className="h-3 w-3" />}
+                            accent="bg-emerald-500"
+                            tint="bg-emerald-50"
+                            stretch
                         >
-                            <div className="space-y-1.5">
-                                {(step.attachments || []).map((att: any) => (
-                                    <div key={att.id} className="flex items-center gap-2 text-xs group">
-                                        <Paperclip className="h-3 w-3 text-zinc-400 shrink-0" />
-                                        <a href={att.fileUrl} target="_blank" rel="noreferrer" className="font-bold truncate flex-1 hover:underline">{att.fileName}</a>
-                                        <span className="text-[9px] text-zinc-400">{(att.fileSize / 1024).toFixed(0)}KB</span>
-                                        <button onClick={() => onDeleteAttachment(att.id)} className="opacity-0 group-hover:opacity-100">
-                                            <X className="h-3 w-3 text-zinc-400 hover:text-red-500" />
-                                        </button>
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        max={totalQty}
+                                        value={completedQty || ""}
+                                        onChange={(e) => onUpdateStep("completedQty", e.target.value ? parseInt(e.target.value) : 0)}
+                                        className="h-9 text-sm font-mono font-bold border-2 border-zinc-300 rounded-none flex-1 placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
+                                        placeholder="0"
+                                    />
+                                    <span className="text-[11px] font-black text-zinc-400 whitespace-nowrap">/ {totalQty} pcs</span>
+                                </div>
+                                {totalQty > 0 && (
+                                    <div>
+                                        <div className="h-3 bg-zinc-200 border border-zinc-300 overflow-hidden">
+                                            <div
+                                                className={`h-full transition-all ${
+                                                    progressPct >= 100 ? "bg-emerald-500" : progressPct > 0 ? "bg-amber-400" : "bg-zinc-200"
+                                                }`}
+                                                style={{ width: `${progressPct}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-[10px] font-black text-zinc-500 mt-1 text-right">
+                                            {progressPct.toFixed(0)}% selesai
+                                        </p>
                                     </div>
-                                ))}
-                                {(step.attachments || []).length === 0 && (
-                                    <p className="text-[10px] text-zinc-300 font-bold text-center py-1">Belum ada lampiran</p>
                                 )}
                             </div>
-                            <Button onClick={onUploadAttachment} variant="outline" size="sm" className="h-7 text-[10px] font-bold rounded-none border-dashed w-full mt-2">
-                                <Upload className="mr-1 h-3 w-3" /> Upload File
-                            </Button>
+                        </SectionCard>
+
+                        {/* Material cost breakdown */}
+                        <SectionCard
+                            title="Biaya Material"
+                            icon={<BarChart3 className="h-3 w-3" />}
+                            accent="bg-violet-500"
+                            tint="bg-violet-50"
+                            stretch
+                        >
+                            {stepMaterials.length === 0 ? (
+                                <p className="text-xs text-zinc-300 font-bold py-3 text-center">Belum ada material di proses ini</p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead>
+                                            <tr className="border-b-2 border-zinc-200">
+                                                <th className="text-left text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 pr-3">Material</th>
+                                                <th className="text-right text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 px-2">Qty/Unit</th>
+                                                <th className="text-right text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 px-2">Harga</th>
+                                                <th className="text-right text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 px-2">&times; {totalQty}</th>
+                                                <th className="text-right text-[9px] font-black uppercase tracking-wider text-zinc-500 pb-2 pl-2">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {stepMaterials.map((sm: any, idx: number) => {
+                                                const item = sm.item as BOMItemWithCost
+                                                const costPerUnit = calcItemCostPerUnit(item)
+                                                const subtotal = costPerUnit * totalQty
+                                                return (
+                                                    <tr key={sm.bomItemId} className={`border-b border-zinc-100 ${idx % 2 === 0 ? "bg-zinc-50/50" : ""}`}>
+                                                        <td className="py-2 pr-3 font-bold truncate max-w-[180px]">{item.material?.name || "-"}</td>
+                                                        <td className="py-2 px-2 text-right font-mono text-zinc-600">
+                                                            {Number(item.quantityPerUnit || 0)} {item.unit || item.material?.unit || ""}
+                                                        </td>
+                                                        <td className="py-2 px-2 text-right font-mono text-zinc-600">{formatCurrency(Number(item.material?.costPrice || 0))}</td>
+                                                        <td className="py-2 px-2 text-right font-mono text-zinc-600">{(Number(item.quantityPerUnit || 0) * totalQty).toLocaleString("id-ID")}</td>
+                                                        <td className="py-2 pl-2 text-right font-black">{formatCurrency(subtotal)}</td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr className="border-t-2 border-zinc-200">
+                                                <td colSpan={4} className="py-2 text-right text-[10px] font-black uppercase tracking-wider text-zinc-500 pr-2">Total Material</td>
+                                                <td className="py-2 text-right font-black text-sm">{formatCurrency(stepMaterialTotal)}</td>
+                                            </tr>
+                                            {stepLaborTotal > 0 && (
+                                                <tr>
+                                                    <td colSpan={4} className="py-1.5 text-right text-[10px] font-black uppercase tracking-wider text-zinc-500 pr-2">
+                                                        Labor/Proses
+                                                        {laborCostPerPcs > 0 && <span className="text-zinc-300 ml-1 normal-case tracking-normal">({formatCurrency(laborCostPerPcs)}/pcs)</span>}
+                                                    </td>
+                                                    <td className="py-1.5 text-right font-black text-sm">{formatCurrency(stepLaborTotal)}</td>
+                                                </tr>
+                                            )}
+                                            <tr className="border-t-2 border-black bg-zinc-50">
+                                                <td colSpan={4} className="py-2 text-right text-[11px] font-black uppercase tracking-wider pr-2">Total Proses</td>
+                                                <td className="py-2 text-right font-black text-sm text-emerald-700">{formatCurrency(stepMaterialTotal + stepLaborTotal)}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            )}
                         </SectionCard>
                     </div>
-                </div>
 
-                {/* ROW 2: Production + Material Costs */}
-                <div className="grid grid-cols-[240px_1fr] gap-3">
-                    {/* Production tracking */}
+                    {/* ROW 3: Time Study — full width, collapsible */}
                     <SectionCard
-                        title="Produksi"
-                        icon={<CheckCircle2 className="h-3 w-3 text-emerald-500" />}
-                        accent="border-emerald-400"
+                        title="Time Study"
+                        icon={<Timer className="h-3 w-3" />}
+                        accent="bg-cyan-500"
+                        tint="bg-cyan-50"
+                        collapsible
+                        defaultOpen={false}
                     >
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <FieldLabel>Hasil Time Study (menit/pcs)</FieldLabel>
                                 <Input
                                     type="number"
                                     min={0}
-                                    max={totalQty}
-                                    value={completedQty || ""}
-                                    onChange={(e) => onUpdateStep("completedQty", e.target.value ? parseInt(e.target.value) : 0)}
-                                    className="h-8 text-xs font-mono border-zinc-200 rounded-none flex-1 placeholder:text-zinc-300"
-                                    placeholder="0"
+                                    step="0.01"
+                                    value={step.estimatedTimePerUnit ?? ""}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value)
+                                        onUpdateStep("estimatedTimePerUnit", isNaN(val) ? null : Math.max(0, val))
+                                    }}
+                                    className="h-9 text-sm font-mono font-bold border-2 border-zinc-300 rounded-none placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
+                                    placeholder="2.5"
                                 />
-                                <span className="text-[10px] font-bold text-zinc-400 whitespace-nowrap">/ {totalQty} pcs</span>
-                            </div>
-                            {totalQty > 0 && (
-                                <div>
-                                    <div className="h-2 bg-zinc-200 rounded-full overflow-hidden">
-                                        <div
-                                            className={`h-full rounded-full transition-all ${
-                                                progressPct >= 100 ? "bg-emerald-500" : progressPct > 0 ? "bg-amber-400" : "bg-zinc-200"
-                                            }`}
-                                            style={{ width: `${progressPct}%` }}
-                                        />
+                                {Number(step.estimatedTimePerUnit || 0) > 0 && durationMin > 0 && (
+                                    <div className="mt-2.5 space-y-1.5 bg-cyan-50 border-2 border-cyan-200 p-2.5">
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-zinc-500 font-bold">PCC (Durasi /pcs)</span>
+                                            <span className="font-mono font-black">{durationMin} menit</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-zinc-500 font-bold">Time Study</span>
+                                            <span className="font-mono font-black">{Number(step.estimatedTimePerUnit)} menit</span>
+                                        </div>
+                                        <div className="flex justify-between text-[10px] border-t-2 border-cyan-200 pt-1.5 mt-1.5">
+                                            <span className="text-zinc-600 font-black">Selisih</span>
+                                            {(() => {
+                                                const diff = Number(step.estimatedTimePerUnit) - durationMin
+                                                const pct = ((diff / durationMin) * 100).toFixed(1)
+                                                return (
+                                                    <span className={`font-black ${diff < 0 ? "text-emerald-700" : diff > 0 ? "text-red-600" : "text-zinc-500"}`}>
+                                                        {diff > 0 ? "+" : ""}{diff.toFixed(2)} menit ({diff > 0 ? "+" : ""}{pct}%)
+                                                    </span>
+                                                )
+                                            })()}
+                                        </div>
                                     </div>
-                                    <p className="text-[9px] font-bold text-zinc-400 mt-0.5 text-right">
-                                        {progressPct.toFixed(0)}% selesai
-                                    </p>
-                                </div>
-                            )}
-                        </div>
-                    </SectionCard>
-
-                    {/* Material cost breakdown — ALWAYS visible */}
-                    <SectionCard
-                        title="Biaya Material"
-                        icon={<BarChart3 className="h-3 w-3 text-emerald-500" />}
-                        accent="border-emerald-400"
-                    >
-                        {stepMaterials.length === 0 ? (
-                            <p className="text-xs text-zinc-300 font-bold py-2 text-center">Belum ada material di proses ini</p>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-xs">
-                                    <thead>
-                                        <tr className="border-b border-zinc-200">
-                                            <th className="text-left text-[9px] font-black uppercase text-zinc-400 pb-1 pr-3">Material</th>
-                                            <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">Qty/Unit</th>
-                                            <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">Harga</th>
-                                            <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 px-2">&times; {totalQty}</th>
-                                            <th className="text-right text-[9px] font-black uppercase text-zinc-400 pb-1 pl-2">Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {stepMaterials.map((sm: any) => {
-                                            const item = sm.item as BOMItemWithCost
-                                            const costPerUnit = calcItemCostPerUnit(item)
-                                            const subtotal = costPerUnit * totalQty
-                                            return (
-                                                <tr key={sm.bomItemId} className="border-b border-zinc-50">
-                                                    <td className="py-1 pr-3 font-bold truncate max-w-[160px]">{item.material?.name || "-"}</td>
-                                                    <td className="py-1 px-2 text-right font-mono text-zinc-600">
-                                                        {Number(item.quantityPerUnit || 0)} {item.unit || item.material?.unit || ""}
-                                                    </td>
-                                                    <td className="py-1 px-2 text-right font-mono text-zinc-600">{formatCurrency(Number(item.material?.costPrice || 0))}</td>
-                                                    <td className="py-1 px-2 text-right font-mono text-zinc-600">{(Number(item.quantityPerUnit || 0) * totalQty).toLocaleString("id-ID")}</td>
-                                                    <td className="py-1 pl-2 text-right font-bold">{formatCurrency(subtotal)}</td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="border-t border-zinc-200">
-                                            <td colSpan={4} className="py-1.5 text-right text-[9px] font-black uppercase text-zinc-400 pr-2">Total Material</td>
-                                            <td className="py-1.5 text-right font-bold">{formatCurrency(stepMaterialTotal)}</td>
-                                        </tr>
-                                        {stepLaborTotal > 0 && (
-                                            <tr>
-                                                <td colSpan={4} className="py-1 text-right text-[9px] font-black uppercase text-zinc-400 pr-2">
-                                                    Labor/Proses
-                                                    {laborCostPerPcs > 0 && <span className="text-zinc-300 ml-1">({formatCurrency(laborCostPerPcs)}/pcs)</span>}
-                                                </td>
-                                                <td className="py-1 text-right font-bold">{formatCurrency(stepLaborTotal)}</td>
-                                            </tr>
-                                        )}
-                                        <tr className="border-t-2 border-black">
-                                            <td colSpan={4} className="py-1.5 text-right text-[10px] font-black uppercase pr-2">Total Proses</td>
-                                            <td className="py-1.5 text-right font-black text-emerald-700">{formatCurrency(stepMaterialTotal + stepLaborTotal)}</td>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+                                )}
                             </div>
-                        )}
+                            <div>
+                                <FieldLabel>Waktu Aktual Total (menit)</FieldLabel>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={step.actualTimeTotal ?? ""}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value)
+                                        onUpdateStep("actualTimeTotal", isNaN(val) ? null : Math.max(0, val))
+                                    }}
+                                    className="h-9 text-sm font-mono font-bold border-2 border-zinc-300 rounded-none placeholder:text-zinc-300 hover:border-black transition-colors focus:border-black"
+                                    placeholder="450"
+                                />
+                                {Number(step.actualTimeTotal || 0) > 0 && completedQty > 0 && (
+                                    <div className="mt-2.5 bg-cyan-50 border-2 border-cyan-200 p-2.5">
+                                        <div className="flex justify-between text-[10px]">
+                                            <span className="text-zinc-500 font-bold">Rata-rata</span>
+                                            <span className="font-mono font-black">{(Number(step.actualTimeTotal) / completedQty).toFixed(2)} menit/pcs</span>
+                                        </div>
+                                        <p className="text-[10px] text-zinc-400 mt-1 font-bold">
+                                            Berdasarkan {completedQty} pcs selesai
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </SectionCard>
                 </div>
-
-                {/* ROW 3: Time Study — collapsible */}
-                <SectionCard
-                    title="Time Study"
-                    icon={<Timer className="h-3 w-3 text-blue-500" />}
-                    accent="border-blue-400"
-                    collapsible
-                    defaultOpen={false}
-                >
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <FieldLabel>Hasil Time Study (menit/pcs)</FieldLabel>
-                            <Input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={step.estimatedTimePerUnit ?? ""}
-                                onChange={(e) => {
-                                    const val = parseFloat(e.target.value)
-                                    onUpdateStep("estimatedTimePerUnit", isNaN(val) ? null : Math.max(0, val))
-                                }}
-                                className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
-                                placeholder="2.5"
-                            />
-                            {Number(step.estimatedTimePerUnit || 0) > 0 && durationMin > 0 && (
-                                <div className="mt-2 space-y-1 bg-blue-50 border border-blue-200 p-2">
-                                    <div className="flex justify-between text-[9px]">
-                                        <span className="text-zinc-400 font-bold">PCC (Durasi /pcs)</span>
-                                        <span className="font-mono font-bold">{durationMin} menit</span>
-                                    </div>
-                                    <div className="flex justify-between text-[9px]">
-                                        <span className="text-zinc-400 font-bold">Time Study</span>
-                                        <span className="font-mono font-bold">{Number(step.estimatedTimePerUnit)} menit</span>
-                                    </div>
-                                    <div className="flex justify-between text-[9px] border-t border-blue-200 pt-1 mt-1">
-                                        <span className="text-zinc-500 font-black">Selisih</span>
-                                        {(() => {
-                                            const diff = Number(step.estimatedTimePerUnit) - durationMin
-                                            const pct = ((diff / durationMin) * 100).toFixed(1)
-                                            return (
-                                                <span className={`font-black ${diff < 0 ? "text-emerald-700" : diff > 0 ? "text-red-600" : "text-zinc-500"}`}>
-                                                    {diff > 0 ? "+" : ""}{diff.toFixed(2)} menit ({diff > 0 ? "+" : ""}{pct}%)
-                                                </span>
-                                            )
-                                        })()}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div>
-                            <FieldLabel>Waktu Aktual Total (menit)</FieldLabel>
-                            <Input
-                                type="number"
-                                min={0}
-                                step="0.01"
-                                value={step.actualTimeTotal ?? ""}
-                                onChange={(e) => {
-                                    const val = parseFloat(e.target.value)
-                                    onUpdateStep("actualTimeTotal", isNaN(val) ? null : Math.max(0, val))
-                                }}
-                                className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
-                                placeholder="450"
-                            />
-                            {Number(step.actualTimeTotal || 0) > 0 && completedQty > 0 && (
-                                <div className="mt-2 bg-blue-50 border border-blue-200 p-2">
-                                    <div className="flex justify-between text-[9px]">
-                                        <span className="text-zinc-400 font-bold">Rata-rata</span>
-                                        <span className="font-mono font-bold">{(Number(step.actualTimeTotal) / completedQty).toFixed(2)} menit/pcs</span>
-                                    </div>
-                                    <div className="text-[9px] text-zinc-400 mt-0.5">
-                                        Berdasarkan {completedQty} pcs selesai
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </SectionCard>
-            </div>
+            )}
         </div>
     )
 }

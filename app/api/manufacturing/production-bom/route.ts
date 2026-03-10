@@ -2,15 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
-function resolveMaterialUnitCost(material: any): number {
-    const directCost = Number(material.costPrice || 0)
-    if (directCost > 0) return directCost
-    const preferred = material.supplierItems?.find((s: any) => s.isPreferred)?.price
-    if (preferred != null) return Number(preferred || 0)
-    return Number(material.supplierItems?.[0]?.price || 0)
-}
-
-// GET /api/manufacturing/production-bom
+// GET /api/manufacturing/production-bom — optimized: lean list query
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient()
@@ -22,41 +14,58 @@ export async function GET(request: NextRequest) {
         const search = searchParams.get('search') || ''
         const activeOnly = searchParams.get('activeOnly') !== 'false'
 
-        // Fetch new ProductionBOMs
-        const boms = await prisma.productionBOM.findMany({
-            where: {
-                ...(activeOnly ? { isActive: true } : {}),
-                ...(search ? {
-                    product: {
-                        OR: [
-                            { name: { contains: search, mode: 'insensitive' as any } },
-                            { code: { contains: search, mode: 'insensitive' as any } },
-                        ],
-                    },
-                } : {}),
+        const searchFilter = search ? {
+            product: {
+                OR: [
+                    { name: { contains: search, mode: 'insensitive' as any } },
+                    { code: { contains: search, mode: 'insensitive' as any } },
+                ],
             },
-            include: {
-                product: { select: { id: true, code: true, name: true, unit: true, sellingPrice: true } },
-                items: {
-                    include: {
-                        material: {
-                            select: { id: true, code: true, name: true, unit: true, costPrice: true, supplierItems: { select: { price: true, isPreferred: true } } },
+        } : {}
+
+        // Run both queries in parallel — lean selects (no supplierItems, no deep nesting)
+        const [boms, legacyBoms] = await Promise.all([
+            prisma.productionBOM.findMany({
+                where: { ...(activeOnly ? { isActive: true } : {}), ...searchFilter },
+                include: {
+                    product: { select: { id: true, code: true, name: true, unit: true, sellingPrice: true } },
+                    items: {
+                        include: {
+                            material: { select: { id: true, code: true, name: true, unit: true, costPrice: true } },
                         },
                     },
-                },
-                steps: {
-                    include: {
-                        station: { select: { id: true, code: true, name: true, stationType: true, operationType: true, costPerUnit: true } },
+                    steps: {
+                        select: {
+                            id: true, sequence: true,
+                            station: { select: { id: true, code: true, name: true, stationType: true, operationType: true, costPerUnit: true } },
+                        },
+                        orderBy: { sequence: 'asc' },
                     },
-                    orderBy: { sequence: 'asc' },
+                    _count: { select: { items: true, steps: true } },
                 },
-            },
-            orderBy: { updatedAt: 'desc' },
-        })
+                orderBy: { updatedAt: 'desc' },
+            }),
+            prisma.billOfMaterials.findMany({
+                where: { ...(activeOnly ? { isActive: true } : {}), ...searchFilter },
+                include: {
+                    product: { select: { id: true, code: true, name: true, unit: true, sellingPrice: true } },
+                    items: {
+                        include: {
+                            material: { select: { id: true, code: true, name: true, unit: true, costPrice: true } },
+                        },
+                    },
+                    _count: { select: { items: true } },
+                },
+                orderBy: { updatedAt: 'desc' },
+            }),
+        ])
+
+        // Filter out legacy BOMs whose products already have a ProductionBOM
+        const migratedProductIds = new Set(boms.map((b) => b.productId))
 
         const enrichedNew = boms.map((bom) => {
             const totalMaterialCost = bom.items.reduce((sum, item) => {
-                const unitCost = resolveMaterialUnitCost(item.material)
+                const unitCost = Number(item.material.costPrice || 0)
                 const qty = Number(item.quantityPerUnit)
                 const waste = Number(item.wastePct || 0)
                 return sum + unitCost * qty * (1 + waste / 100)
@@ -72,74 +81,44 @@ export async function GET(request: NextRequest) {
                 totalMaterialCost,
                 totalLaborCost,
                 totalCostPerUnit: totalMaterialCost + totalLaborCost,
-                materialCount: bom.items.length,
-                stepCount: bom.steps.length,
+                materialCount: bom._count.items,
+                stepCount: bom._count.steps,
             }
         })
 
-        // Also fetch legacy BOMs that haven't been migrated yet
-        const migratedProductIds = boms.map((b) => b.productId)
-        const legacyBoms = await prisma.billOfMaterials.findMany({
-            where: {
-                ...(activeOnly ? { isActive: true } : {}),
-                // Exclude products that already have a ProductionBOM
-                ...(migratedProductIds.length > 0 ? { productId: { notIn: migratedProductIds } } : {}),
-                ...(search ? {
-                    product: {
-                        OR: [
-                            { name: { contains: search, mode: 'insensitive' as any } },
-                            { code: { contains: search, mode: 'insensitive' as any } },
-                        ],
-                    },
-                } : {}),
-            },
-            include: {
-                product: { select: { id: true, code: true, name: true, unit: true, sellingPrice: true } },
-                items: {
-                    include: {
-                        material: {
-                            select: { id: true, code: true, name: true, unit: true, costPrice: true, supplierItems: { select: { price: true, isPreferred: true } } },
-                        },
-                    },
-                },
-            },
-            orderBy: { updatedAt: 'desc' },
-        })
+        const enrichedLegacy = legacyBoms
+            .filter((bom) => !migratedProductIds.has(bom.productId))
+            .map((bom) => {
+                const totalMaterialCost = bom.items.reduce((sum, item) => {
+                    const unitCost = Number(item.material.costPrice || 0)
+                    const qty = Number(item.quantity)
+                    const waste = Number(item.wastePct || 0)
+                    return sum + unitCost * qty * (1 + waste / 100)
+                }, 0)
 
-        const enrichedLegacy = legacyBoms.map((bom) => {
-            const totalMaterialCost = bom.items.reduce((sum, item) => {
-                const unitCost = resolveMaterialUnitCost(item.material)
-                const qty = Number(item.quantity)
-                const waste = Number(item.wastePct || 0)
-                return sum + unitCost * qty * (1 + waste / 100)
-            }, 0)
+                return {
+                    id: bom.id,
+                    productId: bom.productId,
+                    product: bom.product,
+                    version: bom.version,
+                    isActive: bom.isActive,
+                    totalProductionQty: 0,
+                    notes: null,
+                    items: bom.items,
+                    steps: [],
+                    createdAt: bom.createdAt,
+                    updatedAt: bom.updatedAt,
+                    _source: 'legacy' as const,
+                    _legacyId: bom.id,
+                    totalMaterialCost,
+                    totalLaborCost: 0,
+                    totalCostPerUnit: totalMaterialCost,
+                    materialCount: bom._count.items,
+                    stepCount: 0,
+                }
+            })
 
-            return {
-                id: bom.id,
-                productId: bom.productId,
-                product: bom.product,
-                version: bom.version,
-                isActive: bom.isActive,
-                totalProductionQty: 0,
-                notes: null,
-                items: bom.items,
-                steps: [],
-                createdAt: bom.createdAt,
-                updatedAt: bom.updatedAt,
-                _source: 'legacy' as const,
-                _legacyId: bom.id,
-                totalMaterialCost,
-                totalLaborCost: 0,
-                totalCostPerUnit: totalMaterialCost,
-                materialCount: bom.items.length,
-                stepCount: 0,
-            }
-        })
-
-        // Merge: new production BOMs first, then legacy ones
-        const all = [...enrichedNew, ...enrichedLegacy]
-
-        return NextResponse.json({ success: true, data: all })
+        return NextResponse.json({ success: true, data: [...enrichedNew, ...enrichedLegacy] })
     } catch (error: any) {
         console.error('Error fetching production BOMs:', error?.message || error)
         return NextResponse.json({ success: false, error: error?.message || 'Failed to fetch production BOMs' }, { status: 500 })

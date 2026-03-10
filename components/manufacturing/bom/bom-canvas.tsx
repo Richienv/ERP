@@ -8,7 +8,7 @@ import {
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
 import { StationNode, type StationNodeData } from "./station-node"
-import { calcAllStepTargets } from "./bom-step-helpers"
+import { calcAllStepTargets, detectSplitGroups } from "./bom-step-helpers"
 import { calcStepMaterialCost, type BOMItemWithCost } from "./bom-cost-helpers"
 
 interface BOMCanvasProps {
@@ -26,14 +26,20 @@ interface BOMCanvasProps {
     onAddParallel?: (stepId: string) => void
     onAddSequential?: (stepId: string) => void
     onNodePositionChange?: (stepId: string, x: number, y: number) => void
+    onPctChange?: (stepId: string, newPct: number) => void
 }
 
 const nodeTypes = { station: StationNode }
 
-/** BFS-based tree layout from parentStepIds DAG */
+/** BFS-based tree layout from parentStepIds DAG.
+ *  Parallel siblings get staggered diagonally (offset X + Y) for clear separation. */
 function layoutNodes(steps: any[]): Map<string, { x: number; y: number }> {
     const positions = new Map<string, { x: number; y: number }>()
     const childrenMap = new Map<string, string[]>()
+
+    const COL_GAP = 380      // horizontal gap between sequential columns
+    const ROW_GAP = 420      // vertical gap between parallel siblings (nodes are ~350px tall)
+    const PARALLEL_X_OFFSET = 120  // extra X stagger per parallel sibling for diagonal spread
 
     for (const step of steps) {
         for (const pid of (step.parentStepIds || [])) {
@@ -76,12 +82,19 @@ function layoutNodes(steps: any[]): Map<string, { x: number; y: number }> {
         }
     }
 
-    // Position: 300px per column, spread vertically with 200px spacing
+    // Position nodes — parallel siblings get diagonal stagger
     for (const [col, ids] of columns) {
-        const totalHeight = (ids.length - 1) * 200
-        const startY = 100 - totalHeight / 2
+        const isParallel = ids.length > 1
+        const totalHeight = (ids.length - 1) * ROW_GAP
+        const startY = 80 - totalHeight / 2
         ids.forEach((id, i) => {
-            positions.set(id, { x: 80 + col * 300, y: Math.max(20, startY + i * 200) })
+            const baseX = 80 + col * COL_GAP
+            // Stagger parallel siblings diagonally: each one shifts right
+            const xOffset = isParallel ? i * PARALLEL_X_OFFSET : 0
+            positions.set(id, {
+                x: baseX + xOffset,
+                y: Math.max(20, startY + i * ROW_GAP),
+            })
         })
     }
 
@@ -91,13 +104,20 @@ function layoutNodes(steps: any[]): Map<string, { x: number; y: number }> {
 export function BOMCanvas({
     steps, items, totalProductionQty, onStepSelect, onDropMaterial, onRemoveMaterial,
     onRemoveStep, selectedStepId, onConnectSteps, onDisconnectSteps, onNodeContextMenu,
-    onAddParallel, onAddSequential, onNodePositionChange,
+    onAddParallel, onAddSequential, onNodePositionChange, onPctChange,
 }: BOMCanvasProps) {
     const buildNodes = useCallback((): Node[] => {
         const layoutPositions = layoutNodes(steps)
 
         // Compute per-step production target
         const stepTargets = calcAllStepTargets(steps, totalProductionQty || 0)
+        const splitGroups = detectSplitGroups(steps, totalProductionQty || 0)
+        const stepPctMap = new Map<string, number>()
+        for (const g of splitGroups) {
+            for (const [sid, pct] of g.percentages) {
+                stepPctMap.set(sid, pct)
+            }
+        }
 
         return steps.map((step, index) => {
             // Use saved position if available, otherwise use layout algorithm
@@ -130,6 +150,10 @@ export function BOMCanvas({
                 startedAt: step.startedAt || null,
                 useSubkon: step.useSubkon ?? undefined,
                 allocations: step.allocations || [],
+                operatorName: step.operatorName || null,
+                groupName: step.station?.group?.name || null,
+                splitPct: stepPctMap.get(step.id),
+                onPctChange: onPctChange ? (newPct: number) => onPctChange(step.id, newPct) : undefined,
                 isSelected: step.id === selectedStepId,
                 onRemoveMaterial: (bomItemId: string) => onRemoveMaterial(step.id, bomItemId),
                 onDrop: (bomItemId: string) => onDropMaterial(step.id, bomItemId),
@@ -139,7 +163,7 @@ export function BOMCanvas({
                 onAddSequential: onAddSequential ? () => onAddSequential(step.id) : undefined,
             } satisfies StationNodeData,
         }})
-    }, [steps, items, selectedStepId, onRemoveMaterial, onDropMaterial, onRemoveStep, onNodeContextMenu, onAddParallel, onAddSequential])
+    }, [steps, items, selectedStepId, onRemoveMaterial, onDropMaterial, onRemoveStep, onNodeContextMenu, onAddParallel, onAddSequential, onPctChange])
 
     const buildEdges = useCallback((): Edge[] => {
         const edges: Edge[] = []
@@ -150,6 +174,7 @@ export function BOMCanvas({
                     id: `e-${parentId}-${step.id}`,
                     source: parentId,
                     target: step.id,
+                    type: "smoothstep",
                     style: { strokeWidth: 2, stroke: "#000" },
                     animated: true,
                     deletable: true,
@@ -158,8 +183,25 @@ export function BOMCanvas({
             }
         }
 
+        // Split group bracket connectors (dashed orange, curved)
+        const splitGroups = detectSplitGroups(steps, totalProductionQty || 0)
+        for (const group of splitGroups) {
+            for (let i = 0; i < group.stepIds.length - 1; i++) {
+                edges.push({
+                    id: `split-${group.stepIds[i]}-${group.stepIds[i + 1]}`,
+                    source: group.stepIds[i],
+                    target: group.stepIds[i + 1],
+                    type: "smoothstep",
+                    style: { strokeWidth: 2, stroke: "#f97316", strokeDasharray: "8 4" },
+                    animated: false,
+                    deletable: false,
+                    selectable: false,
+                })
+            }
+        }
+
         return edges
-    }, [steps])
+    }, [steps, totalProductionQty])
 
     const [nodes, setNodes, onNodesChange] = useNodesState(buildNodes())
     const [edges, setEdges, onEdgesChange] = useEdgesState(buildEdges())
@@ -243,6 +285,7 @@ export function BOMCanvas({
                 fitView
                 minZoom={0.3}
                 maxZoom={2}
+                connectionLineType="smoothstep"
                 connectionLineStyle={{ strokeWidth: 2, stroke: "#f97316" }}
                 proOptions={{ hideAttribution: true }}
             >

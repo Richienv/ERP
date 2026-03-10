@@ -1,4 +1,5 @@
 import { PrismaClient, Prisma } from '@prisma/client'
+import { seedBankReconciliation } from './seed-bank-reconciliation'
 
 const prisma = new PrismaClient()
 
@@ -293,6 +294,11 @@ async function main() {
                 }
             }
         })
+
+        // ==========================================
+        // 10. BANK RECONCILIATION
+        // ==========================================
+        await seedBankReconciliation(prisma)
 
         console.log('Seeding finished.')
         console.log(`Snapshot ID: ${snapshot.id}`)

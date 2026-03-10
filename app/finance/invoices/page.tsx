@@ -1064,9 +1064,11 @@ export default function InvoicesPage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="TRANSFER">Bank Transfer</SelectItem>
-                                    <SelectItem value="CASH">Cash</SelectItem>
-                                    <SelectItem value="CHECK">Check/Giro</SelectItem>
+                                    <SelectItem value="TRANSFER">Transfer Bank</SelectItem>
+                                    <SelectItem value="CASH">Tunai</SelectItem>
+                                    <SelectItem value="CHECK">Cek</SelectItem>
+                                    <SelectItem value="GIRO">Giro</SelectItem>
+                                    <SelectItem value="CREDIT_CARD">Kartu Kredit</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

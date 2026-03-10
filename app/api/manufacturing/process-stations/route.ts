@@ -25,17 +25,6 @@ export async function GET(request: NextRequest) {
                 },
                 machine: { select: { id: true, code: true, name: true } },
                 group: { select: { id: true, code: true, name: true } },
-                childStations: {
-                    include: {
-                        subcontractor: {
-                            select: {
-                                id: true, name: true, phone: true,
-                                maxCapacityPerMonth: true, leadTimeDays: true,
-                                rating: true, onTimeRate: true, qualityScore: true,
-                            },
-                        },
-                    },
-                },
             },
             orderBy: [{ stationType: 'asc' }, { name: 'asc' }],
         })
@@ -47,6 +36,42 @@ export async function GET(request: NextRequest) {
             { success: false, error: error?.message || 'Failed to fetch process stations' },
             { status: 500 }
         )
+    }
+}
+
+// PATCH /api/manufacturing/process-stations — bulk update icon/color for a stationType
+export async function PATCH(request: NextRequest) {
+    try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+        }
+        const body = await request.json()
+        const { stationType, iconName, colorTheme, description } = body
+
+        if (!stationType) {
+            return NextResponse.json({ success: false, error: 'stationType is required' }, { status: 400 })
+        }
+
+        // For OTHER types, match by description too
+        const where: any = { stationType }
+        if (stationType === 'OTHER' && description) {
+            where.description = description
+        }
+
+        const result = await prisma.processStation.updateMany({
+            where,
+            data: {
+                ...(iconName !== undefined && { iconName: iconName || null }),
+                ...(colorTheme !== undefined && { colorTheme: colorTheme || null }),
+            },
+        })
+
+        return NextResponse.json({ success: true, updated: result.count })
+    } catch (error: any) {
+        console.error('Error bulk-updating process stations:', error)
+        return NextResponse.json({ success: false, error: error?.message || 'Failed to update' }, { status: 500 })
     }
 }
 

@@ -56,12 +56,58 @@ export function calcAllStepTargets(
 }
 
 /**
- * Calculate per-piece duration along the critical path.
- * Parallel siblings (same stationType) run simultaneously → take max, not sum.
+ * Calculate per-piece duration along the critical path (longest path through DAG).
+ *
+ * Uses parentStepIds to walk the actual DAG structure:
+ * - Each step's earliest start = max(end times of all parents)
+ * - Critical path = longest start + duration among all steps
+ *
+ * Falls back to stationType grouping when parentStepIds are not available
+ * (e.g., flat step lists from API without DAG info).
  */
 export function calcCriticalPathDuration(
-    steps: { id: string; station?: { stationType?: string } | null; durationMinutes?: number | null }[]
+    steps: { id: string; station?: { stationType?: string } | null; durationMinutes?: number | null; parentStepIds?: string[] }[]
 ): number {
+    if (steps.length === 0) return 0
+
+    // Check if any step has parentStepIds — if so, use DAG-based calculation
+    const hasDAG = steps.some(s => (s.parentStepIds || []).length > 0)
+
+    if (hasDAG) {
+        // DAG-based critical path: compute end time for each step, return max
+        const endTimes = new Map<string, number>()
+        // Sort by sequence-like order: steps with no parents first, then by dependency
+        const stepMap = new Map(steps.map(s => [s.id, s]))
+        const computed = new Set<string>()
+
+        function computeEnd(stepId: string): number {
+            if (endTimes.has(stepId)) return endTimes.get(stepId)!
+            const step = stepMap.get(stepId)
+            if (!step) return 0
+
+            const parents = (step.parentStepIds || []).filter(pid => stepMap.has(pid))
+            // Guard against cycles — if we're already computing this step, return 0
+            if (computed.has(stepId)) return 0
+            computed.add(stepId)
+
+            const earliestStart = parents.length > 0
+                ? Math.max(...parents.map(pid => computeEnd(pid)))
+                : 0
+            const duration = Number(step.durationMinutes) || 0
+            const end = earliestStart + duration
+            endTimes.set(stepId, end)
+            return end
+        }
+
+        for (const step of steps) {
+            computeEnd(step.id)
+        }
+
+        return endTimes.size > 0 ? Math.max(...endTimes.values(), 0) : 0
+    }
+
+    // Fallback: group by stationType (for flat lists without DAG)
+    // Parallel siblings (same stationType) run simultaneously → take max, not sum.
     const groups: Record<string, number[]> = {}
     for (const step of steps) {
         const type = step.station?.stationType || step.id
@@ -73,4 +119,71 @@ export function calcCriticalPathDuration(
         total += Math.max(...durations, 0)
     }
     return total
+}
+
+export interface SplitGroup {
+    stationType: string
+    stepIds: string[]
+    percentages: Map<string, number>
+}
+
+/**
+ * Detect split groups: parallel siblings (same parentStepIds) with same stationType.
+ * Returns array of groups, each with 2+ members.
+ */
+export function detectSplitGroups(
+    steps: { id: string; parentStepIds?: string[]; station?: { stationType?: string; operationType?: string } | null; allocations?: { quantity: number }[] }[],
+    totalQty: number,
+): SplitGroup[] {
+    const buckets = new Map<string, typeof steps>()
+
+    for (const step of steps) {
+        const stationType = step.station?.stationType
+        if (!stationType) continue
+        if (step.station?.operationType === "SUBCONTRACTOR") continue
+
+        const parentKey = [...(step.parentStepIds || [])].sort().join(",") || "__root__"
+        const key = `${parentKey}|${stationType}`
+        const bucket = buckets.get(key) || []
+        bucket.push(step)
+        buckets.set(key, bucket)
+    }
+
+    const groups: SplitGroup[] = []
+
+    for (const [key, members] of buckets) {
+        if (members.length < 2) continue
+
+        const stationType = key.split("|").pop()!
+        const percentages = new Map<string, number>()
+
+        const totalAllocated = members.reduce(
+            (sum, m) => sum + (m.allocations || []).reduce((a, b) => a + (b.quantity || 0), 0),
+            0
+        )
+
+        if (totalAllocated > 0 && totalQty > 0) {
+            let usedPct = 0
+            members.forEach((m, i) => {
+                const allocQty = (m.allocations || []).reduce((a, b) => a + (b.quantity || 0), 0)
+                if (i < members.length - 1) {
+                    const pct = Math.round((allocQty / totalQty) * 100)
+                    percentages.set(m.id, pct)
+                    usedPct += pct
+                } else {
+                    percentages.set(m.id, 100 - usedPct)
+                }
+            })
+        } else {
+            const base = Math.floor(100 / members.length)
+            const remainder = 100 % members.length
+            members.forEach((m, i) => {
+                percentages.set(m.id, base + (i < remainder ? 1 : 0))
+            })
+        }
+
+        groups.push({ stationType, stepIds: members.map(m => m.id), percentages })
+    }
+
+    return groups
 }

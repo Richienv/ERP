@@ -1087,3 +1087,268 @@ export async function getAccuracyTrend(monthsBack: number = 3): Promise<Accuracy
 
     return result
 }
+
+// ================================
+// Upcoming Obligations (next N days, cross-month)
+// ================================
+
+export interface UpcomingObligationItem {
+    id: string
+    date: string // YYYY-MM-DD
+    description: string
+    amount: number
+    direction: "IN" | "OUT"
+    category: string
+    sourceType: "AR" | "AP" | "PO" | "PAYROLL" | "BPJS" | "LOAN" | "MANUAL"
+    sourceUrl?: string // link to detail page
+    glAccountCode?: string
+    glAccountName?: string
+}
+
+export interface UpcomingObligationsData {
+    items: UpcomingObligationItem[]
+    summary: {
+        totalIn: number
+        totalOut: number
+        net: number
+        itemCount: number
+    }
+    periodLabel: string // e.g. "90 hari ke depan"
+}
+
+export async function getUpcomingObligations(days: number = 90): Promise<UpcomingObligationsData> {
+    await requireAuth()
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const endDate = new Date(today)
+    endDate.setDate(endDate.getDate() + days)
+
+    const safe = <T,>(p: Promise<T>, fallback: T, label?: string): Promise<T> =>
+        p.catch((err) => {
+            console.error(`[cashflow-upcoming] ${label || "query"} failed:`, err?.message || err)
+            return fallback
+        })
+
+    // 1. AR Invoices — money coming in (include overdue + future due)
+    const arInvoices = await safe(
+        prisma.invoice.findMany({
+            where: {
+                type: "INV_OUT",
+                balanceDue: { gt: 0 },
+                dueDate: { lte: endDate },
+                status: { notIn: ["CANCELLED", "VOID", "PAID"] },
+            },
+            include: { customer: { select: { name: true } } },
+            orderBy: { dueDate: "asc" },
+        }),
+        [],
+        "AR invoices"
+    )
+
+    const arItems: UpcomingObligationItem[] = arInvoices.map(inv => {
+        const isOverdue = inv.dueDate < today
+        return {
+            id: `upcoming-ar-${inv.id}`,
+            date: toDateStr(inv.dueDate),
+            description: `${isOverdue ? "⚠ Jatuh tempo: " : ""}Piutang ${inv.number} — ${inv.customer?.name || "Pelanggan"}`,
+            amount: toNum(inv.balanceDue),
+            direction: "IN" as const,
+            category: "AR_INVOICE",
+            sourceType: "AR" as const,
+            sourceUrl: `/finance/invoices?highlight=${inv.id}`,
+            glAccountCode: "1100",
+        }
+    })
+
+    // 2. AP Bills — money going out (include overdue + future due)
+    const apInvoices = await safe(
+        prisma.invoice.findMany({
+            where: {
+                type: "INV_IN",
+                balanceDue: { gt: 0 },
+                dueDate: { lte: endDate },
+                status: { notIn: ["CANCELLED", "VOID", "PAID"] },
+            },
+            include: { supplier: { select: { name: true } } },
+            orderBy: { dueDate: "asc" },
+        }),
+        [],
+        "AP invoices"
+    )
+
+    const apItems: UpcomingObligationItem[] = apInvoices.map(inv => {
+        const isOverdue = inv.dueDate < today
+        return {
+            id: `upcoming-ap-${inv.id}`,
+            date: toDateStr(inv.dueDate),
+            description: `${isOverdue ? "⚠ Jatuh tempo: " : ""}Hutang ${inv.number} — ${inv.supplier?.name || "Pemasok"}`,
+            amount: toNum(inv.balanceDue),
+            direction: "OUT" as const,
+            category: "AP_BILL",
+            sourceType: "AP" as const,
+            sourceUrl: `/finance/invoices?highlight=${inv.id}`,
+            glAccountCode: "2100",
+        }
+    })
+
+    // 3. PO — approved/ordered, not yet billed (include past POs still unpaid)
+    const pos = await safe(
+        prisma.purchaseOrder.findMany({
+            where: {
+                status: { in: ["APPROVED", "ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"] },
+                paymentStatus: { not: "PAID" },
+                invoices: { none: {} },
+            },
+            include: { supplier: { select: { name: true } } },
+        }),
+        [],
+        "PO obligations"
+    )
+
+    const poItems: UpcomingObligationItem[] = pos.map(po => ({
+        id: `upcoming-po-${po.id}`,
+        date: toDateStr(po.expectedDate || po.orderDate),
+        description: `PO ${po.number} — ${po.supplier?.name || "Pemasok"}`,
+        amount: toNum(po.totalAmount),
+        direction: "OUT",
+        category: "PO_DIRECT",
+        sourceType: "PO",
+        sourceUrl: `/procurement/orders?highlight=${po.id}`,
+        glAccountCode: "2100",
+    }))
+
+    // 4. Payroll — next 3 months
+    const employees = await safe(
+        prisma.employee.findMany({
+            where: { status: "ACTIVE", baseSalary: { gt: 0 } },
+            select: { baseSalary: true },
+        }),
+        [],
+        "Employee payroll"
+    )
+
+    const payrollItems: UpcomingObligationItem[] = []
+    const bpjsItems: UpcomingObligationItem[] = []
+
+    if (employees.length > 0) {
+        const totalSalary = employees.reduce((sum, e) => sum + toNum(e.baseSalary), 0)
+
+        // Generate payroll + BPJS for each month in range
+        const startMonth = today.getMonth() // 0-indexed
+        const startYear = today.getFullYear()
+
+        for (let i = 0; i < 4; i++) {
+            const m = ((startMonth + i) % 12) + 1 // 1-indexed
+            const y = startYear + Math.floor((startMonth + i) / 12)
+            const payDate = new Date(y, m - 1, 25)
+            const bpjsDate = new Date(y, m - 1, 15)
+
+            if (payDate >= today && payDate <= endDate) {
+                const monthName = await getMonthName(m)
+                payrollItems.push({
+                    id: `upcoming-payroll-${y}-${m}`,
+                    date: toDateStr(payDate),
+                    description: `Gaji ${employees.length} karyawan — ${monthName} ${y}`,
+                    amount: totalSalary,
+                    direction: "OUT",
+                    category: "PAYROLL",
+                    sourceType: "PAYROLL",
+                    sourceUrl: `/hcm/payroll`,
+                    glAccountCode: "6200",
+                })
+            }
+
+            if (bpjsDate >= today && bpjsDate <= endDate) {
+                const monthName = await getMonthName(m)
+                const kesehatanAmt = totalSalary * 0.04
+                const tkAmt = totalSalary * 0.0574
+
+                if (kesehatanAmt > 0) {
+                    bpjsItems.push({
+                        id: `upcoming-bpjs-kes-${y}-${m}`,
+                        date: toDateStr(bpjsDate),
+                        description: `BPJS Kesehatan — ${monthName} ${y}`,
+                        amount: kesehatanAmt,
+                        direction: "OUT",
+                        category: "BPJS",
+                        sourceType: "BPJS",
+                        sourceUrl: `/hcm/payroll`,
+                    })
+                }
+                if (tkAmt > 0) {
+                    bpjsItems.push({
+                        id: `upcoming-bpjs-tk-${y}-${m}`,
+                        date: toDateStr(bpjsDate),
+                        description: `BPJS Ketenagakerjaan — ${monthName} ${y}`,
+                        amount: tkAmt,
+                        direction: "OUT",
+                        category: "BPJS",
+                        sourceType: "BPJS",
+                        sourceUrl: `/hcm/payroll`,
+                    })
+                }
+            }
+        }
+    }
+
+    // 5. Loan repayments
+    const loanEntries = await safe(
+        prisma.journalEntry.findMany({
+            where: {
+                status: "POSTED",
+                date: { gte: today, lte: endDate },
+                lines: {
+                    some: {
+                        account: { type: "LIABILITY" },
+                        debit: { gt: 0 },
+                    },
+                },
+            },
+            include: {
+                lines: {
+                    where: { account: { type: "LIABILITY" }, debit: { gt: 0 } },
+                    include: { account: { select: { code: true, name: true } } },
+                },
+            },
+        }),
+        [],
+        "Loan repayments"
+    )
+
+    const loanItems: UpcomingObligationItem[] = loanEntries.map(je => {
+        const totalDebit = je.lines.reduce((s, l) => s + toNum(l.debit), 0)
+        return {
+            id: `upcoming-loan-${je.id}`,
+            date: toDateStr(je.date),
+            description: `Cicilan: ${je.description || "Pembayaran pinjaman"}`,
+            amount: totalDebit,
+            direction: "OUT" as const,
+            category: "LOAN_REPAYMENT",
+            sourceType: "LOAN" as const,
+            sourceUrl: `/finance/journal`,
+            glAccountCode: je.lines[0]?.account?.code,
+            glAccountName: je.lines[0]?.account?.name,
+        }
+    })
+
+    console.log(`[cashflow-upcoming] Results: AR=${arItems.length}, AP=${apItems.length}, PO=${poItems.length}, Payroll=${payrollItems.length}, BPJS=${bpjsItems.length}, Loan=${loanItems.length}`)
+
+    // Combine & sort by date
+    const allItems = [...arItems, ...apItems, ...poItems, ...payrollItems, ...bpjsItems, ...loanItems]
+        .sort((a, b) => a.date.localeCompare(b.date))
+
+    const totalIn = allItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
+    const totalOut = allItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
+
+    return {
+        items: allItems,
+        summary: {
+            totalIn,
+            totalOut,
+            net: totalIn - totalOut,
+            itemCount: allItems.length,
+        },
+        periodLabel: `${days} hari ke depan`,
+    }
+}

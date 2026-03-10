@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import {
@@ -54,13 +55,39 @@ interface OrdersViewProps {
     vendors: { id: string, name: string }[]
     products: { id: string, name: string, code: string, unit: string, defaultPrice: number }[]
     warehouses: { id: string, name: string, code: string }[]
+    highlightId?: string | null
 }
 
-export function OrdersView({ initialOrders, vendors, products, warehouses }: OrdersViewProps) {
+export function OrdersView({ initialOrders, vendors, products, warehouses, highlightId }: OrdersViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
     const [filterStatus, setFilterStatus] = useState<string>("ALL")
     const [sendingOrderId, setSendingOrderId] = useState<string | null>(null)
+    const [highlightedDbId, setHighlightedDbId] = useState<string | null>(null)
+    const highlightRef = useRef<HTMLTableRowElement>(null)
+    const router = useRouter()
+    const pathname = usePathname()
     const queryClient = useQueryClient()
+
+    // Auto-scroll & highlight when arriving with ?highlight=
+    useEffect(() => {
+        if (!highlightId || initialOrders.length === 0) return
+        const match = initialOrders.find(o => o.dbId === highlightId)
+        if (match) {
+            setHighlightedDbId(match.dbId)
+            // Clear the ?highlight param from URL
+            router.replace(pathname, { scroll: false })
+            // Fade out highlight after 4s
+            const timer = setTimeout(() => setHighlightedDbId(null), 4000)
+            return () => clearTimeout(timer)
+        }
+    }, [highlightId, initialOrders, router, pathname])
+
+    // Scroll into view once the highlighted row renders
+    useEffect(() => {
+        if (highlightedDbId && highlightRef.current) {
+            highlightRef.current.scrollIntoView({ behavior: "smooth", block: "center" })
+        }
+    }, [highlightedDbId])
 
     const filteredOrders = initialOrders.filter(order => {
         const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -283,7 +310,15 @@ export function OrdersView({ initialOrders, vendors, products, warehouses }: Ord
                         </thead>
                         <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {filteredOrders.map((po) => (
-                                <tr key={po.dbId} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                                <tr
+                                    key={po.dbId}
+                                    ref={po.dbId === highlightedDbId ? highlightRef : undefined}
+                                    className={`group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-all duration-700 ${
+                                        po.dbId === highlightedDbId
+                                            ? "bg-amber-50 ring-2 ring-amber-400 ring-inset dark:bg-amber-900/20"
+                                            : ""
+                                    }`}
+                                >
                                     <td className="p-4 font-bold text-xs text-blue-600">{po.id}</td>
                                     <td className="p-4">
                                         <div className="font-bold text-xs text-zinc-900 dark:text-white">{po.vendor}</div>

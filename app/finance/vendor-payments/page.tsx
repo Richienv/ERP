@@ -39,8 +39,22 @@ import { queryKeys } from "@/lib/query-keys"
 import { VendorMultiPaymentDialog } from "@/components/finance/vendor-multi-payment-dialog"
 import { useBankAccounts } from "@/hooks/use-bank-accounts"
 import { exportToExcel } from "@/lib/table-export"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    BANK_FORMATS,
+    generateBankFile,
+    downloadBankFile,
+    getBankCode,
+    type BankFormat,
+    type PaymentExportRow,
+} from "@/lib/bank-csv-generator"
 
-type PaymentMethod = "TRANSFER" | "CHECK" | "CASH"
+type PaymentMethod = "TRANSFER" | "CHECK" | "GIRO" | "CASH"
 
 interface PaymentMeta {
     signedBy?: string
@@ -149,8 +163,8 @@ export default function APCheckbookPage() {
             toast.error("Pilih vendor dan jumlah terlebih dahulu")
             return
         }
-        if (paymentMethod === "CHECK" && !checkNumber.trim()) {
-            toast.error("Nomor cek wajib diisi untuk metode CHECK")
+        if ((paymentMethod === "CHECK" || paymentMethod === "GIRO") && !checkNumber.trim()) {
+            toast.error(paymentMethod === "GIRO" ? "Nomor giro wajib diisi untuk metode GIRO" : "Nomor cek wajib diisi untuk metode CHECK")
             return
         }
         setSignatureDialogOpen(true)
@@ -219,8 +233,8 @@ export default function APCheckbookPage() {
             toast.error("Pilih tagihan vendor untuk mengalokasikan pembayaran")
             return
         }
-        if (paymentMethod === "CHECK" && !checkNumber.trim()) {
-            toast.error("Nomor cek wajib diisi")
+        if ((paymentMethod === "CHECK" || paymentMethod === "GIRO") && !checkNumber.trim()) {
+            toast.error(paymentMethod === "GIRO" ? "Nomor giro wajib diisi" : "Nomor cek wajib diisi")
             return
         }
         if (!isSigned || !signatureDataUrl || !signedBy) {
@@ -234,9 +248,9 @@ export default function APCheckbookPage() {
                 signedBy,
                 signedAt: new Date().toISOString(),
                 method: paymentMethod,
-                checkNumber: paymentMethod === "CHECK" ? checkNumber.trim() : undefined,
-                checkBank: paymentMethod === "CHECK" ? checkBank.trim() || undefined : undefined,
-                checkDate: paymentMethod === "CHECK" ? checkDate || undefined : undefined,
+                checkNumber: (paymentMethod === "CHECK" || paymentMethod === "GIRO") ? checkNumber.trim() : undefined,
+                checkBank: (paymentMethod === "CHECK" || paymentMethod === "GIRO") ? checkBank.trim() || undefined : undefined,
+                checkDate: (paymentMethod === "CHECK" || paymentMethod === "GIRO") ? checkDate || undefined : undefined,
             }
             const result = await recordVendorPayment({
                 supplierId: selectedVendorId,
@@ -270,6 +284,37 @@ export default function APCheckbookPage() {
     const transferCount = payments.filter(p => p.method === "TRANSFER").length
     const checkCount = payments.filter(p => p.method === "CHECK").length
     const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0)
+
+    // Bank CSV export handler
+    const handleBankExport = (format: BankFormat) => {
+        if (payments.length === 0) {
+            toast.error("Tidak ada pembayaran untuk diekspor")
+            return
+        }
+        const rows: PaymentExportRow[] = payments.map((p: any) => {
+            const meta = parsePaymentMeta(p.notes)
+            const bankName = p.vendor?.bankName || ""
+            const d = new Date(p.date)
+            const dd = String(d.getDate()).padStart(2, "0")
+            const mm = String(d.getMonth() + 1).padStart(2, "0")
+            const yyyy = d.getFullYear()
+            return {
+                transferDate: `${dd}/${mm}/${yyyy}`,
+                beneficiaryAccount: p.vendor?.bankAccountNumber || "",
+                beneficiaryName: p.vendor?.bankAccountName || p.vendor?.name || "",
+                beneficiaryBank: bankName,
+                beneficiaryBankCode: getBankCode(bankName),
+                amount: Number(p.amount),
+                remark: p.reference || meta.checkNumber || `Payment ${p.number}`,
+                reference: p.number || "",
+            }
+        })
+        const content = generateBankFile(rows, format)
+        const today = new Date()
+        const filename = `transfer-vendor-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`
+        downloadBankFile(content, filename, format)
+        toast.success(`${rows.length} transaksi diekspor ke ${format.name}`)
+    }
 
     if (loading && payments.length === 0) {
         return (
@@ -325,6 +370,29 @@ export default function APCheckbookPage() {
                         >
                             <Download className="mr-2 h-3.5 w-3.5" /> Export
                         </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    disabled={payments.length === 0}
+                                    className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-9 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all bg-blue-50 hover:bg-blue-100 text-blue-700 disabled:opacity-40"
+                                >
+                                    <Landmark className="mr-2 h-3.5 w-3.5" /> Download Transfer <ChevronDown className="ml-1.5 h-3 w-3" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                                {BANK_FORMATS.map((fmt) => (
+                                    <DropdownMenuItem
+                                        key={fmt.name}
+                                        onClick={() => handleBankExport(fmt)}
+                                        className="text-xs font-bold cursor-pointer"
+                                    >
+                                        <Download className="mr-2 h-3.5 w-3.5" />
+                                        {fmt.name} (.{fmt.extension})
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button
                             onClick={() => setShowMultiPay(true)}
                             className="bg-emerald-700 text-white hover:bg-emerald-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"
@@ -424,8 +492,9 @@ export default function APCheckbookPage() {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="TRANSFER">Transfer</SelectItem>
+                                        <SelectItem value="TRANSFER">Transfer Bank</SelectItem>
                                         <SelectItem value="CHECK">Cek</SelectItem>
+                                        <SelectItem value="GIRO">Giro</SelectItem>
                                         <SelectItem value="CASH">Tunai</SelectItem>
                                     </SelectContent>
                                 </Select>
@@ -447,18 +516,18 @@ export default function APCheckbookPage() {
                             </div>
                         </div>
 
-                        {paymentMethod === "CHECK" && (
+                        {(paymentMethod === "CHECK" || paymentMethod === "GIRO") && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">No. Cek</Label>
-                                    <Input value={checkNumber} onChange={(e) => { setCheckNumber(e.target.value); resetSignatureState() }} placeholder="CHK-000123" className="border-2 border-black h-9 rounded-none" />
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{paymentMethod === "GIRO" ? "No. Giro" : "No. Cek"}</Label>
+                                    <Input value={checkNumber} onChange={(e) => { setCheckNumber(e.target.value); resetSignatureState() }} placeholder={paymentMethod === "GIRO" ? "GR-000123" : "CHK-000123"} className="border-2 border-black h-9 rounded-none" />
                                 </div>
                                 <div className="space-y-2">
                                     <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Bank</Label>
                                     <Input value={checkBank} onChange={(e) => { setCheckBank(e.target.value); resetSignatureState() }} placeholder="BCA / CIMB" className="border-2 border-black h-9 rounded-none" />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal Cek</Label>
+                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{paymentMethod === "GIRO" ? "Tanggal Jatuh Tempo" : "Tanggal Cek"}</Label>
                                     <Input type="date" value={checkDate} onChange={(e) => { setCheckDate(e.target.value); resetSignatureState() }} className="border-2 border-black h-9 rounded-none" />
                                 </div>
                             </div>
@@ -517,7 +586,7 @@ export default function APCheckbookPage() {
                             <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
                                 <DialogTrigger asChild>
                                     <Button
-                                        disabled={!isSigned || submitting || !amount || !selectedVendorId || (paymentMethod === "CHECK" && !checkNumber.trim())}
+                                        disabled={!isSigned || submitting || !amount || !selectedVendorId || ((paymentMethod === "CHECK" || paymentMethod === "GIRO") && !checkNumber.trim())}
                                         className="bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-10 px-8 disabled:opacity-40"
                                     >
                                         {submitting ? "Processing..." : "Eksekusi Pembayaran"}

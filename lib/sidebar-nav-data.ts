@@ -107,7 +107,7 @@ export const navMain: SidebarNavItem[] = [
       { title: "Rekonsiliasi Bank", url: "/finance/reconciliation" },
       { title: "Chart of Accounts", url: "/finance/chart-accounts" },
       { title: "Laporan Keuangan", url: "/finance/reports", group: "Laporan & Setup" },
-      { title: "Proyeksi Arus Kas", url: "/finance/cashflow-forecast" },
+      { title: "Perencanaan Arus Kas", url: "/finance/planning" },
       { title: "Saldo Awal", url: "/finance/opening-balances" },
       { title: "Kurs Mata Uang", url: "/finance/currencies" },
       { title: "Periode Fiskal", url: "/finance/fiscal-periods" },

@@ -40,6 +40,7 @@ export async function GET(
                                 operationType: true, costPerUnit: true,
                                 iconName: true, colorTheme: true,
                                 subcontractor: { select: { id: true, name: true } },
+                                group: { select: { id: true, name: true } },
                             },
                         },
                         materials: {

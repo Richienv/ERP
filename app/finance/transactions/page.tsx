@@ -57,7 +57,7 @@ function deriveSource(entry: TransactionEntry, line: TransactionLine): string {
 
     if (isPayment && isPayable) return "Pembayaran Hutang"
     if (isPayment && isReceivable) return "Penerimaan Piutang"
-    if (isPayment) return `Pembayaran (${entry.paymentMethod === "CASH" ? "Kas" : entry.paymentMethod === "TRANSFER" ? "Transfer" : entry.paymentMethod === "CHECK" ? "Giro" : "Lainnya"})`
+    if (isPayment) return `Pembayaran (${entry.paymentMethod === "CASH" ? "Tunai" : entry.paymentMethod === "TRANSFER" ? "Transfer Bank" : entry.paymentMethod === "CHECK" ? "Cek" : entry.paymentMethod === "GIRO" ? "Giro" : entry.paymentMethod === "CREDIT_CARD" ? "Kartu Kredit" : "Lainnya"})`
     if (isInvoice && isPayable) return "Tagihan Masuk"
     if (isInvoice && isReceivable) return "Invoice Piutang"
     if (isInvoice) return entry.invoiceType === "INV_IN" ? "Tagihan Masuk" : "Invoice Piutang"

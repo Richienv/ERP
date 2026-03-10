@@ -38,7 +38,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { useBankAccounts } from "@/hooks/use-bank-accounts"
 import type { VendorBill } from "@/lib/actions/finance-ap"
 
-type PaymentMethod = "TRANSFER" | "CHECK" | "CASH"
+type PaymentMethod = "TRANSFER" | "CHECK" | "GIRO" | "CASH"
 
 interface Vendor {
     id: string
@@ -167,8 +167,8 @@ export function VendorMultiPaymentDialog({
             toast.error("Pilih vendor terlebih dahulu")
             return
         }
-        if (paymentMethod === "CHECK" && !reference.trim()) {
-            toast.error("Nomor cek wajib diisi untuk metode CHECK")
+        if ((paymentMethod === "CHECK" || paymentMethod === "GIRO") && !reference.trim()) {
+            toast.error(paymentMethod === "GIRO" ? "Nomor giro wajib diisi untuk metode GIRO" : "Nomor cek wajib diisi untuk metode CHECK")
             return
         }
 
@@ -289,7 +289,8 @@ export function VendorMultiPaymentDialog({
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="TRANSFER">Transfer Bank</SelectItem>
-                                                <SelectItem value="CHECK">Cek / Giro</SelectItem>
+                                                <SelectItem value="CHECK">Cek</SelectItem>
+                                                <SelectItem value="GIRO">Giro</SelectItem>
                                                 <SelectItem value="CASH">Tunai</SelectItem>
                                             </SelectContent>
                                         </Select>
@@ -320,15 +321,15 @@ export function VendorMultiPaymentDialog({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-1.5">
                                         <Label className={NB.label}>
-                                            Referensi / No. Cek
-                                            {paymentMethod === "CHECK" && (
+                                            {paymentMethod === "GIRO" ? "Referensi / No. Giro" : "Referensi / No. Cek"}
+                                            {(paymentMethod === "CHECK" || paymentMethod === "GIRO") && (
                                                 <span className={NB.labelRequired}> *</span>
                                             )}
                                         </Label>
                                         <Input
                                             value={reference}
                                             onChange={(e) => setReference(e.target.value)}
-                                            placeholder={paymentMethod === "CHECK" ? "CHK-000123" : "Ref..."}
+                                            placeholder={paymentMethod === "CHECK" ? "CHK-000123" : paymentMethod === "GIRO" ? "GR-000123" : "Ref..."}
                                             className={NB.input}
                                         />
                                     </div>

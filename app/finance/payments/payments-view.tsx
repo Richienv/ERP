@@ -46,7 +46,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { exportToExcel } from "@/lib/table-export"
 
-type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "CARD"
+type PaymentMethod = "CASH" | "TRANSFER" | "CHECK" | "GIRO" | "CARD"
 
 interface UnallocatedPayment {
     id: string
@@ -105,9 +105,10 @@ interface ARPaymentsViewProps {
 
 const METHOD_LABEL: Record<PaymentMethod, string> = {
     CASH: "Tunai",
-    TRANSFER: "Transfer",
+    TRANSFER: "Transfer Bank",
     CHECK: "Cek",
-    CARD: "Kartu"
+    GIRO: "Giro",
+    CARD: "Kartu Kredit"
 }
 
 const EMPTY_INVOICE_VALUE = "__NO_INVOICE__"
@@ -590,6 +591,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                             <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${item.method === "TRANSFER" ? "bg-blue-50 border-blue-200 text-blue-600" :
                                                 item.method === "CASH" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
                                                     item.method === "CHECK" ? "bg-amber-50 border-amber-200 text-amber-600" :
+                                                        item.method === "GIRO" ? "bg-orange-50 border-orange-200 text-orange-600" :
                                                         "bg-violet-50 border-violet-200 text-violet-600"
                                                 }`}>
                                                 {METHOD_LABEL[item.method as PaymentMethod] ?? item.method}
@@ -791,6 +793,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                             payment.method === "TRANSFER" ? "bg-blue-50 border-blue-200 text-blue-600" :
                                             payment.method === "CASH" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
                                             payment.method === "CHECK" ? "bg-amber-50 border-amber-200 text-amber-600" :
+                                            payment.method === "GIRO" ? "bg-orange-50 border-orange-200 text-orange-600" :
                                             "bg-violet-50 border-violet-200 text-violet-600"
                                         }`}>
                                             {METHOD_LABEL[payment.method as PaymentMethod] ?? payment.method}
@@ -1033,9 +1036,10 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    <SelectItem value="TRANSFER">Transfer</SelectItem>
+                                                    <SelectItem value="TRANSFER">Transfer Bank</SelectItem>
                                                     <SelectItem value="CASH">Tunai</SelectItem>
                                                     <SelectItem value="CHECK">Cek</SelectItem>
+                                                    <SelectItem value="GIRO">Giro</SelectItem>
                                                     <SelectItem value="CARD">Kartu</SelectItem>
                                                 </SelectContent>
                                             </Select>

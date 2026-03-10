@@ -3,7 +3,7 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { findMatches, type BankLine, type SystemTransaction, type MatchResult } from "@/lib/finance-reconciliation-helpers"
+import { findMatchesIndexed, buildTransactionIndex, type BankLine, type SystemTransaction, type MatchResult } from "@/lib/finance-reconciliation-helpers"
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -30,6 +30,15 @@ export interface ReconciliationSummary {
     createdAt: string
 }
 
+export interface PaginationMeta {
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    matchedCount?: number
+    unmatchedCount?: number
+}
+
 export interface ReconciliationDetail {
     id: string
     glAccountCode: string
@@ -40,8 +49,9 @@ export interface ReconciliationDetail {
     periodEnd: string
     status: string
     items: ReconciliationItemData[]
-    hasMore: boolean
-    nextSkip: number
+    systemEntries: SystemEntryData[]
+    bankPagination?: PaginationMeta
+    systemPagination?: PaginationMeta
 }
 
 export interface ReconciliationItemData {
@@ -54,6 +64,16 @@ export interface ReconciliationItemData {
     systemDescription: string | null
     matchStatus: string
     matchedAt: string | null
+}
+
+export interface SystemEntryData {
+    entryId: string
+    date: string
+    description: string
+    reference: string | null
+    amount: number // positive = debit (money in), negative = credit (money out)
+    lineDescription: string | null
+    alreadyMatchedItemId: string | null
 }
 
 export interface BankStatementRow {
@@ -110,32 +130,116 @@ export async function getReconciliations(): Promise<ReconciliationSummary[]> {
 }
 
 /**
- * Get reconciliation detail with paginated items.
+ * Get reconciliation detail with paginated items and system journal entries.
  */
 export async function getReconciliationDetail(
     reconciliationId: string,
-    skip = 0,
-    take = 100
+    options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number }
 ): Promise<ReconciliationDetail | null> {
     try {
         await requireAuth()
 
+        const bankPage = options?.bankPage ?? 1
+        const bankPageSize = options?.bankPageSize ?? 50
+        const systemPage = options?.systemPage ?? 1
+        const systemPageSize = options?.systemPageSize ?? 50
+
         const rec = await prisma.bankReconciliation.findUnique({
             where: { id: reconciliationId },
             include: {
-                glAccount: { select: { code: true, name: true, balance: true } },
+                glAccount: { select: { id: true, code: true, name: true, balance: true } },
                 items: {
                     orderBy: { bankDate: 'asc' },
-                    skip,
-                    take: take + 1,
+                    skip: (bankPage - 1) * bankPageSize,
+                    take: bankPageSize,
                 },
+                _count: { select: { items: true } },
             },
         })
 
         if (!rec) return null
 
-        const hasMore = rec.items.length > take
-        const itemsSlice = hasMore ? rec.items.slice(0, take) : rec.items
+        // Get counts by match status for the header
+        const [totalItems, matchedItemCount] = await Promise.all([
+            prisma.bankReconciliationItem.count({ where: { reconciliationId } }),
+            prisma.bankReconciliationItem.count({ where: { reconciliationId, matchStatus: 'MATCHED' } }),
+        ])
+
+        // Fetch journal lines for this GL account within the reconciliation period (paginated)
+        const [journalLines, totalSystemEntries] = await Promise.all([
+            prisma.journalLine.findMany({
+                where: {
+                    accountId: rec.glAccount.id,
+                    entry: {
+                        status: 'POSTED',
+                        date: {
+                            gte: rec.periodStart,
+                            lte: rec.periodEnd,
+                        },
+                    },
+                },
+                select: {
+                    id: true,
+                    entryId: true,
+                    description: true,
+                    debit: true,
+                    credit: true,
+                    entry: {
+                        select: {
+                            id: true,
+                            date: true,
+                            description: true,
+                            reference: true,
+                        },
+                    },
+                },
+                skip: (systemPage - 1) * systemPageSize,
+                take: systemPageSize,
+            }),
+            prisma.journalLine.count({
+                where: {
+                    accountId: rec.glAccount.id,
+                    entry: {
+                        status: 'POSTED',
+                        date: {
+                            gte: rec.periodStart,
+                            lte: rec.periodEnd,
+                        },
+                    },
+                },
+            }),
+        ])
+
+        // Build a map: entryId → matched bank item ID (from already-matched items in current page)
+        const entryToItemMap = new Map<string, string>()
+        for (const item of rec.items) {
+            if (item.systemTransactionId && item.matchStatus === 'MATCHED') {
+                entryToItemMap.set(item.systemTransactionId, item.id)
+            }
+        }
+
+        // Build a map: entryId → entry description (for resolving systemDescription)
+        const entryDescriptionMap = new Map<string, string>()
+        for (const line of journalLines) {
+            entryDescriptionMap.set(line.entryId, line.entry.description)
+        }
+
+        // Map journal lines to SystemEntryData[]
+        const systemEntries: SystemEntryData[] = journalLines.map((line) => {
+            const debit = Number(line.debit)
+            const credit = Number(line.credit)
+            const amount = debit > 0 ? debit : -credit
+
+            return {
+                entryId: line.entryId,
+                date: line.entry.date.toISOString(),
+                description: line.entry.description,
+                reference: line.entry.reference,
+                amount,
+                lineDescription: line.description,
+                alreadyMatchedItemId: entryToItemMap.get(line.entryId) ?? null,
+            }
+        })
 
         return {
             id: rec.id,
@@ -146,19 +250,35 @@ export async function getReconciliationDetail(
             periodStart: rec.periodStart.toISOString(),
             periodEnd: rec.periodEnd.toISOString(),
             status: rec.status,
-            items: itemsSlice.map((i) => ({
+            items: rec.items.map((i) => ({
                 id: i.id,
                 bankRef: i.bankRef,
                 bankDescription: i.bankDescription,
                 bankDate: i.bankDate?.toISOString() || null,
                 bankAmount: Number(i.bankAmount),
                 systemTransactionId: i.systemTransactionId,
-                systemDescription: null,
+                systemDescription: i.systemTransactionId
+                    ? (entryDescriptionMap.get(i.systemTransactionId) ?? null)
+                    : null,
                 matchStatus: i.matchStatus,
                 matchedAt: i.matchedAt?.toISOString() || null,
             })),
-            hasMore,
-            nextSkip: skip + take,
+            systemEntries,
+            // Pagination metadata
+            bankPagination: {
+                page: bankPage,
+                pageSize: bankPageSize,
+                totalItems,
+                totalPages: Math.ceil(totalItems / bankPageSize),
+                matchedCount: matchedItemCount,
+                unmatchedCount: totalItems - matchedItemCount,
+            },
+            systemPagination: {
+                page: systemPage,
+                pageSize: systemPageSize,
+                totalItems: totalSystemEntries,
+                totalPages: Math.ceil(totalSystemEntries / systemPageSize),
+            },
         }
     } catch (error) {
         console.error("[getReconciliationDetail] Error:", error)
@@ -458,8 +578,12 @@ export async function autoMatchReconciliation(
             let matched = 0
             const suggestions: { bankItemId: string; matches: MatchResult[] }[] = []
 
-            // Pool of available transactions — remove after each HIGH match
-            const availablePool = [...systemTransactions]
+            // Build indexed pool for O(1) exact-amount lookups instead of O(n) per bank item
+            let availablePool = [...systemTransactions]
+            let txnIndex = buildTransactionIndex(availablePool)
+
+            // Batch updates for better DB performance
+            const batchUpdates: { id: string; systemTransactionId: string }[] = []
 
             for (const item of rec.items) {
                 if (!item.bankDate) continue
@@ -472,7 +596,7 @@ export async function autoMatchReconciliation(
                     bankRef: item.bankRef || '',
                 }
 
-                const matches = findMatches(bankLine, availablePool)
+                const matches = findMatchesIndexed(bankLine, txnIndex)
 
                 if (matches.length === 0) continue
 
@@ -481,26 +605,31 @@ export async function autoMatchReconciliation(
 
                 if (highMatches.length === 1) {
                     const best = highMatches[0]
+                    batchUpdates.push({ id: item.id, systemTransactionId: best.transactionId })
 
-                    await prisma.bankReconciliationItem.update({
-                        where: { id: item.id },
-                        data: {
-                            systemTransactionId: best.transactionId,
-                            matchStatus: 'MATCHED',
-                            matchedBy: user?.id || null,
-                            matchedAt: new Date(),
-                        },
-                    })
-
-                    // Remove matched transaction from pool
-                    const poolIdx = availablePool.findIndex((t) => t.id === best.transactionId)
-                    if (poolIdx !== -1) availablePool.splice(poolIdx, 1)
+                    // Remove matched transaction and rebuild index
+                    availablePool = availablePool.filter((t) => t.id !== best.transactionId)
+                    txnIndex = buildTransactionIndex(availablePool)
 
                     matched++
                 } else {
                     // Store MEDIUM/LOW (or multiple HIGH) as suggestions
                     suggestions.push({ bankItemId: item.id, matches })
                 }
+            }
+
+            // Apply all HIGH matches in batch
+            const now = new Date()
+            for (const update of batchUpdates) {
+                await prisma.bankReconciliationItem.update({
+                    where: { id: update.id },
+                    data: {
+                        systemTransactionId: update.systemTransactionId,
+                        matchStatus: 'MATCHED',
+                        matchedBy: user?.id || null,
+                        matchedAt: now,
+                    },
+                })
             }
 
             // Update reconciliation status if matches were made
@@ -518,6 +647,86 @@ export async function autoMatchReconciliation(
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal auto-match'
         console.error("[autoMatchReconciliation] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Match multiple bank items to multiple system journal entries (checkbox multi-select).
+ * User selects 1+ bank items and 1+ system entries, totals must match within Rp 1.
+ */
+export async function matchMultipleItems(data: {
+    bankItemIds: string[]
+    systemEntryIds: string[]
+}): Promise<{ success: boolean; error?: string }> {
+    if (!data.bankItemIds.length || !data.systemEntryIds.length) {
+        return { success: false, error: 'Pilih minimal 1 item bank dan 1 transaksi sistem' }
+    }
+
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            const supabase = await (await import('@/lib/supabase/server')).createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+
+            // Fetch bank items
+            const bankItems = await prisma.bankReconciliationItem.findMany({
+                where: { id: { in: data.bankItemIds } },
+                include: { reconciliation: { select: { glAccountId: true } } },
+            })
+
+            if (bankItems.length === 0) {
+                throw new Error('Item bank tidak ditemukan')
+            }
+
+            // Get GL account from first bank item's reconciliation
+            const glAccountId = bankItems[0].reconciliation.glAccountId
+
+            // Fetch journal lines for the system entry IDs filtered to that GL account
+            const journalLines = await prisma.journalLine.findMany({
+                where: {
+                    entryId: { in: data.systemEntryIds },
+                    accountId: glAccountId,
+                },
+                select: {
+                    entryId: true,
+                    debit: true,
+                    credit: true,
+                },
+            })
+
+            // Calculate totals
+            const bankTotal = bankItems.reduce(
+                (sum, item) => sum + Math.abs(Number(item.bankAmount)),
+                0
+            )
+            const systemTotal = journalLines.reduce(
+                (sum, line) => sum + Math.max(Number(line.debit), Number(line.credit)),
+                0
+            )
+
+            // Validate totals match within Rp 1 tolerance
+            if (Math.abs(bankTotal - systemTotal) > 1) {
+                throw new Error(
+                    `Total tidak cocok: Bank Rp ${bankTotal.toLocaleString('id-ID')} vs Sistem Rp ${systemTotal.toLocaleString('id-ID')}`
+                )
+            }
+
+            // Update all bank items as matched
+            await prisma.bankReconciliationItem.updateMany({
+                where: { id: { in: data.bankItemIds } },
+                data: {
+                    systemTransactionId: data.systemEntryIds[0],
+                    matchStatus: 'MATCHED',
+                    matchedBy: user?.id || null,
+                    matchedAt: new Date(),
+                },
+            })
+        })
+
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal mencocokkan item'
+        console.error("[matchMultipleItems] Error:", error)
         return { success: false, error: msg }
     }
 }

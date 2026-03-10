@@ -1,35 +1,37 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Fragment } from "react"
+import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
-// import { ScrollArea } from "@/components/ui/scroll-area"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { NB } from "@/lib/dialog-styles"
 import {
-    IconChevronDown,
     IconChevronLeft,
     IconChevronRight,
+    IconChevronDown,
     IconPlus,
     IconCamera,
     IconWallet,
     IconArrowUpRight,
     IconArrowDownRight,
-    IconCoin,
     IconScale,
     IconEdit,
     IconRefresh,
+    IconGauge,
+    IconBuildingBank,
     IconCalendarWeek,
     IconHistory,
+    IconEye,
+    IconPencil,
 } from "@tabler/icons-react"
 import { saveCashflowSnapshot, overrideStartingBalance } from "@/lib/actions/finance-cashflow"
-import type { CashflowPlanData, CashflowItem } from "@/lib/actions/finance-cashflow"
+import type { CashflowPlanData, CashflowItem, CashflowForecastData, UpcomingObligationsData, UpcomingObligationItem } from "@/lib/actions/finance-cashflow"
 import { CreateCashflowItemDialog } from "./create-cashflow-item-dialog"
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -39,24 +41,22 @@ const MONTH_NAMES = [
     "Juli", "Agustus", "September", "Oktober", "November", "Desember",
 ]
 
-const DAY_HEADERS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
-
-const CATEGORY_COLORS: Record<string, string> = {
-    AR_INVOICE: "bg-emerald-100 text-emerald-800 border-emerald-300",
-    AP_BILL: "bg-red-100 text-red-800 border-red-300",
-    PO_DIRECT: "bg-indigo-100 text-indigo-800 border-indigo-300",
-    PAYROLL: "bg-orange-100 text-orange-800 border-orange-300",
-    BPJS: "bg-amber-100 text-amber-800 border-amber-300",
-    PETTY_CASH: "bg-slate-100 text-slate-800 border-slate-300",
-    RECURRING_JOURNAL: "bg-purple-100 text-purple-800 border-purple-300",
-    BUDGET_ALLOCATION: "bg-blue-100 text-blue-800 border-blue-300",
-    MANUAL: "bg-zinc-100 text-zinc-800 border-zinc-300",
-    RECURRING_EXPENSE: "bg-rose-100 text-rose-800 border-rose-300",
-    RECURRING_INCOME: "bg-teal-100 text-teal-800 border-teal-300",
-    FUNDING_CAPITAL: "bg-cyan-100 text-cyan-800 border-cyan-300",
-    EQUITY_WITHDRAWAL: "bg-pink-100 text-pink-800 border-pink-300",
-    LOAN_DISBURSEMENT: "bg-sky-100 text-sky-800 border-sky-300",
-    LOAN_REPAYMENT: "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300",
+const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+    AR_INVOICE:        { bg: "bg-emerald-50",  border: "border-l-emerald-500", text: "text-emerald-700" },
+    AP_BILL:           { bg: "bg-red-50",      border: "border-l-red-500",     text: "text-red-700" },
+    PO_DIRECT:         { bg: "bg-indigo-50",   border: "border-l-indigo-500",  text: "text-indigo-700" },
+    PAYROLL:           { bg: "bg-orange-50",   border: "border-l-orange-500",  text: "text-orange-700" },
+    BPJS:              { bg: "bg-amber-50",    border: "border-l-amber-500",   text: "text-amber-700" },
+    PETTY_CASH:        { bg: "bg-slate-50",    border: "border-l-slate-500",   text: "text-slate-700" },
+    RECURRING_JOURNAL: { bg: "bg-purple-50",   border: "border-l-purple-500",  text: "text-purple-700" },
+    BUDGET_ALLOCATION: { bg: "bg-blue-50",     border: "border-l-blue-500",    text: "text-blue-700" },
+    MANUAL:            { bg: "bg-zinc-50",     border: "border-l-zinc-500",    text: "text-zinc-700" },
+    RECURRING_EXPENSE: { bg: "bg-rose-50",     border: "border-l-rose-500",    text: "text-rose-700" },
+    RECURRING_INCOME:  { bg: "bg-teal-50",     border: "border-l-teal-500",    text: "text-teal-700" },
+    FUNDING_CAPITAL:   { bg: "bg-cyan-50",     border: "border-l-cyan-500",    text: "text-cyan-700" },
+    EQUITY_WITHDRAWAL: { bg: "bg-pink-50",     border: "border-l-pink-500",    text: "text-pink-700" },
+    LOAN_DISBURSEMENT: { bg: "bg-sky-50",      border: "border-l-sky-500",     text: "text-sky-700" },
+    LOAN_REPAYMENT:    { bg: "bg-fuchsia-50",  border: "border-l-fuchsia-500", text: "text-fuchsia-700" },
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -77,53 +77,63 @@ const CATEGORY_LABELS: Record<string, string> = {
     LOAN_REPAYMENT: "Cicilan Pinjaman",
 }
 
-// ─── Short bank name mapping ────────────────────────────────────────────────
-
-function shortBankName(glAccountName?: string, glAccountCode?: string): string | null {
-    if (!glAccountCode?.startsWith("10")) return null
-    if (!glAccountName) return glAccountCode
-    // Extract short name: "Bank BCA" → "BCA", "Kas Kecil" → "Kas", "Bank Mandiri" → "Mandiri"
-    const name = glAccountName.replace(/^(Bank|Rek\.?|Rekening)\s+/i, "").trim()
-    // Truncate to max 8 chars
-    return name.length > 8 ? name.substring(0, 7) + "…" : name
-}
-
-// ─── Heat-map cell tint ─────────────────────────────────────────────────────
-
-function getDayHeatClass(totalIn: number, totalOut: number): string {
-    const net = totalIn - totalOut
-    if (net === 0) return ""
-    if (net > 0) {
-        if (totalIn >= 50_000_000) return "bg-emerald-50/80"
-        return "bg-emerald-50/40"
-    }
-    if (totalOut >= 50_000_000) return "bg-red-50/80"
-    return "bg-red-50/40"
-}
+const DEFAULT_CAT = { bg: "bg-zinc-50", border: "border-l-zinc-400", text: "text-zinc-600" }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function getCalendarDays(month: number, year: number) {
-    const firstDay = new Date(year, month - 1, 1)
-    const lastDay = new Date(year, month, 0)
-    const startPad = firstDay.getDay()
-    const totalDays = lastDay.getDate()
-    return { startPad, totalDays }
-}
-
-function getItemsForDate(items: CashflowItem[], day: number, month: number, year: number) {
-    const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-    return items.filter(item => item.date === dateStr)
-}
 
 function formatCompact(amount: number): string {
     if (amount >= 1_000_000_000) return `${(amount / 1_000_000_000).toFixed(1)}M`
     if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(1)}jt`
     if (amount >= 1_000) return `${(amount / 1_000).toFixed(0)}rb`
-    return String(amount)
+    return String(Math.round(amount))
 }
 
-// ─── Component ──────────────────────────────────────────────────────────────
+function shortBankName(glAccountName?: string, glAccountCode?: string): string | null {
+    if (!glAccountCode?.startsWith("10")) return null
+    if (!glAccountName) return glAccountCode
+    const name = glAccountName.replace(/^(Bank|Rek\.?|Rekening)\s+/i, "").trim()
+    return name.length > 10 ? name.substring(0, 9) + "…" : name
+}
+
+interface WeekDef {
+    label: string
+    shortLabel: string
+    start: number
+    end: number
+    isCurrent: boolean
+}
+
+function getWeeks(month: number, year: number): WeekDef[] {
+    const lastDay = new Date(year, month, 0).getDate()
+    const today = new Date()
+    const isCurrentMonth = today.getMonth() + 1 === month && today.getFullYear() === year
+    const currentDay = isCurrentMonth ? today.getDate() : -1
+
+    const weeks: WeekDef[] = [
+        { label: `Minggu 1 (1-7)`, shortLabel: "Mgg 1", start: 1, end: 7, isCurrent: currentDay >= 1 && currentDay <= 7 },
+        { label: `Minggu 2 (8-14)`, shortLabel: "Mgg 2", start: 8, end: 14, isCurrent: currentDay >= 8 && currentDay <= 14 },
+        { label: `Minggu 3 (15-21)`, shortLabel: "Mgg 3", start: 15, end: 21, isCurrent: currentDay >= 15 && currentDay <= 21 },
+        { label: `Minggu 4 (22-${lastDay})`, shortLabel: "Mgg 4", start: 22, end: lastDay, isCurrent: currentDay >= 22 && currentDay <= lastDay },
+    ]
+    return weeks
+}
+
+function getItemsForWeek(items: CashflowItem[], weekStart: number, weekEnd: number): CashflowItem[] {
+    return items.filter(item => {
+        const day = parseInt(item.date.split("-")[2], 10)
+        return day >= weekStart && day <= weekEnd
+    })
+}
+
+function calcWeekTotals(items: CashflowItem[]) {
+    const inItems = items.filter(i => i.direction === "IN")
+    const outItems = items.filter(i => i.direction === "OUT")
+    const totalIn = inItems.reduce((s, i) => s + i.amount, 0)
+    const totalOut = outItems.reduce((s, i) => s + i.amount, 0)
+    return { totalIn, totalOut, net: totalIn - totalOut, inItems, outItems }
+}
+
+// ─── Component Props ────────────────────────────────────────────────────────
 
 interface CashflowPlanningBoardProps {
     data: CashflowPlanData
@@ -132,7 +142,11 @@ interface CashflowPlanningBoardProps {
     onMonthChange: (month: number) => void
     onYearChange: (year: number) => void
     accuracyTrend?: { month: number; year: number; label: string; accuracyScore: number | null }[]
+    forecast?: CashflowForecastData
+    upcoming?: UpcomingObligationsData
 }
+
+// ─── Main Component ─────────────────────────────────────────────────────────
 
 export function CashflowPlanningBoard({
     data,
@@ -141,10 +155,12 @@ export function CashflowPlanningBoard({
     onMonthChange,
     onYearChange,
     accuracyTrend,
+    forecast,
+    upcoming,
 }: CashflowPlanningBoardProps) {
     const queryClient = useQueryClient()
+    const [viewMode, setViewMode] = useState<"planning" | "riil">("planning")
     const [savingSnapshot, setSavingSnapshot] = useState(false)
-    const [activeTab, setActiveTab] = useState("planning")
     const [itemDialogOpen, setItemDialogOpen] = useState(false)
     const [editItem, setEditItem] = useState<CashflowItem | null>(null)
     const [glAccounts, setGlAccounts] = useState<{ id: string; code: string; name: string }[]>([])
@@ -152,69 +168,52 @@ export function CashflowPlanningBoard({
     const [overrideAmount, setOverrideAmount] = useState("")
     const [savingOverride, setSavingOverride] = useState(false)
     const [bankFilter, setBankFilter] = useState<string>("all")
-    const [bankCardsOpen, setBankCardsOpen] = useState(false)
+    const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
+    const [showAccuracy, setShowAccuracy] = useState(false)
 
     useEffect(() => {
         fetch("/api/finance/transactions")
             .then(r => r.json())
             .then(d => {
                 if (d.accounts) {
-                    setGlAccounts(
-                        d.accounts.map((a: any) => ({ id: a.id, code: a.code, name: a.name }))
-                    )
+                    setGlAccounts(d.accounts.map((a: any) => ({ id: a.id, code: a.code, name: a.name })))
                 }
             })
             .catch(() => {})
     }, [])
 
+    // ─── Navigation ──────────────────────────────────────────────
     function handlePrevMonth() {
-        if (month === 1) {
-            onMonthChange(12)
-            onYearChange(year - 1)
-        } else {
-            onMonthChange(month - 1)
-        }
+        if (month === 1) { onMonthChange(12); onYearChange(year - 1) }
+        else onMonthChange(month - 1)
     }
-
     function handleNextMonth() {
-        if (month === 12) {
-            onMonthChange(1)
-            onYearChange(year + 1)
-        } else {
-            onMonthChange(month + 1)
-        }
+        if (month === 12) { onMonthChange(1); onYearChange(year + 1) }
+        else onMonthChange(month + 1)
     }
 
+    // ─── Actions ─────────────────────────────────────────────────
     async function handleSaveSnapshot() {
         setSavingSnapshot(true)
         try {
             await saveCashflowSnapshot(month, year)
             await queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
             toast.success(`Snapshot ${MONTH_NAMES[month]} ${year} tersimpan`)
-        } catch {
-            toast.error("Gagal menyimpan snapshot")
-        } finally {
-            setSavingSnapshot(false)
-        }
+        } catch { toast.error("Gagal menyimpan snapshot") }
+        finally { setSavingSnapshot(false) }
     }
 
     async function handleSaveOverride() {
-        const amount = parseFloat(overrideAmount)
-        if (isNaN(amount) || amount < 0) {
-            toast.error("Jumlah tidak valid")
-            return
-        }
+        const amt = parseFloat(overrideAmount)
+        if (isNaN(amt) || amt < 0) { toast.error("Jumlah tidak valid"); return }
         setSavingOverride(true)
         try {
-            await overrideStartingBalance(month, year, amount)
+            await overrideStartingBalance(month, year, amt)
             await queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
             toast.success("Saldo awal berhasil diubah")
             setOverrideDialogOpen(false)
-        } catch {
-            toast.error("Gagal mengubah saldo awal")
-        } finally {
-            setSavingOverride(false)
-        }
+        } catch { toast.error("Gagal mengubah saldo awal") }
+        finally { setSavingOverride(false) }
     }
 
     async function handleResetOverride() {
@@ -224,24 +223,110 @@ export function CashflowPlanningBoard({
             await queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
             toast.success("Saldo awal direset ke GL")
             setOverrideDialogOpen(false)
-        } catch {
-            toast.error("Gagal mereset saldo awal")
-        } finally {
-            setSavingOverride(false)
-        }
+        } catch { toast.error("Gagal mereset saldo awal") }
+        finally { setSavingOverride(false) }
     }
 
+    // ─── Data Preparation ────────────────────────────────────────
     const bankAccounts = glAccounts.filter(a => a.code.startsWith("10"))
-
     const autoItems = data.autoItems || []
     const manualItems = data.manualItems || []
     const actualItems = data.actualItems || []
 
     const allPlanItems = [...autoItems, ...manualItems]
-    const planItems = bankFilter === "all"
-        ? allPlanItems
-        : allPlanItems.filter(item => item.glAccountCode === bankFilter)
+    const activeItems = viewMode === "planning" ? allPlanItems : actualItems
+    const bankFiltered = bankFilter === "all"
+        ? activeItems
+        : activeItems.filter(item => item.glAccountCode === bankFilter)
+    const filteredItems = categoryFilter
+        ? bankFiltered.filter(item => {
+            if (categoryFilter === "PAYROLL_BPJS") return item.category === "PAYROLL" || item.category === "BPJS"
+            if (categoryFilter === "OTHER") return !["AR_INVOICE", "AP_BILL", "PO_DIRECT", "PAYROLL", "BPJS", "LOAN_REPAYMENT"].includes(item.category)
+            return item.category === categoryFilter
+        })
+        : bankFiltered
 
+    const weeks = getWeeks(month, year)
+
+    // ─── Obligations Summary ─────────────────────────────────────
+    const obligationGroups = [
+        {
+            key: "AR_INVOICE",
+            label: "Piutang (AR)",
+            sublabel: "Uang yang akan masuk",
+            direction: "IN" as const,
+            color: "border-l-emerald-500 bg-emerald-50",
+            textColor: "text-emerald-700",
+            amountColor: "text-emerald-600",
+            icon: "↓",
+            categories: ["AR_INVOICE"],
+        },
+        {
+            key: "AP_BILL",
+            label: "Hutang (AP)",
+            sublabel: "Tagihan jatuh tempo",
+            direction: "OUT" as const,
+            color: "border-l-red-500 bg-red-50",
+            textColor: "text-red-700",
+            amountColor: "text-red-600",
+            icon: "↑",
+            categories: ["AP_BILL"],
+        },
+        {
+            key: "PO_DIRECT",
+            label: "PO Belum Bayar",
+            sublabel: "Purchase order aktif",
+            direction: "OUT" as const,
+            color: "border-l-indigo-500 bg-indigo-50",
+            textColor: "text-indigo-700",
+            amountColor: "text-indigo-600",
+            icon: "↑",
+            categories: ["PO_DIRECT"],
+        },
+        {
+            key: "PAYROLL_BPJS",
+            label: "Gaji & BPJS",
+            sublabel: "Kewajiban karyawan",
+            direction: "OUT" as const,
+            color: "border-l-orange-500 bg-orange-50",
+            textColor: "text-orange-700",
+            amountColor: "text-orange-600",
+            icon: "↑",
+            categories: ["PAYROLL", "BPJS"],
+        },
+        {
+            key: "LOAN_REPAYMENT",
+            label: "Cicilan Pinjaman",
+            sublabel: "Pembayaran hutang bank",
+            direction: "OUT" as const,
+            color: "border-l-fuchsia-500 bg-fuchsia-50",
+            textColor: "text-fuchsia-700",
+            amountColor: "text-fuchsia-600",
+            icon: "↑",
+            categories: ["LOAN_REPAYMENT"],
+        },
+        {
+            key: "OTHER",
+            label: "Lainnya",
+            sublabel: "Modal, jurnal, manual, dll",
+            direction: null,
+            color: "border-l-zinc-500 bg-zinc-50",
+            textColor: "text-zinc-700",
+            amountColor: "text-zinc-600",
+            icon: "↕",
+            categories: [] as string[], // computed separately
+        },
+    ]
+
+    const obligationData = obligationGroups.map(group => {
+        const items = group.key === "OTHER"
+            ? allPlanItems.filter(i => !["AR_INVOICE", "AP_BILL", "PO_DIRECT", "PAYROLL", "BPJS", "LOAN_REPAYMENT"].includes(i.category))
+            : allPlanItems.filter(i => group.categories.includes(i.category))
+        const total = items.reduce((s, i) => s + i.amount, 0)
+        return { ...group, total, count: items.length }
+    }).filter(g => g.count > 0)
+
+    // Per-bank summary
     const perBankData = bankAccounts.map((bank) => {
         const bankItems = allPlanItems.filter(i => i.glAccountCode === bank.code)
         const inAmt = bankItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
@@ -249,275 +334,457 @@ export function CashflowPlanningBoard({
         return { code: bank.code, name: bank.name, totalIn: inAmt, totalOut: outAmt, net: inAmt - outAmt, count: bankItems.length }
     }).filter(b => b.count > 0)
 
-    const filteredActualItems = bankFilter === "all"
-        ? actualItems
-        : actualItems.filter(i => i.glAccountCode === bankFilter)
-    const { startPad, totalDays } = getCalendarDays(month, year)
+    // Cash runway calculation
+    const weeklyBurn = data.summary.totalOut / 4
+    const runwayWeeks = weeklyBurn > 0 ? Math.floor(data.effectiveStartingBalance / weeklyBurn) : 99
+    const runwayLabel = runwayWeeks >= 12
+        ? "Aman > 3 bulan"
+        : runwayWeeks >= 4
+            ? `Cukup ~${runwayWeeks} minggu`
+            : runwayWeeks >= 1
+                ? `Kritis! Sisa ${runwayWeeks} minggu`
+                : "Darurat! Saldo tidak cukup"
+    const runwayColor = runwayWeeks >= 8 ? "text-emerald-600" : runwayWeeks >= 4 ? "text-amber-600" : "text-red-600"
+    const runwayBarPct = Math.min(100, Math.max(5, (runwayWeeks / 12) * 100))
+    const runwayBarColor = runwayWeeks >= 8 ? "bg-emerald-500" : runwayWeeks >= 4 ? "bg-amber-500" : "bg-red-500"
 
     return (
-        <div className="space-y-5">
-            {/* ─── Header ─────────────────────────────────────────── */}
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center border-2 border-black bg-emerald-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                        <IconWallet size={22} stroke={2} />
+        <div className="space-y-6">
+            {/* ═══ SECTION 1: TOP STRIP ═══════════════════════════════════ */}
+            <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                {/* Header row */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 border-b-2 border-black">
+                    <div className="flex items-center gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center border-2 border-black bg-emerald-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                            <IconWallet size={24} stroke={2} />
+                        </div>
+                        <div>
+                            <h1 className="text-2xl font-black uppercase tracking-tight">
+                                Perencanaan Arus Kas
+                            </h1>
+                            <p className="text-sm text-zinc-500 font-medium">
+                                Cashflow Planning by Management
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-xl font-black uppercase tracking-tight">
-                            Perencanaan Arus Kas
-                        </h1>
-                        <p className="text-xs text-zinc-500 font-bold">
-                            Estimasi pemasukan & pengeluaran bulanan
-                        </p>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Month navigator */}
+                        <div className="flex items-center border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                            <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="rounded-none border-r-2 border-black h-10 px-3">
+                                <IconChevronLeft size={18} />
+                            </Button>
+                            <span className="px-5 font-black text-sm uppercase min-w-[170px] text-center">
+                                {MONTH_NAMES[month]} {year}
+                            </span>
+                            <Button variant="ghost" size="sm" onClick={handleNextMonth} className="rounded-none border-l-2 border-black h-10 px-3">
+                                <IconChevronRight size={18} />
+                            </Button>
+                        </div>
+
+                        {/* View mode toggle */}
+                        <div className="flex border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                            <button
+                                onClick={() => setViewMode("planning")}
+                                className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
+                                    viewMode === "planning" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                }`}
+                            >
+                                Planning
+                            </button>
+                            <button
+                                onClick={() => setViewMode("riil")}
+                                className={`px-4 py-2 text-xs font-black uppercase tracking-wider border-l-2 border-black transition-colors ${
+                                    viewMode === "riil" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                }`}
+                            >
+                                Riil
+                            </button>
+                        </div>
+
+                        <Button
+                            onClick={() => { setEditItem(null); setItemDialogOpen(true) }}
+                            className="border-2 border-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-10 bg-emerald-400 hover:bg-emerald-500 text-black"
+                        >
+                            <IconPlus size={16} className="mr-1" /> Tambah
+                        </Button>
+
+                        <Button
+                            variant="outline" size="sm" onClick={handleSaveSnapshot} disabled={savingSnapshot}
+                            className="border-2 border-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-10"
+                        >
+                            <IconCamera size={16} className="mr-1" /> {savingSnapshot ? "..." : "Snapshot"}
+                        </Button>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
-                    <div className="flex items-center border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handlePrevMonth}
-                            className="rounded-none border-r-2 border-black h-9 px-2"
-                        >
-                            <IconChevronLeft size={16} />
-                        </Button>
-                        <span className="px-4 font-black text-sm uppercase min-w-[160px] text-center">
-                            {MONTH_NAMES[month]} {year}
-                        </span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleNextMonth}
-                            className="rounded-none border-l-2 border-black h-9 px-2"
-                        >
-                            <IconChevronRight size={16} />
-                        </Button>
+                {/* Cash position + runway + bank pills */}
+                <div className="flex flex-col lg:flex-row gap-0 divide-y-2 lg:divide-y-0 lg:divide-x-2 divide-black">
+                    {/* Total Cash Position */}
+                    <div
+                        className="p-5 flex-shrink-0 lg:w-[280px] cursor-pointer hover:bg-zinc-50 transition-colors"
+                        onClick={() => { setOverrideAmount(String(data.effectiveStartingBalance)); setOverrideDialogOpen(true) }}
+                    >
+                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-zinc-500 mb-1">
+                            <IconWallet size={16} />
+                            Posisi Kas
+                            {data.startingBalanceOverride !== null && (
+                                <Badge variant="outline" className="text-[10px] font-bold border-amber-400 text-amber-600 px-1.5 py-0 ml-1">Override</Badge>
+                            )}
+                        </div>
+                        <div className="text-3xl font-black tabular-nums">
+                            {formatCurrency(data.effectiveStartingBalance)}
+                        </div>
+                        <div className="text-xs text-zinc-400 mt-0.5">Saldo awal {MONTH_NAMES[month]}</div>
                     </div>
 
-                    <select
-                        value={bankFilter}
-                        onChange={(e) => setBankFilter(e.target.value)}
-                        className="border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-9 px-3 text-xs font-black uppercase appearance-none cursor-pointer"
-                    >
-                        <option value="all">Semua Rekening</option>
-                        {bankAccounts.map((a) => (
-                            <option key={a.id} value={a.code}>{a.code} — {a.name}</option>
-                        ))}
-                    </select>
+                    {/* Cash Runway */}
+                    <div className="p-5 flex-shrink-0 lg:w-[240px]">
+                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-zinc-500 mb-1">
+                            <IconGauge size={16} />
+                            Cash Runway
+                        </div>
+                        <div className={`text-lg font-black ${runwayColor}`}>
+                            {runwayLabel}
+                        </div>
+                        <div className="mt-2 h-2 bg-zinc-100 border border-zinc-200 overflow-hidden w-full">
+                            <div className={`h-full ${runwayBarColor} transition-all`} style={{ width: `${runwayBarPct}%` }} />
+                        </div>
+                    </div>
 
-                    <Button
-                        onClick={() => {
-                            setEditItem(null)
-                            setItemDialogOpen(true)
-                        }}
-                        className="border-2 border-black font-black uppercase text-[10px] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-9 bg-emerald-400 hover:bg-emerald-500 text-black"
-                    >
-                        <IconPlus size={14} className="mr-1" />
-                        Tambah Item
-                    </Button>
-
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleSaveSnapshot}
-                        disabled={savingSnapshot}
-                        className="border-2 border-black font-black uppercase text-[10px] shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-9"
-                    >
-                        <IconCamera size={14} className="mr-1" />
-                        {savingSnapshot ? "Menyimpan..." : "Snapshot"}
-                    </Button>
-                </div>
-            </div>
-
-            {/* ─── KPI Strip ──────────────────────────────────────── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <KPICard
-                    label="Saldo Awal"
-                    value={data.effectiveStartingBalance}
-                    icon={<IconWallet size={18} />}
-                    accent="border-l-emerald-500"
-                    badge={data.startingBalanceOverride !== null ? "Override" : undefined}
-                    onClick={() => {
-                        setOverrideAmount(String(data.effectiveStartingBalance))
-                        setOverrideDialogOpen(true)
-                    }}
-                />
-                <KPICard
-                    label="Est. Pemasukan"
-                    value={data.summary.totalIn}
-                    icon={<IconArrowDownRight size={18} />}
-                    accent="border-l-green-500"
-                />
-                <KPICard
-                    label="Est. Pengeluaran"
-                    value={data.summary.totalOut}
-                    icon={<IconArrowUpRight size={18} />}
-                    accent="border-l-red-500"
-                />
-                <KPICard
-                    label="Est. Saldo Akhir"
-                    value={data.summary.estimatedEndBalance}
-                    icon={<IconScale size={18} />}
-                    accent="border-l-blue-500"
-                    highlight={data.summary.estimatedEndBalance < 0}
-                />
-            </div>
-
-            {/* ─── Per-Bank Balance Cards ─────────────────────────────── */}
-            {perBankData.length > 0 && (
-                <div>
-                    <button
-                        onClick={() => setBankCardsOpen(!bankCardsOpen)}
-                        className="text-[10px] font-black uppercase tracking-wider text-zinc-500 hover:text-black flex items-center gap-1 mb-2"
-                    >
-                        {bankCardsOpen ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-                        Per Rekening ({perBankData.length})
-                    </button>
-                    {bankCardsOpen && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                            {perBankData.map((bank) => (
-                                <div
+                    {/* Bank Account Pills */}
+                    <div className="p-5 flex-1">
+                        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-zinc-500 mb-2">
+                            <IconBuildingBank size={16} />
+                            Rekening
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={() => setBankFilter("all")}
+                                className={`px-3 py-1.5 text-xs font-bold border-2 transition-all ${
+                                    bankFilter === "all"
+                                        ? "border-black bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                        : "border-zinc-300 bg-white text-zinc-500 hover:border-black"
+                                }`}
+                            >
+                                Semua
+                            </button>
+                            {perBankData.map(bank => (
+                                <button
                                     key={bank.code}
-                                    className="border-2 border-black bg-white p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] cursor-pointer hover:ring-2 hover:ring-emerald-400"
                                     onClick={() => setBankFilter(bankFilter === bank.code ? "all" : bank.code)}
+                                    className={`px-3 py-1.5 text-xs font-bold border-2 transition-all ${
+                                        bankFilter === bank.code
+                                            ? "border-black bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                                            : "border-zinc-300 bg-white text-zinc-600 hover:border-black"
+                                    }`}
                                 >
-                                    <div className="text-[9px] font-black uppercase tracking-wider text-zinc-500 mb-1">
-                                        {bank.code} — {bank.name}
-                                    </div>
-                                    <div className="flex justify-between text-[10px]">
-                                        <span className="text-emerald-600 font-bold">+{formatCompact(bank.totalIn)}</span>
-                                        <span className="text-red-600 font-bold">-{formatCompact(bank.totalOut)}</span>
-                                        <span className={`font-black ${bank.net >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                                            {bank.net >= 0 ? "+" : ""}{formatCompact(bank.net)}
-                                        </span>
-                                    </div>
-                                    <div className="text-[9px] text-zinc-400 mt-0.5">{bank.count} item</div>
-                                </div>
+                                    {bank.name.replace(/^(Bank|Rek\.?|Rekening)\s+/i, "")}
+                                    <span className={`ml-1.5 ${bank.net >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                                        {bank.net >= 0 ? "+" : ""}{formatCompact(bank.net)}
+                                    </span>
+                                </button>
                             ))}
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ═══ SECTION 1.5: OBLIGATIONS SUMMARY ═════════════════════ */}
+            {obligationData.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+                    {obligationData.map(group => {
+                        const isActive = categoryFilter === group.key
+                        return (
+                            <button
+                                key={group.key}
+                                onClick={() => setCategoryFilter(isActive ? null : group.key)}
+                                className={`border-2 border-black border-l-4 ${group.color} p-4 text-left transition-all shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] ${
+                                    isActive
+                                        ? "ring-2 ring-black ring-offset-2 scale-[1.02]"
+                                        : "hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-1px] hover:translate-y-[-1px]"
+                                }`}
+                            >
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className={`text-xs font-black uppercase tracking-wider ${group.textColor}`}>
+                                        {group.label}
+                                    </span>
+                                    <span className="text-lg leading-none">{group.icon}</span>
+                                </div>
+                                <div className={`text-xl font-black tabular-nums ${group.amountColor}`}>
+                                    {formatCompact(group.total)}
+                                </div>
+                                <div className="flex items-center justify-between mt-1">
+                                    <span className="text-[11px] text-zinc-500">{group.sublabel}</span>
+                                    <span className="text-[11px] font-bold text-zinc-400">{group.count} item</span>
+                                </div>
+                                {isActive && (
+                                    <div className="mt-2 text-[10px] font-black uppercase tracking-wider text-black bg-white border border-black px-2 py-0.5 text-center">
+                                        Filter Aktif — klik untuk reset
+                                    </div>
+                                )}
+                            </button>
+                        )
+                    })}
+                </div>
+            )}
+
+            {/* Category filter indicator */}
+            {categoryFilter && (
+                <div className="flex items-center gap-2 px-1">
+                    <span className="text-xs font-bold text-zinc-500">
+                        Menampilkan: <span className="text-black">{obligationData.find(g => g.key === categoryFilter)?.label ?? categoryFilter}</span>
+                    </span>
+                    <button
+                        onClick={() => setCategoryFilter(null)}
+                        className="text-xs font-black text-red-600 hover:underline"
+                    >
+                        Reset Filter
+                    </button>
+                </div>
+            )}
+
+            {/* ═══ SECTION 2: WEEKLY SWIM-LANE BOARD ═════════════════════ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {weeks.map((week, weekIdx) => {
+                    const weekItems = getItemsForWeek(filteredItems, week.start, week.end)
+                    const { totalIn, totalOut, net, inItems, outItems } = calcWeekTotals(weekItems)
+
+                    // Running balance up to this week
+                    let runningBal = data.effectiveStartingBalance
+                    for (let w = 0; w <= weekIdx; w++) {
+                        const wItems = getItemsForWeek(filteredItems, weeks[w].start, weeks[w].end)
+                        const wTotals = calcWeekTotals(wItems)
+                        runningBal += wTotals.net
+                    }
+
+                    return (
+                        <div
+                            key={week.label}
+                            className={`border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col ${
+                                week.isCurrent ? "ring-3 ring-emerald-400 ring-offset-2" : ""
+                            }`}
+                        >
+                            {/* Week header */}
+                            <div className={`px-4 py-3 border-b-2 border-black flex items-center justify-between ${
+                                week.isCurrent ? "bg-emerald-400" : "bg-zinc-100"
+                            }`}>
+                                <div>
+                                    <div className={`text-sm font-black uppercase tracking-wider ${week.isCurrent ? "text-black" : "text-zinc-700"}`}>
+                                        {week.shortLabel}
+                                    </div>
+                                    <div className={`text-xs ${week.isCurrent ? "text-emerald-900" : "text-zinc-500"}`}>
+                                        {week.start}-{week.end} {MONTH_NAMES[month]}
+                                    </div>
+                                </div>
+                                {week.isCurrent && (
+                                    <span className="text-[10px] font-black bg-black text-white px-2 py-1 uppercase tracking-wider">
+                                        Minggu Ini
+                                    </span>
+                                )}
+                                {weekItems.length > 0 && (
+                                    <span className="text-xs font-bold text-zinc-400">
+                                        {weekItems.length} item
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Kas Masuk zone */}
+                            <div className="flex-1 min-h-[120px]">
+                                {inItems.length > 0 && (
+                                    <div className="p-3 space-y-2">
+                                        <div className="text-[10px] font-black uppercase tracking-wider text-emerald-600 flex items-center gap-1">
+                                            <IconArrowDownRight size={12} /> Kas Masuk
+                                        </div>
+                                        {inItems.slice(0, 5).map(item => (
+                                            <SwimLaneCard
+                                                key={item.id}
+                                                item={item}
+                                                viewMode={viewMode}
+                                                onEdit={item.isManual ? () => { setEditItem(item); setItemDialogOpen(true) } : undefined}
+                                            />
+                                        ))}
+                                        {inItems.length > 5 && (
+                                            <div className="text-xs text-zinc-400 font-bold pl-1">+{inItems.length - 5} lagi</div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Divider */}
+                                {inItems.length > 0 && outItems.length > 0 && (
+                                    <div className="border-t border-dashed border-zinc-200 mx-3" />
+                                )}
+
+                                {/* Kas Keluar zone */}
+                                {outItems.length > 0 && (
+                                    <div className="p-3 space-y-2">
+                                        <div className="text-[10px] font-black uppercase tracking-wider text-red-600 flex items-center gap-1">
+                                            <IconArrowUpRight size={12} /> Kas Keluar
+                                        </div>
+                                        {outItems.slice(0, 5).map(item => (
+                                            <SwimLaneCard
+                                                key={item.id}
+                                                item={item}
+                                                viewMode={viewMode}
+                                                onEdit={item.isManual ? () => { setEditItem(item); setItemDialogOpen(true) } : undefined}
+                                            />
+                                        ))}
+                                        {outItems.length > 5 && (
+                                            <div className="text-xs text-zinc-400 font-bold pl-1">+{outItems.length - 5} lagi</div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Empty state */}
+                                {weekItems.length === 0 && (
+                                    <div className="flex items-center justify-center h-full p-6">
+                                        <div className="text-center">
+                                            <div className="text-zinc-300 font-black text-sm">—</div>
+                                            <div className="text-zinc-400 text-xs mt-1">Belum ada item</div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Week footer — totals + running balance */}
+                            <div className="border-t-2 border-black bg-zinc-50 p-3 space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-emerald-600 font-bold">+{formatCompact(totalIn)}</span>
+                                    <span className="text-red-600 font-bold">-{formatCompact(totalOut)}</span>
+                                    <span className={`font-black ${net >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                                        {net >= 0 ? "+" : ""}{formatCompact(net)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Saldo</span>
+                                    <span className={`text-sm font-black ${runningBal < 0 ? "text-red-600" : ""}`}>
+                                        {formatCurrency(runningBal)}
+                                    </span>
+                                </div>
+                                {/* Balance bar */}
+                                <div className="h-1.5 bg-zinc-200 overflow-hidden">
+                                    <div
+                                        className={`h-full transition-all ${runningBal < 0 ? "bg-red-500" : runningBal < data.effectiveStartingBalance * 0.3 ? "bg-amber-500" : "bg-emerald-500"}`}
+                                        style={{ width: `${Math.min(100, Math.max(3, (runningBal / Math.max(data.effectiveStartingBalance, 1)) * 100))}%` }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+
+            {/* ═══ SECTION 3: SUMMARY BAR ════════════════════════════════ */}
+            <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-wrap divide-x-2 divide-black">
+                <SummaryCell label="Saldo Awal" value={data.effectiveStartingBalance} />
+                <SummaryCell label="Total Masuk" value={data.summary.totalIn} color="text-emerald-600" prefix="+" />
+                <SummaryCell label="Total Keluar" value={data.summary.totalOut} color="text-red-600" prefix="-" />
+                <SummaryCell label="Net" value={data.summary.netFlow} color={data.summary.netFlow >= 0 ? "text-emerald-600" : "text-red-600"} prefix={data.summary.netFlow >= 0 ? "+" : ""} />
+                <SummaryCell label="Saldo Akhir" value={data.summary.estimatedEndBalance} highlight={data.summary.estimatedEndBalance < 0} />
+            </div>
+
+            {/* ═══ LAST MONTH REFERENCE ═══════════════════════════════════ */}
+            {data.lastMonthSummary && (
+                <div className="border-2 border-black bg-blue-50 px-5 py-3 flex items-center gap-5 text-sm font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                    <IconHistory size={18} className="text-blue-600 flex-shrink-0" />
+                    <span className="text-blue-800">Referensi bulan lalu:</span>
+                    <span className="text-emerald-700">Masuk {formatCurrency(data.lastMonthSummary.totalIn)}</span>
+                    <span className="text-red-700">Keluar {formatCurrency(data.lastMonthSummary.totalOut)}</span>
+                    <span className={data.lastMonthSummary.netFlow >= 0 ? "text-emerald-700" : "text-red-700"}>
+                        Net {data.lastMonthSummary.netFlow >= 0 ? "+" : ""}{formatCurrency(data.lastMonthSummary.netFlow)}
+                    </span>
+                    <span className="text-zinc-500 ml-auto">{data.lastMonthSummary.itemCount} transaksi</span>
+                </div>
+            )}
+
+            {/* ═══ SNAPSHOT INFO ══════════════════════════════════════════ */}
+            {data.snapshot && (
+                <div className="border-2 border-black bg-amber-50 px-5 py-3 text-sm font-bold flex items-center gap-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                    <IconCamera size={18} />
+                    Snapshot: {new Date(data.snapshot.snapshotDate).toLocaleDateString("id-ID")}
+                    <span className="text-zinc-500 ml-2">
+                        Rencana: {formatCurrency(data.snapshot.totalPlannedIn)} masuk, {formatCurrency(data.snapshot.totalPlannedOut)} keluar
+                    </span>
+                </div>
+            )}
+
+            {/* ═══ SECTION 4: ACCURACY (Collapsible) ═════════════════════ */}
+            {data.snapshot && (
+                <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <button
+                        onClick={() => setShowAccuracy(!showAccuracy)}
+                        className="w-full px-5 py-3 text-left flex items-center justify-between hover:bg-zinc-50 transition-colors"
+                    >
+                        <div className="flex items-center gap-2">
+                            <IconScale size={18} />
+                            <span className="text-sm font-black uppercase tracking-wider">
+                                Akurasi: Rencana vs Realisasi
+                            </span>
+                            {(() => {
+                                const plannedNet = data.snapshot!.totalPlannedIn - data.snapshot!.totalPlannedOut
+                                const actualIn = actualItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
+                                const actualOut = actualItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
+                                const actualNet = actualIn - actualOut
+                                const pct = plannedNet !== 0 ? ((actualNet - plannedNet) / plannedNet) * 100 : null
+                                const accuracy = pct !== null ? Math.max(0, 100 - Math.abs(pct)) : null
+                                if (accuracy === null) return null
+                                const color = accuracy >= 80 ? "text-emerald-600 border-emerald-400" : accuracy >= 60 ? "text-amber-600 border-amber-400" : "text-red-600 border-red-400"
+                                return <span className={`text-xs font-bold px-2 py-0.5 border ${color} ml-2`}>Akurasi: {accuracy.toFixed(0)}%</span>
+                            })()}
+                        </div>
+                        <IconChevronDown size={18} className={`transition-transform ${showAccuracy ? "rotate-180" : ""}`} />
+                    </button>
+
+                    {showAccuracy && (
+                        <AccuracySection
+                            snapshot={data.snapshot}
+                            actualItems={actualItems}
+                            accuracyTrend={accuracyTrend}
+                        />
                     )}
                 </div>
             )}
 
-            {/* ─── Last Month Reference ─────────────────────────────── */}
-            {data.lastMonthSummary && (
-                <div className="border-2 border-black bg-blue-50 px-4 py-2.5 flex items-center gap-4 text-xs font-bold">
-                    <IconHistory size={14} className="text-blue-600 flex-shrink-0" />
-                    <span className="text-blue-800">
-                        Ref. bulan lalu:
-                    </span>
-                    <span className="text-emerald-700">
-                        Masuk {formatCurrency(data.lastMonthSummary.totalIn)}
-                    </span>
-                    <span className="text-red-700">
-                        Keluar {formatCurrency(data.lastMonthSummary.totalOut)}
-                    </span>
-                    <span className={data.lastMonthSummary.netFlow >= 0 ? "text-emerald-700" : "text-red-700"}>
-                        Nett {data.lastMonthSummary.netFlow >= 0 ? "+" : ""}{formatCurrency(data.lastMonthSummary.netFlow)}
-                    </span>
-                    <span className="text-zinc-500 ml-auto">
-                        {data.lastMonthSummary.itemCount} transaksi
-                    </span>
+            {/* ═══ 6-MONTH FORECAST (from old forecast page) ═════════════ */}
+            {forecast && forecast.months.length > 0 && (
+                <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+                    <div className="bg-black text-white px-5 py-3 flex items-center gap-2">
+                        <IconCalendarWeek size={18} />
+                        <span className="text-sm font-black uppercase tracking-wider">Proyeksi 6 Bulan</span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="border-b-2 border-black bg-zinc-50">
+                                    <th className="text-left px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Bulan</th>
+                                    <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-emerald-600">Kas Masuk</th>
+                                    <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-red-600">Kas Keluar</th>
+                                    <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Net</th>
+                                    <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Saldo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {forecast.months.map(m => (
+                                    <tr key={`${m.month}-${m.year}`} className="border-b border-zinc-100 hover:bg-zinc-50">
+                                        <td className="px-5 py-3 font-bold">{m.label}</td>
+                                        <td className="px-5 py-3 text-right font-medium text-emerald-600">{formatCurrency(m.totalIn)}</td>
+                                        <td className="px-5 py-3 text-right font-medium text-red-600">{formatCurrency(m.totalOut)}</td>
+                                        <td className={`px-5 py-3 text-right font-bold ${m.netFlow >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                            {m.netFlow >= 0 ? "+" : ""}{formatCurrency(m.netFlow)}
+                                        </td>
+                                        <td className="px-5 py-3 text-right font-black">{formatCurrency(m.runningBalance)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
 
-            {/* ─── Snapshot Info ───────────────────────────────────── */}
-            {data.snapshot && (
-                <div className="border-2 border-black bg-amber-50 px-4 py-2 text-xs font-bold flex items-center gap-2">
-                    <IconCamera size={14} />
-                    Snapshot terakhir: {new Date(data.snapshot.snapshotDate).toLocaleDateString("id-ID")}
-                    <span className="text-zinc-500 ml-2">
-                        Plan: {formatCurrency(data.snapshot.totalPlannedIn)} masuk,{" "}
-                        {formatCurrency(data.snapshot.totalPlannedOut)} keluar
-                    </span>
-                </div>
-            )}
+            {/* ═══ SECTION 6: UPCOMING OBLIGATIONS ═══════════════════════ */}
+            <UpcomingObligationsSection upcoming={upcoming} />
 
-            {/* ─── Tabs ───────────────────────────────────────────── */}
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white p-0 h-auto rounded-none">
-                    <TabsTrigger
-                        value="planning"
-                        className="rounded-none border-r-2 border-black font-black uppercase text-xs px-6 py-2.5 data-[state=active]:bg-black data-[state=active]:text-white"
-                    >
-                        Planning
-                    </TabsTrigger>
-                    <TabsTrigger
-                        value="riil"
-                        className="rounded-none font-black uppercase text-xs px-6 py-2.5 data-[state=active]:bg-black data-[state=active]:text-white"
-                    >
-                        Riil
-                    </TabsTrigger>
-                </TabsList>
-
-                {/* ─── Category Legend ──────────────────────────── */}
-                <div className="flex flex-wrap gap-1.5 py-2.5 px-1">
-                    {(activeTab === "planning"
-                        ? [...new Set(planItems.map(i => i.category))]
-                        : [...new Set(filteredActualItems.map(i => i.category))]
-                    ).map(cat => (
-                        <span
-                            key={cat}
-                            className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-[2px] border ${CATEGORY_COLORS[cat] ?? CATEGORY_COLORS.MANUAL}`}
-                        >
-                            {CATEGORY_LABELS[cat] ?? cat}
-                        </span>
-                    ))}
-                </div>
-
-                <TabsContent value="planning" className="mt-2">
-                    <CalendarGrid
-                        items={planItems}
-                        month={month}
-                        year={year}
-                        startPad={startPad}
-                        totalDays={totalDays}
-                        startingBalance={data.effectiveStartingBalance}
-                        onEditItem={(item) => {
-                            setEditItem(item)
-                            setItemDialogOpen(true)
-                        }}
-                    />
-                </TabsContent>
-
-                <TabsContent value="riil" className="mt-2">
-                    <CalendarGrid
-                        items={filteredActualItems}
-                        month={month}
-                        year={year}
-                        startPad={startPad}
-                        totalDays={totalDays}
-                        startingBalance={data.effectiveStartingBalance}
-                    />
-                </TabsContent>
-            </Tabs>
-
-            {/* ─── Weekly Summary ──────────────────────────────────── */}
-            <WeeklySummary
-                items={activeTab === "planning" ? planItems : filteredActualItems}
-                month={month}
-                year={year}
-            />
-
-            {/* ─── Running Balance Table ──────────────────────────── */}
-            <RunningBalanceTable
-                items={activeTab === "planning" ? planItems : filteredActualItems}
-                startingBalance={data.effectiveStartingBalance}
-                month={month}
-                year={year}
-            />
-
-            {/* ─── Variance Summary ────────────────────────────────── */}
-            {data.snapshot && activeTab === "planning" && (
-                <VarianceSummary
-                    snapshot={data.snapshot}
-                    actualItems={actualItems}
-                    accuracyTrend={accuracyTrend}
-                />
-            )}
-
-            {/* ─── Create/Edit Item Dialog ─────────────────────────── */}
+            {/* ═══ DIALOGS ═══════════════════════════════════════════════ */}
             <CreateCashflowItemDialog
                 open={itemDialogOpen}
                 onOpenChange={setItemDialogOpen}
@@ -527,67 +794,38 @@ export function CashflowPlanningBoard({
                 year={year}
             />
 
-            {/* ─── Override Saldo Awal Dialog ──────────────────────── */}
             <Dialog open={overrideDialogOpen} onOpenChange={setOverrideDialogOpen}>
                 <DialogContent className={NB.contentNarrow}>
                     <DialogHeader className={NB.header}>
                         <DialogTitle className={NB.title}>
-                            <IconEdit size={18} />
-                            Override Saldo Awal
+                            <IconEdit size={18} /> Override Saldo Awal
                         </DialogTitle>
-                        <p className={NB.subtitle}>
-                            Ubah saldo awal bulan ini secara manual
-                        </p>
+                        <p className={NB.subtitle}>Ubah saldo awal bulan ini secara manual</p>
                     </DialogHeader>
-
                     <div className="p-6 space-y-4">
                         <div>
                             <label className={NB.label}>Saldo GL Saat Ini</label>
-                            <div className="text-sm font-black text-zinc-600">
-                                {formatCurrency(data.startingBalance)}
-                            </div>
+                            <div className="text-sm font-black text-zinc-600">{formatCurrency(data.startingBalance)}</div>
                         </div>
-
                         {data.startingBalanceOverride !== null && (
                             <div>
                                 <label className={NB.label}>Override Aktif</label>
-                                <div className="text-sm font-black text-amber-600">
-                                    {formatCurrency(data.startingBalanceOverride)}
-                                </div>
+                                <div className="text-sm font-black text-amber-600">{formatCurrency(data.startingBalanceOverride)}</div>
                             </div>
                         )}
-
                         <div>
-                            <label className={NB.label}>
-                                Jumlah Baru <span className={NB.labelRequired}>*</span>
-                            </label>
-                            <Input
-                                type="number"
-                                className={NB.input}
-                                placeholder="0"
-                                value={overrideAmount}
-                                onChange={e => setOverrideAmount(e.target.value)}
-                            />
+                            <label className={NB.label}>Jumlah Baru <span className={NB.labelRequired}>*</span></label>
+                            <Input type="number" className={NB.input} placeholder="0" value={overrideAmount} onChange={e => setOverrideAmount(e.target.value)} />
                         </div>
-
                         <div className="flex gap-2 pt-2">
-                            <Button
-                                onClick={handleSaveOverride}
-                                disabled={savingOverride}
-                                className="flex-1 border-2 border-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-emerald-400 hover:bg-emerald-500 text-black h-10"
-                            >
+                            <Button onClick={handleSaveOverride} disabled={savingOverride}
+                                className="flex-1 border-2 border-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-emerald-400 hover:bg-emerald-500 text-black h-10">
                                 {savingOverride ? "Menyimpan..." : "Simpan Override"}
                             </Button>
-
                             {data.startingBalanceOverride !== null && (
-                                <Button
-                                    variant="outline"
-                                    onClick={handleResetOverride}
-                                    disabled={savingOverride}
-                                    className="border-2 border-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-10"
-                                >
-                                    <IconRefresh size={14} className="mr-1" />
-                                    Reset ke GL
+                                <Button variant="outline" onClick={handleResetOverride} disabled={savingOverride}
+                                    className="border-2 border-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-10">
+                                    <IconRefresh size={14} className="mr-1" /> Reset ke GL
                                 </Button>
                             )}
                         </div>
@@ -598,693 +836,409 @@ export function CashflowPlanningBoard({
     )
 }
 
-// ─── KPI Card ───────────────────────────────────────────────────────────────
+// ─── Swim Lane Card ─────────────────────────────────────────────────────────
 
-function KPICard({
+function SwimLaneCard({
+    item,
+    viewMode,
+    onEdit,
+}: {
+    item: CashflowItem
+    viewMode: "planning" | "riil"
+    onEdit?: () => void
+}) {
+    const cat = CATEGORY_COLORS[item.category] ?? DEFAULT_CAT
+    const label = CATEGORY_LABELS[item.category] ?? item.category
+    const bank = shortBankName(item.glAccountName, item.glAccountCode)
+    const isEstimate = viewMode === "planning" && !item.isManual
+    const isClickable = !!onEdit
+
+    return (
+        <div
+            className={`${cat.bg} border-l-[3px] ${cat.border} px-3 py-2 ${
+                isEstimate ? "border border-dashed border-zinc-300" : "border border-zinc-200"
+            } ${isClickable ? "cursor-pointer hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)] hover:border-black transition-all" : ""}`}
+            onClick={onEdit}
+            title={`${item.description}\n${formatCurrency(item.amount)}${item.glAccountName ? `\nRek: ${item.glAccountName}` : ""}`}
+        >
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                    <div className="text-sm font-black tabular-nums">
+                        {item.direction === "IN" ? "+" : "-"}{formatCompact(item.amount)}
+                    </div>
+                    <div className="text-xs text-zinc-600 truncate mt-0.5" title={item.description}>
+                        {item.description}
+                    </div>
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                    <span className={`text-[10px] font-bold ${cat.text} uppercase tracking-wider`}>
+                        {label}
+                    </span>
+                    {bank && (
+                        <span className="text-[10px] font-medium text-zinc-400">
+                            {bank}
+                        </span>
+                    )}
+                </div>
+            </div>
+            {isClickable && (
+                <div className="flex items-center gap-1 mt-1 text-[10px] text-zinc-400">
+                    <IconPencil size={10} /> Edit
+                </div>
+            )}
+        </div>
+    )
+}
+
+// ─── Summary Cell ───────────────────────────────────────────────────────────
+
+function SummaryCell({
     label,
     value,
-    icon,
-    accent,
-    badge,
+    color,
+    prefix,
     highlight,
-    onClick,
 }: {
     label: string
     value: number
-    icon: React.ReactNode
-    accent: string
-    badge?: string
+    color?: string
+    prefix?: string
     highlight?: boolean
-    onClick?: () => void
 }) {
     return (
-        <div
-            className={`border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-l-4 ${accent} p-4 ${onClick ? "cursor-pointer hover:ring-2 hover:ring-emerald-400 transition-shadow" : ""}`}
-            onClick={onClick}
-        >
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-500">
-                    {label}
-                </span>
-                <span className="text-zinc-400">{icon}</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <span
-                    className={`text-lg font-black ${highlight ? "text-red-600" : ""}`}
-                >
-                    {formatCurrency(value)}
-                </span>
-                {badge && (
-                    <Badge variant="outline" className="text-[9px] font-bold border-amber-400 text-amber-600 px-1.5 py-0">
-                        {badge}
-                    </Badge>
-                )}
+        <div className="flex-1 min-w-[140px] p-4 text-center">
+            <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400 mb-1">{label}</div>
+            <div className={`text-lg font-black tabular-nums ${highlight ? "text-red-600" : color || ""}`}>
+                {prefix}{formatCurrency(value)}
             </div>
         </div>
     )
 }
 
-// ─── Calendar Grid ──────────────────────────────────────────────────────────
+// ─── Accuracy Section ───────────────────────────────────────────────────────
 
-function CalendarGrid({
-    items,
-    month,
-    year,
-    startPad,
-    totalDays,
-    startingBalance: _startingBalance,
-    onEditItem,
+function AccuracySection({
+    snapshot,
+    actualItems,
+    accuracyTrend,
 }: {
-    items: CashflowItem[]
-    month: number
-    year: number
-    startPad: number
-    totalDays: number
-    startingBalance: number
-    onEditItem?: (item: CashflowItem) => void
+    snapshot: { totalPlannedIn: number; totalPlannedOut: number; plannedEndBalance: number; snapshotDate: string }
+    actualItems: CashflowItem[]
+    accuracyTrend?: { month: number; year: number; label: string; accuracyScore: number | null }[]
 }) {
-    const today = new Date()
-    const isCurrentMonth = today.getMonth() + 1 === month && today.getFullYear() === year
-    const currentDay = today.getDate()
+    const actualIn = actualItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
+    const actualOut = actualItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
+
+    function variancePct(actual: number, planned: number) {
+        if (planned === 0) return null
+        return ((actual - planned) / planned) * 100
+    }
+
+    function accuracyLabel(pct: number | null) {
+        if (pct === null) return { label: "—", color: "text-zinc-400" }
+        const abs = Math.abs(pct)
+        if (abs <= 10) return { label: "Akurat", color: "bg-emerald-100 text-emerald-800 border-emerald-300" }
+        if (abs <= 20) return { label: "Cukup", color: "bg-amber-100 text-amber-800 border-amber-300" }
+        return { label: "Meleset", color: "bg-red-100 text-red-800 border-red-300" }
+    }
+
+    const plannedNet = snapshot.totalPlannedIn - snapshot.totalPlannedOut
+    const actualNet = actualIn - actualOut
+    const netPct = variancePct(actualNet, plannedNet)
 
     return (
-        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
-            {/* Day headers */}
-            <div className="grid grid-cols-7 bg-black">
-                {DAY_HEADERS.map(day => (
-                    <div
-                        key={day}
-                        className="text-center text-[10px] font-black uppercase tracking-wider text-white py-2"
-                    >
-                        {day}
-                    </div>
-                ))}
+        <div className="border-t-2 border-black">
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b-2 border-black bg-zinc-50">
+                            <th className="text-left px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500 w-[120px]" />
+                            <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-emerald-600">Pemasukan</th>
+                            <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-red-600">Pengeluaran</th>
+                            <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Nett</th>
+                            <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Varians</th>
+                            <th className="text-center px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr className="border-b border-zinc-200">
+                            <td className="px-5 py-3 font-black">Rencana</td>
+                            <td className="px-5 py-3 text-right font-bold">{formatCurrency(snapshot.totalPlannedIn)}</td>
+                            <td className="px-5 py-3 text-right font-bold">{formatCurrency(snapshot.totalPlannedOut)}</td>
+                            <td className="px-5 py-3 text-right font-black">{formatCurrency(plannedNet)}</td>
+                            <td /><td />
+                        </tr>
+                        <tr className="border-b border-zinc-200">
+                            <td className="px-5 py-3 font-black">Aktual</td>
+                            <td className="px-5 py-3 text-right font-bold">{formatCurrency(actualIn)}</td>
+                            <td className="px-5 py-3 text-right font-bold">{formatCurrency(actualOut)}</td>
+                            <td className="px-5 py-3 text-right font-black">{formatCurrency(actualNet)}</td>
+                            <td /><td />
+                        </tr>
+                        <tr className="border-t-2 border-black bg-zinc-50">
+                            <td className="px-5 py-3 font-black">Selisih</td>
+                            <td className={`px-5 py-3 text-right font-black ${actualIn - snapshot.totalPlannedIn >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                {actualIn - snapshot.totalPlannedIn >= 0 ? "+" : ""}{formatCurrency(actualIn - snapshot.totalPlannedIn)}
+                            </td>
+                            <td className={`px-5 py-3 text-right font-black ${actualOut - snapshot.totalPlannedOut <= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                {actualOut - snapshot.totalPlannedOut >= 0 ? "+" : ""}{formatCurrency(actualOut - snapshot.totalPlannedOut)}
+                            </td>
+                            <td className={`px-5 py-3 text-right font-black ${actualNet - plannedNet >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                {actualNet - plannedNet >= 0 ? "+" : ""}{formatCurrency(actualNet - plannedNet)}
+                            </td>
+                            <td className="px-5 py-3 text-right font-black">
+                                {netPct !== null ? (
+                                    <span className={Math.abs(netPct) <= 10 ? "text-emerald-600" : Math.abs(netPct) <= 20 ? "text-amber-600" : "text-red-600"}>
+                                        {netPct > 0 ? "+" : ""}{netPct.toFixed(1)}%
+                                    </span>
+                                ) : "—"}
+                            </td>
+                            <td className="px-5 py-3 text-center">
+                                {(() => {
+                                    const { label, color } = accuracyLabel(netPct)
+                                    return <span className={`text-xs font-bold px-2 py-0.5 border ${color}`}>{label}</span>
+                                })()}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
-            {/* Calendar cells */}
-            <div className="grid grid-cols-7">
-                {/* Padding cells */}
-                {Array.from({ length: startPad }).map((_, i) => (
-                    <div key={`pad-${i}`} className="border-r border-b border-zinc-200 bg-zinc-50 min-h-[100px]" />
-                ))}
+            {/* Accuracy trend */}
+            {accuracyTrend && accuracyTrend.length > 0 && (
+                <div className="border-t-2 border-black px-5 py-4">
+                    <div className="text-xs font-black uppercase tracking-wider text-zinc-500 mb-3">
+                        Tren Akurasi 3 Bulan Terakhir
+                    </div>
+                    <div className="flex items-end gap-4">
+                        {accuracyTrend.map(m => {
+                            const score = m.accuracyScore
+                            const color = score === null ? "bg-zinc-200" : score >= 80 ? "bg-emerald-500" : score >= 60 ? "bg-amber-500" : "bg-red-500"
+                            return (
+                                <div key={`${m.month}-${m.year}`} className="flex flex-col items-center gap-1.5">
+                                    <div className={`w-10 ${color} border border-black`} style={{ height: score !== null ? `${Math.max(10, score * 0.5)}px` : "10px" }} />
+                                    <span className="text-xs font-bold text-zinc-500">{m.label}</span>
+                                    <span className="text-xs font-black">{score !== null ? `${score}%` : "—"}</span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
 
-                {/* Day cells */}
-                {Array.from({ length: totalDays }).map((_, i) => {
-                    const day = i + 1
-                    const dayItems = getItemsForDate(items, day, month, year)
-                    const isToday = isCurrentMonth && day === currentDay
-                    const isPast = isCurrentMonth && day < currentDay
-                    const totalIn = dayItems.filter(x => x.direction === "IN").reduce((s, x) => s + x.amount, 0)
-                    const totalOut = dayItems.filter(x => x.direction === "OUT").reduce((s, x) => s + x.amount, 0)
-                    const heatClass = dayItems.length > 0 ? getDayHeatClass(totalIn, totalOut) : ""
+// ─── Upcoming Obligations Section ───────────────────────────────────────────
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+    AR: "Piutang",
+    AP: "Hutang",
+    PO: "Purchase Order",
+    PAYROLL: "Gaji",
+    BPJS: "BPJS",
+    LOAN: "Cicilan",
+    MANUAL: "Manual",
+}
+
+const SOURCE_TYPE_COLORS: Record<string, string> = {
+    AR: "bg-emerald-100 text-emerald-800 border-emerald-300",
+    AP: "bg-red-100 text-red-800 border-red-300",
+    PO: "bg-indigo-100 text-indigo-800 border-indigo-300",
+    PAYROLL: "bg-orange-100 text-orange-800 border-orange-300",
+    BPJS: "bg-amber-100 text-amber-800 border-amber-300",
+    LOAN: "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300",
+    MANUAL: "bg-zinc-100 text-zinc-800 border-zinc-300",
+}
+
+function groupByWeek(items: UpcomingObligationItem[]): { weekLabel: string; weekStart: string; items: UpcomingObligationItem[]; totalIn: number; totalOut: number }[] {
+    const groups = new Map<string, { weekLabel: string; weekStart: string; items: UpcomingObligationItem[] }>()
+
+    for (const item of items) {
+        const d = new Date(item.date)
+        // Get Monday of that week
+        const day = d.getDay()
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+        const monday = new Date(d)
+        monday.setDate(diff)
+        const key = monday.toISOString().split("T")[0]
+
+        const endOfWeek = new Date(monday)
+        endOfWeek.setDate(endOfWeek.getDate() + 6)
+
+        const weekLabel = `${monday.getDate()} ${MONTH_NAMES_SHORT[monday.getMonth()]} — ${endOfWeek.getDate()} ${MONTH_NAMES_SHORT[endOfWeek.getMonth()]} ${endOfWeek.getFullYear()}`
+
+        if (!groups.has(key)) {
+            groups.set(key, { weekLabel, weekStart: key, items: [] })
+        }
+        groups.get(key)!.items.push(item)
+    }
+
+    return Array.from(groups.values())
+        .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+        .map(g => ({
+            ...g,
+            totalIn: g.items.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0),
+            totalOut: g.items.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0),
+        }))
+}
+
+const MONTH_NAMES_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+
+function UpcomingObligationsSection({ upcoming }: { upcoming?: UpcomingObligationsData }) {
+    const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
+    const items = upcoming?.items ?? []
+    const weekGroups = groupByWeek(items)
+
+    // Auto-expand first 2 weeks
+    const initialExpanded = weekGroups.slice(0, 2).map(g => g.weekStart)
+
+    function toggleWeek(weekStart: string) {
+        setExpandedWeeks(prev => {
+            const next = new Set(prev)
+            if (next.has(weekStart)) next.delete(weekStart)
+            else next.add(weekStart)
+            return next
+        })
+    }
+
+    function isExpanded(weekStart: string) {
+        return expandedWeeks.has(weekStart) || initialExpanded.includes(weekStart)
+    }
+
+    return (
+        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            {/* Header */}
+            <div className="bg-black text-white px-5 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <IconCalendarWeek size={18} />
+                    <span className="text-sm font-black uppercase tracking-wider">
+                        Kewajiban Mendatang — {upcoming?.periodLabel ?? "90 hari ke depan"}
+                    </span>
+                    <span className="text-xs text-zinc-400 ml-2">{upcoming?.summary.itemCount ?? 0} item</span>
+                </div>
+            </div>
+
+            {/* Summary strip */}
+            <div className="flex divide-x-2 divide-black border-b-2 border-black">
+                <div className="flex-1 p-4 text-center">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Akan Diterima</div>
+                    <div className="text-xl font-black text-emerald-600 tabular-nums">+{formatCompact(upcoming?.summary.totalIn ?? 0)}</div>
+                </div>
+                <div className="flex-1 p-4 text-center">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Harus Dibayar</div>
+                    <div className="text-xl font-black text-red-600 tabular-nums">-{formatCompact(upcoming?.summary.totalOut ?? 0)}</div>
+                </div>
+                <div className="flex-1 p-4 text-center">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Net</div>
+                    <div className={`text-xl font-black tabular-nums ${(upcoming?.summary.net ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        {(upcoming?.summary.net ?? 0) >= 0 ? "+" : ""}{formatCompact(upcoming?.summary.net ?? 0)}
+                    </div>
+                </div>
+            </div>
+
+            {/* Weekly grouped items */}
+            <div>
+                {weekGroups.length === 0 && (
+                    <div className="px-5 py-10 text-center">
+                        <div className="text-zinc-300 font-black uppercase text-base tracking-wider">Belum ada kewajiban mendatang</div>
+                        <div className="text-zinc-400 text-sm mt-2 max-w-md mx-auto">
+                            Data akan muncul otomatis ketika ada Invoice (AR/AP), Purchase Order, data karyawan aktif (gaji & BPJS), atau cicilan pinjaman dalam 90 hari ke depan.
+                        </div>
+                    </div>
+                )}
+                {weekGroups.map(group => {
+                    const expanded = isExpanded(group.weekStart)
+                    const today = new Date().toISOString().split("T")[0]
+                    const isCurrentWeek = group.items.some(i => {
+                        const d = new Date(i.date)
+                        const now = new Date()
+                        const diffDays = Math.floor((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+                        return diffDays >= -7 && diffDays <= 7
+                    })
 
                     return (
-                        <div
-                            key={day}
-                            className={`border-r border-b border-zinc-200 min-h-[110px] p-1.5 transition-colors ${heatClass} ${
-                                isToday
-                                    ? "ring-2 ring-inset ring-emerald-500 bg-emerald-50"
-                                    : isPast
-                                    ? "opacity-75"
-                                    : ""
-                            }`}
-                        >
-                            <div className="flex items-center justify-between mb-1">
-                                <span
-                                    className={`text-[11px] font-black leading-none ${
-                                        isToday
-                                            ? "bg-black text-white w-6 h-6 flex items-center justify-center shadow-[2px_2px_0px_0px_rgba(16,185,129,1)]"
-                                            : "text-zinc-500"
-                                    }`}
-                                >
-                                    {day}
-                                </span>
-                                {dayItems.length > 0 && (
-                                    <span className="text-[8px] font-black text-zinc-400 bg-zinc-100 px-1 py-0.5 border border-zinc-200">
-                                        {dayItems.length}
-                                    </span>
-                                )}
-                            </div>
+                        <div key={group.weekStart} className="border-b border-zinc-200 last:border-b-0">
+                            {/* Week header — clickable */}
+                            <button
+                                onClick={() => toggleWeek(group.weekStart)}
+                                className={`w-full px-5 py-3 flex items-center justify-between text-left hover:bg-zinc-50 transition-colors ${
+                                    isCurrentWeek ? "bg-emerald-50/50" : ""
+                                }`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <IconChevronDown
+                                        size={16}
+                                        className={`transition-transform text-zinc-400 ${expanded ? "" : "-rotate-90"}`}
+                                    />
+                                    <span className="text-sm font-black">{group.weekLabel}</span>
+                                    {isCurrentWeek && (
+                                        <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 uppercase tracking-wider">
+                                            Minggu Ini
+                                        </span>
+                                    )}
+                                    <span className="text-xs text-zinc-400">{group.items.length} item</span>
+                                </div>
+                                <div className="flex items-center gap-4 text-sm font-bold">
+                                    {group.totalIn > 0 && <span className="text-emerald-600">+{formatCompact(group.totalIn)}</span>}
+                                    {group.totalOut > 0 && <span className="text-red-600">-{formatCompact(group.totalOut)}</span>}
+                                </div>
+                            </button>
 
-                            {/* Item pills */}
-                            <div className="space-y-[3px]">
-                                {dayItems.slice(0, 3).map(item => (
-                                    <ItemPill key={item.id} item={item} onEdit={onEditItem} />
-                                ))}
-                                {dayItems.length > 3 && (
-                                    <span className="text-[8px] text-zinc-400 font-black block pl-0.5">
-                                        +{dayItems.length - 3} lagi
-                                    </span>
-                                )}
-                            </div>
+                            {/* Expanded items */}
+                            {expanded && (
+                                <div className="border-t border-zinc-100">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="bg-zinc-50">
+                                                <th className="text-left px-5 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider w-[90px]">Tanggal</th>
+                                                <th className="text-left px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider w-[90px]">Tipe</th>
+                                                <th className="text-left px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider">Deskripsi</th>
+                                                <th className="text-right px-5 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider w-[150px]">Jumlah</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {group.items.map(item => {
+                                                const dateStr = item.date.split("-")
+                                                const displayDate = `${dateStr[2]}/${dateStr[1]}/${dateStr[0].slice(2)}`
+                                                const typeColor = SOURCE_TYPE_COLORS[item.sourceType] || SOURCE_TYPE_COLORS.MANUAL
+                                                const typeLabel = SOURCE_TYPE_LABELS[item.sourceType] || item.sourceType
+                                                const isPastDue = item.date < today
 
-                            {/* Day totals — compact flow bar */}
-                            {dayItems.length > 0 && (
-                                <div className="mt-auto pt-1.5">
-                                    <div className="flex gap-0 h-[3px] w-full overflow-hidden border border-zinc-200">
-                                        {totalIn > 0 && (
-                                            <div
-                                                className="bg-emerald-400 h-full"
-                                                style={{ flex: totalIn }}
-                                            />
-                                        )}
-                                        {totalOut > 0 && (
-                                            <div
-                                                className="bg-red-400 h-full"
-                                                style={{ flex: totalOut }}
-                                            />
-                                        )}
-                                    </div>
-                                    <div className="flex justify-between mt-0.5">
-                                        {totalIn > 0 && (
-                                            <span className="text-[8px] font-black text-emerald-600">
-                                                +{formatCompact(totalIn)}
-                                            </span>
-                                        )}
-                                        {totalOut > 0 && (
-                                            <span className="text-[8px] font-black text-red-600 ml-auto">
-                                                -{formatCompact(totalOut)}
-                                            </span>
-                                        )}
-                                    </div>
+                                                return (
+                                                    <tr key={item.id} className={`border-b border-zinc-100 hover:bg-zinc-50 ${isPastDue ? "bg-red-50/30" : ""}`}>
+                                                        <td className="px-5 py-2.5 font-bold text-zinc-500 tabular-nums">
+                                                            {displayDate}
+                                                            {isPastDue && <span className="text-[9px] text-red-500 font-black ml-1">TELAT</span>}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <span className={`text-[10px] font-bold px-2 py-0.5 border ${typeColor}`}>
+                                                                {typeLabel}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2.5 max-w-[350px]">
+                                                            {item.sourceUrl ? (
+                                                                <Link href={item.sourceUrl} className="hover:underline text-blue-700 font-medium truncate block" title={item.description}>
+                                                                    {item.description}
+                                                                </Link>
+                                                            ) : (
+                                                                <span className="truncate block" title={item.description}>{item.description}</span>
+                                                            )}
+                                                        </td>
+                                                        <td className={`px-5 py-2.5 text-right font-black tabular-nums ${item.direction === "IN" ? "text-emerald-600" : "text-red-600"}`}>
+                                                            {item.direction === "IN" ? "+" : "-"}{formatCurrency(item.amount)}
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
                         </div>
                     )
                 })}
-
-                {/* Trailing padding */}
-                {Array.from({ length: (7 - ((startPad + totalDays) % 7)) % 7 }).map((_, i) => (
-                    <div key={`trail-${i}`} className="border-r border-b border-zinc-200 bg-zinc-50 min-h-[100px]" />
-                ))}
             </div>
-        </div>
-    )
-}
-
-// ─── Item Pill ──────────────────────────────────────────────────────────────
-
-function ItemPill({ item, onEdit }: { item: CashflowItem; onEdit?: (item: CashflowItem) => void }) {
-    const colors = CATEGORY_COLORS[item.category] ?? CATEGORY_COLORS.MANUAL
-    const label = CATEGORY_LABELS[item.category] ?? item.category
-    const isClickable = item.isManual && onEdit
-    const bank = shortBankName(item.glAccountName, item.glAccountCode)
-
-    return (
-        <div
-            className={`text-[8px] font-bold px-1 py-[2px] border truncate leading-tight ${colors} ${isClickable ? "cursor-pointer hover:ring-1 hover:ring-black hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,0.3)]" : ""}`}
-            title={`${item.description}\n${formatCurrency(item.amount)}${item.glAccountName ? `\nRek: ${item.glAccountName}` : ""}`}
-            onClick={isClickable ? () => onEdit(item) : undefined}
-        >
-            <span className="opacity-50">{label}</span>
-            <span className="mx-0.5">{item.direction === "IN" ? "+" : "-"}{formatCompact(item.amount)}</span>
-            {bank && <span className="opacity-40 text-[7px]">{bank}</span>}
-        </div>
-    )
-}
-
-// ─── Running Balance Table ──────────────────────────────────────────────────
-
-function RunningBalanceTable({
-    items,
-    startingBalance,
-    month,
-    year,
-}: {
-    items: CashflowItem[]
-    startingBalance: number
-    month: number
-    year: number
-}) {
-    const sorted = [...items].sort((a, b) => a.date.localeCompare(b.date))
-    let runningBalance = startingBalance
-
-    const rows = sorted.map(item => {
-        if (item.direction === "IN") {
-            runningBalance += item.amount
-        } else {
-            runningBalance -= item.amount
-        }
-        return { ...item, balance: runningBalance }
-    })
-
-    return (
-        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
-            <div className="bg-black text-white px-4 py-2.5 flex items-center gap-2">
-                <IconCoin size={16} />
-                <span className="text-xs font-black uppercase tracking-wider">
-                    Running Balance — {MONTH_NAMES[month]} {year}
-                </span>
-            </div>
-
-            <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                    <thead>
-                        <tr className="border-b-2 border-black bg-zinc-50">
-                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500 w-[70px]">
-                                Tanggal
-                            </th>
-                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
-                                Deskripsi
-                            </th>
-                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500 w-[90px]">
-                                Kategori
-                            </th>
-                            <th className="text-left px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-400 w-[70px]">
-                                Rek.
-                            </th>
-                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-emerald-600 w-[120px]">
-                                Masuk
-                            </th>
-                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-red-600 w-[120px]">
-                                Keluar
-                            </th>
-                            <th className="text-right px-3 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500 w-[140px]">
-                                Saldo
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {/* Starting balance row */}
-                        <tr className="border-b-2 border-zinc-300 bg-zinc-100">
-                            <td className="px-3 py-2.5 font-black text-zinc-600 tabular-nums">01/{String(month).padStart(2, "0")}</td>
-                            <td className="px-3 py-2.5 font-black uppercase text-[10px] tracking-wider" colSpan={3}>Saldo Awal</td>
-                            <td className="px-3 py-2.5 text-right text-zinc-400">—</td>
-                            <td className="px-3 py-2.5 text-right text-zinc-400">—</td>
-                            <td className="px-3 py-2.5 text-right font-black text-sm">{formatCurrency(startingBalance)}</td>
-                        </tr>
-                        {rows.map((row, idx) => {
-                            const dateStr = row.date.split("-")
-                            const displayDate = `${dateStr[2]}/${dateStr[1]}`
-                            const catLabel = CATEGORY_LABELS[row.category] ?? row.category
-                            const catColor = CATEGORY_COLORS[row.category] ?? ""
-                            const bank = shortBankName(row.glAccountName, row.glAccountCode)
-
-                            // Week separator
-                            const prevDay = idx > 0 ? parseInt(rows[idx - 1].date.split("-")[2], 10) : 0
-                            const curDay = parseInt(dateStr[2], 10)
-                            const weekBorder = prevDay > 0 && Math.floor((curDay - 1) / 7) !== Math.floor((prevDay - 1) / 7)
-                                ? "border-t-2 border-t-zinc-300"
-                                : "border-b border-zinc-100"
-
-                            return (
-                                <tr key={row.id} className={`${weekBorder} hover:bg-zinc-50 transition-colors`}>
-                                    <td className="px-3 py-2 font-bold text-zinc-500 tabular-nums">{displayDate}</td>
-                                    <td className="px-3 py-2 max-w-[300px] truncate" title={row.description}>
-                                        {row.description}
-                                    </td>
-                                    <td className="px-3 py-1.5">
-                                        <span className={`text-[8px] font-bold px-1.5 py-0.5 border ${catColor}`}>
-                                            {catLabel}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-2 text-[9px] font-bold text-zinc-400">
-                                        {bank || "—"}
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-bold text-emerald-600 tabular-nums">
-                                        {row.direction === "IN" ? formatCurrency(row.amount) : ""}
-                                    </td>
-                                    <td className="px-3 py-2 text-right font-bold text-red-600 tabular-nums">
-                                        {row.direction === "OUT" ? formatCurrency(row.amount) : ""}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums">
-                                        <span className={`font-black ${row.balance < 0 ? "text-red-600" : ""}`}>
-                                            {formatCurrency(row.balance)}
-                                        </span>
-                                        {/* Balance health indicator */}
-                                        <div className="h-[2px] mt-1 w-full bg-zinc-100 overflow-hidden">
-                                            <div
-                                                className={`h-full ${row.balance < 0 ? "bg-red-400" : row.balance < startingBalance * 0.3 ? "bg-amber-400" : "bg-emerald-400"}`}
-                                                style={{ width: `${Math.min(100, Math.max(5, (row.balance / Math.max(startingBalance, 1)) * 100))}%` }}
-                                            />
-                                        </div>
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                        {rows.length === 0 && (
-                            <tr>
-                                <td colSpan={7} className="px-3 py-12 text-center">
-                                    <div className="text-zinc-300 font-black uppercase text-sm tracking-wider">Belum ada item</div>
-                                    <div className="text-zinc-400 text-[10px] mt-1">Tambah item manual atau tunggu data auto-pull</div>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    )
-}
-
-// ─── Weekly Summary ──────────────────────────────────────────────────────────
-
-function WeeklySummary({
-    items,
-    month,
-    year,
-}: {
-    items: CashflowItem[]
-    month: number
-    year: number
-}) {
-    const lastDay = new Date(year, month, 0).getDate()
-    const weeks = [
-        { label: "Minggu 1", start: 1, end: 7 },
-        { label: "Minggu 2", start: 8, end: 14 },
-        { label: "Minggu 3", start: 15, end: 21 },
-        { label: "Minggu 4", start: 22, end: lastDay },
-    ]
-
-    const weekData = weeks.map(w => {
-        const weekItems = items.filter(item => {
-            const day = parseInt(item.date.split("-")[2], 10)
-            return day >= w.start && day <= w.end
-        })
-        const totalIn = weekItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
-        const totalOut = weekItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
-        return { ...w, totalIn, totalOut, net: totalIn - totalOut, count: weekItems.length }
-    })
-
-    const grandIn = weekData.reduce((s, w) => s + w.totalIn, 0)
-    const grandOut = weekData.reduce((s, w) => s + w.totalOut, 0)
-
-    return (
-        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
-            <div className="bg-black text-white px-4 py-2.5 flex items-center gap-2">
-                <IconCalendarWeek size={16} />
-                <span className="text-xs font-black uppercase tracking-wider">
-                    Ringkasan Mingguan — {MONTH_NAMES[month]} {year}
-                </span>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-black">
-                {weekData.map(w => (
-                    <div key={w.label} className="p-4">
-                        <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1">
-                            {w.label}
-                        </div>
-                        <div className="text-[9px] text-zinc-400 mb-2">
-                            {String(w.start).padStart(2, "0")}-{String(w.end).padStart(2, "0")}/{String(month).padStart(2, "0")} · {w.count} item
-                        </div>
-                        <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                                <span className="text-zinc-500">Masuk</span>
-                                <span className="font-bold text-emerald-600">+{formatCompact(w.totalIn)}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span className="text-zinc-500">Keluar</span>
-                                <span className="font-bold text-red-600">-{formatCompact(w.totalOut)}</span>
-                            </div>
-                            <div className="border-t border-zinc-200 pt-1 flex justify-between text-xs">
-                                <span className="text-zinc-500 font-bold">Nett</span>
-                                <span className={`font-black ${w.net >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                                    {w.net >= 0 ? "+" : ""}{formatCompact(w.net)}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Grand total row */}
-            <div className="border-t-2 border-black bg-zinc-50 px-4 py-2.5 flex items-center justify-between text-xs font-black">
-                <span className="uppercase tracking-wider text-zinc-500">Total Bulan</span>
-                <div className="flex gap-6">
-                    <span className="text-emerald-600">+{formatCompact(grandIn)}</span>
-                    <span className="text-red-600">-{formatCompact(grandOut)}</span>
-                    <span className={grandIn - grandOut >= 0 ? "text-emerald-700" : "text-red-700"}>
-                        Nett {grandIn - grandOut >= 0 ? "+" : ""}{formatCompact(grandIn - grandOut)}
-                    </span>
-                </div>
-            </div>
-        </div>
-    )
-}
-
-// ─── Variance Helpers ────────────────────────────────────────────────────────
-
-function calcVariancePct(actual: number, planned: number): number | null {
-    if (planned === 0) return null
-    return ((actual - planned) / planned) * 100
-}
-
-function getAccuracyLabel(variancePct: number | null): { label: string; color: string } {
-    if (variancePct === null) return { label: "—", color: "text-zinc-400" }
-    const abs = Math.abs(variancePct)
-    if (abs <= 10) return { label: "Akurat", color: "bg-emerald-100 text-emerald-800 border-emerald-300" }
-    if (abs <= 20) return { label: "Cukup", color: "bg-amber-100 text-amber-800 border-amber-300" }
-    return { label: "Meleset", color: "bg-red-100 text-red-800 border-red-300" }
-}
-
-// ─── Variance Summary ────────────────────────────────────────────────────────
-
-function VarianceSummary({
-    snapshot,
-    actualItems,
-    accuracyTrend,
-}: {
-    snapshot: { totalPlannedIn: number; totalPlannedOut: number; plannedEndBalance: number; snapshotDate: string; items?: unknown }
-    actualItems: CashflowItem[]
-    accuracyTrend?: { month: number; year: number; label: string; accuracyScore: number | null }[]
-}) {
-    const actualIn = actualItems
-        .filter(i => i.direction === "IN")
-        .reduce((s, i) => s + i.amount, 0)
-    const actualOut = actualItems
-        .filter(i => i.direction === "OUT")
-        .reduce((s, i) => s + i.amount, 0)
-
-    const selisihIn = actualIn - snapshot.totalPlannedIn
-    const selisihOut = actualOut - snapshot.totalPlannedOut
-
-    const [showBreakdown, setShowBreakdown] = useState(false)
-
-    const categoryVariance = (() => {
-        const snapshotItems = (Array.isArray((snapshot as any).items) ? (snapshot as any).items : []) as CashflowItem[]
-        if (snapshotItems.length === 0) return []
-
-        const plannedByCategory = new Map<string, { in: number; out: number }>()
-        for (const item of snapshotItems) {
-            const cat = item.category || "MANUAL"
-            const existing = plannedByCategory.get(cat) || { in: 0, out: 0 }
-            if (item.direction === "IN") existing.in += item.amount
-            else existing.out += item.amount
-            plannedByCategory.set(cat, existing)
-        }
-
-        const actualByCategory = new Map<string, { in: number; out: number }>()
-        for (const item of actualItems) {
-            const cat = item.category || "ACTUAL"
-            const existing = actualByCategory.get(cat) || { in: 0, out: 0 }
-            if (item.direction === "IN") existing.in += item.amount
-            else existing.out += item.amount
-            actualByCategory.set(cat, existing)
-        }
-
-        const allCategories = new Set([...plannedByCategory.keys(), ...actualByCategory.keys()])
-        return Array.from(allCategories).map(cat => {
-            const planned = plannedByCategory.get(cat) || { in: 0, out: 0 }
-            const actual = actualByCategory.get(cat) || { in: 0, out: 0 }
-            const plannedTotal = planned.in + planned.out
-            const actualTotal = actual.in + actual.out
-            const pct = calcVariancePct(actualTotal, plannedTotal)
-            return {
-                category: cat,
-                label: CATEGORY_LABELS[cat] || cat,
-                plannedTotal,
-                actualTotal,
-                variancePct: pct,
-                accuracy: getAccuracyLabel(pct),
-            }
-        }).filter(c => c.plannedTotal > 0 || c.actualTotal > 0)
-          .sort((a, b) => Math.abs(b.variancePct || 0) - Math.abs(a.variancePct || 0))
-    })()
-
-    return (
-        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
-            <div className="bg-black text-white px-4 py-2.5 flex items-center gap-2">
-                <IconScale size={16} />
-                <span className="text-xs font-black uppercase tracking-wider">
-                    Variance: Rencana vs Realisasi
-                </span>
-                {(() => {
-                    const plannedNet = snapshot.totalPlannedIn - snapshot.totalPlannedOut
-                    const actualNet = actualIn - actualOut
-                    const pct = calcVariancePct(actualNet, plannedNet)
-                    const accuracy = pct !== null ? Math.max(0, 100 - Math.abs(pct)) : null
-                    if (accuracy === null) return null
-                    return (
-                        <span className={`text-[10px] font-bold px-2 py-0.5 border ml-2 ${accuracy >= 80 ? "border-emerald-400 text-emerald-400" : accuracy >= 60 ? "border-amber-400 text-amber-400" : "border-red-400 text-red-400"}`}>
-                            Akurasi: {accuracy.toFixed(0)}%
-                        </span>
-                    )
-                })()}
-                <span className="text-[10px] text-zinc-400 ml-auto">
-                    Snapshot: {new Date(snapshot.snapshotDate).toLocaleDateString("id-ID")}
-                </span>
-            </div>
-
-            <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                    <thead>
-                        <tr className="border-b-2 border-black bg-zinc-50">
-                            <th className="text-left px-4 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500 w-[140px]" />
-                            <th className="text-right px-4 py-2 font-black uppercase text-[10px] tracking-wider text-emerald-600">
-                                Pemasukan
-                            </th>
-                            <th className="text-right px-4 py-2 font-black uppercase text-[10px] tracking-wider text-red-600">
-                                Pengeluaran
-                            </th>
-                            <th className="text-right px-4 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
-                                Nett
-                            </th>
-                            <th className="text-right px-4 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
-                                Varians %
-                            </th>
-                            <th className="text-center px-4 py-2 font-black uppercase text-[10px] tracking-wider text-zinc-500">
-                                Akurasi
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr className="border-b border-zinc-200">
-                            <td className="px-4 py-3 font-black text-xs">Rencana</td>
-                            <td className="px-4 py-3 text-right font-bold">{formatCurrency(snapshot.totalPlannedIn)}</td>
-                            <td className="px-4 py-3 text-right font-bold">{formatCurrency(snapshot.totalPlannedOut)}</td>
-                            <td className="px-4 py-3 text-right font-black">
-                                {formatCurrency(snapshot.totalPlannedIn - snapshot.totalPlannedOut)}
-                            </td>
-                            <td className="px-4 py-3" />
-                            <td className="px-4 py-3" />
-                        </tr>
-                        <tr className="border-b border-zinc-200">
-                            <td className="px-4 py-3 font-black text-xs">Aktual</td>
-                            <td className="px-4 py-3 text-right font-bold">{formatCurrency(actualIn)}</td>
-                            <td className="px-4 py-3 text-right font-bold">{formatCurrency(actualOut)}</td>
-                            <td className="px-4 py-3 text-right font-black">
-                                {formatCurrency(actualIn - actualOut)}
-                            </td>
-                            <td className="px-4 py-3" />
-                            <td className="px-4 py-3" />
-                        </tr>
-                        <tr className="border-t-2 border-black bg-zinc-50">
-                            <td className="px-4 py-3 font-black text-xs">Selisih</td>
-                            <td className={`px-4 py-3 text-right font-black ${selisihIn >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                {selisihIn >= 0 ? "+" : ""}{formatCurrency(selisihIn)}
-                            </td>
-                            <td className={`px-4 py-3 text-right font-black ${selisihOut <= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                {selisihOut >= 0 ? "+" : ""}{formatCurrency(selisihOut)}
-                            </td>
-                            <td className={`px-4 py-3 text-right font-black ${(actualIn - actualOut) - (snapshot.totalPlannedIn - snapshot.totalPlannedOut) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                {(actualIn - actualOut) - (snapshot.totalPlannedIn - snapshot.totalPlannedOut) >= 0 ? "+" : ""}
-                                {formatCurrency((actualIn - actualOut) - (snapshot.totalPlannedIn - snapshot.totalPlannedOut))}
-                            </td>
-                            <td className="px-4 py-3 text-right font-black">
-                                {(() => {
-                                    const plannedNet = snapshot.totalPlannedIn - snapshot.totalPlannedOut
-                                    const actualNet = actualIn - actualOut
-                                    const pct = calcVariancePct(actualNet, plannedNet)
-                                    if (pct === null) return "—"
-                                    const color = Math.abs(pct) <= 10 ? "text-emerald-600" : Math.abs(pct) <= 20 ? "text-amber-600" : "text-red-600"
-                                    return <span className={color}>{pct > 0 ? "+" : ""}{pct.toFixed(1)}%</span>
-                                })()}
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                                {(() => {
-                                    const plannedNet = snapshot.totalPlannedIn - snapshot.totalPlannedOut
-                                    const actualNet = actualIn - actualOut
-                                    const pct = calcVariancePct(actualNet, plannedNet)
-                                    const { label, color } = getAccuracyLabel(pct)
-                                    return <span className={`text-[9px] font-bold px-2 py-0.5 border ${color}`}>{label}</span>
-                                })()}
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            {categoryVariance.length > 0 && (
-                <div className="border-t-2 border-black">
-                    <button
-                        onClick={() => setShowBreakdown(!showBreakdown)}
-                        className="w-full px-4 py-2 text-left text-[10px] font-black uppercase tracking-wider text-zinc-500 hover:bg-zinc-50 flex items-center gap-1"
-                    >
-                        {showBreakdown ? "▼" : "▶"} Detail Per Kategori ({categoryVariance.length})
-                    </button>
-                    {showBreakdown && (
-                        <table className="w-full text-xs">
-                            <thead>
-                                <tr className="border-b border-zinc-200 bg-zinc-50">
-                                    <th className="text-left px-4 py-1.5 text-[10px] font-bold text-zinc-500">Kategori</th>
-                                    <th className="text-right px-4 py-1.5 text-[10px] font-bold text-zinc-500">Rencana</th>
-                                    <th className="text-right px-4 py-1.5 text-[10px] font-bold text-zinc-500">Aktual</th>
-                                    <th className="text-right px-4 py-1.5 text-[10px] font-bold text-zinc-500">Varians</th>
-                                    <th className="text-center px-4 py-1.5 text-[10px] font-bold text-zinc-500">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {categoryVariance.map((c) => (
-                                    <tr key={c.category} className="border-b border-zinc-100">
-                                        <td className="px-4 py-2">
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 border ${CATEGORY_COLORS[c.category] || ""}`}>
-                                                {c.label}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-2 text-right font-bold">{formatCurrency(c.plannedTotal)}</td>
-                                        <td className="px-4 py-2 text-right font-bold">{formatCurrency(c.actualTotal)}</td>
-                                        <td className="px-4 py-2 text-right font-bold">
-                                            {c.variancePct !== null ? (
-                                                <span className={Math.abs(c.variancePct) <= 10 ? "text-emerald-600" : Math.abs(c.variancePct) <= 20 ? "text-amber-600" : "text-red-600"}>
-                                                    {c.variancePct > 0 ? "+" : ""}{c.variancePct.toFixed(1)}%
-                                                </span>
-                                            ) : "—"}
-                                        </td>
-                                        <td className="px-4 py-2 text-center">
-                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 border ${c.accuracy.color}`}>
-                                                {c.accuracy.label}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    )}
-                </div>
-            )}
-
-            {accuracyTrend && accuracyTrend.length > 0 && (
-                <div className="border-t-2 border-black px-4 py-3">
-                    <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-2">
-                        Tren Akurasi 3 Bulan Terakhir
-                    </div>
-                    <div className="flex items-end gap-3">
-                        {accuracyTrend.map((m) => {
-                            const score = m.accuracyScore
-                            const color = score === null
-                                ? "bg-zinc-200"
-                                : score >= 80
-                                    ? "bg-emerald-500"
-                                    : score >= 60
-                                        ? "bg-amber-500"
-                                        : "bg-red-500"
-                            return (
-                                <div key={`${m.month}-${m.year}`} className="flex flex-col items-center gap-1">
-                                    <div
-                                        className={`w-8 ${color} border border-black`}
-                                        style={{ height: score !== null ? `${Math.max(8, score * 0.4)}px` : "8px" }}
-                                        title={score !== null ? `${score}%` : "Tidak ada data"}
-                                    />
-                                    <span className="text-[9px] font-bold text-zinc-500">{m.label}</span>
-                                    <span className="text-[9px] font-black">
-                                        {score !== null ? `${score}%` : "\u2014"}
-                                    </span>
-                                </div>
-                            )
-                        })}
-                    </div>
-                </div>
-            )}
         </div>
     )
 }

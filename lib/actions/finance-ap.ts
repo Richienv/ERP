@@ -394,7 +394,7 @@ export async function recordVendorPayment(data: {
     supplierId: string
     billId?: string
     amount: number
-    method?: 'CASH' | 'TRANSFER' | 'CHECK'
+    method?: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO'
     reference?: string
     notes?: string
     bankAccountCode?: string
@@ -505,7 +505,7 @@ export interface BillAllocation {
 export async function recordMultiBillPayment(data: {
     supplierId: string
     allocations: BillAllocation[]
-    method?: 'CASH' | 'TRANSFER' | 'CHECK'
+    method?: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO'
     reference?: string
     notes?: string
     bankAccountCode?: string // GL code for bank/cash account (default 1010)
