@@ -344,6 +344,52 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // ── Stock availability check (warning only, does NOT block order) ──
+    const stockWarnings: {
+      productId: string
+      productName: string
+      orderedQty: number
+      availableQty: number
+      shortfall: number
+    }[] = []
+
+    const stockLevels = await prisma.stockLevel.groupBy({
+      by: ['productId'],
+      where: {
+        productId: { in: productIds },
+      },
+      _sum: {
+        availableQty: true,
+      },
+    })
+
+    const stockMap = new Map(
+      stockLevels.map((sl) => [sl.productId, sl._sum.availableQty ?? 0])
+    )
+
+    // Aggregate ordered qty per product (a product may appear in multiple lines)
+    const orderedQtyByProduct = new Map<string, number>()
+    for (const item of normalizedItems) {
+      orderedQtyByProduct.set(
+        item.productId,
+        (orderedQtyByProduct.get(item.productId) ?? 0) + item.quantity
+      )
+    }
+
+    for (const [productId, orderedQty] of orderedQtyByProduct) {
+      const availableQty = stockMap.get(productId) ?? 0
+      if (availableQty < orderedQty) {
+        const product = productMap.get(productId)
+        stockWarnings.push({
+          productId,
+          productName: product?.name ?? productId,
+          orderedQty,
+          availableQty,
+          shortfall: orderedQty - availableQty,
+        })
+      }
+    }
+
     // Credit limit validation (same as quotation endpoint)
     if (customer.creditStatus === 'HOLD' || customer.creditStatus === 'BLOCKED') {
       return NextResponse.json(
@@ -445,6 +491,7 @@ export async function POST(request: NextRequest) {
           total: toNumber(order.total),
           itemCount: order._count.items,
         },
+        warnings: stockWarnings,
         message: 'Sales order berhasil dibuat',
       },
       {

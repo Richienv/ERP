@@ -26,7 +26,7 @@ type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "
 
 // ── Consolidated: fetches ALL reports + KPI in one API call ──
 export interface AllReportsData {
-    kpi: { revenue: number; netIncome: number; arOutstanding: number; apOutstanding: number }
+    kpi: { revenue: number; netIncome: number; arOutstanding: number; apOutstanding: number; invoicedRevenue: number; invoicedPaid: number; invoicedOutstanding: number; invoiceCount: number }
     reports: {
         pnl: any; bs: any; cf: any; tb: any
         ar_aging: any; ap_aging: any; equity_changes: any

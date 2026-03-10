@@ -527,49 +527,41 @@ async function fetchQualityStatus(prisma: PrismaClient) {
 }
 
 async function fetchWorkforceStatus(prisma: PrismaClient) {
-    // Count employees by status — include ACTIVE and ON_LEAVE
-    const [activeCount, onLeaveCount, totalAll] = await Promise.all([
-        prisma.employee.count({ where: { status: 'ACTIVE' } }),
-        prisma.employee.count({ where: { status: 'ON_LEAVE' } }),
-        prisma.employee.count({ where: { status: { in: ['ACTIVE', 'ON_LEAVE'] } } })
-    ])
-
-    // Use totalAll as staff count (all non-terminated, non-inactive)
-    const total = totalAll > 0 ? totalAll : activeCount
-
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    const attendance = await prisma.attendance.findMany({
-        where: { date: { gte: today } },
-        include: { employee: true }
-    })
-
-    const present = attendance.length
-    const late = attendance.filter(a => a.isLate).length
-
-    // If no attendance records for today, check if it's a non-working day or no check-ins yet
-    // Show meaningful rate: if total > 0 but no attendance, rate is 0 but still show staff count
-
-    const topEmployeesRaw = await prisma.employee.findMany({
-        where: { status: { in: ['ACTIVE', 'ON_LEAVE'] } },
-        orderBy: { baseSalary: 'desc' },
-        take: 5,
-        include: {
-            attendance: {
-                where: { date: { gte: today } }
-            },
-            tasks: {
-                where: { status: { in: ['IN_PROGRESS', 'PENDING'] } },
-                orderBy: { priority: 'desc' },
-                take: 1,
-                include: {
-                    purchaseOrder: true,
-                    workOrder: true
+    const [activeCount, onLeaveCount, totalAll, attendance, topEmployeesRaw] = await Promise.all([
+        prisma.employee.count({ where: { status: 'ACTIVE' } }),
+        prisma.employee.count({ where: { status: 'ON_LEAVE' } }),
+        prisma.employee.count({ where: { status: { in: ['ACTIVE', 'ON_LEAVE'] } } }),
+        prisma.attendance.findMany({
+            where: { date: { gte: today } },
+            include: { employee: true }
+        }),
+        prisma.employee.findMany({
+            where: { status: { in: ['ACTIVE', 'ON_LEAVE'] } },
+            orderBy: { baseSalary: 'desc' },
+            take: 5,
+            include: {
+                attendance: {
+                    where: { date: { gte: today } }
+                },
+                tasks: {
+                    where: { status: { in: ['IN_PROGRESS', 'PENDING'] } },
+                    orderBy: { priority: 'desc' },
+                    take: 1,
+                    include: {
+                        purchaseOrder: true,
+                        workOrder: true
+                    }
                 }
             }
-        }
-    })
+        })
+    ])
+
+    const total = totalAll > 0 ? totalAll : activeCount
+    const present = attendance.length
+    const late = attendance.filter(a => a.isLate).length
 
     const topEmployees = topEmployeesRaw.map(emp => {
         const att = emp.attendance[0]

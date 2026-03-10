@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import {
     Calendar as CalendarIcon,
     Download,
@@ -19,6 +19,7 @@ import {
     Receipt,
     PiggyBank,
     ChevronRight,
+    ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -39,6 +40,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
+import Link from "next/link"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import * as XLSX from "xlsx"
@@ -108,6 +110,20 @@ export default function FinancialReportsPage() {
     const [draftStartDate, setDraftStartDate] = useState(new Date(currentYear, 0, 1).toISOString().slice(0, 10))
     const [draftEndDate, setDraftEndDate] = useState(new Date().toISOString().slice(0, 10))
 
+    const [expandedAR, setExpandedAR] = useState<Set<string>>(new Set())
+    const [expandedAP, setExpandedAP] = useState<Set<string>>(new Set())
+
+    const toggleAR = (id: string) => setExpandedAR(prev => {
+        const next = new Set(prev)
+        next.has(id) ? next.delete(id) : next.add(id)
+        return next
+    })
+    const toggleAP = (id: string) => setExpandedAP(prev => {
+        const next = new Set(prev)
+        next.has(id) ? next.delete(id) : next.add(id)
+        return next
+    })
+
     // All reports + KPI in one consolidated API call
     const { data, isLoading, isError, error } = useFinanceReportsAll(startDate, endDate)
     const kpi = data?.kpi
@@ -139,132 +155,297 @@ export default function FinancialReportsPage() {
         toast.success("Rentang tanggal diperbarui")
     }
 
-    function getExportRows(): Record<string, unknown>[] {
+    // Build styled worksheet using aoa_to_sheet for full control
+    function buildExportSheet(): { ws: XLSX.WorkSheet; sheetName: string } | null {
+        const idr = '"Rp "#,##0'
+        const periodLabel = `Periode: ${startDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })} - ${endDate.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}`
+
         if (reportType === "pnl" && pnlData) {
-            return [
-                { metric: "Pendapatan (Revenue)", amount: Number(pnlData.revenue || 0) },
-                { metric: "Harga Pokok Penjualan (HPP)", amount: Number(pnlData.costOfGoodsSold || 0) },
-                { metric: "Laba Kotor", amount: Number(pnlData.grossProfit || 0) },
-                { metric: "Beban Operasional", amount: Number(pnlData.totalOperatingExpenses || 0) },
-                ...((pnlData.operatingExpenses || []) as any[]).map((exp: any) => ({
-                    metric: `  — ${exp.category}`, amount: Number(exp.amount || 0),
-                })),
-                { metric: "Laba Operasional", amount: Number(pnlData.operatingIncome || 0) },
-                { metric: "Pajak (22%)", amount: Number(pnlData.taxExpense || 0) },
-                { metric: "Laba Bersih", amount: Number(pnlData.netIncome || 0) },
+            const aoa: any[][] = [
+                ["LAPORAN LABA RUGI", ""],
+                [periodLabel, ""],
+                ["", ""],
+                ["KETERANGAN", "JUMLAH (Rp)"],
+                ["Pendapatan (Revenue)", Number(pnlData.revenue ?? 0)],
+                ["  Harga Pokok Penjualan (HPP)", -Number(pnlData.costOfGoodsSold || 0)],
+                ["LABA KOTOR", Number(pnlData.grossProfit || 0)],
+                ["", ""],
+                ["Beban Operasional", -Number(pnlData.totalOperatingExpenses || 0)],
+                ...((pnlData.operatingExpenses || []) as any[]).map((exp: any) => ([
+                    `    ${exp.category}`, -Number(exp.amount || 0),
+                ])),
+                ["", ""],
+                ["LABA OPERASIONAL", Number(pnlData.operatingIncome || 0)],
+                ["  Pajak Penghasilan (PPn 22%)", -Number(pnlData.taxExpense || 0)],
+                ["", ""],
+                ["LABA BERSIH", Number(pnlData.netIncome || 0)],
             ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 40 }, { wch: 25 }]
+            // Set number format on amount cells (column B, starting from row 5)
+            for (let r = 4; r < aoa.length; r++) {
+                const cell = ws[XLSX.utils.encode_cell({ r, c: 1 })]
+                if (cell && typeof cell.v === "number") cell.z = idr
+            }
+            return { ws, sheetName: "Laba Rugi" }
         }
+
         if (reportType === "bs" && balanceSheetData) {
-            return [
-                { section: "Aset", metric: "Total Aset Lancar", amount: Number(balanceSheetData.assets?.totalCurrentAssets || 0) },
-                { section: "Aset", metric: "Total Aset Tetap", amount: Number(balanceSheetData.assets?.totalFixedAssets || 0) },
-                { section: "Aset", metric: "Total Aset", amount: Number(balanceSheetData.assets?.totalAssets || 0) },
-                { section: "Kewajiban", metric: "Total Kewajiban", amount: Number(balanceSheetData.liabilities?.totalLiabilities || 0) },
-                { section: "Ekuitas", metric: "Total Ekuitas", amount: Number(balanceSheetData.equity?.totalEquity || 0) },
-                { section: "Cek Neraca", metric: "Total Kewajiban + Ekuitas", amount: Number(balanceSheetData.totalLiabilitiesAndEquity || 0) },
+            const bs = balanceSheetData
+            const aoa: any[][] = [
+                ["NERACA (BALANCE SHEET)", ""],
+                [periodLabel, ""],
+                ["", ""],
+                ["KETERANGAN", "JUMLAH (Rp)"],
+                ["", ""],
+                ["ASET", ""],
+                ...(bs.assets?.currentAssets || []).map((a: any) => ([`  ${a.name}`, Number(a.balance || 0)])),
+                ["Total Aset Lancar", Number(bs.assets?.totalCurrentAssets || 0)],
+                ["", ""],
+                ...(bs.assets?.fixedAssets || []).map((a: any) => ([`  ${a.name}`, Number(a.balance || 0)])),
+                ["Total Aset Tetap", Number(bs.assets?.totalFixedAssets || 0)],
+                ["TOTAL ASET", Number(bs.assets?.totalAssets || 0)],
+                ["", ""],
+                ["KEWAJIBAN", ""],
+                ...(bs.liabilities?.items || []).map((l: any) => ([`  ${l.name}`, Number(l.balance || 0)])),
+                ["TOTAL KEWAJIBAN", Number(bs.liabilities?.totalLiabilities || 0)],
+                ["", ""],
+                ["EKUITAS", ""],
+                ...(bs.equity?.items || []).map((e: any) => ([`  ${e.name}`, Number(e.balance || 0)])),
+                ["  Laba Ditahan", Number(bs.equity?.retainedEarnings || 0)],
+                ["TOTAL EKUITAS", Number(bs.equity?.totalEquity || 0)],
+                ["", ""],
+                ["TOTAL KEWAJIBAN + EKUITAS", Number(bs.totalLiabilitiesAndEquity || 0)],
             ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 40 }, { wch: 25 }]
+            for (let r = 4; r < aoa.length; r++) {
+                const cell = ws[XLSX.utils.encode_cell({ r, c: 1 })]
+                if (cell && typeof cell.v === "number") cell.z = idr
+            }
+            return { ws, sheetName: "Neraca" }
         }
+
         if (reportType === "cf" && cashFlowData) {
-            return [
-                { section: "Operasi", amount: Number(cashFlowData.operatingActivities?.netCashFromOperating || 0) },
-                { section: "Investasi", amount: Number(cashFlowData.investingActivities?.netCashFromInvesting || 0) },
-                { section: "Pendanaan", amount: Number(cashFlowData.financingActivities?.netCashFromFinancing || 0) },
-                { section: "Kenaikan Bersih Kas", amount: Number(cashFlowData.netIncreaseInCash || 0) },
-                { section: "Saldo Kas Awal", amount: Number(cashFlowData.beginningCash || 0) },
-                { section: "Saldo Kas Akhir", amount: Number(cashFlowData.endingCash || 0) },
+            const cf = cashFlowData
+            const aoa: any[][] = [
+                ["LAPORAN ARUS KAS", ""],
+                [periodLabel, ""],
+                ["", ""],
+                ["KETERANGAN", "JUMLAH (Rp)"],
+                ["", ""],
+                ["AKTIVITAS OPERASI", ""],
+                ["  Laba Bersih", Number(cf.operatingActivities?.netIncome || 0)],
+                ...((cf.operatingActivities?.changesInWorkingCapital || []) as any[]).map((item: any) => ([
+                    `  ${item.description}`, Number(item.amount || 0),
+                ])),
+                ["Arus Kas Bersih dari Operasi", Number(cf.operatingActivities?.netCashFromOperating || 0)],
+                ["", ""],
+                ["AKTIVITAS INVESTASI", ""],
+                ...((cf.investingActivities?.items || []) as any[]).map((item: any) => ([
+                    `  ${item.description}`, Number(item.amount || 0),
+                ])),
+                ["Arus Kas Bersih dari Investasi", Number(cf.investingActivities?.netCashFromInvesting || 0)],
+                ["", ""],
+                ["AKTIVITAS PENDANAAN", ""],
+                ...((cf.financingActivities?.items || []) as any[]).map((item: any) => ([
+                    `  ${item.description}`, Number(item.amount || 0),
+                ])),
+                ["Arus Kas Bersih dari Pendanaan", Number(cf.financingActivities?.netCashFromFinancing || 0)],
+                ["", ""],
+                ["KENAIKAN BERSIH KAS", Number(cf.netIncreaseInCash || 0)],
+                ["Saldo Kas Awal", Number(cf.beginningCash || 0)],
+                ["Saldo Kas Akhir", Number(cf.endingCash || 0)],
             ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 40 }, { wch: 25 }]
+            for (let r = 4; r < aoa.length; r++) {
+                const cell = ws[XLSX.utils.encode_cell({ r, c: 1 })]
+                if (cell && typeof cell.v === "number") cell.z = idr
+            }
+            return { ws, sheetName: "Arus Kas" }
         }
+
         if (reportType === "tb" && trialBalanceData) {
-            return trialBalanceData.rows.map((r: any) => ({
-                accountCode: r.accountCode,
-                accountName: r.accountName,
-                type: r.accountType,
-                debit: r.debit,
-                credit: r.credit,
-                balance: r.balance,
-            }))
+            const aoa: any[][] = [
+                ["NERACA SALDO (TRIAL BALANCE)", "", "", "", ""],
+                [periodLabel, "", "", "", ""],
+                ["", "", "", "", ""],
+                ["KODE", "NAMA AKUN", "TIPE", "DEBIT (Rp)", "KREDIT (Rp)"],
+                ...trialBalanceData.rows.map((r: any) => ([
+                    r.accountCode, r.accountName, r.accountType, r.debit || 0, r.credit || 0,
+                ])),
+                ["", "", "", "", ""],
+                ["", "", "TOTAL", trialBalanceData.totals.totalDebits, trialBalanceData.totals.totalCredits],
+            ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 12 }, { wch: 35 }, { wch: 12 }, { wch: 22 }, { wch: 22 }]
+            for (let r = 4; r < aoa.length; r++) {
+                for (const c of [3, 4]) {
+                    const cell = ws[XLSX.utils.encode_cell({ r, c })]
+                    if (cell && typeof cell.v === "number") cell.z = idr
+                }
+            }
+            return { ws, sheetName: "Neraca Saldo" }
         }
+
         if (reportType === "ar_aging" && arAgingData) {
-            return arAgingData.details.map((d: any) => ({
-                invoiceNumber: d.invoiceNumber,
-                customer: d.customerName,
-                dueDate: new Date(d.dueDate).toLocaleDateString("id-ID"),
-                balanceDue: d.balanceDue,
-                daysOverdue: d.daysOverdue,
-                bucket: d.bucket,
-            }))
+            const aoa: any[][] = [
+                ["AGING PIUTANG (AR)", "", "", "", "", ""],
+                [periodLabel, "", "", "", "", ""],
+                ["", "", "", "", "", ""],
+                ["PELANGGAN", "CURRENT (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
+                ...arAgingData.byCustomer.map((c: any) => ([
+                    c.customerName, c.current || 0, c.d1_30 || 0, c.d31_60 || 0, c.d61_90 || 0, c.d90_plus || 0, c.total || 0,
+                ])),
+                ["", "", "", "", "", "", ""],
+                ["TOTAL",
+                    arAgingData.summary.current || 0, arAgingData.summary.d1_30 || 0,
+                    arAgingData.summary.d31_60 || 0, arAgingData.summary.d61_90 || 0,
+                    arAgingData.summary.d90_plus || 0, arAgingData.summary.totalOutstanding || 0],
+            ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 22 }]
+            for (let r = 4; r < aoa.length; r++) {
+                for (let c = 1; c <= 6; c++) {
+                    const cell = ws[XLSX.utils.encode_cell({ r, c })]
+                    if (cell && typeof cell.v === "number") cell.z = idr
+                }
+            }
+            return { ws, sheetName: "AR Aging" }
         }
+
         if (reportType === "ap_aging" && apAgingData) {
-            return apAgingData.details.map((d: any) => ({
-                billNumber: d.billNumber,
-                supplier: d.supplierName,
-                dueDate: new Date(d.dueDate).toLocaleDateString("id-ID"),
-                balanceDue: d.balanceDue,
-                daysOverdue: d.daysOverdue,
-                bucket: d.bucket,
-            }))
+            const aoa: any[][] = [
+                ["AGING HUTANG (AP)", "", "", "", "", ""],
+                [periodLabel, "", "", "", "", ""],
+                ["", "", "", "", "", ""],
+                ["PEMASOK", "CURRENT (Rp)", "1-30 HARI (Rp)", "31-60 HARI (Rp)", "61-90 HARI (Rp)", "90+ HARI (Rp)", "TOTAL (Rp)"],
+                ...apAgingData.bySupplier.map((s: any) => ([
+                    s.supplierName, s.current || 0, s.d1_30 || 0, s.d31_60 || 0, s.d61_90 || 0, s.d90_plus || 0, s.total || 0,
+                ])),
+                ["", "", "", "", "", "", ""],
+                ["TOTAL",
+                    apAgingData.summary.current || 0, apAgingData.summary.d1_30 || 0,
+                    apAgingData.summary.d31_60 || 0, apAgingData.summary.d61_90 || 0,
+                    apAgingData.summary.d90_plus || 0, apAgingData.summary.totalOutstanding || 0],
+            ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 22 }]
+            for (let r = 4; r < aoa.length; r++) {
+                for (let c = 1; c <= 6; c++) {
+                    const cell = ws[XLSX.utils.encode_cell({ r, c })]
+                    if (cell && typeof cell.v === "number") cell.z = idr
+                }
+            }
+            return { ws, sheetName: "AP Aging" }
         }
+
         if (reportType === "equity_changes" && equityData) {
-            return equityData.accounts.map((a: any) => ({
-                akun: a.accountName,
-                saldoAwal: a.openingBalance,
-                penambahan: a.additions,
-                pengurangan: a.deductions,
-                saldoAkhir: a.closingBalance,
-            }))
+            const aoa: any[][] = [
+                ["PERUBAHAN EKUITAS", "", "", "", ""],
+                [periodLabel, "", "", "", ""],
+                ["", "", "", "", ""],
+                ["AKUN", "SALDO AWAL (Rp)", "PENAMBAHAN (Rp)", "PENGURANGAN (Rp)", "SALDO AKHIR (Rp)"],
+                ...equityData.accounts.map((a: any) => ([
+                    a.accountName, Number(a.openingBalance || 0), Number(a.additions || 0), Number(a.deductions || 0), Number(a.closingBalance || 0),
+                ])),
+            ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 30 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 22 }]
+            for (let r = 4; r < aoa.length; r++) {
+                for (let c = 1; c <= 4; c++) {
+                    const cell = ws[XLSX.utils.encode_cell({ r, c })]
+                    if (cell && typeof cell.v === "number") cell.z = idr
+                }
+            }
+            return { ws, sheetName: "Perubahan Ekuitas" }
         }
+
         if (reportType === "inventory_turnover" && inventoryTurnoverData) {
-            return inventoryTurnoverData.items.map((i: any) => ({
-                kode: i.productCode,
-                produk: i.productName,
-                stokAwal: i.beginningStock,
-                masuk: i.totalIn,
-                keluar: i.totalOut,
-                stokAkhir: i.currentStock,
-                rasioTurnover: i.turnoverRatio,
-                hariDiGudang: i.daysOnHand,
-                nilai: i.inventoryValue,
-            }))
+            const aoa: any[][] = [
+                ["PERPUTARAN PERSEDIAAN", "", "", "", "", "", "", ""],
+                [periodLabel, "", "", "", "", "", "", ""],
+                ["", "", "", "", "", "", "", ""],
+                ["KODE", "PRODUK", "STOK AWAL", "MASUK", "KELUAR", "STOK AKHIR", "RASIO TURNOVER", "HARI DI GUDANG", "NILAI (Rp)"],
+                ...inventoryTurnoverData.items.map((i: any) => ([
+                    i.productCode, i.productName, i.beginningStock || 0, i.totalIn || 0, i.totalOut || 0,
+                    i.currentStock || 0, Number(i.turnoverRatio || 0).toFixed(2), i.daysOnHand || 0, Number(i.inventoryValue || 0),
+                ])),
+            ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 22 }]
+            for (let r = 4; r < aoa.length; r++) {
+                const cell = ws[XLSX.utils.encode_cell({ r, c: 8 })]
+                if (cell && typeof cell.v === "number") cell.z = idr
+            }
+            return { ws, sheetName: "Perputaran Persediaan" }
         }
+
         if (reportType === "tax_report" && taxData) {
-            const rows: Record<string, unknown>[] = []
+            const aoa: any[][] = [
+                ["LAPORAN PAJAK (PPN)", "", "", "", "", "", ""],
+                [periodLabel, "", "", "", "", "", ""],
+                ["", "", "", "", "", "", ""],
+                ["JENIS", "NO. FAKTUR", "TANGGAL", "NAMA", "DPP (Rp)", "PPN (Rp)", "TOTAL (Rp)"],
+            ]
             taxData.ppnKeluaran?.items?.forEach((i: any) => {
-                rows.push({ jenis: "PPN Keluaran", noFaktur: i.number, tanggal: i.date, nama: i.partyName, dpp: i.dpp, ppn: i.ppn, total: i.total })
+                aoa.push(["PPN Keluaran", i.number, i.date, i.partyName, Number(i.dpp || 0), Number(i.ppn || 0), Number(i.total || 0)])
             })
             taxData.ppnMasukan?.items?.forEach((i: any) => {
-                rows.push({ jenis: "PPN Masukan", noFaktur: i.number, tanggal: i.date, nama: i.partyName, dpp: i.dpp, ppn: i.ppn, total: i.total })
+                aoa.push(["PPN Masukan", i.number, i.date, i.partyName, Number(i.dpp || 0), Number(i.ppn || 0), Number(i.total || 0)])
             })
-            return rows
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 16 }, { wch: 18 }, { wch: 14 }, { wch: 30 }, { wch: 20 }, { wch: 18 }, { wch: 22 }]
+            for (let r = 4; r < aoa.length; r++) {
+                for (let c = 4; c <= 6; c++) {
+                    const cell = ws[XLSX.utils.encode_cell({ r, c })]
+                    if (cell && typeof cell.v === "number") cell.z = idr
+                }
+            }
+            return { ws, sheetName: "Pajak PPN" }
         }
+
         if (reportType === "budget_vs_actual" && budgetVsActualData) {
-            return budgetVsActualData.items.map((i: any) => ({
-                kodeAkun: i.accountCode,
-                namaAkun: i.accountName,
-                anggaran: i.budgetAmount,
-                realisasi: i.actualAmount,
-                selisih: i.variance,
-                pctSelisih: i.variancePct,
-            }))
+            const aoa: any[][] = [
+                ["ANGGARAN VS REALISASI", "", "", "", "", ""],
+                [periodLabel, "", "", "", "", ""],
+                ["", "", "", "", "", ""],
+                ["KODE AKUN", "NAMA AKUN", "ANGGARAN (Rp)", "REALISASI (Rp)", "SELISIH (Rp)", "SELISIH (%)"],
+                ...budgetVsActualData.items.map((i: any) => ([
+                    i.accountCode, i.accountName, Number(i.budgetAmount || 0), Number(i.actualAmount || 0), Number(i.variance || 0), `${Number(i.variancePct || 0).toFixed(1)}%`,
+                ])),
+            ]
+            const ws = XLSX.utils.aoa_to_sheet(aoa)
+            ws["!cols"] = [{ wch: 14 }, { wch: 30 }, { wch: 22 }, { wch: 22 }, { wch: 22 }, { wch: 14 }]
+            for (let r = 4; r < aoa.length; r++) {
+                for (let c = 2; c <= 4; c++) {
+                    const cell = ws[XLSX.utils.encode_cell({ r, c })]
+                    if (cell && typeof cell.v === "number") cell.z = idr
+                }
+            }
+            return { ws, sheetName: "Anggaran vs Realisasi" }
         }
-        return []
+
+        return null
     }
 
     function exportReportPack() {
-        const rows = getExportRows()
-        if (rows.length === 0) { toast.error("Data laporan tidak tersedia"); return }
+        const result = buildExportSheet()
+        if (!result) { toast.error("Data laporan tidak tersedia"); return }
+        const { ws, sheetName } = result
         const stamp = new Date().toISOString().slice(0, 10)
+
         if (exportFormat === "CSV") {
-            const headers = Object.keys(rows[0])
-            const csv = [headers.join(","), ...rows.map((row) => headers.map((h) => `"${String(row[h as keyof typeof row] ?? "").replaceAll('"', '""')}"`).join(","))].join("\n")
-            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+            const csv = XLSX.utils.sheet_to_csv(ws)
+            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" })
             const url = URL.createObjectURL(blob)
-            const a = document.createElement("a"); a.href = url; a.download = `financial-report-${reportType}-${stamp}.csv`; a.click()
+            const a = document.createElement("a"); a.href = url; a.download = `laporan-${reportType}-${stamp}.csv`; a.click()
             URL.revokeObjectURL(url)
         } else {
-            const ws = XLSX.utils.json_to_sheet(rows)
             const wb = XLSX.utils.book_new()
-            XLSX.utils.book_append_sheet(wb, ws, "Report")
-            XLSX.writeFile(wb, `financial-report-${reportType}-${stamp}.xls`, { bookType: "xls" })
+            XLSX.utils.book_append_sheet(wb, ws, sheetName)
+            XLSX.writeFile(wb, `laporan-${reportType}-${stamp}.xlsx`, { bookType: "xlsx" })
         }
         setExportDialogOpen(false)
         toast.success(`Export ${exportFormat} berhasil`)
@@ -284,9 +465,15 @@ export default function FinancialReportsPage() {
                             <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
                                 Laporan Keuangan
                             </h1>
-                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
-                                Fiscal {currentYear} &bull; {startDate.toLocaleDateString("id-ID")} - {endDate.toLocaleDateString("id-ID")}
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-2.5 py-0.5 rounded-sm">
+                                    <CalendarIcon className="h-3 w-3" />
+                                    Fiscal {currentYear}
+                                </span>
+                                <span className="text-zinc-900 dark:text-zinc-100 text-[11px] font-bold tracking-wide">
+                                    {startDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} — {endDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                                </span>
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -371,8 +558,34 @@ export default function FinancialReportsPage() {
                             <Users className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Piutang Usaha</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.arOutstanding || 0)}</div>
-                        <div className="text-[10px] font-bold text-orange-600 mt-1">Belum tertagih</div>
+                        {kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : (
+                            <>
+                                <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">{formatIDR(kpi?.arOutstanding || 0)}</div>
+                                {/* Collection progress bar */}
+                                {(() => {
+                                    const invoiced = kpi?.invoicedRevenue || 0
+                                    const paid = kpi?.invoicedPaid || 0
+                                    const collectPct = invoiced > 0 ? Math.round((paid / invoiced) * 100) : 0
+                                    return invoiced > 0 ? (
+                                        <div className="mt-2 space-y-1">
+                                            <div className="flex items-center justify-between text-[9px] font-bold">
+                                                <span className="text-zinc-400">Penagihan</span>
+                                                <span className={collectPct >= 50 ? "text-emerald-600" : "text-orange-600"}>{collectPct}%</span>
+                                            </div>
+                                            <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                                <div className={`h-full rounded-full transition-all ${collectPct >= 50 ? "bg-emerald-500" : "bg-orange-400"}`} style={{ width: `${Math.min(collectPct, 100)}%` }} />
+                                            </div>
+                                            <div className="flex items-center justify-between text-[9px]">
+                                                <span className="text-emerald-600 font-bold">Terbayar {formatIDR(paid)}</span>
+                                                <span className="text-zinc-400">dari {formatIDR(invoiced)}</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] font-bold text-orange-600 mt-1">Belum tertagih periode ini</div>
+                                    )
+                                })()}
+                            </>
+                        )}
                     </div>
                     <div className="relative p-4 md:p-5">
                         <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
@@ -381,7 +594,7 @@ export default function FinancialReportsPage() {
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hutang Usaha</span>
                         </div>
                         <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.apOutstanding || 0)}</div>
-                        <div className="text-[10px] font-bold text-red-600 mt-1">Belum dibayar</div>
+                        <div className="text-[10px] font-bold text-red-600 mt-1">Belum dibayar periode ini</div>
                     </div>
                 </div>
             </div>
@@ -658,6 +871,18 @@ export default function FinancialReportsPage() {
                                                 </TableBody>
                                             </Table>
                                         </div>
+
+                                        {/* Total Kewajiban + Ekuitas — for easy balance check */}
+                                        <div className="border-2 border-black bg-zinc-900 dark:bg-zinc-100 px-4 py-3 flex items-center justify-between">
+                                            <span className="font-black text-sm text-white dark:text-black uppercase tracking-wide">Total Kewajiban + Ekuitas</span>
+                                            <span className={`font-mono font-black text-lg ${
+                                                Math.abs((balanceSheetData.assets?.totalAssets || 0) - (balanceSheetData.totalLiabilitiesAndEquity || 0)) < 1
+                                                    ? "text-emerald-400 dark:text-emerald-600"
+                                                    : "text-red-400 dark:text-red-600"
+                                            }`}>
+                                                {formatIDR(balanceSheetData.totalLiabilitiesAndEquity)}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                                 </div>
@@ -769,26 +994,55 @@ export default function FinancialReportsPage() {
                                                     </TableCell>
                                                 </TableRow>
                                             ) : (
-                                                trialBalanceData.rows.map((row: any, idx: number) => (
-                                                    <TableRow key={idx}>
-                                                        <TableCell className="font-mono font-bold text-sm">{row.accountCode}</TableCell>
-                                                        <TableCell className="text-sm">{row.accountName}</TableCell>
-                                                        <TableCell>
-                                                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border rounded-sm ${row.accountType === "ASSET" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
-                                                                    row.accountType === "LIABILITY" ? "bg-red-50 border-red-200 text-red-600" :
-                                                                        row.accountType === "EQUITY" ? "bg-blue-50 border-blue-200 text-blue-600" :
-                                                                            row.accountType === "REVENUE" ? "bg-indigo-50 border-indigo-200 text-indigo-600" :
-                                                                                "bg-amber-50 border-amber-200 text-amber-600"
-                                                                }`}>{row.accountType}</span>
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-mono text-sm">
-                                                            {row.debit > 0 ? formatIDR(row.debit) : "-"}
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-mono text-sm">
-                                                            {row.credit > 0 ? formatIDR(row.credit) : "-"}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))
+                                                (() => {
+                                                    const typeLabels: Record<string, string> = {
+                                                        ASSET: "Aset", LIABILITY: "Kewajiban", EQUITY: "Ekuitas",
+                                                        REVENUE: "Pendapatan", EXPENSE: "Beban",
+                                                    }
+                                                    const typeColors: Record<string, string> = {
+                                                        ASSET: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 border-emerald-300",
+                                                        LIABILITY: "bg-red-100 dark:bg-red-900/30 text-red-700 border-red-300",
+                                                        EQUITY: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 border-blue-300",
+                                                        REVENUE: "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 border-indigo-300",
+                                                        EXPENSE: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 border-amber-300",
+                                                    }
+                                                    const badgeColors: Record<string, string> = {
+                                                        ASSET: "bg-emerald-50 border-emerald-200 text-emerald-600",
+                                                        LIABILITY: "bg-red-50 border-red-200 text-red-600",
+                                                        EQUITY: "bg-blue-50 border-blue-200 text-blue-600",
+                                                        REVENUE: "bg-indigo-50 border-indigo-200 text-indigo-600",
+                                                        EXPENSE: "bg-amber-50 border-amber-200 text-amber-600",
+                                                    }
+                                                    let lastType = ""
+                                                    return trialBalanceData.rows.map((row: any, idx: number) => {
+                                                        const showHeader = row.accountType !== lastType
+                                                        lastType = row.accountType
+                                                        return (
+                                                            <React.Fragment key={idx}>
+                                                                {showHeader && (
+                                                                    <TableRow className={`${typeColors[row.accountType] || "bg-zinc-100"} border-t-2 border-black`}>
+                                                                        <TableCell colSpan={5} className="text-[10px] font-black uppercase tracking-widest py-2">
+                                                                            {typeLabels[row.accountType] || row.accountType}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )}
+                                                                <TableRow>
+                                                                    <TableCell className="font-mono font-bold text-sm pl-6">{row.accountCode}</TableCell>
+                                                                    <TableCell className="text-sm">{row.accountName}</TableCell>
+                                                                    <TableCell>
+                                                                        <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border rounded-sm ${badgeColors[row.accountType] || "bg-zinc-50 border-zinc-200 text-zinc-600"}`}>{row.accountType}</span>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">
+                                                                        {row.debit > 0 ? formatIDR(row.debit) : "-"}
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">
+                                                                        {row.credit > 0 ? formatIDR(row.credit) : "-"}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            </React.Fragment>
+                                                        )
+                                                    })
+                                                })()
                                             )}
                                             <TableRow className="font-black bg-indigo-50 dark:bg-indigo-900/20 border-t-2 border-black">
                                                 <TableCell colSpan={3} className="text-sm">TOTAL</TableCell>
@@ -937,17 +1191,61 @@ export default function FinancialReportsPage() {
                                                         </TableCell>
                                                     </TableRow>
                                                 ) : (
-                                                    arAgingData.byCustomer.map((cust: any, idx: number) => (
-                                                        <TableRow key={idx}>
-                                                            <TableCell className="font-bold text-sm">{cust.customerName}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{cust.current > 0 ? formatIDR(cust.current) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{cust.d1_30 > 0 ? formatIDR(cust.d1_30) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{cust.d31_60 > 0 ? formatIDR(cust.d31_60) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{cust.d61_90 > 0 ? formatIDR(cust.d61_90) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm text-red-600">{cust.d90_plus > 0 ? formatIDR(cust.d90_plus) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm font-black">{formatIDR(cust.total)}</TableCell>
-                                                        </TableRow>
-                                                    ))
+                                                    arAgingData.byCustomer.map((cust: any, idx: number) => {
+                                                        const isExpanded = expandedAR.has(cust.customerId)
+                                                        return (
+                                                            <React.Fragment key={idx}>
+                                                                <TableRow className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                                    <TableCell className="font-bold text-sm">
+                                                                        <button
+                                                                            onClick={() => toggleAR(cust.customerId)}
+                                                                            className="flex items-center gap-1.5 hover:text-orange-600 transition-colors"
+                                                                        >
+                                                                            {isExpanded
+                                                                                ? <ChevronDown className="h-3.5 w-3.5 text-orange-500" />
+                                                                                : <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />}
+                                                                            {cust.customerName}
+                                                                            <span className="text-[9px] font-mono text-zinc-400 ml-1">({cust.invoiceCount})</span>
+                                                                        </button>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{cust.current > 0 ? formatIDR(cust.current) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{cust.d1_30 > 0 ? formatIDR(cust.d1_30) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{cust.d31_60 > 0 ? formatIDR(cust.d31_60) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{cust.d61_90 > 0 ? formatIDR(cust.d61_90) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm text-red-600">{cust.d90_plus > 0 ? formatIDR(cust.d90_plus) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm font-black">{formatIDR(cust.total)}</TableCell>
+                                                                </TableRow>
+                                                                {isExpanded && cust.invoices?.map((inv: any, j: number) => (
+                                                                    <TableRow key={`inv-${j}`} className="bg-orange-50/50 dark:bg-orange-900/10">
+                                                                        <TableCell className="pl-8 text-xs">
+                                                                            <Link
+                                                                                href={`/finance/invoices?highlight=${inv.id}`}
+                                                                                className="text-orange-600 hover:underline font-mono font-bold"
+                                                                            >
+                                                                                {inv.invoiceNumber}
+                                                                            </Link>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-zinc-500">
+                                                                            {new Date(inv.issueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-zinc-500">
+                                                                            {new Date(inv.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono">{formatIDR(inv.totalAmount)}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-emerald-600">{formatIDR(inv.paidAmount)}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-orange-600 font-bold">{formatIDR(inv.balanceDue)}</TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm ${
+                                                                                inv.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                                                                inv.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
+                                                                                'bg-blue-100 text-blue-700'
+                                                                            }`}>{inv.status}</span>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </React.Fragment>
+                                                        )
+                                                    })
                                                 )}
                                             </TableBody>
                                         </Table>
@@ -1010,17 +1308,61 @@ export default function FinancialReportsPage() {
                                                         </TableCell>
                                                     </TableRow>
                                                 ) : (
-                                                    apAgingData.bySupplier.map((supp: any, idx: number) => (
-                                                        <TableRow key={idx}>
-                                                            <TableCell className="font-bold text-sm">{supp.supplierName}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{supp.current > 0 ? formatIDR(supp.current) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{supp.d1_30 > 0 ? formatIDR(supp.d1_30) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{supp.d31_60 > 0 ? formatIDR(supp.d31_60) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{supp.d61_90 > 0 ? formatIDR(supp.d61_90) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm text-red-600">{supp.d90_plus > 0 ? formatIDR(supp.d90_plus) : "-"}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm font-black">{formatIDR(supp.total)}</TableCell>
-                                                        </TableRow>
-                                                    ))
+                                                    apAgingData.bySupplier.map((supp: any, idx: number) => {
+                                                        const isExpanded = expandedAP.has(supp.supplierId)
+                                                        return (
+                                                            <React.Fragment key={idx}>
+                                                                <TableRow className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                                    <TableCell className="font-bold text-sm">
+                                                                        <button
+                                                                            onClick={() => toggleAP(supp.supplierId)}
+                                                                            className="flex items-center gap-1.5 hover:text-red-600 transition-colors"
+                                                                        >
+                                                                            {isExpanded
+                                                                                ? <ChevronDown className="h-3.5 w-3.5 text-red-500" />
+                                                                                : <ChevronRight className="h-3.5 w-3.5 text-zinc-400" />}
+                                                                            {supp.supplierName}
+                                                                            <span className="text-[9px] font-mono text-zinc-400 ml-1">({supp.billCount})</span>
+                                                                        </button>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{supp.current > 0 ? formatIDR(supp.current) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{supp.d1_30 > 0 ? formatIDR(supp.d1_30) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{supp.d31_60 > 0 ? formatIDR(supp.d31_60) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{supp.d61_90 > 0 ? formatIDR(supp.d61_90) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm text-red-600">{supp.d90_plus > 0 ? formatIDR(supp.d90_plus) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm font-black">{formatIDR(supp.total)}</TableCell>
+                                                                </TableRow>
+                                                                {isExpanded && supp.bills?.map((bill: any, j: number) => (
+                                                                    <TableRow key={`bill-${j}`} className="bg-red-50/50 dark:bg-red-900/10">
+                                                                        <TableCell className="pl-8 text-xs">
+                                                                            <Link
+                                                                                href={`/finance/bills?highlight=${bill.id}`}
+                                                                                className="text-red-600 hover:underline font-mono font-bold"
+                                                                            >
+                                                                                {bill.billNumber}
+                                                                            </Link>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-zinc-500">
+                                                                            {new Date(bill.issueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-zinc-500">
+                                                                            {new Date(bill.dueDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono">{formatIDR(bill.totalAmount)}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-emerald-600">{formatIDR(bill.paidAmount)}</TableCell>
+                                                                        <TableCell className="text-right text-[10px] font-mono text-red-600 font-bold">{formatIDR(bill.balanceDue)}</TableCell>
+                                                                        <TableCell className="text-right">
+                                                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-sm ${
+                                                                                bill.status === 'OVERDUE' ? 'bg-red-100 text-red-700' :
+                                                                                bill.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' :
+                                                                                'bg-blue-100 text-blue-700'
+                                                                            }`}>{bill.status}</span>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                ))}
+                                                            </React.Fragment>
+                                                        )
+                                                    })
                                                 )}
                                             </TableBody>
                                         </Table>

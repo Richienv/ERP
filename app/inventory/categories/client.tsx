@@ -14,6 +14,7 @@ import {
     X,
     Pencil,
     Check,
+    Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,7 +28,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { createCategory, updateCategory, getNextCategoryCode, getProductsByCategory, getProductsNotInCategory, assignProductToCategory, removeProductFromCategory } from "@/app/actions/inventory"
+import { createCategory, updateCategory, deleteCategory, getNextCategoryCode, getProductsByCategory, getProductsNotInCategory, assignProductToCategory, removeProductFromCategory } from "@/app/actions/inventory"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -504,6 +505,7 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
     const [editCode, setEditCode] = useState(category.code)
     const [editDescription, setEditDescription] = useState(category.description || "")
     const [isSaving, setIsSaving] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const router = useRouter()
     const queryClient = useQueryClient()
@@ -570,6 +572,23 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
             toast.error(result.error || "Gagal memperbarui kategori")
         }
         setIsSaving(false)
+    }
+
+    const handleDelete = async () => {
+        if (!window.confirm("Hapus kategori ini? Tindakan ini tidak dapat dibatalkan.")) return
+        setIsDeleting(true)
+        const result = await deleteCategory(category.id)
+        if (result.success) {
+            toast.success("Kategori berhasil dihapus")
+            onOpenChange(false)
+            invalidateCategories()
+            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
+        } else {
+            toast.error(result.error || "Gagal menghapus kategori")
+        }
+        setIsDeleting(false)
     }
 
     const handleOpenAddRow = async () => {
@@ -874,7 +893,16 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
                             </div>
                         )}
 
-                        <div className={NB.footer}>
+                        <div className={NB.footer + " justify-between"}>
+                            <button
+                                type="button"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                className="flex items-center gap-1.5 border-2 border-red-600 text-red-600 hover:bg-red-50 font-black uppercase text-[10px] tracking-wider px-4 h-8 transition-colors"
+                            >
+                                {isDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                                {isDeleting ? "Menghapus..." : "Hapus"}
+                            </button>
                             <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
                                 Tutup
                             </Button>

@@ -446,8 +446,19 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                     throw new Error('GRN sudah diproses atau tidak ditemukan. Refresh halaman.')
                 }
 
-                // 3. Update PO item received quantities
+                // 3. Update PO item received quantities (with over-receive guard)
                 for (const grnItem of grn.items) {
+                    // Guard: verify receivedQty + acceptedQty won't exceed orderedQty
+                    const poItem = grn.purchaseOrder.items.find((pi: any) => pi.id === grnItem.poItemId)
+                    if (poItem) {
+                        const newTotal = poItem.receivedQty + grnItem.quantityAccepted
+                        if (newTotal > poItem.quantity) {
+                            throw new Error(
+                                "Jumlah penerimaan melebihi jumlah pesanan pada PO item ini."
+                            )
+                        }
+                    }
+
                     await tx.purchaseOrderItem.update({
                         where: { id: grnItem.poItemId },
                         data: {

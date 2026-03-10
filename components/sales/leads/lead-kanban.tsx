@@ -1,14 +1,18 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useCallback } from "react"
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  DropResult,
-  DroppableProvided,
-  DroppableStateSnapshot
-} from "@hello-pangea/dnd"
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  useDraggable,
+  type DragStartEvent,
+  type DragEndEvent,
+  type DragOverEvent,
+} from "@dnd-kit/core"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Calendar, Flame, User, Building2 } from "lucide-react"
@@ -95,12 +99,156 @@ const getHeatClass = (probability: number) => {
   return "bg-sky-500"
 }
 
+/* ── Lead Card Content (shared between inline + drag overlay) ── */
+function LeadCardContent({ lead }: { lead: LeadKanbanItem }) {
+  return (
+    <div
+      className={cn(
+        "border-2 border-black bg-white overflow-hidden transition-all rounded-none",
+        "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
+      )}
+    >
+      <div className={cn("h-1.5 w-full", getHeatClass(lead.probability))} />
+      <div className="p-3 space-y-3">
+        <div>
+          <p className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide mb-1">
+            {lead.title}
+          </p>
+          <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-500">
+            <Building2 className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{lead.company || "No Company"}</span>
+          </div>
+        </div>
+
+        <div className="space-y-1.5 pt-2 border-t border-dashed border-zinc-200">
+          <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-600">
+            <User className="h-3 w-3" />
+            <span className="truncate">{lead.contactName}</span>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-400">
+            <Calendar className="h-3 w-3" />
+            <span>{formatDate(lead.updatedAt)}</span>
+          </div>
+        </div>
+
+        <div className="pt-2 flex items-center justify-between">
+          <p className="text-sm font-black text-zinc-900">{formatIDR(lead.estimatedValue)}</p>
+
+          {lead.probability >= 80 ? (
+            <div className="flex items-center gap-1 bg-orange-100 text-orange-700 border-2 border-orange-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
+              <Flame className="h-3 w-3 fill-orange-500" /> HOT
+            </div>
+          ) : (
+            <div className="text-[10px] font-bold text-zinc-400">
+              {lead.probability}% Prob.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Draggable Card ── */
+function DraggableLeadCard({ lead, isDragOverlay = false }: { lead: LeadKanbanItem; isDragOverlay?: boolean }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: lead.id,
+    data: { lead },
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={cn("mb-3", isDragging && "opacity-30")}
+    >
+      {isDragOverlay ? (
+        <div
+          className={cn(
+            "border-2 border-black bg-white overflow-hidden rounded-none",
+            "shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rotate-2 scale-105 z-50"
+          )}
+        >
+          <div className={cn("h-1.5 w-full", getHeatClass(lead.probability))} />
+          <div className="p-3 space-y-3">
+            <div>
+              <p className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide mb-1">
+                {lead.title}
+              </p>
+              <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-500">
+                <Building2 className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{lead.company || "No Company"}</span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-dashed border-zinc-200">
+              <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-600">
+                <User className="h-3 w-3" />
+                <span className="truncate">{lead.contactName}</span>
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-400">
+                <Calendar className="h-3 w-3" />
+                <span>{formatDate(lead.updatedAt)}</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-between">
+              <p className="text-sm font-black text-zinc-900">{formatIDR(lead.estimatedValue)}</p>
+
+              {lead.probability >= 80 ? (
+                <div className="flex items-center gap-1 bg-orange-100 text-orange-700 border-2 border-orange-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
+                  <Flame className="h-3 w-3 fill-orange-500" /> HOT
+                </div>
+              ) : (
+                <div className="text-[10px] font-bold text-zinc-400">
+                  {lead.probability}% Prob.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <LeadCardContent lead={lead} />
+      )}
+    </div>
+  )
+}
+
+/* ── Droppable Column ── */
+function DroppableColumn({ status, children }: { status: LeadStage; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+    data: { type: "Column", status },
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex-1 min-h-[200px] p-2 border-2 border-dashed transition-colors rounded-none overflow-y-auto",
+        isOver ? "border-black bg-zinc-200/50" : "border-zinc-300 bg-zinc-50"
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+/* ── Main Kanban ── */
 export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKanbanProps) {
   const [boardLeads, setBoardLeads] = useState<LeadKanbanItem[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   useEffect(() => {
     setBoardLeads(leads)
   }, [leads])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    })
+  )
 
   const grouped = useMemo(() => {
     return STATUS_ORDER.reduce<Record<LeadStage, LeadKanbanItem[]>>((acc, status) => {
@@ -114,21 +262,36 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
     })
   }, [boardLeads])
 
-  const onDragEnd = async (result: DropResult) => {
-    const { destination, source, draggableId } = result
-    if (!destination) return
-    if (source.droppableId === destination.droppableId) return
+  const activeLead = useMemo(() => {
+    if (!activeId) return null
+    return boardLeads.find((lead) => lead.id === activeId) ?? null
+  }, [activeId, boardLeads])
 
-    const newStatus = destination.droppableId as LeadStage
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }, [])
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    setActiveId(null)
+
+    const { active, over } = event
+    if (!over) return
+
+    const leadId = active.id as string
+    // over.id is the column status (droppable id)
+    const newStatus = over.id as LeadStage
+
+    // Find the current lead to check its status
+    const currentLead = boardLeads.find((l) => l.id === leadId)
+    if (!currentLead) return
+    if (currentLead.status === newStatus) return
+
     const previous = boardLeads
 
     setBoardLeads((current) =>
       current.map((lead) =>
-        lead.id === draggableId
-          ? {
-            ...lead,
-            status: newStatus,
-          }
+        lead.id === leadId
+          ? { ...lead, status: newStatus }
           : lead
       )
     )
@@ -136,11 +299,11 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
     if (!onStatusChange) return
 
     try {
-      await onStatusChange(draggableId, newStatus)
+      await onStatusChange(leadId, newStatus)
     } catch {
       setBoardLeads(previous)
     }
-  }
+  }, [boardLeads, onStatusChange])
 
   if (isLoading) {
     return (
@@ -157,7 +320,11 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
   }
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div className="h-full w-full bg-zinc-100/50 overflow-x-auto overflow-y-hidden">
         <div className="flex gap-3 p-4 h-full min-w-0">
           {STATUS_ORDER.map((status) => {
@@ -177,85 +344,22 @@ export function LeadKanban({ leads, isLoading = false, onStatusChange }: LeadKan
                   <p className="text-sm font-black text-zinc-900 tracking-tight">{formatIDR(totalValue)}</p>
                 </div>
 
-                <Droppable droppableId={status}>
-                  {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={cn(
-                        "flex-1 min-h-[200px] p-2 border-2 border-dashed transition-colors rounded-none overflow-y-auto",
-                        snapshot.isDraggingOver ? "border-black bg-zinc-200/50" : "border-zinc-300 bg-zinc-50"
-                      )}
-                    >
-                      {statusLeads.map((lead, index) => (
-                        <Draggable key={lead.id} draggableId={lead.id} index={index}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              {...dragProvided.dragHandleProps}
-                              style={dragProvided.draggableProps.style}
-                              className="mb-3"
-                            >
-                              <div
-                                className={cn(
-                                  "border-2 border-black bg-white overflow-hidden transition-all rounded-none",
-                                  dragSnapshot.isDragging
-                                    ? "shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rotate-2 scale-105 z-50"
-                                    : "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]"
-                                )}
-                              >
-                                <div className={cn("h-1.5 w-full", getHeatClass(lead.probability))} />
-                                <div className="p-3 space-y-3">
-                                  <div>
-                                    <p className="text-xs font-black leading-tight line-clamp-2 uppercase tracking-wide mb-1">
-                                      {lead.title}
-                                    </p>
-                                    <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-zinc-500">
-                                      <Building2 className="h-3 w-3 flex-shrink-0" />
-                                      <span className="truncate">{lead.company || "No Company"}</span>
-                                    </div>
-                                  </div>
-
-                                  <div className="space-y-1.5 pt-2 border-t border-dashed border-zinc-200">
-                                    <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-600">
-                                      <User className="h-3 w-3" />
-                                      <span className="truncate">{lead.contactName}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 text-[10px] font-medium text-zinc-400">
-                                      <Calendar className="h-3 w-3" />
-                                      <span>{formatDate(lead.updatedAt)}</span>
-                                    </div>
-                                  </div>
-
-                                  <div className="pt-2 flex items-center justify-between">
-                                    <p className="text-sm font-black text-zinc-900">{formatIDR(lead.estimatedValue)}</p>
-
-                                    {lead.probability >= 80 ? (
-                                      <div className="flex items-center gap-1 bg-orange-100 text-orange-700 border-2 border-orange-200 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider">
-                                        <Flame className="h-3 w-3 fill-orange-500" /> HOT
-                                      </div>
-                                    ) : (
-                                      <div className="text-[10px] font-bold text-zinc-400">
-                                        {lead.probability}% Prob.
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
+                <DroppableColumn status={status}>
+                  {statusLeads.map((lead) => (
+                    <DraggableLeadCard key={lead.id} lead={lead} />
+                  ))}
+                </DroppableColumn>
               </div>
             )
           })}
         </div>
       </div>
-    </DragDropContext>
+
+      <DragOverlay dropAnimation={null}>
+        {activeLead ? (
+          <DraggableLeadCard lead={activeLead} isDragOverlay />
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   )
 }

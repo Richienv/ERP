@@ -55,6 +55,8 @@ interface UnallocatedPayment {
     date: Date
     method: string
     reference: string | null
+    allocated?: boolean
+    invoiceNumber?: string | null
 }
 
 interface OpenInvoice {
@@ -96,6 +98,7 @@ interface ARPaymentsViewProps {
         invoicesQ: string | null
         customerId: string | null
     }
+    highlightPaymentId?: string
 }
 
 const METHOD_LABEL: Record<PaymentMethod, string> = {
@@ -109,13 +112,13 @@ const EMPTY_INVOICE_VALUE = "__NO_INVOICE__"
 
 const todayAsInput = () => new Date().toISOString().slice(0, 10)
 
-export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allCustomers, stats, registryMeta, registryQuery }: ARPaymentsViewProps) {
+export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allCustomers, stats, registryMeta, registryQuery, highlightPaymentId }: ARPaymentsViewProps) {
     const router = useRouter()
     const queryClient = useQueryClient()
     const pathname = usePathname()
     const searchParams = useSearchParams()
     const [processing, setProcessing] = useState<string | null>(null)
-    const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
+    const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(highlightPaymentId ?? null)
     const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null)
     const [paymentQuery, setPaymentQuery] = useState(registryQuery.paymentsQ || "")
     const [invoiceQuery, setInvoiceQuery] = useState(registryQuery.invoicesQ || "")
@@ -130,6 +133,16 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         notes: "",
         invoiceId: ""
     })
+
+    // Auto-scroll to highlighted payment from ?highlight= param
+    useEffect(() => {
+        if (!highlightPaymentId) return
+        const timer = setTimeout(() => {
+            const el = document.querySelector(`[data-payment-id="${highlightPaymentId}"]`)
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" })
+        }, 300)
+        return () => clearTimeout(timer)
+    }, [highlightPaymentId])
 
     const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
         const next = new URLSearchParams(searchParams.toString())
@@ -524,6 +537,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                     <button
                                         type="button"
                                         key={item.id}
+                                        data-payment-id={item.id}
                                         className={`w-full px-5 py-3 text-left transition-colors ${isSelected
                                             ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500"
                                             : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
@@ -551,6 +565,15 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                 }`}>
                                                 {METHOD_LABEL[item.method as PaymentMethod] ?? item.method}
                                             </span>
+                                            {item.allocated ? (
+                                                <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-emerald-50 border-emerald-200 text-emerald-600">
+                                                    {item.invoiceNumber ? `→ ${item.invoiceNumber}` : "Teralokasi"}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-orange-50 border-orange-200 text-orange-600">
+                                                    Belum dialokasi
+                                                </span>
+                                            )}
                                             {item.reference && (
                                                 <span className="text-[10px] font-medium text-zinc-400 truncate">Ref: {item.reference}</span>
                                             )}

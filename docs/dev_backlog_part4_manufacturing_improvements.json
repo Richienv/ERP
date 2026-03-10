@@ -1,0 +1,170 @@
+{
+  "metadata": {
+    "part": "4 of 5",
+    "title": "Manufacturing — Improvements & UX Enhancements",
+    "description": "UX improvements, workflow enhancements, and settings changes for the manufacturing module. Less critical than Part 3 bugs but important for usability.",
+    "module": "manufacturing",
+    "estimated_scope": "Frontend UX changes + minor backend adjustments",
+    "prerequisite": "Part 3 (Manufacturing Bugs) completed",
+    "feeds_into": "Part 5 (System-wide)"
+  },
+  "tasks": [
+    {
+      "id": "MTG-018",
+      "submodule": "work_order",
+      "type": "improvement",
+      "priority": "P1",
+      "title": "Notifikasi jelas jika SPK tidak bisa di-generate tanpa WC assignment",
+      "description": "Proses harus di-assign ke work center sebelum bisa generate SPK. Logika sudah benar tapi feedback ke user tidak jelas — user tidak tahu kenapa SPK tidak bisa di-generate.",
+      "action_required": [
+        "Jika belum ada WC assignment: disable tombol 'Generate SPK' + tooltip 'Proses harus di-assign ke work center terlebih dahulu'",
+        "Tampilkan status di work order: 'Draft — belum bisa generate SPK (proses belum di-assign ke work center)'",
+        "Jika semua proses sudah di-assign: enable tombol + status berubah"
+      ],
+      "files_likely_affected": [
+        "Frontend: work order detail page — generate SPK button logic",
+        "Frontend: status badge/indicator component"
+      ],
+      "expected_outcome": {
+        "before": "User klik generate SPK tanpa WC assignment → tidak jelas kenapa gagal. Bisa save as draft tapi tidak ada penjelasan kenapa terbatas.",
+        "after": "Tombol Generate SPK disabled dengan tooltip penjelasan. Status work order jelas: 'Draft — proses belum di-assign'. Setelah assign → tombol enabled, status berubah.",
+        "how_to_verify": [
+          "Buat work order baru tanpa assign WC → tombol Generate SPK disabled + ada tooltip/pesan",
+          "Assign semua proses ke WC → tombol enabled",
+          "Klik Generate SPK → berhasil"
+        ]
+      }
+    },
+    {
+      "id": "MTG-019",
+      "submodule": "process_management",
+      "type": "improvement",
+      "priority": "P2",
+      "title": "Pisahkan tampilan proses default dan custom + pilihan in-house/subcon saat create",
+      "description": "Proses custom (yang ditambah user, contoh: rebusan) dan default (cutting, sewing) tercampur. Juga, saat buat proses baru, default in-house tapi tidak ada pilihan langsung.",
+      "action_required": [
+        "Pisahkan daftar proses: section 'Default Processes' dan section 'Custom Processes'",
+        "Saat create proses baru: tambahkan pilihan langsung 'In-house' atau 'Subcon'",
+        "Default value tetap in-house, tapi user harus bisa pilih subcon dari awal"
+      ],
+      "files_likely_affected": [
+        "Frontend: process list page — add section grouping",
+        "Frontend: create process form — add type selector",
+        "Backend: process model mungkin sudah punya field type, pastikan diexpose"
+      ],
+      "expected_outcome": {
+        "before": "Semua proses tercampur dalam satu daftar. Buat proses baru → default in-house, harus edit lagi untuk ubah ke subcon.",
+        "after": "Daftar proses terorganisir: Default dan Custom terpisah. Buat proses baru → pilih in-house atau subcon langsung.",
+        "how_to_verify": [
+          "Buka daftar proses → ada dua section: Default dan Custom",
+          "Klik 'Tambah Proses' → form ada pilihan In-house / Subcon",
+          "Pilih Subcon → proses langsung tercatat sebagai subcon"
+        ]
+      }
+    },
+    {
+      "id": "MTG-020",
+      "submodule": "subprocess",
+      "type": "improvement",
+      "priority": "P2",
+      "title": "Sederhanakan tampilan subprocess — hapus input manual yang redundant",
+      "description": "Subprocess membingungkan karena sudah inherent dari proses yang dipilih (cutting → subproses sudah termasuk). User tidak perlu menambahkan lagi.",
+      "action_required": [
+        "Evaluasi: apakah user perlu input subprocess manual?",
+        "Jika TIDAK: hapus UI input subprocess, jadikan auto-populated dari proses yang dipilih",
+        "Jika YA: tambahkan penjelasan di UI apa bedanya subprocess vs proses utama",
+        "Rekomendasi dari meeting: hapus/sederhanakan"
+      ],
+      "files_likely_affected": [
+        "Frontend: work order form — subprocess section"
+      ],
+      "expected_outcome": {
+        "before": "Ada input subprocess yang membingungkan — user tidak tahu harus isi apa karena sudah dipilih di proses utama.",
+        "after": "Subprocess otomatis ter-populate dari proses yang dipilih, ATAU dihapus dari UI. Tidak membingungkan lagi.",
+        "how_to_verify": [
+          "Buat work order → pilih proses Cutting, Sewing, Washing",
+          "Tidak perlu input subprocess manual",
+          "UI bersih tanpa section yang membingungkan"
+        ]
+      }
+    },
+    {
+      "id": "MTG-021",
+      "submodule": "work_center",
+      "type": "improvement",
+      "priority": "P2",
+      "title": "Hapus opsi buat work center baru dari halaman work order",
+      "description": "Ada opsi create new work center dari halaman alokasi work order. Ini membingungkan — WC harus dibuat dari master.",
+      "action_required": [
+        "Hapus tombol/opsi 'Create New Work Center' dari halaman work order allocation",
+        "Ganti dengan dropdown select dari master work center yang sudah ada saja",
+        "Jika WC belum ada, user harus ke master WC dulu untuk membuat"
+      ],
+      "files_likely_affected": [
+        "Frontend: work order allocation form — remove create new WC button/link"
+      ],
+      "expected_outcome": {
+        "before": "Ada tombol buat WC baru di halaman work order → membingungkan dan bisa menyebabkan WC tidak terorganisir.",
+        "after": "Hanya dropdown pilih WC yang sudah ada. Tidak ada opsi buat baru di sini.",
+        "how_to_verify": [
+          "Buka halaman alokasi work order",
+          "Pastikan hanya ada dropdown select WC",
+          "Tidak ada tombol/link 'Create New Work Center'"
+        ]
+      }
+    },
+    {
+      "id": "MTG-023",
+      "submodule": "settings",
+      "type": "improvement",
+      "priority": "P2",
+      "title": "Pindahkan field gaji bulanan ke admin/HR settings",
+      "description": "Field gaji bulanan ada di process settings manufaktur — tidak tepat. Harus di admin settings atau HR module.",
+      "action_required": [
+        "Hapus field 'monthly salary' dari process settings",
+        "Tambahkan ke admin settings atau HR module",
+        "Jika field ini direferensikan di kalkulasi manufaktur → update referensi ke lokasi baru"
+      ],
+      "files_likely_affected": [
+        "Frontend: process settings form — remove field",
+        "Frontend: admin settings atau HR settings — add field",
+        "Backend: pastikan referensi data tetap terhubung"
+      ],
+      "expected_outcome": {
+        "before": "Field gaji bulanan ada di pengaturan proses manufaktur — salah tempat.",
+        "after": "Field ada di admin settings atau HR module. Tidak ada lagi di process settings.",
+        "how_to_verify": [
+          "Buka process settings → field gaji bulanan tidak ada",
+          "Buka admin/HR settings → field gaji bulanan ada",
+          "Kalkulasi yang butuh data gaji tetap berfungsi"
+        ]
+      }
+    },
+    {
+      "id": "MTG-024",
+      "submodule": "time_study",
+      "type": "investigation",
+      "priority": "P3",
+      "title": "Evaluasi kegunaan fitur time study",
+      "description": "Time study ada tapi kegunaan di dunia nyata dipertanyakan. Contoh: aktual 10 menit, planning 15 menit, solusi 12 menit. Koneksi ke fitur lain belum jelas.",
+      "action_required": [
+        "Evaluasi: apakah ada use case nyata? Tanya user/Raymond",
+        "Jika YA: hubungkan ke actual vs estimate production reporting",
+        "Jika TIDAK: hapus dari UI atau hide di advanced settings",
+        "Jangan implementasi apapun sampai keputusan dibuat"
+      ],
+      "expected_outcome": {
+        "option_a": {
+          "decision": "Berguna",
+          "result": "Time study terhubung ke production reporting. Bisa lihat: estimate 15 min, actual 10 min, variance -5 min."
+        },
+        "option_b": {
+          "decision": "Tidak berguna",
+          "result": "Time study dihapus dari UI. Interface lebih clean."
+        }
+      },
+      "notes": "PENDING — Tidak ada action sampai keputusan dari tim. Ini investigation, bukan implementation."
+    }
+  ],
+  "completion_criteria": "Part 4 selesai ketika: (1) SPK generation punya notifikasi jelas, (2) Proses default/custom terpisah, (3) Subprocess disederhanakan, (4) Create WC dihapus dari WO page, (5) Gaji pindah ke admin/HR. Time study PENDING keputusan."
+}

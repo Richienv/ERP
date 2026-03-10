@@ -30,13 +30,15 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { receiveGoodsFromPO } from "@/app/actions/inventory";
-import { Loader2, PackagePlus, Box, CheckCircle2, Truck } from "lucide-react";
+import { Loader2, PackagePlus, Box, CheckCircle2, Truck, Warehouse } from "lucide-react";
 import { NB } from "@/lib/dialog-styles";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import { useWarehouses } from "@/hooks/use-warehouses";
 
 const formSchema = z.object({
   poId: z.string().min(1, "Purchase Order is required"),
+  warehouseId: z.string().min(1, "Gudang tujuan harus dipilih"),
   receivedQty: z.coerce.number().min(1, "Quantity must be at least 1"),
 });
 
@@ -67,11 +69,15 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
   const [loading, setLoading] = useState(false);
   const [selectedPO, setSelectedPO] = useState<OpenPO | null>(null);
   const queryClient = useQueryClient();
+  const { data: allWarehouses } = useWarehouses();
+
+  const defaultWarehouse = item.warehouses[0]?.id || "";
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema) as any,
     defaultValues: {
       poId: openPOs.length === 1 ? openPOs[0].id : "",
+      warehouseId: defaultWarehouse,
       receivedQty: openPOs.length === 1 ? openPOs[0].remainingQty : 0,
     },
   });
@@ -81,9 +87,10 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
       const defaultPO = openPOs[0];
       setSelectedPO(defaultPO);
       form.setValue("poId", defaultPO.id);
+      form.setValue("warehouseId", defaultWarehouse);
       form.setValue("receivedQty", defaultPO.remainingQty);
     }
-  }, [open, openPOs, form]);
+  }, [open, openPOs, form, defaultWarehouse]);
 
   const handlePOSelect = (poId: string) => {
     const po = openPOs.find((p) => p.id === poId);
@@ -101,7 +108,7 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
       const result = await receiveGoodsFromPO({
         itemId: item.id,
         poId: values.poId,
-        warehouseId: item.warehouses[0]?.id || "",
+        warehouseId: values.warehouseId,
         receivedQty: values.receivedQty,
       });
 
@@ -237,6 +244,37 @@ export function GoodsReceiptDialog({ item, openPOs, onSuccess }: GoodsReceiptDia
                         </div>
                       </div>
                     )}
+
+                    <FormField
+                      control={form.control as any}
+                      name="warehouseId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <label className={NB.label}>
+                            <Warehouse className="inline h-3.5 w-3.5 mr-1" />
+                            Gudang Tujuan <span className={NB.labelRequired}>*</span>
+                          </label>
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
+                          >
+                            <FormControl>
+                              <SelectTrigger className="border-2 border-black rounded-none">
+                                <SelectValue placeholder="Pilih gudang..." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {(allWarehouses ?? item.warehouses).map((wh: any) => (
+                                <SelectItem key={wh.id} value={wh.id}>
+                                  {wh.code ? `${wh.code} — ${wh.name}` : wh.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
                     <FormField
                       control={form.control as any}

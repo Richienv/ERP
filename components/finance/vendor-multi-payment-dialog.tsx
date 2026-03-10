@@ -35,6 +35,7 @@ import { recordMultiBillPayment } from "@/lib/actions/finance"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { useBankAccounts } from "@/hooks/use-bank-accounts"
 import type { VendorBill } from "@/lib/actions/finance-ap"
 
 type PaymentMethod = "TRANSFER" | "CHECK" | "CASH"
@@ -76,8 +77,10 @@ export function VendorMultiPaymentDialog({
     vendorAPBalances = [],
 }: VendorMultiPaymentDialogProps) {
     const queryClient = useQueryClient()
+    const { data: bankAccounts } = useBankAccounts()
     const [selectedVendorId, setSelectedVendorId] = useState("")
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("TRANSFER")
+    const [bankAccountCode, setBankAccountCode] = useState("1010")
     const [reference, setReference] = useState("")
     const [notes, setNotes] = useState("")
     const [submitting, setSubmitting] = useState(false)
@@ -180,6 +183,7 @@ export function VendorMultiPaymentDialog({
                 method: paymentMethod,
                 reference: reference.trim() || undefined,
                 notes: notes.trim() || undefined,
+                bankAccountCode,
             })
 
             if (result.success) {
@@ -194,6 +198,7 @@ export function VendorMultiPaymentDialog({
                 setReference("")
                 setNotes("")
                 setPaymentMethod("TRANSFER")
+                setBankAccountCode("1010")
                 onOpenChange(false)
 
                 // Invalidate all related queries
@@ -219,6 +224,7 @@ export function VendorMultiPaymentDialog({
         setReference("")
         setNotes("")
         setPaymentMethod("TRANSFER")
+        setBankAccountCode("1010")
         onOpenChange(false)
     }
 
@@ -272,7 +278,11 @@ export function VendorMultiPaymentDialog({
                                         </Label>
                                         <Select
                                             value={paymentMethod}
-                                            onValueChange={(v) => setPaymentMethod(v as PaymentMethod)}
+                                            onValueChange={(v) => {
+                                                const m = v as PaymentMethod
+                                                setPaymentMethod(m)
+                                                setBankAccountCode(m === "CASH" ? "1000" : "1010")
+                                            }}
                                         >
                                             <SelectTrigger className={NB.select}>
                                                 <SelectValue />
@@ -281,6 +291,28 @@ export function VendorMultiPaymentDialog({
                                                 <SelectItem value="TRANSFER">Transfer Bank</SelectItem>
                                                 <SelectItem value="CHECK">Cek / Giro</SelectItem>
                                                 <SelectItem value="CASH">Tunai</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-1.5">
+                                        <Label className={NB.label}>
+                                            Akun Pembayaran <span className={NB.labelRequired}>*</span>
+                                        </Label>
+                                        <Select
+                                            value={bankAccountCode}
+                                            onValueChange={setBankAccountCode}
+                                        >
+                                            <SelectTrigger className={NB.select}>
+                                                <SelectValue placeholder="Pilih akun..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {bankAccounts?.map((a) => (
+                                                    <SelectItem key={a.code} value={a.code}>
+                                                        {a.code} — {a.name}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -484,7 +516,7 @@ export function VendorMultiPaymentDialog({
                                         <span className="text-right font-mono">{formatIDR(totalAllocated)}</span>
                                         <span className="text-right font-mono">-</span>
 
-                                        <span>1010 - Bank</span>
+                                        <span>{bankAccountCode} - {bankAccounts?.find(a => a.code === bankAccountCode)?.name || 'Cash/Bank'}</span>
                                         <span className="text-right font-mono">-</span>
                                         <span className="text-right font-mono">{formatIDR(totalAllocated)}</span>
                                     </div>

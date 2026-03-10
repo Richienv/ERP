@@ -24,6 +24,8 @@ interface TransactionEntry {
     paymentId: string | null
     paymentNumber: string | null
     paymentMethod: string | null
+    paymentSupplierId: string | null
+    paymentCustomerId: string | null
     lines: TransactionLine[]
 }
 
@@ -40,11 +42,25 @@ export interface AccountTransactionsData {
     accounts: AccountInfo[]
 }
 
-export function useAccountTransactions() {
+export interface TransactionFilters {
+    dateFrom?: string
+    dateTo?: string
+    accounts?: string[]
+    search?: string
+}
+
+export function useAccountTransactions(filters?: TransactionFilters) {
+    const params = new URLSearchParams()
+    params.set("limit", "500")
+    if (filters?.dateFrom) params.set("dateFrom", filters.dateFrom)
+    if (filters?.dateTo) params.set("dateTo", filters.dateTo)
+    if (filters?.accounts?.length) params.set("accounts", filters.accounts.join(","))
+    if (filters?.search) params.set("search", filters.search)
+
     return useQuery<AccountTransactionsData>({
-        queryKey: queryKeys.accountTransactions.list(),
+        queryKey: [...queryKeys.accountTransactions.list(), filters ?? {}],
         queryFn: async () => {
-            const res = await fetch("/api/finance/transactions?limit=500")
+            const res = await fetch(`/api/finance/transactions?${params.toString()}`)
             const json = await res.json()
             if (!json.success) throw new Error(json.error || "Failed to load transactions")
             return { entries: json.entries ?? [], accounts: json.accounts ?? [] }

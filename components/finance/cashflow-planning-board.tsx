@@ -24,6 +24,8 @@ import {
     IconScale,
     IconEdit,
     IconRefresh,
+    IconCalendarWeek,
+    IconHistory,
 } from "@tabler/icons-react"
 import { saveCashflowSnapshot, overrideStartingBalance } from "@/lib/actions/finance-cashflow"
 import type { CashflowPlanData, CashflowItem } from "@/lib/actions/finance-cashflow"
@@ -41,6 +43,7 @@ const DAY_HEADERS = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"]
 const CATEGORY_COLORS: Record<string, string> = {
     AR_INVOICE: "bg-emerald-100 text-emerald-800 border-emerald-300",
     AP_BILL: "bg-red-100 text-red-800 border-red-300",
+    PO_DIRECT: "bg-indigo-100 text-indigo-800 border-indigo-300",
     PAYROLL: "bg-orange-100 text-orange-800 border-orange-300",
     BPJS: "bg-amber-100 text-amber-800 border-amber-300",
     PETTY_CASH: "bg-slate-100 text-slate-800 border-slate-300",
@@ -49,11 +52,16 @@ const CATEGORY_COLORS: Record<string, string> = {
     MANUAL: "bg-zinc-100 text-zinc-800 border-zinc-300",
     RECURRING_EXPENSE: "bg-rose-100 text-rose-800 border-rose-300",
     RECURRING_INCOME: "bg-teal-100 text-teal-800 border-teal-300",
+    FUNDING_CAPITAL: "bg-cyan-100 text-cyan-800 border-cyan-300",
+    EQUITY_WITHDRAWAL: "bg-pink-100 text-pink-800 border-pink-300",
+    LOAN_DISBURSEMENT: "bg-sky-100 text-sky-800 border-sky-300",
+    LOAN_REPAYMENT: "bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300",
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
     AR_INVOICE: "Piutang",
     AP_BILL: "Hutang",
+    PO_DIRECT: "PO Langsung",
     PAYROLL: "Gaji",
     BPJS: "BPJS",
     PETTY_CASH: "Peti Kas",
@@ -62,6 +70,10 @@ const CATEGORY_LABELS: Record<string, string> = {
     MANUAL: "Manual",
     RECURRING_EXPENSE: "Beban Berulang",
     RECURRING_INCOME: "Pendapatan Berulang",
+    FUNDING_CAPITAL: "Modal Masuk",
+    EQUITY_WITHDRAWAL: "Penarikan Ekuitas",
+    LOAN_DISBURSEMENT: "Pencairan Pinjaman",
+    LOAN_REPAYMENT: "Cicilan Pinjaman",
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -292,6 +304,28 @@ export function CashflowPlanningBoard({
                 />
             </div>
 
+            {/* ─── Last Month Reference ─────────────────────────────── */}
+            {data.lastMonthSummary && (
+                <div className="border-2 border-black bg-blue-50 px-4 py-2.5 flex items-center gap-4 text-xs font-bold">
+                    <IconHistory size={14} className="text-blue-600 flex-shrink-0" />
+                    <span className="text-blue-800">
+                        Ref. bulan lalu:
+                    </span>
+                    <span className="text-emerald-700">
+                        Masuk {formatCurrency(data.lastMonthSummary.totalIn)}
+                    </span>
+                    <span className="text-red-700">
+                        Keluar {formatCurrency(data.lastMonthSummary.totalOut)}
+                    </span>
+                    <span className={data.lastMonthSummary.netFlow >= 0 ? "text-emerald-700" : "text-red-700"}>
+                        Nett {data.lastMonthSummary.netFlow >= 0 ? "+" : ""}{formatCurrency(data.lastMonthSummary.netFlow)}
+                    </span>
+                    <span className="text-zinc-500 ml-auto">
+                        {data.lastMonthSummary.itemCount} transaksi
+                    </span>
+                </div>
+            )}
+
             {/* ─── Snapshot Info ───────────────────────────────────── */}
             {data.snapshot && (
                 <div className="border-2 border-black bg-amber-50 px-4 py-2 text-xs font-bold flex items-center gap-2">
@@ -347,6 +381,13 @@ export function CashflowPlanningBoard({
                     />
                 </TabsContent>
             </Tabs>
+
+            {/* ─── Weekly Summary ──────────────────────────────────── */}
+            <WeeklySummary
+                items={activeTab === "planning" ? planItems : data.actualItems}
+                month={month}
+                year={year}
+            />
 
             {/* ─── Running Balance Table ──────────────────────────── */}
             <RunningBalanceTable
@@ -499,7 +540,7 @@ function CalendarGrid({
     year,
     startPad,
     totalDays,
-    _startingBalance,
+    startingBalance: _startingBalance,
     onEditItem,
 }: {
     items: CashflowItem[]
@@ -731,6 +772,91 @@ function RunningBalanceTable({
                         )}
                     </tbody>
                 </table>
+            </div>
+        </div>
+    )
+}
+
+// ─── Weekly Summary ──────────────────────────────────────────────────────────
+
+function WeeklySummary({
+    items,
+    month,
+    year,
+}: {
+    items: CashflowItem[]
+    month: number
+    year: number
+}) {
+    const lastDay = new Date(year, month, 0).getDate()
+    const weeks = [
+        { label: "Minggu 1", start: 1, end: 7 },
+        { label: "Minggu 2", start: 8, end: 14 },
+        { label: "Minggu 3", start: 15, end: 21 },
+        { label: "Minggu 4", start: 22, end: lastDay },
+    ]
+
+    const weekData = weeks.map(w => {
+        const weekItems = items.filter(item => {
+            const day = parseInt(item.date.split("-")[2], 10)
+            return day >= w.start && day <= w.end
+        })
+        const totalIn = weekItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
+        const totalOut = weekItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
+        return { ...w, totalIn, totalOut, net: totalIn - totalOut, count: weekItems.length }
+    })
+
+    const grandIn = weekData.reduce((s, w) => s + w.totalIn, 0)
+    const grandOut = weekData.reduce((s, w) => s + w.totalOut, 0)
+
+    return (
+        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white overflow-hidden">
+            <div className="bg-black text-white px-4 py-2.5 flex items-center gap-2">
+                <IconCalendarWeek size={16} />
+                <span className="text-xs font-black uppercase tracking-wider">
+                    Ringkasan Mingguan — {MONTH_NAMES[month]} {year}
+                </span>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 divide-x-2 divide-black">
+                {weekData.map(w => (
+                    <div key={w.label} className="p-4">
+                        <div className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1">
+                            {w.label}
+                        </div>
+                        <div className="text-[9px] text-zinc-400 mb-2">
+                            {String(w.start).padStart(2, "0")}-{String(w.end).padStart(2, "0")}/{String(month).padStart(2, "0")} · {w.count} item
+                        </div>
+                        <div className="space-y-1">
+                            <div className="flex justify-between text-xs">
+                                <span className="text-zinc-500">Masuk</span>
+                                <span className="font-bold text-emerald-600">+{formatCompact(w.totalIn)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                                <span className="text-zinc-500">Keluar</span>
+                                <span className="font-bold text-red-600">-{formatCompact(w.totalOut)}</span>
+                            </div>
+                            <div className="border-t border-zinc-200 pt-1 flex justify-between text-xs">
+                                <span className="text-zinc-500 font-bold">Nett</span>
+                                <span className={`font-black ${w.net >= 0 ? "text-emerald-700" : "text-red-700"}`}>
+                                    {w.net >= 0 ? "+" : ""}{formatCompact(w.net)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Grand total row */}
+            <div className="border-t-2 border-black bg-zinc-50 px-4 py-2.5 flex items-center justify-between text-xs font-black">
+                <span className="uppercase tracking-wider text-zinc-500">Total Bulan</span>
+                <div className="flex gap-6">
+                    <span className="text-emerald-600">+{formatCompact(grandIn)}</span>
+                    <span className="text-red-600">-{formatCompact(grandOut)}</span>
+                    <span className={grandIn - grandOut >= 0 ? "text-emerald-700" : "text-red-700"}>
+                        Nett {grandIn - grandOut >= 0 ? "+" : ""}{formatCompact(grandIn - grandOut)}
+                    </span>
+                </div>
             </div>
         </div>
     )

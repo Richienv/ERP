@@ -1,0 +1,7 @@
+TANGGAL,DESKRIPSI,JUMLAH,REFERENSI
+2026-01-15,Setoran modal awal pemegang saham,500000000,JV-MODAL-JAN26
+2026-02-21,Pembayaran supplier bahan baku,-30000,PAY-BILL-PO
+2026-02-21,Transfer keluar operasional,-900000,VPAY-2026-0001
+2026-02-24,Penerimaan pelunasan retail,135883,PAY-1771938081769
+2026-02-24,Transfer biaya admin bank,-100,PAY-1771937944603
+2026-02-28,Pembayaran gaji karyawan Feb 2026,-45000000,PAY-GAJI-FEB26

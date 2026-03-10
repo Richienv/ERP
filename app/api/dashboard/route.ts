@@ -39,11 +39,11 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 export async function GET() {
     try {
         const [financials, operations, activity, charts, sales] = await Promise.all([
-            withTimeout(getDashboardFinancials().catch(() => FALLBACK_FINANCIALS), 8000, FALLBACK_FINANCIALS),
-            withTimeout(getDashboardOperations().catch(() => FALLBACK_OPERATIONS), 8000, FALLBACK_OPERATIONS),
-            withTimeout(getDashboardActivity().catch(() => FALLBACK_ACTIVITY), 8000, FALLBACK_ACTIVITY),
-            withTimeout(getDashboardCharts().catch(() => FALLBACK_CHARTS), 8000, FALLBACK_CHARTS),
-            withTimeout(getSalesStats().catch(() => FALLBACK_SALES), 8000, FALLBACK_SALES),
+            withTimeout(getDashboardFinancials().catch(() => FALLBACK_FINANCIALS), 5000, FALLBACK_FINANCIALS),
+            withTimeout(getDashboardOperations().catch(() => FALLBACK_OPERATIONS), 5000, FALLBACK_OPERATIONS),
+            withTimeout(getDashboardActivity().catch(() => FALLBACK_ACTIVITY), 5000, FALLBACK_ACTIVITY),
+            withTimeout(getDashboardCharts().catch(() => FALLBACK_CHARTS), 5000, FALLBACK_CHARTS),
+            withTimeout(getSalesStats().catch(() => FALLBACK_SALES), 5000, FALLBACK_SALES),
         ])
 
         return NextResponse.json({

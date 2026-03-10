@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { SubkonSelector } from "./subkon-selector"
 import { InHouseAllocator } from "./inhouse-allocator"
 import { calcItemCostPerUnit, calcStepMaterialCost, calcLaborCostPerPcs, WORKING_HOURS_PER_MONTH, type BOMItemWithCost } from "./bom-cost-helpers"
 import { formatCurrency } from "@/lib/inventory-utils"
+import { useEmployees } from "@/hooks/use-employees"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -78,6 +79,21 @@ export function DetailPanel({
     onToggleSubkon,
 }: DetailPanelProps) {
     const [showInhouseAlloc, setShowInhouseAlloc] = useState(false)
+    const { data: employees } = useEmployees()
+
+    // Build employee options for operator selector
+    const employeeOptions = useMemo(() => {
+        if (!employees) return []
+        return employees
+            .filter((e: any) => e.status === "ACTIVE")
+            .map((e: any) => ({
+                id: e.id,
+                name: `${e.firstName}${e.lastName ? " " + e.lastName : ""}`,
+                position: e.position || "",
+                department: e.department || "",
+                salary: Number(e.baseSalary || 0),
+            }))
+    }, [employees])
 
     if (!step) return null
 
@@ -217,17 +233,51 @@ export function DetailPanel({
                                     />
                                 </div>
 
-                                {/* Operator — in-house only */}
+                                {/* Operator — in-house only (employee selector) */}
                                 {!isSubkon && (
                                     <div>
                                         <FieldLabel icon={<User className="h-3 w-3" />}>Operator</FieldLabel>
-                                        <Input
-                                            type="text"
-                                            value={step.operatorName || ""}
-                                            onChange={(e) => onUpdateStep("operatorName", e.target.value || null)}
-                                            className="h-8 text-xs border-zinc-200 rounded-none placeholder:text-zinc-300"
-                                            placeholder="Nama..."
-                                        />
+                                        <Select
+                                            value={
+                                                // Match by name to find employee id
+                                                employeeOptions.find((e: any) => e.name === step.operatorName)?.id || "__manual__"
+                                            }
+                                            onValueChange={(val) => {
+                                                if (val === "__manual__") {
+                                                    // Clear to manual mode
+                                                    onUpdateStep("operatorName", null)
+                                                    return
+                                                }
+                                                const emp = employeeOptions.find((e: any) => e.id === val)
+                                                if (emp) {
+                                                    onUpdateStep("operatorName", emp.name)
+                                                    // Auto-populate salary from employee data
+                                                    if (emp.salary > 0) {
+                                                        onUpdateStep("laborMonthlySalary", emp.salary)
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            <SelectTrigger className="h-8 text-xs border-zinc-200 rounded-none">
+                                                <SelectValue placeholder="Pilih karyawan..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="__manual__" className="text-xs text-zinc-400">
+                                                    — Kosongkan —
+                                                </SelectItem>
+                                                {employeeOptions.map((emp: any) => (
+                                                    <SelectItem key={emp.id} value={emp.id} className="text-xs">
+                                                        {emp.name}
+                                                        {emp.position && <span className="text-zinc-400 ml-1">({emp.position})</span>}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        {step.operatorName && !employeeOptions.find((e: any) => e.name === step.operatorName) && (
+                                            <p className="text-[9px] text-amber-600 font-bold mt-1">
+                                                Manual: {step.operatorName}
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
@@ -246,6 +296,26 @@ export function DetailPanel({
                                             className="h-8 text-xs font-mono border-zinc-200 rounded-none placeholder:text-zinc-300"
                                             placeholder="4000000"
                                         />
+                                        {(() => {
+                                            const matchedEmp = employeeOptions.find((e: any) => e.name === step.operatorName)
+                                            const salaryFromEmp = matchedEmp?.salary || 0
+                                            const currentSalary = Number(step.laborMonthlySalary || 0)
+                                            if (matchedEmp && salaryFromEmp > 0 && currentSalary === salaryFromEmp) {
+                                                return (
+                                                    <p className="text-[9px] text-emerald-600 font-bold mt-1">
+                                                        Dari data karyawan ({matchedEmp.name})
+                                                    </p>
+                                                )
+                                            }
+                                            if (matchedEmp && salaryFromEmp > 0 && currentSalary !== salaryFromEmp) {
+                                                return (
+                                                    <p className="text-[9px] text-amber-600 font-bold mt-1">
+                                                        Override manual (karyawan: {formatCurrency(salaryFromEmp)})
+                                                    </p>
+                                                )
+                                            }
+                                            return null
+                                        })()}
                                         {durationMin > 0 && Number(step.laborMonthlySalary || 0) > 0 && (
                                             <div className="mt-2 space-y-1 bg-emerald-50 border border-emerald-200 p-2">
                                                 <div className="flex justify-between text-[9px]">

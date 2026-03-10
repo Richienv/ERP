@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 interface DashboardViewProps {
     pulseBarSlot: ReactNode
     kpiCardsSlot: ReactNode
+    todaysTasksSlot?: ReactNode
     actionCenterSlot: ReactNode
     financialHealthSlot: ReactNode
     warehouseSlot: ReactNode
@@ -21,6 +22,7 @@ const fadeIn = {
 export function DashboardView({
     pulseBarSlot,
     kpiCardsSlot,
+    todaysTasksSlot,
     actionCenterSlot,
     financialHealthSlot,
     warehouseSlot,
@@ -48,6 +50,17 @@ export function DashboardView({
                 >
                     {kpiCardsSlot}
                 </motion.div>
+
+                {/* Row 2.5: Today's Tasks */}
+                {todaysTasksSlot && (
+                    <motion.div
+                        className="flex-none"
+                        {...fadeIn}
+                        transition={{ duration: 0.3, delay: 0.06 }}
+                    >
+                        {todaysTasksSlot}
+                    </motion.div>
+                )}
 
                 {/* Row 3: Action Center + Financial Health */}
                 <motion.div

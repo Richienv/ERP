@@ -1,10 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { IconChevronRight, IconLock, type Icon } from "@tabler/icons-react"
+import { IconChevronRight, IconLock } from "@tabler/icons-react"
 import { useNavPrefetch } from "@/hooks/use-nav-prefetch"
+import type { SidebarNavItem } from "@/lib/sidebar-nav-data"
 
 import {
   Collapsible,
@@ -20,7 +21,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -29,23 +29,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-export function NavMain({
-  items,
-}: {
-  items: {
-    title: string
-    url: string
-    icon?: Icon
-    locked?: boolean
-    badge?: number
-    items?: {
-      title: string
-      url: string
-      locked?: boolean
-      badge?: number
-    }[]
-  }[]
-}) {
+export function NavMain({ items }: { items: SidebarNavItem[] }) {
   const pathname = usePathname()
   const router = useRouter()
   const { prefetchRoute } = useNavPrefetch()
@@ -53,9 +37,35 @@ export function NavMain({
   const isCollapsed = state === "collapsed"
   const [openPopover, setOpenPopover] = useState<string | null>(null)
 
+  const GroupSeparator = ({ label }: { label: string }) => (
+    <li className="px-3 pt-4 pb-1.5">
+      <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.15em]">
+        {label}
+      </span>
+    </li>
+  )
+
+  const getBadgeColor = (severity?: "info" | "warning" | "critical") => {
+    switch (severity) {
+      case "info": return "bg-amber-500"
+      case "warning": return "bg-orange-500"
+      case "critical": return "bg-red-500"
+      default: return "bg-red-500"
+    }
+  }
+
+  const AccentIcon = ({ item }: { item: SidebarNavItem }) => (
+    <span className="relative inline-flex">
+      {item.icon && <item.icon className="!size-[18px]" />}
+      {item.accentColor && (
+        <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${item.accentColor}`} />
+      )}
+    </span>
+  )
+
   return (
     <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col gap-0.5">
+      <SidebarGroupContent className="flex flex-col gap-1">
         <SidebarMenu>
           {items.map((item) => {
             const isActive = pathname === item.url || pathname.startsWith(item.url + "/")
@@ -70,8 +80,8 @@ export function NavMain({
                       disabled
                       className="opacity-40 cursor-not-allowed pointer-events-none"
                     >
-                      {item.icon && <item.icon className="!size-4" />}
-                      <span className="text-[13px] font-medium tracking-tight">{item.title}</span>
+                      <AccentIcon item={item} />
+                      <span className="text-[13.5px] font-medium tracking-tight">{item.title}</span>
                       <IconLock className="ml-auto !size-3.5 text-zinc-400" />
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -89,14 +99,14 @@ export function NavMain({
                           data-slot="sidebar-menu-button"
                           data-sidebar="menu-button"
                           data-size="default"
-                          className={`flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground h-8 text-sm group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 ${
+                          className={`flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-[width,height,padding] focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground h-9 text-sm group-data-[collapsible=icon]:size-9! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0 ${
                             isActive
                               ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none"
                               : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
                           }`}
                         >
-                          {item.icon && <item.icon className="!size-4" />}
-                          <span className="text-[13px] tracking-tight">{item.title}</span>
+                          <AccentIcon item={item} />
+                          <span className="text-[13.5px] tracking-tight">{item.title}</span>
                         </button>
                       </PopoverTrigger>
                       <PopoverContent
@@ -109,7 +119,7 @@ export function NavMain({
                         {item.items!.map((subItem) => {
                           if (subItem.locked) {
                             return (
-                              <div key={subItem.title} className="flex items-center px-3 py-1.5 text-[12px] text-zinc-400 cursor-not-allowed">
+                              <div key={subItem.title} className="flex items-center px-3 py-2 text-[12.5px] text-zinc-400 cursor-not-allowed">
                                 <span>{subItem.title}</span>
                                 <IconLock className="ml-auto !size-3" />
                               </div>
@@ -117,27 +127,33 @@ export function NavMain({
                           }
                           const isSubActive = pathname === subItem.url
                           return (
-                            <button
-                              key={subItem.title}
-                              type="button"
-                              onClick={() => {
-                                setOpenPopover(null)
-                                router.push(subItem.url)
-                              }}
-                              onMouseEnter={() => prefetchRoute(subItem.url)}
-                              className={`flex w-full items-center px-3 py-1.5 text-[12px] font-medium transition-colors ${
-                                isSubActive
-                                  ? "bg-zinc-900 text-white font-bold"
-                                  : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                              }`}
-                            >
-                              <span>{subItem.title}</span>
-                              {subItem.badge && subItem.badge > 0 ? (
-                                <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white tabular-nums">
-                                  {subItem.badge > 99 ? "99+" : subItem.badge}
-                                </span>
-                              ) : null}
-                            </button>
+                            <React.Fragment key={subItem.title}>
+                              {subItem.group && (
+                                <p className="px-3 pt-2 pb-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
+                                  {subItem.group}
+                                </p>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenPopover(null)
+                                  router.push(subItem.url)
+                                }}
+                                onMouseEnter={() => prefetchRoute(subItem.url)}
+                                className={`flex w-full items-center px-3 py-2 text-[12.5px] font-medium transition-colors ${
+                                  isSubActive
+                                    ? "bg-zinc-900 text-white font-bold"
+                                    : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                                }`}
+                              >
+                                <span>{subItem.title}</span>
+                                {subItem.badge && subItem.badge > 0 ? (
+                                  <span className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full ${getBadgeColor(subItem.badgeSeverity)} px-1 text-[9px] font-black text-white tabular-nums`}>
+                                    {subItem.badge > 99 ? "99+" : subItem.badge}
+                                  </span>
+                                ) : null}
+                              </button>
+                            </React.Fragment>
                           )
                         })}
                       </PopoverContent>
@@ -163,8 +179,8 @@ export function NavMain({
                             : "hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-none font-medium"
                         }
                       >
-                        {item.icon && <item.icon className="!size-4" />}
-                        <span className="text-[13px] tracking-tight">{item.title}</span>
+                        <AccentIcon item={item} />
+                        <span className="text-[13.5px] tracking-tight">{item.title}</span>
                         {item.badge && item.badge > 0 ? (
                           <span className="ml-auto mr-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white tabular-nums">
                             {item.badge > 99 ? "99+" : item.badge}
@@ -174,41 +190,47 @@ export function NavMain({
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenuSub className="border-l-2 border-zinc-200 dark:border-zinc-700 ml-4 pl-2.5 mr-0 py-0.5">
+                      <SidebarMenuSub className="border-l border-zinc-200 dark:border-zinc-700 ml-4 pl-3 mr-0 py-1.5">
                         {item.items!.map((subItem) => {
                           if (subItem.locked) {
                             return (
-                              <SidebarMenuSubItem key={subItem.title}>
-                                <SidebarMenuSubButton
-                                  className="opacity-40 cursor-not-allowed pointer-events-none text-[12px] font-medium"
-                                >
-                                  <span>{subItem.title}</span>
-                                  <IconLock className="ml-auto !size-3 text-zinc-400" />
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
+                              <React.Fragment key={subItem.title}>
+                                {subItem.group && <GroupSeparator label={subItem.group} />}
+                                <SidebarMenuSubItem>
+                                  <SidebarMenuSubButton
+                                    className="opacity-40 cursor-not-allowed pointer-events-none text-[12.5px] font-medium"
+                                  >
+                                    <span>{subItem.title}</span>
+                                    <IconLock className="ml-auto !size-3 text-zinc-400" />
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              </React.Fragment>
                             )
                           }
                           const isSubActive = pathname === subItem.url
                           return (
-                            <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton
-                                asChild
-                                className={
-                                  isSubActive
-                                    ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none text-[12px]"
-                                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-none text-[12px] font-medium"
-                                }
-                              >
-                                <Link href={subItem.url} prefetch onMouseEnter={() => prefetchRoute(subItem.url)} className="flex items-center w-full">
-                                  <span>{subItem.title}</span>
-                                  {subItem.badge && subItem.badge > 0 ? (
-                                    <span className="ml-auto flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white tabular-nums">
-                                      {subItem.badge > 99 ? "99+" : subItem.badge}
-                                    </span>
-                                  ) : null}
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
+                            <React.Fragment key={subItem.title}>
+                              {subItem.group && <GroupSeparator label={subItem.group} />}
+                              <SidebarMenuSubItem>
+                                <SidebarMenuSubButton
+                                  asChild
+                                  className={
+                                    isSubActive
+                                      ? "bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white active:bg-zinc-800 active:text-white font-bold rounded-none text-[12.5px] border-l-2 border-black -ml-[2px] pl-[calc(0.5rem+2px)]"
+                                      : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-none text-[12.5px] font-medium"
+                                  }
+                                >
+                                  <Link href={subItem.url} prefetch onMouseEnter={() => prefetchRoute(subItem.url)} className="flex items-center w-full">
+                                    <span>{subItem.title}</span>
+                                    {subItem.badge && subItem.badge > 0 ? (
+                                      <span className={`ml-auto flex h-4 min-w-4 items-center justify-center rounded-full ${getBadgeColor(subItem.badgeSeverity)} px-1 text-[9px] font-black text-white tabular-nums`}>
+                                        {subItem.badge > 99 ? "99+" : subItem.badge}
+                                      </span>
+                                    ) : null}
+                                  </Link>
+                                </SidebarMenuSubButton>
+                              </SidebarMenuSubItem>
+                            </React.Fragment>
                           )
                         })}
                       </SidebarMenuSub>
@@ -230,8 +252,8 @@ export function NavMain({
                   }
                 >
                   <Link href={item.url} prefetch onMouseEnter={() => prefetchRoute(item.url)}>
-                    {item.icon && <item.icon className="!size-4" />}
-                    <span className="text-[13px] tracking-tight">{item.title}</span>
+                    <AccentIcon item={item} />
+                    <span className="text-[13.5px] tracking-tight">{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

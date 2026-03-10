@@ -31,6 +31,9 @@ export async function GET(
         transactions: {
           include: {
             warehouse: true,
+            purchaseOrder: { select: { number: true } },
+            salesOrder: { select: { number: true } },
+            workOrder: { select: { number: true } },
           },
           orderBy: {
             createdAt: 'desc',

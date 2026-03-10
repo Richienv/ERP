@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, useMemo, type PointerEvent as ReactPointerEvent } from "react"
+import { useSearchParams } from "next/navigation"
 import Image from "next/image"
 import {
     Banknote,
@@ -35,6 +36,7 @@ import { useVendorPayments } from "@/hooks/use-vendor-payments"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { VendorMultiPaymentDialog } from "@/components/finance/vendor-multi-payment-dialog"
+import { useBankAccounts } from "@/hooks/use-bank-accounts"
 
 type PaymentMethod = "TRANSFER" | "CHECK" | "CASH"
 
@@ -57,6 +59,8 @@ const parsePaymentMeta = (notes?: string): PaymentMeta => {
 }
 
 export default function APCheckbookPage() {
+    const searchParams = useSearchParams()
+    const highlightPaymentId = searchParams.get("highlight")
     const { data, isLoading: loading } = useVendorPayments()
     const queryClient = useQueryClient()
     const payments = data?.payments ?? []
@@ -71,6 +75,8 @@ export default function APCheckbookPage() {
     const [reference, setReference] = useState("")
     const [selectedBillId, setSelectedBillId] = useState("")
     const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("TRANSFER")
+    const [bankAccountCode, setBankAccountCode] = useState("1010")
+    const { data: bankAccounts } = useBankAccounts()
     const [checkNumber, setCheckNumber] = useState("")
     const [checkBank, setCheckBank] = useState("")
     const [checkDate, setCheckDate] = useState("")
@@ -78,6 +84,16 @@ export default function APCheckbookPage() {
     const [isSigned, setIsSigned] = useState(false)
     const [signatureDialogOpen, setSignatureDialogOpen] = useState(false)
     const [confirmOpen, setConfirmOpen] = useState(false)
+
+    // Auto-scroll to highlighted payment from ?highlight= param
+    useEffect(() => {
+        if (!highlightPaymentId || loading) return
+        const timer = setTimeout(() => {
+            const el = document.querySelector(`[data-vendor-payment-id="${highlightPaymentId}"]`)
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" })
+        }, 300)
+        return () => clearTimeout(timer)
+    }, [highlightPaymentId, loading])
     const [submitting, setSubmitting] = useState(false)
     const [signedBy, setSignedBy] = useState("")
     const [signatureDataUrl, setSignatureDataUrl] = useState("")
@@ -224,6 +240,7 @@ export default function APCheckbookPage() {
                 supplierId: selectedVendorId,
                 amount: numericAmount,
                 method: paymentMethod,
+                bankAccountCode,
                 reference: paymentMethod === "CHECK" ? checkNumber.trim() : reference.trim() || undefined,
                 notes: JSON.stringify(paymentMeta),
             })
@@ -368,7 +385,11 @@ export default function APCheckbookPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Metode</Label>
-                                <Select value={paymentMethod} onValueChange={(v: PaymentMethod) => { setPaymentMethod(v); resetSignatureState() }}>
+                                <Select value={paymentMethod} onValueChange={(v: PaymentMethod) => {
+                                    setPaymentMethod(v)
+                                    setBankAccountCode(v === "CASH" ? "1000" : "1010")
+                                    resetSignatureState()
+                                }}>
                                     <SelectTrigger className="border-2 border-black h-10 font-bold rounded-none">
                                         <SelectValue />
                                     </SelectTrigger>
@@ -376,6 +397,21 @@ export default function APCheckbookPage() {
                                         <SelectItem value="TRANSFER">Transfer</SelectItem>
                                         <SelectItem value="CHECK">Cek</SelectItem>
                                         <SelectItem value="CASH">Tunai</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Akun Pembayaran <span className="text-red-500">*</span></Label>
+                                <Select value={bankAccountCode} onValueChange={(v) => { setBankAccountCode(v); resetSignatureState() }}>
+                                    <SelectTrigger className="border-2 border-black h-10 font-bold rounded-none">
+                                        <SelectValue placeholder="Pilih akun..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(bankAccounts || []).map(acc => (
+                                            <SelectItem key={acc.code} value={acc.code}>
+                                                {acc.code} — {acc.name}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -548,7 +584,7 @@ export default function APCheckbookPage() {
                     payments.map((p) => {
                         const meta = parsePaymentMeta(p.notes)
                         return (
-                            <div key={p.id} className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors items-center">
+                            <div key={p.id} data-vendor-payment-id={p.id} className={`grid grid-cols-12 gap-2 px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors items-center ${highlightPaymentId === p.id ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500" : ""}`}>
                                 <div className="col-span-2">
                                     <span className="font-mono text-xs font-bold text-zinc-500">{p.number}</span>
                                     <p className="text-[10px] text-zinc-400">{new Date(p.date).toLocaleDateString("id-ID")}</p>

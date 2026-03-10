@@ -1,6 +1,7 @@
 "use client"
 
-import { useParams } from "next/navigation"
+import { useState } from "react"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import {
     ArrowLeft,
@@ -11,6 +12,8 @@ import {
     Pencil,
     Layers,
     DollarSign,
+    Trash2,
+    Loader2,
 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -23,7 +26,23 @@ const WAREHOUSE_TYPE_CONFIG: Record<string, { label: string; className: string }
 import { Button } from "@/components/ui/button"
 import { useWarehouseDetail } from "@/hooks/use-warehouse-detail"
 import { WarehouseEditDialog } from "@/components/inventory/warehouse-edit-dialog"
+import { WarehouseLocationsSection } from "@/components/inventory/warehouse-locations-section"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
+import { deleteWarehouse } from "@/app/actions/inventory"
+import { queryKeys } from "@/lib/query-keys"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const formatCurrency = (amount: number) =>
     new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount)
@@ -31,6 +50,23 @@ const formatCurrency = (amount: number) =>
 export default function WarehousePage() {
     const { id } = useParams<{ id: string }>()
     const { data: warehouse, isLoading } = useWarehouseDetail(id)
+    const router = useRouter()
+    const queryClient = useQueryClient()
+    const [isDeleting, setIsDeleting] = useState(false)
+
+    const handleDelete = async () => {
+        setIsDeleting(true)
+        const result = await deleteWarehouse(id)
+        if (result.success) {
+            toast.success("Gudang berhasil dihapus")
+            queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+            router.push("/inventory/warehouses")
+        } else {
+            toast.error(result.error || "Gagal menghapus gudang")
+            setIsDeleting(false)
+        }
+    }
 
     if (isLoading) {
         return <CardPageSkeleton accentColor="bg-amber-400" />
@@ -84,7 +120,38 @@ export default function WarehousePage() {
                             )}
                         </div>
                     </div>
-                    <WarehouseEditDialog warehouse={{ ...warehouse, capacity: warehouse.capacity ?? undefined, warehouseType: warehouse.warehouseType }} />
+                    <div className="flex items-center gap-2">
+                        <WarehouseEditDialog warehouse={{ ...warehouse, capacity: warehouse.capacity ?? undefined, warehouseType: warehouse.warehouseType }} />
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="outline" className="border-2 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] font-bold uppercase text-[10px] tracking-wider h-9 px-3 rounded-none">
+                                    <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Hapus
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle className="font-black uppercase tracking-tight">Hapus Gudang?</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-zinc-600">
+                                        Gudang <span className="font-bold text-black">{warehouse.name}</span> akan dinonaktifkan.
+                                        Gudang dengan stok aktif atau transfer yang belum selesai tidak dapat dihapus.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={isDeleting} className="border-2 border-black rounded-none font-bold uppercase text-xs">
+                                        Batal
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                        onClick={handleDelete}
+                                        disabled={isDeleting}
+                                        className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-800 rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold uppercase text-xs"
+                                    >
+                                        {isDeleting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-2 h-3.5 w-3.5" />}
+                                        Hapus
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
                 </div>
             </div>
 
@@ -218,6 +285,9 @@ export default function WarehousePage() {
                     </div>
                 )}
             </div>
+
+            {/* LOKASI PENYIMPANAN */}
+            <WarehouseLocationsSection warehouseId={warehouse.id} />
         </div>
     )
 }

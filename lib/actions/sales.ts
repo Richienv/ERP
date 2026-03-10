@@ -428,6 +428,31 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
                 data: { status: 'CONVERTED' },
             })
 
+            // Auto-reserve stock for confirmed SO items
+            for (const item of quotation.items) {
+                const stockLevel = await prisma.stockLevel.findFirst({
+                    where: {
+                        productId: item.productId,
+                        availableQty: { gt: 0 },
+                        locationId: null,
+                    },
+                    orderBy: { availableQty: 'desc' },
+                })
+
+                if (stockLevel) {
+                    const reserveQty = Math.min(Number(item.quantity), Number(stockLevel.availableQty))
+                    if (reserveQty > 0) {
+                        await prisma.stockLevel.update({
+                            where: { id: stockLevel.id },
+                            data: {
+                                reservedQty: { increment: reserveQty },
+                                availableQty: { decrement: reserveQty },
+                            },
+                        })
+                    }
+                }
+            }
+
             return { orderId: salesOrder.id, orderNumber: salesOrder.number }
         })
 
@@ -1453,6 +1478,36 @@ export async function cancelSalesOrder(
                         notes: reason ? `[DIBATALKAN] ${reason}` : '[DIBATALKAN]',
                     },
                 })
+
+                // Release any reserved stock
+                const soItems = await tx.salesOrderItem.findMany({
+                    where: { salesOrderId: salesOrderId },
+                    select: { productId: true, quantity: true },
+                })
+
+                for (const item of soItems) {
+                    const stockLevels = await tx.stockLevel.findMany({
+                        where: {
+                            productId: item.productId,
+                            reservedQty: { gt: 0 },
+                            locationId: null,
+                        },
+                    })
+
+                    let remainingToRelease = Number(item.quantity)
+                    for (const sl of stockLevels) {
+                        if (remainingToRelease <= 0) break
+                        const releaseQty = Math.min(remainingToRelease, Number(sl.reservedQty))
+                        await tx.stockLevel.update({
+                            where: { id: sl.id },
+                            data: {
+                                reservedQty: { decrement: releaseQty },
+                                availableQty: { increment: releaseQty },
+                            },
+                        })
+                        remainingToRelease -= releaseQty
+                    }
+                }
 
                 return { success: true }
             })

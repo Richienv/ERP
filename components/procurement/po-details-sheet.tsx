@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { formatIDR } from "@/lib/utils"
+import { RevisionHistoryTimeline, type RevisionEntry } from "@/components/shared/revision-history-timeline"
 import { rejectPurchaseOrder, submitPOForApproval, approvePurchaseOrder, markAsOrdered, markAsVendorConfirmed, markAsShipped } from "@/lib/actions/procurement"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -110,6 +111,17 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                     </div>
 
                     <Separator />
+
+                    {/* Revision History */}
+                    {(() => {
+                        const revisions = (Array.isArray(order.revisionHistory) ? order.revisionHistory : []) as RevisionEntry[]
+                        return revisions.length > 0 ? (
+                            <>
+                                <RevisionHistoryTimeline revisions={revisions} />
+                                <Separator />
+                            </>
+                        ) : null
+                    })()}
 
                     {/* Reject UI */}
                     {rejectMode && (

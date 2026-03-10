@@ -1747,6 +1747,8 @@ export interface UnallocatedPayment {
     date: Date
     method: string
     reference: string | null
+    allocated: boolean
+    invoiceNumber: string | null
 }
 
 export interface OpenInvoice {
@@ -1760,19 +1762,19 @@ export interface OpenInvoice {
 }
 
 /**
- * Get all unallocated (unmatched) customer payments
- * These are payments received but not yet linked to specific invoices
+ * Get all customer (AR) payments — both allocated and unallocated.
+ * Allocated = linked to an invoice. Unallocated = received but not yet matched.
  */
 export async function getUnallocatedPayments(): Promise<UnallocatedPayment[]> {
     try {
         return await withPrismaAuth(async (prisma) => {
             const payments = await prisma.payment.findMany({
                 where: {
-                    invoiceId: null,
                     customerId: { not: null }
                 },
                 include: {
-                    customer: { select: { id: true, name: true } }
+                    customer: { select: { id: true, name: true } },
+                    invoice: { select: { number: true } },
                 },
                 orderBy: { date: 'desc' },
                 take: 50
@@ -1786,7 +1788,9 @@ export async function getUnallocatedPayments(): Promise<UnallocatedPayment[]> {
                 amount: Number(p.amount),
                 date: p.date,
                 method: p.method,
-                reference: p.reference
+                reference: p.reference,
+                allocated: p.invoiceId !== null,
+                invoiceNumber: p.invoice?.number || null,
             }))
         })
     } catch (error) {
@@ -2268,6 +2272,7 @@ export async function recordVendorPayment(data: {
     method?: 'CASH' | 'TRANSFER' | 'CHECK'
     reference?: string
     notes?: string
+    bankAccountCode?: string
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -2308,14 +2313,22 @@ export async function recordVendorPayment(data: {
                 }
             }
 
-            // Post GL entry: DR AP, CR Cash
+            // Resolve bank account code and name
+            const bankCode = data.bankAccountCode || '1000'
+            let bankAccountName = 'Cash/Bank'
+            try {
+                const bankAcct = await prisma.gLAccount.findFirst({ where: { code: bankCode } })
+                if (bankAcct) bankAccountName = bankAcct.name
+            } catch { /* fallback to default name */ }
+
+            // Post GL entry: DR AP, CR Cash/Bank
             await postJournalEntry({
                 description: `Vendor Payment ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2100', debit: data.amount, credit: 0, description: 'Accounts Payable' },
-                    { accountCode: '1000', debit: 0, credit: data.amount, description: 'Cash/Bank' }
+                    { accountCode: '2100', debit: data.amount, credit: 0, description: 'Hutang Usaha' },
+                    { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
                 ]
             })
 

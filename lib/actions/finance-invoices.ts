@@ -958,3 +958,163 @@ export async function recordInvoicePayment(data: {
         return { success: false, error: "Failed to record payment" }
     }
 }
+
+// ==========================================
+// PURCHASE REQUEST INTEGRATION
+// ==========================================
+
+/**
+ * Create a Bill (INV_IN) from a Purchase Request ID.
+ * Uses product.costPrice as the unit price since PR items don't have prices.
+ * Finds preferred supplier via SupplierProduct or leaves supplierId null.
+ */
+export async function createBillFromPR(
+    prId: string,
+    options?: { forceCreate?: boolean; includeTax?: boolean }
+) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            // Fetch PR with items and product details
+            const pr = await prisma.purchaseRequest.findUnique({
+                where: { id: prId },
+                include: {
+                    items: {
+                        include: {
+                            product: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    costPrice: true,
+                                    unit: true,
+                                }
+                            }
+                        }
+                    },
+                    requester: { select: { firstName: true, lastName: true } },
+                }
+            })
+
+            if (!pr) {
+                return { success: false, error: "Purchase Request tidak ditemukan" }
+            }
+
+            if (!pr.items || pr.items.length === 0) {
+                return { success: false, error: "Purchase Request tidak memiliki item" }
+            }
+
+            // Check for existing invoice linked to this PR (prevent duplicates)
+            const existingBill = await prisma.invoice.findFirst({
+                where: {
+                    purchaseRequestId: pr.id,
+                    type: 'INV_IN',
+                    status: { notIn: ['CANCELLED', 'VOID'] }
+                },
+                orderBy: { createdAt: 'desc' }
+            })
+
+            if (existingBill && !options?.forceCreate) {
+                return {
+                    success: false,
+                    code: 'INVOICE_ALREADY_EXISTS' as const,
+                    requiresConfirmation: true,
+                    existingInvoiceId: existingBill.id,
+                    existingInvoiceNumber: existingBill.number,
+                    existingInvoiceStatus: existingBill.status,
+                    error: `Bill ${existingBill.number} sudah ada untuk PR ini`
+                }
+            }
+
+            // Try to find a preferred supplier from SupplierProduct for the first item
+            let supplierId: string | null = null
+            const productIds = pr.items.map(i => i.productId)
+            const preferredSupplier = await prisma.supplierProduct.findFirst({
+                where: {
+                    productId: { in: productIds },
+                    isPreferred: true,
+                },
+                select: { supplierId: true }
+            })
+            if (preferredSupplier) {
+                supplierId = preferredSupplier.supplierId
+            } else {
+                // Fallback: any supplier linked to these products
+                const anySupplier = await prisma.supplierProduct.findFirst({
+                    where: { productId: { in: productIds } },
+                    select: { supplierId: true }
+                })
+                if (anySupplier) {
+                    supplierId = anySupplier.supplierId
+                }
+            }
+
+            // Generate bill number: BILL-{year}-{sequence}
+            const year = new Date().getFullYear()
+            const count = await prisma.invoice.count({
+                where: {
+                    type: 'INV_IN',
+                    number: { startsWith: `BILL-${year}` }
+                }
+            })
+            const billNumber = `BILL-${year}-${String(count + 1).padStart(4, '0')}`
+
+            // Calculate totals from PR items using product.costPrice
+            const invoiceItems = pr.items.map(item => {
+                const unitPrice = Number(item.product.costPrice) || 0
+                const quantity = item.quantity
+                const amount = quantity * unitPrice
+                return {
+                    description: item.product.name || 'Unknown Item',
+                    quantity,
+                    unitPrice,
+                    amount,
+                    productId: item.productId,
+                }
+            })
+
+            const subtotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0)
+            const includeTax = options?.includeTax ?? false
+            const taxAmount = includeTax ? Math.round(subtotal * 0.11) : 0
+            const totalAmount = subtotal + taxAmount
+
+            // Due date: NET 30
+            const issueDate = new Date()
+            const dueDate = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+            // Create Bill (Invoice Type INV_IN)
+            const bill = await prisma.invoice.create({
+                data: {
+                    number: billNumber,
+                    type: 'INV_IN',
+                    supplierId,
+                    purchaseRequestId: pr.id,
+                    status: 'DRAFT',
+                    issueDate,
+                    dueDate,
+                    subtotal,
+                    taxAmount,
+                    totalAmount,
+                    balanceDue: totalAmount,
+                    items: {
+                        create: invoiceItems.map(item => ({
+                            description: item.description,
+                            quantity: item.quantity,
+                            unitPrice: item.unitPrice,
+                            amount: item.amount,
+                            productId: item.productId,
+                        }))
+                    }
+                }
+            })
+
+            console.log(`Bill ${bill.number} created from PR ${pr.number}`)
+            return {
+                success: true,
+                invoiceId: bill.id,
+                invoiceNumber: bill.number,
+            }
+        })
+    } catch (error: any) {
+        console.error("Failed to create bill from PR:", error)
+        return { success: false, error: error.message || "Gagal membuat bill dari Purchase Request" }
+    }
+}

@@ -1,8 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import {
     Plus, MapPin, Users, LayoutGrid, MoreVertical, Warehouse,
-    Boxes, Activity, UserCheck
+    Boxes, Activity, UserCheck, Trash2, Pencil, Loader2
 } from "lucide-react"
 
 const WAREHOUSE_TYPE_CONFIG: Record<string, { label: string; badgeClass: string }> = {
@@ -17,14 +18,54 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import Link from "next/link"
+import { useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { WarehouseFormDialog } from "@/components/inventory/warehouse-form-dialog"
 import { WarehouseStaffDialog } from "@/components/inventory/warehouse-staff-dialog"
+import { deleteWarehouse } from "@/app/actions/inventory"
+import { queryKeys } from "@/lib/query-keys"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface WarehousesClientProps {
     warehouses: any[]
 }
 
 export function WarehousesClient({ warehouses }: WarehousesClientProps) {
+    const queryClient = useQueryClient()
+    const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
+
+    const handleDelete = async () => {
+        if (!deleteTarget) return
+        setIsDeleting(true)
+        const result = await deleteWarehouse(deleteTarget.id)
+        if (result.success) {
+            toast.success(`Gudang "${deleteTarget.name}" berhasil dihapus`)
+            queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+        } else {
+            toast.error(result.error || "Gagal menghapus gudang")
+        }
+        setIsDeleting(false)
+        setDeleteTarget(null)
+    }
+
     const stats = {
         total: warehouses.length,
         active: warehouses.filter((w: any) => w.status === "Active").length,
@@ -110,15 +151,31 @@ export function WarehousesClient({ warehouses }: WarehousesClientProps) {
                                     <h3 className="text-lg font-black uppercase leading-tight line-clamp-1 group-hover:text-amber-600 transition-colors" title={wh.name}>{wh.name}</h3>
                                     <div className="flex items-center gap-1.5 mt-1 text-[10px] font-bold text-zinc-500 uppercase tracking-wide"><MapPin className="h-3 w-3" /> {wh.location}</div>
                                 </div>
-                                <WarehouseFormDialog
-                                    mode="edit"
-                                    warehouse={{ id: wh.id, name: wh.name, code: wh.code, address: wh.location, capacity: wh.capacity, warehouseType: wh.warehouseType }}
-                                    trigger={
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white rounded-none -mr-1">
                                             <MoreVertical className="h-3.5 w-3.5" />
                                         </Button>
-                                    }
-                                />
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="border-2 border-black rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                        <WarehouseFormDialog
+                                            mode="edit"
+                                            warehouse={{ id: wh.id, name: wh.name, code: wh.code, address: wh.location, capacity: wh.capacity, warehouseType: wh.warehouseType }}
+                                            trigger={
+                                                <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="rounded-none cursor-pointer">
+                                                    <Pencil className="mr-2 h-3.5 w-3.5" /> Edit Gudang
+                                                </DropdownMenuItem>
+                                            }
+                                        />
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            className="text-red-600 focus:text-red-600 focus:bg-red-50 rounded-none cursor-pointer"
+                                            onSelect={() => setDeleteTarget({ id: wh.id, name: wh.name })}
+                                        >
+                                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Hapus Gudang
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                             <CardContent className="pt-5 flex-1 space-y-5 px-4 pb-5">
                                 <div className="space-y-1.5">
@@ -155,6 +212,32 @@ export function WarehousesClient({ warehouses }: WarehousesClientProps) {
                     ))}
                 </div>
             )}
+
+            {/* DELETE CONFIRMATION DIALOG */}
+            <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <AlertDialogContent className="border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="font-black uppercase tracking-tight">Hapus Gudang?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-zinc-600">
+                            Gudang <span className="font-bold text-black">{deleteTarget?.name}</span> akan dinonaktifkan.
+                            Gudang dengan stok aktif atau transfer yang belum selesai tidak dapat dihapus.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting} className="border-2 border-black rounded-none font-bold uppercase text-xs">
+                            Batal
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            disabled={isDeleting}
+                            className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-800 rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] font-bold uppercase text-xs"
+                        >
+                            {isDeleting ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Trash2 className="mr-2 h-3.5 w-3.5" />}
+                            Hapus
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

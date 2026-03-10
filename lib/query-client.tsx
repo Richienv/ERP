@@ -1,17 +1,25 @@
 "use client"
 
 import { QueryClient, QueryClientProvider, keepPreviousData } from "@tanstack/react-query"
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
-import { useState, type ReactNode } from "react"
+import { useState, type ReactNode, lazy, Suspense } from "react"
+
+const ReactQueryDevtools =
+    process.env.NODE_ENV === "development"
+        ? lazy(() =>
+              import("@tanstack/react-query-devtools").then((mod) => ({
+                  default: mod.ReactQueryDevtools,
+              }))
+          )
+        : null
 
 function makeQueryClient() {
     return new QueryClient({
         defaultOptions: {
             queries: {
-                staleTime: 30 * 60 * 1000,  // 30 minutes — SAP-style: long TTL, invalidate on write
-                gcTime: 60 * 60 * 1000,     // 60 minutes — cache kept in memory for session
+                staleTime: 30 * 60 * 1000,
+                gcTime: 60 * 60 * 1000,
                 retry: 1,
-                refetchOnWindowFocus: false, // ERP data doesn't change that fast
+                refetchOnWindowFocus: false,
                 placeholderData: keepPreviousData,
                 refetchOnMount: true,
                 networkMode: "offlineFirst",
@@ -29,10 +37,8 @@ let browserQueryClient: QueryClient | undefined
 
 function getQueryClient() {
     if (typeof window === "undefined") {
-        // Server: always make a new client
         return makeQueryClient()
     }
-    // Browser: reuse singleton
     if (!browserQueryClient) browserQueryClient = makeQueryClient()
     return browserQueryClient
 }
@@ -43,7 +49,11 @@ export function QueryProvider({ children }: { children: ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             {children}
-            <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+            {ReactQueryDevtools && (
+                <Suspense fallback={null}>
+                    <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
+                </Suspense>
+            )}
         </QueryClientProvider>
     )
 }

@@ -101,9 +101,10 @@ async function fetchBalanceSheet(asOfDate: Date) {
         orderBy: { code: 'asc' },
     })
 
-    // Retained earnings from P&L for current year
-    const yearStart = new Date(asOfDate.getFullYear(), 0, 1)
-    const pnlForRetained = await fetchPnL(yearStart, asOfDate)
+    // Retained earnings: ALL-TIME net income from revenue & expense accounts
+    // This ensures Assets = Liabilities + Equity + All-time(Revenue - Expenses)
+    const allTimeStart = new Date(2000, 0, 1)
+    const pnlForRetained = await fetchPnL(allTimeStart, asOfDate)
 
     const assets = {
         currentAssets: [] as { name: string; amount: number }[],
@@ -157,9 +158,8 @@ async function fetchBalanceSheet(asOfDate: Date) {
                 }
                 break
             case 'EQUITY':
-                if (account.code >= '3000' && account.code < '3500') {
-                    equity.capital.push({ name: account.name, amount: balance })
-                }
+                // Include ALL equity accounts (capital, retained earnings GL, other equity)
+                equity.capital.push({ name: account.name, amount: balance })
                 break
         }
     }
@@ -206,12 +206,25 @@ async function fetchCashFlow(start: Date, end: Date) {
         return sum + d - c
     }, 0)
 
+    const cashAccountIds = new Set(cashAccounts.map(a => a.id))
+
+    // Fetch cash journal lines WITH the full entry (including ALL sibling lines + their accounts)
+    // so we can determine the contra account type for classification
     const cashJournalLines = await prisma.journalLine.findMany({
         where: {
             accountId: { in: cashAccounts.map(a => a.id) },
             entry: { date: { gte: start, lte: end }, status: 'POSTED' },
         },
-        include: { entry: true, account: true },
+        include: {
+            entry: {
+                include: {
+                    lines: {
+                        include: { account: { select: { id: true, type: true, code: true, name: true } } },
+                    },
+                },
+            },
+            account: true,
+        },
     })
 
     const operatingActivities = {
@@ -229,19 +242,57 @@ async function fetchCashFlow(start: Date, end: Date) {
         netCashFromFinancing: 0,
     }
 
+    // Classify each cash movement by the CONTRA account type (the other side of the entry)
+    const processedEntries = new Set<string>()
     for (const line of cashJournalLines) {
-        const amount = Number(line.debit) - Number(line.credit)
-        const description = line.entry.description
+        // Avoid double-counting if multiple cash lines in same entry
+        if (processedEntries.has(line.entry.id)) continue
+        processedEntries.add(line.entry.id)
 
-        if (description?.includes('Invoice') || description?.includes('Payment')) {
-            // Already in netIncome
-        } else if (description?.includes('Asset') || description?.includes('Equipment')) {
-            investingActivities.items.push({ description: description || 'Unknown', amount })
-            investingActivities.netCashFromInvesting += amount
-        } else if (description?.includes('Capital') || description?.includes('Dividend')) {
-            financingActivities.items.push({ description: description || 'Unknown', amount })
+        const amount = line.entry.lines
+            .filter(l => cashAccountIds.has(l.accountId))
+            .reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+
+        // Find contra accounts (non-cash lines in this entry)
+        const contraLines = line.entry.lines.filter(l => !cashAccountIds.has(l.accountId))
+        const contraTypes = new Set(contraLines.map(l => l.account?.type).filter(Boolean))
+        const description = line.entry.description || contraLines[0]?.account?.name || 'Transaksi kas'
+
+        // Classify based on contra account type
+        if (contraTypes.has('EQUITY')) {
+            // Equity contra → Financing (e.g., Modal Pemilik, Dividen)
+            financingActivities.items.push({ description, amount })
             financingActivities.netCashFromFinancing += amount
+        } else if (contraTypes.has('ASSET') && !contraTypes.has('REVENUE') && !contraTypes.has('EXPENSE')) {
+            // Non-cash asset contra → Investing (e.g., fixed assets, equipment)
+            // But only if no revenue/expense lines (otherwise it's operating)
+            const nonCashAssetLines = contraLines.filter(l => l.account?.type === 'ASSET')
+            const isFixedAsset = nonCashAssetLines.some(l => {
+                const code = l.account?.code || ''
+                // Cash accounts start with 1000/1010/1020, skip those
+                // AR is 1100, Inventory is 1200 — these are operating
+                // Fixed assets typically 1300+, 1400+, 1500+
+                return code >= '1300'
+            })
+            if (isFixedAsset) {
+                investingActivities.items.push({ description, amount })
+                investingActivities.netCashFromInvesting += amount
+            }
+            // If contra is AR/Inventory (1100, 1200), it's operating — already captured via net income + working capital
+        } else if (contraTypes.has('LIABILITY')) {
+            // Long-term liability could be financing, but current liabilities are operating
+            const liabilityLines = contraLines.filter(l => l.account?.type === 'LIABILITY')
+            const isLongTerm = liabilityLines.some(l => {
+                const code = l.account?.code || ''
+                return code >= '2200' // Long-term liabilities
+            })
+            if (isLongTerm) {
+                financingActivities.items.push({ description, amount })
+                financingActivities.netCashFromFinancing += amount
+            }
+            // Short-term liabilities (AP, etc.) are working capital — already in operating
         }
+        // Revenue/Expense contra → already captured in net income (operating), skip
     }
 
     // AR and AP for working capital changes
@@ -260,8 +311,8 @@ async function fetchCashFlow(start: Date, end: Date) {
     const apChange = apInvoices.reduce((sum, inv) => sum + Number(inv.balanceDue), 0)
 
     operatingActivities.changesInWorkingCapital.push(
-        { description: 'Increase in Accounts Receivable', amount: -arChange },
-        { description: 'Increase in Accounts Payable', amount: apChange },
+        { description: 'Perubahan Piutang Usaha', amount: -arChange },
+        { description: 'Perubahan Hutang Usaha', amount: apChange },
     )
 
     const workingCapitalChange = -arChange + apChange
@@ -303,20 +354,45 @@ async function fetchTrialBalance(start: Date, end: Date) {
 
     const rows = accounts
         .map(acc => {
-            const debit = acc.lines.reduce((sum, l) => sum + Number(l.debit), 0)
-            const credit = acc.lines.reduce((sum, l) => sum + Number(l.credit), 0)
+            const rawDebit = acc.lines.reduce((sum, l) => sum + Number(l.debit), 0)
+            const rawCredit = acc.lines.reduce((sum, l) => sum + Number(l.credit), 0)
+            const net = rawDebit - rawCredit
+
+            // Net into a single column based on normal balance direction
+            // ASSET & EXPENSE: normal debit balance → positive net = debit
+            // LIABILITY, EQUITY, REVENUE: normal credit balance → positive net = credit
+            const isDebitNormal = ['ASSET', 'EXPENSE'].includes(acc.type)
+            let debit = 0
+            let credit = 0
+
+            if (isDebitNormal) {
+                // Positive net → debit column; negative net → credit column (contra)
+                if (net >= 0) debit = net; else credit = Math.abs(net)
+            } else {
+                // Positive net (more debits) → debit column (contra); negative net → credit column
+                if (net > 0) debit = net; else credit = Math.abs(net)
+            }
+
             totalDebits += debit
             totalCredits += credit
+
             return {
                 accountCode: acc.code,
                 accountName: acc.name,
                 accountType: acc.type,
                 debit,
                 credit,
-                balance: debit - credit,
+                balance: net,
             }
         })
         .filter(r => r.debit !== 0 || r.credit !== 0)
+        .sort((a, b) => {
+            const typeOrder: Record<string, number> = { ASSET: 0, LIABILITY: 1, EQUITY: 2, REVENUE: 3, EXPENSE: 4 }
+            const ta = typeOrder[a.accountType] ?? 9
+            const tb = typeOrder[b.accountType] ?? 9
+            if (ta !== tb) return ta - tb
+            return a.accountCode.localeCompare(b.accountCode)
+        })
 
     return {
         rows,
@@ -332,10 +408,23 @@ async function fetchTrialBalance(start: Date, end: Date) {
 
 // ─── 5. AR Aging ───────────────────────────────────────────────────────────
 
-async function fetchARaging() {
+async function fetchARaging(start?: Date, end?: Date) {
+    const where: any = { type: 'INV_OUT', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } }
+    if (start && end) {
+        where.issueDate = { gte: start, lte: end }
+    }
     const openInvoices = await prisma.invoice.findMany({
-        where: { type: 'INV_OUT', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
-        include: { customer: { select: { id: true, name: true, code: true } } },
+        where,
+        select: {
+            id: true,
+            number: true,
+            issueDate: true,
+            dueDate: true,
+            totalAmount: true,
+            balanceDue: true,
+            status: true,
+            customer: { select: { id: true, name: true, code: true } },
+        },
         orderBy: { dueDate: 'asc' },
     })
 
@@ -345,6 +434,11 @@ async function fetchARaging() {
         customerId: string; customerName: string; customerCode: string | null
         current: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number
         total: number; invoiceCount: number
+        invoices: Array<{
+            id: string; invoiceNumber: string; issueDate: Date; dueDate: Date
+            totalAmount: number; paidAmount: number; balanceDue: number
+            daysOverdue: number; bucket: string; status: string
+        }>
     }>()
     const details: Array<{
         invoiceNumber: string; customerName: string; dueDate: Date
@@ -369,6 +463,11 @@ async function fetchARaging() {
         const existing = customerMap.get(custId) || {
             customerId: custId, customerName: custName, customerCode: custCode,
             current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, invoiceCount: 0,
+            invoices: [] as Array<{
+                id: string; invoiceNumber: string; issueDate: Date; dueDate: Date
+                totalAmount: number; paidAmount: number; balanceDue: number
+                daysOverdue: number; bucket: string; status: string
+            }>,
         }
         existing.invoiceCount++
         existing.total += balance
@@ -378,8 +477,24 @@ async function fetchARaging() {
         else if (bucket === '61-90') existing.d61_90 += balance
         else existing.d90_plus += balance
         customerMap.set(custId, existing)
+        existing.invoices.push({
+            id: inv.id,
+            invoiceNumber: inv.number,
+            issueDate: inv.issueDate,
+            dueDate: due,
+            totalAmount: Number(inv.totalAmount),
+            paidAmount: Number(inv.totalAmount) - balance,
+            balanceDue: balance,
+            daysOverdue,
+            bucket,
+            status: inv.status,
+        })
 
         details.push({ invoiceNumber: inv.number, customerName: custName, dueDate: due, balanceDue: balance, daysOverdue, bucket })
+    }
+
+    for (const cust of customerMap.values()) {
+        cust.invoices.sort((a, b) => b.daysOverdue - a.daysOverdue)
     }
 
     const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
@@ -393,10 +508,23 @@ async function fetchARaging() {
 
 // ─── 6. AP Aging ───────────────────────────────────────────────────────────
 
-async function fetchAPaging() {
+async function fetchAPaging(start?: Date, end?: Date) {
+    const where: any = { type: 'INV_IN', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } }
+    if (start && end) {
+        where.issueDate = { gte: start, lte: end }
+    }
     const openBills = await prisma.invoice.findMany({
-        where: { type: 'INV_IN', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
-        include: { supplier: { select: { id: true, name: true, code: true } } },
+        where,
+        select: {
+            id: true,
+            number: true,
+            issueDate: true,
+            dueDate: true,
+            totalAmount: true,
+            balanceDue: true,
+            status: true,
+            supplier: { select: { id: true, name: true, code: true } },
+        },
         orderBy: { dueDate: 'asc' },
     })
 
@@ -406,6 +534,11 @@ async function fetchAPaging() {
         supplierId: string; supplierName: string; supplierCode: string | null
         current: number; d1_30: number; d31_60: number; d61_90: number; d90_plus: number
         total: number; billCount: number
+        bills: Array<{
+            id: string; billNumber: string; issueDate: Date; dueDate: Date
+            totalAmount: number; paidAmount: number; balanceDue: number
+            daysOverdue: number; bucket: string; status: string
+        }>
     }>()
     const details: Array<{
         billNumber: string; supplierName: string; dueDate: Date
@@ -430,6 +563,11 @@ async function fetchAPaging() {
         const existing = supplierMap.get(suppId) || {
             supplierId: suppId, supplierName: suppName, supplierCode: suppCode,
             current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, billCount: 0,
+            bills: [] as Array<{
+                id: string; billNumber: string; issueDate: Date; dueDate: Date
+                totalAmount: number; paidAmount: number; balanceDue: number
+                daysOverdue: number; bucket: string; status: string
+            }>,
         }
         existing.billCount++
         existing.total += balance
@@ -439,8 +577,24 @@ async function fetchAPaging() {
         else if (bucket === '61-90') existing.d61_90 += balance
         else existing.d90_plus += balance
         supplierMap.set(suppId, existing)
+        existing.bills.push({
+            id: bill.id,
+            billNumber: bill.number,
+            issueDate: bill.issueDate,
+            dueDate: due,
+            totalAmount: Number(bill.totalAmount),
+            paidAmount: Number(bill.totalAmount) - balance,
+            balanceDue: balance,
+            daysOverdue,
+            bucket,
+            status: bill.status,
+        })
 
         details.push({ billNumber: bill.number, supplierName: suppName, dueDate: due, balanceDue: balance, daysOverdue, bucket })
+    }
+
+    for (const supp of supplierMap.values()) {
+        supp.bills.sort((a, b) => b.daysOverdue - a.daysOverdue)
     }
 
     const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
@@ -807,8 +961,8 @@ export async function GET(request: NextRequest) {
             fetchBalanceSheet(end),                   // 1
             fetchCashFlow(start, end),               // 2
             fetchTrialBalance(start, end),           // 3
-            fetchARaging(),                          // 4
-            fetchAPaging(),                          // 5
+            fetchARaging(start, end),                // 4
+            fetchAPaging(start, end),                // 5
             fetchRevenueFromInvoices(start, end),    // 6
             fetchEquityChanges(start, end),          // 7
             fetchInventoryTurnover(start, end),      // 8
@@ -834,10 +988,15 @@ export async function GET(request: NextRequest) {
 
         // 4. Build KPI from results
         const kpi = {
-            revenue: (pnl?.revenue ?? 0) + (pnl?.otherIncome ?? 0),
+            revenue: pnl?.revenue ?? 0,
             netIncome: pnl?.netIncome ?? 0,
             arOutstanding: arAging?.summary?.totalOutstanding ?? 0,
             apOutstanding: apAging?.summary?.totalOutstanding ?? 0,
+            // Invoice-based breakdown for context
+            invoicedRevenue: revenueInv?.totalRevenue ?? 0,
+            invoicedPaid: revenueInv?.totalPaid ?? 0,
+            invoicedOutstanding: revenueInv?.totalOutstanding ?? 0,
+            invoiceCount: revenueInv?.invoiceCount ?? 0,
         }
 
         // Log any rejected promises for debugging

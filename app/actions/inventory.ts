@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server"
 
 import { calculateProductStatus } from "@/lib/inventory-logic"
 import { approvePurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
+import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
+import type { InventoryGLType } from "@/lib/actions/inventory-gl"
 import {
     FALLBACK_INVENTORY_KPIS,
     FALLBACK_MATERIAL_GAP,
@@ -162,6 +164,36 @@ export async function createCategory(input: CreateCategoryInput) {
     }
 }
 
+export async function deleteCategory(categoryId: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
+    try {
+        // Check if any active products use this category
+        const productCount = await prisma.product.count({
+            where: { categoryId, isActive: true },
+        })
+        if (productCount > 0) {
+            return { success: false, error: `Kategori masih digunakan oleh ${productCount} produk aktif` }
+        }
+
+        // Check if category has child categories
+        const childCount = await prisma.category.count({
+            where: { parentId: categoryId },
+        })
+        if (childCount > 0) {
+            return { success: false, error: "Kategori memiliki sub-kategori. Hapus sub-kategori terlebih dahulu." }
+        }
+
+        await prisma.category.delete({ where: { id: categoryId } })
+        return { success: true }
+    } catch (error) {
+        console.error("Failed to delete category:", error)
+        return { success: false, error: "Gagal menghapus kategori" }
+    }
+}
+
 export async function getAllCategories() {
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -200,6 +232,7 @@ export async function getCategories() {
 
 export async function getWarehouses() {
     const warehouses = await prisma.warehouse.findMany({
+        where: { isActive: true },
         include: {
             stockLevels: {
                 include: {
@@ -778,6 +811,52 @@ export async function createWarehouse(data: { name: string, code: string, addres
 }
 
 // ==========================================
+// DELETE (SOFT) WAREHOUSE
+// ==========================================
+export async function deleteWarehouse(warehouseId: string) {
+    try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return { success: false, error: "Unauthorized" }
+        }
+
+        // Check if warehouse has any stock
+        const hasStock = await prisma.stockLevel.findFirst({
+            where: { warehouseId, quantity: { gt: 0 } },
+        })
+        if (hasStock) {
+            return { success: false, error: "Gudang masih memiliki stok. Pindahkan stok terlebih dahulu." }
+        }
+
+        // Check if warehouse has pending stock transfers (as source or target)
+        const pendingTransfer = await prisma.stockTransfer.findFirst({
+            where: {
+                OR: [
+                    { fromWarehouseId: warehouseId },
+                    { toWarehouseId: warehouseId },
+                ],
+                status: { notIn: ["RECEIVED", "CANCELLED"] },
+            },
+        })
+        if (pendingTransfer) {
+            return { success: false, error: "Gudang memiliki transfer stok yang belum selesai." }
+        }
+
+        // Soft-delete: set isActive to false
+        await prisma.warehouse.update({
+            where: { id: warehouseId },
+            data: { isActive: false },
+        })
+
+        return { success: true }
+    } catch (e: any) {
+        console.error("Failed to delete warehouse", e)
+        return { success: false, error: e.message || "Database Error" }
+    }
+}
+
+// ==========================================
 // RESTOCK REQUEST ACTION
 // ==========================================
 export async function createRestockRequest(data: {
@@ -908,10 +987,34 @@ export async function receiveGoodsFromPO(data: {
             const poItem = po.items.find(i => i.productId === data.itemId)
             if (!poItem) throw new Error("Item not found in this PO")
 
-            // 1b. Validate received quantity does not exceed remaining
-            const remainingQty = poItem.quantity - poItem.receivedQty
+            // 1b. Check if GRN flow has already received items for this PO
+            // Sum accepted quantities from all ACCEPTED GRNs for this PO item
+            const grnAccepted = await (prisma as any).gRNItem.aggregate({
+                where: {
+                    poItemId: poItem.id,
+                    grn: { status: 'ACCEPTED' }
+                },
+                _sum: { quantityAccepted: true }
+            })
+            const totalGrnAccepted = Number(grnAccepted._sum?.quantityAccepted || 0)
+
+            // Guard: total received (from GRN + this request) must not exceed ordered qty
+            const totalAfterReceive = poItem.receivedQty + data.receivedQty
+            if (totalAfterReceive > poItem.quantity) {
+                return {
+                    success: false,
+                    error: "Jumlah penerimaan melebihi jumlah pesanan. Kemungkinan barang sudah diterima melalui Surat Jalan Masuk (GRN)."
+                }
+            }
+
+            // Also guard against GRN-accepted quantities that haven't synced to receivedQty yet
+            const effectiveReceived = Math.max(poItem.receivedQty, totalGrnAccepted)
+            const remainingQty = poItem.quantity - effectiveReceived
             if (data.receivedQty > remainingQty) {
-                throw new Error(`Jumlah melebihi sisa yang belum diterima (${remainingQty})`)
+                return {
+                    success: false,
+                    error: "Jumlah penerimaan melebihi jumlah pesanan. Kemungkinan barang sudah diterima melalui Surat Jalan Masuk (GRN)."
+                }
             }
 
             // 2. Validate/Fetch Warehouse
@@ -935,12 +1038,17 @@ export async function receiveGoodsFromPO(data: {
             }
 
             // A. Create Transaction Record
-            await prisma.inventoryTransaction.create({
+            const unitCost = poItem.unitPrice ? Number(poItem.unitPrice) : 0
+            const totalValue = unitCost * data.receivedQty
+
+            const invTx = await prisma.inventoryTransaction.create({
                 data: {
                     productId: data.itemId,
                     warehouseId: targetWarehouseId,
                     type: 'PO_RECEIVE', // Correct enum value from schema
                     quantity: data.receivedQty,
+                    unitCost: unitCost,
+                    totalValue: totalValue,
                     notes: `Received from PO ${po.number}`,
                     performedBy: 'System User'
                 }
@@ -966,6 +1074,23 @@ export async function receiveGoodsFromPO(data: {
                     availableQty: data.receivedQty,
                 },
             })
+
+            // B2. Post GL Journal Entry (fire-and-forget)
+            if (totalValue > 0) {
+                const product = await prisma.product.findUnique({
+                    where: { id: data.itemId },
+                    select: { name: true },
+                })
+                await postInventoryGLEntry(prisma, {
+                    transactionId: invTx.id,
+                    type: 'PO_RECEIVE',
+                    productName: product?.name || data.itemId.slice(0, 8),
+                    quantity: data.receivedQty,
+                    unitCost,
+                    totalValue,
+                    reference: po.number,
+                })
+            }
 
             // C. Update PO Item
             await prisma.purchaseOrderItem.update({
@@ -1109,6 +1234,8 @@ export async function getStockMovements(limit = 50) {
 
     return movements.map(mv => ({
         id: mv.id,
+        productId: mv.productId,
+        warehouseId: mv.warehouseId,
         type: mv.type,
         date: mv.createdAt,
         item: mv.product.name,
@@ -1173,13 +1300,24 @@ export async function createManualMovement(data: {
                 }
             }
 
+            // Fetch product info for GL description and cost calculation
+            const product = await tx.product.findUnique({
+                where: { id: data.productId },
+                select: { name: true, costPrice: true },
+            })
+            const productName = product?.name || data.productId.slice(0, 8)
+            const unitCost = product?.costPrice ? Number(product.costPrice) : 0
+            const totalValue = unitCost * data.quantity
+
             // 1. Create Source Transaction
-            await tx.inventoryTransaction.create({
+            const invTx = await tx.inventoryTransaction.create({
                 data: {
                     productId: data.productId,
                     warehouseId: data.warehouseId,
                     type: dbType as any,
                     quantity: qtyChange,
+                    unitCost: unitCost > 0 ? unitCost : undefined,
+                    totalValue: totalValue > 0 ? totalValue : undefined,
                     notes: data.notes,
                     performedBy: authenticatedUserId
                 }
@@ -1261,6 +1399,27 @@ export async function createManualMovement(data: {
                 })
             }
 
+            // 4. Post GL Journal Entry (skip TRANSFER — intra-entity movement)
+            if (data.type !== 'TRANSFER' && totalValue > 0) {
+                const glType: InventoryGLType = data.type === 'SCRAP'
+                    ? 'SCRAP'
+                    : data.type === 'ADJUSTMENT_IN'
+                        ? 'ADJUSTMENT_IN'
+                        : 'ADJUSTMENT_OUT'
+
+                await postInventoryGLEntry(tx, {
+                    transactionId: invTx.id,
+                    type: glType,
+                    productName,
+                    quantity: data.quantity,
+                    unitCost,
+                    totalValue,
+                    warehouseFrom: data.warehouseId,
+                    warehouseTo: data.targetWarehouseId,
+                    reference: data.notes,
+                })
+            }
+
             return { success: true }
         })
 
@@ -1335,16 +1494,43 @@ export async function submitSpotAudit(data: {
             }
 
             // 3. Record Transaction (Always record audit, even if match)
-            await prisma.inventoryTransaction.create({
+            // Fetch product for GL description and cost
+            const product = await prisma.product.findUnique({
+                where: { id: productId },
+                select: { name: true, costPrice: true },
+            });
+            const productName = product?.name || productId.slice(0, 8);
+            const unitCost = product?.costPrice ? Number(product.costPrice) : 0;
+            const absDiscrepancy = Math.abs(discrepancy);
+            const totalValue = unitCost * absDiscrepancy;
+
+            const auditTx = await prisma.inventoryTransaction.create({
                 data: {
                     type: 'ADJUSTMENT', // Fixed Enum
                     quantity: discrepancy, // Signed value (+ for IN, - for OUT, 0 for MATCH)
                     productId,
                     warehouseId,
+                    unitCost: unitCost > 0 ? unitCost : undefined,
+                    totalValue: totalValue > 0 ? totalValue : undefined,
                     referenceId: `AUDIT-${Date.now()}`,
                     notes: `Spot Audit by ${auditorName}. System: ${systemQty}, Actual: ${actualQty}. ${notes || ''}`
                 }
             });
+
+            // 4. Post GL Journal Entry (only if discrepancy != 0)
+            if (discrepancy !== 0 && totalValue > 0) {
+                const glType: InventoryGLType = discrepancy > 0 ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
+                await postInventoryGLEntry(prisma, {
+                    transactionId: auditTx.id,
+                    type: glType,
+                    productName,
+                    quantity: absDiscrepancy,
+                    unitCost,
+                    totalValue,
+                    warehouseFrom: warehouseId,
+                    reference: `Spot Audit oleh ${auditorName}`,
+                });
+            }
 
             return { success: true };
         })
@@ -1608,6 +1794,62 @@ export async function updateProduct(productId: string, data: {
 /** Soft-delete a product (set isActive = false) */
 export async function deleteProduct(productId: string) {
     try {
+        // Auth check
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error("Unauthorized")
+
+        // Check if product is used as material in any active BOM
+        const activeBomUsage = await prisma.bOMItem.findFirst({
+            where: {
+                materialId: productId,
+                bom: { isActive: true },
+            },
+            include: { bom: { select: { product: { select: { name: true } }, version: true } } },
+        })
+        if (activeBomUsage) {
+            const bomProduct = activeBomUsage.bom.product.name
+            const bomVersion = activeBomUsage.bom.version
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk karena masih digunakan sebagai material di BOM "${bomProduct}" (${bomVersion})`,
+            }
+        }
+
+        // Check if product has items in active Sales Orders
+        const activeSalesOrderItem = await prisma.salesOrderItem.findFirst({
+            where: {
+                productId,
+                salesOrder: {
+                    status: { notIn: ["COMPLETED", "CANCELLED", "DELIVERED"] },
+                },
+            },
+            include: { salesOrder: { select: { number: true } } },
+        })
+        if (activeSalesOrderItem) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk karena masih terdapat di Sales Order aktif (${activeSalesOrderItem.salesOrder.number})`,
+            }
+        }
+
+        // Check if product has items in active Purchase Orders
+        const activePurchaseOrderItem = await prisma.purchaseOrderItem.findFirst({
+            where: {
+                productId,
+                purchaseOrder: {
+                    status: { notIn: ["COMPLETED", "CANCELLED", "REJECTED"] },
+                },
+            },
+            include: { purchaseOrder: { select: { number: true } } },
+        })
+        if (activePurchaseOrderItem) {
+            return {
+                success: false,
+                error: `Tidak dapat menghapus produk karena masih terdapat di Purchase Order aktif (${activePurchaseOrderItem.purchaseOrder.number})`,
+            }
+        }
+
         // Check if product has stock
         const stockLevels = await prisma.stockLevel.findMany({
             where: { productId },
@@ -1934,5 +2176,124 @@ export async function bulkImportMovements(rows: BulkImportMovementRow[]): Promis
     } catch (err: any) {
         console.error('bulkImportMovements fatal error:', err)
         return { success: false, imported, errors: [...errors, `Fatal: ${err.message}`] }
+    }
+}
+
+// ================================
+// Warehouse Location CRUD
+// ================================
+
+export async function getWarehouseLocations(warehouseId: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
+    const locations = await prisma.location.findMany({
+        where: { warehouseId, isActive: true },
+        orderBy: { code: 'asc' },
+        include: {
+            _count: { select: { stockLevels: true } },
+        },
+    })
+
+    return locations.map(loc => ({
+        id: loc.id,
+        code: loc.code,
+        name: loc.name,
+        rack: loc.rack,
+        bin: loc.bin,
+        aisle: loc.aisle,
+        capacity: loc.capacity,
+        stockLevelCount: loc._count.stockLevels,
+        createdAt: loc.createdAt,
+    }))
+}
+
+export async function createWarehouseLocation(data: {
+    warehouseId: string
+    code: string
+    name: string
+    rack?: string
+    bin?: string
+    aisle?: string
+    capacity?: number
+}) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
+    try {
+        const location = await prisma.location.create({
+            data: {
+                warehouseId: data.warehouseId,
+                code: data.code,
+                name: data.name,
+                rack: data.rack || null,
+                bin: data.bin || null,
+                aisle: data.aisle || null,
+                capacity: data.capacity || null,
+            },
+        })
+        return { success: true, location }
+    } catch (error: any) {
+        if (error.code === 'P2002') {
+            return { success: false, error: 'Kode lokasi sudah digunakan di gudang ini' }
+        }
+        return { success: false, error: error.message || 'Gagal membuat lokasi' }
+    }
+}
+
+export async function updateWarehouseLocation(id: string, data: {
+    code?: string
+    name?: string
+    rack?: string
+    bin?: string
+    aisle?: string
+    capacity?: number
+}) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
+    try {
+        await prisma.location.update({
+            where: { id },
+            data: {
+                ...(data.code !== undefined && { code: data.code }),
+                ...(data.name !== undefined && { name: data.name }),
+                ...(data.rack !== undefined && { rack: data.rack || null }),
+                ...(data.bin !== undefined && { bin: data.bin || null }),
+                ...(data.aisle !== undefined && { aisle: data.aisle || null }),
+                ...(data.capacity !== undefined && { capacity: data.capacity || null }),
+            },
+        })
+        return { success: true }
+    } catch (error: any) {
+        if (error.code === 'P2002') {
+            return { success: false, error: 'Kode lokasi sudah digunakan di gudang ini' }
+        }
+        return { success: false, error: error.message || 'Gagal mengubah lokasi' }
+    }
+}
+
+export async function deleteWarehouseLocation(id: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
+    // Check if any stock levels reference this location
+    const stockCount = await prisma.stockLevel.count({ where: { locationId: id } })
+    if (stockCount > 0) {
+        return { success: false, error: `Lokasi masih memiliki ${stockCount} stok. Pindahkan stok terlebih dahulu.` }
+    }
+
+    try {
+        await prisma.location.update({
+            where: { id },
+            data: { isActive: false },
+        })
+        return { success: true }
+    } catch (error: any) {
+        return { success: false, error: error.message || 'Gagal menghapus lokasi' }
     }
 }

@@ -44,7 +44,7 @@ export function NavSecondary({
                 >
                   <Link href={item.url} prefetch>
                     <item.icon className="!size-4" />
-                    <span className="text-[13px] tracking-tight">{item.title}</span>
+                    <span className="text-[13.5px] tracking-tight">{item.title}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

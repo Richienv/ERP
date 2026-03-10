@@ -34,6 +34,8 @@ interface TransactionEntry {
     paymentId: string | null
     paymentNumber: string | null
     paymentMethod: string | null
+    paymentSupplierId: string | null
+    paymentCustomerId: string | null
     lines: TransactionLine[]
 }
 
@@ -100,10 +102,12 @@ const ACCOUNT_TYPE_COLORS: Record<string, { bg: string; text: string; border: st
 const fmtDate = (d: string) => new Date(d).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })
 
 // ─── Clickable reference helper ─────────────────────────
-function ReferenceLink({ reference, invoiceId, paymentId, router }: {
+function ReferenceLink({ reference, invoiceId, paymentId, paymentSupplierId, paymentCustomerId, router }: {
     reference: string | null
     invoiceId: string | null
     paymentId: string | null
+    paymentSupplierId: string | null
+    paymentCustomerId: string | null
     router: ReturnType<typeof useRouter>
 }) {
     const ref = reference || "—"
@@ -122,12 +126,18 @@ function ReferenceLink({ reference, invoiceId, paymentId, router }: {
         )
     }
     if (paymentId) {
+        // Route AP payments to vendor-payments, AR payments to payments
+        const isAP = !!paymentSupplierId
+        const dest = isAP
+            ? `/finance/vendor-payments?highlight=${paymentId}`
+            : `/finance/payments?highlight=${paymentId}`
+        const label = isAP ? "Buka pembayaran vendor" : "Buka pembayaran masuk"
         return (
             <button
                 type="button"
-                onClick={() => router.push(`/finance/payments?highlight=${paymentId}`)}
+                onClick={() => router.push(dest)}
                 className="text-[11px] font-mono text-blue-600 hover:text-blue-800 hover:underline px-3 py-1.5 truncate text-left cursor-pointer"
-                title={`Buka pembayaran ${ref}`}
+                title={`${label} ${ref}`}
             >
                 {ref}
             </button>
@@ -154,6 +164,8 @@ interface AccountRow {
     invoiceId: string | null
     invoiceNumber: string | null
     paymentId: string | null
+    paymentSupplierId: string | null
+    paymentCustomerId: string | null
 }
 
 // ─── Page Component ──────────────────────────────────────
@@ -222,12 +234,17 @@ export default function AccountTransactionsPage() {
         }
         if (searchText.trim()) {
             const q = searchText.toLowerCase()
+            const qNum = parseFloat(searchText.replace(/[^0-9.]/g, ""))
             result = result.filter(e =>
                 e.description?.toLowerCase().includes(q) ||
                 e.reference?.toLowerCase().includes(q) ||
                 e.invoiceNumber?.toLowerCase().includes(q) ||
                 e.paymentNumber?.toLowerCase().includes(q) ||
-                e.lines.some(l => l.accountName.toLowerCase().includes(q) || l.accountCode.includes(q))
+                e.lines.some(l =>
+                    l.accountName.toLowerCase().includes(q) ||
+                    l.accountCode.includes(q) ||
+                    (!isNaN(qNum) && (l.debit === qNum || l.credit === qNum || formatIDR(l.debit).includes(searchText) || formatIDR(l.credit).includes(searchText)))
+                )
             )
         }
         // Amount filter: check if any line's debit or credit falls within range
@@ -285,6 +302,8 @@ export default function AccountTransactionsPage() {
                     invoiceId: entry.invoiceId,
                     invoiceNumber: entry.invoiceNumber,
                     paymentId: entry.paymentId,
+                    paymentSupplierId: entry.paymentSupplierId ?? null,
+                    paymentCustomerId: entry.paymentCustomerId ?? null,
                 })
             }
         }
@@ -432,16 +451,16 @@ export default function AccountTransactionsPage() {
                     <div>
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Rentang Nominal</label>
                         <div className="flex items-center gap-1.5">
-                            <Input type="number" className="border-2 border-black h-9 font-mono text-[11px] w-[120px]" placeholder="Min..." value={amountMin} onChange={(e) => setAmountMin(e.target.value)} />
+                            <Input type="number" className="border-2 border-black h-9 font-mono text-[11px] w-[120px] placeholder:text-zinc-300" placeholder="Min..." value={amountMin} onChange={(e) => setAmountMin(e.target.value)} />
                             <span className="text-zinc-400 text-xs">—</span>
-                            <Input type="number" className="border-2 border-black h-9 font-mono text-[11px] w-[120px]" placeholder="Max..." value={amountMax} onChange={(e) => setAmountMax(e.target.value)} />
+                            <Input type="number" className="border-2 border-black h-9 font-mono text-[11px] w-[120px] placeholder:text-zinc-300" placeholder="Max..." value={amountMax} onChange={(e) => setAmountMax(e.target.value)} />
                         </div>
                     </div>
                     <div className="relative flex-1 min-w-[200px]">
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Cari</label>
                         <div className="relative">
                             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
-                            <Input className="border-2 border-black h-9 pl-9 font-medium text-xs" placeholder="Cari deskripsi, referensi, nama akun..." value={searchText} onChange={(e) => setSearchText(e.target.value)} />
+                            <Input className="border-2 border-black h-9 pl-9 font-medium text-xs placeholder:text-zinc-300" placeholder="Cari deskripsi, referensi, nama akun, nominal..." value={searchText} onChange={(e) => setSearchText(e.target.value)} />
                         </div>
                     </div>
                 </div>
@@ -509,7 +528,7 @@ export default function AccountTransactionsPage() {
                                                                 </span>
                                                             </span>
                                                             <span className="text-[11px] font-medium text-zinc-700 px-3 py-1.5 truncate">{row.description}</span>
-                                                            <ReferenceLink reference={row.reference} invoiceId={row.invoiceId} paymentId={row.paymentId} router={router} />
+                                                            <ReferenceLink reference={row.reference} invoiceId={row.invoiceId} paymentId={row.paymentId} paymentSupplierId={row.paymentSupplierId} paymentCustomerId={row.paymentCustomerId} router={router} />
                                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
                                                                 {row.debit > 0 ? <span className="text-zinc-900">{formatIDR(row.debit)}</span> : <span className="text-zinc-200">{"\u2014"}</span>}
                                                             </span>
@@ -591,7 +610,7 @@ export default function AccountTransactionsPage() {
                                                 {line.description || entry.description}
                                                 <span className="text-zinc-300 ml-1.5 text-[9px]">({line.accountCode} {line.accountName})</span>
                                             </span>
-                                            {li === 0 ? <ReferenceLink reference={entry.reference} invoiceId={entry.invoiceId} paymentId={entry.paymentId} router={router} /> : <span className="px-3 py-1.5" />}
+                                            {li === 0 ? <ReferenceLink reference={entry.reference} invoiceId={entry.invoiceId} paymentId={entry.paymentId} paymentSupplierId={entry.paymentSupplierId ?? null} paymentCustomerId={entry.paymentCustomerId ?? null} router={router} /> : <span className="px-3 py-1.5" />}
                                             <span className="text-[11px] font-mono font-bold text-right px-3 py-1.5">
                                                 {line.debit > 0 ? formatIDR(line.debit) : <span className="text-zinc-200">{"\u2014"}</span>}
                                             </span>

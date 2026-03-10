@@ -4,291 +4,183 @@ import { useEffect, useState, useRef, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { routePrefetchMap } from "@/hooks/use-nav-prefetch"
 import { useAuth } from "@/lib/auth-context"
-import {
-    IconPackage, IconShoppingCart, IconTruck, IconCoin,
-    IconBuildingFactory2, IconUsers, IconCheck, IconLoader2
-} from "@tabler/icons-react"
-
-/* ─── Route metadata for display ─────────────────────────────── */
-
-type ModuleKey = "Inventori" | "Penjualan" | "Pengadaan" | "Keuangan" | "Manufaktur" | "SDM"
-
-const MODULE_CONFIG: Record<ModuleKey, { icon: typeof IconPackage; color: string }> = {
-    Inventori: { icon: IconPackage, color: "text-emerald-600" },
-    Penjualan: { icon: IconShoppingCart, color: "text-blue-600" },
-    Pengadaan: { icon: IconTruck, color: "text-orange-600" },
-    Keuangan: { icon: IconCoin, color: "text-purple-600" },
-    Manufaktur: { icon: IconBuildingFactory2, color: "text-red-600" },
-    SDM: { icon: IconUsers, color: "text-teal-600" },
-}
-
-type ModuleKey2 = ModuleKey | "Dashboard" | "Pemotongan" | "Subkontrak" | "Dokumen" | "Biaya"
-
-const MODULE_CONFIG_EXT: Record<string, { icon: typeof IconPackage; color: string }> = {
-    ...MODULE_CONFIG,
-    Dashboard: { icon: IconPackage, color: "text-zinc-600" },
-    Pemotongan: { icon: IconPackage, color: "text-amber-600" },
-    Subkontrak: { icon: IconPackage, color: "text-orange-600" },
-    Dokumen: { icon: IconPackage, color: "text-indigo-600" },
-    Biaya: { icon: IconCoin, color: "text-rose-600" },
-}
-
-const ROUTE_META: Record<string, { label: string; module: string }> = {
-    "/dashboard": { label: "Dashboard Eksekutif", module: "Dashboard" },
-    "/dashboard/approvals": { label: "Persetujuan", module: "Dashboard" },
-    "/inventory": { label: "Dashboard Inventori", module: "Inventori" },
-    "/inventory/products": { label: "Data Produk", module: "Inventori" },
-    "/inventory/categories": { label: "Kategori", module: "Inventori" },
-    "/inventory/fabric-rolls": { label: "Gulungan Kain", module: "Inventori" },
-    "/inventory/transfers": { label: "Transfer Stok", module: "Inventori" },
-    "/sales": { label: "Dashboard Sales", module: "Penjualan" },
-    "/sales/customers": { label: "Pelanggan", module: "Penjualan" },
-    "/sales/orders": { label: "Pesanan", module: "Penjualan" },
-    "/sales/leads": { label: "Prospek", module: "Penjualan" },
-    "/sales/quotations": { label: "Penawaran", module: "Penjualan" },
-    "/sales/sales": { label: "Analitik Penjualan", module: "Penjualan" },
-    "/sales/pricelists": { label: "Daftar Harga", module: "Penjualan" },
-    "/procurement": { label: "Dashboard Pengadaan", module: "Pengadaan" },
-    "/procurement/orders": { label: "Purchase Order", module: "Pengadaan" },
-    "/procurement/requests": { label: "Permintaan Pembelian", module: "Pengadaan" },
-    "/procurement/vendors": { label: "Vendor", module: "Pengadaan" },
-    "/procurement/receiving": { label: "Penerimaan Barang", module: "Pengadaan" },
-    "/finance": { label: "Dashboard Keuangan", module: "Keuangan" },
-    "/finance/journal": { label: "Jurnal", module: "Keuangan" },
-    "/finance/chart-accounts": { label: "Bagan Akun", module: "Keuangan" },
-    "/finance/vendor-payments": { label: "Pembayaran Vendor", module: "Keuangan" },
-    "/finance/bills": { label: "Tagihan", module: "Keuangan" },
-    "/finance/reconciliation": { label: "Rekonsiliasi Bank", module: "Keuangan" },
-    "/manufacturing": { label: "Dashboard Manufaktur", module: "Manufaktur" },
-    "/manufacturing/bom": { label: "Bill of Materials", module: "Manufaktur" },
-    "/manufacturing/orders": { label: "Manufacturing Order", module: "Manufaktur" },
-    "/manufacturing/work-centers": { label: "Mesin & Work Center", module: "Manufaktur" },
-    "/manufacturing/groups": { label: "Grup Mesin", module: "Manufaktur" },
-    "/manufacturing/routing": { label: "Routing", module: "Manufaktur" },
-    "/manufacturing/planning": { label: "Perencanaan", module: "Manufaktur" },
-    "/manufacturing/work-orders": { label: "SPK", module: "Manufaktur" },
-    "/manufacturing/schedule": { label: "Jadwal Produksi", module: "Manufaktur" },
-    "/manufacturing/quality": { label: "Quality Control", module: "Manufaktur" },
-    "/hcm/employee-master": { label: "Data Karyawan", module: "SDM" },
-    "/hcm/attendance": { label: "Kehadiran", module: "SDM" },
-    "/hcm/shifts": { label: "Jadwal Shift", module: "SDM" },
-    "/hcm/onboarding": { label: "Onboarding", module: "SDM" },
-    "/cutting": { label: "Dashboard Potong", module: "Pemotongan" },
-    "/cutting/plans": { label: "Cut Plan", module: "Pemotongan" },
-    "/subcontract": { label: "Dashboard CMT", module: "Subkontrak" },
-    "/subcontract/orders": { label: "Order Subkontrak", module: "Subkontrak" },
-    "/subcontract/registry": { label: "Mitra CMT", module: "Subkontrak" },
-    "/costing": { label: "Dashboard Biaya", module: "Biaya" },
-    "/costing/sheets": { label: "Cost Sheet", module: "Biaya" },
-    "/staff": { label: "Tugas Staff", module: "SDM" },
-    "/manager": { label: "Dashboard Manajer", module: "SDM" },
-    "/documents": { label: "Dokumen & Sistem", module: "Dokumen" },
-}
-
-type RouteStatus = "pending" | "loading" | "done" | "error"
+import { IconCheck, IconLoader2 } from "@tabler/icons-react"
 
 const SESSION_KEY = "erp_cache_warmed"
+
+/**
+ * Two-phase cache warmer:
+ *
+ * Phase 1 (visible): Quick splash loading priority routes (~2-3s).
+ *   Shows a sleek progress bar. User can skip anytime with "Lewati".
+ *   Auto-dismisses when priority routes are done.
+ *
+ * Phase 2 (silent): Remaining routes load in background batches.
+ *   No UI — user is already using the app.
+ *
+ * Result: Every page the user visits after login opens instantly.
+ */
+
+const PRIORITY_ROUTES = [
+    "/dashboard",
+    "/inventory/products",
+    "/inventory",
+    "/sales/customers",
+    "/sales/orders",
+    "/sales",
+    "/finance",
+    "/procurement",
+    "/manufacturing",
+]
 
 export function CacheWarmingOverlay() {
     const { isAuthenticated, isLoading: authLoading } = useAuth()
     const queryClient = useQueryClient()
+    const hasStarted = useRef(false)
+
     const [show, setShow] = useState(false)
     const [fadeOut, setFadeOut] = useState(false)
-    const [routeStatuses, setRouteStatuses] = useState<Record<string, RouteStatus>>({})
-    const hasStarted = useRef(false)
+    const [priorityDone, setPriorityDone] = useState(0)
+    const [priorityTotal, setPriorityTotal] = useState(0)
+    const [phase, setPhase] = useState<"priority" | "background" | "done">("priority")
+
+    const dismiss = useCallback(() => {
+        setFadeOut(true)
+        setTimeout(() => setShow(false), 300)
+    }, [])
+
+    const warmPriority = useCallback(async () => {
+        const entries = Object.entries(routePrefetchMap).filter(([r]) => PRIORITY_ROUTES.includes(r))
+        setPriorityTotal(entries.length)
+        setPriorityDone(0)
+
+        // Fetch priority routes in batches of 5 (safe — most use prisma singleton, no transactions)
+        const BATCH = 5
+        for (let i = 0; i < entries.length; i += BATCH) {
+            const batch = entries.slice(i, i + BATCH)
+            await Promise.allSettled(
+                batch.map(async ([, config]) => {
+                    try {
+                        await queryClient.prefetchQuery({
+                            queryKey: config.queryKey,
+                            queryFn: config.queryFn,
+                        })
+                    } catch { /* ignore */ }
+                    setPriorityDone((prev) => prev + 1)
+                })
+            )
+        }
+    }, [queryClient])
+
+    const warmBackground = useCallback(async () => {
+        const entries = Object.entries(routePrefetchMap).filter(([r]) => !PRIORITY_ROUTES.includes(r))
+        const BATCH = 4
+
+        for (let i = 0; i < entries.length; i += BATCH) {
+            const batch = entries.slice(i, i + BATCH)
+            await Promise.allSettled(
+                batch.map(([, config]) =>
+                    queryClient.prefetchQuery({
+                        queryKey: config.queryKey,
+                        queryFn: config.queryFn,
+                    }).catch(() => {})
+                )
+            )
+            if (i + BATCH < entries.length) {
+                await new Promise((r) => setTimeout(r, 150))
+            }
+        }
+
+        sessionStorage.setItem(SESSION_KEY, "true")
+        setPhase("done")
+    }, [queryClient])
 
     useEffect(() => {
         if (authLoading || !isAuthenticated || hasStarted.current) return
+        hasStarted.current = true
 
-        // Check sessionStorage — don't show overlay again in same browser session
-        // The flag is cleared on login (see login/page.tsx), so after fresh login it always shows
+        // If already warmed this session, just do silent background refresh
         if (sessionStorage.getItem(SESSION_KEY) === "true") {
-            // Still warm cache silently in background
-            silentWarm()
+            warmBackground()
             return
         }
 
-        // Always show visual overlay after login (flag was cleared by login page)
-        hasStarted.current = true
+        // Show overlay and start priority loading
         setShow(true)
-        startVisualWarm()
-    }, [authLoading, isAuthenticated]) // eslint-disable-line react-hooks/exhaustive-deps
+        ;(async () => {
+            await warmPriority()
+            setPhase("background")
 
-    const silentWarm = useCallback(async () => {
-        const entries = Object.entries(routePrefetchMap)
-        const BATCH_SIZE = 4
-        for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-            const batch = entries.slice(i, i + BATCH_SIZE)
-            await Promise.all(batch.map(async ([, config]) => {
-                try {
-                    await queryClient.prefetchQuery({
-                        queryKey: config.queryKey,
-                        queryFn: config.queryFn,
-                    })
-                } catch {
-                    // silently ignore
-                }
-            }))
-            if (i + BATCH_SIZE < entries.length) {
-                await new Promise(r => setTimeout(r, 100))
-            }
-        }
-    }, [queryClient])
+            // Auto-dismiss overlay once priority routes are cached
+            dismiss()
 
-    const startVisualWarm = useCallback(async () => {
-        const routes = Object.keys(routePrefetchMap)
-
-        // Initialize all as pending
-        const initial: Record<string, RouteStatus> = {}
-        routes.forEach((r) => { initial[r] = "pending" })
-        setRouteStatuses(initial)
-
-        // Fetch in batches of 4 to avoid exhausting the connection pool
-        const entries = Object.entries(routePrefetchMap).filter(([route]) => routes.includes(route))
-        const BATCH_SIZE = 4
-        for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-            const batch = entries.slice(i, i + BATCH_SIZE)
-            await Promise.all(batch.map(async ([route, config]) => {
-                setRouteStatuses((prev) => ({ ...prev, [route]: "loading" }))
-                try {
-                    await queryClient.prefetchQuery({
-                        queryKey: config.queryKey,
-                        queryFn: config.queryFn,
-                    })
-                    setRouteStatuses((prev) => ({ ...prev, [route]: "done" }))
-                } catch {
-                    setRouteStatuses((prev) => ({ ...prev, [route]: "error" }))
-                }
-            }))
-            if (i + BATCH_SIZE < entries.length) {
-                await new Promise(r => setTimeout(r, 100))
-            }
-        }
-
-        // Mark session as warmed
-        sessionStorage.setItem(SESSION_KEY, "true")
-
-        // Auto-dismiss after a short delay
-        setTimeout(() => {
-            setFadeOut(true)
-            setTimeout(() => setShow(false), 400)
-        }, 600)
-    }, [queryClient])
+            // Continue loading remaining routes silently
+            await warmBackground()
+        })()
+    }, [authLoading, isAuthenticated, warmPriority, warmBackground, dismiss])
 
     if (!show) return null
 
-    // Group routes by module
-    const routes = Object.keys(routePrefetchMap)
-    const totalCount = routes.length
-    const doneCount = routes.filter((r) => routeStatuses[r] === "done" || routeStatuses[r] === "error").length
-    const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0
-
-    const moduleGroups: Record<string, { route: string; label: string; status: RouteStatus }[]> = {}
-
-    routes.forEach((route) => {
-        const meta = ROUTE_META[route]
-        if (meta) {
-            if (!moduleGroups[meta.module]) moduleGroups[meta.module] = []
-            moduleGroups[meta.module].push({
-                route,
-                label: meta.label,
-                status: routeStatuses[route] || "pending",
-            })
-        }
-    })
-
-    // Ordered module list for display
-    const moduleOrder = ["Dashboard", "Inventori", "Penjualan", "Pengadaan", "Keuangan", "Manufaktur", "SDM", "Pemotongan", "Subkontrak", "Biaya", "Dokumen"]
+    const pct = priorityTotal > 0 ? Math.round((priorityDone / priorityTotal) * 100) : 0
+    const allPriorityDone = phase !== "priority"
 
     return (
         <div
-            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-white/95 dark:bg-zinc-950/95 backdrop-blur-sm transition-opacity duration-400 ${fadeOut ? "opacity-0" : "opacity-100"}`}
+            className={`fixed inset-0 z-[9999] flex items-center justify-center bg-white/98 dark:bg-zinc-950/98 backdrop-blur-sm transition-opacity duration-300 ${fadeOut ? "opacity-0" : "opacity-100"}`}
         >
-            <div className="w-full max-w-2xl mx-4">
-                {/* Header */}
-                <div className="text-center mb-6">
-                    <h2 className="text-2xl font-bold font-sans text-zinc-900 dark:text-zinc-100">
+            <div className="w-full max-w-sm mx-6 text-center space-y-6">
+                {/* Logo */}
+                <div className="flex justify-center">
+                    <div className="w-12 h-12 bg-black border-2 border-black flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                        <span className="text-emerald-400 font-bold text-xl font-heading">E</span>
+                    </div>
+                </div>
+
+                {/* Title */}
+                <div>
+                    <h2 className="text-lg font-bold font-heading text-black dark:text-white">
                         Mempersiapkan Sistem
                     </h2>
-                    <p className="text-sm text-zinc-500 mt-1">
+                    <p className="text-xs text-zinc-400 mt-1">
                         Mengunduh data agar semua halaman terbuka instan
                     </p>
                 </div>
 
                 {/* Progress bar */}
-                <div className="mb-6">
-                    <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                            {doneCount} / {totalCount} halaman
-                        </span>
-                        <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                            {progressPct}%
-                        </span>
-                    </div>
-                    <div className="h-3 bg-zinc-100 dark:bg-zinc-800 border-2 border-black overflow-hidden">
+                <div className="space-y-2">
+                    <div className="h-2 bg-zinc-100 dark:bg-zinc-800 border-2 border-black overflow-hidden">
                         <div
-                            className="h-full bg-emerald-500 transition-all duration-300 ease-out"
-                            style={{ width: `${progressPct}%` }}
+                            className="h-full bg-emerald-500 transition-all duration-500 ease-out"
+                            style={{ width: `${allPriorityDone ? 100 : pct}%` }}
                         />
                     </div>
+                    <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-zinc-400 font-mono">
+                            {allPriorityDone ? (
+                                <span className="flex items-center gap-1 text-emerald-600">
+                                    <IconCheck size={12} /> Siap
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-1">
+                                    <IconLoader2 size={12} className="animate-spin" />
+                                    {priorityDone}/{priorityTotal}
+                                </span>
+                            )}
+                        </span>
+                        <span className="text-zinc-400 font-mono font-bold">
+                            {allPriorityDone ? "100" : pct}%
+                        </span>
+                    </div>
                 </div>
 
-                {/* Module groups */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[50vh] overflow-y-auto pr-1">
-                    {moduleOrder.map((moduleName) => {
-                        const items = moduleGroups[moduleName]
-                        if (!items || items.length === 0) return null
-                        const moduleConf = MODULE_CONFIG_EXT[moduleName] || MODULE_CONFIG_EXT["Dashboard"]
-                        const ModIcon = moduleConf.icon
-                        const moduleDone = items.filter((i) => i.status === "done" || i.status === "error").length
-
-                        return (
-                            <div
-                                key={moduleName}
-                                className="border-2 border-black bg-white dark:bg-zinc-900 p-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-                            >
-                                <div className="flex items-center gap-2 mb-2">
-                                    <ModIcon size={16} className={moduleConf.color} />
-                                    <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                                        {moduleName}
-                                    </span>
-                                    <span className="ml-auto text-[10px] font-mono text-zinc-500">
-                                        {moduleDone}/{items.length}
-                                    </span>
-                                </div>
-                                <div className="space-y-1">
-                                    {items.map((item) => (
-                                        <div key={item.route} className="flex items-center gap-1.5">
-                                            <StatusIcon status={item.status} />
-                                            <span className={`text-[11px] leading-tight ${
-                                                item.status === "done"
-                                                    ? "text-zinc-500 dark:text-zinc-500"
-                                                    : "text-zinc-700 dark:text-zinc-300"
-                                            }`}>
-                                                {item.label}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
+                {/* Skip button */}
+                <button
+                    onClick={dismiss}
+                    className="text-xs text-zinc-400 hover:text-black dark:hover:text-white font-medium underline underline-offset-4 decoration-zinc-300 hover:decoration-black transition-colors"
+                >
+                    Lewati
+                </button>
             </div>
         </div>
     )
-}
-
-function StatusIcon({ status }: { status: RouteStatus }) {
-    if (status === "done") {
-        return <IconCheck size={12} className="text-emerald-500 shrink-0" />
-    }
-    if (status === "loading") {
-        return <IconLoader2 size={12} className="text-blue-500 animate-spin shrink-0" />
-    }
-    if (status === "error") {
-        return <IconCheck size={12} className="text-amber-500 shrink-0" />
-    }
-    // pending
-    return <div className="w-3 h-3 rounded-full border border-zinc-300 dark:border-zinc-600 shrink-0" />
 }

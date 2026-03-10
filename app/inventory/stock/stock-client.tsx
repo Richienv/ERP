@@ -8,7 +8,8 @@ import {
     Package,
     ArrowUpRight,
     ArrowDownRight,
-    Layers
+    Layers,
+    ClipboardEdit
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +24,9 @@ import {
     TableRow,
 } from "@/components/ui/table"
 import { formatIDR } from "@/lib/utils"
+import { AdjustmentForm } from "@/components/inventory/adjustment-form"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { NB } from "@/lib/dialog-styles"
 
 interface StockClientProps {
     products: any[]
@@ -32,6 +36,7 @@ interface StockClientProps {
 export function StockClient({ products, warehouses }: StockClientProps) {
     const [search, setSearch] = useState("")
     const [filterCategory, setFilterCategory] = useState("All")
+    const [adjustmentOpen, setAdjustmentOpen] = useState(false)
 
     // Flatten stock levels into a single list
     const stockItems = useMemo(() => {
@@ -114,6 +119,12 @@ export function StockClient({ products, warehouses }: StockClientProps) {
                         </div>
                     </div>
                     <div className="flex gap-2">
+                        <Button
+                            onClick={() => setAdjustmentOpen(true)}
+                            className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold text-[10px] tracking-wide hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none"
+                        >
+                            <ClipboardEdit className="mr-2 h-3.5 w-3.5" /> Penyesuaian
+                        </Button>
                         <Link href="/inventory/alerts">
                             <Button variant="outline" className="border-2 border-black font-bold uppercase text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none">
                                 <AlertTriangle className="mr-2 h-3.5 w-3.5 text-amber-500" /> Alerts ({stats.lowStockCount})
@@ -277,7 +288,7 @@ export function StockClient({ products, warehouses }: StockClientProps) {
                                     <TableCell className="text-right">
                                         <Link href={`/inventory/movements?product=${item.productId}`}>
                                             <Button variant="outline" size="sm" className="h-7 text-[9px] uppercase font-black border-2 border-black bg-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] rounded-none">
-                                                History
+                                                Riwayat
                                             </Button>
                                         </Link>
                                     </TableCell>
@@ -287,6 +298,23 @@ export function StockClient({ products, warehouses }: StockClientProps) {
                     </TableBody>
                 </Table>
             </div>
+
+            <Dialog open={adjustmentOpen} onOpenChange={setAdjustmentOpen}>
+                <DialogContent className={NB.content}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}>
+                            <ClipboardEdit className="h-5 w-5" /> Penyesuaian Stok
+                        </DialogTitle>
+                        <p className={NB.subtitle}>Buat penyesuaian stok manual atau transfer antar gudang.</p>
+                    </DialogHeader>
+                    <div className="p-5">
+                        <AdjustmentForm
+                            products={products.map((p: any) => ({ id: p.id, name: p.name, code: p.code, unit: p.unit || "PCS" }))}
+                            warehouses={warehouses.map((w: any) => ({ id: w.id, name: w.name }))}
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

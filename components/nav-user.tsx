@@ -87,7 +87,7 @@ export function NavUser({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-zinc-100 dark:data-[state=open]:bg-zinc-800 rounded-none border-t border-zinc-200 dark:border-zinc-800"
+              className="data-[state=open]:bg-zinc-100 dark:data-[state=open]:bg-zinc-800 rounded-none border-t-2 border-zinc-200 dark:border-zinc-800"
             >
               <Avatar className="h-7 w-7 rounded-none border border-zinc-300 dark:border-zinc-600">
                 <AvatarImage src={user.avatar} alt={user.name} />

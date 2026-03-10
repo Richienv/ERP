@@ -50,17 +50,17 @@ interface LineItem {
     includePPN: boolean
 }
 
-const TYPE_CARDS: {
-    type: DCNoteType
+type NoteKind = "CREDIT" | "DEBIT"
+
+const KIND_CARDS: {
+    kind: NoteKind
     label: string
     desc: string
     color: "blue" | "orange"
     icon: typeof ArrowDownLeft
 }[] = [
-    { type: "SALES_CN", label: "Nota Kredit Penjualan", desc: "Kurangi piutang customer", color: "blue", icon: ArrowDownLeft },
-    { type: "SALES_DN", label: "Nota Debit Penjualan", desc: "Tambah tagihan ke customer", color: "orange", icon: ArrowUpRight },
-    { type: "PURCHASE_DN", label: "Nota Debit Pembelian", desc: "Kurangi hutang ke supplier", color: "orange", icon: ArrowUpRight },
-    { type: "PURCHASE_CN", label: "Nota Kredit Pembelian", desc: "Supplier memberikan kredit", color: "blue", icon: ArrowDownLeft },
+    { kind: "CREDIT", label: "Nota Kredit", desc: "Pengurangan tagihan / hutang", color: "blue", icon: ArrowDownLeft },
+    { kind: "DEBIT", label: "Nota Debit", desc: "Penambahan tagihan / hutang", color: "orange", icon: ArrowUpRight },
 ]
 
 const REASON_OPTIONS: Record<string, { value: string; label: string }[]> = {
@@ -115,7 +115,8 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
 
     // Steps
     const [step, setStep] = useState<1 | 2>(1)
-    const [selectedType, setSelectedType] = useState<DCNoteType | null>(null)
+    const [selectedKind, setSelectedKind] = useState<NoteKind | null>(null)
+    const [partyType, setPartyType] = useState<"customer" | "supplier">("customer")
 
     // Form fields
     const [partyId, setPartyId] = useState("")
@@ -127,11 +128,18 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
     const [items, setItems] = useState<LineItem[]>([newItem()])
     const [submitting, setSubmitting] = useState(false)
 
-    const isSalesType = selectedType === "SALES_CN" || selectedType === "SALES_DN"
+    // Derive the full DCNoteType from kind + partyType
+    const selectedType: DCNoteType | null = selectedKind
+        ? (partyType === "customer"
+            ? (selectedKind === "CREDIT" ? "SALES_CN" : "SALES_DN")
+            : (selectedKind === "CREDIT" ? "PURCHASE_CN" : "PURCHASE_DN"))
+        : null
+    const isSalesType = partyType === "customer"
 
     const resetForm = () => {
         setStep(1)
-        setSelectedType(null)
+        setSelectedKind(null)
+        setPartyType("customer")
         setPartyId("")
         setOriginalInvoiceId("")
         setReasonCode("")
@@ -146,8 +154,8 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
         onOpenChange(open)
     }
 
-    const selectType = (type: DCNoteType) => {
-        setSelectedType(type)
+    const selectKind = (kind: NoteKind) => {
+        setSelectedKind(kind)
         setPartyId("")
         setOriginalInvoiceId("")
         setReasonCode("")
@@ -259,7 +267,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}>
                         <FileText className="h-5 w-5" />
-                        {step === 1 ? "Buat Nota Baru" : `Buat ${TYPE_CARDS.find(c => c.type === selectedType)?.label || "Nota"}`}
+                        {step === 1 ? "Buat Nota Baru" : `Buat ${KIND_CARDS.find(c => c.kind === selectedKind)?.label || "Nota"}`}
                     </DialogTitle>
                     <p className={NB.subtitle}>
                         {step === 1 ? "Pilih jenis nota yang ingin dibuat" : "Lengkapi detail nota"}
@@ -271,23 +279,23 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                         {/* ══════ STEP 1: Type Selection ══════ */}
                         {step === 1 && (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {TYPE_CARDS.map(card => {
+                                {KIND_CARDS.map(card => {
                                     const Icon = card.icon
-                                    const borderColor = card.color === "blue" ? "border-blue-400" : "border-orange-400"
                                     const hoverBg = card.color === "blue" ? "hover:bg-blue-50" : "hover:bg-orange-50"
                                     const textColor = card.color === "blue" ? "text-blue-600" : "text-orange-600"
+                                    const barColor = card.color === "blue" ? "bg-blue-400" : "bg-orange-400"
                                     return (
                                         <button
-                                            key={card.type}
-                                            onClick={() => selectType(card.type)}
-                                            className={`border-2 border-black p-5 text-left transition-all ${hoverBg} shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}
+                                            key={card.kind}
+                                            onClick={() => selectKind(card.kind)}
+                                            className={`border-2 border-black p-6 text-left transition-all ${hoverBg} shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]`}
                                         >
                                             <div className={`flex items-center gap-2 mb-2 ${textColor}`}>
-                                                <Icon className="h-5 w-5" />
-                                                <span className="font-black text-sm uppercase tracking-wide">{card.label}</span>
+                                                <Icon className="h-6 w-6" />
+                                                <span className="font-black text-base uppercase tracking-wide">{card.label}</span>
                                             </div>
                                             <p className="text-xs text-zinc-500 font-medium">{card.desc}</p>
-                                            <div className={`h-1 mt-3 ${borderColor.replace("border-", "bg-")}`} />
+                                            <div className={`h-1.5 mt-4 ${barColor} rounded-full`} />
                                         </button>
                                     )
                                 })}
@@ -311,6 +319,27 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                         <span className={NB.sectionTitle}>Detail Nota</span>
                                     </div>
                                     <div className={NB.sectionBody}>
+                                        {/* Party type toggle */}
+                                        <div>
+                                            <label className={NB.label}>Untuk <span className={NB.labelRequired}>*</span></label>
+                                            <div className="flex gap-0 border-2 border-black w-fit">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setPartyType("customer"); setPartyId(""); setOriginalInvoiceId(""); setReasonCode("") }}
+                                                    className={`px-5 py-2 text-xs font-black uppercase tracking-widest transition-colors ${partyType === "customer" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
+                                                >
+                                                    Customer
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setPartyType("supplier"); setPartyId(""); setOriginalInvoiceId(""); setReasonCode("") }}
+                                                    className={`px-5 py-2 text-xs font-black uppercase tracking-widest transition-colors border-l-2 border-black ${partyType === "supplier" ? "bg-black text-white" : "bg-white text-zinc-500 hover:bg-zinc-50"}`}
+                                                >
+                                                    Supplier
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {/* Party */}
                                             <div>
@@ -413,73 +442,76 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                         <span className={NB.sectionTitle}>Item</span>
                                     </div>
                                     <div className="p-4">
-                                        {/* Items Table */}
-                                        <div className={NB.tableWrap}>
-                                            <div className={NB.tableHead}>
-                                                <div className="grid grid-cols-12 gap-2">
-                                                    <div className={`col-span-4 ${NB.tableHeadCell}`}>Deskripsi</div>
-                                                    <div className={`col-span-2 ${NB.tableHeadCell}`}>Qty</div>
-                                                    <div className={`col-span-2 ${NB.tableHeadCell}`}>Harga Satuan</div>
-                                                    <div className={`col-span-1 ${NB.tableHeadCell} text-center`}>PPN</div>
-                                                    <div className={`col-span-2 ${NB.tableHeadCell} text-right`}>Jumlah</div>
-                                                    <div className={`col-span-1 ${NB.tableHeadCell}`}></div>
-                                                </div>
-                                            </div>
-                                            {items.map(item => {
+                                        {/* Items list */}
+                                        <div className="space-y-3">
+                                            {items.map((item, idx) => {
                                                 const lineAmount = item.quantity * item.unitPrice
                                                 const linePPN = item.includePPN ? Math.round(lineAmount * 0.11) : 0
                                                 const lineTotal = lineAmount + linePPN
                                                 return (
-                                                    <div key={item.id} className={NB.tableRow}>
-                                                        <div className="grid grid-cols-12 gap-2 items-center">
-                                                            <div className={`col-span-4 ${NB.tableCell}`}>
-                                                                <Input
-                                                                    value={item.description}
-                                                                    onChange={e => updateItem(item.id, "description", e.target.value)}
-                                                                    placeholder="Deskripsi"
-                                                                    className="border border-zinc-300 h-8 text-sm rounded-none placeholder:text-zinc-300 placeholder:font-normal"
-                                                                />
-                                                            </div>
-                                                            <div className={`col-span-2 ${NB.tableCell}`}>
+                                                    <div key={item.id} className="border-2 border-black p-3 space-y-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Item {idx + 1}</span>
+                                                            {items.length > 1 && (
+                                                                <button
+                                                                    onClick={() => removeItem(item.id)}
+                                                                    className="text-red-400 hover:text-red-600 transition-colors"
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        {/* Description - full width */}
+                                                        <div>
+                                                            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">Deskripsi</label>
+                                                            <Input
+                                                                value={item.description}
+                                                                onChange={e => updateItem(item.id, "description", e.target.value)}
+                                                                placeholder="Deskripsi item..."
+                                                                className="border-2 border-zinc-300 h-9 text-sm rounded-none placeholder:text-zinc-300"
+                                                            />
+                                                        </div>
+                                                        {/* Qty, Harga, PPN, Jumlah - row */}
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                            <div>
+                                                                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">Qty</label>
                                                                 <Input
                                                                     type="number"
                                                                     value={item.quantity || ""}
                                                                     onChange={e => updateItem(item.id, "quantity", Number(e.target.value) || 0)}
                                                                     placeholder="1"
                                                                     min={1}
-                                                                    className="border border-zinc-300 h-8 text-sm font-mono text-right rounded-none placeholder:text-zinc-300 placeholder:font-normal"
+                                                                    className="border-2 border-zinc-300 h-9 text-sm font-mono text-right rounded-none placeholder:text-zinc-300"
                                                                 />
                                                             </div>
-                                                            <div className={`col-span-2 ${NB.tableCell}`}>
+                                                            <div>
+                                                                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">Harga Satuan</label>
                                                                 <Input
                                                                     type="number"
                                                                     value={item.unitPrice || ""}
                                                                     onChange={e => updateItem(item.id, "unitPrice", Number(e.target.value) || 0)}
                                                                     placeholder="0"
                                                                     min={0}
-                                                                    className="border border-zinc-300 h-8 text-sm font-mono text-right rounded-none placeholder:text-zinc-300 placeholder:font-normal"
+                                                                    className="border-2 border-zinc-300 h-9 text-sm font-mono text-right rounded-none placeholder:text-zinc-300"
                                                                 />
                                                             </div>
-                                                            <div className={`col-span-1 ${NB.tableCell} text-center`}>
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={item.includePPN}
-                                                                    onChange={e => updateItem(item.id, "includePPN", e.target.checked)}
-                                                                    className="h-4 w-4 accent-black"
-                                                                />
+                                                            <div className="flex flex-col">
+                                                                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">PPN 11%</label>
+                                                                <div className="flex items-center gap-2 h-9">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={item.includePPN}
+                                                                        onChange={e => updateItem(item.id, "includePPN", e.target.checked)}
+                                                                        className="h-4 w-4 accent-black"
+                                                                    />
+                                                                    <span className="text-xs text-zinc-500">{item.includePPN ? formatIDR(linePPN) : "Tidak"}</span>
+                                                                </div>
                                                             </div>
-                                                            <div className={`col-span-2 ${NB.tableCell} text-right`}>
-                                                                <span className="font-mono text-sm font-bold">{formatIDR(lineTotal)}</span>
-                                                            </div>
-                                                            <div className={`col-span-1 ${NB.tableCell} text-center`}>
-                                                                {items.length > 1 && (
-                                                                    <button
-                                                                        onClick={() => removeItem(item.id)}
-                                                                        className="text-red-400 hover:text-red-600 transition-colors"
-                                                                    >
-                                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                                    </button>
-                                                                )}
+                                                            <div className="flex flex-col">
+                                                                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-500 mb-1 block">Jumlah</label>
+                                                                <div className="h-9 flex items-center justify-end">
+                                                                    <span className="font-mono text-sm font-black">{formatIDR(lineTotal)}</span>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>

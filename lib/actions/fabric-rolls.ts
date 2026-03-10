@@ -243,7 +243,7 @@ export async function receiveFabricRoll(data: {
                 data: {
                     fabricRollId: roll.id,
                     type: 'FR_RECEIVE',
-                    meters: 0, // Initial receive — length is already on the roll
+                    meters: data.lengthMeters,
                     reference: data.reference ?? `Terima roll ${data.rollNumber}`,
                 },
             })
@@ -297,7 +297,10 @@ export async function recordRollTransaction(data: {
             const newRemaining = data.type === 'FR_ADJUST'
                 ? currentRemaining + data.meters
                 : currentRemaining - data.meters
-            const newStatus = determineRollStatus(newRemaining, roll.status)
+
+            const hasCutTransactions = data.type === 'FR_CUT' ||
+                roll.transactions.some((t) => t.type === 'FR_CUT')
+            const newStatus = determineRollStatus(newRemaining, roll.status, hasCutTransactions)
 
             if (newStatus !== roll.status) {
                 await prisma.fabricRoll.update({

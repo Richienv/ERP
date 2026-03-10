@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import {
     ArrowUpRight,
     ArrowDownRight,
@@ -10,6 +11,7 @@ import {
     ClipboardEdit,
     Download,
     ChevronDown,
+    X,
 } from "lucide-react"
 import Link from "next/link"
 import * as XLSX from "xlsx"
@@ -31,12 +33,21 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { NB } from "@/lib/dialog-styles"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 interface MovementsClientProps {
     movements: any[]
     products: any[]
     warehouses: any[]
+    initialProductFilter?: string | null
+    initialWarehouseFilter?: string | null
 }
 
 const inboundTypes = new Set(["PO_RECEIVE", "PRODUCTION_IN", "RETURN_IN", "INITIAL", "ADJUSTMENT_IN"])
@@ -75,6 +86,19 @@ const getTypeConfig = (type: string, qty: number) => {
     return { icon: Activity, color: "text-zinc-600", bg: "bg-zinc-500", label: "ACTIVITY" }
 }
 
+// Helper: resolve a clickable link for a movement based on its type and reference
+function getMovementLink(move: { type: string; reference?: string }): { href: string; label: string } | null {
+    const ref = move.reference
+    if (!ref || ref === "-") return null
+    if (move.type === "PO_RECEIVE") return { href: "/procurement/orders", label: ref }
+    if (move.type === "SO_SHIPMENT") return { href: "/sales/orders", label: ref }
+    if (move.type === "PRODUCTION_IN" || move.type === "PRODUCTION_OUT") return { href: "/manufacturing/orders", label: ref }
+    if (move.type === "TRANSFER") return { href: "/inventory/movements", label: ref }
+    if (move.type === "INITIAL") return { href: "/inventory/movements", label: ref }
+    if (["ADJUSTMENT", "SCRAP", "ADJUSTMENT_IN", "ADJUSTMENT_OUT"].includes(move.type)) return { href: "/inventory/movements", label: ref }
+    return { href: "/inventory/movements", label: ref }
+}
+
 function matchesFilter(move: any, filter: FilterTab): boolean {
     if (filter === "all") return true
     const type = move.type as string
@@ -111,12 +135,32 @@ function exportMovements(movements: any[], format: "csv" | "xlsx") {
     }
 }
 
-export function MovementsClient({ movements, products, warehouses }: MovementsClientProps) {
+export function MovementsClient({ movements, products, warehouses, initialProductFilter, initialWarehouseFilter }: MovementsClientProps) {
+    const router = useRouter()
     const [activeFilter, setActiveFilter] = useState<FilterTab>("all")
     const [adjustmentDialogOpen, setAdjustmentDialogOpen] = useState(false)
+    const [productFilter, setProductFilter] = useState<string | null>(initialProductFilter ?? null)
+    const [warehouseFilter, setWarehouseFilter] = useState<string | null>(initialWarehouseFilter ?? null)
+
+    const productFilterName = useMemo(() => {
+        if (!productFilter) return null
+        const product = products.find((p: any) => p.id === productFilter)
+        return product ? product.name : null
+    }, [productFilter, products])
+
+    const warehouseFilterName = useMemo(() => {
+        if (!warehouseFilter) return null
+        const wh = warehouses.find((w: any) => w.id === warehouseFilter)
+        return wh ? wh.name : null
+    }, [warehouseFilter, warehouses])
+
+    const warehouseMovements = useMemo(
+        () => warehouseFilter ? movements.filter((m) => m.warehouseId === warehouseFilter) : movements,
+        [movements, warehouseFilter]
+    )
 
     const todayKey = dateKey(new Date())
-    const todaysMoves = useMemo(() => movements.filter((m) => dateKey(m.date) === todayKey), [movements, todayKey])
+    const todaysMoves = useMemo(() => warehouseMovements.filter((m) => dateKey(m.date) === todayKey), [warehouseMovements, todayKey])
 
     const inboundCount = todaysMoves.reduce((acc, move) => {
         const { direction, units } = classifyMovement(move.type, Number(move.qty || 0))
@@ -131,9 +175,17 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
     const transferCount = todaysMoves.filter((m) => m.type === "TRANSFER").length
 
     const filteredMovements = useMemo(
-        () => movements.filter((m) => matchesFilter(m, activeFilter)),
-        [movements, activeFilter]
+        () => warehouseMovements.filter((m) => {
+            if (productFilter && m.productId !== productFilter) return false
+            return matchesFilter(m, activeFilter)
+        }),
+        [warehouseMovements, activeFilter, productFilter]
     )
+
+    const clearProductFilter = () => {
+        setProductFilter(null)
+        router.replace("/inventory/movements", { scroll: false })
+    }
 
     const groupedMovements = useMemo(() => {
         return filteredMovements.reduce((groups, move) => {
@@ -180,7 +232,9 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
                                 Pergerakan Stok
                             </h1>
                             <p className="text-zinc-400 text-xs font-medium mt-0.5">
-                                Histori pergerakan barang, penyesuaian, dan transfer antar gudang
+                                {warehouseFilterName
+                                    ? `Pergerakan stok di ${warehouseFilterName}`
+                                    : "Histori pergerakan barang, penyesuaian, dan transfer antar gudang"}
                             </p>
                         </div>
                     </div>
@@ -258,37 +312,79 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
                             <Activity className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Pergerakan</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{movements.length.toLocaleString()}</div>
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{warehouseMovements.length.toLocaleString()}</div>
                         <div className="flex items-center gap-1 mt-1.5"><span className="text-[10px] font-bold text-zinc-400">Seluruh histori</span></div>
                     </div>
                 </div>
             </div>
 
-            {/* FILTER TABS */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-                {FILTER_TABS.map((tab) => {
-                    const isActive = activeFilter === tab.key
-                    return (
-                        <button
-                            key={tab.key}
-                            onClick={() => setActiveFilter(tab.key)}
-                            className={cn(
-                                "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-2 border-black transition-all",
-                                isActive
-                                    ? `${tab.color} text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`
-                                    : "bg-white text-zinc-500 hover:bg-zinc-50"
-                            )}
-                        >
-                            {tab.label}
-                            {tab.key !== "all" && (
-                                <span className={cn("ml-1.5 text-[9px]", isActive ? "text-white/70" : "text-zinc-400")}>
-                                    {movements.filter((m) => matchesFilter(m, tab.key)).length}
-                                </span>
-                            )}
-                        </button>
-                    )
-                })}
+            {/* FILTER TABS + WAREHOUSE SELECT */}
+            <div className="flex items-center gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {FILTER_TABS.map((tab) => {
+                        const isActive = activeFilter === tab.key
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveFilter(tab.key)}
+                                className={cn(
+                                    "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-2 border-black transition-all",
+                                    isActive
+                                        ? `${tab.color} text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]`
+                                        : "bg-white text-zinc-500 hover:bg-zinc-50"
+                                )}
+                            >
+                                {tab.label}
+                                {tab.key !== "all" && (
+                                    <span className={cn("ml-1.5 text-[9px]", isActive ? "text-white/70" : "text-zinc-400")}>
+                                        {warehouseMovements.filter((m) => matchesFilter(m, tab.key)).length}
+                                    </span>
+                                )}
+                            </button>
+                        )
+                    })}
+                </div>
+                <Select
+                    value={warehouseFilter ?? "__all__"}
+                    onValueChange={(v) => {
+                        const val = v === "__all__" ? null : v
+                        setWarehouseFilter(val)
+                        const url = new URL(window.location.href)
+                        if (val) {
+                            url.searchParams.set("warehouse", val)
+                        } else {
+                            url.searchParams.delete("warehouse")
+                        }
+                        router.replace(url.pathname + url.search, { scroll: false })
+                    }}
+                >
+                    <SelectTrigger className="w-[180px] border-2 border-black rounded-none font-bold text-xs uppercase h-8 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                        <SelectValue placeholder="Semua Gudang" />
+                    </SelectTrigger>
+                    <SelectContent className="border-2 border-black rounded-none">
+                        <SelectItem value="__all__" className="font-bold text-xs">Semua Gudang</SelectItem>
+                        {warehouses.map((w: any) => (
+                            <SelectItem key={w.id} value={w.id} className="font-bold text-xs">
+                                {w.name}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
+
+            {/* PRODUCT FILTER INDICATOR */}
+            {productFilter && productFilterName && (
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Filter Produk:</span>
+                    <button
+                        onClick={clearProductFilter}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold bg-violet-100 text-violet-700 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-violet-200 transition-colors"
+                    >
+                        {productFilterName}
+                        <X className="h-3 w-3" />
+                    </button>
+                </div>
+            )}
 
             {/* ACTIVITY TABLE */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -331,7 +427,21 @@ export function MovementsClient({ movements, products, warehouses }: MovementsCl
                                                         <span className="text-[10px] font-bold text-zinc-400">{move.warehouse}</span>
                                                         {move.type === "PO_RECEIVE" && <span className="text-[10px] text-zinc-400">dari <span className="font-bold">{move.entity}</span></span>}
                                                         {move.type === "SO_SHIPMENT" && <span className="text-[10px] text-zinc-400">ke <span className="font-bold">{move.entity}</span></span>}
-                                                        {move.type === "TRANSFER" && <span className="text-[10px] text-zinc-400">→ <span className="font-bold">{move.entity}</span></span>}
+                                                        {move.type === "TRANSFER" && <span className="text-[10px] text-zinc-400">{"\u2192"} <span className="font-bold">{move.entity}</span></span>}
+                                                        {(() => {
+                                                            const link = getMovementLink(move)
+                                                            if (link) {
+                                                                return (
+                                                                    <Link
+                                                                        href={link.href}
+                                                                        className="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline underline-offset-2"
+                                                                    >
+                                                                        {link.label}
+                                                                    </Link>
+                                                                )
+                                                            }
+                                                            return null
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>

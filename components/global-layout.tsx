@@ -18,6 +18,9 @@ import { PageTransition } from "@/components/page-transition"
 import { OfflineIndicator } from "@/components/offline-indicator"
 import { ServiceWorkerRegister } from "@/components/service-worker-register"
 import { PerformanceTracker } from "@/components/performance-tracker"
+import { CommandPalette } from "@/components/command-palette"
+import { ShortcutCheatSheet } from "@/components/shortcut-cheat-sheet"
+import { RouteProgress } from "@/components/route-progress"
 
 interface GlobalLayoutProps {
   children: React.ReactNode
@@ -30,6 +33,7 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
   return (
     <AuthProvider>
       <AIProvider>
+        <RouteProgress />
         <RouteGuard>
           {isAuthPage ? (
             <main className="min-h-screen bg-zinc-100 dark:bg-zinc-950">
@@ -57,6 +61,8 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
         <ServiceWorkerRegister />
         <PerformanceTracker />
         <CacheWarmingOverlay />
+        <CommandPalette />
+        <ShortcutCheatSheet />
       </AIProvider>
     </AuthProvider >
   )

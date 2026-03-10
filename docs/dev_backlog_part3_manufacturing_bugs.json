@@ -1,0 +1,197 @@
+{
+  "metadata": {
+    "part": "3 of 5",
+    "title": "Manufacturing — Bugs & UI Fixes",
+    "description": "All bugs and UI issues in the manufacturing module identified during the meeting. Work center allocation is the biggest area of concern.",
+    "module": "manufacturing",
+    "estimated_scope": "Frontend UI fixes + some backend logic corrections",
+    "prerequisite": "Part 1 and Part 2 (Finance MVP) completed",
+    "feeds_into": "Part 4 (Manufacturing Improvements)"
+  },
+  "tasks": [
+    {
+      "id": "MTG-013",
+      "submodule": "work_center_allocation",
+      "type": "bug",
+      "priority": "P1",
+      "title": "Tampilan progress rasio salah (3/3 seharusnya 3/6)",
+      "description": "Work center allocation menampilkan rasio yang salah. Contoh: menunjukkan 3/3 padahal target total adalah 6, jadi seharusnya 3/6. Penyebut harus = target.",
+      "action_required": [
+        "Perbaiki kalkulasi penyebut (denominator) — ambil dari target yang ditetapkan, BUKAN dari jumlah yang sudah dialokasikan",
+        "Jika target = 6 dan dialokasikan = 3 → tampilkan 3/6",
+        "Jika 100% teralokasi → tampilkan 6/6 atau indikator 100%"
+      ],
+      "files_likely_affected": [
+        "Frontend: work center allocation component — progress display logic",
+        "Backend: API response yang menyediakan data alokasi (pastikan ada field 'target')"
+      ],
+      "expected_outcome": {
+        "before": "Progress menunjukkan 3/3 — seolah-olah sudah selesai padahal baru separuh.",
+        "after": "Progress menunjukkan 3/6 — jelas bahwa masih ada 3 yang belum dialokasikan. Penyebut selalu = target.",
+        "how_to_verify": [
+          "Buat work order dengan target 6 unit",
+          "Alokasikan 3 ke Work Center A",
+          "Progress harus menunjukkan 3/6, bukan 3/3",
+          "Alokasikan sisa 3 → progress menjadi 6/6"
+        ]
+      }
+    },
+    {
+      "id": "MTG-025",
+      "submodule": "work_center_allocation",
+      "type": "bug",
+      "priority": "P1",
+      "title": "Rasio alokasi 3/4 muncul tanpa penjelasan",
+      "description": "Selain 3/3, juga muncul rasio 3/4 yang membingungkan. Tim tidak jelas dari mana angka 4 — mungkin terkait dual CPC atau kalkulasi lain.",
+      "action_required": [
+        "Investigasi sumber angka penyebut (4) — dari query/kalkulasi mana",
+        "Pastikan penyebut SELALU = target yang ditetapkan user, bukan nilai lain",
+        "Fix setelah root cause ditemukan"
+      ],
+      "files_likely_affected": [
+        "Backend/Frontend: same as MTG-013 — kemungkinan root cause sama"
+      ],
+      "expected_outcome": {
+        "before": "Rasio 3/4 muncul tanpa penjelasan. Angka penyebut tidak konsisten.",
+        "after": "Penyebut selalu = target. Tidak ada rasio yang unexplained.",
+        "how_to_verify": [
+          "Buat beberapa work order dengan target berbeda (4, 6, 10)",
+          "Alokasikan sebagian → rasio harus konsisten X/target"
+        ]
+      },
+      "notes": "Kemungkinan besar same root cause dengan MTG-013. Fix together."
+    },
+    {
+      "id": "MTG-014",
+      "submodule": "work_center_allocation",
+      "type": "bug",
+      "priority": "P1",
+      "title": "Bug kalkulasi durasi per piece (menunjukkan 90 menit)",
+      "description": "Estimasi durasi per piece menampilkan angka salah: 90 menit. Data sebenarnya: 12 min/pc, 3 min/pc, 4 min/pc. Kemungkinan: kalkulasi 3×2 lalu tambah 15 menit per proses lainnya — double counting.",
+      "action_required": [
+        "Review logika kalkulasi durasi per piece",
+        "Pastikan hanya menghitung proses yang di-assign ke work order ini",
+        "Cek apakah ada double-counting dari subprocess atau proses yang tidak relevan",
+        "Test dengan data yang diketahui: 12 + 3 + 4 = 19 min, bukan 90 min"
+      ],
+      "files_likely_affected": [
+        "Backend: work order duration calculation service/function",
+        "Frontend: duration display component"
+      ],
+      "expected_outcome": {
+        "before": "Durasi per piece menunjukkan 90 menit — angka yang salah dan membingungkan.",
+        "after": "Durasi per piece = sum dari durasi per proses yang benar-benar di-assign. Contoh: 12 + 3 + 4 = 19 menit.",
+        "how_to_verify": [
+          "Buat work order dengan 3 proses: cutting (12min), sewing (3min), finishing (4min)",
+          "Total durasi per piece = 19 menit, bukan 90",
+          "Ubah proses → durasi terupdate otomatis"
+        ]
+      }
+    },
+    {
+      "id": "MTG-015",
+      "submodule": "work_center_allocation",
+      "type": "bug",
+      "priority": "P1",
+      "title": "Overlap bug pada distribusi work center UI",
+      "description": "Interface distribusi work center memiliki overlap — tampilan duplikat. Alokasi dan lokasi ditampilkan terpisah padahal bisa digabung. Screenshot sudah diambil oleh Raymond.",
+      "action_required": [
+        "Gabungkan tampilan: lokasi + nama work center + alokasi (X/Y) dalam SATU baris",
+        "Hilangkan duplikasi UI",
+        "Contoh format satu baris: 'Cut A — 3/6 dari target'",
+        "Pastikan tidak ada overlap visual"
+      ],
+      "files_likely_affected": [
+        "Frontend: work center distribution/allocation component — layout restructure"
+      ],
+      "expected_outcome": {
+        "before": "Tampilan work center allocation terduplikasi, overlap, membingungkan. Lokasi dan alokasi ditampilkan di tempat berbeda.",
+        "after": "Satu baris per work center: [Nama WC] — [Alokasi X/Y] — [Lokasi]. Clean, tidak ada overlap atau duplikasi.",
+        "how_to_verify": [
+          "Buka halaman distribusi work center",
+          "Setiap work center tampil dalam satu baris yang jelas",
+          "Tidak ada elemen yang overlap atau duplikat",
+          "Screenshot baru dibandingkan dengan screenshot Raymond — harus jauh lebih clean"
+        ]
+      }
+    },
+    {
+      "id": "MTG-017",
+      "submodule": "work_order_template",
+      "type": "bug",
+      "priority": "P1",
+      "title": "Template work order: klik → blank, dan tidak ada konfirmasi overwrite",
+      "description": "Dua bug: (1) Klik template hasilnya blank/kosong — data template tidak terisi. (2) Tidak ada konfirmasi sebelum overwrite data yang sudah ada. Jika user sudah isi 4 flow lalu klik template, data hilang tanpa warning.",
+      "action_required": [
+        "Fix #1: Pastikan klik template → data template benar-benar terisi di form",
+        "Fix #2: Jika form sudah ada data, tampilkan dialog: 'Apakah Anda yakin ingin menghapus data saat ini dan menggunakan template ini?'",
+        "Template = from scratch, start to finish. Jika cocok, user tinggal tambah detail.",
+        "Tombol template tidak boleh menambah/append — harus replace seluruh form"
+      ],
+      "files_likely_affected": [
+        "Frontend: work order template selection logic",
+        "Frontend: confirmation dialog component",
+        "Backend: template data fetch (jika blank berarti data tidak ke-fetch)"
+      ],
+      "expected_outcome": {
+        "before": "Klik template → form tetap kosong. Jika form sudah ada data → data hilang tanpa warning.",
+        "after": "Klik template → form terisi dengan data template. Jika form sudah ada data → muncul konfirmasi dulu. User pilih 'Ya' → form diganti dengan template. User pilih 'Tidak' → form tetap.",
+        "how_to_verify": [
+          "Buat work order baru → klik template → form terisi ✓",
+          "Isi form dengan 4 proses manual → klik template → muncul dialog konfirmasi ✓",
+          "Klik 'Tidak' → form tetap (4 proses manual masih ada) ✓",
+          "Klik 'Ya' → form diganti dengan template ✓"
+        ]
+      }
+    },
+    {
+      "id": "MTG-022",
+      "submodule": "ui",
+      "type": "bug",
+      "priority": "P2",
+      "title": "Hapus tombol 'delete for new' yang tidak berfungsi",
+      "description": "Ada tombol 'delete for new' di halaman work order yang tidak berfungsi. Raymond meminta dihapus saja.",
+      "action_required": [
+        "Hapus tombol 'delete for new' dari UI",
+        "Review apakah ada tombol lain yang juga tidak berfungsi → hapus juga"
+      ],
+      "files_likely_affected": [
+        "Frontend: work order page component"
+      ],
+      "expected_outcome": {
+        "before": "Tombol 'delete for new' ada di UI tapi tidak berfungsi saat diklik.",
+        "after": "Tombol dihapus. Tidak ada dead buttons di UI.",
+        "how_to_verify": [
+          "Buka halaman work order → tombol 'delete for new' tidak ada lagi",
+          "Semua tombol yang tersisa berfungsi saat diklik"
+        ]
+      }
+    },
+    {
+      "id": "MTG-016",
+      "submodule": "work_center_allocation",
+      "type": "bug",
+      "priority": "P2",
+      "title": "Tidak bisa alokasi ke work center yang sama dua kali — perlu pesan jelas",
+      "description": "Setelah Cut dialokasikan ke Work Center A, tidak bisa menambahkan Cut lagi ke A. Ini mungkin intended behavior (blocked) tapi tidak ada pesan error yang jelas.",
+      "action_required": [
+        "Konfirmasi ini intended behavior (yes → add error message, no → allow)",
+        "Jika intended: tampilkan pesan 'Proses ini sudah dialokasikan ke work center ini'",
+        "Jika bug: allow multiple allocation"
+      ],
+      "files_likely_affected": [
+        "Frontend: allocation form validation + error message",
+        "Backend: allocation validation logic"
+      ],
+      "expected_outcome": {
+        "before": "Coba alokasi proses yang sama ke WC yang sama → tidak terjadi apa-apa, tidak ada feedback.",
+        "after": "Coba alokasi duplikat → muncul pesan jelas: 'Cutting sudah dialokasikan ke Work Center A. Tidak bisa dialokasikan dua kali ke work center yang sama.'",
+        "how_to_verify": [
+          "Alokasikan Cutting ke WC A → berhasil",
+          "Coba alokasikan Cutting ke WC A lagi → muncul error message yang jelas"
+        ]
+      }
+    }
+  ],
+  "completion_criteria": "Part 3 selesai ketika: (1) Rasio alokasi benar (X/target), (2) Durasi per piece benar, (3) UI overlap hilang — 1 baris per WC, (4) Template berfungsi + ada konfirmasi overwrite, (5) Dead buttons dihapus, (6) Error messages jelas untuk validasi. Baru lanjut ke Part 4."
+}

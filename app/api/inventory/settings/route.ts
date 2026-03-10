@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { getNegativeStockPolicy, setNegativeStockPolicy } from "@/lib/inventory-settings"
+import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 
@@ -9,6 +10,12 @@ export const dynamic = "force-dynamic"
  */
 export async function GET() {
   try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const allowNegativeStock = await getNegativeStockPolicy()
     return NextResponse.json({ allowNegativeStock })
   } catch (error) {
@@ -23,6 +30,12 @@ export async function GET() {
  */
 export async function PUT(request: Request) {
   try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json()
 
     if (typeof body.allowNegativeStock === "boolean") {

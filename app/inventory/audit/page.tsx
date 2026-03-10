@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -181,12 +182,19 @@ export default function InventoryAuditPage() {
                                 </p>
                             </div>
                         </div>
-                        <Button
-                            onClick={() => setInputOpen(true)}
-                            className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9"
-                        >
-                            <Plus className="mr-2 h-4 w-4" /> Input Opname
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Link href="/inventory/cycle-counts">
+                                <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase font-bold text-[10px] tracking-wide hover:translate-y-[1px] hover:shadow-none transition-all h-9 rounded-none">
+                                    <ClipboardList className="mr-2 h-3.5 w-3.5" /> Opname Batch
+                                </Button>
+                            </Link>
+                            <Button
+                                onClick={() => setInputOpen(true)}
+                                className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9"
+                            >
+                                <Plus className="mr-2 h-4 w-4" /> Input Opname
+                            </Button>
+                        </div>
                     </div>
                 </div>
 

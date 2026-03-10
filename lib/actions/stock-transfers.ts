@@ -167,18 +167,27 @@ export async function transitionStockTransfer(
     newStatus: TransferStatus
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        // Resolve employee BEFORE transaction for approval
+        // Resolve employee BEFORE transaction for approval or stock movement
         let approverId: string | null = null
-        if (newStatus === 'APPROVED') {
+        let performedByUserId: string | null = null
+        if (newStatus === 'APPROVED' || newStatus === 'RECEIVED') {
             const authUser = await getAuthzUser()
             const empCtx = await resolveEmployeeContext(prisma, authUser, { requireActive: false })
-            if (empCtx) approverId = empCtx.id
+            if (newStatus === 'APPROVED' && empCtx) approverId = empCtx.id
+            if (newStatus === 'RECEIVED') performedByUserId = authUser.id
         }
 
         await withPrismaAuth(async (tx: PrismaClient) => {
             const transfer = await tx.stockTransfer.findUniqueOrThrow({
                 where: { id: transferId },
-                select: { status: true },
+                select: {
+                    status: true,
+                    productId: true,
+                    fromWarehouseId: true,
+                    toWarehouseId: true,
+                    quantity: true,
+                    number: true,
+                },
             })
 
             assertTransferTransition(transfer.status, newStatus)
@@ -190,6 +199,90 @@ export async function transitionStockTransfer(
                 where: { id: transferId },
                 data: updates,
             })
+
+            // When transfer is RECEIVED, execute the actual stock movement
+            if (newStatus === 'RECEIVED') {
+                // 1. Validate source stock
+                const sourceStock = await tx.stockLevel.findFirst({
+                    where: {
+                        productId: transfer.productId,
+                        warehouseId: transfer.fromWarehouseId,
+                    },
+                })
+
+                if (!sourceStock || sourceStock.quantity < transfer.quantity) {
+                    throw new Error(
+                        `Stok tidak mencukupi di gudang asal. Tersedia: ${sourceStock?.quantity ?? 0}, dibutuhkan: ${transfer.quantity}`
+                    )
+                }
+
+                // 2. Create InventoryTransaction for SOURCE (negative)
+                await tx.inventoryTransaction.create({
+                    data: {
+                        productId: transfer.productId,
+                        warehouseId: transfer.fromWarehouseId,
+                        type: 'TRANSFER',
+                        quantity: -transfer.quantity,
+                        referenceId: transferId,
+                        notes: `Transfer keluar ${transfer.number} ke gudang tujuan`,
+                        performedBy: performedByUserId ?? undefined,
+                    },
+                })
+
+                // 3. Create InventoryTransaction for TARGET (positive)
+                await tx.inventoryTransaction.create({
+                    data: {
+                        productId: transfer.productId,
+                        warehouseId: transfer.toWarehouseId,
+                        type: 'TRANSFER',
+                        quantity: transfer.quantity,
+                        referenceId: transferId,
+                        notes: `Transfer masuk ${transfer.number} dari gudang asal`,
+                        performedBy: performedByUserId ?? undefined,
+                    },
+                })
+
+                // 4. Decrement source StockLevel (atomic with WHERE guard)
+                const sourceUpdated = await tx.stockLevel.updateMany({
+                    where: {
+                        productId: transfer.productId,
+                        warehouseId: transfer.fromWarehouseId,
+                        locationId: null,
+                        quantity: { gte: transfer.quantity },
+                    },
+                    data: {
+                        quantity: { increment: -transfer.quantity },
+                        availableQty: { increment: -transfer.quantity },
+                    },
+                })
+
+                if (sourceUpdated.count === 0) {
+                    throw new Error(
+                        `Stok tidak mencukupi di gudang asal untuk transfer ${transfer.number}`
+                    )
+                }
+
+                // 5. Upsert target StockLevel (increment or create)
+                await tx.stockLevel.upsert({
+                    where: {
+                        productId_warehouseId_locationId: {
+                            productId: transfer.productId,
+                            warehouseId: transfer.toWarehouseId,
+                            locationId: null as unknown as string,
+                        },
+                    },
+                    update: {
+                        quantity: { increment: transfer.quantity },
+                        availableQty: { increment: transfer.quantity },
+                    },
+                    create: {
+                        productId: transfer.productId,
+                        warehouseId: transfer.toWarehouseId,
+                        quantity: transfer.quantity,
+                        availableQty: transfer.quantity,
+                    },
+                })
+            }
         })
 
         return { success: true }

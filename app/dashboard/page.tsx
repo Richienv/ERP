@@ -8,6 +8,7 @@ import { FinancialHealthCard } from "@/components/dashboard/financial-health-car
 import { WarehouseOverview } from "@/components/dashboard/warehouse-overview"
 import { StaffToday } from "@/components/dashboard/staff-today"
 import { CompactActivityFeed } from "@/components/dashboard/compact-activity-feed"
+import { TodaysTasks } from "@/components/dashboard/todays-tasks"
 import { useExecutiveDashboard } from "@/hooks/use-executive-dashboard"
 import { CardPageSkeleton } from "@/components/ui/page-skeleton"
 
@@ -55,6 +56,7 @@ export default function DashboardPage() {
                     totalPOs={operations?.procurement?.totalPOs ?? 0}
                 />
             }
+            todaysTasksSlot={<TodaysTasks />}
             actionCenterSlot={
                 <CeoActionCenter
                     pendingApproval={operations?.procurement?.pendingApproval ?? operations?.procurement?.delays ?? []}

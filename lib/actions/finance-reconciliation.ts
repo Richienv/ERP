@@ -39,7 +39,8 @@ export interface ReconciliationDetail {
     periodEnd: string
     status: string
     items: ReconciliationItemData[]
-    systemEntries: SystemEntryData[]
+    hasMore: boolean
+    nextSkip: number
 }
 
 export interface ReconciliationItemData {
@@ -52,16 +53,6 @@ export interface ReconciliationItemData {
     systemDescription: string | null
     matchStatus: string
     matchedAt: string | null
-}
-
-export interface SystemEntryData {
-    entryId: string
-    date: string
-    description: string
-    reference: string | null
-    amount: number // positive = debit (money in), negative = credit (money out)
-    lineDescription: string | null
-    alreadyMatchedItemId: string | null
 }
 
 export interface BankStatementRow {
@@ -118,10 +109,12 @@ export async function getReconciliations(): Promise<ReconciliationSummary[]> {
 }
 
 /**
- * Get reconciliation detail with all items.
+ * Get reconciliation detail with paginated items.
  */
 export async function getReconciliationDetail(
-    reconciliationId: string
+    reconciliationId: string,
+    skip = 0,
+    take = 100
 ): Promise<ReconciliationDetail | null> {
     try {
         await requireAuth()
@@ -129,75 +122,19 @@ export async function getReconciliationDetail(
         const rec = await prisma.bankReconciliation.findUnique({
             where: { id: reconciliationId },
             include: {
-                glAccount: { select: { id: true, code: true, name: true, balance: true } },
+                glAccount: { select: { code: true, name: true, balance: true } },
                 items: {
                     orderBy: { bankDate: 'asc' },
+                    skip,
+                    take: take + 1,
                 },
             },
         })
 
         if (!rec) return null
 
-        // Fetch journal lines for this GL account within the reconciliation period
-        const journalLines = await prisma.journalLine.findMany({
-            where: {
-                accountId: rec.glAccount.id,
-                entry: {
-                    status: 'POSTED',
-                    date: {
-                        gte: rec.periodStart,
-                        lte: rec.periodEnd,
-                    },
-                },
-            },
-            select: {
-                id: true,
-                entryId: true,
-                description: true,
-                debit: true,
-                credit: true,
-                entry: {
-                    select: {
-                        id: true,
-                        date: true,
-                        description: true,
-                        reference: true,
-                    },
-                },
-            },
-        })
-
-        // Build a map: entryId → matched bank item ID (from already-matched items)
-        const entryToItemMap = new Map<string, string>()
-        for (const item of rec.items) {
-            if (item.systemTransactionId && item.matchStatus === 'MATCHED') {
-                entryToItemMap.set(item.systemTransactionId, item.id)
-            }
-        }
-
-        // Build a map: entryId → entry description (for resolving systemDescription)
-        const entryDescriptionMap = new Map<string, string>()
-        for (const line of journalLines) {
-            entryDescriptionMap.set(line.entryId, line.entry.description)
-        }
-
-        // Map journal lines to SystemEntryData[]
-        const systemEntries: SystemEntryData[] = journalLines.map((line) => {
-            const debit = Number(line.debit)
-            const credit = Number(line.credit)
-            // Positive = debit (money in), negative = credit (money out)
-            const amount = debit > 0 ? debit : -credit
-
-            return {
-                entryId: line.entryId,
-                date: line.entry.date.toISOString(),
-                description: line.entry.description,
-                reference: line.entry.reference,
-                amount,
-                lineDescription: line.description,
-                alreadyMatchedItemId: entryToItemMap.get(line.entryId) ?? null,
-            }
-        })
+        const hasMore = rec.items.length > take
+        const itemsSlice = hasMore ? rec.items.slice(0, take) : rec.items
 
         return {
             id: rec.id,
@@ -208,20 +145,19 @@ export async function getReconciliationDetail(
             periodStart: rec.periodStart.toISOString(),
             periodEnd: rec.periodEnd.toISOString(),
             status: rec.status,
-            items: rec.items.map((i) => ({
+            items: itemsSlice.map((i) => ({
                 id: i.id,
                 bankRef: i.bankRef,
                 bankDescription: i.bankDescription,
                 bankDate: i.bankDate?.toISOString() || null,
                 bankAmount: Number(i.bankAmount),
                 systemTransactionId: i.systemTransactionId,
-                systemDescription: i.systemTransactionId
-                    ? (entryDescriptionMap.get(i.systemTransactionId) ?? null)
-                    : null,
+                systemDescription: null,
                 matchStatus: i.matchStatus,
                 matchedAt: i.matchedAt?.toISOString() || null,
             })),
-            systemEntries,
+            hasMore,
+            nextSkip: skip + take,
         }
     } catch (error) {
         console.error("[getReconciliationDetail] Error:", error)
@@ -238,11 +174,16 @@ export async function getBankAccounts(): Promise<
     try {
         await requireAuth()
 
-        // Cash & Bank accounts only: 10xx codes (Kas, Bank BCA, Bank Mandiri, etc.)
+        // Bank & Cash accounts: type ASSET, name contains bank/kas/cash, or specific codes
         const accounts = await prisma.gLAccount.findMany({
             where: {
                 type: 'ASSET',
-                code: { startsWith: '10' },
+                OR: [
+                    { name: { contains: 'bank', mode: 'insensitive' as const } },
+                    { name: { contains: 'kas', mode: 'insensitive' as const } },
+                    { name: { contains: 'cash', mode: 'insensitive' as const } },
+                    { code: { in: ['1000', '1010', '1020', '1100', '1110'] } },
+                ],
             },
             select: { id: true, code: true, name: true, balance: true },
             orderBy: { code: 'asc' },
@@ -431,185 +372,67 @@ export async function unmatchReconciliationItem(
 }
 
 /**
- * Auto-match bank items with journal entries using scored matching.
- *
- * Scoring algorithm:
- *   - Exact amount match (required):    +50 pts
- *   - Reference text contains ref:      +30 pts
- *   - Description word overlap:         +15 pts
- *   - Date: exact same day:             +20 pts
- *   - Date: ±1 day:                     +10 pts
- *   - Date: ±2 days:                    +5 pts
- *   Threshold: 50+ to auto-match (minimum = exact amount match)
- *
- * Fixes vs previous implementation:
- *   1. Filters journal lines to ONLY the reconciliation's GL account
- *   2. Single batch query instead of N+1 (one query per unmatched item)
- *   3. Scored matching with reference/description text overlap
- *   4. Tracks already-matched entries to prevent double-matching
+ * Auto-match bank items with journal entries by amount and date range.
  */
 export async function autoMatchReconciliation(
     reconciliationId: string
 ): Promise<{ success: boolean; matchedCount?: number; error?: string }> {
     try {
         const matchedCount = await withPrismaAuth(async (prisma: PrismaClient) => {
-            // 1. Fetch reconciliation with GL account ID and all items
             const rec = await prisma.bankReconciliation.findUniqueOrThrow({
                 where: { id: reconciliationId },
                 include: {
-                    glAccount: { select: { id: true } },
-                    items: true,
-                },
-            })
-
-            const unmatchedItems = rec.items.filter(
-                (i) => i.matchStatus === 'UNMATCHED' && i.bankDate !== null
-            )
-            if (unmatchedItems.length === 0) return 0
-
-            // 2. Compute the widest date window needed (period ±2 days)
-            const bankDates = unmatchedItems.map((i) => i.bankDate!.getTime())
-            const minDate = new Date(Math.min(...bankDates))
-            minDate.setDate(minDate.getDate() - 2)
-            const maxDate = new Date(Math.max(...bankDates))
-            maxDate.setDate(maxDate.getDate() + 2)
-
-            // 3. Single batch query: all posted journal lines for THIS GL account in the date window
-            const candidateLines = await prisma.journalLine.findMany({
-                where: {
-                    accountId: rec.glAccount.id,
-                    entry: {
-                        status: 'POSTED',
-                        date: { gte: minDate, lte: maxDate },
-                    },
-                },
-                select: {
-                    id: true,
-                    entryId: true,
-                    description: true,
-                    debit: true,
-                    credit: true,
-                    entry: {
-                        select: {
-                            id: true,
-                            date: true,
-                            description: true,
-                            reference: true,
-                        },
+                    items: {
+                        where: { matchStatus: 'UNMATCHED' },
                     },
                 },
             })
 
-            // 4. Build set of already-matched entry IDs (from previously matched items)
-            const alreadyMatchedEntryIds = new Set<string>()
-            for (const item of rec.items) {
-                if (item.matchStatus === 'MATCHED' && item.systemTransactionId) {
-                    alreadyMatchedEntryIds.add(item.systemTransactionId)
-                }
-            }
-
-            // 5. Get current user for matchedBy
             const supabase = await (await import('@/lib/supabase/server')).createClient()
             const { data: { user } } = await supabase.auth.getUser()
 
-            // 6. Helper: extract words for description overlap scoring
-            const extractWords = (text: string | null): Set<string> => {
-                if (!text) return new Set()
-                return new Set(
-                    text.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter((w) => w.length > 2)
-                )
-            }
-
-            // 7. Helper: compute day difference between two dates
-            const dayDiff = (a: Date, b: Date): number => {
-                const msPerDay = 86_400_000
-                return Math.abs(
-                    Math.round((a.getTime() - b.getTime()) / msPerDay)
-                )
-            }
-
-            // 8. Track entries matched during this run to prevent double-matching
-            const matchedInThisRun = new Set<string>()
-
-            // 9. Score all candidates for each unmatched bank item
-            type MatchCandidate = { entryId: string; score: number }
-
-            const itemMatches: { itemId: string; best: MatchCandidate }[] = []
-
-            for (const item of unmatchedItems) {
-                const bankAmount = Number(item.bankAmount)
-                const absBankAmount = Math.abs(bankAmount)
-                const bankDate = item.bankDate!
-                const bankRef = item.bankRef?.toLowerCase() || ''
-                const bankDescWords = extractWords(item.bankDescription)
-
-                let bestMatch: MatchCandidate | null = null
-
-                for (const line of candidateLines) {
-                    // Skip entries already matched (previously or in this run)
-                    if (alreadyMatchedEntryIds.has(line.entryId)) continue
-                    if (matchedInThisRun.has(line.entryId)) continue
-
-                    // Amount check (required): bank positive → debit, bank negative → credit
-                    const debit = Number(line.debit)
-                    const credit = Number(line.credit)
-                    const lineAmount = debit > 0 ? debit : -credit
-
-                    // Exact amount match within Rp 0.01
-                    if (Math.abs(bankAmount - lineAmount) > 0.01) continue
-
-                    // Start scoring — amount matched = +50
-                    let score = 50
-
-                    // Reference matching: +30 if ref contains ref, +15 for word overlap
-                    const entryRef = line.entry.reference?.toLowerCase() || ''
-                    if (bankRef && entryRef && (entryRef.includes(bankRef) || bankRef.includes(entryRef))) {
-                        score += 30
-                    } else {
-                        // Description word overlap: +15 if any meaningful overlap
-                        const entryDescWords = extractWords(line.entry.description)
-                        const lineDescWords = extractWords(line.description)
-                        const allEntryWords = new Set([...entryDescWords, ...lineDescWords])
-                        let overlapCount = 0
-                        for (const w of bankDescWords) {
-                            if (allEntryWords.has(w)) overlapCount++
-                        }
-                        if (overlapCount >= 1) score += 15
-                    }
-
-                    // Date proximity scoring
-                    const days = dayDiff(bankDate, line.entry.date)
-                    if (days === 0) score += 20
-                    else if (days === 1) score += 10
-                    else if (days === 2) score += 5
-
-                    // Track best match for this bank item
-                    if (!bestMatch || score > bestMatch.score) {
-                        bestMatch = { entryId: line.entryId, score }
-                    }
-                }
-
-                // Threshold: 50+ (at minimum exact amount match)
-                if (bestMatch && bestMatch.score >= 50) {
-                    matchedInThisRun.add(bestMatch.entryId)
-                    itemMatches.push({ itemId: item.id, best: bestMatch })
-                }
-            }
-
-            // 10. Batch update all matched items
-            const now = new Date()
             let count = 0
-            for (const { itemId, best } of itemMatches) {
-                await prisma.bankReconciliationItem.update({
-                    where: { id: itemId },
-                    data: {
-                        systemTransactionId: best.entryId,
-                        matchStatus: 'MATCHED',
-                        matchedBy: user?.id || null,
-                        matchedAt: now,
+
+            for (const item of rec.items) {
+                if (!item.bankDate) continue
+
+                // Look for journal entries with matching amount within ±2 days
+                const dateFrom = new Date(item.bankDate)
+                dateFrom.setDate(dateFrom.getDate() - 2)
+                const dateTo = new Date(item.bankDate)
+                dateTo.setDate(dateTo.getDate() + 2)
+
+                const amount = Number(item.bankAmount)
+                const absAmount = Math.abs(amount)
+
+                // Find journal lines with matching debit or credit
+                const matchingLines = await prisma.journalLine.findMany({
+                    where: {
+                        entry: {
+                            date: { gte: dateFrom, lte: dateTo },
+                            status: 'POSTED',
+                        },
+                        OR: [
+                            { debit: absAmount },
+                            { credit: absAmount },
+                        ],
                     },
+                    select: { entryId: true },
+                    take: 1,
                 })
-                count++
+
+                if (matchingLines.length > 0) {
+                    await prisma.bankReconciliationItem.update({
+                        where: { id: item.id },
+                        data: {
+                            systemTransactionId: matchingLines[0].entryId,
+                            matchStatus: 'MATCHED',
+                            matchedBy: user?.id || null,
+                            matchedAt: new Date(),
+                        },
+                    })
+                    count++
+                }
             }
 
             return count
@@ -619,86 +442,6 @@ export async function autoMatchReconciliation(
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal auto-match'
         console.error("[autoMatchReconciliation] Error:", error)
-        return { success: false, error: msg }
-    }
-}
-
-/**
- * Match multiple bank items to multiple system journal entries (checkbox multi-select).
- * User selects 1+ bank items and 1+ system entries, totals must match within Rp 1.
- */
-export async function matchMultipleItems(data: {
-    bankItemIds: string[]
-    systemEntryIds: string[]
-}): Promise<{ success: boolean; error?: string }> {
-    if (!data.bankItemIds.length || !data.systemEntryIds.length) {
-        return { success: false, error: 'Pilih minimal 1 item bank dan 1 transaksi sistem' }
-    }
-
-    try {
-        await withPrismaAuth(async (prisma: PrismaClient) => {
-            const supabase = await (await import('@/lib/supabase/server')).createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-
-            // Fetch bank items
-            const bankItems = await prisma.bankReconciliationItem.findMany({
-                where: { id: { in: data.bankItemIds } },
-                include: { reconciliation: { select: { glAccountId: true } } },
-            })
-
-            if (bankItems.length === 0) {
-                throw new Error('Item bank tidak ditemukan')
-            }
-
-            // Get GL account from first bank item's reconciliation
-            const glAccountId = bankItems[0].reconciliation.glAccountId
-
-            // Fetch journal lines for the system entry IDs filtered to that GL account
-            const journalLines = await prisma.journalLine.findMany({
-                where: {
-                    entryId: { in: data.systemEntryIds },
-                    accountId: glAccountId,
-                },
-                select: {
-                    entryId: true,
-                    debit: true,
-                    credit: true,
-                },
-            })
-
-            // Calculate totals
-            const bankTotal = bankItems.reduce(
-                (sum, item) => sum + Math.abs(Number(item.bankAmount)),
-                0
-            )
-            const systemTotal = journalLines.reduce(
-                (sum, line) => sum + Math.max(Number(line.debit), Number(line.credit)),
-                0
-            )
-
-            // Validate totals match within Rp 1 tolerance
-            if (Math.abs(bankTotal - systemTotal) > 1) {
-                throw new Error(
-                    `Total tidak cocok: Bank Rp ${bankTotal.toLocaleString('id-ID')} vs Sistem Rp ${systemTotal.toLocaleString('id-ID')}`
-                )
-            }
-
-            // Update all bank items as matched
-            await prisma.bankReconciliationItem.updateMany({
-                where: { id: { in: data.bankItemIds } },
-                data: {
-                    systemTransactionId: data.systemEntryIds[0],
-                    matchStatus: 'MATCHED',
-                    matchedBy: user?.id || null,
-                    matchedAt: new Date(),
-                },
-            })
-        })
-
-        return { success: true }
-    } catch (error) {
-        const msg = error instanceof Error ? error.message : 'Gagal mencocokkan item'
-        console.error("[matchMultipleItems] Error:", error)
         return { success: false, error: msg }
     }
 }

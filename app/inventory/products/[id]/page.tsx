@@ -5,6 +5,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Table,
   TableBody,
@@ -19,15 +28,59 @@ import {
   Warehouse,
   BarChart3,
   Printer,
+  Pencil,
+  Save,
+  X,
+  Loader2,
+  ClipboardEdit,
 } from "lucide-react"
 import { BarcodeLabelDialog } from "@/components/inventory/barcode-label-dialog"
+import { AdjustmentForm } from "@/components/inventory/adjustment-form"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { NB } from "@/lib/dialog-styles"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { formatCurrency } from "@/lib/utils"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { ProductManufacturingTab } from "@/components/inventory/product-manufacturing-tab"
+import { useMasterCategories, useUnits } from "@/hooks/use-master-data"
+import { toast } from "sonner"
+
+// Helper: resolve a clickable link for a transaction based on its type and references
+function getTransactionLink(tx: {
+  type: string
+  referenceId: string | null
+  purchaseOrder?: { number: string } | null
+  salesOrder?: { number: string } | null
+  workOrder?: { number: string } | null
+}): { href: string; label: string } | null {
+  if (tx.type === "PO_RECEIVE" && tx.purchaseOrder?.number) {
+    return { href: "/procurement/orders", label: tx.purchaseOrder.number }
+  }
+  if (tx.type === "SO_SHIPMENT" && tx.salesOrder?.number) {
+    return { href: "/sales/orders", label: tx.salesOrder.number }
+  }
+  if ((tx.type === "PRODUCTION_IN" || tx.type === "PRODUCTION_OUT") && tx.workOrder?.number) {
+    return { href: "/manufacturing/orders", label: tx.workOrder.number }
+  }
+  if (tx.type === "TRANSFER" && tx.referenceId) {
+    return { href: "/inventory/movements", label: tx.referenceId }
+  }
+  if (tx.type === "INITIAL" && tx.referenceId) {
+    return { href: "/inventory/movements", label: tx.referenceId }
+  }
+  if (["ADJUSTMENT", "SCRAP", "ADJUSTMENT_IN", "ADJUSTMENT_OUT"].includes(tx.type) && tx.referenceId) {
+    return { href: "/inventory/movements", label: tx.referenceId }
+  }
+  // Fallback: use available relation
+  if (tx.purchaseOrder?.number) return { href: "/procurement/orders", label: tx.purchaseOrder.number }
+  if (tx.salesOrder?.number) return { href: "/sales/orders", label: tx.salesOrder.number }
+  if (tx.workOrder?.number) return { href: "/manufacturing/orders", label: tx.workOrder.number }
+  if (tx.referenceId) return { href: "/inventory/movements", label: tx.referenceId }
+  return null
+}
 
 // Transaction type label mapping
 const TRANSACTION_TYPE_LABELS: Record<string, { label: string; variant: "masuk" | "keluar" | "internal" }> = {
@@ -61,6 +114,23 @@ export default function ProductDetailPage() {
   const productId = params.id as string
   const [activeTab, setActiveTab] = useState("overview")
   const [barcodeLabelOpen, setBarcodeLabelOpen] = useState(false)
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    categoryId: "",
+    unit: "",
+    costPrice: "",
+    sellingPrice: "",
+    minStock: "",
+    maxStock: "",
+    reorderLevel: "",
+  })
+  const queryClient = useQueryClient()
+  const { data: categories } = useMasterCategories()
+  const { data: units } = useUnits()
 
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.products.detail(productId),
@@ -116,6 +186,9 @@ export default function ProductDetailPage() {
     referenceId: string | null
     createdAt: string
     warehouse: { id: string; name: string }
+    purchaseOrder?: { number: string } | null
+    salesOrder?: { number: string } | null
+    workOrder?: { number: string } | null
   }> = product.transactions ?? []
 
   // Calculate totals from real stock levels
@@ -141,6 +214,58 @@ export default function ProductDetailPage() {
     ? ((sellingPrice - costPrice) / sellingPrice * 100).toFixed(1)
     : "0.0"
 
+  const startEditing = () => {
+    setEditForm({
+      name: product.name ?? "",
+      description: product.description ?? "",
+      categoryId: product.categoryId ?? "",
+      unit: product.unit ?? "",
+      costPrice: String(costPrice),
+      sellingPrice: String(sellingPrice),
+      minStock: String(product.minStock ?? 0),
+      maxStock: String(product.maxStock ?? 0),
+      reorderLevel: String(product.reorderLevel ?? 0),
+    })
+    setIsEditing(true)
+  }
+
+  const cancelEditing = () => {
+    setIsEditing(false)
+  }
+
+  const handleSave = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch(`/api/products/${productId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name,
+          description: editForm.description || null,
+          categoryId: editForm.categoryId || null,
+          unit: editForm.unit,
+          costPrice: editForm.costPrice,
+          sellingPrice: editForm.sellingPrice,
+          minStock: editForm.minStock,
+          maxStock: editForm.maxStock,
+          reorderLevel: editForm.reorderLevel,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        throw new Error(json.error ?? "Gagal memperbarui produk")
+      }
+      toast.success("Produk berhasil diperbarui")
+      await queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+      setIsEditing(false)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Gagal memperbarui produk"
+      toast.error(message)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
     <div className="mf-page">
       {/* Header */}
@@ -162,6 +287,16 @@ export default function ProductDetailPage() {
           {!product.isActive && (
             <Badge className="bg-red-100 text-red-800">Nonaktif</Badge>
           )}
+          {!isEditing && (
+            <Button
+              variant="outline"
+              className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-bold text-xs"
+              onClick={startEditing}
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit Produk
+            </Button>
+          )}
           <Button
             variant="outline"
             className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-bold text-xs"
@@ -169,6 +304,14 @@ export default function ProductDetailPage() {
           >
             <Printer className="h-4 w-4 mr-2" />
             Cetak Label
+          </Button>
+          <Button
+            variant="outline"
+            className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-bold text-xs"
+            onClick={() => setAdjustmentOpen(true)}
+          >
+            <ClipboardEdit className="h-4 w-4 mr-2" />
+            Penyesuaian
           </Button>
         </div>
       </div>
@@ -253,7 +396,7 @@ export default function ProductDetailPage() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === "overview" && (
+      {activeTab === "overview" && !isEditing && (
         <div className="grid gap-6 md:grid-cols-2">
           {/* Product Information */}
           <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
@@ -368,6 +511,182 @@ export default function ProductDetailPage() {
         </div>
       )}
 
+      {/* Edit Mode for Overview Tab */}
+      {activeTab === "overview" && isEditing && (
+        <div className="grid gap-6 md:grid-cols-2">
+          {/* Product Information - Editable */}
+          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <CardHeader>
+              <CardTitle>Informasi Produk</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Kode Produk</div>
+                <div className="font-medium text-muted-foreground">{product.code}</div>
+              </div>
+              <Separator />
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Nama Produk</label>
+                <Input
+                  className="border-2 border-black rounded-none font-bold"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Nama..."
+                />
+              </div>
+              <Separator />
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Deskripsi</label>
+                <Textarea
+                  className="border-2 border-black rounded-none font-bold resize-none"
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Deskripsi..."
+                  rows={3}
+                />
+              </div>
+              <Separator />
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Kategori</label>
+                <Select
+                  value={editForm.categoryId}
+                  onValueChange={(val) => setEditForm((f) => ({ ...f, categoryId: val }))}
+                >
+                  <SelectTrigger className="border-2 border-black rounded-none font-bold">
+                    <SelectValue placeholder="Pilih kategori..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(categories ?? []).map((cat: { id: string; name: string }) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Separator />
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Satuan</label>
+                <Select
+                  value={editForm.unit}
+                  onValueChange={(val) => setEditForm((f) => ({ ...f, unit: val }))}
+                >
+                  <SelectTrigger className="border-2 border-black rounded-none font-bold">
+                    <SelectValue placeholder="Pilih satuan..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(units ?? []).map((u: { id: string; name: string; code: string }) => (
+                      <SelectItem key={u.id} value={u.name}>
+                        {u.name} ({u.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Pricing & Stock Settings - Editable */}
+          <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <CardHeader>
+              <CardTitle>Harga & Pengaturan Stok</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Harga Pokok Penjualan (HPP)</label>
+                <Input
+                  type="number"
+                  className="border-2 border-black rounded-none font-bold"
+                  value={editForm.costPrice}
+                  onChange={(e) => setEditForm((f) => ({ ...f, costPrice: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <Separator />
+              <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Harga Jual</label>
+                <Input
+                  type="number"
+                  className="border-2 border-black rounded-none font-bold"
+                  value={editForm.sellingPrice}
+                  onChange={(e) => setEditForm((f) => ({ ...f, sellingPrice: e.target.value }))}
+                  placeholder="0"
+                />
+              </div>
+              <Separator />
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Stok Min</label>
+                  <Input
+                    type="number"
+                    className="border-2 border-black rounded-none font-bold"
+                    value={editForm.minStock}
+                    onChange={(e) => setEditForm((f) => ({ ...f, minStock: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Stok Max</label>
+                  <Input
+                    type="number"
+                    className="border-2 border-black rounded-none font-bold"
+                    value={editForm.maxStock}
+                    onChange={(e) => setEditForm((f) => ({ ...f, maxStock: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Reorder Point</label>
+                  <Input
+                    type="number"
+                    className="border-2 border-black rounded-none font-bold"
+                    value={editForm.reorderLevel}
+                    onChange={(e) => setEditForm((f) => ({ ...f, reorderLevel: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <Separator />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">Lead Time</div>
+                  <div className="font-medium">{product.leadTime ?? 7} hari</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Safety Stock</div>
+                  <div className="font-medium">{product.safetyStock ?? 0}</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save / Cancel Buttons */}
+          <div className="md:col-span-2 flex items-center justify-end gap-3">
+            <Button
+              variant="outline"
+              className="border-2 border-black rounded-none font-bold text-xs uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+              onClick={cancelEditing}
+              disabled={isSaving}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Batal
+            </Button>
+            <Button
+              className="bg-black text-white border-2 border-black rounded-none font-black text-xs uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+              onClick={handleSave}
+              disabled={isSaving || !editForm.name.trim()}
+            >
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Simpan
+            </Button>
+          </div>
+        </div>
+      )}
+
       {activeTab === "stock" && (
         <Card className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
           <CardHeader>
@@ -446,7 +765,22 @@ export default function ProductDetailPage() {
                           })}
                         </TableCell>
                         <TableCell>{getMovementTypeBadge(tx.type)}</TableCell>
-                        <TableCell className="font-mono text-sm">{tx.referenceId || "-"}</TableCell>
+                        <TableCell className="font-mono text-sm">
+                          {(() => {
+                            const link = getTransactionLink(tx)
+                            if (link) {
+                              return (
+                                <Link
+                                  href={link.href}
+                                  className="text-xs font-bold text-blue-600 hover:text-blue-800 underline underline-offset-2"
+                                >
+                                  {link.label}
+                                </Link>
+                              )
+                            }
+                            return <span>{tx.referenceId || "\u2014"}</span>
+                          })()}
+                        </TableCell>
                         <TableCell
                           className={`text-center font-medium ${
                             tx.quantity > 0 ? "text-green-600" : "text-red-600"
@@ -472,6 +806,24 @@ export default function ProductDetailPage() {
       {activeTab === "manufacturing" && (
         <ProductManufacturingTab productId={productId} />
       )}
+
+      {/* Adjustment Dialog */}
+      <Dialog open={adjustmentOpen} onOpenChange={setAdjustmentOpen}>
+        <DialogContent className={NB.content}>
+          <DialogHeader className={NB.header}>
+            <DialogTitle className={NB.title}>
+              <ClipboardEdit className="h-5 w-5" /> Penyesuaian Stok
+            </DialogTitle>
+            <p className={NB.subtitle}>Penyesuaian stok untuk {product.name}</p>
+          </DialogHeader>
+          <div className="p-5">
+            <AdjustmentForm
+              products={[{ id: product.id, name: product.name, code: product.code, unit: product.unit || "PCS" }]}
+              warehouses={stockLevels.map(sl => ({ id: sl.warehouse.id, name: sl.warehouse.name }))}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Barcode Label Print Dialog */}
       <BarcodeLabelDialog

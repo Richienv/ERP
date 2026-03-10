@@ -6,9 +6,9 @@ import { Package, ClipboardList, ArrowRightLeft, AlertTriangle, Layers, BarChart
 const inventoryModules = [
     { title: "Produk", href: "/inventory/products", icon: Package, bg: "bg-emerald-500", hoverBg: "hover:bg-emerald-600" },
     { title: "Stok", href: "/inventory/stock", icon: Layers, bg: "bg-blue-500", hoverBg: "hover:bg-blue-600" },
-    { title: "Movement", href: "/inventory/movements", icon: ArrowRightLeft, bg: "bg-violet-500", hoverBg: "hover:bg-violet-600" },
-    { title: "Audit", href: "/inventory/audit", icon: ClipboardList, bg: "bg-amber-500", hoverBg: "hover:bg-amber-600" },
-    { title: "Alert", href: "/inventory/alerts", icon: AlertTriangle, bg: "bg-rose-500", hoverBg: "hover:bg-rose-600" },
+    { title: "Pergerakan", href: "/inventory/movements", icon: ArrowRightLeft, bg: "bg-violet-500", hoverBg: "hover:bg-violet-600" },
+    { title: "Opname", href: "/inventory/audit", icon: ClipboardList, bg: "bg-amber-500", hoverBg: "hover:bg-amber-600" },
+    { title: "Peringatan", href: "/inventory/alerts", icon: AlertTriangle, bg: "bg-rose-500", hoverBg: "hover:bg-rose-600" },
     { title: "Laporan", href: "/inventory/reports", icon: BarChart, bg: "bg-cyan-500", hoverBg: "hover:bg-cyan-600" },
 ]
 

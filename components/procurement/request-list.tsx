@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { Search, CheckCircle2, XCircle, MessageSquare, Package, Loader2, Calendar, Clock, AlertCircle } from "lucide-react"
+import { Search, CheckCircle2, XCircle, MessageSquare, Package, Loader2, Calendar, Clock, AlertCircle, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { approveAndCreatePOFromPR, rejectPurchaseRequest, createPOFromPR } from "@/lib/actions/procurement"
+import { createBillFromPR } from "@/lib/actions/finance-invoices"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -39,6 +40,7 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
     const [rejectOpen, setRejectOpen] = useState(false)
     const [approveOpen, setApproveOpen] = useState(false)
     const [poOpen, setPOOpen] = useState(false)
+    const [invoiceOpen, setInvoiceOpen] = useState(false)
     const [selectedReq, setSelectedReq] = useState<PurchaseRequest | null>(null)
     const [rejectReason, setRejectReason] = useState("")
 
@@ -64,13 +66,15 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
         return true
     })
 
-    const handleAction = (req: PurchaseRequest, action: 'reject' | 'approve' | 'po') => {
+    const handleAction = (req: PurchaseRequest, action: 'reject' | 'approve' | 'po' | 'invoice') => {
         setSelectedReq(req)
         if (action === 'reject') {
             setRejectReason("")
             setRejectOpen(true)
         } else if (action === 'approve') {
             setApproveOpen(true)
+        } else if (action === 'invoice') {
+            setInvoiceOpen(true)
         } else {
             setPOOpen(true)
         }
@@ -145,6 +149,30 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                 toast.error((result as any).error || "Failed to create PO")
             }
         } catch { toast.error("Error creating PO") }
+        finally { setProcessing(null) }
+    }
+
+    const confirmCreateInvoice = async () => {
+        if (!selectedReq) return
+
+        setProcessing(selectedReq.id)
+        try {
+            const result = await createBillFromPR(selectedReq.id)
+
+            if (result.success) {
+                toast.success(`Bill ${(result as any).invoiceNumber} berhasil dibuat`)
+                setInvoiceOpen(false)
+                queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.procurementDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+            } else {
+                if ((result as any).code === 'INVOICE_ALREADY_EXISTS') {
+                    toast.error(`Bill sudah ada: ${(result as any).existingInvoiceNumber}`)
+                } else {
+                    toast.error((result as any).error || "Gagal membuat bill")
+                }
+            }
+        } catch { toast.error("Error membuat bill") }
         finally { setProcessing(null) }
     }
 
@@ -313,13 +341,23 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                                 </>
                             )}
                             {filter === 'approved' && (
-                                <Button
-                                    onClick={() => handleAction(req, 'po')}
-                                    disabled={!!processing}
-                                    className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black font-black uppercase text-[10px] tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all h-9"
-                                >
-                                    {processing === req.id ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <><Package className="mr-1.5 h-3.5 w-3.5" /> Convert to PO</>}
-                                </Button>
+                                <>
+                                    <Button
+                                        onClick={() => handleAction(req, 'po')}
+                                        disabled={!!processing}
+                                        className="flex-1 bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black font-black uppercase text-[10px] tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all h-9"
+                                    >
+                                        {processing === req.id ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : <><Package className="mr-1.5 h-3.5 w-3.5" /> Convert to PO</>}
+                                    </Button>
+                                    <Button
+                                        onClick={() => handleAction(req, 'invoice')}
+                                        disabled={!!processing}
+                                        variant="outline"
+                                        className="border-2 border-black font-black uppercase text-[10px] tracking-widest hover:bg-violet-50 hover:text-violet-700 hover:border-violet-600 h-9"
+                                    >
+                                        <FileText className="mr-1.5 h-3.5 w-3.5" /> Buat Invoice
+                                    </Button>
+                                </>
                             )}
                             {filter === 'rejected' && (
                                 <div className="w-full text-center text-[10px] font-black text-red-600 uppercase tracking-widest py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
@@ -327,8 +365,18 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                                 </div>
                             )}
                             {filter === 'completed' && (
-                                <div className="w-full text-center text-[10px] font-black text-blue-600 uppercase tracking-widest py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                                    PO Created
+                                <div className="flex gap-2 w-full">
+                                    <div className="flex-1 text-center text-[10px] font-black text-blue-600 uppercase tracking-widest py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                                        PO Created
+                                    </div>
+                                    <Button
+                                        onClick={() => handleAction(req, 'invoice')}
+                                        disabled={!!processing}
+                                        variant="outline"
+                                        className="border-2 border-black font-black uppercase text-[10px] tracking-widest hover:bg-violet-50 hover:text-violet-700 hover:border-violet-600 h-9"
+                                    >
+                                        <FileText className="mr-1.5 h-3.5 w-3.5" /> Buat Invoice
+                                    </Button>
                                 </div>
                             )}
                         </div>
@@ -466,6 +514,71 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
                                     onClick={confirmCreatePO}
                                 >
                                     <Package className="h-3.5 w-3.5 mr-1.5" /> Buat PO
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            {/* INVOICE DIALOG */}
+            <Dialog open={invoiceOpen} onOpenChange={(open) => { if (!processing) setInvoiceOpen(open) }}>
+                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
+                    {processing && selectedReq ? (
+                        <div className="py-12 flex flex-col items-center gap-4">
+                            <div className="h-16 w-16 border-4 border-black flex items-center justify-center bg-violet-50">
+                                <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+                            </div>
+                            <div className="text-center space-y-1">
+                                <p className="font-black uppercase text-sm tracking-widest">Membuat Invoice</p>
+                                <p className="text-xs text-zinc-500 font-medium">{selectedReq.number} — {selectedReq.itemCount} item</p>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-bold">
+                                <div className="h-1.5 w-1.5 bg-violet-500 rounded-full animate-pulse" />
+                                Membuat tagihan pembelian dari permintaan
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="uppercase font-black flex items-center gap-2 text-sm tracking-widest"><FileText className="h-5 w-5 text-violet-600" /> Buat Invoice dari PR</DialogTitle>
+                                <DialogDescription>
+                                    Buat tagihan pembelian (Bill) dari <b>{selectedReq?.number}</b> dengan <b>{selectedReq?.itemCount} item</b>.
+                                    Harga akan diambil dari harga pokok produk (cost price).
+                                </DialogDescription>
+                            </DialogHeader>
+
+                            {/* PR Summary */}
+                            {selectedReq && (
+                                <div className="space-y-3 py-2">
+                                    <div className="bg-zinc-50 border-2 border-zinc-200 p-3">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="font-black text-sm">{selectedReq.number}</p>
+                                                <p className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                                                    {selectedReq.department || 'General'} &bull; {selectedReq.itemCount} item
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="max-h-32 overflow-y-auto border border-zinc-200">
+                                        {selectedReq.items.map((item, idx) => (
+                                            <div key={item.id} className={`px-3 py-2 flex justify-between text-xs ${idx % 2 === 0 ? 'bg-white' : 'bg-zinc-50/50'}`}>
+                                                <span className="font-medium truncate">{item.productName}</span>
+                                                <span className="font-mono text-[10px] bg-zinc-100 px-1.5 py-0.5 shrink-0 ml-2">{item.quantity} {item.unit}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <DialogFooter>
+                                <Button variant="ghost" onClick={() => setInvoiceOpen(false)} className="font-bold">Batal</Button>
+                                <Button
+                                    className="bg-violet-600 text-white hover:bg-violet-700 border-2 border-black font-black uppercase text-xs tracking-widest shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
+                                    onClick={confirmCreateInvoice}
+                                >
+                                    <FileText className="h-3.5 w-3.5 mr-1.5" /> Buat Invoice
                                 </Button>
                             </DialogFooter>
                         </>

@@ -164,6 +164,21 @@ export default function InvoicesPage() {
 
     useEffect(() => { setPage(1) }, [selectedTypes, selectedStatuses])
 
+    // Handle ?highlight={invoiceId} — auto-open detail dialog for linked invoice
+    const highlightId = searchParams.get("highlight")
+    useEffect(() => {
+        if (!highlightId || loading || allInvoices.length === 0) return
+        const invoice = allInvoices.find(i => i.id === highlightId)
+        if (invoice) {
+            openEditDialog(invoice)
+            // Clear highlight from URL to prevent re-triggering
+            const next = new URLSearchParams(searchParams.toString())
+            next.delete("highlight")
+            const qs = next.toString()
+            router.replace(qs ? `${pathname}?${qs}` : pathname)
+        }
+    }, [highlightId, loading, allInvoices]) // eslint-disable-line react-hooks/exhaustive-deps
+
     const counts = useMemo(() => ({
         all: allInvoices.length,
         draft: invoices.draft.length,

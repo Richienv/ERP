@@ -379,6 +379,7 @@ export async function recordVendorPayment(data: {
     method?: 'CASH' | 'TRANSFER' | 'CHECK'
     reference?: string
     notes?: string
+    bankAccountCode?: string
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -429,14 +430,20 @@ export async function recordVendorPayment(data: {
                 }
             }
 
-            // Post GL entry: DR AP, CR Cash
+            // Post GL entry: DR AP, CR Cash/Bank
+            const bankCode = data.bankAccountCode || '1000'
+            const bankAccount = await prisma.gLAccount.findFirst({
+                where: { code: bankCode },
+                select: { name: true }
+            })
+            const bankAccountName = bankAccount?.name || 'Kas Besar'
             await postJournalEntry({
                 description: `Vendor Payment ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
                     { accountCode: '2100', debit: data.amount, credit: 0, description: 'Hutang Usaha' },
-                    { accountCode: '1000', debit: 0, credit: data.amount, description: 'Kas Besar' }
+                    { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
                 ]
             })
 

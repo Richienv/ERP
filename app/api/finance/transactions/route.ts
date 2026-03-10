@@ -17,6 +17,38 @@ export async function GET(request: NextRequest) {
 
         const where: any = { status: "POSTED" }
 
+        // Server-side date filtering
+        const dateFrom = url.searchParams.get("dateFrom")
+        const dateTo = url.searchParams.get("dateTo")
+        if (dateFrom || dateTo) {
+            where.date = {}
+            if (dateFrom) where.date.gte = new Date(dateFrom)
+            if (dateTo) {
+                const end = new Date(dateTo)
+                end.setHours(23, 59, 59, 999)
+                where.date.lte = end
+            }
+        }
+
+        // Server-side account filtering
+        const accountCodes = url.searchParams.get("accounts")
+        if (accountCodes) {
+            const codes = accountCodes.split(",").map(c => c.trim()).filter(Boolean)
+            if (codes.length > 0) {
+                where.lines = { some: { account: { code: { in: codes } } } }
+            }
+        }
+
+        // Server-side search (description or reference)
+        const search = url.searchParams.get("search")
+        if (search && search.trim()) {
+            const term = search.trim()
+            where.OR = [
+                { description: { contains: term, mode: "insensitive" } },
+                { reference: { contains: term, mode: "insensitive" } },
+            ]
+        }
+
         const [entries, accounts] = await Promise.all([
             prisma.journalEntry.findMany({
                 where,
@@ -27,7 +59,7 @@ export async function GET(request: NextRequest) {
                         },
                     },
                     invoice: { select: { id: true, number: true, type: true } },
-                    payment: { select: { id: true, number: true, method: true } },
+                    payment: { select: { id: true, number: true, method: true, supplierId: true, customerId: true } },
                 },
                 orderBy: { date: "desc" },
                 take: limit,
@@ -51,6 +83,8 @@ export async function GET(request: NextRequest) {
                 paymentId: e.payment?.id || null,
                 paymentNumber: e.payment?.number || null,
                 paymentMethod: e.payment?.method || null,
+                paymentSupplierId: e.payment?.supplierId || null,
+                paymentCustomerId: e.payment?.customerId || null,
                 lines: e.lines.map((l) => ({
                     id: l.id,
                     accountCode: l.account.code,

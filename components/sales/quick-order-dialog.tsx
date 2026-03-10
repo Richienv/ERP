@@ -164,6 +164,22 @@ export function QuickOrderDialog({
                 throw new Error(payload.error || "Gagal membuat sales order")
             }
 
+            // Show stock availability warnings if any
+            const warnings = payload.warnings as { productName: string; orderedQty: number; availableQty: number; shortfall: number }[] | undefined
+            if (warnings && warnings.length > 0) {
+                const warningLines = warnings
+                    .map((w: { productName: string; orderedQty: number; availableQty: number; shortfall: number }) =>
+                        `${w.productName}: dipesan ${w.orderedQty}, stok tersedia ${w.availableQty} (kurang ${w.shortfall})`)
+                    .join("\n")
+                toast.warning(
+                    `Peringatan: ${warnings.length} produk memiliki stok kurang dari jumlah pesanan`,
+                    {
+                        description: warningLines,
+                        duration: 8000,
+                    }
+                )
+            }
+
             toast.success(`Sales Order ${payload.data?.number || "baru"} berhasil dibuat`)
             onOpenChange(false)
             queryClient.invalidateQueries({ queryKey: queryKeys.salesOrders.all })

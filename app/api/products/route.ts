@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       sortBy: (searchParams.get('sortBy') as any) || 'name',
       sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') || 'asc',
       page: parseInt(searchParams.get('page') || '1'),
-      limit: parseInt(searchParams.get('limit') || '10'),
+      limit: Math.min(parseInt(searchParams.get('limit') || '10'), 100),
     }
 
     // Build where clause

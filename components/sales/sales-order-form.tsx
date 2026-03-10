@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import {
   Calculator, Plus, Save, Trash2, User, FileText,
-  CalendarDays, StickyNote, Loader2
+  CalendarDays, StickyNote, Loader2, AlertTriangle
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -338,6 +338,21 @@ export function SalesOrderForm({ quotationId, initialCustomerId }: SalesOrderFor
       const payload = await response.json()
       if (!payload.success) {
         throw new Error(payload.error || "Gagal membuat sales order")
+      }
+
+      // Show stock availability warnings if any
+      const warnings = payload.warnings as { productName: string; orderedQty: number; availableQty: number; shortfall: number }[] | undefined
+      if (warnings && warnings.length > 0) {
+        const warningLines = warnings
+          .map((w) => `${w.productName}: dipesan ${w.orderedQty}, stok tersedia ${w.availableQty} (kurang ${w.shortfall})`)
+          .join("\n")
+        toast.warning(
+          `Peringatan: ${warnings.length} produk memiliki stok kurang dari jumlah pesanan`,
+          {
+            description: warningLines,
+            duration: 8000,
+          }
+        )
       }
 
       toast.success(`Sales order ${payload.data?.number || "baru"} berhasil dibuat`)

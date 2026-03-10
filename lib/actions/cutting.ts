@@ -1,9 +1,10 @@
 'use server'
 
 import { prisma, withPrismaAuth } from "@/lib/db"
-import { PrismaClient, CutPlanStatus } from "@prisma/client"
+import { PrismaClient, CutPlanStatus, FabricRollStatus } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertCutPlanTransition } from "@/lib/cut-plan-state-machine"
+import { calculateRemainingMeters, determineRollStatus } from "@/lib/fabric-roll-helpers"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -230,6 +231,11 @@ export async function updateCutPlanStatus(
         await withPrismaAuth(async (prisma: PrismaClient) => {
             const plan = await prisma.cutPlan.findUniqueOrThrow({
                 where: { id: planId },
+                include: {
+                    layers: {
+                        select: { fabricRollId: true },
+                    },
+                },
             })
 
             assertCutPlanTransition(plan.status, newStatus)
@@ -238,6 +244,67 @@ export async function updateCutPlanStatus(
                 where: { id: planId },
                 data: { status: newStatus },
             })
+
+            // Update fabric roll statuses based on the new cut plan status
+            const uniqueRollIds = [...new Set(plan.layers.map((l) => l.fabricRollId))]
+
+            if (uniqueRollIds.length > 0) {
+                if (newStatus === 'IN_CUTTING') {
+                    // Mark all associated rolls as IN_USE
+                    await prisma.fabricRoll.updateMany({
+                        where: {
+                            id: { in: uniqueRollIds },
+                            status: { in: ['AVAILABLE', 'RESERVED'] },
+                        },
+                        data: { status: 'IN_USE' },
+                    })
+                } else if (newStatus === 'CP_COMPLETED' || newStatus === 'CP_CANCELLED') {
+                    // Recalculate each roll's status based on remaining meters
+                    for (const rollId of uniqueRollIds) {
+                        const roll = await prisma.fabricRoll.findUniqueOrThrow({
+                            where: { id: rollId },
+                            include: {
+                                transactions: { select: { type: true, meters: true } },
+                                cutPlanLayers: {
+                                    include: {
+                                        cutPlan: { select: { status: true } },
+                                    },
+                                },
+                            },
+                        })
+
+                        const remaining = calculateRemainingMeters(
+                            Number(roll.lengthMeters),
+                            roll.transactions.map((t) => ({ type: t.type, meters: Number(t.meters) }))
+                        )
+
+                        // Check if this roll is still used by other active cut plans
+                        const hasActiveCutPlan = roll.cutPlanLayers.some(
+                            (l) => l.cutPlan.status === 'IN_CUTTING'
+                        )
+
+                        const hasCutTxns = roll.transactions.some((t) => t.type === 'FR_CUT')
+
+                        let rollStatus: FabricRollStatus
+                        if (remaining <= 0) {
+                            rollStatus = 'DEPLETED'
+                        } else if (hasActiveCutPlan) {
+                            rollStatus = 'IN_USE'
+                        } else if (hasCutTxns) {
+                            rollStatus = 'IN_USE'
+                        } else {
+                            rollStatus = 'AVAILABLE'
+                        }
+
+                        if (rollStatus !== roll.status) {
+                            await prisma.fabricRoll.update({
+                                where: { id: rollId },
+                                data: { status: rollStatus },
+                            })
+                        }
+                    }
+                }
+            }
         })
 
         return { success: true }
@@ -256,6 +323,32 @@ export async function addCutPlanLayer(data: {
 }): Promise<{ success: boolean; error?: string }> {
     try {
         await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Fetch cut plan number for the transaction reference
+            const cutPlan = await prisma.cutPlan.findUniqueOrThrow({
+                where: { id: data.cutPlanId },
+                select: { number: true },
+            })
+
+            // Validate sufficient remaining meters on the roll
+            const roll = await prisma.fabricRoll.findUniqueOrThrow({
+                where: { id: data.fabricRollId },
+                include: {
+                    transactions: { select: { type: true, meters: true } },
+                },
+            })
+
+            const currentRemaining = calculateRemainingMeters(
+                Number(roll.lengthMeters),
+                roll.transactions.map((t) => ({ type: t.type, meters: Number(t.meters) }))
+            )
+
+            if (data.metersUsed > currentRemaining) {
+                throw new Error(
+                    `Sisa roll hanya ${currentRemaining}m, tidak cukup untuk ${data.metersUsed}m`
+                )
+            }
+
+            // Create the cut plan layer
             await prisma.cutPlanLayer.create({
                 data: {
                     cutPlanId: data.cutPlanId,
@@ -264,6 +357,27 @@ export async function addCutPlanLayer(data: {
                     metersUsed: data.metersUsed,
                 },
             })
+
+            // Record FR_CUT transaction on the fabric roll
+            await prisma.fabricRollTransaction.create({
+                data: {
+                    fabricRollId: data.fabricRollId,
+                    type: 'FR_CUT',
+                    meters: data.metersUsed,
+                    reference: `Cut plan ${cutPlan.number} layer #${data.layerNumber}`,
+                },
+            })
+
+            // Update fabric roll status
+            const newRemaining = currentRemaining - data.metersUsed
+            const newStatus = determineRollStatus(newRemaining, roll.status, true)
+
+            if (newStatus !== roll.status) {
+                await prisma.fabricRoll.update({
+                    where: { id: data.fabricRollId },
+                    data: { status: newStatus },
+                })
+            }
         })
 
         return { success: true }
@@ -279,7 +393,48 @@ export async function removeCutPlanLayer(
 ): Promise<{ success: boolean; error?: string }> {
     try {
         await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Fetch layer details before deleting (need fabricRollId and metersUsed)
+            const layer = await prisma.cutPlanLayer.findUniqueOrThrow({
+                where: { id: layerId },
+                include: {
+                    cutPlan: { select: { number: true } },
+                },
+            })
+
             await prisma.cutPlanLayer.delete({ where: { id: layerId } })
+
+            // Reverse the cut by adding meters back via FR_ADJUST
+            await prisma.fabricRollTransaction.create({
+                data: {
+                    fabricRollId: layer.fabricRollId,
+                    type: 'FR_ADJUST',
+                    meters: Number(layer.metersUsed), // positive = adds back
+                    reference: `Batal layer #${layer.layerNumber} dari ${layer.cutPlan.number}`,
+                },
+            })
+
+            // Recalculate roll status
+            const roll = await prisma.fabricRoll.findUniqueOrThrow({
+                where: { id: layer.fabricRollId },
+                include: {
+                    transactions: { select: { type: true, meters: true } },
+                },
+            })
+
+            const remaining = calculateRemainingMeters(
+                Number(roll.lengthMeters),
+                roll.transactions.map((t) => ({ type: t.type, meters: Number(t.meters) }))
+            )
+
+            const hasCutTxns = roll.transactions.some((t) => t.type === 'FR_CUT')
+            const newStatus = determineRollStatus(remaining, roll.status, hasCutTxns)
+
+            if (newStatus !== roll.status) {
+                await prisma.fabricRoll.update({
+                    where: { id: layer.fabricRollId },
+                    data: { status: newStatus },
+                })
+            }
         })
 
         return { success: true }

@@ -34,6 +34,7 @@ export default function ARPaymentsPage() {
             stats={data.stats}
             registryMeta={data.registry.meta}
             registryQuery={data.registry.query}
+            highlightPaymentId={searchParams.get("highlight") ?? undefined}
         />
     )
 }

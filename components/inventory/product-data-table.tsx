@@ -52,7 +52,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
 
-// Add current stock to products (would come from stock levels in real app)
 // Also override Decimal types to number for client usage
 export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'sellingPrice' | 'manualBurnRate'> & {
   costPrice: number
@@ -61,91 +60,6 @@ export type ProductWithStock = Omit<ProductWithRelations, 'costPrice' | 'selling
   currentStock: number
   status?: string // Added server status field
 }
-
-// Mock data - same as before but typed properly
-const mockProducts: ProductWithStock[] = [
-  {
-    id: "1",
-    code: "ELK001",
-    name: "Laptop Dell Inspiron 15",
-    description: "Laptop Dell Inspiron 15 dengan processor Intel Core i5",
-    categoryId: "1",
-    unit: "pcs",
-    costPrice: 8500000,
-    sellingPrice: 12000000,
-    minStock: 10,
-    maxStock: 50,
-    reorderLevel: 15,
-    barcode: "1234567890123",
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-11-01"),
-    leadTime: 3,
-    safetyStock: 5,
-    manualBurnRate: 0,
-    manualAlert: false,
-    alternativeProductId: null,
-    currentStock: 25,
-    category: {
-      id: "1",
-      code: "ELK",
-      name: "Elektronik",
-      description: "Peralatan elektronik",
-      parentId: null,
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01")
-    },
-    _count: {
-      stockLevels: 3,
-      transactions: 15
-    }
-  },
-  {
-    id: "2",
-    code: "FUR001",
-    name: "Meja Kantor Eksekutif",
-    description: "Meja kantor eksekutif dengan laci",
-    categoryId: "2",
-    unit: "pcs",
-    costPrice: 2500000,
-    sellingPrice: 3500000,
-    minStock: 10,
-    maxStock: 30,
-    reorderLevel: 12,
-    barcode: null,
-    isActive: true,
-    createdAt: new Date("2024-01-01"),
-    updatedAt: new Date("2024-11-01"),
-    currentStock: 8,
-    leadTime: 5,
-    safetyStock: 5,
-    manualBurnRate: 0,
-    manualAlert: false,
-    alternativeProductId: null,
-    category: {
-      id: "2",
-      code: "FUR",
-      name: "Furniture",
-      description: "Furniture kantor",
-      parentId: null,
-      isActive: true,
-      createdAt: new Date("2024-01-01"),
-      updatedAt: new Date("2024-01-01")
-    },
-    _count: {
-      stockLevels: 2,
-      transactions: 8
-    }
-  },
-]
-
-const productsWithStock: ProductWithStock[] = mockProducts.map(product => ({
-  ...product,
-  currentStock: product.code === "ELK001" ? 25 :
-    product.code === "FUR001" ? 8 :
-      Math.floor(Math.random() * 50),
-}))
 
 export const columns: ColumnDef<ProductWithStock>[] = [
   {
@@ -590,8 +504,4 @@ export function ProductDataTable({ data, categories = [] }: ProductDataTableProp
       />
     </div>
   )
-}
-
-export default function ProductTablePage() {
-  return <ProductDataTable data={productsWithStock} />
 }

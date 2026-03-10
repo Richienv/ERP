@@ -25,7 +25,7 @@ function getDatasourceUrl(): string | undefined {
     const separator = url.includes('?') ? '&' : '?'
     // If already has connection_limit, don't add another
     if (url.includes('connection_limit=')) return url
-    return `${url}${separator}connection_limit=5`
+    return `${url}${separator}connection_limit=10`
 }
 
 // Base Prisma client (without auth context)
