@@ -380,6 +380,10 @@ export const queryKeys = {
         all: ["cashflowForecast"] as const,
         list: (months?: number) => [...["cashflowForecast"], "list", months] as const,
     },
+    cashflowAccuracy: {
+        all: ["cashflowAccuracy"] as const,
+        trend: (months?: number) => [...queryKeys.cashflowAccuracy.all, "trend", months] as const,
+    },
     warehouseLocations: {
         all: ["warehouseLocations"] as const,
         list: (warehouseId: string) => ["warehouseLocations", "list", warehouseId] as const,

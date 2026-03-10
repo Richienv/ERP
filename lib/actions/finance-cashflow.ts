@@ -1013,3 +1013,73 @@ export async function getCashflowForecast(monthsAhead: number = 6): Promise<Cash
         },
     }
 }
+
+// ================================
+// Exported: Accuracy trend (past N months)
+// ================================
+
+export interface AccuracyTrendMonth {
+    month: number
+    year: number
+    label: string
+    plannedIn: number
+    plannedOut: number
+    actualIn: number
+    actualOut: number
+    variancePctIn: number | null
+    variancePctOut: number | null
+    accuracyScore: number | null
+}
+
+export async function getAccuracyTrend(monthsBack: number = 3): Promise<AccuracyTrendMonth[]> {
+    await requireAuth()
+
+    const now = new Date()
+    const result: AccuracyTrendMonth[] = []
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+
+    for (let i = monthsBack; i >= 1; i--) {
+        const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+        const month = targetDate.getMonth() + 1
+        const year = targetDate.getFullYear()
+
+        const snapshot = await prisma.cashflowSnapshot.findUnique({
+            where: { month_year: { month, year } },
+        })
+
+        if (!snapshot) continue
+
+        const monthStart = new Date(year, month - 1, 1)
+        const monthEnd = new Date(year, month, 0)
+        const actuals = await getActualTransactions(monthStart, monthEnd)
+
+        const actualIn = actuals.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
+        const actualOut = actuals.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
+        const plannedIn = toNum(snapshot.totalPlannedIn)
+        const plannedOut = toNum(snapshot.totalPlannedOut)
+
+        const variancePctIn = plannedIn > 0 ? ((actualIn - plannedIn) / plannedIn) * 100 : null
+        const variancePctOut = plannedOut > 0 ? ((actualOut - plannedOut) / plannedOut) * 100 : null
+
+        const accIn = variancePctIn !== null ? Math.max(0, 100 - Math.abs(variancePctIn)) : null
+        const accOut = variancePctOut !== null ? Math.max(0, 100 - Math.abs(variancePctOut)) : null
+        const accuracyScore = accIn !== null && accOut !== null
+            ? (accIn + accOut) / 2
+            : accIn ?? accOut ?? null
+
+        result.push({
+            month,
+            year,
+            label: `${monthNames[month - 1]} ${year}`,
+            plannedIn,
+            plannedOut,
+            actualIn,
+            actualOut,
+            variancePctIn,
+            variancePctOut,
+            accuracyScore: accuracyScore !== null ? Math.round(accuracyScore) : null,
+        })
+    }
+
+    return result
+}
