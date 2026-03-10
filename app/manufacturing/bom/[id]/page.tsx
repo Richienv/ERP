@@ -331,9 +331,9 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     // Apply a process template (adds multiple connected stations)
     const [applyingTemplate, setApplyingTemplate] = useState(false)
     const [templateConfirm, setTemplateConfirm] = useState<{ types: readonly string[] } | null>(null)
-    const handleApplyTemplate = useCallback(async (types: readonly string[]) => {
+    const handleApplyTemplate = useCallback(async (types: readonly string[], confirmed = false) => {
         // If steps already exist, ask for confirmation first
-        if (steps.length > 0 && !templateConfirm) {
+        if (steps.length > 0 && !confirmed) {
             setTemplateConfirm({ types })
             return
         }
@@ -398,7 +398,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         } finally {
             setApplyingTemplate(false)
         }
-    }, [allStations, queryClient, steps.length, templateConfirm])
+    }, [allStations, queryClient, steps.length])
 
     const handleRemoveStep = useCallback((stepId: string) => {
         dirtySetSteps((prev) => {
@@ -1338,7 +1338,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         </Button>
                         <Button
                             onClick={() => {
-                                if (templateConfirm) handleApplyTemplate(templateConfirm.types)
+                                if (templateConfirm) handleApplyTemplate(templateConfirm.types, true)
                             }}
                             className="rounded-none border-2 border-black bg-orange-500 hover:bg-orange-600 text-white font-black"
                         >
