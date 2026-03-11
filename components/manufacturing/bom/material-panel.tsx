@@ -5,15 +5,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Plus, Search, GripVertical, X, Package } from "lucide-react"
+import { useBOMCanvas } from "@/app/manufacturing/bom/[id]/bom-canvas-context"
+import { useStockAvailability } from "@/app/manufacturing/bom/[id]/hooks/use-stock-availability"
 
 interface MaterialPanelProps {
-    items: any[]
-    steps: any[]
     onAddItem: () => void
     onRemoveItem: (id: string) => void
 }
 
-export function MaterialPanel({ items, steps, onAddItem, onRemoveItem }: MaterialPanelProps) {
+export function MaterialPanel({ onAddItem, onRemoveItem }: MaterialPanelProps) {
+    const { items, steps, totalQty } = useBOMCanvas()
+    const { data: stockData } = useStockAvailability(items, totalQty)
+    const stockMap = new Map(stockData?.map((s) => [s.productId, s]) ?? [])
     const [search, setSearch] = useState("")
 
     const filtered = items.filter((item) =>
@@ -59,6 +62,12 @@ export function MaterialPanel({ items, steps, onAddItem, onRemoveItem }: Materia
                                 className="flex items-center gap-2 p-2 border border-zinc-200 bg-white hover:border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all cursor-grab active:cursor-grabbing group"
                             >
                                 <GripVertical className="h-3.5 w-3.5 text-zinc-300 shrink-0" />
+                                {(() => {
+                                    const stock = stockMap.get(item.materialId)
+                                    const dot = !stock ? "bg-zinc-200" : stock.status === "cukup" ? "bg-green-500" : stock.status === "hampir-habis" ? "bg-yellow-400" : "bg-red-500"
+                                    const tip = !stock ? "Memuat stok..." : `Stok: ${stock.available} — Butuh: ${stock.required}${stock.status === "kurang" ? ` — Kurang ${stock.required - stock.available}` : ""}`
+                                    return <span className={`w-2 h-2 rounded-full ${dot} shrink-0`} title={tip} />
+                                })()}
                                 <div className="min-w-0 flex-1">
                                     <p className="text-xs font-bold truncate">{item.material?.name}</p>
                                     <p className="text-[9px] text-zinc-400 font-mono">{item.material?.code} · {Number(item.quantityPerUnit)} {item.unit || item.material?.unit || "pcs"}</p>
