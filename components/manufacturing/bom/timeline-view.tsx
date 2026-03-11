@@ -372,8 +372,10 @@ export function TimelineView({
                                             top: rowY(bar.row),
                                             width: barWidth,
                                             height: ROW_HEIGHT,
-                                            background: c.bg,
-                                            borderLeft: `3px solid ${c.accent}`,
+                                            background: isCritical
+                                                ? c.bg
+                                                : `repeating-linear-gradient(45deg, ${c.bg}, ${c.bg} 4px, rgba(0,0,0,0.04) 4px, rgba(0,0,0,0.04) 8px)`,
+                                            borderLeft: `3px solid ${isCritical ? c.accent : "#a1a1aa"}`,
                                         }}
                                     >
                                         {/* Progress fill */}
@@ -381,9 +383,12 @@ export function TimelineView({
                                             <div className="absolute inset-0 rounded-r-md opacity-15" style={{ width: `${progress}%`, background: c.accent }} />
                                         )}
                                         <div className="relative h-full flex items-center gap-2 pl-2.5 pr-5 overflow-hidden">
-                                            <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: c.text }} />
+                                            <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: isCritical ? c.text : "#a1a1aa" }} />
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-[11px] font-bold truncate" style={{ color: c.text }}>{bar.step.station?.name || "—"}</p>
+                                                <div className="flex items-center gap-1">
+                                                {isCritical && <span className="text-amber-500 text-[9px] leading-none shrink-0">⚡</span>}
+                                                <p className="text-[11px] font-bold truncate" style={{ color: isCritical ? c.text : "#a1a1aa" }}>{bar.step.station?.name || "—"}</p>
+                                                </div>
                                                 <p className="text-[9px] font-mono opacity-60" style={{ color: c.text }}>
                                                     {bar.durationPerPcs > 0 && totalQty > 1
                                                         ? `${fmtDuration(bar.durationPerPcs)}/pcs × ${totalQty} = ${fmtDuration(bar.durationMin)}`
