@@ -34,6 +34,7 @@ import { BOMCostCard } from "@/components/manufacturing/bom/bom-cost-card"
 import { getIconByName, getColorTheme } from "@/components/manufacturing/bom/station-config"
 import { BOMCanvasProvider, useBOMCanvas } from "./bom-canvas-context"
 import { useAutoSave, isDraftNewer } from "./hooks/use-auto-save"
+import { usePriceDrift } from "./hooks/use-price-drift"
 
 const STATION_TYPE_CONFIG = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" },
@@ -105,6 +106,9 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
     // Draft restore banner
     const [hasDraft, setHasDraft] = useState(false)
+
+    // Price drift detection
+    const driftedItems = usePriceDrift(items)
 
     // Auto-save hook
     const { loadLocalDraft, clearLocalDraft } = useAutoSave({ bomId: id, items, steps, totalQty, isDirty })
@@ -1360,6 +1364,22 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                         className="text-[10px] font-bold text-amber-700 underline"
                         onClick={() => { clearLocalDraft(); setHasDraft(false) }}
                     >Buang</button>
+                </div>
+            )}
+
+            {/* Price drift warning banner */}
+            {driftedItems.length > 0 && (
+                <div className="border-b border-yellow-300 bg-yellow-50 px-6 py-2 flex items-center gap-3 shrink-0 overflow-x-auto">
+                    <span className="text-[11px] font-black uppercase text-yellow-700 shrink-0">
+                        {driftedItems.length} material berubah harga
+                    </span>
+                    <span className="text-[10px] text-yellow-600 font-bold shrink-0">
+                        {driftedItems.map((d) => `${d.materialName} ${d.direction === "naik" ? "↑" : "↓"}${d.changePct.toFixed(0)}%`).join(" · ")}
+                    </span>
+                    <button
+                        className="px-3 py-1 bg-yellow-500 text-white font-black text-[10px] uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] shrink-0"
+                        onClick={() => setDirty(true)}
+                    >Hitung Ulang HPP</button>
                 </div>
             )}
 

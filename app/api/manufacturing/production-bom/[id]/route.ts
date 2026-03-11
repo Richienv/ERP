@@ -113,6 +113,13 @@ export async function PATCH(
             }
         }
 
+        // Fetch current material prices for snapshotCostPrice (drift detection)
+        const materialIds = items ? items.map((i: any) => i.materialId).filter(Boolean) : []
+        const materialPrices = materialIds.length > 0
+            ? await prisma.product.findMany({ where: { id: { in: materialIds } }, select: { id: true, costPrice: true } })
+            : []
+        const priceMap = new Map(materialPrices.map((m) => [m.id, m.costPrice]))
+
         const idMapping = await prisma.$transaction(async (tx) => {
             // 1. Update BOM metadata
             await tx.productionBOM.update({
@@ -150,6 +157,7 @@ export async function PATCH(
                             unit: item.unit || null,
                             wastePct: item.wastePct || 0,
                             notes: item.notes || null,
+                            snapshotCostPrice: priceMap.get(item.materialId) ?? null,
                         })),
                     })
                 }
