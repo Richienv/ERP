@@ -4,14 +4,14 @@ import { useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getAllCategories, getCategories } from "@/app/actions/inventory"
-import { getEmployees, getAttendanceSnapshot, getLeaveRequests } from "@/app/actions/hcm"
+import { getAllCategories, getCategories, getStockMovements, getRecentAudits, getProductsForKanban } from "@/app/actions/inventory"
+import { getEmployees, getAttendanceSnapshot, getLeaveRequests, getPayrollRun } from "@/app/actions/hcm"
 import { getQuotations, getAllPriceLists } from "@/lib/actions/sales"
 import { getAllPurchaseOrders, getVendors, getPurchaseRequests, getPendingApprovalPOs } from "@/lib/actions/procurement"
 import { getProductsForPO } from "@/app/actions/purchase-order"
 import { getFabricRolls, getWarehousesForRolls, getFabricProducts } from "@/lib/actions/fabric-rolls"
 import { getStockTransfers, getTransferFormData } from "@/lib/actions/stock-transfers"
-import { getFinancialMetrics, getFinanceDashboardData, getJournalEntries, getGLAccountsList, getChartOfAccountsTree, getVendorPayments, getVendorBillsRegistry } from "@/lib/actions/finance"
+import { getFinancialMetrics, getFinanceDashboardData, getJournalEntries, getGLAccountsList, getChartOfAccountsTree, getVendorPayments, getVendorBillsRegistry, getExpenses, getExpenseAccounts } from "@/lib/actions/finance"
 import { getVendors as getVendorsList } from "@/app/actions/vendor"
 import { getPendingPOsForReceiving, getAllGRNs, getWarehousesForGRN, getEmployeesForGRN } from "@/lib/actions/grn"
 import { getSchedulableWorkOrders, getMachinesForScheduling, getRoutingsForScheduling } from "@/lib/actions/manufacturing-garment"
@@ -22,6 +22,10 @@ import { getCuttingDashboard, getCutPlans, getFabricProducts as getCuttingFabric
 import { getWeeklyShiftSchedule, getEmployeeShifts } from "@/lib/actions/hcm-shifts"
 import { getOnboardingTemplates } from "@/lib/actions/hcm-onboarding"
 import { getReconciliations, getBankAccounts } from "@/lib/actions/finance-reconciliation"
+import { getCycleCountSessions } from "@/app/actions/cycle-count"
+import { getInvoiceKanbanData } from "@/lib/actions/finance-invoices"
+import { getPettyCashTransactions } from "@/lib/actions/finance-petty-cash"
+import { getDocumentNumbering, getPermissionMatrix } from "@/lib/actions/settings"
 import { getDocumentSystemOverview } from "@/app/actions/documents-system"
 import { getHCMDashboardData } from "@/app/actions/hcm"
 import { getWarehouses } from "@/app/actions/inventory"
@@ -489,6 +493,107 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             const y = new Date().getFullYear()
             const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}`)
             return res.json()
+        },
+    },
+    // --- Inventory routes ---
+    "/inventory/movements": {
+        queryKey: queryKeys.stockMovements.list(),
+        queryFn: async () => {
+            const [pageData, movements] = await Promise.all([
+                fetch("/api/inventory/page-data").then((r) => r.json()),
+                getStockMovements(100),
+            ])
+            return { ...pageData, movements }
+        },
+    },
+    "/inventory/adjustments": {
+        queryKey: queryKeys.adjustments.list(),
+        queryFn: async () => {
+            const [pageData, movements] = await Promise.all([
+                fetch("/api/inventory/page-data").then((r) => r.json()),
+                getStockMovements(50),
+            ])
+            return { ...pageData, movements }
+        },
+    },
+    "/inventory/audit": {
+        queryKey: queryKeys.inventoryAudit.list(),
+        queryFn: async () => {
+            const [audits, products, warehouses] = await Promise.all([
+                getRecentAudits().catch(() => []),
+                getProductsForKanban().catch(() => []),
+                getWarehouses().catch(() => []),
+            ])
+            return { audits, products, warehouses }
+        },
+    },
+    "/inventory/cycle-counts": {
+        queryKey: queryKeys.cycleCounts.list(),
+        queryFn: async () => await getCycleCountSessions(),
+    },
+    "/inventory/opening-stock": {
+        queryKey: queryKeys.openingStock.list(),
+        queryFn: () => fetch("/api/inventory/opening-stock").then((r) => r.json()).then((p) => ({
+            products: p.products ?? [],
+            warehouses: p.warehouses ?? [],
+            existingTransactions: p.existingTransactions ?? [],
+        })),
+    },
+    "/inventory/settings": {
+        queryKey: queryKeys.inventorySettings.list(),
+        queryFn: () => fetch("/api/inventory/settings").then((r) => r.json()),
+    },
+    // --- Finance routes ---
+    "/finance/invoices": {
+        queryKey: queryKeys.invoices.kanban(),
+        queryFn: async () => {
+            return await getInvoiceKanbanData({ q: null, type: "ALL" }).catch(() => ({ draft: [], sent: [], overdue: [], paid: [] }))
+        },
+    },
+    "/finance/petty-cash": {
+        queryKey: queryKeys.pettyCash.list(),
+        queryFn: async () => {
+            return await getPettyCashTransactions().catch(() => ({ transactions: [], currentBalance: 0, totalTopup: 0, totalDisbursement: 0 }))
+        },
+    },
+    "/finance/transactions": {
+        queryKey: queryKeys.accountTransactions.list(),
+        queryFn: () => fetch("/api/finance/transactions?limit=500").then((r) => r.json()).then((p) => ({
+            entries: p.entries ?? [],
+            accounts: p.accounts ?? [],
+        })),
+    },
+    "/finance/expenses": {
+        queryKey: ["expenses", "list"],
+        queryFn: async () => {
+            const [expenses, accounts] = await Promise.all([
+                getExpenses(),
+                getExpenseAccounts(),
+            ])
+            return { expenses, ...accounts }
+        },
+    },
+    // --- HCM route ---
+    "/hcm/payroll": {
+        queryKey: queryKeys.payroll.run(new Date().toISOString().slice(0, 7)),
+        queryFn: async () => {
+            const period = new Date().toISOString().slice(0, 7)
+            return await getPayrollRun(period)
+        },
+    },
+    // --- Settings routes ---
+    "/settings/numbering": {
+        queryKey: queryKeys.documentNumbering.list(),
+        queryFn: async () => {
+            const result = await getDocumentNumbering()
+            return result && "data" in result ? result.data : []
+        },
+    },
+    "/settings/permissions": {
+        queryKey: queryKeys.permissionMatrix.list(),
+        queryFn: async () => {
+            const result = await getPermissionMatrix()
+            return result && "data" in result ? result.data : []
         },
     },
 }
