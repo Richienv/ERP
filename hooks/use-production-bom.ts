@@ -22,7 +22,7 @@ export function useProductionBOMs() {
     })
 }
 
-export function useProductionBOM(id: string | null) {
+export function useProductionBOM(id: string | null, options?: { refetchInterval?: number | false }) {
     return useQuery({
         queryKey: queryKeys.productionBom.detail(id || ""),
         queryFn: async () => {
@@ -33,5 +33,6 @@ export function useProductionBOM(id: string | null) {
             return result.success ? result.data : null
         },
         enabled: !!id,
+        refetchInterval: options?.refetchInterval,
     })
 }

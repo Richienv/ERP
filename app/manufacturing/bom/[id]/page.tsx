@@ -66,16 +66,17 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 function BOMCanvasPageInner({ id }: { id: string }) {
     const router = useRouter()
     const queryClient = useQueryClient()
-    const { data: bom, isLoading } = useProductionBOM(id)
-    const { data: allStations } = useProcessStations()
-
     // Canvas state from context
     const {
         items, steps, totalQty, isDirty, selectedStepId, viewMode,
+        hasSPK, setHasSPK,
         setItems: ctxSetItems, setSteps: ctxSetSteps, setTotalQty: ctxSetTotalQty,
         setSelectedStepId, setViewMode, setDirty,
         initFromServer,
     } = useBOMCanvas()
+
+    const { data: bom, isLoading } = useProductionBOM(id, { refetchInterval: hasSPK ? 60_000 : false })
+    const { data: allStations } = useProcessStations()
 
     // Keep refs to current items/steps for use inside async doSave callback
     const itemsRef = useRef(items)
@@ -990,6 +991,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
             setSpkProgress(null)
             setSpkResult({ workOrders: result.data || [], bomId: id })
+            setHasSPK(true)
             queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.spkOrders.all })
         } catch {

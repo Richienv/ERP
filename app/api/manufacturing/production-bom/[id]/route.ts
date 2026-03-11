@@ -60,6 +60,9 @@ export async function GET(
                             },
                         },
                         attachments: true,
+                        workOrders: {
+                            select: { actualQty: true, status: true },
+                        },
                     },
                     orderBy: { sequence: 'asc' },
                 },
@@ -70,7 +73,17 @@ export async function GET(
             return NextResponse.json({ success: false, error: 'Production BOM not found' }, { status: 404 })
         }
 
-        return NextResponse.json({ success: true, data: bom })
+        // Aggregate completedQty from linked WorkOrders per step (actualQty = produced qty)
+        const bomAny = bom as any
+        const enrichedSteps = bomAny.steps.map((step: any) => {
+            const woCompletedQty = step.workOrders?.reduce(
+                (sum: number, wo: any) => sum + (wo.actualQty ?? 0), 0
+            ) ?? step.completedQty
+            const { workOrders: _wo, ...stepWithoutWO } = step
+            return { ...stepWithoutWO, completedQty: woCompletedQty }
+        })
+
+        return NextResponse.json({ success: true, data: { ...bom, steps: enrichedSteps } })
     } catch (error: any) {
         console.error('Error fetching production BOM:', error)
         return NextResponse.json({ success: false, error: error?.message || 'Failed to fetch production BOM' }, { status: 500 })
