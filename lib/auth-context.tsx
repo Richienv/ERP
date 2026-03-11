@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import { clearPersistedCache } from "@/lib/query-client"
 import { type User } from "@supabase/supabase-js"
 
 // Define the User Role (SystemRole)
@@ -184,6 +185,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.warn("Sign out API call failed, clearing local session:", err)
             clearSupabaseSession()
         }
+        // Clear persisted query cache from IndexedDB to prevent data leak between users
+        await clearPersistedCache()
         setUser(null)
         router.push("/login")
         router.refresh()

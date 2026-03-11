@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { routePrefetchMap } from "@/hooks/use-nav-prefetch"
+import { routePrefetchMap, masterDataPrefetchMap } from "@/hooks/use-nav-prefetch"
 import { useAuth } from "@/lib/auth-context"
 import { IconCheck, IconLoader2 } from "@tabler/icons-react"
 
@@ -22,15 +22,20 @@ const SESSION_KEY = "erp_cache_warmed"
  */
 
 const PRIORITY_ROUTES = [
+    // Tier 1: Landing pages (what user sees first)
     "/dashboard",
-    "/inventory/products",
     "/inventory",
-    "/sales/customers",
-    "/sales/orders",
     "/sales",
     "/finance",
     "/procurement",
     "/manufacturing",
+    // Tier 2: Most-clicked sub-pages
+    "/inventory/products",
+    "/sales/customers",
+    "/sales/orders",
+    "/finance/invoices",
+    "/procurement/orders",
+    "/manufacturing/bom",
 ]
 
 export function CacheWarmingOverlay() {
@@ -70,6 +75,16 @@ export function CacheWarmingOverlay() {
                 })
             )
         }
+
+        // Also prefetch master data for forms/dialogs
+        await Promise.allSettled(
+            Object.values(masterDataPrefetchMap).map(config =>
+                queryClient.prefetchQuery({
+                    queryKey: config.queryKey,
+                    queryFn: config.queryFn,
+                }).catch(() => {})
+            )
+        )
     }, [queryClient])
 
     const warmBackground = useCallback(async () => {

@@ -6,7 +6,7 @@ import { getExpenses, getExpenseAccounts } from "@/lib/actions/finance"
 
 export function useExpenses() {
     return useQuery({
-        queryKey: ["expenses", "list"],
+        queryKey: queryKeys.expenses.list(),
         queryFn: async () => {
             const [expenses, accounts] = await Promise.all([
                 getExpenses(),

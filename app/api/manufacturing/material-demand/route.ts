@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 
@@ -18,6 +19,12 @@ interface MaterialRow {
 
 export async function GET() {
     try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
+        }
+
         // 1. Get all active work orders (PLANNED or IN_PROGRESS) with their ProductionBOM items
         const workOrders = await prisma.workOrder.findMany({
             where: {

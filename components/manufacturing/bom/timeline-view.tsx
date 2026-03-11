@@ -51,6 +51,7 @@ interface TimelineViewProps {
     selectedStepId: string | null
     onStepSelect: (stepId: string | null) => void
     onMoveStep?: (stepId: string, startOffsetMinutes: number, lane?: number) => void
+    criticalStepIds?: Set<string>
 }
 
 interface BarLayout {
@@ -70,8 +71,9 @@ const HEADER_HEIGHT = 36
 const LABEL_WIDTH = 120
 const SNAP_MINUTES = 5
 
-/* ── Station-grouped scheduling ──
- * Groups bars by stationId — each unique station gets its own row.
+/* ── Per-step scheduling ──
+ * Each process step gets its own row, labeled with station name.
+ * Two steps using the same station still appear as separate rows.
  * Duration = durationMinutes × totalQty (total production time).
  */
 function scheduleByStation(steps: any[], totalQty: number): { bars: BarLayout[]; totalMinutes: number; totalRows: number; rowLabels: string[] } {
@@ -96,29 +98,20 @@ function scheduleByStation(steps: any[], totalQty: number): { bars: BarLayout[];
         endTimes.set(step.id, start + duration)
     }
 
-    // Group by stationId — each unique station = own row
-    const stationOrder: string[] = []
-    const stationNames: Record<string, string> = {}
-    for (const step of sorted) {
-        const sid = step.stationId || step.station?.id || step.id
-        if (!stationOrder.includes(sid)) {
-            stationOrder.push(sid)
-            stationNames[sid] = step.station?.name || `Station ${stationOrder.length}`
-        }
-    }
-
+    // Each step = own row, labeled with station name
+    const rowLabels: string[] = []
     const bars: BarLayout[] = []
-    for (const step of sorted) {
-        const sid = step.stationId || step.station?.id || step.id
-        const row = stationOrder.indexOf(sid)
+    for (let i = 0; i < sorted.length; i++) {
+        const step = sorted[i]
+        const stationName = step.station?.name || `Proses ${i + 1}`
+        rowLabels.push(stationName)
         const start = startTimes.get(step.id) || 0
         const duration = getDuration(step)
-        bars.push({ step, row, startMin: start, durationMin: duration, durationPerPcs: getPerPcs(step) })
+        bars.push({ step, row: i, startMin: start, durationMin: duration, durationPerPcs: getPerPcs(step) })
     }
 
     const totalMinutes = endTimes.size > 0 ? Math.max(...endTimes.values(), MIN_BAR_MINUTES) : MIN_BAR_MINUTES
-    const rowLabels = stationOrder.map(sid => stationNames[sid])
-    return { bars, totalMinutes, totalRows: Math.max(stationOrder.length, 1), rowLabels }
+    return { bars, totalMinutes, totalRows: Math.max(sorted.length, 1), rowLabels }
 }
 
 function fmtDuration(min: number): string {
@@ -165,7 +158,7 @@ function rowY(row: number) {
 /* ═══════════════════ COMPONENT ═══════════════════ */
 
 export function TimelineView({
-    steps, totalQty, selectedStepId, onStepSelect, onMoveStep,
+    steps, totalQty, selectedStepId, onStepSelect, onMoveStep, criticalStepIds,
 }: TimelineViewProps) {
     const { bars, totalMinutes, totalRows, rowLabels } = useMemo(() => scheduleByStation(steps, totalQty), [steps, totalQty])
 
@@ -359,6 +352,7 @@ export function TimelineView({
                             const Icon = getStepIcon(bar.step)
                             const isSelected = bar.step.id === selectedStepId
                             const isDragging = drag?.active && drag.stepId === bar.step.id
+                            const isCritical = criticalStepIds?.has(bar.step.id) ?? true // default true when no criticalStepIds
                             const barWidth = Math.max(bar.durationMin * PIXELS_PER_MINUTE, 60)
                             const stepTarget = stepTargets.get(bar.step.id) || totalQty
                             const progress = stepTarget > 0 ? Math.min(100, ((bar.step.completedQty || 0) / stepTarget) * 100) : 0

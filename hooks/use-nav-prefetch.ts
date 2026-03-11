@@ -21,7 +21,8 @@ import { getCostingDashboard, getProductsForCostSheet, getCostSheets } from "@/l
 import { getCuttingDashboard, getCutPlans, getFabricProducts as getCuttingFabricProducts } from "@/lib/actions/cutting"
 import { getWeeklyShiftSchedule, getEmployeeShifts } from "@/lib/actions/hcm-shifts"
 import { getOnboardingTemplates } from "@/lib/actions/hcm-onboarding"
-import { getReconciliations, getBankAccounts } from "@/lib/actions/finance-reconciliation"
+import { getUnits, getBrands, getColors, getCategories as getMasterCategories, getSuppliers, getUomConversions } from "@/lib/actions/master-data"
+import { getBankAccounts as getPettyCashBankAccounts } from "@/lib/actions/finance-petty-cash"
 import { getCycleCountSessions } from "@/app/actions/cycle-count"
 import { getInvoiceKanbanData } from "@/lib/actions/finance-invoices"
 import { getPettyCashTransactions } from "@/lib/actions/finance-petty-cash"
@@ -444,13 +445,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/reconciliation": {
         queryKey: queryKeys.reconciliation.list(),
-        queryFn: async () => {
-            const [reconciliations, bankAccounts] = await Promise.all([
-                getReconciliations(),
-                getBankAccounts(),
-            ])
-            return { reconciliations, bankAccounts }
-        },
+        queryFn: () => fetch("/api/finance/reconciliation").then((r) => r.json()),
     },
     "/finance/currencies": {
         queryKey: queryKeys.currencies.list(),
@@ -564,7 +559,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         })),
     },
     "/finance/expenses": {
-        queryKey: ["expenses", "list"],
+        queryKey: queryKeys.expenses.list(),
         queryFn: async () => {
             const [expenses, accounts] = await Promise.all([
                 getExpenses(),
@@ -594,6 +589,64 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const result = await getPermissionMatrix()
             return result && "data" in result ? result.data : []
+        },
+    },
+}
+
+/**
+ * Master data used by create/edit dialogs across the entire app.
+ * Prefetched during cache warming so form opens are instant.
+ */
+export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[]; queryFn: () => Promise<unknown> }> = {
+    units: {
+        queryKey: queryKeys.units.list(),
+        queryFn: getUnits,
+    },
+    brands: {
+        queryKey: queryKeys.brands.list(),
+        queryFn: getBrands,
+    },
+    colors: {
+        queryKey: queryKeys.colors.list(),
+        queryFn: getColors,
+    },
+    masterCategories: {
+        queryKey: queryKeys.categories.master(),
+        queryFn: getMasterCategories,
+    },
+    suppliers: {
+        queryKey: queryKeys.suppliers.list(),
+        queryFn: getSuppliers,
+    },
+    uomConversions: {
+        queryKey: queryKeys.uomConversions.list(),
+        queryFn: getUomConversions,
+    },
+    glAccounts: {
+        queryKey: queryKeys.glAccounts.list(),
+        queryFn: getGLAccountsList,
+    },
+    bankAccounts: {
+        queryKey: queryKeys.glAccounts.bankAccounts(),
+        queryFn: async () => {
+            const accounts = await getPettyCashBankAccounts()
+            return accounts.filter((a: { code: string }) => /^10\d{2}$/.test(a.code))
+        },
+    },
+    salesOptions: {
+        queryKey: queryKeys.salesOptions.list(),
+        queryFn: async () => {
+            const res = await fetch("/api/sales/options")
+            const payload = await res.json()
+            return { customers: payload.data?.customers ?? [], users: payload.data?.users ?? [] }
+        },
+    },
+    sidebarActions: {
+        queryKey: queryKeys.sidebarActions.list(),
+        queryFn: async () => {
+            const res = await fetch("/api/sidebar/action-counts")
+            if (!res.ok) return null
+            return res.json()
         },
     },
 }

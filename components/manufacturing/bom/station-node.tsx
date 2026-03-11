@@ -28,6 +28,7 @@ export interface StationNodeData {
     splitPct?: number
     onPctChange?: (newPct: number) => void
     isSelected: boolean
+    isCritical?: boolean
     onRemoveMaterial: (bomItemId: string) => void
     onDrop: (bomItemId: string) => void
     onRemoveStep?: () => void
@@ -69,7 +70,7 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
 
     return (
         <div
-            className={`group relative bg-white border-2 ${isSelected ? "border-orange-500 shadow-[4px_4px_0px_0px_rgba(249,115,22,1)]" : "border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"} w-[260px] transition-all`}
+            className={`group relative bg-white border-2 ${isSelected ? "border-orange-500 shadow-[4px_4px_0px_0px_rgba(249,115,22,1)]" : data.isCritical ? "border-amber-500 shadow-[3px_3px_0px_0px_rgba(245,158,11,1)]" : "border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"} w-[260px] transition-all`}
             onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); data.onContextMenu?.({ clientX: e.clientX, clientY: e.clientY }) }}
             onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add("ring-2", "ring-orange-400") }}
             onDragLeave={(e) => { e.currentTarget.classList.remove("ring-2", "ring-orange-400") }}
@@ -95,6 +96,7 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                         </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                        {data.isCritical && <span title="Jalur kritis" className="text-amber-500 text-xs font-black leading-none">⚡</span>}
                         <span className="bg-black text-white text-[10px] font-black w-6 h-6 flex items-center justify-center">{sequence}</span>
                         {data.splitPct != null && (
                             <button

@@ -77,6 +77,42 @@ export interface ClosingJournalPreview {
     retainedEarningsAccount: { id: string; code: string; name: string } | null
 }
 
+export interface TrialBalanceRow {
+  accountId: string
+  accountCode: string
+  accountName: string
+  accountType: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+  totalDebit: number
+  totalCredit: number
+  storedBalance: number
+  calculatedBalance: number
+  difference: number
+}
+
+export interface TrialBalanceData {
+  rows: TrialBalanceRow[]
+  totalDebit: number
+  totalCredit: number
+  isBalanced: boolean
+  mismatchCount: number
+  asOfDate: string
+}
+
+export interface ReconciliationPreviewRow {
+  accountId: string
+  accountCode: string
+  accountName: string
+  oldBalance: number
+  newBalance: number
+  difference: number
+}
+
+export interface ReconciliationPreview {
+  rows: ReconciliationPreviewRow[]
+  totalAccounts: number
+  totalDifference: number
+}
+
 /**
  * Calculate the next occurrence date given a pattern and current date.
  */

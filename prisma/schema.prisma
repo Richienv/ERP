@@ -3374,3 +3374,33 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+enum FlagStatus {
+  PENDING
+  READ
+  ACTED
+  DISMISSED
+
+  @@map("flag_status")
+}
+
+model CeoFlag {
+  id          String     @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  title       String
+  note        String?
+  targetDept  String
+  sourceType  String
+  sourceId    String
+  sourceLabel String
+  status      FlagStatus @default(PENDING)
+  createdBy   String     @db.Uuid
+  readBy      String?    @db.Uuid
+  readAt      DateTime?
+  actedAt     DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([targetDept, status])
+  @@index([sourceType, sourceId])
+  @@index([createdAt])
+  @@map("ceo_flags")
+}

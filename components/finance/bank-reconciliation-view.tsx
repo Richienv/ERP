@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import * as XLSX from "xlsx"
@@ -33,6 +33,19 @@ import {
     X,
     ChevronLeft,
     ChevronRight,
+    CheckCircle2,
+    AlertCircle,
+    ArrowRightLeft,
+    Loader2,
+    Unlink,
+    Sparkles,
+    UploadCloud,
+    ArrowRight,
+    Search,
+    Filter,
+    Ban,
+    Undo2,
+    MessageSquare,
 } from "lucide-react"
 import { toast } from "sonner"
 import { NB } from "@/lib/dialog-styles"
@@ -91,6 +104,8 @@ interface BankReconciliationViewProps {
         statementDate: string
         periodStart: string
         periodEnd: string
+        bankStatementBalance?: number
+        notes?: string
     }) => Promise<{ success: boolean; reconciliationId?: string; error?: string }>
     onImportRows: (
         reconciliationId: string,
@@ -101,22 +116,19 @@ interface BankReconciliationViewProps {
     onUnmatchItem: (itemId: string) => Promise<{ success: boolean; error?: string }>
     onClose: (reconciliationId: string) => Promise<{ success: boolean; error?: string }>
     onLoadDetail: (reconciliationId: string, options?: { bankPage?: number; bankPageSize?: number; systemPage?: number; systemPageSize?: number }) => Promise<ReconciliationDetail | null>
+    onUpdateMeta: (reconciliationId: string, data: { bankStatementBalance?: number; notes?: string }) => Promise<{ success: boolean; error?: string }>
+    onExcludeItem: (itemId: string, reason: string) => Promise<{ success: boolean; error?: string }>
+    onIncludeItem: (itemId: string) => Promise<{ success: boolean; error?: string }>
 }
 
 // ==============================================================================
 // Status helpers
 // ==============================================================================
 
-const STATUS_LABELS: Record<string, string> = {
-    REC_DRAFT: "Draft",
-    REC_IN_PROGRESS: "Dalam Proses",
-    REC_COMPLETED: "Selesai",
-}
-
-const STATUS_COLORS: Record<string, string> = {
-    REC_DRAFT: "bg-zinc-100 text-zinc-600",
-    REC_IN_PROGRESS: "bg-amber-100 text-amber-700",
-    REC_COMPLETED: "bg-emerald-100 text-emerald-700",
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; border: string; dot: string }> = {
+    REC_DRAFT: { label: "Draft", bg: "bg-zinc-100", text: "text-zinc-600", border: "border-zinc-300", dot: "bg-zinc-400" },
+    REC_IN_PROGRESS: { label: "Dalam Proses", bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-300", dot: "bg-amber-400" },
+    REC_COMPLETED: { label: "Selesai", bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-300", dot: "bg-emerald-500" },
 }
 
 // ==============================================================================
@@ -151,6 +163,89 @@ function detectColumns(headers: string[]): {
 }
 
 // ==============================================================================
+// Skeleton for detail panel
+// ==============================================================================
+
+function DetailSkeleton() {
+    return (
+        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse">
+            {/* Header skeleton */}
+            <div className="flex items-center justify-between px-5 py-3 border-b-2 border-black bg-zinc-50">
+                <div className="space-y-1.5">
+                    <div className="h-4 w-40 bg-zinc-200 rounded" />
+                    <div className="h-3 w-24 bg-zinc-100 rounded" />
+                </div>
+                <div className="h-4 w-32 bg-zinc-100 rounded" />
+            </div>
+            {/* KPI strip skeleton */}
+            <div className="grid grid-cols-4 border-b-2 border-black">
+                {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className={`p-4 space-y-2 ${i < 3 ? "border-r border-zinc-200" : ""}`}>
+                        <div className="h-2.5 w-16 bg-zinc-100 rounded" />
+                        <div className="h-6 w-12 bg-zinc-200 rounded" />
+                    </div>
+                ))}
+            </div>
+            {/* Action bar skeleton */}
+            <div className="px-5 py-3 border-b border-zinc-200 flex gap-2">
+                <div className="h-8 w-28 bg-zinc-100 rounded" />
+                <div className="h-8 w-36 bg-zinc-100 rounded" />
+            </div>
+            {/* Side by side skeleton */}
+            <div className="grid grid-cols-2 divide-x divide-zinc-200">
+                {[0, 1].map((col) => (
+                    <div key={col}>
+                        <div className="bg-zinc-50 px-4 py-2.5 border-b border-zinc-200">
+                            <div className="h-3 w-28 bg-zinc-200 rounded" />
+                        </div>
+                        {[0, 1, 2, 3].map((row) => (
+                            <div key={row} className="px-4 py-3 border-b border-zinc-100 space-y-1.5">
+                                <div className="flex justify-between">
+                                    <div className="h-2.5 w-20 bg-zinc-100 rounded" />
+                                    <div className="h-3.5 w-24 bg-zinc-200 rounded" />
+                                </div>
+                                <div className="h-3 w-40 bg-zinc-100 rounded" />
+                            </div>
+                        ))}
+                    </div>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+// ==============================================================================
+// Progress ring SVG
+// ==============================================================================
+
+function ProgressRing({ percent, size = 44, stroke = 4 }: { percent: number; size?: number; stroke?: number }) {
+    const radius = (size - stroke) / 2
+    const circ = 2 * Math.PI * radius
+    const offset = circ - (percent / 100) * circ
+    const color = percent >= 80 ? "#10b981" : percent >= 40 ? "#f59e0b" : "#ef4444"
+    return (
+        <svg width={size} height={size} className="shrink-0 -rotate-90">
+            <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e4e4e7" strokeWidth={stroke} />
+            <circle
+                cx={size / 2} cy={size / 2} r={radius} fill="none"
+                stroke={color} strokeWidth={stroke}
+                strokeDasharray={circ} strokeDashoffset={offset}
+                strokeLinecap="round"
+                className="transition-all duration-500"
+            />
+            <text
+                x={size / 2} y={size / 2}
+                textAnchor="middle" dominantBaseline="central"
+                className="rotate-90 origin-center fill-zinc-700 dark:fill-zinc-300"
+                fontSize="11" fontWeight="800"
+            >
+                {Math.round(percent)}%
+            </text>
+        </svg>
+    )
+}
+
+// ==============================================================================
 // Component
 // ==============================================================================
 
@@ -164,15 +259,21 @@ export function BankReconciliationView({
     onUnmatchItem,
     onClose,
     onLoadDetail,
+    onUpdateMeta,
+    onExcludeItem,
+    onIncludeItem,
 }: BankReconciliationViewProps) {
     const queryClient = useQueryClient()
     const fileInputRef = useRef<HTMLInputElement>(null)
 
     // UI state
     const [loading, setLoading] = useState(false)
+    const [detailLoading, setDetailLoading] = useState(false)
+    const [actionLoading, setActionLoading] = useState<string | null>(null)
     const [createOpen, setCreateOpen] = useState(false)
     const [addBankOpen, setAddBankOpen] = useState(false)
     const [selectedRec, setSelectedRec] = useState<ReconciliationDetail | null>(null)
+    const [selectedRecId, setSelectedRecId] = useState<string | null>(null)
     const [dragging, setDragging] = useState(false)
     const [parsedRows, setParsedRows] = useState<
         { date: string; description: string; amount: number; reference?: string }[] | null
@@ -183,6 +284,16 @@ export function BankReconciliationView({
     const [newStatementDate, setNewStatementDate] = useState("")
     const [newPeriodStart, setNewPeriodStart] = useState("")
     const [newPeriodEnd, setNewPeriodEnd] = useState("")
+    const [newBankStatementBalance, setNewBankStatementBalance] = useState("")
+
+    // Exclude dialog state
+    const [excludeDialogOpen, setExcludeDialogOpen] = useState(false)
+    const [excludeItemId, setExcludeItemId] = useState<string | null>(null)
+    const [excludeReason, setExcludeReason] = useState("")
+
+    // Detail panel editable meta
+    const [editBankStatementBalance, setEditBankStatementBalance] = useState("")
+    const [editNotes, setEditNotes] = useState("")
 
     // Add bank state
     const [newBankCode, setNewBankCode] = useState("")
@@ -203,8 +314,25 @@ export function BankReconciliationView({
     // Suggestions state (from auto-match)
     const [suggestions, setSuggestions] = useState<{ bankItemId: string; matches: { transactionId: string; confidence: string; score: number; reason: string }[] }[]>([])
 
+    // Search & filter state
+    const [searchQuery, setSearchQuery] = useState("")
+    const [statusFilter, setStatusFilter] = useState<string>("all")
+
+    // ── Filtered reconciliations ──────────────────────────────────────────────
+    const filteredReconciliations = useMemo(() => {
+        return reconciliations.filter((rec) => {
+            if (statusFilter !== "all" && rec.status !== statusFilter) return false
+            if (searchQuery.trim()) {
+                const q = searchQuery.toLowerCase()
+                return rec.glAccountName.toLowerCase().includes(q)
+            }
+            return true
+        })
+    }, [reconciliations, searchQuery, statusFilter])
+
     // ── Derived data ──────────────────────────────────────────────────────────
-    const unmatchedBankItems = selectedRec?.items.filter((i) => i.matchStatus !== "MATCHED") ?? []
+    const unmatchedBankItems = selectedRec?.items.filter((i) => i.matchStatus === "UNMATCHED") ?? []
+    const excludedBankItems = selectedRec?.items.filter((i) => i.matchStatus === "EXCLUDED") ?? []
     const matchedBankItems = selectedRec?.items.filter((i) => i.matchStatus === "MATCHED") ?? []
     const unmatchedSystemEntries: SystemEntryData[] =
         selectedRec?.systemEntries.filter((e) => e.alreadyMatchedItemId === null) ?? []
@@ -223,6 +351,24 @@ export function BankReconciliationView({
         Math.abs(selectedBankTotal - selectedSystemTotal) < 1
 
     const isCompleted = selectedRec?.status === "REC_COMPLETED"
+
+    // Amounts from selected bank items — used to highlight matching system entries
+    const selectedBankAmounts = useMemo(() => {
+        const amounts = new Set<number>()
+        unmatchedBankItems
+            .filter((i) => selectedBankIds.has(i.id))
+            .forEach((i) => amounts.add(Math.abs(i.bankAmount)))
+        return amounts
+    }, [unmatchedBankItems, selectedBankIds])
+
+    // KPI calculations
+    const totalItems = selectedRec ? matchedBankItems.length + unmatchedBankItems.length + excludedBankItems.length : 0
+    const reconciledCount = matchedBankItems.length + excludedBankItems.length
+    const matchedPercent = totalItems > 0 ? (reconciledCount / totalItems) * 100 : 0
+    const difference = selectedRec
+        ? unmatchedBankItems.reduce((s, i) => s + i.bankAmount, 0) -
+          unmatchedSystemEntries.reduce((s, e) => s + e.amount, 0)
+        : 0
 
     // ── File parsing ──────────────────────────────────────────────────────────
     const parseFile = useCallback(async (file: File) => {
@@ -333,6 +479,7 @@ export function BankReconciliationView({
                 statementDate: newStatementDate,
                 periodStart: newPeriodStart,
                 periodEnd: newPeriodEnd,
+                bankStatementBalance: Number(newBankStatementBalance) || undefined,
             })
             if (result.success) {
                 toast.success("Rekonsiliasi berhasil dibuat")
@@ -341,6 +488,7 @@ export function BankReconciliationView({
                 setNewStatementDate("")
                 setNewPeriodStart("")
                 setNewPeriodEnd("")
+                setNewBankStatementBalance("")
                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
             } else {
                 toast.error(result.error || "Gagal membuat rekonsiliasi")
@@ -354,7 +502,7 @@ export function BankReconciliationView({
 
     const handleImportParsed = async () => {
         if (!selectedRec || !parsedRows || parsedRows.length === 0) return
-        setLoading(true)
+        setActionLoading("import")
         try {
             const result = await onImportRows(selectedRec.id, parsedRows)
             if (result.success) {
@@ -367,13 +515,13 @@ export function BankReconciliationView({
         } catch {
             toast.error("Gagal mengimpor data")
         } finally {
-            setLoading(false)
+            setActionLoading(null)
         }
     }
 
     const handleAutoMatch = async () => {
         if (!selectedRec) return
-        setLoading(true)
+        setActionLoading("automatch")
         try {
             const result = await onAutoMatch(selectedRec.id)
             if (result.success) {
@@ -391,7 +539,7 @@ export function BankReconciliationView({
         } catch {
             toast.error("Gagal melakukan auto-match")
         } finally {
-            setLoading(false)
+            setActionLoading(null)
         }
     }
 
@@ -418,7 +566,7 @@ export function BankReconciliationView({
             toast.error("Pilih minimal 1 item bank dan 1 jurnal sistem")
             return
         }
-        setLoading(true)
+        setActionLoading("match")
         try {
             const result = await onMatchItems({
                 bankItemIds: Array.from(selectedBankIds),
@@ -435,12 +583,12 @@ export function BankReconciliationView({
         } catch {
             toast.error("Gagal mencocokkan item")
         } finally {
-            setLoading(false)
+            setActionLoading(null)
         }
     }
 
     const handleUnmatch = async (itemId: string) => {
-        setLoading(true)
+        setActionLoading(`unmatch-${itemId}`)
         try {
             const result = await onUnmatchItem(itemId)
             if (result.success) {
@@ -452,7 +600,7 @@ export function BankReconciliationView({
         } catch {
             toast.error("Gagal membatalkan pencocokan")
         } finally {
-            setLoading(false)
+            setActionLoading(null)
         }
     }
 
@@ -460,12 +608,13 @@ export function BankReconciliationView({
         if (!selectedRec) return
         const confirmed = window.confirm("Tutup rekonsiliasi ini? Setelah ditutup, tidak bisa diubah lagi.")
         if (!confirmed) return
-        setLoading(true)
+        setActionLoading("close")
         try {
             const result = await onClose(selectedRec.id)
             if (result.success) {
                 toast.success("Rekonsiliasi ditutup")
                 setSelectedRec(null)
+                setSelectedRecId(null)
                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
             } else {
                 toast.error(result.error || "Gagal menutup")
@@ -473,12 +622,13 @@ export function BankReconciliationView({
         } catch {
             toast.error("Gagal menutup rekonsiliasi")
         } finally {
-            setLoading(false)
+            setActionLoading(null)
         }
     }
 
     const handleSelectRec = async (rec: ReconciliationSummary) => {
-        setLoading(true)
+        setSelectedRecId(rec.id)
+        setDetailLoading(true)
         setSelectedBankIds(new Set())
         setSelectedSystemIds(new Set())
         setParsedRows(null)
@@ -493,10 +643,14 @@ export function BankReconciliationView({
                 systemPageSize: PAGE_SIZE,
             })
             setSelectedRec(detail)
+            if (detail) {
+                setEditBankStatementBalance(detail.bankStatementBalance != null ? String(detail.bankStatementBalance) : "")
+                setEditNotes(detail.notes ?? "")
+            }
         } catch {
             toast.error("Gagal memuat detail rekonsiliasi")
         } finally {
-            setLoading(false)
+            setDetailLoading(false)
         }
     }
 
@@ -524,16 +678,23 @@ export function BankReconciliationView({
         <div className="space-y-4">
             {/* Header */}
             <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                    <Landmark className="h-5 w-5" />
-                    <h2 className="text-sm font-black uppercase tracking-widest">Rekonsiliasi Bank</h2>
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center h-9 w-9 bg-purple-100 border-2 border-black rounded-none">
+                        <Landmark className="h-4.5 w-4.5 text-purple-700" />
+                    </div>
+                    <div>
+                        <h2 className="text-sm font-black uppercase tracking-widest">Rekonsiliasi Bank</h2>
+                        <p className="text-[10px] text-zinc-400 font-bold">
+                            {reconciliations.length} sesi &middot; {reconciliations.filter(r => r.status === "REC_IN_PROGRESS").length} dalam proses
+                        </p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     {/* Tambah Bank Dialog */}
                     <Dialog open={addBankOpen} onOpenChange={setAddBankOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9 px-3 rounded-none">
-                                <Landmark className="h-3.5 w-3.5 mr-1" /> Tambah Bank
+                            <Button variant="outline" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9 px-3 rounded-none hover:bg-zinc-50">
+                                <Landmark className="h-3.5 w-3.5 mr-1.5" /> Tambah Bank
                             </Button>
                         </DialogTrigger>
                         <DialogContent className={NB.contentNarrow}>
@@ -602,7 +763,7 @@ export function BankReconciliationView({
                                             setAddingBank(false)
                                         }
                                     }}>
-                                        {addingBank ? "Menyimpan..." : "Simpan"}
+                                        {addingBank ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Menyimpan...</> : "Simpan"}
                                     </Button>
                                 </div>
                             </div>
@@ -652,10 +813,14 @@ export function BankReconciliationView({
                                         <Input className={NB.input} type="date" value={newPeriodEnd} onChange={(e) => setNewPeriodEnd(e.target.value)} />
                                     </div>
                                 </div>
+                                <div>
+                                    <label className={NB.label}>Saldo Akhir Bank Statement (Rp)</label>
+                                    <Input className={NB.inputMono} type="number" placeholder="0" value={newBankStatementBalance} onChange={(e) => setNewBankStatementBalance(e.target.value)} />
+                                </div>
                                 <div className={NB.footer}>
                                     <Button variant="outline" className={NB.cancelBtn} onClick={() => setCreateOpen(false)}>Batal</Button>
                                     <Button className={NB.submitBtn} disabled={loading} onClick={handleCreate}>
-                                        {loading ? "Membuat..." : "Buat Rekonsiliasi"}
+                                        {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Membuat...</> : "Buat Rekonsiliasi"}
                                     </Button>
                                 </div>
                             </div>
@@ -667,46 +832,120 @@ export function BankReconciliationView({
             {/* Main layout: sidebar + detail */}
             <div className="flex gap-4">
                 {/* ── Sidebar: reconciliation list ─────────────────────────────── */}
-                <div className="w-72 shrink-0 space-y-2">
-                    {reconciliations.length === 0 ? (
-                        <div className="bg-white border-2 border-black p-8 text-center">
-                            <Landmark className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                Belum ada rekonsiliasi
-                            </span>
-                        </div>
-                    ) : (
-                        <ScrollArea className="max-h-[80vh]">
-                            <div className="space-y-2 pr-2">
-                                {reconciliations.map((rec) => (
+                <div className="w-80 shrink-0 space-y-2">
+                    {/* Search & filter */}
+                    {reconciliations.length > 0 && (
+                        <div className="space-y-2">
+                            <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                                <Input
+                                    placeholder="Cari akun..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-8 pl-8 text-[11px] font-medium border-2 border-black rounded-none placeholder:text-zinc-300"
+                                />
+                            </div>
+                            <div className="flex gap-1">
+                                {[
+                                    { key: "all", label: "Semua" },
+                                    { key: "REC_DRAFT", label: "Draft" },
+                                    { key: "REC_IN_PROGRESS", label: "Proses" },
+                                    { key: "REC_COMPLETED", label: "Selesai" },
+                                ].map((f) => (
                                     <button
-                                        key={rec.id}
-                                        className={`w-full text-left bg-white border-2 border-black p-3 hover:bg-zinc-50 transition-colors ${
-                                            selectedRec?.id === rec.id
-                                                ? "bg-zinc-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
-                                                : ""
+                                        key={f.key}
+                                        onClick={() => setStatusFilter(f.key)}
+                                        className={`text-[8px] font-black uppercase tracking-wider px-2 py-1 border transition-all ${
+                                            statusFilter === f.key
+                                                ? "bg-zinc-900 text-white border-black"
+                                                : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"
                                         }`}
-                                        onClick={() => handleSelectRec(rec)}
                                     >
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="text-xs font-black truncate">{rec.glAccountName}</span>
-                                            <span
-                                                className={`text-[8px] font-black px-1.5 py-0.5 border border-black shrink-0 ml-1 ${
-                                                    STATUS_COLORS[rec.status] || ""
-                                                }`}
-                                            >
-                                                {STATUS_LABELS[rec.status] || rec.status}
-                                            </span>
-                                        </div>
-                                        <div className="text-[9px] text-zinc-400 font-bold">
-                                            {formatDate(rec.periodStart)} — {formatDate(rec.periodEnd)}
-                                        </div>
-                                        <div className="flex items-center gap-2 mt-1 text-[9px] font-bold">
-                                            <span className="text-emerald-600">{rec.matchedCount} cocok</span>
-                                            <span className="text-red-500">{rec.unmatchedCount} belum</span>
-                                        </div>
+                                        {f.label}
                                     </button>
                                 ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {reconciliations.length === 0 ? (
+                        <div className="bg-white border-2 border-black p-8 text-center space-y-3">
+                            <div className="flex items-center justify-center h-12 w-12 mx-auto bg-purple-50 border-2 border-purple-200 rounded-none">
+                                <Landmark className="h-6 w-6 text-purple-300" />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">
+                                Belum ada rekonsiliasi
+                            </span>
+                            <p className="text-[10px] text-zinc-400">Klik &quot;Rekonsiliasi Baru&quot; untuk memulai</p>
+                        </div>
+                    ) : filteredReconciliations.length === 0 ? (
+                        <div className="bg-white border-2 border-black p-6 text-center space-y-2">
+                            <Filter className="h-5 w-5 mx-auto text-zinc-300" />
+                            <span className="text-[10px] font-bold text-zinc-400 block">
+                                Tidak ada hasil untuk filter ini
+                            </span>
+                            <button
+                                onClick={() => { setSearchQuery(""); setStatusFilter("all") }}
+                                className="text-[9px] font-black text-purple-600 hover:underline uppercase"
+                            >
+                                Reset Filter
+                            </button>
+                        </div>
+                    ) : (
+                        <ScrollArea className="max-h-[75vh]">
+                            <div className="space-y-2 pr-2">
+                                {filteredReconciliations.map((rec) => {
+                                    const isSelected = selectedRecId === rec.id
+                                    const total = rec.matchedCount + rec.unmatchedCount
+                                    const pct = total > 0 ? (rec.matchedCount / total) * 100 : 0
+                                    const statusCfg = STATUS_CONFIG[rec.status] || STATUS_CONFIG.REC_DRAFT
+
+                                    return (
+                                        <button
+                                            key={rec.id}
+                                            className={`w-full text-left bg-white border-2 border-black p-3.5 transition-all duration-150 group ${
+                                                isSelected
+                                                    ? "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-purple-50/50"
+                                                    : "hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-1px] hover:translate-y-[-1px]"
+                                            }`}
+                                            onClick={() => handleSelectRec(rec)}
+                                        >
+                                            <div className="flex items-start justify-between gap-2 mb-2">
+                                                <span className="text-xs font-black truncate">{rec.glAccountName}</span>
+                                                <span className={`text-[8px] font-black px-1.5 py-0.5 border shrink-0 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                                                    {statusCfg.label}
+                                                </span>
+                                            </div>
+                                            <div className="text-[9px] text-zinc-400 font-bold mb-2.5">
+                                                {formatDate(rec.periodStart)} — {formatDate(rec.periodEnd)}
+                                            </div>
+                                            {/* Progress bar */}
+                                            <div className="space-y-1">
+                                                <div className="flex items-center justify-between text-[9px] font-bold">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-emerald-600">{rec.matchedCount} cocok</span>
+                                                        <span className="text-red-500">{rec.unmatchedCount} belum</span>
+                                                    </div>
+                                                    <span className="text-zinc-400 font-mono">{Math.round(pct)}%</span>
+                                                </div>
+                                                <div className="h-1.5 bg-zinc-100 border border-zinc-200 overflow-hidden">
+                                                    <div
+                                                        className={`h-full transition-all duration-500 ${
+                                                            pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-400" : "bg-red-400"
+                                                        }`}
+                                                        style={{ width: `${pct}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            {/* Loading indicator */}
+                                            {detailLoading && isSelected && (
+                                                <div className="flex items-center gap-1.5 mt-2 text-[9px] font-bold text-purple-600">
+                                                    <Loader2 className="h-3 w-3 animate-spin" /> Memuat detail...
+                                                </div>
+                                            )}
+                                        </button>
+                                    )
+                                })}
                             </div>
                         </ScrollArea>
                     )}
@@ -714,90 +953,273 @@ export function BankReconciliationView({
 
                 {/* ── Detail panel ─────────────────────────────────────────────── */}
                 <div className="flex-1 min-w-0">
-                    {selectedRec ? (
+                    {detailLoading ? (
+                        <DetailSkeleton />
+                    ) : selectedRec ? (
                         <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                            {/* Account header */}
-                            <div className="flex items-center justify-between px-4 py-2.5 border-b-2 border-black bg-zinc-50">
-                                <div>
-                                    <span className="text-xs font-black">{selectedRec.glAccountName}</span>
-                                    <span className="text-[9px] text-zinc-400 font-mono ml-2">
-                                        ({selectedRec.glAccountCode})
-                                    </span>
+                            {/* Account header with progress ring */}
+                            <div className="flex items-center justify-between px-5 py-3 border-b-2 border-black bg-zinc-50">
+                                <div className="flex items-center gap-3">
+                                    <ProgressRing percent={matchedPercent} />
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-black">{selectedRec.glAccountName}</span>
+                                            <span className="text-[9px] font-mono text-zinc-400 bg-zinc-100 px-1.5 py-0.5 border border-zinc-200">
+                                                {selectedRec.glAccountCode}
+                                            </span>
+                                        </div>
+                                        <span className="text-[10px] text-zinc-400 font-bold">
+                                            Saldo Buku: <span className="font-mono text-zinc-600">Rp {formatIDR(selectedRec.glAccountBalance)}</span>
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="text-[10px] font-bold text-zinc-400">
-                                    Saldo: <span className="font-mono">Rp {formatIDR(selectedRec.glAccountBalance)}</span>
-                                </div>
+                                {isCompleted && (
+                                    <div className="flex items-center gap-1.5 bg-emerald-100 border border-emerald-300 px-2.5 py-1">
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                        <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wider">Selesai</span>
+                                    </div>
+                                )}
                             </div>
+
+                            {/* Editable meta: bank statement balance & notes */}
+                            {!isCompleted && (
+                                <div className="px-5 py-3 border-b border-zinc-200 bg-white space-y-2">
+                                    <div className="flex items-center gap-4">
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 shrink-0">
+                                            Saldo Bank Statement:
+                                        </label>
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-xs font-bold text-zinc-500">Rp</span>
+                                            <Input
+                                                type="number"
+                                                placeholder="0"
+                                                value={editBankStatementBalance}
+                                                onChange={(e) => setEditBankStatementBalance(e.target.value)}
+                                                onBlur={async () => {
+                                                    if (!selectedRec) return
+                                                    const val = Number(editBankStatementBalance) || 0
+                                                    if (val === (selectedRec.bankStatementBalance ?? 0)) return
+                                                    const result = await onUpdateMeta(selectedRec.id, { bankStatementBalance: val })
+                                                    if (result.success) {
+                                                        toast.success("Saldo bank statement diperbarui")
+                                                        await reloadDetail(selectedRec.id)
+                                                    } else {
+                                                        toast.error(result.error || "Gagal memperbarui")
+                                                    }
+                                                }}
+                                                className="h-7 w-48 border-2 border-black font-mono font-bold text-sm rounded-none placeholder:text-zinc-300 placeholder:font-normal"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex items-start gap-4">
+                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 shrink-0 pt-1">
+                                            Catatan:
+                                        </label>
+                                        <textarea
+                                            placeholder="Catatan rekonsiliasi..."
+                                            value={editNotes}
+                                            onChange={(e) => setEditNotes(e.target.value)}
+                                            onBlur={async () => {
+                                                if (!selectedRec) return
+                                                if (editNotes === (selectedRec.notes ?? "")) return
+                                                const result = await onUpdateMeta(selectedRec.id, { notes: editNotes })
+                                                if (result.success) {
+                                                    toast.success("Catatan diperbarui")
+                                                    await reloadDetail(selectedRec.id)
+                                                } else {
+                                                    toast.error(result.error || "Gagal memperbarui")
+                                                }
+                                            }}
+                                            className="flex-1 border-2 border-black font-medium text-xs min-h-[36px] max-h-[60px] rounded-none p-2 resize-none placeholder:text-zinc-300 placeholder:font-normal"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* KPI strip */}
+                            <div className="grid grid-cols-4 border-b-2 border-black">
+                                {[
+                                    { label: "Total Item", value: totalItems, icon: FileSpreadsheet, color: "text-zinc-700", topColor: "bg-zinc-300" },
+                                    { label: "Cocok", value: matchedBankItems.length, icon: CheckCircle2, color: "text-emerald-700", topColor: "bg-emerald-400" },
+                                    { label: "Belum Cocok", value: unmatchedBankItems.length, icon: AlertCircle, color: unmatchedBankItems.length > 0 ? "text-red-600" : "text-emerald-700", topColor: unmatchedBankItems.length > 0 ? "bg-red-400" : "bg-emerald-400" },
+                                    { label: "Dikecualikan", value: excludedBankItems.length, icon: Ban, color: excludedBankItems.length > 0 ? "text-zinc-600" : "text-zinc-400", topColor: excludedBankItems.length > 0 ? "bg-zinc-400" : "bg-zinc-200" },
+                                ].map((kpi, i) => (
+                                    <div key={kpi.label} className={`relative p-3.5 ${i < 3 ? "border-r border-zinc-200" : ""}`}>
+                                        <div className={`absolute top-0 left-0 right-0 h-[3px] ${kpi.topColor}`} />
+                                        <div className="flex items-center gap-1.5 mb-1">
+                                            <kpi.icon className="h-3 w-3 text-zinc-400" />
+                                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{kpi.label}</span>
+                                        </div>
+                                        <span className={`text-lg font-black font-mono ${kpi.color}`}>{kpi.value}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* ── Reconciliation Summary Panel (THE ACCOUNTING EQUATION) ── */}
+                            {selectedRec.bankStatementBalance != null && (() => {
+                                const bookBalance = selectedRec.bookBalanceSnapshot ?? selectedRec.glAccountBalance
+                                const outstandingDeposits = unmatchedBankItems.filter(i => i.bankAmount > 0).reduce((s, i) => s + i.bankAmount, 0)
+                                const outstandingChecks = unmatchedBankItems.filter(i => i.bankAmount < 0).reduce((s, i) => s + i.bankAmount, 0)
+                                const excludedTotal = excludedBankItems.reduce((s, i) => s + i.bankAmount, 0)
+                                const adjustedBookBalance = bookBalance + outstandingDeposits + outstandingChecks - excludedTotal
+                                const bsBalance = selectedRec.bankStatementBalance ?? 0
+                                const diff = adjustedBookBalance - bsBalance
+                                return (
+                                    <div className="border-b-2 border-black bg-white">
+                                        <div className="bg-zinc-900 px-5 py-2 flex items-center gap-2">
+                                            <ArrowRightLeft className="h-3.5 w-3.5 text-zinc-400" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                                                Ringkasan Rekonsiliasi
+                                            </span>
+                                        </div>
+                                        <div className="px-5 py-3 space-y-1.5">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-bold text-zinc-600">Saldo Buku (Book Balance)</span>
+                                                <span className="text-[11px] font-mono font-bold text-zinc-800">Rp {formatIDR(bookBalance)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-bold text-zinc-500">+ Setoran dalam perjalanan</span>
+                                                <span className="text-[11px] font-mono font-bold text-emerald-600">Rp {formatIDR(outstandingDeposits)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-bold text-zinc-500">- Cek beredar</span>
+                                                <span className="text-[11px] font-mono font-bold text-red-600">Rp {formatIDR(Math.abs(outstandingChecks))}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-bold text-zinc-500">- Item dikecualikan</span>
+                                                <span className="text-[11px] font-mono font-bold text-zinc-500">Rp {formatIDR(Math.abs(excludedTotal))}</span>
+                                            </div>
+                                            <div className="border-t-2 border-black my-1" />
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-black text-zinc-800">Saldo Buku Disesuaikan</span>
+                                                <span className="text-sm font-mono font-black text-zinc-900">Rp {formatIDR(adjustedBookBalance)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-black text-zinc-800">Saldo Bank Statement</span>
+                                                <span className="text-sm font-mono font-black text-zinc-900">Rp {formatIDR(bsBalance)}</span>
+                                            </div>
+                                            <div className="border-t border-dashed border-zinc-300 my-1" />
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-black uppercase tracking-wider text-zinc-800">Selisih</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className={`text-sm font-mono font-black ${Math.abs(diff) < 1 ? "text-emerald-600" : "text-red-600"}`}>
+                                                        Rp {formatIDR(Math.abs(diff))}
+                                                    </span>
+                                                    {Math.abs(diff) < 1 ? (
+                                                        <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5">
+                                                            SEIMBANG
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[8px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-red-300 px-1.5 py-0.5">
+                                                            BELUM SEIMBANG
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })()}
 
                             {/* Action bar */}
                             {!isCompleted && (
-                                <div className="px-4 py-2 border-b border-zinc-200 flex items-center gap-2 flex-wrap">
+                                <div className="px-5 py-2.5 border-b border-zinc-200 flex items-center gap-2 flex-wrap bg-white">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-7 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1"
-                                        disabled={loading}
+                                        className="h-8 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1.5 hover:bg-purple-50"
+                                        disabled={actionLoading !== null}
                                         onClick={handleAutoMatch}
                                     >
-                                        <Wand2 className="h-3 w-3" /> Auto-Match
+                                        {actionLoading === "automatch" ? (
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                            <Wand2 className="h-3 w-3" />
+                                        )}
+                                        {actionLoading === "automatch" ? "Mencocokkan..." : "Auto-Match"}
                                     </Button>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-7 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1"
-                                        disabled={loading}
+                                        className="h-8 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1.5 hover:bg-red-50 text-red-600 border-red-300"
+                                        disabled={actionLoading !== null || unmatchedBankItems.length > 0}
                                         onClick={handleClose}
                                     >
-                                        <Lock className="h-3 w-3" /> Tutup Rekonsiliasi
+                                        {actionLoading === "close" ? (
+                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                            <Lock className="h-3 w-3" />
+                                        )}
+                                        Tutup Rekonsiliasi
+                                    </Button>
+                                    <div className="flex-1" />
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1 px-2"
+                                        onClick={downloadTemplateCSV}
+                                    >
+                                        <Download className="h-3 w-3" /> Template CSV
                                     </Button>
                                 </div>
                             )}
 
                             {/* File upload zone */}
                             {!isCompleted && (
-                                <div className="px-4 py-3 border-b border-zinc-200">
+                                <div className="px-5 py-3 border-b border-zinc-200 bg-white">
                                     {parsedRows ? (
                                         /* Preview of parsed rows */
-                                        <div className="border-2 border-dashed border-emerald-400 bg-emerald-50 p-3">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                                                    <FileSpreadsheet className="h-3.5 w-3.5 inline mr-1" />
-                                                    {parsedRows.length} baris siap diimpor
-                                                </span>
+                                        <div className="border-2 border-emerald-400 bg-emerald-50 p-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center justify-center h-7 w-7 bg-emerald-100 border border-emerald-300">
+                                                        <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
+                                                    </div>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                                        {parsedRows.length} baris siap diimpor
+                                                    </span>
+                                                </div>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="h-6 w-6 p-0"
+                                                    className="h-6 w-6 p-0 hover:bg-emerald-100"
                                                     onClick={() => setParsedRows(null)}
                                                 >
                                                     <X className="h-3.5 w-3.5" />
                                                 </Button>
                                             </div>
-                                            <div className="max-h-24 overflow-y-auto text-[9px] font-mono text-zinc-600 space-y-0.5 mb-2">
+                                            <div className="max-h-24 overflow-y-auto text-[9px] font-mono text-zinc-600 space-y-0.5 mb-3 bg-white p-2 border border-emerald-200">
                                                 {parsedRows.slice(0, 5).map((r, i) => (
-                                                    <div key={i}>
-                                                        {r.date} | {r.description} | Rp {formatIDR(r.amount)}
-                                                        {r.reference ? ` | ${r.reference}` : ""}
+                                                    <div key={i} className="flex justify-between gap-2">
+                                                        <span className="text-zinc-400 shrink-0">{r.date}</span>
+                                                        <span className="truncate flex-1">{r.description}</span>
+                                                        <span className={`shrink-0 font-bold ${r.amount >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                                            Rp {formatIDR(Math.abs(r.amount))}
+                                                        </span>
                                                     </div>
                                                 ))}
                                                 {parsedRows.length > 5 && (
-                                                    <div className="text-zinc-400">...dan {parsedRows.length - 5} baris lainnya</div>
+                                                    <div className="text-zinc-400 text-center">...dan {parsedRows.length - 5} baris lainnya</div>
                                                 )}
                                             </div>
                                             <Button
                                                 className={NB.submitBtn + " w-full"}
-                                                disabled={loading}
+                                                disabled={actionLoading === "import"}
                                                 onClick={handleImportParsed}
                                             >
-                                                {loading ? "Mengimpor..." : `Import ${parsedRows.length} Baris`}
+                                                {actionLoading === "import" ? (
+                                                    <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Mengimpor...</>
+                                                ) : (
+                                                    `Import ${parsedRows.length} Baris`
+                                                )}
                                             </Button>
                                         </div>
                                     ) : (
                                         /* Drop zone */
                                         <div
-                                            className={`border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
+                                            className={`border-2 border-dashed p-5 text-center cursor-pointer transition-all duration-150 ${
                                                 dragging
-                                                    ? "border-blue-500 bg-blue-50"
+                                                    ? "border-purple-500 bg-purple-50 scale-[1.01]"
                                                     : "border-zinc-300 hover:border-zinc-400 hover:bg-zinc-50"
                                             }`}
                                             onClick={() => fileInputRef.current?.click()}
@@ -812,23 +1234,66 @@ export function BankReconciliationView({
                                                 className="hidden"
                                                 onChange={handleFileChange}
                                             />
-                                            <Upload className="h-5 w-5 mx-auto text-zinc-400 mb-1" />
+                                            <UploadCloud className={`h-6 w-6 mx-auto mb-1.5 transition-colors ${dragging ? "text-purple-500" : "text-zinc-300"}`} />
                                             <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                                Seret file atau klik untuk upload
+                                                Seret file bank statement atau klik untuk upload
                                             </div>
-                                            <div className="text-[9px] text-zinc-400 mt-0.5">CSV atau Excel (.xlsx)</div>
+                                            <div className="text-[9px] text-zinc-400 mt-0.5">Format: CSV, Excel (.xlsx)</div>
                                         </div>
                                     )}
-                                    <div className="flex justify-end mt-1.5">
+                                </div>
+                            )}
+
+                            {/* Auto-match suggestions */}
+                            {suggestions.length > 0 && (
+                                <div className="border-b-2 border-black bg-amber-50/50 p-4 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <Sparkles className="h-4 w-4 text-amber-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                                                Saran Pencocokan ({suggestions.length})
+                                            </span>
+                                        </div>
                                         <Button
-                                            variant="ghost"
+                                            variant="outline"
                                             size="sm"
-                                            className="h-6 text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1 px-2"
-                                            onClick={downloadTemplateCSV}
+                                            onClick={() => setSuggestions([])}
+                                            className="h-6 px-2 text-[9px] font-bold rounded-none border border-amber-300 text-amber-700 hover:bg-amber-100"
                                         >
-                                            <Download className="h-3 w-3" /> Download Template CSV
+                                            Tutup
                                         </Button>
                                     </div>
+                                    {suggestions.map((s) => (
+                                        <div key={s.bankItemId} className="border-2 border-amber-200 bg-white p-3 space-y-2">
+                                            <div className="text-[10px] font-bold text-zinc-500">
+                                                Bank Item: <span className="font-mono">{s.bankItemId.slice(0, 8)}...</span>
+                                            </div>
+                                            {s.matches.map((m) => (
+                                                <div key={m.transactionId} className="flex items-center justify-between gap-2 bg-zinc-50 p-2 border border-zinc-200">
+                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                        <span className={`inline-block px-1.5 py-0.5 text-[8px] font-black border ${
+                                                            m.confidence === "HIGH" ? "bg-emerald-100 text-emerald-800 border-emerald-400" :
+                                                            m.confidence === "MEDIUM" ? "bg-amber-100 text-amber-800 border-amber-400" :
+                                                            "bg-zinc-100 text-zinc-600 border-zinc-300"
+                                                        }`}>
+                                                            {m.confidence}
+                                                        </span>
+                                                        <span className="text-[10px] text-zinc-600 truncate">{m.reason}</span>
+                                                        <span className="text-[10px] font-mono font-bold text-zinc-400 shrink-0">
+                                                            skor {m.score}
+                                                        </span>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        onClick={() => handleApplySuggestion(s.bankItemId, m.transactionId)}
+                                                        className="h-6 px-3 text-[9px] font-black rounded-none border-2 border-black bg-black text-white hover:bg-zinc-800 shrink-0"
+                                                    >
+                                                        Terapkan
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
 
@@ -837,70 +1302,146 @@ export function BankReconciliationView({
                                 <div className="grid grid-cols-2 divide-x-2 divide-black">
                                     {/* Left: LAPORAN BANK */}
                                     <div>
-                                        <div className="bg-zinc-100 px-3 py-2 border-b-2 border-black">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                                        <div className="bg-blue-50 px-4 py-2.5 border-b-2 border-black flex items-center gap-2">
+                                            <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">
                                                 Laporan Bank ({selectedRec?.bankPagination?.totalItems ?? unmatchedBankItems.length})
                                             </span>
                                         </div>
-                                        {unmatchedBankItems.length === 0 ? (
-                                            <div className="p-6 text-center">
+                                        {unmatchedBankItems.length === 0 && excludedBankItems.length === 0 ? (
+                                            <div className="p-8 text-center">
+                                                <CheckCircle2 className="h-6 w-6 mx-auto text-emerald-300 mb-2" />
                                                 <span className="text-[10px] font-bold text-zinc-400">
-                                                    Tidak ada item belum dicocokkan
+                                                    Semua item sudah dicocokkan
                                                 </span>
                                             </div>
                                         ) : (
-                                            <div className="divide-y divide-zinc-100">
-                                                {unmatchedBankItems.map((item) => {
-                                                    const isSelected = selectedBankIds.has(item.id)
-                                                    return (
-                                                        <div
-                                                            key={item.id}
-                                                            className={`flex items-start gap-2 px-3 py-2 cursor-pointer transition-colors ${
-                                                                isSelected ? "bg-blue-50" : "hover:bg-zinc-50"
-                                                            }`}
-                                                            onClick={() => !isCompleted && toggleBankId(item.id)}
-                                                        >
-                                                            {!isCompleted && (
-                                                                <Checkbox
-                                                                    checked={isSelected}
-                                                                    onCheckedChange={() => toggleBankId(item.id)}
-                                                                    className="mt-0.5 border-2 border-black rounded-none"
-                                                                />
-                                                            )}
-                                                            <div className="flex-1 min-w-0">
-                                                                <div className="flex items-center justify-between gap-1">
-                                                                    <span className="text-[9px] font-mono text-zinc-400">
-                                                                        {item.bankDate
-                                                                            ? formatDate(item.bankDate)
-                                                                            : "-"}
-                                                                    </span>
-                                                                    <span
-                                                                        className={`text-xs font-mono font-bold shrink-0 ${
-                                                                            item.bankAmount >= 0
-                                                                                ? "text-emerald-600"
-                                                                                : "text-red-600"
-                                                                        }`}
-                                                                    >
-                                                                        Rp {formatIDR(Math.abs(item.bankAmount))}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-xs font-medium truncate">
-                                                                    {item.bankDescription || "-"}
-                                                                </div>
-                                                                {item.bankRef && (
-                                                                    <div className="text-[9px] text-zinc-400 font-mono truncate">
-                                                                        Ref: {item.bankRef}
-                                                                    </div>
+                                            <>
+                                                {/* Unmatched bank items */}
+                                                <div className="divide-y divide-zinc-100">
+                                                    {unmatchedBankItems.map((item) => {
+                                                        const isSelected = selectedBankIds.has(item.id)
+                                                        return (
+                                                            <div
+                                                                key={item.id}
+                                                                className={`flex items-start gap-2.5 px-4 py-2.5 cursor-pointer transition-all duration-100 ${
+                                                                    isSelected ? "bg-blue-50 border-l-[3px] border-l-blue-500" : "hover:bg-zinc-50 border-l-[3px] border-l-transparent"
+                                                                }`}
+                                                                onClick={() => !isCompleted && toggleBankId(item.id)}
+                                                            >
+                                                                {!isCompleted && (
+                                                                    <Checkbox
+                                                                        checked={isSelected}
+                                                                        onCheckedChange={() => toggleBankId(item.id)}
+                                                                        className="mt-0.5 border-2 border-black rounded-none"
+                                                                    />
                                                                 )}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center justify-between gap-1">
+                                                                        <span className="text-[9px] font-mono text-zinc-400">
+                                                                            {item.bankDate ? formatDate(item.bankDate) : "-"}
+                                                                        </span>
+                                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                                            <span
+                                                                                className={`text-xs font-mono font-bold ${
+                                                                                    item.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
+                                                                                }`}
+                                                                            >
+                                                                                Rp {formatIDR(Math.abs(item.bankAmount))}
+                                                                            </span>
+                                                                            {!isCompleted && (
+                                                                                <button
+                                                                                    title="Kecualikan item"
+                                                                                    className="h-5 w-5 flex items-center justify-center border border-zinc-300 rounded-none text-zinc-400 hover:text-red-500 hover:border-red-300 hover:bg-red-50 transition-colors"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation()
+                                                                                        setExcludeItemId(item.id)
+                                                                                        setExcludeReason("")
+                                                                                        setExcludeDialogOpen(true)
+                                                                                    }}
+                                                                                >
+                                                                                    <Ban className="h-3 w-3" />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="text-xs font-medium truncate mt-0.5">
+                                                                        {item.bankDescription || "-"}
+                                                                    </div>
+                                                                    {item.bankRef && (
+                                                                        <div className="text-[9px] text-zinc-400 font-mono truncate">
+                                                                            Ref: {item.bankRef}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
+                                                        )
+                                                    })}
+                                                </div>
+
+                                                {/* Excluded bank items section */}
+                                                {excludedBankItems.length > 0 && (
+                                                    <div className="bg-zinc-100/70">
+                                                        <div className="px-4 py-2 border-t border-zinc-200 border-b border-b-zinc-200 flex items-center gap-2">
+                                                            <Ban className="h-3 w-3 text-zinc-400" />
+                                                            <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                                                                Dikecualikan ({excludedBankItems.length})
+                                                            </span>
                                                         </div>
-                                                    )
-                                                })}
-                                            </div>
+                                                        <div className="divide-y divide-zinc-200">
+                                                            {excludedBankItems.map((item) => (
+                                                                <div
+                                                                    key={item.id}
+                                                                    className="flex items-start gap-2.5 px-4 py-2 border-l-[3px] border-l-zinc-300 opacity-60"
+                                                                >
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex items-center justify-between gap-1">
+                                                                            <span className="text-[9px] font-mono text-zinc-400">
+                                                                                {item.bankDate ? formatDate(item.bankDate) : "-"}
+                                                                            </span>
+                                                                            <span className="text-xs font-mono font-bold text-zinc-400 line-through shrink-0">
+                                                                                Rp {formatIDR(Math.abs(item.bankAmount))}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="text-xs font-medium truncate mt-0.5 text-zinc-500">
+                                                                            {item.bankDescription || "-"}
+                                                                        </div>
+                                                                        {item.excludeReason && (
+                                                                            <div className="flex items-center gap-1 mt-0.5">
+                                                                                <MessageSquare className="h-2.5 w-2.5 text-zinc-400 shrink-0" />
+                                                                                <span className="text-[9px] text-zinc-400 italic truncate">
+                                                                                    {item.excludeReason}
+                                                                                </span>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    {!isCompleted && (
+                                                                        <button
+                                                                            title="Kembalikan item"
+                                                                            className="h-6 flex items-center gap-1 px-1.5 border border-zinc-300 rounded-none text-[9px] font-bold text-zinc-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors shrink-0"
+                                                                            onClick={async () => {
+                                                                                const result = await onIncludeItem(item.id)
+                                                                                if (result.success) {
+                                                                                    toast.success("Item dikembalikan")
+                                                                                    if (selectedRec) await reloadDetail(selectedRec.id)
+                                                                                } else {
+                                                                                    toast.error(result.error || "Gagal mengembalikan item")
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Undo2 className="h-3 w-3" /> Undo
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                         {/* Pagination: Bank Items */}
                                         {selectedRec?.bankPagination && selectedRec.bankPagination.totalPages > 1 && (
-                                            <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-200 bg-zinc-50">
+                                            <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-200 bg-zinc-50">
                                                 <span className="text-[9px] font-bold text-zinc-400">
                                                     Hal {selectedRec.bankPagination.page}/{selectedRec.bankPagination.totalPages}
                                                     {" "}({selectedRec.bankPagination.totalItems} item)
@@ -910,7 +1451,7 @@ export function BankReconciliationView({
                                                         variant="outline"
                                                         size="sm"
                                                         className="h-6 w-6 p-0 border border-black rounded-none"
-                                                        disabled={bankPage <= 1 || loading}
+                                                        disabled={bankPage <= 1 || detailLoading}
                                                         onClick={async () => {
                                                             const newPage = bankPage - 1
                                                             setBankPage(newPage)
@@ -923,7 +1464,7 @@ export function BankReconciliationView({
                                                         variant="outline"
                                                         size="sm"
                                                         className="h-6 w-6 p-0 border border-black rounded-none"
-                                                        disabled={bankPage >= (selectedRec.bankPagination.totalPages) || loading}
+                                                        disabled={bankPage >= (selectedRec.bankPagination.totalPages) || detailLoading}
                                                         onClick={async () => {
                                                             const newPage = bankPage + 1
                                                             setBankPage(newPage)
@@ -939,26 +1480,34 @@ export function BankReconciliationView({
 
                                     {/* Right: JURNAL SISTEM */}
                                     <div>
-                                        <div className="bg-zinc-100 px-3 py-2 border-b-2 border-black">
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                                        <div className="bg-purple-50 px-4 py-2.5 border-b-2 border-black flex items-center gap-2">
+                                            <div className="h-2 w-2 rounded-full bg-purple-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">
                                                 Jurnal Sistem ({selectedRec?.systemPagination?.totalItems ?? unmatchedSystemEntries.length})
                                             </span>
                                         </div>
                                         {unmatchedSystemEntries.length === 0 ? (
-                                            <div className="p-6 text-center">
+                                            <div className="p-8 text-center">
+                                                <CheckCircle2 className="h-6 w-6 mx-auto text-emerald-300 mb-2" />
                                                 <span className="text-[10px] font-bold text-zinc-400">
-                                                    Tidak ada jurnal belum dicocokkan
+                                                    Semua jurnal sudah dicocokkan
                                                 </span>
                                             </div>
                                         ) : (
                                             <div className="divide-y divide-zinc-100">
                                                 {unmatchedSystemEntries.map((entry) => {
                                                     const isSelected = selectedSystemIds.has(entry.entryId)
+                                                    // Highlight if amount matches a selected bank item
+                                                    const isAmountMatch = selectedBankAmounts.size > 0 && selectedBankAmounts.has(Math.abs(entry.amount))
                                                     return (
                                                         <div
                                                             key={entry.entryId}
-                                                            className={`flex items-start gap-2 px-3 py-2 cursor-pointer transition-colors ${
-                                                                isSelected ? "bg-blue-50" : "hover:bg-zinc-50"
+                                                            className={`flex items-start gap-2.5 px-4 py-2.5 cursor-pointer transition-all duration-100 ${
+                                                                isSelected
+                                                                    ? "bg-purple-50 border-l-[3px] border-l-purple-500"
+                                                                    : isAmountMatch && !isCompleted
+                                                                        ? "bg-amber-50/50 border-l-[3px] border-l-amber-400 ring-1 ring-inset ring-amber-200"
+                                                                        : "hover:bg-zinc-50 border-l-[3px] border-l-transparent"
                                                             }`}
                                                             onClick={() => !isCompleted && toggleSystemId(entry.entryId)}
                                                         >
@@ -971,20 +1520,25 @@ export function BankReconciliationView({
                                                             )}
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center justify-between gap-1">
-                                                                    <span className="text-[9px] font-mono text-zinc-400">
-                                                                        {formatDate(entry.date)}
-                                                                    </span>
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <span className="text-[9px] font-mono text-zinc-400">
+                                                                            {formatDate(entry.date)}
+                                                                        </span>
+                                                                        {isAmountMatch && !isSelected && !isCompleted && (
+                                                                            <span className="text-[8px] font-black text-amber-600 bg-amber-100 px-1 py-0.5 border border-amber-300">
+                                                                                COCOK
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                     <span
                                                                         className={`text-xs font-mono font-bold shrink-0 ${
-                                                                            entry.amount >= 0
-                                                                                ? "text-emerald-600"
-                                                                                : "text-red-600"
+                                                                            entry.amount >= 0 ? "text-emerald-600" : "text-red-600"
                                                                         }`}
                                                                     >
                                                                         Rp {formatIDR(Math.abs(entry.amount))}
                                                                     </span>
                                                                 </div>
-                                                                <div className="text-xs font-medium truncate">
+                                                                <div className="text-xs font-medium truncate mt-0.5">
                                                                     {entry.lineDescription || entry.description || "-"}
                                                                 </div>
                                                                 {entry.reference && (
@@ -1000,7 +1554,7 @@ export function BankReconciliationView({
                                         )}
                                         {/* Pagination: System Entries */}
                                         {selectedRec?.systemPagination && selectedRec.systemPagination.totalPages > 1 && (
-                                            <div className="flex items-center justify-between px-3 py-2 border-t border-zinc-200 bg-zinc-50">
+                                            <div className="flex items-center justify-between px-4 py-2 border-t border-zinc-200 bg-zinc-50">
                                                 <span className="text-[9px] font-bold text-zinc-400">
                                                     Hal {selectedRec.systemPagination.page}/{selectedRec.systemPagination.totalPages}
                                                     {" "}({selectedRec.systemPagination.totalItems} jurnal)
@@ -1010,7 +1564,7 @@ export function BankReconciliationView({
                                                         variant="outline"
                                                         size="sm"
                                                         className="h-6 w-6 p-0 border border-black rounded-none"
-                                                        disabled={systemPage <= 1 || loading}
+                                                        disabled={systemPage <= 1 || detailLoading}
                                                         onClick={async () => {
                                                             const newPage = systemPage - 1
                                                             setSystemPage(newPage)
@@ -1023,7 +1577,7 @@ export function BankReconciliationView({
                                                         variant="outline"
                                                         size="sm"
                                                         className="h-6 w-6 p-0 border border-black rounded-none"
-                                                        disabled={systemPage >= (selectedRec.systemPagination.totalPages) || loading}
+                                                        disabled={systemPage >= (selectedRec.systemPagination.totalPages) || detailLoading}
                                                         onClick={async () => {
                                                             const newPage = systemPage + 1
                                                             setSystemPage(newPage)
@@ -1039,93 +1593,61 @@ export function BankReconciliationView({
                                 </div>
                             </ScrollArea>
 
-                            {/* Match action bar */}
+                            {/* Match action bar — sticky at bottom */}
                             {hasSelection && !isCompleted && (
-                                <div className="px-4 py-2.5 border-t-2 border-black bg-zinc-50 flex items-center justify-between gap-3 flex-wrap">
-                                    <div className="flex items-center gap-3 text-[10px] font-bold">
+                                <div className="px-5 py-3 border-t-2 border-black bg-zinc-900 flex items-center justify-between gap-3 flex-wrap">
+                                    <div className="flex items-center gap-4 text-[10px] font-bold text-white">
                                         <span>
-                                            Bank:{" "}
-                                            <span className="font-mono">
+                                            <span className="text-blue-300">Bank:</span>{" "}
+                                            <span className="font-mono text-white">
                                                 Rp {formatIDR(Math.abs(selectedBankTotal))}
                                             </span>
+                                            <span className="text-zinc-500 ml-1">({selectedBankIds.size} item)</span>
                                         </span>
-                                        <span className="text-zinc-300">|</span>
+                                        <ArrowRightLeft className="h-3.5 w-3.5 text-zinc-500" />
                                         <span>
-                                            Sistem:{" "}
-                                            <span className="font-mono">
+                                            <span className="text-purple-300">Sistem:</span>{" "}
+                                            <span className="font-mono text-white">
                                                 Rp {formatIDR(Math.abs(selectedSystemTotal))}
                                             </span>
+                                            <span className="text-zinc-500 ml-1">({selectedSystemIds.size} jurnal)</span>
                                         </span>
-                                        {selectedBankIds.size > 0 && selectedSystemIds.size > 0 && !totalsMatch && (
-                                            <span className="text-amber-600 font-black uppercase text-[9px]">
-                                                Total tidak cocok!
-                                            </span>
+                                        {selectedBankIds.size > 0 && selectedSystemIds.size > 0 && (
+                                            totalsMatch ? (
+                                                <span className="flex items-center gap-1 text-emerald-400">
+                                                    <CheckCircle2 className="h-3.5 w-3.5" /> Total cocok
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1 text-amber-400">
+                                                    <AlertCircle className="h-3.5 w-3.5" /> Selisih Rp {formatIDR(Math.abs(selectedBankTotal - selectedSystemTotal))}
+                                                </span>
+                                            )
                                         )}
                                     </div>
                                     <Button
-                                        className={NB.submitBtn}
-                                        disabled={loading || selectedBankIds.size === 0 || selectedSystemIds.size === 0}
+                                        className="bg-white text-black border-2 border-white shadow-[3px_3px_0px_0px_rgba(255,255,255,0.3)] hover:translate-y-[1px] hover:shadow-[1px_1px_0px_0px_rgba(255,255,255,0.3)] transition-all font-black uppercase text-[10px] tracking-wider px-6 h-8 rounded-none disabled:opacity-40"
+                                        disabled={actionLoading !== null || selectedBankIds.size === 0 || selectedSystemIds.size === 0}
                                         onClick={handleMatchSelected}
                                     >
-                                        {loading ? "Mencocokkan..." : "Cocokkan Terpilih"}
+                                        {actionLoading === "match" ? (
+                                            <><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Mencocokkan...</>
+                                        ) : (
+                                            <>Cocokkan Terpilih <ArrowRight className="h-3 w-3 ml-1" /></>
+                                        )}
                                     </Button>
-                                </div>
-                            )}
-
-                            {/* Auto-match suggestions */}
-                            {suggestions.length > 0 && (
-                                <div className="border-t-2 border-black p-4 space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                            Saran Pencocokan ({suggestions.length})
-                                        </span>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setSuggestions([])}
-                                            className="h-6 px-2 text-[9px] font-bold rounded-none border-2 border-black"
-                                        >
-                                            Tutup
-                                        </Button>
-                                    </div>
-                                    {suggestions.map((s) => (
-                                        <div key={s.bankItemId} className="border-2 border-zinc-200 p-3 space-y-2">
-                                            <div className="text-xs font-bold text-zinc-700 mb-1">Bank Item: {s.bankItemId.slice(0, 8)}...</div>
-                                            {s.matches.map((m) => (
-                                                <div key={m.transactionId} className="flex items-center justify-between gap-2">
-                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                        <span className={`inline-block px-1.5 py-0.5 text-[9px] font-black border rounded-none ${
-                                                            m.confidence === "HIGH" ? "bg-emerald-100 text-emerald-800 border-emerald-300" :
-                                                            m.confidence === "MEDIUM" ? "bg-amber-100 text-amber-800 border-amber-300" :
-                                                            "bg-zinc-100 text-zinc-600 border-zinc-300"
-                                                        }`}>
-                                                            {m.confidence}
-                                                        </span>
-                                                        <span className="text-xs text-zinc-600 truncate">{m.reason}</span>
-                                                    </div>
-                                                    <Button
-                                                        size="sm"
-                                                        onClick={() => handleApplySuggestion(s.bankItemId, m.transactionId)}
-                                                        className="h-6 px-2 text-[9px] font-bold rounded-none border-2 border-black bg-white hover:bg-zinc-50 shrink-0"
-                                                    >
-                                                        Terapkan
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
                                 </div>
                             )}
 
                             {/* Matched pairs section */}
                             {matchedBankItems.length > 0 && (
                                 <div className="border-t-2 border-black">
-                                    <div className="bg-emerald-50 px-4 py-2 border-b border-emerald-200">
+                                    <div className="bg-emerald-50 px-5 py-2.5 border-b border-emerald-200 flex items-center gap-2">
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                                         <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
                                             Sudah Dicocokkan ({matchedBankItems.length} pasang)
                                         </span>
                                     </div>
-                                    <div className="divide-y divide-emerald-100 bg-emerald-50/50">
+                                    <div className="divide-y divide-emerald-100 bg-emerald-50/30">
                                         {matchedBankItems.map((item) => {
                                             const matchedEntry = selectedRec?.systemEntries.find(
                                                 (e) => e.alreadyMatchedItemId === item.id
@@ -1133,31 +1655,30 @@ export function BankReconciliationView({
                                             return (
                                                 <div
                                                     key={item.id}
-                                                    className="flex items-center justify-between px-4 py-2 gap-3"
+                                                    className="flex items-center justify-between px-5 py-2.5 gap-3"
                                                 >
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2">
+                                                            <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
                                                             <span className="text-xs font-medium truncate">
                                                                 {item.bankDescription || "-"}
                                                             </span>
                                                             <span
                                                                 className={`text-xs font-mono font-bold shrink-0 ${
-                                                                    item.bankAmount >= 0
-                                                                        ? "text-emerald-600"
-                                                                        : "text-red-600"
+                                                                    item.bankAmount >= 0 ? "text-emerald-600" : "text-red-600"
                                                                 }`}
                                                             >
                                                                 Rp {formatIDR(Math.abs(item.bankAmount))}
                                                             </span>
                                                         </div>
                                                         {matchedEntry && (
-                                                            <div className="text-[9px] text-zinc-500 truncate">
+                                                            <div className="text-[9px] text-zinc-500 truncate ml-5">
                                                                 Jurnal: {matchedEntry.lineDescription || matchedEntry.description}
                                                                 {matchedEntry.reference ? ` (${matchedEntry.reference})` : ""}
                                                             </div>
                                                         )}
                                                         {!matchedEntry && item.systemDescription && (
-                                                            <div className="text-[9px] text-zinc-500 truncate">
+                                                            <div className="text-[9px] text-zinc-500 truncate ml-5">
                                                                 Jurnal: {item.systemDescription}
                                                             </div>
                                                         )}
@@ -1166,10 +1687,15 @@ export function BankReconciliationView({
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
-                                                            className="h-6 text-[9px] font-black uppercase border border-black rounded-none px-2 shrink-0"
-                                                            disabled={loading}
+                                                            className="h-6 text-[9px] font-black uppercase border border-red-300 text-red-500 rounded-none px-2 shrink-0 hover:bg-red-50 gap-1"
+                                                            disabled={actionLoading === `unmatch-${item.id}`}
                                                             onClick={() => handleUnmatch(item.id)}
                                                         >
+                                                            {actionLoading === `unmatch-${item.id}` ? (
+                                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                            ) : (
+                                                                <Unlink className="h-3 w-3" />
+                                                            )}
                                                             Batalkan
                                                         </Button>
                                                     )}
@@ -1181,15 +1707,98 @@ export function BankReconciliationView({
                             )}
                         </div>
                     ) : (
-                        <div className="bg-white border-2 border-black p-12 text-center">
-                            <Landmark className="h-10 w-10 mx-auto text-zinc-200 mb-3" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                Pilih rekonsiliasi untuk melihat detail
-                            </span>
+                        /* Empty state — onboarding card */
+                        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-10">
+                            <div className="max-w-md mx-auto text-center">
+                                <div className="flex items-center justify-center h-16 w-16 mx-auto bg-purple-50 border-2 border-purple-200 mb-5">
+                                    <Landmark className="h-8 w-8 text-purple-400" />
+                                </div>
+                                <h3 className="text-sm font-black uppercase tracking-widest mb-2">Pilih Rekonsiliasi</h3>
+                                <p className="text-[11px] text-zinc-400 font-medium mb-6">
+                                    Pilih sesi di sebelah kiri, atau buat rekonsiliasi baru untuk memulai
+                                </p>
+                                {/* 3-step workflow guide */}
+                                <div className="flex items-center justify-center gap-3 text-left">
+                                    {[
+                                        { step: "1", icon: Upload, label: "Upload", desc: "Impor mutasi bank" },
+                                        { step: "2", icon: ArrowRightLeft, label: "Cocokkan", desc: "Auto/manual match" },
+                                        { step: "3", icon: Lock, label: "Tutup", desc: "Finalisasi rekon" },
+                                    ].map((s, i) => (
+                                        <div key={s.step} className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center justify-center h-8 w-8 bg-zinc-900 text-white text-[10px] font-black border-2 border-black">
+                                                    {s.step}
+                                                </div>
+                                                <div>
+                                                    <div className="text-[10px] font-black uppercase">{s.label}</div>
+                                                    <div className="text-[9px] text-zinc-400">{s.desc}</div>
+                                                </div>
+                                            </div>
+                                            {i < 2 && <ArrowRight className="h-3.5 w-3.5 text-zinc-300 shrink-0" />}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
             </div>
+
+            {/* ── Exclude Item Dialog ─────────────────────────────────────────── */}
+            <Dialog open={excludeDialogOpen} onOpenChange={setExcludeDialogOpen}>
+                <DialogContent className={NB.contentNarrow}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}>
+                            <Ban className="h-5 w-5" /> Kecualikan Item
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="p-6 space-y-4">
+                        <div>
+                            <label className={NB.label}>Alasan <span className={NB.labelRequired}>*</span></label>
+                            <Input
+                                className={NB.input}
+                                placeholder="biaya admin, bunga bank, dll"
+                                value={excludeReason}
+                                onChange={(e) => setExcludeReason(e.target.value)}
+                                onKeyDown={async (e) => {
+                                    if (e.key === "Enter" && excludeReason.trim() && excludeItemId) {
+                                        const result = await onExcludeItem(excludeItemId, excludeReason.trim())
+                                        if (result.success) {
+                                            toast.success("Item dikecualikan")
+                                            setExcludeDialogOpen(false)
+                                            if (selectedRec) await reloadDetail(selectedRec.id)
+                                        } else {
+                                            toast.error(result.error || "Gagal mengecualikan item")
+                                        }
+                                    }
+                                }}
+                            />
+                        </div>
+                        <div className={NB.footer}>
+                            <Button variant="outline" className={NB.cancelBtn} onClick={() => setExcludeDialogOpen(false)}>
+                                Batal
+                            </Button>
+                            <Button
+                                className={NB.submitBtn}
+                                disabled={!excludeReason.trim()}
+                                onClick={async () => {
+                                    if (!excludeItemId || !excludeReason.trim()) return
+                                    const result = await onExcludeItem(excludeItemId, excludeReason.trim())
+                                    if (result.success) {
+                                        toast.success("Item dikecualikan")
+                                        setExcludeDialogOpen(false)
+                                        if (selectedRec) await reloadDetail(selectedRec.id)
+                                    } else {
+                                        toast.error(result.error || "Gagal mengecualikan item")
+                                    }
+                                }}
+                            >
+                                Kecualikan
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

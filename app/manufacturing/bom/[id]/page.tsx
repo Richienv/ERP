@@ -35,6 +35,7 @@ import { getIconByName, getColorTheme } from "@/components/manufacturing/bom/sta
 import { BOMCanvasProvider, useBOMCanvas } from "./bom-canvas-context"
 import { useAutoSave, isDraftNewer } from "./hooks/use-auto-save"
 import { usePriceDrift } from "./hooks/use-price-drift"
+import { useCriticalPath } from "./hooks/use-critical-path"
 
 const STATION_TYPE_CONFIG = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" },
@@ -109,6 +110,9 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
     // Price drift detection
     const driftedItems = usePriceDrift(items)
+
+    // Critical path
+    const criticalStepIds = useCriticalPath(steps)
 
     // Auto-save hook
     const { loadLocalDraft, clearLocalDraft } = useAutoSave({ bomId: id, items, steps, totalQty, isDirty })
@@ -1431,6 +1435,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                             onAddSequential={handleAddSequential}
                             onNodePositionChange={handleNodePositionChange}
                             onPctChange={handlePctChange}
+                            criticalStepIds={criticalStepIds}
                         />
                     ) : (
                         <TimelineView
@@ -1439,6 +1444,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                             selectedStepId={selectedStepId}
                             onStepSelect={setSelectedStepId}
                             onMoveStep={handleMoveStep}
+                            criticalStepIds={criticalStepIds}
                         />
                     )}
 

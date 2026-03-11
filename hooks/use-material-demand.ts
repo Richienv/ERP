@@ -32,12 +32,19 @@ export function useMaterialDemand() {
     return useQuery({
         queryKey: queryKeys.materialDemand.list(),
         queryFn: async (): Promise<MaterialDemandData> => {
-            const res = await fetch("/api/manufacturing/material-demand")
-            if (!res.ok) {
-                return { kpi: { totalMaterials: 0, materialsInStock: 0, materialsOnOrder: 0, shortfallCount: 0 }, rows: [] }
+            const empty: MaterialDemandData = { kpi: { totalMaterials: 0, materialsInStock: 0, materialsOnOrder: 0, shortfallCount: 0 }, rows: [] }
+            try {
+                const res = await fetch("/api/manufacturing/material-demand")
+                if (!res.ok) return empty
+                const json = await res.json()
+                if (!json.success || !json.data) return empty
+                return {
+                    kpi: json.data.kpi ?? empty.kpi,
+                    rows: json.data.rows ?? [],
+                }
+            } catch {
+                return empty
             }
-            const json = await res.json()
-            return json.success ? json.data : { kpi: { totalMaterials: 0, materialsInStock: 0, materialsOnOrder: 0, shortfallCount: 0 }, rows: [] }
         },
     })
 }

@@ -27,6 +27,7 @@ interface BOMCanvasProps {
     onAddSequential?: (stepId: string) => void
     onNodePositionChange?: (stepId: string, x: number, y: number) => void
     onPctChange?: (stepId: string, newPct: number) => void
+    criticalStepIds?: Set<string>
 }
 
 const nodeTypes = { station: StationNode }
@@ -104,7 +105,7 @@ function layoutNodes(steps: any[]): Map<string, { x: number; y: number }> {
 export function BOMCanvas({
     steps, items, totalProductionQty, onStepSelect, onDropMaterial, onRemoveMaterial,
     onRemoveStep, selectedStepId, onConnectSteps, onDisconnectSteps, onNodeContextMenu,
-    onAddParallel, onAddSequential, onNodePositionChange, onPctChange,
+    onAddParallel, onAddSequential, onNodePositionChange, onPctChange, criticalStepIds,
 }: BOMCanvasProps) {
     const buildNodes = useCallback((): Node[] => {
         const layoutPositions = layoutNodes(steps)
@@ -155,6 +156,7 @@ export function BOMCanvas({
                 splitPct: stepPctMap.get(step.id),
                 onPctChange: onPctChange ? (newPct: number) => onPctChange(step.id, newPct) : undefined,
                 isSelected: step.id === selectedStepId,
+                isCritical: criticalStepIds?.has(step.id) ?? false,
                 onRemoveMaterial: (bomItemId: string) => onRemoveMaterial(step.id, bomItemId),
                 onDrop: (bomItemId: string) => onDropMaterial(step.id, bomItemId),
                 onRemoveStep: onRemoveStep ? () => onRemoveStep(step.id) : undefined,
@@ -163,7 +165,7 @@ export function BOMCanvas({
                 onAddSequential: onAddSequential ? () => onAddSequential(step.id) : undefined,
             } satisfies StationNodeData,
         }})
-    }, [steps, items, selectedStepId, onRemoveMaterial, onDropMaterial, onRemoveStep, onNodeContextMenu, onAddParallel, onAddSequential, onPctChange])
+    }, [steps, items, selectedStepId, criticalStepIds, onRemoveMaterial, onDropMaterial, onRemoveStep, onNodeContextMenu, onAddParallel, onAddSequential, onPctChange])
 
     const buildEdges = useCallback((): Edge[] => {
         const edges: Edge[] = []

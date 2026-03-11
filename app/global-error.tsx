@@ -13,7 +13,7 @@ export default function GlobalError({
     error: Error & { digest?: string }
     reset: () => void
 }) {
-    const handleClearAndRetry = () => {
+    const handleClearAndRetry = async () => {
         // 1. Clear all cookies (especially sb-* Supabase auth cookies)
         document.cookie.split(";").forEach((c) => {
             const name = c.trim().split("=")[0]
@@ -28,7 +28,15 @@ export default function GlobalError({
             sessionStorage.clear()
         } catch {}
 
-        // 3. Hard reload to /login to get a fresh start
+        // 3. Clear IndexedDB cache (TanStack Query persistence)
+        try {
+            const dbs = await indexedDB.databases()
+            for (const db of dbs) {
+                if (db.name) indexedDB.deleteDatabase(db.name)
+            }
+        } catch {}
+
+        // 4. Hard reload to /login to get a fresh start
         window.location.href = "/login"
     }
 

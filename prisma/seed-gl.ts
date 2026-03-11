@@ -136,13 +136,20 @@ async function main() {
             }
         })
 
+        // Update GL balances — same convention as postJournalEntry():
+        // ASSET/EXPENSE: balance += (debit - credit)
+        // LIABILITY/EQUITY/REVENUE: balance += (credit - debit)
+        const openingAmount = 2450000000.00
+
+        // Bank BCA (ASSET): debit 2.45B, credit 0 → balance += (2.45B - 0) = +2.45B
         await glDelegate.update({
             where: { id: bankId },
-            data: { balance: { increment: 2450000000.00 } }
+            data: { balance: { increment: openingAmount } }  // debit - credit
         })
+        // Modal Disetor (EQUITY): debit 0, credit 2.45B → balance += (2.45B - 0) = +2.45B
         await glDelegate.update({
             where: { id: capitalId },
-            data: { balance: { increment: 2450000000.00 } }
+            data: { balance: { increment: openingAmount } }  // credit - debit
         })
 
         console.log('Balances initialized.')

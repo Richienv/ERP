@@ -51,7 +51,7 @@ export default function MaterialDemandPage() {
 
     if (isLoading || !data) return <TablePageSkeleton accentColor="bg-orange-400" />
 
-    const { kpi } = data
+    const kpi = data.kpi ?? { totalMaterials: 0, materialsInStock: 0, materialsOnOrder: 0, shortfallCount: 0 }
 
     const kpis = [
         {

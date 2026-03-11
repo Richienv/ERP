@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import {
     Calendar as CalendarIcon,
     Download,
@@ -46,6 +46,10 @@ import { toast } from "sonner"
 import * as XLSX from "xlsx"
 import { useFinanceReportsAll } from "@/hooks/use-finance-reports"
 import { Loader2 } from "lucide-react"
+import { TrialBalancePanel } from "@/components/finance/reports/trial-balance-panel"
+import { ReconciliationPreviewDialog } from "@/components/finance/reports/reconciliation-preview-dialog"
+import { getTrialBalance } from "@/lib/actions/finance-gl"
+import type { TrialBalanceData } from "@/lib/actions/finance-gl"
 
 type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "budget_vs_actual"
 
@@ -116,6 +120,10 @@ export default function FinancialReportsPage() {
     const [expandedAR, setExpandedAR] = useState<Set<string>>(new Set())
     const [expandedAP, setExpandedAP] = useState<Set<string>>(new Set())
 
+    const [diagnosticTBData, setDiagnosticTBData] = useState<TrialBalanceData | null>(null)
+    const [reconDialogOpen, setReconDialogOpen] = useState(false)
+    const [tbLoading, setTbLoading] = useState(false)
+
     const toggleAR = (id: string) => setExpandedAR(prev => {
         const next = new Set(prev)
         next.has(id) ? next.delete(id) : next.add(id)
@@ -144,6 +152,24 @@ export default function FinancialReportsPage() {
     const inventoryTurnoverData = data?.reports?.inventory_turnover ?? null
     const taxData = data?.reports?.tax_report ?? null
     const budgetVsActualData = data?.reports?.budget_vs_actual ?? null
+
+    const loadTrialBalance = async () => {
+        setTbLoading(true)
+        try {
+            const data = await getTrialBalance()
+            setDiagnosticTBData(data)
+        } catch (e) {
+            console.error('Failed to load trial balance:', e)
+        } finally {
+            setTbLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        if (reportType === 'bs' && balanceSheetData?.balanceCheck && !balanceSheetData.balanceCheck.isBalanced && !diagnosticTBData) {
+            loadTrialBalance()
+        }
+    }, [reportType, balanceSheetData])
 
     function applyDateRange() {
         const nextStart = new Date(draftStartDate)
@@ -959,6 +985,35 @@ export default function FinancialReportsPage() {
                                         )}
                                     </div>
                                 </div>
+
+                                {/* Trial Balance Diagnostic Panel */}
+                                <div className="mt-4">
+                                    {diagnosticTBData ? (
+                                        <TrialBalancePanel
+                                            data={diagnosticTBData}
+                                            onReconcile={() => setReconDialogOpen(true)}
+                                        />
+                                    ) : (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="border-2 border-black text-xs"
+                                            onClick={loadTrialBalance}
+                                            disabled={tbLoading}
+                                        >
+                                            {tbLoading ? "Memuat..." : "Lihat Neraca Saldo (Trial Balance)"}
+                                        </Button>
+                                    )}
+                                </div>
+
+                                <ReconciliationPreviewDialog
+                                    open={reconDialogOpen}
+                                    onOpenChange={setReconDialogOpen}
+                                    onComplete={() => {
+                                        loadTrialBalance()
+                                        setDiagnosticTBData(null)
+                                    }}
+                                />
                                 </div>
                                 )
                             })()}

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
-import { routePrefetchMap } from "@/hooks/use-nav-prefetch"
+import { routePrefetchMap, masterDataPrefetchMap } from "@/hooks/use-nav-prefetch"
 
 /**
  * Invisible component that warm-caches TanStack Query data on mount.
@@ -33,6 +33,14 @@ export function WarmCache() {
                         queryFn: config.queryFn,
                     })
                 }
+            })
+
+            // Also warm master data for form dialogs
+            Object.values(masterDataPrefetchMap).forEach(config => {
+                queryClient.prefetchQuery({
+                    queryKey: config.queryKey,
+                    queryFn: config.queryFn,
+                })
             })
         }, 100)
 

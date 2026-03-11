@@ -25,6 +25,7 @@ export async function getGLAccounts() {
 
 export type { GLAccountNode } from "@/lib/finance-gl-helpers"
 import type { GLAccountNode } from "@/lib/finance-gl-helpers"
+export type { TrialBalanceRow, TrialBalanceData, ReconciliationPreviewRow, ReconciliationPreview } from '@/lib/finance-gl-helpers'
 
 export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
     try {
@@ -945,6 +946,98 @@ export async function getOpeningBalanceParties(): Promise<{
         console.error("[getOpeningBalanceParties] Error:", error)
         return { customers: [], suppliers: [] }
     }
+}
+
+// ==========================================
+// TRIAL BALANCE & RECONCILIATION
+// ==========================================
+
+import type { TrialBalanceRow, TrialBalanceData, ReconciliationPreviewRow, ReconciliationPreview } from '@/lib/finance-gl-helpers'
+
+export async function getTrialBalance(asOfDate?: Date): Promise<TrialBalanceData> {
+  const prisma = (await import('@/lib/db')).default
+  const cutoff = asOfDate || new Date()
+
+  const accounts = await prisma.gLAccount.findMany({
+    include: {
+      lines: {
+        where: {
+          entry: { status: 'POSTED', date: { lte: cutoff } },
+        },
+        select: { debit: true, credit: true },
+      },
+    },
+    orderBy: { code: 'asc' },
+  })
+
+  let grandDebit = 0
+  let grandCredit = 0
+  let mismatchCount = 0
+
+  const rows: TrialBalanceRow[] = accounts.map((acc) => {
+    const totalDebit = acc.lines.reduce((s, l) => s + Number(l.debit), 0)
+    const totalCredit = acc.lines.reduce((s, l) => s + Number(l.credit), 0)
+    const calculatedBalance = acc.type === 'ASSET' || acc.type === 'EXPENSE'
+      ? totalDebit - totalCredit
+      : totalCredit - totalDebit
+    const storedBalance = Number(acc.balance)
+    const difference = Math.round((storedBalance - calculatedBalance) * 100) / 100
+
+    grandDebit += totalDebit
+    grandCredit += totalCredit
+    if (Math.abs(difference) > 0.01) mismatchCount++
+
+    return {
+      accountId: acc.id, accountCode: acc.code, accountName: acc.name,
+      accountType: acc.type as TrialBalanceRow['accountType'],
+      totalDebit: Math.round(totalDebit * 100) / 100,
+      totalCredit: Math.round(totalCredit * 100) / 100,
+      storedBalance, calculatedBalance: Math.round(calculatedBalance * 100) / 100, difference,
+    }
+  })
+
+  return {
+    rows, totalDebit: Math.round(grandDebit * 100) / 100,
+    totalCredit: Math.round(grandCredit * 100) / 100,
+    isBalanced: Math.abs(grandDebit - grandCredit) < 0.01,
+    mismatchCount, asOfDate: cutoff.toISOString(),
+  }
+}
+
+export async function previewBalanceReconciliation(): Promise<ReconciliationPreview> {
+  const trialBalance = await getTrialBalance()
+  const rows: ReconciliationPreviewRow[] = trialBalance.rows
+    .filter((r) => Math.abs(r.difference) > 0.01)
+    .map((r) => ({
+      accountId: r.accountId, accountCode: r.accountCode, accountName: r.accountName,
+      oldBalance: r.storedBalance, newBalance: r.calculatedBalance, difference: r.difference,
+    }))
+  return { rows, totalAccounts: rows.length, totalDifference: rows.reduce((s, r) => s + Math.abs(r.difference), 0) }
+}
+
+export async function applyBalanceReconciliation(): Promise<{ updated: number }> {
+  const prisma = (await import('@/lib/db')).default
+  const { createClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const preview = await previewBalanceReconciliation()
+  if (preview.rows.length === 0) return { updated: 0 }
+
+  await prisma.$transaction(async (tx) => {
+    for (const row of preview.rows) {
+      await tx.gLAccount.update({ where: { id: row.accountId }, data: { balance: row.newBalance } })
+    }
+    const { logAudit } = await import('@/lib/audit-helpers')
+    await logAudit({
+      entityType: 'GL_RECONCILIATION', entityId: 'system', action: 'UPDATE',
+      userId: user.id, userName: user.email || 'System',
+      changes: preview.rows.map((r) => ({ field: `${r.accountCode} ${r.accountName}`, from: r.oldBalance, to: r.newBalance })),
+      narrative: `Rekonsiliasi saldo ${preview.rows.length} akun GL. Total selisih: Rp ${preview.totalDifference.toLocaleString('id-ID')}`,
+    })
+  })
+  return { updated: preview.rows.length }
 }
 
 /**

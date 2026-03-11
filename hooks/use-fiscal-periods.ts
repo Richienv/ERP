@@ -99,3 +99,27 @@ export function useReopenFiscalPeriod() {
         },
     })
 }
+
+export function useCloseYearEnd() {
+    const qc = useQueryClient()
+    return useMutation({
+        mutationFn: async (year: number) => {
+            const res = await fetch("/api/finance/fiscal-periods", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "close-year", year }),
+            })
+            if (!res.ok) {
+                const data = await res.json()
+                throw new Error(data.error || "Gagal tutup tahun")
+            }
+            return res.json()
+        },
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: queryKeys.fiscalPeriods.all })
+        },
+        onError: (error: Error) => {
+            toast.error(error.message)
+        },
+    })
+}

@@ -89,6 +89,20 @@ export async function POST(req: NextRequest) {
             if (!period) return NextResponse.json({ error: "Periode tidak ditemukan" }, { status: 404 })
             if (period.isClosed) return NextResponse.json({ error: "Periode sudah ditutup" }, { status: 400 })
 
+            // Check for draft journal entries in this period
+            const draftCount = await prisma.journalEntry.count({
+                where: {
+                    status: 'DRAFT',
+                    date: { gte: period.startDate, lte: period.endDate },
+                },
+            })
+            if (draftCount > 0) {
+                return NextResponse.json(
+                    { error: `Tidak bisa tutup periode: masih ada ${draftCount} jurnal DRAFT. Posting atau hapus terlebih dahulu.` },
+                    { status: 400 }
+                )
+            }
+
             const updated = await prisma.fiscalPeriod.update({
                 where: { id },
                 data: {
@@ -120,6 +134,40 @@ export async function POST(req: NextRequest) {
             })
 
             return NextResponse.json({ data: updated, message: `${period.name} berhasil dibuka kembali` })
+        }
+
+        // Action: close year
+        if (body.action === 'close-year') {
+            const year = body.year as number
+            if (!year) return NextResponse.json({ error: 'Tahun wajib diisi' }, { status: 400 })
+
+            // Check all 12 months are closed
+            const periods = await prisma.fiscalPeriod.findMany({ where: { year } })
+            if (periods.length < 12) {
+                return NextResponse.json(
+                    { error: `Tahun ${year} belum memiliki 12 periode fiskal. Generate terlebih dahulu.` },
+                    { status: 400 }
+                )
+            }
+            const openPeriods = periods.filter((p: any) => !p.isClosed)
+            if (openPeriods.length > 0) {
+                return NextResponse.json(
+                    { error: `Tidak bisa tutup tahun: ${openPeriods.length} periode masih terbuka (${openPeriods.map((p: any) => p.name).join(', ')})` },
+                    { status: 400 }
+                )
+            }
+
+            // Check neraca balanced
+            const { getTrialBalance } = await import('@/lib/actions/finance-gl')
+            const tb = await getTrialBalance(new Date(year, 11, 31))
+            if (!tb.isBalanced) {
+                return NextResponse.json(
+                    { error: 'Tidak bisa tutup tahun: neraca tidak seimbang (selisih debit-kredit). Lakukan rekonsiliasi terlebih dahulu.' },
+                    { status: 400 }
+                )
+            }
+
+            return NextResponse.json({ success: true, year })
         }
 
         return NextResponse.json({ error: "Aksi tidak dikenali" }, { status: 400 })

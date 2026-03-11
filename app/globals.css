@@ -419,13 +419,13 @@
   /* Pop Green */
 
   /* Sidebar: White with strong border */
-  --sidebar: oklch(1 0 0);
+  --sidebar: oklch(0.99 0.002 90);
   --sidebar-foreground: oklch(0.15 0 0);
   --sidebar-primary: oklch(0.15 0 0);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent: oklch(0.96 0.005 90);
   --sidebar-accent-foreground: oklch(0.15 0 0);
-
+  --sidebar-border: oklch(0.2 0 0);
   --sidebar-ring: oklch(0.15 0 0);
 }
 

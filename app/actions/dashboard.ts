@@ -822,6 +822,239 @@ async function fetchSalesFulfillment(prisma: PrismaClient) {
 }
 
 // ==============================================================================
+// NEW FETCHERS: Cash Flow, Profitability, Customer Insights, Compliance
+// ==============================================================================
+
+async function fetchCashFlowSummary(prisma: PrismaClient) {
+    const sevenDaysAgo = addDays(new Date(), -7)
+
+    // Get journal lines for last 7 days on cash/bank accounts (code starts with '1')
+    const lines = await prisma.journalLine.findMany({
+        where: {
+            entry: {
+                date: { gte: sevenDaysAgo },
+                status: 'POSTED',
+            },
+            account: {
+                code: { startsWith: '1' },
+            },
+        },
+        include: {
+            account: { select: { code: true, name: true, type: true } },
+        },
+    })
+
+    let kasMasuk = 0
+    let kasKeluar = 0
+
+    for (const line of lines) {
+        kasMasuk += Number(line.debit)
+        kasKeluar += Number(line.credit)
+    }
+
+    // Top 3 expense accounts by amount (from expense journal lines this week)
+    const expenseLines = await prisma.journalLine.findMany({
+        where: {
+            entry: {
+                date: { gte: sevenDaysAgo },
+                status: 'POSTED',
+            },
+            account: {
+                type: 'EXPENSE',
+            },
+            debit: { gt: 0 },
+        },
+        include: {
+            account: { select: { name: true } },
+        },
+    })
+
+    const expenseMap = new Map<string, number>()
+    for (const line of expenseLines) {
+        const name = line.account.name
+        expenseMap.set(name, (expenseMap.get(name) ?? 0) + Number(line.debit))
+    }
+
+    const topExpenses = Array.from(expenseMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([name, amount]) => ({ name, amount }))
+
+    return {
+        kasMasuk,
+        kasKeluar,
+        netCashFlow: kasMasuk - kasKeluar,
+        topExpenses,
+    }
+}
+
+async function fetchProfitability(prisma: PrismaClient) {
+    const now = new Date()
+    const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const startOfPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+
+    // Current month: revenue & expense from journal lines
+    const [currentRevLines, currentExpLines, prevRevLines, prevExpLines] = await Promise.all([
+        prisma.journalLine.findMany({
+            where: {
+                entry: { date: { gte: startOfCurrentMonth }, status: 'POSTED' },
+                account: { type: 'REVENUE' },
+            },
+            select: { credit: true, debit: true },
+        }),
+        prisma.journalLine.findMany({
+            where: {
+                entry: { date: { gte: startOfCurrentMonth }, status: 'POSTED' },
+                account: { type: 'EXPENSE' },
+            },
+            select: { debit: true, credit: true },
+        }),
+        prisma.journalLine.findMany({
+            where: {
+                entry: { date: { gte: startOfPrevMonth, lt: startOfCurrentMonth }, status: 'POSTED' },
+                account: { type: 'REVENUE' },
+            },
+            select: { credit: true, debit: true },
+        }),
+        prisma.journalLine.findMany({
+            where: {
+                entry: { date: { gte: startOfPrevMonth, lt: startOfCurrentMonth }, status: 'POSTED' },
+                account: { type: 'EXPENSE' },
+            },
+            select: { debit: true, credit: true },
+        }),
+    ])
+
+    const revenue = currentRevLines.reduce((sum, l) => sum + Number(l.credit) - Number(l.debit), 0)
+    const expenses = currentExpLines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+    const grossProfit = revenue - expenses
+
+    const prevRevenue = prevRevLines.reduce((sum, l) => sum + Number(l.credit) - Number(l.debit), 0)
+    const prevExpenses = prevExpLines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+    const prevProfit = prevRevenue - prevExpenses
+
+    const marginPct = revenue > 0 ? Math.round((grossProfit / revenue) * 100) : 0
+    const prevMarginPct = prevRevenue > 0 ? Math.round((prevProfit / prevRevenue) * 100) : 0
+    const marginTrend = marginPct - prevMarginPct
+
+    // Top 3 products by revenue with margin% from salesOrderItem this month
+    const topProductRows = await prisma.salesOrderItem.findMany({
+        where: {
+            salesOrder: {
+                orderDate: { gte: startOfCurrentMonth },
+                status: { not: 'CANCELLED' },
+            },
+        },
+        include: {
+            product: { select: { name: true, costPrice: true } },
+        },
+    })
+
+    const productMap = new Map<string, { name: string; revenue: number; cost: number }>()
+    for (const item of topProductRows) {
+        const name = item.product?.name ?? 'Unknown'
+        const lineRevenue = Number(item.lineTotal)
+        const lineCost = item.quantity * Number(item.product?.costPrice ?? 0)
+        const existing = productMap.get(name)
+        if (existing) {
+            existing.revenue += lineRevenue
+            existing.cost += lineCost
+        } else {
+            productMap.set(name, { name, revenue: lineRevenue, cost: lineCost })
+        }
+    }
+
+    const topProducts = Array.from(productMap.values())
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 3)
+        .map(p => ({
+            name: p.name,
+            revenue: p.revenue,
+            marginPct: p.revenue > 0 ? Math.round(((p.revenue - p.cost) / p.revenue) * 100) : 0,
+        }))
+
+    return { grossProfit, revenue, marginPct, marginTrend, topProducts }
+}
+
+async function fetchCustomerInsights(prisma: PrismaClient) {
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+
+    const [totalActive, newThisMonth] = await Promise.all([
+        prisma.customer.count({ where: { isActive: true } }),
+        prisma.customer.count({ where: { createdAt: { gte: startOfMonth } } }),
+    ])
+
+    // Top 3 customers by sales this month
+    const salesThisMonth = await prisma.salesOrder.findMany({
+        where: {
+            orderDate: { gte: startOfMonth },
+            status: { not: 'CANCELLED' },
+        },
+        include: {
+            customer: { select: { name: true } },
+        },
+    })
+
+    const customerMap = new Map<string, { name: string; total: number }>()
+    for (const so of salesThisMonth) {
+        const name = so.customer?.name ?? 'Unknown'
+        const existing = customerMap.get(name)
+        if (existing) {
+            existing.total += Number(so.total)
+        } else {
+            customerMap.set(name, { name, total: Number(so.total) })
+        }
+    }
+
+    const top3Customers = Array.from(customerMap.values())
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 3)
+
+    // Repeat rate: customers with >1 order / total active
+    const customersWithOrders = await prisma.salesOrder.groupBy({
+        by: ['customerId'],
+        _count: { id: true },
+        where: { status: { not: 'CANCELLED' } },
+    })
+
+    const repeatCustomers = customersWithOrders.filter(c => c._count.id > 1).length
+    const repeatRate = totalActive > 0 ? Math.round((repeatCustomers / totalActive) * 100) : 0
+
+    return { totalActive, newThisMonth, top3Customers, repeatRate }
+}
+
+async function fetchComplianceStatus(prisma: PrismaClient) {
+    const now = new Date()
+
+    const [draftInvoices, draftJournals, overdueAP, missingTax] = await Promise.all([
+        prisma.invoice.count({ where: { status: 'DRAFT' } }),
+        prisma.journalEntry.count({ where: { status: 'DRAFT' } }),
+        prisma.invoice.count({
+            where: {
+                type: 'INV_IN',
+                dueDate: { lt: now },
+                status: { notIn: ['PAID', 'CANCELLED', 'VOID'] },
+            },
+        }),
+        prisma.invoice.count({
+            where: {
+                type: 'INV_OUT',
+                taxAmount: { equals: 0 },
+                totalAmount: { gt: 0 },
+                status: { notIn: ['CANCELLED', 'VOID'] },
+            },
+        }),
+    ])
+
+    const totalIssues = draftInvoices + draftJournals + overdueAP + missingTax
+    const status: 'green' | 'yellow' | 'red' = totalIssues === 0 ? 'green' : totalIssues <= 3 ? 'yellow' : 'red'
+
+    return { draftInvoices, draftJournals, overdueAP, missingTax, status, totalIssues }
+}
+
+// ==============================================================================
 // PUBLIC AGGREGATED ACTION (Fetch Everything in One Transaction)
 // ==============================================================================
 
@@ -968,7 +1201,7 @@ export async function getDashboardOperations() {
     try {
         await requireAuth()
         const prisma = basePrisma
-        const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment] = await Promise.all([
+        const [procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance] = await Promise.all([
             fetchProcurementMetrics(prisma).catch(() => ({ activeCount: 0, delays: [] as any[], pendingApproval: [] as any[], totalPRs: 0, pendingPRs: 0, totalPOs: 0, totalPOValue: 0, totalPRValue: 0, poByStatus: {} as Record<string, number> })),
             fetchProductionMetrics(prisma).catch(() => ({ activeWorkOrders: 0, totalProduction: 0, efficiency: 0 })),
             fetchMaterialStatus(prisma).catch(() => []),
@@ -980,8 +1213,12 @@ export async function getDashboardOperations() {
             fetchTaxMetrics(prisma).catch(() => ({ ppnOut: 0, ppnIn: 0, ppnNet: 0 })),
             fetchInventorySummary(prisma).catch(() => ({ productCount: 0, warehouseCount: 0 })),
             fetchSalesFulfillment(prisma).catch(() => ({ totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 })),
+            fetchCashFlowSummary(prisma).catch(() => ({ kasMasuk: 0, kasKeluar: 0, netCashFlow: 0, topExpenses: [] as { name: string; amount: number }[] })),
+            fetchProfitability(prisma).catch(() => ({ grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] })),
+            fetchCustomerInsights(prisma).catch(() => ({ totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 })),
+            fetchComplianceStatus(prisma).catch(() => ({ draftInvoices: 0, draftJournals: 0, overdueAP: 0, missingTax: 0, status: 'green' as const, totalIssues: 0 })),
         ])
-        return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment }
+        return { procurement, prodMetrics, materialStatus, qualityStatus, workforceStatus, leaves, inventoryValue, hr, tax, inventorySummary, salesFulfillment, cashFlow, profitability, customerInsights, compliance }
     } catch (error) {
         console.error("getDashboardOperations failed:", error)
         return {
@@ -996,6 +1233,10 @@ export async function getDashboardOperations() {
             tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
             inventorySummary: { productCount: 0, warehouseCount: 0 },
             salesFulfillment: { totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 },
+            cashFlow: { kasMasuk: 0, kasKeluar: 0, netCashFlow: 0, topExpenses: [] as { name: string; amount: number }[] },
+            profitability: { grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] },
+            customerInsights: { totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 },
+            compliance: { draftInvoices: 0, draftJournals: 0, overdueAP: 0, missingTax: 0, status: 'green' as const, totalIssues: 0 },
         }
     }
 }

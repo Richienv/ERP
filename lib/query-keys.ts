@@ -388,4 +388,13 @@ export const queryKeys = {
         all: ["warehouseLocations"] as const,
         list: (warehouseId: string) => ["warehouseLocations", "list", warehouseId] as const,
     },
+    expenses: {
+        all: ["expenses"] as const,
+        list: () => [...queryKeys.expenses.all, "list"] as const,
+    },
+    ceoFlags: {
+        all: ["ceo-flags"] as const,
+        list: (filters?: Record<string, string>) => [...queryKeys.ceoFlags.all, "list", filters ?? {}] as const,
+        count: () => [...queryKeys.ceoFlags.all, "count"] as const,
+    },
 } as const

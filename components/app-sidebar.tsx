@@ -36,14 +36,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               href="/dashboard"
               data-slot="sidebar-menu-button"
               data-sidebar="menu-button"
-              className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800/60 transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2.5 mx-2 rounded-md border-2 border-zinc-900 dark:border-zinc-200 bg-zinc-900 dark:bg-zinc-100 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[2px_2px_0px_0px_rgba(255,255,255,0.2)] transition-all duration-100 group-data-[collapsible=icon]:mx-0 group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:shadow-none"
             >
-              <div className="flex items-center justify-center h-7 w-7 rounded-md bg-zinc-900 dark:bg-zinc-100">
-                <span className="text-[10px] font-bold text-white dark:text-zinc-900 leading-none">
+              <div className="flex items-center justify-center h-7 w-7 rounded-sm bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600">
+                <span className="text-[10px] font-black text-zinc-900 dark:text-zinc-100 leading-none tracking-tight">
                   {tenantBranding.tenantName ? tenantBranding.tenantName.slice(0, 2).toUpperCase() : "EP"}
                 </span>
               </div>
-              <span className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100 group-data-[collapsible=icon]:hidden">
+              <span className="text-[13px] font-black text-white dark:text-zinc-900 tracking-tight group-data-[collapsible=icon]:hidden">
                 {tenantBranding.tenantName || "Sistem ERP"}
               </span>
             </Link>

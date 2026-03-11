@@ -48,6 +48,9 @@ export interface ReconciliationDetail {
     periodStart: string
     periodEnd: string
     status: string
+    bankStatementBalance: number | null
+    bookBalanceSnapshot: number | null
+    notes: string | null
     items: ReconciliationItemData[]
     systemEntries: SystemEntryData[]
     bankPagination?: PaginationMeta
@@ -64,6 +67,7 @@ export interface ReconciliationItemData {
     systemDescription: string | null
     matchStatus: string
     matchedAt: string | null
+    excludeReason: string | null
 }
 
 export interface SystemEntryData {
@@ -250,6 +254,9 @@ export async function getReconciliationDetail(
             periodStart: rec.periodStart.toISOString(),
             periodEnd: rec.periodEnd.toISOString(),
             status: rec.status,
+            bankStatementBalance: rec.bankStatementBalance != null ? Number(rec.bankStatementBalance) : null,
+            bookBalanceSnapshot: rec.bookBalanceSnapshot != null ? Number(rec.bookBalanceSnapshot) : null,
+            notes: rec.notes ?? null,
             items: rec.items.map((i) => ({
                 id: i.id,
                 bankRef: i.bankRef,
@@ -262,6 +269,7 @@ export async function getReconciliationDetail(
                     : null,
                 matchStatus: i.matchStatus,
                 matchedAt: i.matchedAt?.toISOString() || null,
+                excludeReason: i.excludeReason ?? null,
             })),
             systemEntries,
             // Pagination metadata
@@ -368,9 +376,17 @@ export async function createReconciliation(data: {
     statementDate: string
     periodStart: string
     periodEnd: string
+    bankStatementBalance?: number
+    notes?: string
 }): Promise<{ success: boolean; reconciliationId?: string; error?: string }> {
     try {
         const recId = await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Capture the current GL account balance as the book balance snapshot
+            const glAccount = await prisma.gLAccount.findUnique({
+                where: { id: data.glAccountId },
+                select: { balance: true },
+            })
+
             const rec = await prisma.bankReconciliation.create({
                 data: {
                     glAccountId: data.glAccountId,
@@ -378,6 +394,9 @@ export async function createReconciliation(data: {
                     periodStart: new Date(data.periodStart),
                     periodEnd: new Date(data.periodEnd),
                     status: 'REC_DRAFT',
+                    bankStatementBalance: data.bankStatementBalance ?? null,
+                    bookBalanceSnapshot: glAccount ? Number(glAccount.balance) : null,
+                    notes: data.notes ?? null,
                 },
             })
             return rec.id
@@ -711,16 +730,40 @@ export async function matchMultipleItems(data: {
                 )
             }
 
-            // Update all bank items as matched
-            await prisma.bankReconciliationItem.updateMany({
-                where: { id: { in: data.bankItemIds } },
-                data: {
-                    systemTransactionId: data.systemEntryIds[0],
-                    matchStatus: 'MATCHED',
-                    matchedBy: user?.id || null,
-                    matchedAt: new Date(),
-                },
-            })
+            // Match bank items to system entries
+            // For N:1 (multiple bank items to 1 system entry) — all items get the same systemTransactionId
+            // For 1:1 — straightforward single mapping
+            // For N:N — pair items by index order (bank[0]→system[0], bank[1]→system[1], etc.)
+            //          remaining bank items (if more) get the last system entry ID
+            const now = new Date()
+            const userId = user?.id || null
+
+            if (data.systemEntryIds.length === 1) {
+                // N:1 — all bank items map to the single system entry
+                await prisma.bankReconciliationItem.updateMany({
+                    where: { id: { in: data.bankItemIds } },
+                    data: {
+                        systemTransactionId: data.systemEntryIds[0],
+                        matchStatus: 'MATCHED',
+                        matchedBy: userId,
+                        matchedAt: now,
+                    },
+                })
+            } else {
+                // 1:1 or N:N — pair bank items to system entries by index
+                for (let i = 0; i < data.bankItemIds.length; i++) {
+                    const sysId = data.systemEntryIds[Math.min(i, data.systemEntryIds.length - 1)]
+                    await prisma.bankReconciliationItem.update({
+                        where: { id: data.bankItemIds[i] },
+                        data: {
+                            systemTransactionId: sysId,
+                            matchStatus: 'MATCHED',
+                            matchedBy: userId,
+                            matchedAt: now,
+                        },
+                    })
+                }
+            }
         })
 
         return { success: true }
@@ -738,7 +781,22 @@ export async function closeReconciliation(
     reconciliationId: string
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        await withPrismaAuth(async (prisma: PrismaClient) => {
+        const result = await withPrismaAuth(async (prisma: PrismaClient) => {
+            // Validate: all items must be MATCHED or EXCLUDED before closing
+            const unmatchedCount = await prisma.bankReconciliationItem.count({
+                where: {
+                    reconciliationId,
+                    matchStatus: 'UNMATCHED',
+                },
+            })
+
+            if (unmatchedCount > 0) {
+                return {
+                    success: false as const,
+                    error: `Masih ada ${unmatchedCount} item belum dicocokkan atau dikecualikan`,
+                }
+            }
+
             const supabase = await (await import('@/lib/supabase/server')).createClient()
             const { data: { user } } = await supabase.auth.getUser()
 
@@ -750,12 +808,100 @@ export async function closeReconciliation(
                     closedAt: new Date(),
                 },
             })
+
+            return { success: true as const }
         })
+
+        if (!result.success) {
+            return { success: false, error: result.error }
+        }
 
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menutup rekonsiliasi'
         console.error("[closeReconciliation] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Update reconciliation metadata (bank statement balance and notes).
+ */
+export async function updateReconciliationMeta(
+    reconciliationId: string,
+    data: { bankStatementBalance?: number; notes?: string }
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            const updateData: Record<string, unknown> = {}
+            if (data.bankStatementBalance !== undefined) {
+                updateData.bankStatementBalance = data.bankStatementBalance
+            }
+            if (data.notes !== undefined) {
+                updateData.notes = data.notes
+            }
+
+            await prisma.bankReconciliation.update({
+                where: { id: reconciliationId },
+                data: updateData,
+            })
+        })
+
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal memperbarui rekonsiliasi'
+        console.error("[updateReconciliationMeta] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Exclude a bank reconciliation item with a reason.
+ */
+export async function excludeReconciliationItem(
+    itemId: string,
+    reason: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            await prisma.bankReconciliationItem.update({
+                where: { id: itemId },
+                data: {
+                    matchStatus: 'EXCLUDED',
+                    excludeReason: reason,
+                },
+            })
+        })
+
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal mengecualikan item'
+        console.error("[excludeReconciliationItem] Error:", error)
+        return { success: false, error: msg }
+    }
+}
+
+/**
+ * Re-include a previously excluded bank reconciliation item.
+ */
+export async function includeReconciliationItem(
+    itemId: string
+): Promise<{ success: boolean; error?: string }> {
+    try {
+        await withPrismaAuth(async (prisma: PrismaClient) => {
+            await prisma.bankReconciliationItem.update({
+                where: { id: itemId },
+                data: {
+                    matchStatus: 'UNMATCHED',
+                    excludeReason: null,
+                },
+            })
+        })
+
+        return { success: true }
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Gagal mengembalikan item'
+        console.error("[includeReconciliationItem] Error:", error)
         return { success: false, error: msg }
     }
 }

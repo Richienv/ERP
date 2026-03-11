@@ -11,6 +11,9 @@ import {
     unmatchReconciliationItem,
     closeReconciliation,
     getReconciliationDetail,
+    updateReconciliationMeta,
+    excludeReconciliationItem,
+    includeReconciliationItem,
 } from "@/lib/actions/finance-reconciliation"
 
 export default function ReconciliationPage() {
@@ -32,6 +35,9 @@ export default function ReconciliationPage() {
                 onUnmatchItem={unmatchReconciliationItem}
                 onClose={closeReconciliation}
                 onLoadDetail={getReconciliationDetail}
+                onUpdateMeta={updateReconciliationMeta}
+                onExcludeItem={excludeReconciliationItem}
+                onIncludeItem={includeReconciliationItem}
             />
         </div>
     )

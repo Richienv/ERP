@@ -26,6 +26,10 @@ const FALLBACK_OPERATIONS = {
     tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
     inventorySummary: { productCount: 0, warehouseCount: 0 },
     salesFulfillment: { totalOrders: 0, deliveredOrders: 0, fulfillmentRate: 0 },
+    cashFlow: { kasMasuk: 0, kasKeluar: 0, netCashFlow: 0, topExpenses: [] as { name: string; amount: number }[] },
+    profitability: { grossProfit: 0, revenue: 0, marginPct: 0, marginTrend: 0, topProducts: [] as { name: string; revenue: number; marginPct: number }[] },
+    customerInsights: { totalActive: 0, newThisMonth: 0, top3Customers: [] as { name: string; total: number }[], repeatRate: 0 },
+    compliance: { draftInvoices: 0, draftJournals: 0, overdueAP: 0, missingTax: 0, status: 'green' as const, totalIssues: 0 },
 }
 const FALLBACK_SALES = { totalRevenue: 0, totalOrders: 0, activeOrders: 0, recentOrders: [] }
 const FALLBACK_CHARTS = { dataCash7d: [], dataReceivables: [], dataPayables: [], dataProfit: [] }

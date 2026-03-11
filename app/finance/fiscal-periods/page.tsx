@@ -18,7 +18,9 @@ import {
     IconLockOpen,
     IconPlus,
     IconRefresh,
+    IconBookDownload,
 } from "@tabler/icons-react"
+import { ClosingYearDialog } from "@/components/finance/closing-year-dialog"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -38,6 +40,7 @@ export default function FiscalPeriodsPage() {
         type: "close" | "reopen"
         period: FiscalPeriod
     } | null>(null)
+    const [closingYear, setClosingYear] = useState<number | null>(null)
 
     const { data: periods, isLoading } = useFiscalPeriods(filterYear)
     const generateMutation = useGenerateFiscalYear()
@@ -145,6 +148,18 @@ export default function FiscalPeriodsPage() {
                         {y}
                     </Button>
                 ))}
+
+                <div className="ml-auto">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-2 border-black rounded-none font-bold text-xs"
+                        onClick={() => setClosingYear(filterYear || currentYear)}
+                    >
+                        <IconBookDownload className="h-4 w-4 mr-1" />
+                        Tutup Buku Tahun {filterYear || currentYear}
+                    </Button>
+                </div>
             </div>
 
             {/* Period Grid per Year */}
@@ -303,6 +318,23 @@ export default function FiscalPeriodsPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {closingYear !== null && (
+                <ClosingYearDialog
+                    open={closingYear !== null}
+                    onOpenChange={(v) => { if (!v) setClosingYear(null) }}
+                    fiscalYear={closingYear}
+                    periods={(periods || [])
+                        .filter((p) => p.year === closingYear)
+                        .map((p) => ({
+                            id: p.id,
+                            month: p.month,
+                            name: p.name,
+                            isClosed: p.isClosed,
+                        }))}
+                    onComplete={() => { setClosingYear(null) }}
+                />
+            )}
         </div>
     )
 }
