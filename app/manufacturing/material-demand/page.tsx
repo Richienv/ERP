@@ -177,7 +177,7 @@ export default function MaterialDemandPage() {
                             {filteredRows.length === 0 ? (
                                 <TableRow>
                                     <TableCell colSpan={9} className="text-center py-12 text-zinc-400">
-                                        {data.rows.length === 0
+                                        {(data.rows?.length ?? 0) === 0
                                             ? "Belum ada Work Order aktif dengan BOM"
                                             : "Tidak ada material yang cocok dengan filter"}
                                     </TableCell>
