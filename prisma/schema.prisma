@@ -2720,6 +2720,10 @@ model BankReconciliation {
   periodEnd     DateTime             @db.Date
   status        ReconciliationStatus @default(REC_DRAFT)
 
+  bankStatementBalance Decimal?  @db.Decimal(15, 2) // Saldo akhir per laporan bank
+  bookBalanceSnapshot  Decimal?  @db.Decimal(15, 2) // Snapshot saldo buku saat rekonsiliasi
+  notes                String?                       // Catatan akuntan
+
   closedBy String?   @db.Uuid
   closedAt DateTime?
 
@@ -2733,13 +2737,6 @@ model BankReconciliation {
   @@map("bank_reconciliations")
 }
 
-enum MatchStatus {
-  UNMATCHED // Belum Cocok
-  MATCHED // Cocok
-  PARTIAL // Sebagian Cocok
-  EXCLUDED // Dikecualikan
-}
-
 model BankReconciliationItem {
   id                  String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   reconciliationId    String      @db.Uuid
@@ -2749,6 +2746,7 @@ model BankReconciliationItem {
   bankDescription     String?
   systemTransactionId String?     @db.Uuid // JournalEntry or Payment ID
   matchStatus         MatchStatus @default(UNMATCHED)
+  excludeReason       String?                         // Alasan jika EXCLUDED
   matchedBy           String?     @db.Uuid
   matchedAt           DateTime?
 
@@ -2756,7 +2754,15 @@ model BankReconciliationItem {
 
   @@index([reconciliationId])
   @@index([matchStatus])
+  @@index([systemTransactionId])
   @@map("bank_reconciliation_items")
+}
+
+enum MatchStatus {
+  UNMATCHED // Belum Cocok
+  MATCHED // Cocok
+  PARTIAL // Sebagian Cocok
+  EXCLUDED // Dikecualikan
 }
 
 // ================================
@@ -2820,6 +2826,8 @@ model ProductionBOM {
   isActive           Boolean  @default(true)
   totalProductionQty Int      @default(0)
   notes              String?
+  draftSnapshot      Json?     // Auto-saved draft (not yet manually published)
+  draftUpdatedAt     DateTime? // When the draft was last auto-saved
   items              ProductionBOMItem[]
   steps              ProductionBOMStep[]
   workOrders         WorkOrder[]
@@ -2841,6 +2849,7 @@ model ProductionBOMItem {
   unit            String?
   wastePct        Decimal       @default(0) @db.Decimal(5, 2)
   notes           String?
+  snapshotCostPrice Decimal? @db.Decimal(12, 4) // Price at last manual save — used for drift detection
   stepMaterials   ProductionBOMStepMaterial[]
 
   @@map("production_bom_items")
@@ -2917,6 +2926,23 @@ model ProductionBOMAttachment {
   uploadedAt DateTime          @default(now())
 
   @@map("production_bom_attachments")
+}
+
+// ================================
+// BOM Templates (User-Editable)
+// ================================
+
+model BOMTemplate {
+  id          String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  name        String
+  description String?
+  stepsJson   Json     // Array of { stationType, durationMinutes, sequence, useSubkon }
+  isBuiltIn   Boolean  @default(false)
+  createdBy   String?  // userId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("bom_templates")
 }
 
 model BOMEditLog {
