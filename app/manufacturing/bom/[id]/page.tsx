@@ -25,7 +25,7 @@ import { calcTotalMaterialCost, calcTotalLaborCost, calcTotalOverheadCost, type 
 import { calcCriticalPathDuration } from "@/components/manufacturing/bom/bom-step-helpers"
 import { toast } from "sonner"
 import {
-    ArrowLeft, Save, Loader2, Plus, Zap, Package,
+    ArrowLeft, Save, Loader2, Plus, Zap, Package, RotateCcw,
     Scissors, Shirt, Droplets, Printer, Sparkles,
     ShieldCheck, PackageIcon, Wrench, Cog, FileDown,
     Clock, Copy, LayoutTemplate, History, GitBranch, CheckCircle2, ChevronDown, Calculator,
@@ -1012,6 +1012,30 @@ function BOMCanvasPageInner({ id }: { id: string }) {
         }
     }
 
+    // --- RESET SPK (delete linked work orders so user can re-generate) ---
+    const [resettingSPK, setResettingSPK] = useState(false)
+    const handleResetSPK = async () => {
+        if (!confirm("Reset SPK akan menghapus semua work order yang belum berjalan untuk BOM ini. Lanjutkan?")) return
+        setResettingSPK(true)
+        try {
+            const res = await fetch(`/api/manufacturing/production-bom/${id}/work-orders`, { method: "DELETE" })
+            const result = await res.json()
+            if (!res.ok) {
+                toast.error(result.error || "Gagal mereset SPK")
+                return
+            }
+            toast.success(`SPK direset — ${result.deleted} work order dihapus`)
+            setHasSPK(false)
+            queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.spkOrders.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.productionBom.detail(id) })
+        } catch {
+            toast.error("Terjadi kesalahan saat mereset SPK")
+        } finally {
+            setResettingSPK(false)
+        }
+    }
+
     if (isLoading) {
         return <TablePageSkeleton accentColor="bg-orange-400" />
     }
@@ -1099,23 +1123,35 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                         <FileDown className="h-3.5 w-3.5" /> PDF
                     </button>
 
-                    <button
-                        onClick={handleGenerateSPK}
-                        disabled={generating || !spkReadiness.ready}
-                        title={spkReadiness.ready ? "Semua siap — klik untuk generate SPK" : `Belum siap:\n${spkReadiness.issues.join('\n')}`}
-                        className={`h-9 px-4 border-2 text-[10px] font-black uppercase flex items-center gap-1.5 transition-colors disabled:opacity-40 ${spkReadiness.ready
-                                ? "border-orange-500 text-orange-600 hover:bg-orange-50"
-                                : "border-zinc-300 text-zinc-400"
-                            }`}
-                    >
-                        {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-                        SPK
-                        {!spkReadiness.ready && steps.length > 0 && (
-                            <span className="bg-red-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center">
-                                {spkReadiness.issues.length}
-                            </span>
-                        )}
-                    </button>
+                    {hasSPK ? (
+                        <button
+                            onClick={handleResetSPK}
+                            disabled={resettingSPK}
+                            title="Hapus work order yang belum berjalan dan buat ulang SPK"
+                            className="h-9 px-4 border-2 border-amber-500 text-amber-600 text-[10px] font-black uppercase flex items-center gap-1.5 hover:bg-amber-50 transition-colors disabled:opacity-40"
+                        >
+                            {resettingSPK ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                            Reset SPK
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleGenerateSPK}
+                            disabled={generating || !spkReadiness.ready}
+                            title={spkReadiness.ready ? "Semua siap — klik untuk generate SPK" : `Belum siap:\n${spkReadiness.issues.join('\n')}`}
+                            className={`h-9 px-4 border-2 text-[10px] font-black uppercase flex items-center gap-1.5 transition-colors disabled:opacity-40 ${spkReadiness.ready
+                                    ? "border-orange-500 text-orange-600 hover:bg-orange-50"
+                                    : "border-zinc-300 text-zinc-400"
+                                }`}
+                        >
+                            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
+                            SPK
+                            {!spkReadiness.ready && steps.length > 0 && (
+                                <span className="bg-red-500 text-white text-[8px] font-black rounded-full h-4 w-4 flex items-center justify-center">
+                                    {spkReadiness.issues.length}
+                                </span>
+                            )}
+                        </button>
+                    )}
 
                     {/* Save + Save As group */}
                     <div className="flex border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden ml-1">
