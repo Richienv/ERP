@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,8 @@ import {
     RotateCcw,
     Database,
     Server,
-    Clock
+    Clock,
+    Factory,
 } from "lucide-react";
 import {
     Select,
@@ -27,9 +29,16 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { mockSystemSettings, systemInfo } from "@/components/settings/data";
+import { useWorkingHours, useSaveWorkingHours } from "@/hooks/use-working-hours";
+import { toast } from "sonner";
 
 export default function SystemSettingsPage() {
     const categories = Array.from(new Set(mockSystemSettings.map(s => s.category)));
+    const workingHours = useWorkingHours()
+    const [workingHoursInput, setWorkingHoursInput] = useState<string>("")
+    const saveWorkingHours = useSaveWorkingHours()
+
+    const effectiveHours = workingHoursInput !== "" ? Number(workingHoursInput) : workingHours
 
     const renderSettingInput = (setting: typeof mockSystemSettings[0]) => {
         switch (setting.type) {
@@ -168,8 +177,12 @@ export default function SystemSettingsPage() {
                 </Card>
             </div>
 
-            <Tabs defaultValue="Umum" className="space-y-4">
+            <Tabs defaultValue="Manufaktur" className="space-y-4">
                 <TabsList>
+                    <TabsTrigger value="Manufaktur" className="flex items-center">
+                        <Factory className="mr-2 h-4 w-4" />
+                        Manufaktur
+                    </TabsTrigger>
                     {categories.map((category) => (
                         <TabsTrigger key={category} value={category} className="flex items-center">
                             {category === 'Umum' && <Settings className="mr-2 h-4 w-4" />}
@@ -180,6 +193,54 @@ export default function SystemSettingsPage() {
                         </TabsTrigger>
                     ))}
                 </TabsList>
+
+                {/* ── Manufaktur settings (real DB-backed) ── */}
+                <TabsContent value="Manufaktur" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Pengaturan Manufaktur</CardTitle>
+                            <CardDescription>
+                                Konfigurasi parameter produksi dan kalkulasi biaya.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                            <div className="space-y-2">
+                                <Label htmlFor="working-hours">Jam Kerja per Bulan</Label>
+                                <div className="flex items-center gap-3">
+                                    <Input
+                                        id="working-hours"
+                                        type="number"
+                                        min={1}
+                                        max={744}
+                                        value={workingHoursInput !== "" ? workingHoursInput : workingHours}
+                                        onChange={(e) => setWorkingHoursInput(e.target.value)}
+                                        className="max-w-xs"
+                                    />
+                                    <Button
+                                        onClick={async () => {
+                                            const val = Number(workingHoursInput !== "" ? workingHoursInput : workingHours)
+                                            if (!val || val < 1) return
+                                            await saveWorkingHours.mutateAsync(val)
+                                            setWorkingHoursInput("")
+                                            toast.success(`Jam kerja diperbarui: ${val} jam/bulan`)
+                                        }}
+                                        disabled={saveWorkingHours.isPending}
+                                    >
+                                        <Save className="mr-2 h-4 w-4" />
+                                        {saveWorkingHours.isPending ? "Menyimpan..." : "Simpan"}
+                                    </Button>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    Standar UU Ketenagakerjaan Indonesia: <strong>172 jam/bulan</strong> (26 hari kerja × ~6.6 jam).
+                                    Digunakan untuk menghitung biaya tenaga kerja per pcs dari gaji bulanan operator.
+                                </p>
+                                <div className="mt-2 p-3 bg-zinc-50 border border-zinc-200 rounded text-xs text-zinc-600 font-mono">
+                                    Biaya TK/pcs = Gaji Bulanan × Durasi (menit) ÷ ({effectiveHours} jam × 60)
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
                 {categories.map((category) => (
                     <TabsContent key={category} value={category} className="space-y-4">

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { SubkonSelector } from "./subkon-selector"
 import { InHouseAllocator } from "./inhouse-allocator"
 import { calcItemCostPerUnit, calcStepMaterialCost, calcLaborCostPerPcs, type BOMItemWithCost } from "./bom-cost-helpers"
+import { useWorkingHours } from "@/hooks/use-working-hours"
 import { formatCurrency } from "@/lib/inventory-utils"
 import { useEmployees } from "@/hooks/use-employees"
 import { Input } from "@/components/ui/input"
@@ -86,6 +87,7 @@ export function DetailPanel({
     const [expanded, setExpanded] = useState(false)
     const [collapsed, setCollapsed] = useState(false)
     const { data: employees } = useEmployees()
+    const workingHoursPerMonth = useWorkingHours()
 
     const employeeOptions = useMemo(() => {
         if (!employees) return []
@@ -113,7 +115,7 @@ export function DetailPanel({
     }).filter((sm: any) => sm.item)
 
     const stepMaterialTotal = calcStepMaterialCost(step, allItems || [], totalQty)
-    const laborCostPerPcs = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes)
+    const laborCostPerPcs = calcLaborCostPerPcs(step.laborMonthlySalary, step.durationMinutes, workingHoursPerMonth)
     const stepLaborTotal = laborCostPerPcs > 0 ? laborCostPerPcs * totalQty : Number(step.station?.costPerUnit || 0) * totalQty
 
     const durationMin = Number(step.durationMinutes || 0)

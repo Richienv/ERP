@@ -52,11 +52,13 @@ export const WORKING_HOURS_PER_MONTH = 172
 export function calcLaborCostPerPcs(
     laborMonthlySalary: number | string | null | undefined,
     durationMinutes: number | null | undefined,
+    workingHoursPerMonth: number = WORKING_HOURS_PER_MONTH,
 ): number {
     const salary = Number(laborMonthlySalary || 0)
     const duration = Number(durationMinutes || 0)
+    const hours = workingHoursPerMonth > 0 ? workingHoursPerMonth : WORKING_HOURS_PER_MONTH
     if (salary <= 0 || duration <= 0) return 0
-    return salary * duration / (WORKING_HOURS_PER_MONTH * 60)
+    return salary * duration / (hours * 60)
 }
 
 /** Calculate total labor/station cost for a step */
