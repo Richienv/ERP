@@ -32,6 +32,8 @@ import {
 } from "lucide-react"
 import { BOMCostCard } from "@/components/manufacturing/bom/bom-cost-card"
 import { getIconByName, getColorTheme } from "@/components/manufacturing/bom/station-config"
+import { BOMCanvasProvider, useBOMCanvas } from "./bom-canvas-context"
+import { useAutoSave, isDraftNewer } from "./hooks/use-auto-save"
 
 const STATION_TYPE_CONFIG = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" },
@@ -54,34 +56,40 @@ export const dynamic = "force-dynamic"
 
 export default function BOMCanvasPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params)
+    return (
+        <BOMCanvasProvider bomId={id}>
+            <BOMCanvasPageInner id={id} />
+        </BOMCanvasProvider>
+    )
+}
+
+function BOMCanvasPageInner({ id }: { id: string }) {
     const router = useRouter()
     const queryClient = useQueryClient()
     const { data: bom, isLoading } = useProductionBOM(id)
     const { data: allStations } = useProcessStations()
 
-    // Local canvas state (editable copy of BOM data)
-    const [items, setItems] = useState<any[]>([])
-    const [steps, setSteps] = useState<any[]>([])
-    const [totalQty, setTotalQty] = useState(0)
-    const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
+    // Canvas state from context
+    const {
+        items, steps, totalQty, isDirty, selectedStepId, viewMode,
+        setItems: ctxSetItems, setSteps: ctxSetSteps, setTotalQty: ctxSetTotalQty,
+        setSelectedStepId, setViewMode, setDirty,
+        initFromServer,
+    } = useBOMCanvas()
+
+    // Keep refs to current items/steps for use inside async doSave callback
+    const itemsRef = useRef(items)
+    const stepsRef = useRef(steps)
+    itemsRef.current = items
+    stepsRef.current = steps
+
+    const initialized = useRef(false)
+
     const [saving, setSaving] = useState(false)
     const [savingAs, setSavingAs] = useState(false)
     const [generating, setGenerating] = useState(false)
     const [spkProgress, setSpkProgress] = useState<string | null>(null)
     const [spkResult, setSpkResult] = useState<{ workOrders: any[]; bomId: string } | null>(null)
-    const initialized = useRef(false)
-    const [isDirty, setIsDirty] = useState(false)
-
-    // Unsaved changes warning — browser close/refresh
-    useEffect(() => {
-        if (!isDirty) return
-        const handler = (e: BeforeUnloadEvent) => {
-            e.preventDefault()
-            return ""
-        }
-        window.addEventListener("beforeunload", handler)
-        return () => window.removeEventListener("beforeunload", handler)
-    }, [isDirty])
 
     // Dialogs
     const [addMaterialOpen, setAddMaterialOpen] = useState(false)
@@ -91,32 +99,63 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     // Cost breakdown panel
     const [costCardOpen, setCostCardOpen] = useState(false)
 
-    // View mode: canvas or timeline
-    const [viewMode, setViewMode] = useState<"canvas" | "timeline">("canvas")
-
     // Context menu
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; stepId: string } | null>(null)
+
+    // Draft restore banner
+    const [hasDraft, setHasDraft] = useState(false)
+
+    // Auto-save hook
+    const { loadLocalDraft, clearLocalDraft } = useAutoSave({ bomId: id, items, steps, totalQty, isDirty })
+
+    // Check for recoverable draft on first load
+    useEffect(() => {
+        if (!bom?.updatedAt) return
+        const draft = loadLocalDraft()
+        if (draft && isDraftNewer(draft.savedAt, new Date(bom.updatedAt))) {
+            setHasDraft(true)
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [bom?.updatedAt])
 
     // Initialize local state from fetched BOM data
     if (bom && !initialized.current) {
         initialized.current = true
-        setItems(bom.items || [])
-        setSteps(bom.steps || []) // init only — not dirty
-        setTotalQty(bom.totalProductionQty || 0)
-        setIsDirty(false)
+        initFromServer({
+            product: bom.product,
+            items: bom.items || [],
+            steps: bom.steps || [],
+            totalProductionQty: bom.totalProductionQty || 0,
+        })
     }
 
-    // Dirty-tracking wrappers
-    const dirtySetItems: typeof setItems = useCallback((v) => { setItems(v); setIsDirty(true) }, [])
-    const dirtySetSteps: typeof setSteps = useCallback((v) => { setSteps(v); setIsDirty(true) }, [])
-    const dirtySetTotalQty = useCallback((v: number) => { setTotalQty(v); setIsDirty(true) }, [])
+    // Dirty-tracking wrappers — use context's setters (they mark dirty automatically)
+    const dirtySetItems = useCallback((v: any) => {
+        if (typeof v === "function") {
+            ctxSetItems(v(itemsRef.current))
+        } else {
+            ctxSetItems(v)
+        }
+    }, [ctxSetItems])
+
+    const dirtySetSteps = useCallback((v: any) => {
+        if (typeof v === "function") {
+            ctxSetSteps(v(stepsRef.current))
+        } else {
+            ctxSetSteps(v)
+        }
+    }, [ctxSetSteps])
+
+    const dirtySetTotalQty = useCallback((v: number) => {
+        ctxSetTotalQty(v)
+    }, [ctxSetTotalQty])
 
     const selectedStep = steps.find((s) => s.id === selectedStepId) || null
 
     const costSummary = useMemo(() => {
         const totalMaterial = calcTotalMaterialCost(items as BOMItemWithCost[], totalQty)
-        const totalLabor = calcTotalLaborCost(steps, totalQty)
-        const totalOverhead = calcTotalOverheadCost(steps, totalQty)
+        const totalLabor = calcTotalLaborCost(steps as any[], totalQty)
+        const totalOverhead = calcTotalOverheadCost(steps as any[], totalQty)
         const grandTotal = totalMaterial + totalLabor + totalOverhead
         const perUnit = totalQty > 0 ? grandTotal / totalQty : 0
         const durationPerPiece = calcCriticalPathDuration(steps)
@@ -174,7 +213,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         // Validate work center group assignment for in-house steps
         const unassignedWC = steps.filter(s => {
             const isStepSubkon = s.useSubkon ?? s.station?.operationType === 'SUBCONTRACTOR'
-            return !isStepSubkon && !s.station?.group && !s.station?.groupId
+            return !isStepSubkon && !s.station?.group && !(s.station as any)?.groupId
         })
         if (unassignedWC.length > 0) {
             issues.push(`${unassignedWC.length} proses belum di-assign ke work center: ${unassignedWC.map(s => s.station?.name || `Step ${s.sequence}`).join(', ')}`)
@@ -207,17 +246,17 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
     // --- MATERIAL HANDLERS ---
     const handleAddMaterial = useCallback((newItem: any) => {
         const tempId = `temp-${Date.now()}`
-        dirtySetItems((prev) => [...prev, { id: tempId, ...newItem }])
+        dirtySetItems((prev: any[]) => [...prev, { id: tempId, ...newItem }])
     }, [dirtySetItems])
 
     const handleRemoveItem = useCallback((itemId: string) => {
-        dirtySetItems((prev) => prev.filter((i) => i.id !== itemId))
+        dirtySetItems((prev: any[]) => prev.filter((i: any) => i.id !== itemId))
         // Also remove from all steps
-        dirtySetSteps((prev) => prev.map((step) => ({
+        dirtySetSteps((prev: any[]) => prev.map((step: any) => ({
             ...step,
             materials: (step.materials || []).filter((m: any) => m.bomItemId !== itemId),
         })))
-    }, [])
+    }, [dirtySetItems, dirtySetSteps])
 
     // --- STEP HANDLERS ---
     const handleAddStationToCanvas = useCallback((stationId: string) => {
@@ -227,7 +266,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const tempId = `step-${Date.now()}`
         const newSequence = steps.length + 1
 
-        dirtySetSteps((prev) => {
+        dirtySetSteps((prev: any[]) => {
             const lastStep = prev[prev.length - 1]
             return [...prev, {
                 id: tempId,
@@ -242,7 +281,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 attachments: [],
             }]
         })
-    }, [allStations, steps.length])
+    }, [allStations, steps.length, dirtySetSteps])
 
     // Quick-add station by type: if >1 station of same type exists, show picker
     const [creatingStationType, setCreatingStationType] = useState<string | null>(null)
@@ -330,7 +369,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
                 const station = result.data
                 const tempId = `step-${Date.now()}`
-                dirtySetSteps((prev) => {
+                dirtySetSteps((prev: any[]) => {
                     const lastStep = prev[prev.length - 1]
                     return [...prev, {
                         id: tempId, stationId: station.id, station,
@@ -348,7 +387,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         } finally {
             setCreatingStationType(null)
         }
-    }, [allStations, handleAddStationToCanvas, queryClient])
+    }, [allStations, handleAddStationToCanvas, queryClient, dirtySetSteps])
 
     // Apply a process template (adds multiple connected stations)
     const [applyingTemplate, setApplyingTemplate] = useState(false)
@@ -424,23 +463,23 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         } finally {
             setApplyingTemplate(false)
         }
-    }, [allStations, queryClient])
+    }, [allStations, queryClient, dirtySetSteps, setSelectedStepId])
 
     const handleRemoveStep = useCallback((stepId: string) => {
-        dirtySetSteps((prev) => {
-            const filtered = prev.filter((s) => s.id !== stepId)
+        dirtySetSteps((prev: any[]) => {
+            const filtered = prev.filter((s: any) => s.id !== stepId)
             // Re-sequence + remove deleted step from parentStepIds
-            return filtered.map((s, i) => ({
+            return filtered.map((s: any, i: number) => ({
                 ...s,
                 sequence: i + 1,
                 parentStepIds: (s.parentStepIds || []).filter((id: string) => id !== stepId),
             }))
         })
         if (selectedStepId === stepId) setSelectedStepId(null)
-    }, [selectedStepId])
+    }, [selectedStepId, dirtySetSteps, setSelectedStepId])
 
     const handleDropMaterial = useCallback((stepId: string, bomItemId: string) => {
-        dirtySetSteps((prev) => prev.map((step) => {
+        dirtySetSteps((prev: any[]) => prev.map((step: any) => {
             if (step.id !== stepId) return step
             // Check if already assigned
             if ((step.materials || []).some((m: any) => m.bomItemId === bomItemId)) return step
@@ -455,64 +494,64 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 }],
             }
         }))
-    }, [items])
+    }, [items, dirtySetSteps])
 
     const handleRemoveMaterial = useCallback((stepId: string, bomItemId: string) => {
-        dirtySetSteps((prev) => prev.map((step) => {
+        dirtySetSteps((prev: any[]) => prev.map((step: any) => {
             if (step.id !== stepId) return step
             return {
                 ...step,
                 materials: (step.materials || []).filter((m: any) => m.bomItemId !== bomItemId),
             }
         }))
-    }, [])
+    }, [dirtySetSteps])
 
     const handleUpdateStep = useCallback((field: string, value: any) => {
         if (!selectedStepId) return
-        dirtySetSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev: any[]) => prev.map((step: any) =>
             step.id === selectedStepId ? { ...step, [field]: value } : step
         ))
-    }, [selectedStepId])
+    }, [selectedStepId, dirtySetSteps])
 
     const handleChangeStation = useCallback((stationId: string, station: any) => {
         if (!selectedStepId) return
-        dirtySetSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev: any[]) => prev.map((step: any) =>
             step.id === selectedStepId ? { ...step, stationId, station } : step
         ))
-    }, [selectedStepId])
+    }, [selectedStepId, dirtySetSteps])
 
     const handleUpdateAllocations = useCallback((allocations: any[]) => {
         if (!selectedStepId) return
-        dirtySetSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev: any[]) => prev.map((step: any) =>
             step.id === selectedStepId ? { ...step, allocations } : step
         ))
-    }, [selectedStepId])
+    }, [selectedStepId, dirtySetSteps])
 
     const handleToggleSubkon = useCallback((useSubkon: boolean) => {
         if (!selectedStepId) return
-        dirtySetSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev: any[]) => prev.map((step: any) =>
             step.id === selectedStepId
                 ? { ...step, useSubkon, allocations: useSubkon ? (step.allocations || []) : [] }
                 : step
         ))
-    }, [selectedStepId])
+    }, [selectedStepId, dirtySetSteps])
 
     // --- DAG EDGE HANDLERS ---
     const handleConnectSteps = useCallback((sourceId: string, targetId: string) => {
-        dirtySetSteps(prev => prev.map(step =>
+        dirtySetSteps((prev: any[]) => prev.map((step: any) =>
             step.id === targetId
                 ? { ...step, parentStepIds: [...new Set([...(step.parentStepIds || []), sourceId])] }
                 : step
         ))
-    }, [])
+    }, [dirtySetSteps])
 
     const handleDisconnectSteps = useCallback((sourceId: string, targetId: string) => {
-        dirtySetSteps(prev => prev.map(step =>
+        dirtySetSteps((prev: any[]) => prev.map((step: any) =>
             step.id === targetId
                 ? { ...step, parentStepIds: (step.parentStepIds || []).filter((id: string) => id !== sourceId) }
                 : step
         ))
-    }, [])
+    }, [dirtySetSteps])
 
     // --- CONTEXT MENU HANDLERS ---
     const handleNodeContextMenu = useCallback((stepId: string, pos: { clientX: number; clientY: number }) => {
@@ -524,7 +563,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         if (!source) return
 
         const tempId = `step-${Date.now()}`
-        dirtySetSteps((prev) => {
+        dirtySetSteps((prev: any[]) => {
             const newSequence = prev.length + 1
             return [...prev, {
                 ...source,
@@ -540,7 +579,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             }]
         })
         toast.success("Work center berhasil diduplikat")
-    }, [steps])
+    }, [steps, dirtySetSteps])
 
     // Add a parallel step — same parents as the clicked step (sibling, not child)
     // Auto-splits quantity evenly when siblings share the same stationType
@@ -551,7 +590,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         const tempId = `step-par-${Date.now()}`
         const stationType = source.station?.stationType
 
-        dirtySetSteps((prev) => {
+        dirtySetSteps((prev: any[]) => {
             const newSequence = prev.length + 1
             const newStep = {
                 id: tempId,
@@ -571,7 +610,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             // Auto-split if siblings share same stationType
             if (stationType && totalQty > 0) {
                 const parentKey = [...(source.parentStepIds || [])].sort().join(",")
-                const siblings = withNew.filter(s => {
+                const siblings = withNew.filter((s: any) => {
                     const sKey = [...(s.parentStepIds || [])].sort().join(",")
                     return s.station?.stationType === stationType && sKey === parentKey
                 })
@@ -580,8 +619,8 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     const base = Math.floor(totalQty / siblings.length)
                     const remainder = totalQty % siblings.length
 
-                    return withNew.map(s => {
-                        const sibIdx = siblings.findIndex(sib => sib.id === s.id)
+                    return withNew.map((s: any) => {
+                        const sibIdx = siblings.findIndex((sib: any) => sib.id === s.id)
                         if (sibIdx === -1) return s
                         const qty = base + (sibIdx < remainder ? 1 : 0)
                         return {
@@ -595,19 +634,19 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             return withNew
         })
         toast.success("Proses paralel ditambahkan — kuantitas dibagi rata")
-    }, [steps, totalQty])
+    }, [steps, totalQty, dirtySetSteps])
 
     // Handle percentage change from split group badge click
     const handlePctChange = useCallback((stepId: string, newPct: number) => {
         if (!totalQty) return
 
-        dirtySetSteps(prev => {
-            const step = prev.find(s => s.id === stepId)
+        dirtySetSteps((prev: any[]) => {
+            const step = prev.find((s: any) => s.id === stepId)
             if (!step) return prev
 
             const stationType = step.station?.stationType
             const parentKey = [...(step.parentStepIds || [])].sort().join(",")
-            const siblings = prev.filter(s => {
+            const siblings = prev.filter((s: any) => {
                 const sKey = [...(s.parentStepIds || [])].sort().join(",")
                 return s.station?.stationType === stationType && sKey === parentKey
             })
@@ -616,17 +655,17 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
 
             const clamped = Math.max(1, Math.min(100 - (siblings.length - 1), newPct))
             const remaining = 100 - clamped
-            const otherSiblings = siblings.filter(s => s.id !== stepId)
+            const otherSiblings = siblings.filter((s: any) => s.id !== stepId)
 
             // Distribute remaining proportionally among others
-            const otherTotal = otherSiblings.reduce((sum, s) => {
+            const otherTotal = otherSiblings.reduce((sum: number, s: any) => {
                 const allocQty = (s.allocations || []).reduce((a: number, b: any) => a + (b.quantity || 0), 0)
                 return sum + (allocQty || Math.floor(totalQty / siblings.length))
             }, 0)
 
             const otherPcts = new Map<string, number>()
             let usedPct = 0
-            otherSiblings.forEach((s, i) => {
+            otherSiblings.forEach((s: any, i: number) => {
                 if (i < otherSiblings.length - 1) {
                     const allocQty = (s.allocations || []).reduce((a: number, b: any) => a + (b.quantity || 0), 0)
                     const oldPct = otherTotal > 0 ? allocQty / otherTotal : 1 / otherSiblings.length
@@ -638,7 +677,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 }
             })
 
-            return prev.map(s => {
+            return prev.map((s: any) => {
                 if (s.id === stepId) {
                     const qty = Math.round((clamped / 100) * totalQty)
                     return { ...s, allocations: [{ id: `alloc-${s.id}-auto`, stepId: s.id, stationId: s.stationId, quantity: qty }] }
@@ -651,14 +690,14 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 return s
             })
         })
-    }, [totalQty])
+    }, [totalQty, dirtySetSteps])
 
     const handleAddSequential = useCallback((stepId: string) => {
         const source = steps.find((s) => s.id === stepId)
         if (!source) return
 
         const tempId = `step-seq-${Date.now()}`
-        dirtySetSteps((prev) => {
+        dirtySetSteps((prev: any[]) => {
             const newSequence = prev.length + 1
             return [...prev, {
                 id: tempId,
@@ -675,42 +714,42 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             }]
         })
         toast.success("Proses berikutnya ditambahkan — ganti work center di panel detail")
-    }, [steps])
+    }, [steps, dirtySetSteps])
 
     // --- CANVAS POSITION HANDLER ---
     const handleNodePositionChange = useCallback((stepId: string, x: number, y: number) => {
-        dirtySetSteps(prev => prev.map(s =>
+        dirtySetSteps((prev: any[]) => prev.map((s: any) =>
             s.id === stepId ? { ...s, positionX: x, positionY: y } : s
         ))
-    }, [])
+    }, [dirtySetSteps])
 
     // --- TIMELINE DRAG HANDLERS ---
     // Move block on timeline: sets startOffsetMinutes + lane without destroying DAG edges
     const handleMoveStep = useCallback((stepId: string, startOffsetMinutes: number, lane?: number) => {
-        dirtySetSteps(prev => prev.map(s =>
+        dirtySetSteps((prev: any[]) => prev.map((s: any) =>
             s.id === stepId ? { ...s, startOffsetMinutes, ...(lane != null ? { manualLane: lane } : {}) } : s
         ))
-    }, [])
+    }, [dirtySetSteps])
 
     const handleMarkStarted = useCallback((stepId: string) => {
-        dirtySetSteps((prev) => prev.map((step) =>
+        dirtySetSteps((prev: any[]) => prev.map((step: any) =>
             step.id === stepId ? { ...step, startedAt: new Date().toISOString() } : step
         ))
         toast.success("Work center ditandai mulai")
-    }, [])
+    }, [dirtySetSteps])
 
     const handleMarkCompleted = useCallback((stepId: string) => {
-        dirtySetSteps((prev) => {
-            const step = prev.find(s => s.id === stepId)
+        dirtySetSteps((prev: any[]) => {
+            const step = prev.find((s: any) => s.id === stepId)
             if (!step) return prev
             const target = calcStepTarget(step, prev, totalQty)
-            return prev.map(s => s.id === stepId
+            return prev.map((s: any) => s.id === stepId
                 ? { ...s, completedAt: new Date().toISOString(), completedQty: target }
                 : s
             )
         })
         toast.success("Work center ditandai selesai")
-    }, [totalQty])
+    }, [totalQty, dirtySetSteps])
 
     // --- ATTACHMENT HANDLERS ---
     const handleUploadAttachment = useCallback(async () => {
@@ -741,7 +780,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 if (result.success) {
                     toast.success(`File ${file.name} berhasil diupload`)
                     // Add to local state
-                    dirtySetSteps((prev) => prev.map((step) =>
+                    dirtySetSteps((prev: any[]) => prev.map((step: any) =>
                         step.id === selectedStepId
                             ? { ...step, attachments: [...(step.attachments || []), result.data] }
                             : step
@@ -754,14 +793,14 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             }
         }
         input.click()
-    }, [selectedStepId, id])
+    }, [selectedStepId, id, dirtySetSteps])
 
     const handleDeleteAttachment = useCallback(async (attachmentId: string) => {
         try {
             const res = await fetch(`/api/manufacturing/production-bom-attachments/${attachmentId}`, { method: "DELETE" })
             const result = await res.json()
             if (result.success) {
-                dirtySetSteps((prev) => prev.map((step) => ({
+                dirtySetSteps((prev: any[]) => prev.map((step: any) => ({
                     ...step,
                     attachments: (step.attachments || []).filter((a: any) => a.id !== attachmentId),
                 })))
@@ -770,7 +809,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         } catch {
             toast.error("Gagal menghapus lampiran")
         }
-    }, [])
+    }, [dirtySetSteps])
 
     // --- SAVE (returns success boolean so generateSPK can chain) ---
     const doSave = async (): Promise<boolean> => {
@@ -778,16 +817,16 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             totalProductionQty: totalQty,
             items: items.map((item) => ({
                 id: item.id, // For ID mapping on server
-                materialId: item.materialId || item.material?.id,
+                materialId: item.materialId || (item as any).material?.id,
                 quantityPerUnit: Number(item.quantityPerUnit),
-                unit: item.unit || item.material?.unit || null,
+                unit: item.unit || (item as any).material?.unit || null,
                 wastePct: Number(item.wastePct || 0),
                 notes: item.notes || null,
             })),
             // C1 fix: normalize sequences to 1..N to prevent collisions
             steps: steps.map((step, idx) => ({
                 id: step.id, // Used for parentStepIds mapping on server
-                stationId: step.stationId || step.station?.id,
+                stationId: step.stationId || (step as any).station?.id,
                 sequence: idx + 1,
                 durationMinutes: step.durationMinutes || null,
                 notes: step.notes || null,
@@ -797,16 +836,16 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                 subkonProcessType: step.subkonProcessType || null,
                 operatorName: step.operatorName || null,
                 laborMonthlySalary: step.laborMonthlySalary ?? null,
-                estimatedTimePerUnit: step.estimatedTimePerUnit ?? null,
-                actualTimeTotal: step.actualTimeTotal ?? null,
+                estimatedTimePerUnit: (step as any).estimatedTimePerUnit ?? null,
+                actualTimeTotal: (step as any).actualTimeTotal ?? null,
                 completedQty: step.completedQty ?? 0,
-                startedAt: step.startedAt || null,
-                completedAt: step.completedAt || null,
+                startedAt: (step as any).startedAt || null,
+                completedAt: (step as any).completedAt || null,
                 positionX: step.positionX ?? null,
                 positionY: step.positionY ?? null,
                 materialProductIds: (step.materials || []).map((m: any) => {
                     const item = items.find((i) => i.id === m.bomItemId)
-                    return item?.materialId || item?.material?.id
+                    return (item as any)?.materialId || item?.material?.id
                 }).filter(Boolean),
                 allocations: (step.allocations || []).map((a: any) => ({
                     stationId: a.stationId || a.station?.id,
@@ -833,13 +872,13 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             const mapping = result.idMapping as { stepIdMap?: Record<string, string>; itemIdMap?: Record<string, string> } | undefined
             if (mapping) {
                 if (mapping.itemIdMap && Object.keys(mapping.itemIdMap).length > 0) {
-                    setItems(prev => prev.map(item => ({
+                    ctxSetItems(itemsRef.current.map((item: any) => ({
                         ...item,
                         id: mapping.itemIdMap![item.id] || item.id,
                     })))
                 }
                 if (mapping.stepIdMap && Object.keys(mapping.stepIdMap).length > 0) {
-                    setSteps(prev => prev.map(step => ({
+                    ctxSetSteps(stepsRef.current.map((step: any) => ({
                         ...step,
                         id: mapping.stepIdMap![step.id] || step.id,
                         parentStepIds: (step.parentStepIds || []).map(
@@ -852,7 +891,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                     })))
                 }
             }
-            setIsDirty(false)
+            setDirty(false)
             // Invalidate caches so next page load gets fresh data.
             // Don't reset initialized.current — keep local state for THIS session.
             queryClient.invalidateQueries({ queryKey: queryKeys.productionBom.all })
@@ -867,7 +906,11 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
         setSaving(true)
         try {
             const ok = await doSave()
-            if (ok) toast.success("BOM berhasil disimpan")
+            if (ok) {
+                toast.success("BOM berhasil disimpan")
+                clearLocalDraft()
+                setHasDraft(false)
+            }
         } catch {
             toast.error("Terjadi kesalahan saat menyimpan")
         } finally {
@@ -943,7 +986,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             // Step 3: Generate PDF document
             setSpkProgress("Membuat dokumen PDF...")
             // Verify PDF is accessible (pre-check)
-            const pdfCheck = await fetch(`/api/documents/spk/${id}`, { method: "HEAD" }).catch(() => null)
+            await fetch(`/api/documents/spk/${id}`, { method: "HEAD" }).catch(() => null)
 
             setSpkProgress(null)
             setSpkResult({ workOrders: result.data || [], bomId: id })
@@ -1071,6 +1114,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         >
                             {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                             Simpan
+                            {isDirty && !saving && <span className="w-2 h-2 rounded-full bg-orange-400 ml-0.5" />}
                         </button>
                         <button
                             onClick={handleSaveAsNewVersion}
@@ -1289,8 +1333,31 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
                         productName={bom.product?.name || ""}
                         productUnit={bom.product?.unit || "pcs"}
                         currentCostPrice={Number(bom.product?.costPrice || 0)}
-                        items={items}
+                        items={items as any[]}
                     />
+                </div>
+            )}
+
+            {/* Draft restore banner */}
+            {hasDraft && (
+                <div className="border-b border-amber-300 bg-amber-50 px-6 py-2 flex items-center gap-3 shrink-0">
+                    <span className="text-[11px] font-black uppercase text-amber-700">Draft tersimpan ditemukan</span>
+                    <button
+                        className="px-3 py-1 bg-amber-500 text-white font-black text-[10px] uppercase border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-px hover:translate-y-px transition-transform"
+                        onClick={() => {
+                            const d = loadLocalDraft()
+                            if (d) {
+                                ctxSetItems(d.items)
+                                ctxSetSteps(d.steps)
+                                ctxSetTotalQty(d.totalQty)
+                            }
+                            setHasDraft(false)
+                        }}
+                    >Pulihkan</button>
+                    <button
+                        className="text-[10px] font-bold text-amber-700 underline"
+                        onClick={() => { clearLocalDraft(); setHasDraft(false) }}
+                    >Buang</button>
                 </div>
             )}
 
@@ -1319,8 +1386,6 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             <div className="flex-1 flex overflow-hidden">
                 {/* Left: Material Panel */}
                 <MaterialPanel
-                    items={items}
-                    steps={steps}
                     onAddItem={() => setAddMaterialOpen(true)}
                     onRemoveItem={handleRemoveItem}
                 />
@@ -1386,7 +1451,7 @@ export default function BOMCanvasPage({ params }: { params: Promise<{ id: string
             <AddMaterialDialog
                 open={addMaterialOpen}
                 onOpenChange={setAddMaterialOpen}
-                existingMaterialIds={items.map((i) => i.materialId || i.material?.id).filter(Boolean)}
+                existingMaterialIds={items.map((i) => (i as any).materialId || (i as any).material?.id).filter(Boolean)}
                 onAdd={handleAddMaterial}
             />
 
