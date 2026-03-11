@@ -36,6 +36,7 @@ import { BOMCanvasProvider, useBOMCanvas } from "./bom-canvas-context"
 import { useAutoSave, isDraftNewer } from "./hooks/use-auto-save"
 import { usePriceDrift } from "./hooks/use-price-drift"
 import { useCriticalPath } from "./hooks/use-critical-path"
+import { TemplateManagerDialog } from "@/components/manufacturing/bom/template-manager-dialog"
 
 const STATION_TYPE_CONFIG = [
     { type: "CUTTING", label: "Potong", icon: Scissors, color: "bg-red-50 text-red-600 border-red-200 hover:bg-red-100" },
@@ -401,6 +402,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
     // Apply a process template (adds multiple connected stations)
     const [applyingTemplate, setApplyingTemplate] = useState(false)
     const [pendingTemplate, setPendingTemplate] = useState<readonly string[] | null>(null)
+    const [showTemplateManager, setShowTemplateManager] = useState(false)
     const handleApplyTemplate = useCallback(async (types: readonly string[]) => {
         // If steps exist, show confirmation dialog instead of window.confirm
         if (steps.length > 0) {
@@ -1265,18 +1267,15 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
                 <div className="border-l-2 border-zinc-300 mx-2 h-5 shrink-0" />
 
-                {/* Template Presets */}
-                {PROCESS_TEMPLATES.map((tmpl) => (
-                    <button
-                        key={tmpl.label}
-                        disabled={applyingTemplate}
-                        onClick={() => handleApplyTemplate(tmpl.types)}
-                        className="h-8 px-3 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 text-orange-600 border-2 border-orange-300 hover:bg-orange-100 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] transition-all disabled:opacity-40 shrink-0"
-                    >
-                        {applyingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : <LayoutTemplate className="h-3.5 w-3.5" />}
-                        {tmpl.label}
-                    </button>
-                ))}
+                {/* Template Manager */}
+                <button
+                    disabled={applyingTemplate}
+                    onClick={() => setShowTemplateManager(true)}
+                    className="h-8 px-3 text-[10px] font-bold flex items-center gap-1.5 bg-orange-50 text-orange-600 border-2 border-orange-300 hover:bg-orange-100 hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] transition-all disabled:opacity-40 shrink-0"
+                >
+                    {applyingTemplate ? <Loader2 className="h-3 w-3 animate-spin" /> : <LayoutTemplate className="h-3.5 w-3.5" />}
+                    Templates
+                </button>
             </div>
 
             {/* ═══ TOOLBAR — Row 3: Cost Summary Strip ═══ */}
@@ -1540,6 +1539,13 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Template Manager Dialog */}
+            <TemplateManagerDialog
+                open={showTemplateManager}
+                onClose={() => setShowTemplateManager(false)}
+                onApply={(types) => handleApplyTemplate(types as any)}
+            />
 
             {/* SPK Progress / Result Dialog */}
             <Dialog open={!!spkProgress || !!spkResult} onOpenChange={(open) => { if (!open && !spkProgress) setSpkResult(null) }}>
