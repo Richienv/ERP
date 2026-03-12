@@ -179,7 +179,7 @@ export function SubkonSelector({ stationType, allocations, totalQty, onChange }:
                 />
             </div>
 
-            <ScrollArea className="max-h-[120px]">
+            <ScrollArea className="max-h-[200px]">
                 <div className="space-y-1.5">
                     {filtered.map((station: any) => {
                         const isAllocated = allocations.some(a => a.stationId === station.id)

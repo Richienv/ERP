@@ -113,6 +113,44 @@ export async function PATCH(
             }
         }
 
+        // Fetch OLD state for change detection (before writing)
+        const oldBom = await prisma.productionBOM.findUnique({
+            where: { id },
+            select: {
+                totalProductionQty: true,
+                notes: true,
+                items: {
+                    select: {
+                        materialId: true,
+                        quantityPerUnit: true,
+                        wastePct: true,
+                        material: { select: { name: true } },
+                    },
+                },
+                steps: {
+                    select: {
+                        stationId: true,
+                        sequence: true,
+                        durationMinutes: true,
+                        useSubkon: true,
+                        operatorName: true,
+                        laborMonthlySalary: true,
+                        parentStepIds: true,
+                        station: { select: { name: true, code: true } },
+                        allocations: {
+                            select: {
+                                stationId: true,
+                                quantity: true,
+                                pricePerPcs: true,
+                                station: { select: { name: true, subcontractor: { select: { name: true } } } },
+                            },
+                        },
+                    },
+                    orderBy: { sequence: 'asc' },
+                },
+            },
+        })
+
         // Fetch current material prices for snapshotCostPrice (drift detection)
         const materialIds = items ? items.map((i: any) => i.materialId).filter(Boolean) : []
         const materialPrices = materialIds.length > 0
@@ -347,12 +385,128 @@ export async function PATCH(
             return { stepIdMap, itemIdMap }
         }, { timeout: 15000 })
 
+        // --- CHANGE DETECTION: compare old vs new state ---
+        const changes: string[] = []
+        const details: Record<string, any> = {}
+
+        if (oldBom) {
+            // Target qty changed
+            if (totalProductionQty !== undefined && totalProductionQty !== oldBom.totalProductionQty) {
+                changes.push(`Target: ${oldBom.totalProductionQty} → ${totalProductionQty} pcs`)
+                details.targetQty = { from: oldBom.totalProductionQty, to: totalProductionQty }
+            }
+
+            // Material changes
+            if (items) {
+                const oldMatIds = new Set(oldBom.items.map(i => i.materialId))
+                const newMatIds = new Set(items.map((i: any) => i.materialId))
+                const added = items.filter((i: any) => !oldMatIds.has(i.materialId))
+                const removed = oldBom.items.filter(i => !newMatIds.has(i.materialId))
+
+                // Qty/waste changes on existing materials
+                const matChanges: string[] = []
+                for (const newItem of items as any[]) {
+                    const oldItem = oldBom.items.find(i => i.materialId === newItem.materialId)
+                    if (!oldItem) continue
+                    if (Number(newItem.quantityPerUnit) !== Number(oldItem.quantityPerUnit)) {
+                        const name = oldItem.material?.name || newItem.materialId
+                        matChanges.push(`${name}: qty ${oldItem.quantityPerUnit} → ${newItem.quantityPerUnit}`)
+                    }
+                    if (Number(newItem.wastePct || 0) !== Number(oldItem.wastePct || 0)) {
+                        const name = oldItem.material?.name || newItem.materialId
+                        matChanges.push(`${name}: waste ${oldItem.wastePct}% → ${newItem.wastePct || 0}%`)
+                    }
+                }
+
+                if (added.length > 0) changes.push(`+${added.length} material baru`)
+                if (removed.length > 0) changes.push(`-${removed.length} material dihapus (${removed.map(r => r.material?.name).filter(Boolean).join(', ')})`)
+                if (matChanges.length > 0) changes.push(...matChanges)
+
+                if (added.length || removed.length || matChanges.length) {
+                    details.materials = { added: added.length, removed: removed.length, modified: matChanges.length }
+                }
+            }
+
+            // Step/process changes
+            if (steps) {
+                const oldStationIds = new Set(oldBom.steps.map(s => s.stationId))
+                const newStationIds = new Set(steps.map((s: any) => s.stationId))
+
+                const addedSteps = steps.filter((s: any) => !oldStationIds.has(s.stationId))
+                const removedSteps = oldBom.steps.filter(s => !newStationIds.has(s.stationId))
+
+                if (addedSteps.length > 0) changes.push(`+${addedSteps.length} proses baru`)
+                if (removedSteps.length > 0) changes.push(`-${removedSteps.length} proses dihapus (${removedSteps.map(s => s.station?.name).filter(Boolean).join(', ')})`)
+
+                // Detect changes on existing steps
+                for (const newStep of steps as any[]) {
+                    const oldStep = oldBom.steps.find(s => s.stationId === newStep.stationId)
+                    if (!oldStep) continue
+                    const stepName = oldStep.station?.name || `Step ${oldStep.sequence}`
+
+                    // Duration changed
+                    if (Number(newStep.durationMinutes || 0) !== Number(oldStep.durationMinutes || 0)) {
+                        changes.push(`${stepName}: durasi ${oldStep.durationMinutes || 0} → ${newStep.durationMinutes || 0} menit`)
+                    }
+
+                    // Subkon toggle
+                    const oldSubkon = oldStep.useSubkon ?? false
+                    const newSubkon = newStep.useSubkon ?? false
+                    if (oldSubkon !== newSubkon) {
+                        changes.push(`${stepName}: ${newSubkon ? 'In-House → Subkon' : 'Subkon → In-House'}`)
+                    }
+
+                    // Operator changed
+                    if ((newStep.operatorName || null) !== (oldStep.operatorName || null)) {
+                        changes.push(`${stepName}: operator ${oldStep.operatorName || '—'} → ${newStep.operatorName || '—'}`)
+                    }
+
+                    // Salary changed
+                    if (Number(newStep.laborMonthlySalary || 0) !== Number(oldStep.laborMonthlySalary || 0)) {
+                        changes.push(`${stepName}: gaji ${(oldStep.laborMonthlySalary || 0).toLocaleString('id-ID')} → ${(newStep.laborMonthlySalary || 0).toLocaleString('id-ID')}`)
+                    }
+
+                    // Allocation changes (subkon CV / in-house distribution)
+                    const oldAllocKeys = (oldStep.allocations || []).map((a: any) => `${a.stationId}:${a.quantity}:${a.pricePerPcs}`).sort().join('|')
+                    const newAllocKeys = (newStep.allocations || []).map((a: any) => `${a.stationId}:${a.quantity}:${a.pricePerPcs}`).sort().join('|')
+                    if (oldAllocKeys !== newAllocKeys) {
+                        const oldNames = (oldStep.allocations || []).map((a: any) => a.station?.subcontractor?.name || a.station?.name).filter(Boolean)
+                        const newNames = (newStep.allocations || []).map((a: any) => a.stationId)
+                        changes.push(`${stepName}: alokasi diubah${oldNames.length > 0 ? ` (${oldNames.join(', ')})` : ''}`)
+                    }
+                }
+
+                // Flow/connection changes
+                const oldFlows = oldBom.steps.map(s => `${s.stationId}:${(s.parentStepIds || []).sort().join(',')}`).sort().join('|')
+                const newFlows = steps.map((s: any) => `${s.stationId}:${(s.parentStepIds || []).sort().join(',')}`).sort().join('|')
+                if (oldFlows !== newFlows) {
+                    changes.push('Urutan/flow proses diubah')
+                }
+
+                if (addedSteps.length || removedSteps.length) {
+                    details.steps = { added: addedSteps.length, removed: removedSteps.length }
+                }
+            }
+
+            // Notes changed
+            if (notes !== undefined && notes !== oldBom.notes) {
+                changes.push('Catatan diubah')
+            }
+        }
+
+        // Build summary
+        const summary = changes.length > 0
+            ? changes.join(' • ')
+            : `Menyimpan BOM: ${steps?.length || 0} proses, ${items?.length || 0} material, target ${totalProductionQty || 0} pcs`
+
         // Log edit history (outside transaction — non-blocking)
         prisma.bOMEditLog.create({
             data: {
                 bomId: id,
                 action: "SAVE",
-                summary: `Menyimpan BOM: ${steps?.length || 0} proses, ${items?.length || 0} material, target ${body.totalProductionQty || 0} pcs`,
+                summary,
+                details: changes.length > 0 ? { changes, ...details } : undefined,
+                userId: user.id,
             }
         }).catch(() => {})
 

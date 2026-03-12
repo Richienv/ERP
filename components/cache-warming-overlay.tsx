@@ -114,9 +114,8 @@ export function CacheWarmingOverlay() {
         if (authLoading || !isAuthenticated || hasStarted.current) return
         hasStarted.current = true
 
-        // If already warmed this session, just do silent background refresh
+        // If already warmed this session, skip — TanStack Query handles stale refetches on mount
         if (sessionStorage.getItem(SESSION_KEY) === "true") {
-            warmBackground()
             return
         }
 

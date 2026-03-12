@@ -28,7 +28,8 @@ import {
     ArrowLeft, Save, Loader2, Plus, Zap, Package, RotateCcw,
     Scissors, Shirt, Droplets, Printer, Sparkles,
     ShieldCheck, PackageIcon, Wrench, Cog, FileDown,
-    Clock, Copy, LayoutTemplate, History, GitBranch, CheckCircle2, ChevronDown, Calculator,
+    Clock, Copy, LayoutTemplate, History, GitBranch, CheckCircle2, ChevronDown, Calculator, FilePlus2, AlertTriangle,
+    Building2, Truck, Star,
 } from "lucide-react"
 import { BOMCostCard } from "@/components/manufacturing/bom/bom-cost-card"
 import { getIconByName, getColorTheme } from "@/components/manufacturing/bom/station-config"
@@ -91,6 +92,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
 
     const [saving, setSaving] = useState(false)
     const [savingAs, setSavingAs] = useState(false)
+    const [showSaveAsConfirm, setShowSaveAsConfirm] = useState(false)
     const [generating, setGenerating] = useState(false)
     const [spkProgress, setSpkProgress] = useState<string | null>(null)
     const [spkResult, setSpkResult] = useState<{ workOrders: any[]; bomId: string } | null>(null)
@@ -269,9 +271,15 @@ function BOMCanvasPageInner({ id }: { id: string }) {
     }, [dirtySetItems, dirtySetSteps])
 
     // --- STEP HANDLERS ---
-    const handleAddStationToCanvas = useCallback((stationId: string) => {
+    const handleAddStationToCanvas = useCallback((stationId: string, opts?: { useSubkon?: boolean }) => {
         const station = (allStations || []).find((s: any) => s.id === stationId)
         if (!station) return
+
+        // Prevent adding the same work center twice
+        if (steps.some(s => s.stationId === stationId)) {
+            toast.error(`Work center "${station.name}" sudah ada di canvas`)
+            return
+        }
 
         const tempId = `step-${Date.now()}`
         const newSequence = steps.length + 1
@@ -289,13 +297,15 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                 materials: [],
                 allocations: [],
                 attachments: [],
+                useSubkon: opts?.useSubkon ?? (station.operationType === "SUBCONTRACTOR" ? true : null),
             }]
         })
-    }, [allStations, steps.length, dirtySetSteps])
+    }, [allStations, steps, dirtySetSteps])
 
-    // Quick-add station by type: if >1 station of same type exists, show picker
+    // Quick-add station by type — picker state
     const [creatingStationType, setCreatingStationType] = useState<string | null>(null)
     const [stationPickerType, setStationPickerType] = useState<string | null>(null)
+    const [pickerTab, setPickerTab] = useState<"inhouse" | "subkon">("inhouse")
 
     // Build dynamic process types: fixed types + custom OTHER types from allStations
     const dynamicProcessTypes = useMemo(() => {
@@ -333,62 +343,41 @@ function BOMCanvasPageInner({ id }: { id: string }) {
             }
         })
 
-        return [...fixed, ...custom]
+        return [...fixed, ...custom].sort((a, b) => a.label.localeCompare(b.label, "id"))
     }, [allStations])
 
-    const handleQuickAddByType = useCallback(async (typeKey: string, description?: string | null) => {
-        // For custom types, typeKey is "OTHER:Description" — extract actual stationType
+    const handleQuickAddByType = useCallback(async (typeKey: string, _description?: string | null) => {
+        // Always open picker — user chooses In-House or Subkon first
+        setPickerTab("inhouse")
+        setStationPickerType(typeKey)
+    }, [])
+
+    // Create a new station from the picker and add it to canvas
+    const handleCreateAndAddStation = useCallback(async (typeKey: string, useSubkon: boolean) => {
         const isCustom = typeKey.startsWith("OTHER:")
         const stationType = isCustom ? "OTHER" : typeKey
-        const customDesc = isCustom ? typeKey.substring(6) : description
-
-        // Find all active IN_HOUSE stations of this type (+ matching description for custom)
-        const candidates = (allStations || []).filter((s: any) => {
-            if (s.operationType === "SUBCONTRACTOR" || s.isActive === false) return false
-            if (isCustom) return s.stationType === "OTHER" && s.description === customDesc
-            return s.stationType === stationType
-        })
-
-        if (candidates.length === 1) {
-            handleAddStationToCanvas(candidates[0].id)
-            return
-        }
-
-        if (candidates.length > 1) {
-            // Multiple → show picker
-            setStationPickerType(typeKey)
-            return
-        }
-
-        // None exist → auto-create default station
-        setCreatingStationType(typeKey)
+        const customDesc = isCustom ? typeKey.substring(6) : undefined
         const config = STATION_TYPE_CONFIG.find((c) => c.type === stationType)
         const label = customDesc || config?.label || stationType
         const code = `STN-${stationType.substring(0, 3)}-${String(Date.now()).slice(-4)}`
+        setCreatingStationType(typeKey)
         try {
             const res = await fetch("/api/manufacturing/process-stations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    code, name: label, stationType, operationType: "IN_HOUSE", costPerUnit: 0,
+                    code, name: label, stationType,
+                    operationType: useSubkon ? "SUBCONTRACTOR" : "IN_HOUSE",
+                    costPerUnit: 0,
                     ...(isCustom ? { description: customDesc } : {}),
                 }),
             })
             const result = await res.json()
             if (result.success) {
                 queryClient.invalidateQueries({ queryKey: queryKeys.processStations.all })
-                const station = result.data
-                const tempId = `step-${Date.now()}`
-                dirtySetSteps((prev: any[]) => {
-                    const lastStep = prev[prev.length - 1]
-                    return [...prev, {
-                        id: tempId, stationId: station.id, station,
-                        sequence: prev.length + 1, durationMinutes: null, notes: null,
-                        parentStepIds: lastStep ? [lastStep.id] : [],
-                        materials: [], allocations: [], attachments: [],
-                    }]
-                })
+                handleAddStationToCanvas(result.data.id, { useSubkon })
                 toast.success(`Work center "${label}" dibuat & ditambahkan`)
+                setStationPickerType(null)
             } else {
                 toast.error(result.error || "Gagal membuat work center")
             }
@@ -397,7 +386,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
         } finally {
             setCreatingStationType(null)
         }
-    }, [allStations, handleAddStationToCanvas, queryClient, dirtySetSteps])
+    }, [handleAddStationToCanvas, queryClient])
 
     // Apply a process template (adds multiple connected stations)
     const [applyingTemplate, setApplyingTemplate] = useState(false)
@@ -1165,12 +1154,12 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                             {isDirty && !saving && <span className="w-2 h-2 rounded-full bg-orange-400 ml-0.5" />}
                         </button>
                         <button
-                            onClick={handleSaveAsNewVersion}
+                            onClick={() => setShowSaveAsConfirm(true)}
                             disabled={savingAs}
                             className="h-9 px-3 bg-zinc-800 text-white text-[10px] font-black uppercase flex items-center gap-1.5 border-l border-zinc-600 hover:bg-zinc-700 transition-colors disabled:opacity-50"
                             title="Simpan sebagai versi baru"
                         >
-                            {savingAs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+                            {savingAs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FilePlus2 className="h-3.5 w-3.5" />}
                         </button>
                     </div>
                 </div>
@@ -1179,15 +1168,20 @@ function BOMCanvasPageInner({ id }: { id: string }) {
             {/* ═══ TOOLBAR — Row 2: Process Palette ═══ */}
             <div className="border-b border-zinc-200 bg-zinc-50 px-6 py-2.5 flex items-center gap-2 shrink-0 overflow-x-auto">
                 <span className="text-[10px] font-black uppercase text-zinc-400 mr-2 shrink-0">Proses</span>
-                {dynamicProcessTypes.filter(cfg => !cfg.isCustom).map((cfg) => {
+                {dynamicProcessTypes.map((cfg) => {
                     const Icon = cfg.icon
                     const isCreating = creatingStationType === cfg.type
                     const isPicking = stationPickerType === cfg.type
-                    const candidates = (allStations || []).filter((s: any) => {
-                        if (s.operationType === "SUBCONTRACTOR" || s.isActive === false) return false
+
+                    const matchesType = (s: any) => {
+                        if (s.isActive === false) return false
+                        if (cfg.isCustom) return s.stationType === "OTHER" && s.description === cfg.description
                         return s.stationType === cfg.type
-                    })
-                    const hasMultiple = candidates.length > 1
+                    }
+                    const inhouseCandidates = (allStations || []).filter((s: any) => matchesType(s) && s.operationType !== "SUBCONTRACTOR")
+                    // Show ALL subkon stations regardless of type — subkon can handle multiple processes
+                    const subkonCandidates = (allStations || []).filter((s: any) => s.operationType === "SUBCONTRACTOR" && s.isActive !== false)
+                    const totalCount = inhouseCandidates.length + subkonCandidates.length
 
                     return (
                         <Popover key={cfg.type} open={isPicking} onOpenChange={(open) => { if (!open) setStationPickerType(null) }}>
@@ -1199,107 +1193,129 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                                 >
                                     {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
                                     {cfg.label}
-                                    {hasMultiple && <span className="text-[8px] opacity-60">({candidates.length})</span>}
+                                    {totalCount > 1 && <span className="text-[8px] opacity-60">({totalCount})</span>}
                                 </button>
                             </PopoverTrigger>
                             {isPicking && (
-                                <PopoverContent className="w-60 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
-                                    <div className="px-3 py-2 bg-zinc-50 border-b-2 border-black">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                            Pilih Work Center {cfg.label}
-                                        </p>
+                                <PopoverContent className="w-72 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
+                                    {/* Header */}
+                                    <div className="px-3 py-2 bg-zinc-900 text-white flex items-center gap-2">
+                                        <Icon className="h-3.5 w-3.5" />
+                                        <p className="text-[10px] font-black uppercase tracking-widest flex-1">Tambah {cfg.label}</p>
                                     </div>
-                                    <div className="py-1 max-h-48 overflow-y-auto">
-                                        {candidates.map((station: any) => (
-                                            <button
-                                                key={station.id}
-                                                onClick={() => {
-                                                    handleAddStationToCanvas(station.id)
-                                                    setStationPickerType(null)
-                                                }}
-                                                className="w-full text-left px-3 py-2 hover:bg-zinc-100 transition-colors flex items-center justify-between"
-                                            >
-                                                <div>
-                                                    <p className="text-xs font-bold">{station.name}</p>
-                                                    <p className="text-[9px] font-mono text-zinc-400">{station.code}</p>
+
+                                    {/* In-House / Subkon tabs */}
+                                    <div className="flex border-b-2 border-black">
+                                        <button
+                                            onClick={() => setPickerTab("inhouse")}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase transition-colors ${pickerTab === "inhouse" ? "bg-emerald-50 text-emerald-700 border-b-2 border-emerald-500 -mb-[2px]" : "bg-zinc-50 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"}`}
+                                        >
+                                            <Building2 className="h-3 w-3" />
+                                            In-House
+                                            {inhouseCandidates.length > 0 && <span className="text-[8px] bg-emerald-200 text-emerald-800 px-1 py-0.5 font-mono">{inhouseCandidates.length}</span>}
+                                        </button>
+                                        <button
+                                            onClick={() => setPickerTab("subkon")}
+                                            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-[10px] font-black uppercase transition-colors ${pickerTab === "subkon" ? "bg-amber-50 text-amber-700 border-b-2 border-amber-500 -mb-[2px]" : "bg-zinc-50 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"}`}
+                                        >
+                                            <Truck className="h-3 w-3" />
+                                            Subkon
+                                            {subkonCandidates.length > 0 && <span className="text-[8px] bg-amber-200 text-amber-800 px-1 py-0.5 font-mono">{subkonCandidates.length}</span>}
+                                        </button>
+                                    </div>
+
+                                    {/* Station list */}
+                                    <div className="max-h-56 overflow-y-auto">
+                                        {pickerTab === "inhouse" ? (
+                                            inhouseCandidates.length > 0 ? inhouseCandidates.map((station: any) => {
+                                                const alreadyUsed = steps.some(s => s.stationId === station.id)
+                                                return (
+                                                    <button
+                                                        key={station.id}
+                                                        disabled={alreadyUsed}
+                                                        onClick={() => { handleAddStationToCanvas(station.id, { useSubkon: false }); setStationPickerType(null) }}
+                                                        className={`w-full text-left px-3 py-2.5 border-b border-zinc-100 transition-colors flex items-center gap-2.5 ${alreadyUsed ? "opacity-40 cursor-not-allowed bg-zinc-50" : "hover:bg-emerald-50"}`}
+                                                    >
+                                                        <div className="w-7 h-7 bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200">
+                                                            <Building2 className="h-3.5 w-3.5" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-bold truncate">{station.name}</p>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className="text-[9px] font-mono text-zinc-400">{station.code}</span>
+                                                                {station.group && <span className="text-[8px] text-zinc-500 bg-zinc-100 px-1 py-0.5">{station.group.name}</span>}
+                                                            </div>
+                                                        </div>
+                                                        {alreadyUsed ? (
+                                                            <span className="text-[9px] font-bold text-zinc-400 shrink-0">Sudah ada</span>
+                                                        ) : Number(station.costPerUnit) > 0 ? (
+                                                            <span className="text-[9px] font-bold text-emerald-600 shrink-0">Rp {Number(station.costPerUnit).toLocaleString("id-ID")}</span>
+                                                        ) : null}
+                                                    </button>
+                                                )
+                                            }) : (
+                                                <div className="px-3 py-6 text-center">
+                                                    <Building2 className="h-5 w-5 text-zinc-300 mx-auto mb-2" />
+                                                    <p className="text-[10px] text-zinc-400 font-bold">Belum ada stasiun in-house</p>
                                                 </div>
-                                                {Number(station.costPerUnit) > 0 && (
-                                                    <span className="text-[9px] font-bold text-emerald-600">
-                                                        Rp {Number(station.costPerUnit).toLocaleString("id-ID")}
-                                                    </span>
-                                                )}
-                                            </button>
-                                        ))}
+                                            )
+                                        ) : (
+                                            subkonCandidates.length > 0 ? subkonCandidates.map((station: any) => {
+                                                const alreadyUsed = steps.some(s => s.stationId === station.id)
+                                                return (
+                                                    <button
+                                                        key={station.id}
+                                                        disabled={alreadyUsed}
+                                                        onClick={() => { handleAddStationToCanvas(station.id, { useSubkon: true }); setStationPickerType(null) }}
+                                                        className={`w-full text-left px-3 py-2.5 border-b border-zinc-100 transition-colors flex items-center gap-2.5 ${alreadyUsed ? "opacity-40 cursor-not-allowed bg-zinc-50" : "hover:bg-amber-50"}`}
+                                                    >
+                                                        <div className="w-7 h-7 bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200">
+                                                            <Truck className="h-3.5 w-3.5" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-bold truncate">{station.subcontractor?.name || station.name}</p>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                <span className="text-[9px] font-mono text-zinc-400">{station.code}</span>
+                                                                {station.subcontractor?.rating != null && (
+                                                                    <span className="text-[8px] text-amber-600 flex items-center gap-0.5">
+                                                                        <Star className="h-2.5 w-2.5 fill-amber-400 text-amber-400" />
+                                                                        {Number(station.subcontractor.rating).toFixed(1)}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {alreadyUsed ? (
+                                                            <span className="text-[9px] font-bold text-zinc-400 shrink-0">Sudah ada</span>
+                                                        ) : Number(station.costPerUnit) > 0 ? (
+                                                            <span className="text-[9px] font-bold text-amber-600 shrink-0">Rp {Number(station.costPerUnit).toLocaleString("id-ID")}</span>
+                                                        ) : null}
+                                                    </button>
+                                                )
+                                            }) : (
+                                                <div className="px-3 py-6 text-center">
+                                                    <Truck className="h-5 w-5 text-zinc-300 mx-auto mb-2" />
+                                                    <p className="text-[10px] text-zinc-400 font-bold">Belum ada subkon</p>
+                                                </div>
+                                            )
+                                        )}
+                                    </div>
+
+                                    {/* Footer: + Buat Baru */}
+                                    <div className="border-t-2 border-black px-3 py-2 bg-zinc-50">
+                                        <button
+                                            disabled={!!creatingStationType}
+                                            onClick={() => handleCreateAndAddStation(cfg.type, pickerTab === "subkon")}
+                                            className="w-full flex items-center justify-center gap-1.5 text-[10px] font-black uppercase text-zinc-500 hover:text-black transition-colors py-1 disabled:opacity-40"
+                                        >
+                                            {creatingStationType === cfg.type ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+                                            Buat Stasiun {pickerTab === "subkon" ? "Subkon" : "In-House"} Baru
+                                        </button>
                                     </div>
                                 </PopoverContent>
                             )}
                         </Popover>
                     )
                 })}
-
-                {/* Custom process types */}
-                {dynamicProcessTypes.some(cfg => cfg.isCustom) && (
-                    <>
-                        <div className="border-l-2 border-zinc-300 mx-2 h-5 shrink-0" />
-                        {dynamicProcessTypes.filter(cfg => cfg.isCustom).map((cfg) => {
-                            const Icon = cfg.icon
-                            const isCreating = creatingStationType === cfg.type
-                            const isPicking = stationPickerType === cfg.type
-                            const candidates = (allStations || []).filter((s: any) => {
-                                if (s.operationType === "SUBCONTRACTOR" || s.isActive === false) return false
-                                return s.stationType === "OTHER" && s.description === cfg.description
-                            })
-                            const hasMultiple = candidates.length > 1
-
-                            return (
-                                <Popover key={cfg.type} open={isPicking} onOpenChange={(open) => { if (!open) setStationPickerType(null) }}>
-                                    <PopoverTrigger asChild>
-                                        <button
-                                            disabled={isCreating}
-                                            onClick={() => handleQuickAddByType(cfg.type, cfg.description)}
-                                            className={`h-8 px-3 text-[10px] font-black uppercase flex items-center gap-1.5 border-2 border-black hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all disabled:opacity-40 shrink-0 ${cfg.color}`}
-                                        >
-                                            {isCreating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
-                                            {cfg.label}
-                                            {hasMultiple && <span className="text-[8px] opacity-60">({candidates.length})</span>}
-                                        </button>
-                                    </PopoverTrigger>
-                                    {isPicking && (
-                                        <PopoverContent className="w-60 p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start" sideOffset={4}>
-                                            <div className="px-3 py-2 bg-zinc-50 border-b-2 border-black">
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                                    Pilih Work Center {cfg.label}
-                                                </p>
-                                            </div>
-                                            <div className="py-1 max-h-48 overflow-y-auto">
-                                                {candidates.map((station: any) => (
-                                                    <button
-                                                        key={station.id}
-                                                        onClick={() => {
-                                                            handleAddStationToCanvas(station.id)
-                                                            setStationPickerType(null)
-                                                        }}
-                                                        className="w-full text-left px-3 py-2 hover:bg-zinc-100 transition-colors flex items-center justify-between"
-                                                    >
-                                                        <div>
-                                                            <p className="text-xs font-bold">{station.name}</p>
-                                                            <p className="text-[9px] font-mono text-zinc-400">{station.code}</p>
-                                                        </div>
-                                                        {Number(station.costPerUnit) > 0 && (
-                                                            <span className="text-[9px] font-bold text-emerald-600">
-                                                                Rp {Number(station.costPerUnit).toLocaleString("id-ID")}
-                                                            </span>
-                                                        )}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </PopoverContent>
-                                    )}
-                                </Popover>
-                            )
-                        })}
-                    </>
-                )}
 
                 <div className="border-l-2 border-zinc-300 mx-2 h-5 shrink-0" />
 
@@ -1314,24 +1330,8 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                 </button>
             </div>
 
-            {/* ═══ TOOLBAR — Row 3: Cost Summary Strip ═══ */}
+            {/* ═══ TOOLBAR — Row 3: Info Strip ═══ */}
             <div className="border-b border-zinc-200 bg-white px-6 py-2 flex items-center gap-5 lg:gap-8 shrink-0 overflow-x-auto text-[10px]">
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-black uppercase text-zinc-400">Material</span>
-                    <span className="font-bold text-black">{formatCurrency(costSummary.totalMaterial)}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-black uppercase text-zinc-400">Labor</span>
-                    <span className="font-bold text-black">{formatCurrency(costSummary.totalLabor)}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-black uppercase text-zinc-400">Overhead</span>
-                    <span className="font-bold text-orange-700">{formatCurrency(costSummary.totalOverhead)}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                    <span className="font-black uppercase text-zinc-400">HPP/Unit</span>
-                    <span className="font-bold text-black">{formatCurrency(costSummary.perUnit)}</span>
-                </div>
                 {costSummary.durationPerPiece > 0 && (
                     <div className="flex items-center gap-1.5 shrink-0">
                         <Clock className="h-3.5 w-3.5 text-blue-500" />
@@ -1354,10 +1354,6 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                         <span className="font-mono font-bold text-emerald-700">{costSummary.progressPct}%</span>
                     </div>
                 )}
-                <div className="border-l-2 border-black pl-5 flex items-center gap-2 shrink-0">
-                    <span className="font-black uppercase text-zinc-400">Total ({totalQty} pcs)</span>
-                    <span className="text-sm font-black text-emerald-700">{formatCurrency(costSummary.grandTotal)}</span>
-                </div>
                 <button
                     onClick={() => setCostCardOpen(!costCardOpen)}
                     className="ml-auto flex items-center gap-1.5 shrink-0 font-black uppercase text-emerald-600 hover:text-emerald-800 transition-colors"
@@ -1490,6 +1486,7 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                             totalQty={totalQty}
                             allItems={items}
                             allStations={allStations || []}
+                            usedStationIds={steps.filter(s => s.id !== selectedStep.id).map(s => s.stationId)}
                             onUpdateStep={handleUpdateStep}
                             onChangeStation={handleChangeStation}
                             onUpdateAllocations={handleUpdateAllocations}
@@ -1548,6 +1545,54 @@ function BOMCanvasPageInner({ id }: { id: string }) {
                     onMarkCompleted={(stepId) => { handleMarkCompleted(stepId); setContextMenu(null) }}
                 />
             )}
+
+            {/* Save As New Version confirmation dialog */}
+            <Dialog open={showSaveAsConfirm} onOpenChange={setShowSaveAsConfirm}>
+                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="font-black text-base flex items-center gap-2">
+                            <FilePlus2 className="h-4 w-4 text-indigo-500" />
+                            Simpan Sebagai Versi Baru?
+                        </DialogTitle>
+                        <DialogDescription asChild>
+                            <div className="text-zinc-500 text-sm space-y-3 pt-2">
+                                <p>BOM ini akan disalin menjadi versi baru. Berikut yang akan terjadi:</p>
+                                <div className="bg-indigo-50 border border-indigo-200 rounded-md p-3 space-y-2 text-xs text-indigo-800">
+                                    <div className="flex items-start gap-2">
+                                        <GitBranch className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                        <span>Versi baru <span className="font-black">{bom.version?.replace(/\d+$/, (m: string) => String(Number(m) + 1)) || "v2"}</span> akan dibuat dari {bom.version || "v1"}</span>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <Copy className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                        <span>Semua material, proses, dan pengaturan akan disalin</span>
+                                    </div>
+                                    <div className="flex items-start gap-2">
+                                        <ArrowLeft className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                        <span>Anda akan diarahkan ke halaman BOM versi baru</span>
+                                    </div>
+                                </div>
+                                <p className="text-[11px] text-zinc-400">Versi saat ini ({bom.version}) tidak akan berubah.</p>
+                            </div>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex gap-2 sm:gap-2">
+                        <Button variant="outline" className="border-2 border-black font-black" onClick={() => setShowSaveAsConfirm(false)}>
+                            Batal
+                        </Button>
+                        <Button
+                            className="bg-black text-white font-black border-2 border-black hover:bg-zinc-800"
+                            disabled={savingAs}
+                            onClick={() => {
+                                setShowSaveAsConfirm(false)
+                                handleSaveAsNewVersion()
+                            }}
+                        >
+                            {savingAs ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <FilePlus2 className="h-3.5 w-3.5 mr-1.5" />}
+                            Buat Versi Baru
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Template overwrite confirmation dialog */}
             <Dialog open={!!pendingTemplate} onOpenChange={(open) => { if (!open) setPendingTemplate(null) }}>

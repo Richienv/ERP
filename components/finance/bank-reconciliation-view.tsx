@@ -320,7 +320,7 @@ export function BankReconciliationView({
 
     // ── Filtered reconciliations ──────────────────────────────────────────────
     const filteredReconciliations = useMemo(() => {
-        return reconciliations.filter((rec) => {
+        return (reconciliations || []).filter((rec) => {
             if (statusFilter !== "all" && rec.status !== statusFilter) return false
             if (searchQuery.trim()) {
                 const q = searchQuery.toLowerCase()
@@ -685,7 +685,7 @@ export function BankReconciliationView({
                     <div>
                         <h2 className="text-sm font-black uppercase tracking-widest">Rekonsiliasi Bank</h2>
                         <p className="text-[10px] text-zinc-400 font-bold">
-                            {reconciliations.length} sesi &middot; {reconciliations.filter(r => r.status === "REC_IN_PROGRESS").length} dalam proses
+                            {(reconciliations || []).length} sesi &middot; {(reconciliations || []).filter(r => r.status === "REC_IN_PROGRESS").length} dalam proses
                         </p>
                     </div>
                 </div>
@@ -771,7 +771,19 @@ export function BankReconciliationView({
                     </Dialog>
 
                     {/* Rekonsiliasi Baru Dialog */}
-                    <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                    <Dialog open={createOpen} onOpenChange={(open) => {
+                        setCreateOpen(open)
+                        if (open) {
+                            // Auto-fill dates: current month
+                            const now = new Date()
+                            const y = now.getFullYear()
+                            const m = String(now.getMonth() + 1).padStart(2, "0")
+                            const lastDay = new Date(y, now.getMonth() + 1, 0).getDate()
+                            if (!newPeriodStart) setNewPeriodStart(`${y}-${m}-01`)
+                            if (!newPeriodEnd) setNewPeriodEnd(`${y}-${m}-${String(lastDay).padStart(2, "0")}`)
+                            if (!newStatementDate) setNewStatementDate(`${y}-${m}-${String(lastDay).padStart(2, "0")}`)
+                        }
+                    }}>
                         <DialogTrigger asChild>
                             <Button className={NB.triggerBtn}>
                                 <Plus className="h-4 w-4 mr-1" /> Rekonsiliasi Baru
@@ -782,44 +794,89 @@ export function BankReconciliationView({
                                 <DialogTitle className={NB.title}>
                                     <Landmark className="h-5 w-5" /> Rekonsiliasi Baru
                                 </DialogTitle>
+                                <p className="text-zinc-400 text-[11px] font-bold mt-0.5">Buat sesi rekonsiliasi untuk mencocokkan mutasi bank dengan jurnal</p>
                             </DialogHeader>
-                            <div className="p-6 space-y-4">
+                            <div className="p-6 space-y-5">
+                                {/* Bank Account */}
                                 <div>
                                     <label className={NB.label}>Akun Bank <span className={NB.labelRequired}>*</span></label>
-                                    <Select value={newAccountId} onValueChange={setNewAccountId}>
-                                        <SelectTrigger className={NB.select}>
-                                            <SelectValue placeholder="Pilih akun bank" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {bankAccounts.map((a) => (
-                                                <SelectItem key={a.id} value={a.id}>
-                                                    {a.code} — {a.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    {(bankAccounts || []).length > 0 ? (
+                                        <>
+                                            <Select value={newAccountId} onValueChange={setNewAccountId}>
+                                                <SelectTrigger className={NB.select}>
+                                                    <SelectValue placeholder="Pilih akun bank..." />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {(bankAccounts || []).map((a) => (
+                                                        <SelectItem key={a.id} value={a.id}>
+                                                            <span className="font-mono text-zinc-500 mr-1.5">{a.code}</span>
+                                                            <span className="font-bold">{a.name}</span>
+                                                            <span className="ml-2 text-zinc-400 text-[10px]">Saldo: Rp {a.balance.toLocaleString("id-ID")}</span>
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            {/* Selected account balance preview */}
+                                            {newAccountId && (() => {
+                                                const acct = (bankAccounts || []).find((a) => a.id === newAccountId)
+                                                return acct ? (
+                                                    <div className="mt-1.5 flex items-center gap-2 text-[10px]">
+                                                        <span className="font-mono text-zinc-400">{acct.code}</span>
+                                                        <span className="font-bold text-zinc-600">{acct.name}</span>
+                                                        <span className="ml-auto font-mono font-bold text-emerald-600">Rp {acct.balance.toLocaleString("id-ID")}</span>
+                                                    </div>
+                                                ) : null
+                                            })()}
+                                        </>
+                                    ) : (
+                                        <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 p-4 text-center space-y-2">
+                                            <Landmark className="h-5 w-5 text-zinc-300 mx-auto" />
+                                            <p className="text-[11px] text-zinc-400 font-bold">Belum ada akun bank</p>
+                                            <p className="text-[10px] text-zinc-400">Tambahkan akun bank terlebih dahulu sebelum membuat rekonsiliasi</p>
+                                            <Button
+                                                variant="outline"
+                                                className="border-2 border-black text-[10px] font-black uppercase h-7 px-3 rounded-none"
+                                                onClick={() => { setCreateOpen(false); setAddBankOpen(true) }}
+                                            >
+                                                <Plus className="h-3 w-3 mr-1" /> Tambah Akun Bank
+                                            </Button>
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label className={NB.label}>Tanggal Statement <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.input} type="date" value={newStatementDate} onChange={(e) => setNewStatementDate(e.target.value)} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
+
+                                {/* Dates */}
+                                <div className="space-y-3">
                                     <div>
-                                        <label className={NB.label}>Periode Awal <span className={NB.labelRequired}>*</span></label>
-                                        <Input className={NB.input} type="date" value={newPeriodStart} onChange={(e) => setNewPeriodStart(e.target.value)} />
+                                        <label className={NB.label}>Tanggal Statement <span className={NB.labelRequired}>*</span></label>
+                                        <Input className={NB.input} type="date" value={newStatementDate} onChange={(e) => setNewStatementDate(e.target.value)} />
+                                        <p className="text-[9px] text-zinc-400 mt-0.5">Tanggal cetak/download mutasi bank</p>
                                     </div>
-                                    <div>
-                                        <label className={NB.label}>Periode Akhir <span className={NB.labelRequired}>*</span></label>
-                                        <Input className={NB.input} type="date" value={newPeriodEnd} onChange={(e) => setNewPeriodEnd(e.target.value)} />
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className={NB.label}>Periode Awal <span className={NB.labelRequired}>*</span></label>
+                                            <Input className={NB.input} type="date" value={newPeriodStart} onChange={(e) => setNewPeriodStart(e.target.value)} />
+                                        </div>
+                                        <div>
+                                            <label className={NB.label}>Periode Akhir <span className={NB.labelRequired}>*</span></label>
+                                            <Input className={NB.input} type="date" value={newPeriodEnd} onChange={(e) => setNewPeriodEnd(e.target.value)} />
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Balance */}
                                 <div>
                                     <label className={NB.label}>Saldo Akhir Bank Statement (Rp)</label>
                                     <Input className={NB.inputMono} type="number" placeholder="0" value={newBankStatementBalance} onChange={(e) => setNewBankStatementBalance(e.target.value)} />
+                                    <p className="text-[9px] text-zinc-400 mt-0.5">Saldo terakhir di mutasi bank (untuk pencocokan)</p>
                                 </div>
+
                                 <div className={NB.footer}>
                                     <Button variant="outline" className={NB.cancelBtn} onClick={() => setCreateOpen(false)}>Batal</Button>
-                                    <Button className={NB.submitBtn} disabled={loading} onClick={handleCreate}>
+                                    <Button
+                                        className={NB.submitBtn}
+                                        disabled={loading || !newAccountId || (bankAccounts || []).length === 0}
+                                        onClick={handleCreate}
+                                    >
                                         {loading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Membuat...</> : "Buat Rekonsiliasi"}
                                     </Button>
                                 </div>

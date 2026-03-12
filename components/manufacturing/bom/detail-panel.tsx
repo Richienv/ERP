@@ -69,6 +69,7 @@ interface DetailPanelProps {
     totalQty: number
     allItems: any[]
     allStations?: any[]
+    usedStationIds?: string[]
     onUpdateStep: (field: string, value: any) => void
     onChangeStation?: (stationId: string, station: any) => void
     onUpdateAllocations: (allocations: any[]) => void
@@ -79,6 +80,7 @@ interface DetailPanelProps {
 
 export function DetailPanel({
     step, totalQty, allItems, allStations,
+    usedStationIds = [],
     onUpdateStep, onChangeStation, onUpdateAllocations,
     onUploadAttachment, onDeleteAttachment,
     onToggleSubkon,
@@ -123,6 +125,13 @@ export function DetailPanel({
     const sameTypeStations = (allStations || []).filter((s: any) =>
         s.stationType === step.station?.stationType &&
         s.operationType !== "SUBCONTRACTOR" &&
+        s.isActive !== false &&
+        !usedStationIds.includes(s.id)
+    )
+
+    // All subkon stations for the "Tipe Proses" dropdown
+    const subkonProcessStations = (allStations || []).filter((s: any) =>
+        s.operationType === "SUBCONTRACTOR" &&
         s.isActive !== false
     )
 
@@ -186,7 +195,7 @@ export function DetailPanel({
 
             {/* ── BODY — hidden when collapsed ── */}
             {!collapsed && (
-                <div className={`overflow-y-auto px-5 py-4 space-y-4 ${expanded ? "flex-1" : "max-h-[420px]"}`}>
+                <div className={`overflow-y-auto px-5 py-4 space-y-4 ${expanded ? "flex-1" : "max-h-[520px]"}`}>
 
                     {/* ROW 1: 2-column grid — Config | Allocation + Attachments stacked */}
                     <div className="grid grid-cols-2 gap-4 items-stretch">
@@ -225,7 +234,7 @@ export function DetailPanel({
                                     </div>
                                 )}
 
-                                {/* Tipe Proses — subkon only */}
+                                {/* Tipe Proses — subkon only, shows all subkon stations from DB */}
                                 {isSubkon && (
                                     <div>
                                         <FieldLabel icon={<Cog className="h-3 w-3" />}>Tipe Proses</FieldLabel>
@@ -238,19 +247,9 @@ export function DetailPanel({
                                             </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="__none__" className="text-xs text-zinc-400">— Pilih tipe —</SelectItem>
-                                                {[
-                                                    { value: "CUTTING", label: "Potong" },
-                                                    { value: "SEWING", label: "Jahit" },
-                                                    { value: "WASHING", label: "Cuci" },
-                                                    { value: "PRINTING", label: "Sablon" },
-                                                    { value: "EMBROIDERY", label: "Bordir" },
-                                                    { value: "QC", label: "Quality Control" },
-                                                    { value: "PACKING", label: "Packing" },
-                                                    { value: "FINISHING", label: "Finishing" },
-                                                    { value: "OTHER", label: "Lainnya" },
-                                                ].map((opt) => (
-                                                    <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                                                        {opt.label}
+                                                {subkonProcessStations.map((s: any) => (
+                                                    <SelectItem key={s.id} value={s.stationType || s.id} className="text-xs">
+                                                        {s.name} {s.code ? `(${s.code})` : ""}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>

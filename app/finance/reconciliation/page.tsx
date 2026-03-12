@@ -26,8 +26,8 @@ export default function ReconciliationPage() {
     return (
         <div className="mf-page">
             <BankReconciliationView
-                reconciliations={data.reconciliations}
-                bankAccounts={data.bankAccounts}
+                reconciliations={data.reconciliations ?? []}
+                bankAccounts={data.bankAccounts ?? []}
                 onCreateReconciliation={createReconciliation}
                 onImportRows={importBankStatementRows}
                 onAutoMatch={autoMatchReconciliation}

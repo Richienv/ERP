@@ -93,6 +93,9 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                                     {station.stationType}
                                 </span>
                             )}
+                            {wcCode && (
+                                <span className="text-[7px] font-mono text-zinc-400">{wcCode}</span>
+                            )}
                         </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -127,13 +130,13 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                 </div>
             </div>
 
-            {/* ── Info strip: WC code, operator, subkon name ── */}
+            {/* ── Info strip: group, operator, subkon name ── */}
             <div className="px-3 py-1.5 bg-zinc-50 border-b border-zinc-200 space-y-0.5">
-                {/* Work center with code */}
+                {/* Work center group */}
                 <div className="flex items-center gap-1.5">
                     <Building2 className="h-3 w-3 text-zinc-400 shrink-0" />
-                    <span className="text-[9px] font-bold text-zinc-600 truncate">
-                        {wcName}{wcCode ? ` (${wcCode})` : ""}
+                    <span className={`text-[9px] font-bold truncate ${data.groupName ? "text-zinc-600" : "text-orange-500"}`}>
+                        {data.groupName || "Belum di-assign ke group"}
                     </span>
                 </div>
                 {/* Subkon vendor name */}
@@ -157,13 +160,6 @@ function StationNodeComponent({ data }: NodeProps & { data: StationNodeData }) {
                     <div className="flex items-center gap-1.5">
                         <User className="h-3 w-3 text-zinc-400 shrink-0" />
                         <span className="text-[9px] font-bold text-zinc-600 truncate">{data.operatorName}</span>
-                    </div>
-                )}
-                {/* Work center group */}
-                {data.groupName && (
-                    <div className="flex items-center gap-1.5">
-                        <Cog className="h-3 w-3 text-zinc-400 shrink-0" />
-                        <span className="text-[9px] font-bold text-zinc-500 truncate">Grup: {data.groupName}</span>
                     </div>
                 )}
             </div>

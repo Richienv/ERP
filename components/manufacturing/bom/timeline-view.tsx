@@ -162,6 +162,9 @@ export function TimelineView({
 }: TimelineViewProps) {
     const { bars, totalMinutes, totalRows, rowLabels } = useMemo(() => scheduleByStation(steps, totalQty), [steps, totalQty])
 
+    // Per-piece total: sum of all step durations without multiplying by qty
+    const totalPerPcsMinutes = useMemo(() => bars.reduce((sum, b) => sum + b.durationPerPcs, 0), [bars])
+
     const ticks = useMemo(() => generateTicks(totalMinutes), [totalMinutes])
     const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -277,6 +280,11 @@ export function TimelineView({
                     <Clock className="h-3.5 w-3.5 text-indigo-500" />
                     <span className="text-[9px] font-black uppercase text-zinc-400">Total Waktu:</span>
                     <span className="text-xs font-black text-indigo-700">{fmtDuration(totalMinutes)}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-violet-400" />
+                    <span className="text-[9px] font-black uppercase text-zinc-400">Waktu/pcs:</span>
+                    <span className="text-xs font-black text-violet-600">{fmtDuration(totalPerPcsMinutes)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <Building2 className="h-3.5 w-3.5 text-blue-500" />
