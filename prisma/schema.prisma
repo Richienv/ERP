@@ -3358,6 +3358,22 @@ model CashflowSnapshot {
   @@map("cashflow_snapshots")
 }
 
+model CashflowScenario {
+  id        String   @id @default(cuid())
+  name      String
+  month     Int
+  year      Int
+  config    Json     @default("{}")
+  totalIn   Decimal  @default(0)  @db.Decimal(20, 2)
+  totalOut  Decimal  @default(0)  @db.Decimal(20, 2)
+  netFlow   Decimal  @default(0)  @db.Decimal(20, 2)
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([month, year])
+}
+
 model AuditLog {
   id          String   @id @default(cuid())
   entityType  String   // "JournalEntry", "Invoice", "Payment", "Product", etc.
