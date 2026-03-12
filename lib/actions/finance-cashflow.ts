@@ -2,7 +2,7 @@
 
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import type { CashflowDirection, CashflowCategory } from "@prisma/client"
+import type { CashflowDirection, CashflowCategory, ProcurementStatus } from "@prisma/client"
 
 // ================================
 // Types
@@ -160,10 +160,13 @@ async function getAPItems(monthStart: Date, monthEnd: Date): Promise<CashflowIte
 // Auto-pull source #3: PO Direct (approved/ordered but not yet billed)
 // ================================
 
-async function getPOItems(monthStart: Date, monthEnd: Date): Promise<CashflowItem[]> {
+async function getPOItems(monthStart: Date, monthEnd: Date, allStatuses: boolean = false): Promise<CashflowItem[]> {
+    const statusFilter: ProcurementStatus[] = allStatuses
+        ? ["PO_DRAFT", "PENDING_APPROVAL", "APPROVED", "ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED", "RECEIVED"]
+        : ["APPROVED", "ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"]
     const pos = await prisma.purchaseOrder.findMany({
         where: {
-            status: { in: ["APPROVED", "ORDERED", "VENDOR_CONFIRMED", "SHIPPED", "PARTIAL_RECEIVED"] },
+            status: { in: statusFilter },
             paymentStatus: { not: "PAID" },
             invoices: { none: {} }, // No invoice yet = not yet billed
             OR: [
@@ -601,10 +604,40 @@ async function getActualTransactions(monthStart: Date, monthEnd: Date): Promise<
 }
 
 // ================================
+// Auto-pull source: Sales Orders (for allStatuses mode)
+// ================================
+
+async function getSOItems(monthStart: Date, monthEnd: Date): Promise<CashflowItem[]> {
+    const orders = await prisma.salesOrder.findMany({
+        where: {
+            status: { notIn: ["CANCELLED"] },
+            OR: [
+                { requestedDate: { gte: monthStart, lte: monthEnd } },
+                { requestedDate: null, orderDate: { gte: monthStart, lte: monthEnd } },
+            ],
+        },
+        include: { customer: { select: { name: true } } },
+    })
+
+    return orders.map((so) => ({
+        id: `so-${so.id}`,
+        date: toDateStr(so.requestedDate || so.orderDate),
+        description: `SO ${so.number} — ${so.customer?.name || "Pelanggan"}`,
+        amount: toNum(so.total),
+        direction: "IN" as const,
+        category: "SO_ORDER",
+        glAccountCode: "1100",
+        sourceId: so.id,
+        isRecurring: false,
+        isManual: false,
+    }))
+}
+
+// ================================
 // Exported: Main data fetcher
 // ================================
 
-export async function getCashflowPlanData(month: number, year: number): Promise<CashflowPlanData> {
+export async function getCashflowPlanData(month: number, year: number, allStatuses: boolean = false): Promise<CashflowPlanData> {
     await requireAuth()
 
     const monthStart = new Date(year, month - 1, 1)
@@ -634,6 +667,7 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
         loanDisbursementItems,
         loanRepaymentItems,
         woCostItems,
+        soItems,
         manualDbItems,
         startingBalance,
         snapshot,
@@ -642,7 +676,7 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
     ] = await Promise.all([
         safe(getARItems(monthStart, monthEnd), []),
         safe(getAPItems(monthStart, monthEnd), []),
-        safe(getPOItems(monthStart, monthEnd), []),
+        safe(getPOItems(monthStart, monthEnd, allStatuses), []),
         safe(getPayrollItems(month, year), []),
         safe(getBPJSItems(month, year), []),
         safe(getPettyCashItems(monthStart, monthEnd), []),
@@ -653,6 +687,7 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
         safe(getLoanDisbursementItems(monthStart, monthEnd), []),
         safe(getLoanRepaymentItems(monthStart, monthEnd), []),
         safe(getWOCostItems(monthStart, monthEnd), []),
+        allStatuses ? safe(getSOItems(monthStart, monthEnd), []) : Promise.resolve([] as CashflowItem[]),
         prisma.cashflowPlanItem.findMany({
             where: {
                 date: { gte: monthStart, lte: monthEnd },
@@ -689,6 +724,7 @@ export async function getCashflowPlanData(month: number, year: number): Promise<
         ...arItems,
         ...apItems,
         ...poItems,
+        ...soItems,
         ...payrollItems,
         ...bpjsItems,
         ...pettyCashItems,
@@ -1350,5 +1386,342 @@ export async function getUpcomingObligations(days: number = 90): Promise<Upcomin
             itemCount: allItems.length,
         },
         periodLabel: `${days} hari ke depan`,
+    }
+}
+
+// ================================
+// Scenario CRUD
+// ================================
+
+export interface ScenarioConfig {
+    disabledSources: string[]
+    items: Record<string, { enabled: boolean; overrideAmount: number | null }>
+}
+
+export interface CashflowScenarioSummary {
+    id: string
+    name: string
+    month: number
+    year: number
+    totalIn: number
+    totalOut: number
+    netFlow: number
+    updatedAt: Date
+}
+
+export interface CashflowScenarioFull extends CashflowScenarioSummary {
+    config: ScenarioConfig
+}
+
+export async function getCashflowScenarios(month: number, year: number): Promise<CashflowScenarioSummary[]> {
+    await requireAuth()
+
+    const scenarios = await prisma.cashflowScenario.findMany({
+        where: { month, year },
+        orderBy: { updatedAt: "desc" },
+    })
+
+    return scenarios.map((s) => ({
+        id: s.id,
+        name: s.name,
+        month: s.month,
+        year: s.year,
+        totalIn: toNum(s.totalIn),
+        totalOut: toNum(s.totalOut),
+        netFlow: toNum(s.netFlow),
+        updatedAt: s.updatedAt,
+    }))
+}
+
+export async function getCashflowScenario(id: string): Promise<CashflowScenarioFull | null> {
+    await requireAuth()
+
+    const s = await prisma.cashflowScenario.findUnique({ where: { id } })
+    if (!s) return null
+
+    return {
+        id: s.id,
+        name: s.name,
+        month: s.month,
+        year: s.year,
+        totalIn: toNum(s.totalIn),
+        totalOut: toNum(s.totalOut),
+        netFlow: toNum(s.netFlow),
+        updatedAt: s.updatedAt,
+        config: (s.config as unknown as ScenarioConfig) || { disabledSources: [], items: {} },
+    }
+}
+
+export async function createCashflowScenario(
+    name: string,
+    month: number,
+    year: number
+): Promise<{ id: string }> {
+    return withPrismaAuth(async (tx) => {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        const scenario = await tx.cashflowScenario.create({
+            data: {
+                name,
+                month,
+                year,
+                config: { disabledSources: [], items: {} },
+                createdBy: user?.id || null,
+            },
+        })
+
+        return { id: scenario.id }
+    })
+}
+
+export async function updateCashflowScenario(
+    id: string,
+    data: {
+        name?: string
+        config?: ScenarioConfig
+        totalIn?: number
+        totalOut?: number
+        netFlow?: number
+    }
+): Promise<{ id: string }> {
+    return withPrismaAuth(async (tx) => {
+        const updateData: Record<string, unknown> = {}
+
+        if (data.name !== undefined) updateData.name = data.name
+        if (data.config !== undefined) updateData.config = data.config
+        if (data.totalIn !== undefined) updateData.totalIn = data.totalIn
+        if (data.totalOut !== undefined) updateData.totalOut = data.totalOut
+        if (data.netFlow !== undefined) updateData.netFlow = data.netFlow
+
+        const scenario = await tx.cashflowScenario.update({
+            where: { id },
+            data: updateData,
+        })
+
+        return { id: scenario.id }
+    })
+}
+
+export async function deleteCashflowScenario(id: string): Promise<{ success: boolean }> {
+    return withPrismaAuth(async (tx) => {
+        await tx.cashflowScenario.delete({ where: { id } })
+        return { success: true }
+    })
+}
+
+// ================================
+// Actual Cashflow Data
+// ================================
+
+export interface ActualCashflowItem {
+    id: string
+    date: string
+    description: string
+    amount: number
+    totalAmount: number | null // for partial payments
+    direction: "IN" | "OUT"
+    category: string
+    source: string
+    status: "LUNAS" | "SEBAGIAN"
+    paidPercentage: number
+    glAccountCode: string | null
+    glAccountName: string | null
+}
+
+export interface CashflowActualData {
+    actualItems: ActualCashflowItem[]
+    startingBalance: number
+    summary: { totalIn: number; totalOut: number; net: number; endBalance: number }
+    lastMonthRef: { totalIn: number; totalOut: number; net: number; count: number } | null
+}
+
+function categorizeJournalEntry(
+    je: { description: string },
+    line: { debit: unknown; credit: unknown }
+): string {
+    const desc = (je.description || "").toLowerCase()
+    if (desc.includes("gaji") || desc.includes("payroll")) return "PAYROLL"
+    if (desc.includes("bpjs")) return "BPJS"
+    if (desc.includes("kas kecil") || desc.includes("petty")) return "PETTY_CASH"
+    if (desc.includes("pinjaman") || desc.includes("loan")) return "LOAN_REPAYMENT"
+    if (desc.includes("modal") || desc.includes("capital")) return "FUNDING_CAPITAL"
+    // Default: debit = outgoing (AP), credit = incoming (AR)
+    return toNum(line.debit) > 0 ? "AP_BILL" : "AR_INVOICE"
+}
+
+export async function getCashflowActualData(month: number, year: number): Promise<CashflowActualData> {
+    await requireAuth()
+
+    const monthStart = new Date(year, month - 1, 1)
+    const monthEnd = new Date(year, month, 0)
+
+    const safe = <T,>(p: Promise<T>, fallback: T): Promise<T> =>
+        p.catch(() => fallback)
+
+    // 1. POSTED journal entries — only bank/cash account lines (code starts with "10" or "11")
+    const journalEntries = await safe(
+        prisma.journalEntry.findMany({
+            where: {
+                status: "POSTED",
+                date: { gte: monthStart, lte: monthEnd },
+            },
+            include: {
+                lines: {
+                    where: {
+                        account: {
+                            OR: [
+                                { code: { startsWith: "10" } },
+                                { code: { startsWith: "11" } },
+                            ],
+                        },
+                    },
+                    include: { account: { select: { code: true, name: true } } },
+                },
+                invoice: { select: { number: true } },
+                payment: { select: { number: true, method: true } },
+            },
+        }),
+        []
+    )
+
+    const jeItems: ActualCashflowItem[] = []
+    for (const je of journalEntries) {
+        for (const line of je.lines) {
+            const debitAmt = toNum(line.debit)
+            const creditAmt = toNum(line.credit)
+            if (debitAmt === 0 && creditAmt === 0) continue
+
+            const direction: "IN" | "OUT" = debitAmt > 0 ? "IN" : "OUT"
+            const amount = debitAmt > 0 ? debitAmt : creditAmt
+            const category = categorizeJournalEntry(je, line)
+
+            let desc = je.description
+            if (je.invoice) desc += ` (${je.invoice.number})`
+            if (je.payment) desc += ` [${je.payment.number}]`
+
+            jeItems.push({
+                id: `actual-je-${je.id}-${line.id}`,
+                date: toDateStr(je.date),
+                description: desc,
+                amount,
+                totalAmount: null,
+                direction,
+                category,
+                source: "JOURNAL",
+                status: "LUNAS",
+                paidPercentage: 100,
+                glAccountCode: line.account?.code || null,
+                glAccountName: line.account?.name || null,
+            })
+        }
+    }
+
+    // 2. PARTIAL AR invoices (type INV_OUT, status PARTIAL)
+    const partialAR = await safe(
+        prisma.invoice.findMany({
+            where: {
+                type: "INV_OUT",
+                status: "PARTIAL",
+                dueDate: { gte: monthStart, lte: monthEnd },
+            },
+            include: { customer: { select: { name: true } } },
+        }),
+        []
+    )
+
+    const arPartialItems: ActualCashflowItem[] = partialAR.map((inv) => {
+        const total = toNum(inv.totalAmount)
+        const due = toNum(inv.balanceDue)
+        const paid = total - due
+        const pct = total > 0 ? Math.round((paid / total) * 100) : 0
+
+        return {
+            id: `actual-ar-partial-${inv.id}`,
+            date: toDateStr(inv.dueDate),
+            description: `Piutang ${inv.number} — ${inv.customer?.name || "Pelanggan"} (sebagian)`,
+            amount: paid,
+            totalAmount: total,
+            direction: "IN" as const,
+            category: "AR_INVOICE",
+            source: "INVOICE_PARTIAL",
+            status: "SEBAGIAN" as const,
+            paidPercentage: pct,
+            glAccountCode: "1100",
+            glAccountName: "Piutang Usaha",
+        }
+    })
+
+    // 3. PARTIAL AP bills (type INV_IN, status PARTIAL)
+    const partialAP = await safe(
+        prisma.invoice.findMany({
+            where: {
+                type: "INV_IN",
+                status: "PARTIAL",
+                dueDate: { gte: monthStart, lte: monthEnd },
+            },
+            include: { supplier: { select: { name: true } } },
+        }),
+        []
+    )
+
+    const apPartialItems: ActualCashflowItem[] = partialAP.map((inv) => {
+        const total = toNum(inv.totalAmount)
+        const due = toNum(inv.balanceDue)
+        const paid = total - due
+        const pct = total > 0 ? Math.round((paid / total) * 100) : 0
+
+        return {
+            id: `actual-ap-partial-${inv.id}`,
+            date: toDateStr(inv.dueDate),
+            description: `Hutang ${inv.number} — ${inv.supplier?.name || "Pemasok"} (sebagian)`,
+            amount: paid,
+            totalAmount: total,
+            direction: "OUT" as const,
+            category: "AP_BILL",
+            source: "INVOICE_PARTIAL",
+            status: "SEBAGIAN" as const,
+            paidPercentage: pct,
+            glAccountCode: "2100",
+            glAccountName: "Hutang Usaha",
+        }
+    })
+
+    // 4. Starting balance
+    const startingBalance = await safe(getStartingBalance(), 0)
+
+    // 5. Combine all actual items
+    const actualItems = [...jeItems, ...arPartialItems, ...apPartialItems]
+        .sort((a, b) => a.date.localeCompare(b.date))
+
+    // 6. Summary
+    const totalIn = actualItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
+    const totalOut = actualItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
+    const net = totalIn - totalOut
+    const endBalance = startingBalance + net
+
+    // 7. Last month reference
+    const lastMonth = month === 1 ? 12 : month - 1
+    const lastYear = month === 1 ? year - 1 : year
+    const lastMonthStart = new Date(lastYear, lastMonth - 1, 1)
+    const lastMonthEnd = new Date(lastYear, lastMonth, 0)
+    const lastMonthActuals = await safe(getActualTransactions(lastMonthStart, lastMonthEnd), [])
+
+    const lastMonthRef = lastMonthActuals.length > 0 ? {
+        totalIn: lastMonthActuals.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0),
+        totalOut: lastMonthActuals.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0),
+        net: 0,
+        count: lastMonthActuals.length,
+    } : null
+
+    if (lastMonthRef) {
+        lastMonthRef.net = lastMonthRef.totalIn - lastMonthRef.totalOut
+    }
+
+    return {
+        actualItems,
+        startingBalance,
+        summary: { totalIn, totalOut, net, endBalance },
+        lastMonthRef,
     }
 }
