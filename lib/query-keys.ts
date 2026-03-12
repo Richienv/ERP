@@ -384,6 +384,15 @@ export const queryKeys = {
         all: ["cashflowAccuracy"] as const,
         trend: (months?: number) => [...queryKeys.cashflowAccuracy.all, "trend", months] as const,
     },
+    cashflowScenarios: {
+        all: ["cashflowScenarios"] as const,
+        list: (month: number, year: number) => [...["cashflowScenarios"], "list", month, year] as const,
+        detail: (id: string) => [...["cashflowScenarios"], "detail", id] as const,
+    },
+    cashflowActual: {
+        all: ["cashflowActual"] as const,
+        list: (month: number, year: number) => [...["cashflowActual"], "list", month, year] as const,
+    },
     warehouseLocations: {
         all: ["warehouseLocations"] as const,
         list: (warehouseId: string) => ["warehouseLocations", "list", warehouseId] as const,

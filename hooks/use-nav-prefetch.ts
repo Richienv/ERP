@@ -306,7 +306,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/sales": {
         queryKey: queryKeys.salesPage.list(),
-        queryFn: () => fetch("/api/sales/page-data").then((r) => r.json()).then((p) => p.data),
+        queryFn: () => fetch("/api/sales/page-data").then((r) => r.json()).then((p) => p.data ?? {}),
     },
     "/staff": {
         queryKey: queryKeys.staffTasks.list(),
@@ -487,6 +487,24 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
             const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}`)
+            return res.json()
+        },
+    },
+    "/finance/planning/simulasi": {
+        queryKey: [...queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()), true],
+        queryFn: async () => {
+            const m = new Date().getMonth() + 1
+            const y = new Date().getFullYear()
+            const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}&allStatuses=true`)
+            return res.json()
+        },
+    },
+    "/finance/planning/aktual": {
+        queryKey: queryKeys.cashflowActual.list(new Date().getMonth() + 1, new Date().getFullYear()),
+        queryFn: async () => {
+            const m = new Date().getMonth() + 1
+            const y = new Date().getFullYear()
+            const res = await fetch(`/api/finance/cashflow-actual?month=${m}&year=${y}`)
             return res.json()
         },
     },

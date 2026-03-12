@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getCashflowPlanData } from "@/lib/actions/finance-cashflow"
+import { getCashflowActualData } from "@/lib/actions/finance-cashflow"
 
 export async function GET(req: NextRequest) {
     try {
@@ -11,8 +11,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ success: false, error: "Invalid month/year" }, { status: 400 })
         }
 
-        const allStatuses = searchParams.get("allStatuses") === "true"
-        const data = await getCashflowPlanData(month, year, allStatuses)
+        const data = await getCashflowActualData(month, year)
         return NextResponse.json({ success: true, ...data })
     } catch (err) {
         const message = err instanceof Error ? err.message : "Internal error"

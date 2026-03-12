@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import type { CashflowPlanData, AccuracyTrendMonth } from "@/lib/actions/finance-cashflow"
 
-export function useCashflowPlan(month: number, year: number) {
+export function useCashflowPlan(month: number, year: number, allStatuses: boolean = false) {
     return useQuery<CashflowPlanData>({
-        queryKey: queryKeys.cashflowPlan.list(month, year),
+        queryKey: [...queryKeys.cashflowPlan.list(month, year), allStatuses],
         queryFn: async () => {
-            const res = await fetch(`/api/finance/cashflow-plan?month=${month}&year=${year}`)
+            const res = await fetch(`/api/finance/cashflow-plan?month=${month}&year=${year}&allStatuses=${allStatuses}`)
             if (!res.ok) throw new Error("Failed to fetch cashflow plan")
             const json = await res.json()
             return json as CashflowPlanData
