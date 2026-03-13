@@ -1,17 +1,16 @@
 "use client"
 
 import { useState } from "react"
-import { Plus } from "lucide-react"
+import { Plus, FileText, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select"
 import {
-    Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+    Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog"
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -22,6 +21,7 @@ import { toast } from "sonner"
 import { useCreditDebitNotes } from "@/hooks/use-credit-debit-notes"
 import { createDebitNote } from "@/lib/actions/finance"
 import { useQueryClient } from "@tanstack/react-query"
+import { NB } from "@/lib/dialog-styles"
 
 const REASON_CODES = [
     { code: "RET-DEFECT", label: "Barang Cacat/Rusak" },
@@ -178,18 +178,20 @@ export function NotaDebitTab() {
 
             {/* Create Dialog */}
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
-                <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle className="font-black text-lg uppercase tracking-wider">Buat Nota Debit</DialogTitle>
-                        <DialogDescription>Buat nota debit untuk koreksi tagihan supplier atau retur barang</DialogDescription>
+                <DialogContent className={NB.contentNarrow}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}>
+                            <FileText className="h-5 w-5" /> Buat Nota Debit
+                        </DialogTitle>
+                        <p className={NB.subtitle}>Koreksi tagihan supplier atau retur barang</p>
                     </DialogHeader>
 
-                    <div className="space-y-4 mt-2">
+                    <div className="space-y-4 px-6 py-5">
                         {/* Supplier */}
                         <div>
-                            <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Supplier *</Label>
+                            <label className={NB.label}>Supplier <span className={NB.labelRequired}>*</span></label>
                             <Select value={form.supplierId} onValueChange={(v) => setForm(f => ({ ...f, supplierId: v }))}>
-                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                <SelectTrigger className={NB.select}>
                                     <SelectValue placeholder="Pilih supplier..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -202,9 +204,9 @@ export function NotaDebitTab() {
 
                         {/* Reason */}
                         <div>
-                            <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Alasan *</Label>
+                            <label className={NB.label}>Alasan <span className={NB.labelRequired}>*</span></label>
                             <Select value={form.reason} onValueChange={(v) => setForm(f => ({ ...f, reason: v }))}>
-                                <SelectTrigger className="border-2 border-black h-10 font-medium">
+                                <SelectTrigger className={NB.select}>
                                     <SelectValue placeholder="Pilih alasan..." />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -217,14 +219,17 @@ export function NotaDebitTab() {
 
                         {/* Amount */}
                         <div>
-                            <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Jumlah (sebelum PPN) *</Label>
-                            <Input
-                                type="number"
-                                value={form.amount}
-                                onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
-                                placeholder="0"
-                                className="border-2 border-black h-10 font-mono font-bold"
-                            />
+                            <label className={NB.label}>Jumlah (sebelum PPN) <span className={NB.labelRequired}>*</span></label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
+                                <Input
+                                    type="number"
+                                    value={form.amount}
+                                    onChange={(e) => setForm(f => ({ ...f, amount: e.target.value }))}
+                                    placeholder="0"
+                                    className={`${NB.inputMono} pl-9`}
+                                />
+                            </div>
                         </div>
 
                         {/* PPN */}
@@ -243,7 +248,7 @@ export function NotaDebitTab() {
                         {/* GL Preview */}
                         {subtotal > 0 && (
                             <div className="bg-zinc-50 border-2 border-black p-3">
-                                <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Preview Jurnal</p>
+                                <p className={NB.label}>Preview Jurnal</p>
                                 <div className="space-y-1 text-xs font-mono">
                                     <div className="flex justify-between"><span>DR 2100 Hutang Usaha</span><span className="font-bold">{formatIDR(total)}</span></div>
                                     <div className="flex justify-between text-zinc-500"><span>CR 5000 HPP</span><span>{formatIDR(subtotal)}</span></div>
@@ -257,38 +262,38 @@ export function NotaDebitTab() {
 
                         {/* Notes */}
                         <div>
-                            <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Catatan</Label>
+                            <label className={NB.label}>Catatan</label>
                             <Textarea
                                 value={form.notes}
                                 onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))}
                                 placeholder="Keterangan tambahan..."
-                                className="border-2 border-black text-sm"
+                                className={NB.textarea}
                                 rows={2}
                             />
                         </div>
 
                         {/* Date */}
                         <div>
-                            <Label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Tanggal</Label>
+                            <label className={NB.label}>Tanggal</label>
                             <Input
                                 type="date"
                                 value={form.date}
                                 onChange={(e) => setForm(f => ({ ...f, date: e.target.value }))}
-                                className="border-2 border-black h-10 font-medium"
+                                className={NB.input}
                             />
                         </div>
                     </div>
 
-                    <div className="flex gap-2 mt-4 justify-end">
-                        <Button variant="outline" onClick={() => setShowDialog(false)} className="border-2 border-black font-bold text-xs">
+                    <div className={`${NB.footer} px-6 pb-5`}>
+                        <Button variant="outline" onClick={() => setShowDialog(false)} className={NB.cancelBtn}>
                             Batal
                         </Button>
                         <Button
                             onClick={handleSubmit}
                             disabled={submitting}
-                            className="bg-black text-white font-bold text-xs border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-none"
+                            className={NB.submitBtn}
                         >
-                            {submitting ? "Menyimpan..." : "Simpan & Posting"}
+                            {submitting ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Menyimpan...</> : "Simpan & Posting"}
                         </Button>
                     </div>
                 </DialogContent>
