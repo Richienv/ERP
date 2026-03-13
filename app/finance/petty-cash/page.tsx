@@ -13,6 +13,7 @@ import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobo
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { Wallet, ArrowUpCircle, ArrowDownCircle, Plus, Minus, Loader2, RefreshCcw } from "lucide-react"
+import { NB } from "@/lib/dialog-styles"
 
 export const dynamic = "force-dynamic"
 
@@ -185,27 +186,30 @@ function TopUpDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenC
 
     return (
         <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (v) loadBanks() }}>
-            <DialogContent className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none max-w-md p-0 bg-white">
-                <div className="bg-emerald-600 text-white px-6 py-4 border-b-2 border-black">
+            <DialogContent className={NB.contentNarrow}>
+                <div className={NB.header}>
                     <DialogHeader>
-                        <DialogTitle className="font-black uppercase tracking-tight text-lg text-white flex items-center gap-2">
+                        <DialogTitle className={NB.title}>
                             <ArrowUpCircle className="h-5 w-5" /> Top Up Peti Kas
                         </DialogTitle>
                     </DialogHeader>
                 </div>
                 <div className="p-6 space-y-4">
                     <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Jumlah (IDR)</label>
-                        <Input
-                            type="number"
-                            placeholder="500000"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="border-2 border-black rounded-none h-10 font-mono font-bold w-full placeholder:text-zinc-400 placeholder:font-normal placeholder:font-sans"
-                        />
+                        <label className={NB.label}>Jumlah (IDR)</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
+                            <Input
+                                type="number"
+                                placeholder="500000"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                className={`${NB.inputMono} w-full pl-9`}
+                            />
+                        </div>
                     </div>
                     <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Dari Akun Bank</label>
+                        <label className={NB.label}>Dari Akun Bank</label>
                         <ComboboxWithCreate
                             options={banks.map(b => ({ value: b.code, label: b.name, subtitle: b.code }))}
                             value={bankCode}
@@ -231,17 +235,17 @@ function TopUpDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenC
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Keterangan</label>
+                        <label className={NB.label}>Keterangan</label>
                         <Input
                             placeholder="Top up bulanan..."
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="border-2 border-black rounded-none h-10 font-medium w-full placeholder:text-zinc-400 placeholder:font-normal"
+                            className={`${NB.input} w-full`}
                         />
                     </div>
                 </div>
-                <div className="flex gap-2 justify-end px-6 pb-6">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="border-2 border-black rounded-none font-black uppercase text-[10px] tracking-widest h-10 px-5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all">
+                <div className={`px-6 pb-6 ${NB.footer}`}>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className={NB.cancelBtn}>
                         Batal
                     </Button>
                     <Button
@@ -264,7 +268,7 @@ function TopUpDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOpenC
                                 setLoading(false)
                             }
                         }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white border-2 border-emerald-700 rounded-none font-black uppercase text-[10px] tracking-widest h-10 px-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all"
+                        className={NB.submitBtn}
                     >
                         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                         Top Up
@@ -298,36 +302,39 @@ function DisburseDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOp
 
     return (
         <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (v) loadExpenses() }}>
-            <DialogContent className="border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none max-w-md p-0 bg-white">
-                <div className="bg-black text-white px-6 py-4 border-b-2 border-black">
+            <DialogContent className={NB.contentNarrow}>
+                <div className={NB.header}>
                     <DialogHeader>
-                        <DialogTitle className="font-black uppercase tracking-tight text-lg text-white flex items-center gap-2">
+                        <DialogTitle className={NB.title}>
                             <ArrowDownCircle className="h-5 w-5 text-red-400" /> Catat Pengeluaran
                         </DialogTitle>
                     </DialogHeader>
                 </div>
                 <div className="p-6 space-y-4">
                     <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Nama Pemohon</label>
+                        <label className={NB.label}>Nama Pemohon</label>
                         <Input
-                            placeholder="Nama karyawan..."
+                            placeholder="Nama..."
                             value={recipientName}
                             onChange={(e) => setRecipientName(e.target.value)}
-                            className="border-2 border-black rounded-none h-10 font-bold w-full placeholder:text-zinc-400 placeholder:font-normal"
+                            className={`${NB.input} w-full`}
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Jumlah (IDR)</label>
-                        <Input
-                            type="number"
-                            placeholder="150000"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            className="border-2 border-black rounded-none h-10 font-mono font-bold w-full placeholder:text-zinc-400 placeholder:font-normal placeholder:font-sans"
-                        />
+                        <label className={NB.label}>Jumlah (IDR)</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
+                            <Input
+                                type="number"
+                                placeholder="150000"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                className={`${NB.inputMono} w-full pl-9`}
+                            />
+                        </div>
                     </div>
                     <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Kategori Beban</label>
+                        <label className={NB.label}>Kategori Beban</label>
                         <ComboboxWithCreate
                             options={expenses.map(e => ({ value: e.code, label: e.name, subtitle: e.code }))}
                             value={expenseCode}
@@ -362,17 +369,17 @@ function DisburseDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOp
                         />
                     </div>
                     <div>
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1.5 block">Keterangan</label>
+                        <label className={NB.label}>Keterangan</label>
                         <Input
-                            placeholder="Transport ke gudang Bandung..."
+                            placeholder="Keterangan..."
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
-                            className="border-2 border-black rounded-none h-10 font-medium w-full placeholder:text-zinc-400 placeholder:font-normal"
+                            className={`${NB.input} w-full`}
                         />
                     </div>
                 </div>
-                <div className="flex gap-2 justify-end px-6 pb-6">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} className="border-2 border-black rounded-none font-black uppercase text-[10px] tracking-widest h-10 px-5 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all">
+                <div className={`px-6 pb-6 ${NB.footer}`}>
+                    <Button variant="outline" onClick={() => onOpenChange(false)} className={NB.cancelBtn}>
                         Batal
                     </Button>
                     <Button
@@ -400,7 +407,7 @@ function DisburseDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOp
                                 setLoading(false)
                             }
                         }}
-                        className="bg-black text-white hover:bg-zinc-800 border-2 border-black rounded-none font-black uppercase text-[10px] tracking-widest h-10 px-6 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all"
+                        className={NB.submitBtn}
                     >
                         {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Minus className="h-4 w-4 mr-2" />}
                         Catat Pengeluaran
