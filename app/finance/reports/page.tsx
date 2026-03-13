@@ -20,18 +20,12 @@ import {
     PiggyBank,
     ChevronRight,
     ChevronDown,
+    ArrowRight,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { NB } from "@/lib/dialog-styles"
 import {
     Table,
     TableBody,
@@ -513,21 +507,29 @@ export default function FinancialReportsPage() {
                                     <CalendarIcon className="mr-2 h-3.5 w-3.5" /> Periode
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Pilih Rentang Tanggal</DialogTitle>
-                                    <DialogDescription>Atur periode laporan keuangan.</DialogDescription>
+                            <DialogContent className={NB.contentNarrow}>
+                                <DialogHeader className={NB.header}>
+                                    <DialogTitle className={NB.title}>
+                                        <CalendarIcon className="h-4 w-4" /> Pilih Rentang Tanggal
+                                    </DialogTitle>
+                                    <p className={NB.subtitle}>Atur periode laporan keuangan</p>
                                 </DialogHeader>
-                                <div className="space-y-3">
-                                    <div className="space-y-1.5">
-                                        <Label>Tanggal Mulai</Label>
-                                        <Input type="date" value={draftStartDate} onChange={(e) => setDraftStartDate(e.target.value)} />
+                                <div className="px-6 py-5 space-y-4">
+                                    <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                                        <div>
+                                            <label className={NB.label}>Dari</label>
+                                            <Input type="date" value={draftStartDate} onChange={(e) => setDraftStartDate(e.target.value)} className={NB.inputMono} />
+                                        </div>
+                                        <ArrowRight className="h-4 w-4 text-zinc-400 mb-2.5" />
+                                        <div>
+                                            <label className={NB.label}>Sampai</label>
+                                            <Input type="date" value={draftEndDate} onChange={(e) => setDraftEndDate(e.target.value)} className={NB.inputMono} />
+                                        </div>
                                     </div>
-                                    <div className="space-y-1.5">
-                                        <Label>Tanggal Akhir</Label>
-                                        <Input type="date" value={draftEndDate} onChange={(e) => setDraftEndDate(e.target.value)} />
+                                    <div className={NB.footer}>
+                                        <Button variant="outline" onClick={() => setDateDialogOpen(false)} className={NB.cancelBtn}>Batal</Button>
+                                        <Button onClick={applyDateRange} className={NB.submitBtn}>Terapkan</Button>
                                     </div>
-                                    <Button onClick={applyDateRange} className="w-full">Terapkan</Button>
                                 </div>
                             </DialogContent>
                         </Dialog>
@@ -537,23 +539,35 @@ export default function FinancialReportsPage() {
                                     <Download className="mr-2 h-3.5 w-3.5" /> Export
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Export Laporan</DialogTitle>
-                                    <DialogDescription>Unduh laporan dalam format CSV atau XLS.</DialogDescription>
+                            <DialogContent className={NB.contentNarrow}>
+                                <DialogHeader className={NB.header}>
+                                    <DialogTitle className={NB.title}>
+                                        <Download className="h-4 w-4" /> Export Laporan
+                                    </DialogTitle>
+                                    <p className={NB.subtitle}>Unduh laporan dalam format pilihan</p>
                                 </DialogHeader>
-                                <div className="space-y-3">
-                                    <div className="space-y-1.5">
-                                        <Label>Format</Label>
-                                        <Select value={exportFormat} onValueChange={(v) => setExportFormat(v as "CSV" | "XLS")}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="CSV">CSV</SelectItem>
-                                                <SelectItem value="XLS">XLS</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                <div className="px-6 py-5 space-y-4">
+                                    <div>
+                                        <label className={NB.label}>Format</label>
+                                        <div className="grid grid-cols-2 gap-3 mt-1">
+                                            <button type="button" onClick={() => setExportFormat("CSV")} className={`p-3 border-2 text-center transition-all ${
+                                                exportFormat === "CSV" ? "border-black bg-zinc-900 text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                                                    : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
+                                            }`}>
+                                                <span className="text-[9px] font-black uppercase tracking-widest">CSV</span>
+                                            </button>
+                                            <button type="button" onClick={() => setExportFormat("XLS")} className={`p-3 border-2 text-center transition-all ${
+                                                exportFormat === "XLS" ? "border-black bg-zinc-900 text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                                                    : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
+                                            }`}>
+                                                <span className="text-[9px] font-black uppercase tracking-widest">XLS</span>
+                                            </button>
+                                        </div>
                                     </div>
-                                    <Button onClick={exportReportPack} className="w-full">Download</Button>
+                                    <div className={NB.footer}>
+                                        <Button variant="outline" onClick={() => setExportDialogOpen(false)} className={NB.cancelBtn}>Batal</Button>
+                                        <Button onClick={exportReportPack} className={NB.submitBtn}>Download</Button>
+                                    </div>
                                 </div>
                             </DialogContent>
                         </Dialog>
