@@ -7,16 +7,16 @@ import {
     Banknote,
     History,
     PenLine,
+    PenTool,
     Landmark,
     ReceiptText,
-    Search,
     CreditCard,
     Wallet,
-    Hash,
     Plus,
     ChevronDown,
     ChevronUp,
     Download,
+    Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,7 +29,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { NB } from "@/lib/dialog-styles"
 import { recordVendorPayment, type VendorPayment } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
@@ -255,7 +256,7 @@ export default function APCheckbookPage() {
             const result = await recordVendorPayment({
                 supplierId: selectedVendorId,
                 amount: numericAmount,
-                method: paymentMethod,
+                method: paymentMethod as "CASH" | "TRANSFER" | "CHECK",
                 bankAccountCode,
                 reference: paymentMethod === "CHECK" ? checkNumber.trim() : reference.trim() || undefined,
                 notes: JSON.stringify(paymentMeta),
@@ -592,20 +593,39 @@ export default function APCheckbookPage() {
                                         {submitting ? "Processing..." : "Eksekusi Pembayaran"}
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Konfirmasi Pembayaran AP</DialogTitle>
-                                        <DialogDescription>
-                                            Metode: {paymentMethod} {paymentMethod === "CHECK" ? `| No. Cek: ${checkNumber}` : ""} | Jumlah: {formatIDR(Number(amount || 0))}
-                                        </DialogDescription>
+                                <DialogContent className={NB.contentNarrow}>
+                                    <DialogHeader className={NB.header}>
+                                        <DialogTitle className={NB.title}><Banknote className="h-5 w-5" /> Konfirmasi Pembayaran AP</DialogTitle>
+                                        <p className={NB.subtitle}>Verifikasi detail sebelum eksekusi pembayaran</p>
                                     </DialogHeader>
-                                    <Button
-                                        onClick={async () => { await handleSubmit(); setConfirmOpen(false) }}
-                                        disabled={submitting}
-                                        className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
-                                    >
-                                        {submitting ? "Processing..." : "Konfirmasi & Eksekusi"}
-                                    </Button>
+                                    <div className="px-6 py-5 space-y-4">
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <label className={NB.label}>Metode</label>
+                                                <span className="text-sm font-bold">{paymentMethod}{paymentMethod === "CHECK" ? ` — No. Cek: ${checkNumber}` : paymentMethod === "GIRO" ? ` — No. Giro: ${checkNumber}` : ""}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <label className={NB.label}>Vendor</label>
+                                                <span className="text-sm font-bold truncate ml-4">{vendors.find(v => v.id === selectedVendorId)?.name || "-"}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <label className={NB.label}>Jumlah</label>
+                                                <div className="relative">
+                                                    <span className="font-mono font-black text-lg text-emerald-700">{formatIDR(Number(amount || 0))}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className={NB.footer}>
+                                            <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} className={NB.cancelBtn}>Batal</Button>
+                                            <Button
+                                                onClick={async () => { await handleSubmit(); setConfirmOpen(false) }}
+                                                disabled={submitting}
+                                                className={NB.submitBtn}
+                                            >
+                                                {submitting ? <><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> Processing...</> : "Konfirmasi & Eksekusi"}
+                                            </Button>
+                                        </div>
+                                    </div>
                                 </DialogContent>
                             </Dialog>
                         </div>
@@ -615,32 +635,32 @@ export default function APCheckbookPage() {
 
             {/* ═══ SIGNATURE DIALOG ═══ */}
             <Dialog open={signatureDialogOpen} onOpenChange={setSignatureDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2"><PenLine className="h-4 w-4" /> Otorisasi Tanda Tangan</DialogTitle>
-                        <DialogDescription>Masukkan nama accountant lalu tanda tangan untuk mengotorisasi pembayaran AP.</DialogDescription>
+                <DialogContent className={NB.contentNarrow}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}><PenTool className="h-5 w-5" /> Otorisasi Tanda Tangan</DialogTitle>
+                        <p className={NB.subtitle}>Masukkan nama accountant lalu tanda tangan untuk mengotorisasi pembayaran AP</p>
                     </DialogHeader>
-                    <div className="space-y-3">
+                    <div className="px-6 py-5 space-y-4">
                         <div className="space-y-1.5">
-                            <Label>Nama Penandatangan</Label>
-                            <Input value={draftSigner} onChange={(e) => setDraftSigner(e.target.value)} placeholder="Nama accountant" />
+                            <label className={NB.label}>Nama Penandatangan <span className={NB.labelRequired}>*</span></label>
+                            <Input value={draftSigner} onChange={(e) => setDraftSigner(e.target.value)} placeholder="Nama..." className={NB.input} />
                         </div>
                         <div className="space-y-1.5">
-                            <Label>Tanda Tangan</Label>
+                            <label className={NB.label}>Tanda Tangan <span className={NB.labelRequired}>*</span></label>
                             <canvas
                                 ref={canvasRef}
                                 width={520}
                                 height={160}
-                                className="w-full h-40 border-2 border-black bg-white touch-none"
+                                className="w-full h-40 border-2 border-black bg-white touch-none rounded-none"
                                 onPointerDown={handlePointerDown}
                                 onPointerMove={handlePointerMove}
                                 onPointerUp={handlePointerUp}
                                 onPointerLeave={handlePointerUp}
                             />
-                            <div className="flex gap-2">
-                                <Button type="button" variant="outline" onClick={clearSignature} className="flex-1">Hapus</Button>
-                                <Button type="button" onClick={applySignature} className="flex-1">Simpan</Button>
-                            </div>
+                        </div>
+                        <div className={NB.footer}>
+                            <Button type="button" variant="outline" onClick={clearSignature} className={NB.cancelBtn}>Hapus</Button>
+                            <Button type="button" onClick={applySignature} className={NB.submitBtn}>Simpan</Button>
                         </div>
                     </div>
                 </DialogContent>
