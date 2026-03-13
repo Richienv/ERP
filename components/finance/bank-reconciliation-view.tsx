@@ -754,6 +754,7 @@ export function BankReconciliationView({
                                                 setNewBankDesc("")
                                                 setNewBankBalance("")
                                                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+                                                queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
                                             } else {
                                                 toast.error(result.error || "Gagal membuat akun bank")
                                             }
@@ -953,7 +954,8 @@ export function BankReconciliationView({
                             <div className="space-y-2 pr-2">
                                 {filteredReconciliations.map((rec) => {
                                     const isSelected = selectedRecId === rec.id
-                                    const total = rec.matchedCount + rec.unmatchedCount
+                                    const total = rec.itemCount
+                                    const belum = rec.itemCount - rec.matchedCount
                                     const pct = total > 0 ? (rec.matchedCount / total) * 100 : 0
                                     const statusCfg = STATUS_CONFIG[rec.status] || STATUS_CONFIG.REC_DRAFT
 
@@ -981,7 +983,7 @@ export function BankReconciliationView({
                                                 <div className="flex items-center justify-between text-[9px] font-bold">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-emerald-600">{rec.matchedCount} cocok</span>
-                                                        <span className="text-red-500">{rec.unmatchedCount} belum</span>
+                                                        <span className="text-red-500">{belum} belum</span>
                                                     </div>
                                                     <span className="text-zinc-400 font-mono">{Math.round(pct)}%</span>
                                                 </div>
