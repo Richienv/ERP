@@ -11,13 +11,18 @@ import {
     TrendingDown,
     Scale,
     Layers,
+    Loader2,
+    Landmark,
+    Receipt,
+    Wallet,
+    PiggyBank,
+    CreditCard,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { NB } from "@/lib/dialog-styles"
 import { createGLAccount, type GLAccountNode } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
@@ -154,42 +159,98 @@ export default function CoALedgerPage() {
                     </div>
                     <Dialog open={createOpen} onOpenChange={setCreateOpen}>
                         <DialogTrigger asChild>
-                            <Button className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4">
-                                <Plus className="mr-2 h-3.5 w-3.5" /> Tambah Akun
+                            <Button className={NB.triggerBtn + " h-9 px-4 gap-2"}>
+                                <Plus className="h-3.5 w-3.5" /> Tambah Akun
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Tambah Akun COA</DialogTitle>
-                                <DialogDescription>Buat akun baru agar langsung masuk ke chart of accounts.</DialogDescription>
+                        <DialogContent className={NB.contentNarrow}>
+                            <DialogHeader className={NB.header}>
+                                <DialogTitle className={NB.title}>
+                                    <BookOpen className="h-5 w-5" /> Tambah Akun COA
+                                </DialogTitle>
+                                <p className="text-zinc-400 text-[11px] font-bold mt-0.5">Buat akun baru langsung masuk ke chart of accounts</p>
                             </DialogHeader>
-                            <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="space-y-1.5">
-                                        <Label>Kode Akun</Label>
-                                        <Input value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="Contoh: 6100" />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label>Tipe Akun</Label>
-                                        <Select value={newType} onValueChange={(v) => setNewType(v as typeof newType)}>
-                                            <SelectTrigger><SelectValue /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="ASSET">ASSET</SelectItem>
-                                                <SelectItem value="LIABILITY">LIABILITY</SelectItem>
-                                                <SelectItem value="EQUITY">EQUITY</SelectItem>
-                                                <SelectItem value="REVENUE">REVENUE</SelectItem>
-                                                <SelectItem value="EXPENSE">EXPENSE</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+
+                            <div className="p-6 space-y-5">
+                                {/* Account Type Selector — visual tile picker */}
+                                <div>
+                                    <label className={NB.label}>Tipe Akun <span className={NB.labelRequired}>*</span></label>
+                                    <div className="grid grid-cols-5 gap-1.5 mt-1">
+                                        {([
+                                            { value: "ASSET" as const, label: "Asset", icon: Landmark, activeBg: "bg-emerald-50", activeIcon: "text-emerald-600" },
+                                            { value: "LIABILITY" as const, label: "Liability", icon: CreditCard, activeBg: "bg-red-50", activeIcon: "text-red-600" },
+                                            { value: "EQUITY" as const, label: "Equity", icon: PiggyBank, activeBg: "bg-blue-50", activeIcon: "text-blue-600" },
+                                            { value: "REVENUE" as const, label: "Revenue", icon: Wallet, activeBg: "bg-purple-50", activeIcon: "text-purple-600" },
+                                            { value: "EXPENSE" as const, label: "Expense", icon: Receipt, activeBg: "bg-orange-50", activeIcon: "text-orange-600" },
+                                        ]).map(({ value, label, icon: Icon, activeBg, activeIcon }) => (
+                                            <button
+                                                key={value}
+                                                type="button"
+                                                onClick={() => setNewType(value)}
+                                                className={`flex flex-col items-center gap-1.5 p-2.5 border-2 transition-all ${
+                                                    newType === value
+                                                        ? `border-black ${activeBg} shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]`
+                                                        : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
+                                                }`}
+                                            >
+                                                <Icon className={`h-4 w-4 ${newType === value ? activeIcon : "text-zinc-400"}`} />
+                                                <span className={`text-[8px] font-black uppercase tracking-widest ${newType === value ? "text-black" : "text-zinc-400"}`}>
+                                                    {label}
+                                                </span>
+                                            </button>
+                                        ))}
                                     </div>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <Label>Nama Akun</Label>
-                                    <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Contoh: Biaya Listrik" />
+
+                                {/* Code + Name fields */}
+                                <div className="grid grid-cols-3 gap-3">
+                                    <div>
+                                        <label className={NB.label}>Kode <span className={NB.labelRequired}>*</span></label>
+                                        <Input
+                                            value={newCode}
+                                            onChange={(e) => setNewCode(e.target.value)}
+                                            placeholder="6100"
+                                            className={NB.inputMono}
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className={NB.label}>Nama Akun <span className={NB.labelRequired}>*</span></label>
+                                        <Input
+                                            value={newName}
+                                            onChange={(e) => setNewName(e.target.value)}
+                                            placeholder="Biaya Listrik"
+                                            className={NB.input}
+                                        />
+                                    </div>
                                 </div>
-                                <Button onClick={handleCreateAccount} disabled={submitting} className="w-full">
-                                    {submitting ? "Menyimpan..." : "Simpan Akun"}
-                                </Button>
+
+                                {/* Preview strip */}
+                                {(newCode.trim() || newName.trim()) && (
+                                    <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-2.5 flex items-center gap-3">
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Preview</span>
+                                        <span className="font-mono font-bold text-sm text-zinc-900">{newCode || "—"}</span>
+                                        <span className="text-sm font-bold text-zinc-700">{newName || "—"}</span>
+                                        <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-300 text-zinc-500 ml-auto">{newType}</span>
+                                    </div>
+                                )}
+
+                                {/* Actions */}
+                                <div className={NB.footer}>
+                                    <Button variant="outline" className={NB.cancelBtn} onClick={() => setCreateOpen(false)}>
+                                        Batal
+                                    </Button>
+                                    <Button
+                                        className={NB.submitBtn}
+                                        onClick={handleCreateAccount}
+                                        disabled={submitting || !newCode.trim() || !newName.trim()}
+                                    >
+                                        {submitting ? (
+                                            <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Menyimpan...</>
+                                        ) : (
+                                            <><Plus className="h-3.5 w-3.5 mr-1.5" /> Simpan Akun</>
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
                         </DialogContent>
                     </Dialog>
