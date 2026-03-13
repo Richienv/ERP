@@ -5,16 +5,16 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { PlusCircle, Receipt, BookOpenText, FileSpreadsheet, FileBarChart } from "lucide-react"
+import { PlusCircle, Receipt, BookOpenText, FileSpreadsheet, FileBarChart, Loader2, Landmark, CreditCard, PiggyBank, Wallet, ArrowRight } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
+import { NB } from "@/lib/dialog-styles"
 import { createGLAccount, getGLAccountsList, getVendorBills, postJournalEntry, recordVendorPayment, type VendorBill } from "@/lib/actions/finance"
 import { getVendors } from "@/lib/actions/procurement"
 
@@ -239,16 +239,18 @@ export function AccountingModuleActions() {
                 <Receipt className="mr-2 h-4 w-4" /> Pembayaran (AP)
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Buat Pembayaran AP</DialogTitle>
-                <DialogDescription>Catat pembayaran vendor dan link ke tagihan bila tersedia.</DialogDescription>
+            <DialogContent className={NB.contentNarrow}>
+              <DialogHeader className={NB.header}>
+                <DialogTitle className={NB.title}>
+                  <Receipt className="h-5 w-5" /> Buat Pembayaran AP
+                </DialogTitle>
+                <p className={NB.subtitle}>Catat pembayaran vendor dan link ke tagihan</p>
               </DialogHeader>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label>Vendor</Label>
+              <div className="p-6 space-y-5">
+                <div>
+                  <label className={NB.label}>Vendor <span className={NB.labelRequired}>*</span></label>
                   <Select value={apSupplierId} onValueChange={setApSupplierId} disabled={loadingMaster}>
-                    <SelectTrigger><SelectValue placeholder="Pilih vendor" /></SelectTrigger>
+                    <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih vendor..." /></SelectTrigger>
                     <SelectContent>
                       {vendors.map((vendor) => (
                         <SelectItem key={vendor.id} value={vendor.id}>{vendor.name}</SelectItem>
@@ -256,10 +258,10 @@ export function AccountingModuleActions() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Tagihan (Opsional)</Label>
+                <div>
+                  <label className={NB.label}>Tagihan (Opsional)</label>
                   <Select value={apBillId} onValueChange={setApBillId}>
-                    <SelectTrigger><SelectValue placeholder="Pilih tagihan" /></SelectTrigger>
+                    <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih tagihan..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Tidak ditautkan</SelectItem>
                       {filteredBills.map((bill) => (
@@ -271,14 +273,17 @@ export function AccountingModuleActions() {
                   </Select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Jumlah</Label>
-                    <Input type="number" min="0" value={apAmount} onChange={(e) => setApAmount(e.target.value)} placeholder="0" />
+                  <div>
+                    <label className={NB.label}>Jumlah <span className={NB.labelRequired}>*</span></label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
+                      <Input type="number" min="0" value={apAmount} onChange={(e) => setApAmount(e.target.value)} placeholder="0" className={NB.inputMono + " pl-9"} />
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Metode</Label>
+                  <div>
+                    <label className={NB.label}>Metode <span className={NB.labelRequired}>*</span></label>
                     <Select value={apMethod} onValueChange={(value) => setApMethod(value as "CASH" | "TRANSFER" | "CHECK")}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="TRANSFER">Transfer</SelectItem>
                         <SelectItem value="CASH">Cash</SelectItem>
@@ -287,13 +292,20 @@ export function AccountingModuleActions() {
                     </Select>
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Referensi</Label>
-                  <Input value={apReference} onChange={(e) => setApReference(e.target.value)} placeholder="No. referensi pembayaran" />
+                <div>
+                  <label className={NB.label}>Referensi</label>
+                  <Input value={apReference} onChange={(e) => setApReference(e.target.value)} placeholder="No. referensi..." className={NB.input} />
                 </div>
-                <Button onClick={handleCreateAPPayment} disabled={apSubmitting} className="w-full">
-                  <PlusCircle className="mr-2 h-4 w-4" /> {apSubmitting ? "Menyimpan..." : "Simpan Pembayaran AP"}
-                </Button>
+                <div className={NB.footer}>
+                  <Button variant="outline" className={NB.cancelBtn} onClick={() => setApOpen(false)}>Batal</Button>
+                  <Button onClick={handleCreateAPPayment} disabled={apSubmitting} className={NB.submitBtn}>
+                    {apSubmitting ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Menyimpan...</>
+                    ) : (
+                      <><PlusCircle className="h-3.5 w-3.5 mr-1.5" /> Simpan Pembayaran</>
+                    )}
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -304,38 +316,76 @@ export function AccountingModuleActions() {
                 <BookOpenText className="mr-2 h-4 w-4" /> Chart of Accounts
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Tambah Akun COA</DialogTitle>
-                <DialogDescription>Buat akun baru sesuai struktur Chart of Accounts.</DialogDescription>
+            <DialogContent className={NB.contentNarrow}>
+              <DialogHeader className={NB.header}>
+                <DialogTitle className={NB.title}>
+                  <BookOpenText className="h-5 w-5" /> Tambah Akun COA
+                </DialogTitle>
+                <p className={NB.subtitle}>Buat akun baru langsung masuk ke chart of accounts</p>
               </DialogHeader>
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Kode Akun</Label>
-                    <Input value={coaCode} onChange={(e) => setCoaCode(e.target.value)} placeholder="Contoh: 6100" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Tipe</Label>
-                    <Select value={coaType} onValueChange={(value) => setCoaType(value as "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE") }>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="ASSET">ASSET</SelectItem>
-                        <SelectItem value="LIABILITY">LIABILITY</SelectItem>
-                        <SelectItem value="EQUITY">EQUITY</SelectItem>
-                        <SelectItem value="REVENUE">REVENUE</SelectItem>
-                        <SelectItem value="EXPENSE">EXPENSE</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="p-6 space-y-5">
+                {/* Account Type Selector — visual tile picker */}
+                <div>
+                  <label className={NB.label}>Tipe Akun <span className={NB.labelRequired}>*</span></label>
+                  <div className="grid grid-cols-5 gap-1.5 mt-1">
+                    {([
+                      { value: "ASSET" as const, label: "Asset", icon: Landmark, activeBg: "bg-emerald-50", activeIcon: "text-emerald-600" },
+                      { value: "LIABILITY" as const, label: "Liability", icon: CreditCard, activeBg: "bg-red-50", activeIcon: "text-red-600" },
+                      { value: "EQUITY" as const, label: "Equity", icon: PiggyBank, activeBg: "bg-blue-50", activeIcon: "text-blue-600" },
+                      { value: "REVENUE" as const, label: "Revenue", icon: Wallet, activeBg: "bg-purple-50", activeIcon: "text-purple-600" },
+                      { value: "EXPENSE" as const, label: "Expense", icon: Receipt, activeBg: "bg-orange-50", activeIcon: "text-orange-600" },
+                    ]).map(({ value, label, icon: Icon, activeBg, activeIcon }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setCoaType(value)}
+                        className={`flex flex-col items-center gap-1.5 p-2.5 border-2 transition-all ${
+                          coaType === value
+                            ? `border-black ${activeBg} shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]`
+                            : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <Icon className={`h-4 w-4 ${coaType === value ? activeIcon : "text-zinc-400"}`} />
+                        <span className={`text-[8px] font-black uppercase tracking-widest ${coaType === value ? "text-black" : "text-zinc-400"}`}>
+                          {label}
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Nama Akun</Label>
-                  <Input value={coaName} onChange={(e) => setCoaName(e.target.value)} placeholder="Contoh: Biaya Operasional" />
+
+                {/* Code + Name fields — 1/3 + 2/3 grid */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className={NB.label}>Kode <span className={NB.labelRequired}>*</span></label>
+                    <Input value={coaCode} onChange={(e) => setCoaCode(e.target.value)} placeholder="6100" className={NB.inputMono} />
+                  </div>
+                  <div className="col-span-2">
+                    <label className={NB.label}>Nama Akun <span className={NB.labelRequired}>*</span></label>
+                    <Input value={coaName} onChange={(e) => setCoaName(e.target.value)} placeholder="Biaya Listrik" className={NB.input} />
+                  </div>
                 </div>
-                <Button onClick={handleCreateAccount} disabled={coaSubmitting} className="w-full">
-                  <PlusCircle className="mr-2 h-4 w-4" /> {coaSubmitting ? "Menyimpan..." : "Simpan Akun COA"}
-                </Button>
+
+                {/* Preview strip */}
+                {(coaCode.trim() || coaName.trim()) && (
+                  <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-2.5 flex items-center gap-3">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Preview</span>
+                    <span className="font-mono font-bold text-sm text-zinc-900">{coaCode || "—"}</span>
+                    <span className="text-sm font-bold text-zinc-700">{coaName || "—"}</span>
+                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-300 text-zinc-500 ml-auto">{coaType}</span>
+                  </div>
+                )}
+
+                <div className={NB.footer}>
+                  <Button variant="outline" className={NB.cancelBtn} onClick={() => setCoaOpen(false)}>Batal</Button>
+                  <Button onClick={handleCreateAccount} disabled={coaSubmitting || !coaCode.trim() || !coaName.trim()} className={NB.submitBtn}>
+                    {coaSubmitting ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Menyimpan...</>
+                    ) : (
+                      <><PlusCircle className="h-3.5 w-3.5 mr-1.5" /> Simpan Akun</>
+                    )}
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
@@ -346,49 +396,81 @@ export function AccountingModuleActions() {
                 <FileSpreadsheet className="mr-2 h-4 w-4" /> Jurnal Umum
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Posting Jurnal Umum</DialogTitle>
-                <DialogDescription>Form entri cepat jurnal dengan debit dan kredit seimbang.</DialogDescription>
+            <DialogContent className={NB.contentNarrow}>
+              <DialogHeader className={NB.header}>
+                <DialogTitle className={NB.title}>
+                  <FileSpreadsheet className="h-5 w-5" /> Posting Jurnal Umum
+                </DialogTitle>
+                <p className={NB.subtitle}>Entri cepat jurnal — debit & kredit seimbang</p>
               </DialogHeader>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label>Deskripsi</Label>
-                  <Input value={journalDescription} onChange={(e) => setJournalDescription(e.target.value)} placeholder="Contoh: Beban listrik bulan ini" />
+              <div className="p-6 space-y-5">
+                {/* Header section */}
+                <div className={NB.section}>
+                  <div className={NB.sectionHead}>
+                    <FileSpreadsheet className="h-3.5 w-3.5" />
+                    <span className={NB.sectionTitle}>Header Jurnal</span>
+                  </div>
+                  <div className={NB.sectionBody}>
+                    <div>
+                      <label className={NB.label}>Deskripsi <span className={NB.labelRequired}>*</span></label>
+                      <Input value={journalDescription} onChange={(e) => setJournalDescription(e.target.value)} placeholder="Beban listrik..." className={NB.input} />
+                    </div>
+                    <div>
+                      <label className={NB.label}>Referensi</label>
+                      <Input value={journalReference} onChange={(e) => setJournalReference(e.target.value)} placeholder="Opsional" className={NB.input} />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Referensi</Label>
-                  <Input value={journalReference} onChange={(e) => setJournalReference(e.target.value)} placeholder="Opsional" />
+
+                {/* Journal lines section */}
+                <div className={NB.section}>
+                  <div className={NB.sectionHead}>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                    <span className={NB.sectionTitle}>Baris Jurnal</span>
+                  </div>
+                  <div className={NB.sectionBody}>
+                    <div>
+                      <label className={NB.label}>Akun Debit <span className={NB.labelRequired}>*</span></label>
+                      <Select value={journalDebitAccount} onValueChange={setJournalDebitAccount}>
+                        <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih akun debit..." /></SelectTrigger>
+                        <SelectContent>
+                          {glAccounts.map((account) => (
+                            <SelectItem key={account.id} value={account.id}>{account.code} - {account.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className={NB.label}>Akun Kredit <span className={NB.labelRequired}>*</span></label>
+                      <Select value={journalCreditAccount} onValueChange={setJournalCreditAccount}>
+                        <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih akun kredit..." /></SelectTrigger>
+                        <SelectContent>
+                          {glAccounts.map((account) => (
+                            <SelectItem key={account.id} value={account.id}>{account.code} - {account.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className={NB.label}>Nominal <span className={NB.labelRequired}>*</span></label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-zinc-400">Rp</span>
+                        <Input type="number" min="0" value={journalAmount} onChange={(e) => setJournalAmount(e.target.value)} placeholder="0" className={NB.inputMono + " pl-9"} />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Akun Debit</Label>
-                  <Select value={journalDebitAccount} onValueChange={setJournalDebitAccount}>
-                    <SelectTrigger><SelectValue placeholder="Pilih akun debit" /></SelectTrigger>
-                    <SelectContent>
-                      {glAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>{account.code} - {account.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+
+                <div className={NB.footer}>
+                  <Button variant="outline" className={NB.cancelBtn} onClick={() => setJournalOpen(false)}>Batal</Button>
+                  <Button onClick={handleCreateJournal} disabled={journalSubmitting} className={NB.submitBtn}>
+                    {journalSubmitting ? (
+                      <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Memproses...</>
+                    ) : (
+                      <><PlusCircle className="h-3.5 w-3.5 mr-1.5" /> Post Jurnal</>
+                    )}
+                  </Button>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Akun Kredit</Label>
-                  <Select value={journalCreditAccount} onValueChange={setJournalCreditAccount}>
-                    <SelectTrigger><SelectValue placeholder="Pilih akun kredit" /></SelectTrigger>
-                    <SelectContent>
-                      {glAccounts.map((account) => (
-                        <SelectItem key={account.id} value={account.id}>{account.code} - {account.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Nominal</Label>
-                  <Input type="number" min="0" value={journalAmount} onChange={(e) => setJournalAmount(e.target.value)} placeholder="0" />
-                </div>
-                <Button onClick={handleCreateJournal} disabled={journalSubmitting} className="w-full">
-                  <PlusCircle className="mr-2 h-4 w-4" /> {journalSubmitting ? "Memproses..." : "Post Jurnal"}
-                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -399,36 +481,54 @@ export function AccountingModuleActions() {
                 <FileBarChart className="mr-2 h-4 w-4" /> Laporan Keuangan
               </Button>
             </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Generate Laporan Keuangan</DialogTitle>
-                <DialogDescription>Tentukan periode dan jenis laporan untuk analisis finance.</DialogDescription>
+            <DialogContent className={NB.contentNarrow}>
+              <DialogHeader className={NB.header}>
+                <DialogTitle className={NB.title}>
+                  <FileBarChart className="h-5 w-5" /> Generate Laporan
+                </DialogTitle>
+                <p className={NB.subtitle}>Pilih jenis laporan dan periode analisis</p>
               </DialogHeader>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label>Jenis Laporan</Label>
-                  <Select value={reportType} onValueChange={(value) => setReportType(value as "pnl" | "bs" | "cf") }>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pnl">Profit & Loss</SelectItem>
-                      <SelectItem value="bs">Balance Sheet</SelectItem>
-                      <SelectItem value="cf">Cash Flow</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Tanggal Mulai</Label>
-                    <Input type="date" value={reportStart} onChange={(e) => setReportStart(e.target.value)} />
+              <div className="p-6 space-y-5">
+                <div>
+                  <label className={NB.label}>Jenis Laporan <span className={NB.labelRequired}>*</span></label>
+                  <div className="grid grid-cols-3 gap-1.5 mt-1">
+                    {([
+                      { value: "pnl" as const, label: "Profit & Loss" },
+                      { value: "bs" as const, label: "Balance Sheet" },
+                      { value: "cf" as const, label: "Cash Flow" },
+                    ]).map(({ value, label }) => (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => setReportType(value)}
+                        className={`p-3 border-2 text-center transition-all ${
+                          reportType === value
+                            ? "border-black bg-zinc-900 text-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+                            : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
+                        }`}
+                      >
+                        <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
+                      </button>
+                    ))}
                   </div>
-                  <div className="space-y-1.5">
-                    <Label>Tanggal Akhir</Label>
-                    <Input type="date" value={reportEnd} onChange={(e) => setReportEnd(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+                  <div>
+                    <label className={NB.label}>Dari</label>
+                    <Input type="date" value={reportStart} onChange={(e) => setReportStart(e.target.value)} className={NB.inputMono} />
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-zinc-400 mb-2.5" />
+                  <div>
+                    <label className={NB.label}>Sampai</label>
+                    <Input type="date" value={reportEnd} onChange={(e) => setReportEnd(e.target.value)} className={NB.inputMono} />
                   </div>
                 </div>
-                <Button onClick={handleOpenReport} className="w-full">
-                  Buka Laporan
-                </Button>
+                <div className={NB.footer}>
+                  <Button variant="outline" className={NB.cancelBtn} onClick={() => setReportOpen(false)}>Batal</Button>
+                  <Button onClick={handleOpenReport} className={NB.submitBtn}>
+                    <FileBarChart className="h-3.5 w-3.5 mr-1.5" /> Buka Laporan
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>
