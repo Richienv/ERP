@@ -339,24 +339,22 @@ export async function createBankAccount(data: {
     initialBalance?: number
 }): Promise<{ success: boolean; accountId?: string; error?: string }> {
     try {
-        const result = await withPrismaAuth(async (prisma: PrismaClient) => {
-            // Check code uniqueness
-            const existing = await prisma.gLAccount.findFirst({ where: { code: data.code } })
-            if (existing) return { success: false as const, error: `Kode ${data.code} sudah digunakan` }
+        await requireAuth()
 
-            const account = await prisma.gLAccount.create({
-                data: {
-                    code: data.code,
-                    name: data.name,
-                    type: 'ASSET',
-                    balance: data.initialBalance ?? 0,
-                },
-            })
+        // Check code uniqueness
+        const existing = await prisma.gLAccount.findFirst({ where: { code: data.code } })
+        if (existing) return { success: false, error: `Kode ${data.code} sudah digunakan` }
 
-            return { success: true as const, accountId: account.id }
+        const account = await prisma.gLAccount.create({
+            data: {
+                code: data.code,
+                name: data.name,
+                type: 'ASSET',
+                balance: data.initialBalance ?? 0,
+            },
         })
 
-        return result
+        return { success: true, accountId: account.id }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat akun bank'
         console.error("[createBankAccount] Error:", error)

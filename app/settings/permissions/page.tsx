@@ -13,10 +13,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast, Toaster } from "sonner"
-import {
-    MODULE_PERMISSIONS,
-    type PermissionMatrixEntry,
-} from "@/lib/actions/settings"
+import { MODULE_PERMISSIONS, type PermissionMatrixEntry } from "@/lib/settings-helpers"
 import { usePermissionMatrix } from "@/hooks/use-permission-matrix"
 
 export const dynamic = "force-dynamic"

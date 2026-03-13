@@ -6,16 +6,6 @@ const globalForPrisma = globalThis as unknown as {
     prisma: PrismaClient | undefined
 }
 
-function decodeJwtPayload(token: string): Record<string, any> {
-    const parts = token.split('.')
-    if (parts.length < 2) throw new Error('Invalid JWT')
-
-    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
-    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=')
-    const json = Buffer.from(padded, 'base64').toString('utf8')
-    return JSON.parse(json)
-}
-
 // Append connection_limit to DATABASE_URL for Supabase session-mode pooler compatibility.
 // Supabase free tier allows ~15 pooler connections. We use 5 per Prisma instance
 // to allow concurrent queries (dashboard loads, cache warming) without exhaustion.
@@ -41,27 +31,16 @@ export async function withPrismaAuth<T>(
     txOptions?: { maxWait?: number; timeout?: number; maxRetries?: number }
 ): Promise<T> {
     try {
+        // Use getUser() instead of getSession() — getSession() is deprecated in
+        // Supabase JS v2.x and can return null in server-side contexts (Vercel
+        // serverless) even when the user has a valid session cookie.
+        // Since RLS is bypassed (postgres user has full access), we only need
+        // to verify the user is authenticated, not pass JWT claims.
         const supabase = await createClient()
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        const accessToken = session?.access_token
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
 
-        if (sessionError || !accessToken) {
+        if (authError || !user) {
             throw new Error('Not authenticated')
-        }
-
-        const claims = decodeJwtPayload(accessToken)
-        const claimsJson = JSON.stringify(claims)
-        const sub = String(claims.sub || '')
-        const role = String(claims.role || 'authenticated')
-
-        if (!sub) throw new Error('Invalid auth claims')
-
-        if (process.env.DEBUG_PRISMA_AUTH === '1') {
-            try {
-                console.log('[Prisma] Auth claims keys:', Object.keys(claims))
-            } catch {
-                // ignore
-            }
         }
 
         // Extract maxRetries from txOptions (default: 2 via withRetry defaults)
@@ -69,35 +48,6 @@ export async function withPrismaAuth<T>(
 
         return await withRetry(async () => {
             return await basePrisma.$transaction(async (tx) => {
-                const dbRole = (role === 'anon' || role === 'authenticated') ? role : 'authenticated'
-                // BYPASS RLS FOR TRANSACTION POOLER COMPATIBILITY
-                // The 'postgres' user from the pooler connection string has full admin rights.
-                // Switching to 'authenticated' role causes 'permission denied for schema public'
-                // because the pooler environment or role grants might be misconfigured for this project type.
-
-                /*
-                try {
-                    await tx.$executeRawUnsafe(`SET LOCAL ROLE ${dbRole}`)
-                } catch {
-                    // ignore if role switching is not permitted
-                }
-
-                await tx.$executeRaw`SELECT set_config('request.jwt.claim.sub', ${sub}, true)`
-                await tx.$executeRaw`SELECT set_config('request.jwt.claim.role', ${dbRole}, true)`
-                await tx.$executeRaw`SELECT set_config('request.jwt.claims', ${claimsJson}, true)`
-                */
-
-                if (process.env.DEBUG_PRISMA_AUTH === '1') {
-                    try {
-                        const settings = await tx.$queryRawUnsafe(
-                            "select current_setting('request.jwt.claim.sub', true) as sub, current_setting('request.jwt.claim.role', true) as role, current_setting('request.jwt.claims', true) as claims"
-                        )
-                        console.log('[Prisma] Session GUCs:', settings)
-                    } catch {
-                        // ignore
-                    }
-                }
-
                 return operation(tx as unknown as PrismaClient)
                 // Default timeouts: 15s maxWait for connection, 20s timeout for query
             }, { maxWait: 15000, timeout: 20000, ...prismaOpts })

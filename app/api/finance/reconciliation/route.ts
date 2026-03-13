@@ -12,16 +12,11 @@ export async function GET() {
             return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 })
         }
 
-        // Fetch bank accounts (GL accounts that are bank/cash type)
+        // Fetch only bank accounts (name contains "bank")
         const accounts = await prisma.gLAccount.findMany({
             where: {
                 type: "ASSET",
-                OR: [
-                    { name: { contains: "bank", mode: "insensitive" } },
-                    { name: { contains: "kas", mode: "insensitive" } },
-                    { name: { contains: "cash", mode: "insensitive" } },
-                    { code: { in: ["1000", "1010", "1020", "1100", "1110"] } },
-                ],
+                name: { contains: "bank", mode: "insensitive" },
             },
             select: { id: true, code: true, name: true, balance: true },
             orderBy: { code: "asc" },

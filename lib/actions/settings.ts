@@ -2,38 +2,10 @@
 
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
+import { MODULE_PERMISSIONS, type PermissionMatrixEntry, type DocumentNumberingConfig, type CompanyConfig } from "@/lib/settings-helpers"
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export type PermissionMatrixEntry = {
-    roleCode: string
-    roleName: string
-    permissions: string[]
-    isSystem: boolean
-}
-
-export type DocumentNumberingConfig = {
-    module: string
-    prefix: string
-    separator: string
-    dateFormat: string
-    digitCount: number
-    example: string
-    lastNumber: number
-}
-
-export type CompanyConfig = {
-    name: string
-    npwp: string
-    address: string
-    phone: string
-    email: string
-    taxRate: number
-    currency: string
-    defaultPaymentTerm: string
-}
+// Re-export types so existing consumers don't break
+export type { PermissionMatrixEntry, DocumentNumberingConfig, CompanyConfig } from "@/lib/settings-helpers"
 
 // ============================================================================
 // Default Numbering Configs (mock-backed for now)
@@ -51,29 +23,6 @@ const DEFAULT_NUMBERING: DocumentNumberingConfig[] = [
     { module: "Subcontract Order", prefix: "SC", separator: "-", dateFormat: "YYMM", digitCount: 4, example: "SC-2602-0001", lastNumber: 0 },
     { module: "Cost Sheet", prefix: "CS", separator: "-", dateFormat: "YYMM", digitCount: 4, example: "CS-2602-0001", lastNumber: 0 },
 ]
-
-// ============================================================================
-// Module definitions for permission matrix
-// ============================================================================
-
-export const MODULE_PERMISSIONS = [
-    { key: "DASHBOARD", label: "Dashboard", group: "Umum" },
-    { key: "INVENTORY", label: "Inventaris", group: "Umum" },
-    { key: "SALES", label: "Penjualan", group: "Umum" },
-    { key: "PROCUREMENT", label: "Pengadaan", group: "Umum" },
-    { key: "FINANCE", label: "Keuangan", group: "Keuangan" },
-    { key: "INVOICES", label: "Faktur", group: "Keuangan" },
-    { key: "JOURNAL", label: "Jurnal", group: "Keuangan" },
-    { key: "MANUFACTURING", label: "Manufaktur", group: "Produksi" },
-    { key: "QUALITY", label: "Kualitas", group: "Produksi" },
-    { key: "SUBCONTRACT", label: "Subkontrak", group: "Produksi" },
-    { key: "CUTTING", label: "Pemotongan", group: "Produksi" },
-    { key: "COSTING", label: "Kalkulasi Biaya", group: "Produksi" },
-    { key: "HCM", label: "SDM", group: "SDM" },
-    { key: "PAYROLL", label: "Penggajian", group: "SDM" },
-    { key: "SETTINGS", label: "Pengaturan", group: "Sistem" },
-    { key: "USERS", label: "Manajemen Pengguna", group: "Sistem" },
-] as const
 
 // ============================================================================
 // Permission Matrix

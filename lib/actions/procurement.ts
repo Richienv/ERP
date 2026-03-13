@@ -1206,7 +1206,9 @@ export async function confirmPurchaseOrder(id: string) {
 }
 
 // Alias for backward compatibility
-export const createPOFromPR = convertPRToPO
+export async function createPOFromPR(...args: Parameters<typeof convertPRToPO>) {
+    return convertPRToPO(...args)
+}
 
 export async function getAllPurchaseOrders() {
     try {
