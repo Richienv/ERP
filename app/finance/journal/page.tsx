@@ -4,100 +4,28 @@ import { useState } from "react"
 import {
     Plus,
     Download,
-    Save,
-    Trash2,
-    CheckCircle2,
-    AlertCircle,
     BookText,
     Hash,
-    ChevronDown,
-    ChevronUp,
     Calendar,
     Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { postJournalEntry, type JournalEntryItem } from "@/lib/actions/finance"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { NB } from "@/lib/dialog-styles"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { useJournal } from "@/hooks/use-journal"
-import { useQueryClient } from "@tanstack/react-query"
-import { queryKeys } from "@/lib/query-keys"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { ClosingJournalDialog } from "@/components/finance/closing-journal-dialog"
+import { CreateJournalDialog } from "@/components/finance/journal/create-journal-dialog"
 
 export default function GeneralLedgerPage() {
     const { data, isLoading: loading } = useJournal()
-    const queryClient = useQueryClient()
     const entries = data?.entries ?? []
     const glAccounts = data?.accounts ?? []
-    const [lines, setLines] = useState([
-        { accountId: "", debit: 0, credit: 0 },
-        { accountId: "", debit: 0, credit: 0 }
-    ])
-    const [desc, setDesc] = useState("")
-    const [ref, setRef] = useState("")
-    const [posting, setPosting] = useState(false)
     const [exportOpen, setExportOpen] = useState(false)
-    const [showForm, setShowForm] = useState(false)
+    const [createOpen, setCreateOpen] = useState(false)
     const [closingOpen, setClosingOpen] = useState(false)
-
-    const totalDebit = lines.reduce((acc, curr) => acc + (Number(curr.debit) || 0), 0)
-    const totalCredit = lines.reduce((acc, curr) => acc + (Number(curr.credit) || 0), 0)
-    const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0
-
-    const handleAddLine = () => setLines([...lines, { accountId: "", debit: 0, credit: 0 }])
-
-    const handleSave = async () => {
-        if (!isBalanced || !desc.trim()) return
-        setPosting(true)
-        try {
-            const validLines = lines.filter((line) => (Number(line.debit) > 0 || Number(line.credit) > 0))
-            if (validLines.length < 2) { toast.error("Minimal dua baris akun dengan nominal"); return }
-
-            const hasInvalidLine = validLines.some((line) => {
-                const debit = Number(line.debit) || 0
-                const credit = Number(line.credit) || 0
-                return !line.accountId || (debit > 0 && credit > 0) || (debit <= 0 && credit <= 0)
-            })
-            if (hasInvalidLine) { toast.error("Setiap baris harus punya akun, dan hanya debit atau kredit yang bernilai"); return }
-
-            const entryLines = validLines.map(line => {
-                const acc = glAccounts.find(a => a.id === line.accountId)
-                if (!acc) throw new Error("Account mapping not found")
-                return { accountCode: acc.code, debit: line.debit, credit: line.credit, description: desc.trim() }
-            })
-
-            const result = await postJournalEntry({ date: new Date(), description: desc, reference: ref, lines: entryLines })
-            if (result.success) {
-                toast.success("Jurnal berhasil diposting")
-                setLines([{ accountId: "", debit: 0, credit: 0 }, { accountId: "", debit: 0, credit: 0 }])
-                setDesc("")
-                setRef("")
-                setShowForm(false)
-                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
-            } else {
-                toast.error(('error' in result ? result.error : "Gagal posting entry") || "Gagal posting entry")
-            }
-        } catch {
-            toast.error("Terjadi kesalahan saat posting")
-        } finally {
-            setPosting(false)
-        }
-    }
 
     const handleExport = () => {
         const header = ["Date", "Entry ID", "Reference", "Description", "Account Code", "Account Name", "Debit", "Credit"]
@@ -153,12 +81,31 @@ export default function GeneralLedgerPage() {
                                     <Download className="mr-2 h-3.5 w-3.5" /> Export
                                 </Button>
                             </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Export General Ledger</DialogTitle>
-                                    <DialogDescription>Download semua baris jurnal yang sedang tampil sebagai CSV.</DialogDescription>
+                            <DialogContent className={NB.contentNarrow}>
+                                <DialogHeader className={NB.header}>
+                                    <DialogTitle className={NB.title}>
+                                        <Download className="h-5 w-5" /> Export General Ledger
+                                    </DialogTitle>
+                                    <p className={NB.subtitle}>Download semua baris jurnal yang sedang tampil sebagai CSV</p>
                                 </DialogHeader>
-                                <Button onClick={handleExport} className="w-full">Download CSV</Button>
+                                <div className="px-6 py-5 space-y-4">
+                                    <div>
+                                        <label className={NB.label}>Format</label>
+                                        <p className="text-sm font-bold text-zinc-700">CSV (Comma-Separated Values)</p>
+                                    </div>
+                                    <div>
+                                        <label className={NB.label}>Data</label>
+                                        <p className="text-sm font-bold text-zinc-700">{entries.length} entri jurnal</p>
+                                    </div>
+                                    <div className={NB.footer}>
+                                        <Button variant="outline" className={NB.cancelBtn} onClick={() => setExportOpen(false)}>
+                                            Batal
+                                        </Button>
+                                        <Button className={NB.submitBtn} onClick={handleExport}>
+                                            <Download className="mr-2 h-3.5 w-3.5" /> Download CSV
+                                        </Button>
+                                    </div>
+                                </div>
                             </DialogContent>
                         </Dialog>
                         <Button
@@ -169,10 +116,10 @@ export default function GeneralLedgerPage() {
                             <Lock className="mr-2 h-3.5 w-3.5" /> Jurnal Penutup
                         </Button>
                         <Button
-                            onClick={() => setShowForm(!showForm)}
+                            onClick={() => setCreateOpen(true)}
                             className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"
                         >
-                            {showForm ? <><ChevronUp className="mr-2 h-3.5 w-3.5" /> Tutup</> : <><Plus className="mr-2 h-3.5 w-3.5" /> Buat Jurnal</>}
+                            <Plus className="mr-2 h-3.5 w-3.5" /> Buat Jurnal
                         </Button>
                     </div>
                 </div>
@@ -220,117 +167,12 @@ export default function GeneralLedgerPage() {
                 </div>
             </div>
 
-            {/* ═══ ENTRY FORM (Collapsible) ═══ */}
-            {showForm && (
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                            <Plus className="h-3.5 w-3.5" /> Buat Jurnal Baru
-                        </p>
-                    </div>
-                    <div className="p-4 space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Deskripsi</label>
-                                <Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Contoh: Manual Adjustment" className="border-2 border-black font-bold h-10 rounded-none" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Referensi</label>
-                                <Input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Contoh: REF-001" className="border-2 border-black font-bold h-10 rounded-none" />
-                            </div>
-                        </div>
-
-                        {/* Line Items */}
-                        <div className="border-2 border-black overflow-hidden">
-                            <div className="grid grid-cols-12 gap-2 px-3 py-2 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                <div className="col-span-6">Akun</div>
-                                <div className="col-span-2 text-right">Debit</div>
-                                <div className="col-span-2 text-right">Credit</div>
-                                <div className="col-span-2"></div>
-                            </div>
-                            {lines.map((line, i) => (
-                                <div key={i} className="grid grid-cols-12 gap-2 px-3 py-2 border-b border-zinc-100 dark:border-zinc-800 items-center">
-                                    <div className="col-span-6">
-                                        <Select value={line.accountId} onValueChange={(v) => {
-                                            const newLines = [...lines]; newLines[i].accountId = v; setLines(newLines)
-                                        }}>
-                                            <SelectTrigger className="h-9 border-zinc-200 bg-white dark:bg-zinc-900 text-xs font-medium rounded-none">
-                                                <SelectValue placeholder="Pilih Akun" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {glAccounts.map(acc => <SelectItem key={acc.id} value={acc.id}>{acc.code} - {acc.name}</SelectItem>)}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            className="h-9 border-zinc-200 bg-emerald-50/50 text-right text-xs font-mono rounded-none"
-                                            value={line.debit || ''}
-                                            onChange={(e) => {
-                                                const val = parseFloat(e.target.value) || 0
-                                                const newLines = [...lines]; newLines[i].debit = val
-                                                if (val > 0) newLines[i].credit = 0; setLines(newLines)
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="col-span-2">
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            className="h-9 border-zinc-200 bg-red-50/50 text-right text-xs font-mono rounded-none"
-                                            value={line.credit || ''}
-                                            onChange={(e) => {
-                                                const val = parseFloat(e.target.value) || 0
-                                                const newLines = [...lines]; newLines[i].credit = val
-                                                if (val > 0) newLines[i].debit = 0; setLines(newLines)
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="col-span-2 flex justify-center">
-                                        <button
-                                            onClick={() => { if (lines.length > 2) setLines(lines.filter((_, idx) => idx !== i)) }}
-                                            className="p-1.5 text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                            <div className="px-3 py-2 border-b border-zinc-100 dark:border-zinc-800">
-                                <button onClick={handleAddLine} className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black border-2 border-dashed border-zinc-300 hover:border-black transition-colors flex items-center justify-center gap-2">
-                                    <Plus className="h-3 w-3" /> Tambah Baris
-                                </button>
-                            </div>
-
-                            {/* Totals Footer */}
-                            <div className="px-3 py-3 bg-zinc-50 dark:bg-zinc-800 space-y-3">
-                                <div className="grid grid-cols-12 gap-2 text-xs font-bold uppercase">
-                                    <div className="col-span-6 text-right text-zinc-500">Total</div>
-                                    <div className="col-span-2 text-right font-mono text-emerald-700">{formatIDR(totalDebit)}</div>
-                                    <div className="col-span-2 text-right font-mono text-red-700">{formatIDR(totalCredit)}</div>
-                                    <div className="col-span-2"></div>
-                                </div>
-                                <div className={`flex items-center justify-center p-2 text-[10px] font-black uppercase tracking-widest border ${isBalanced ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-red-100 text-red-800 border-red-300'}`}>
-                                    {isBalanced ? (
-                                        <><CheckCircle2 className="mr-2 h-3.5 w-3.5" /> Balanced</>
-                                    ) : (
-                                        <><AlertCircle className="mr-2 h-3.5 w-3.5" /> Unbalanced ({formatIDR(Math.abs(totalDebit - totalCredit))})</>
-                                    )}
-                                </div>
-                                <Button
-                                    className="w-full bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-10 disabled:opacity-40"
-                                    disabled={!isBalanced || !desc || posting}
-                                    onClick={handleSave}
-                                >
-                                    {posting ? "Posting..." : <><Save className="mr-2 h-3.5 w-3.5" /> Post Entry</>}
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* ═══ CREATE JOURNAL DIALOG ═══ */}
+            <CreateJournalDialog
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                glAccounts={glAccounts}
+            />
 
             {/* ═══ JOURNAL ENTRIES TABLE ═══ */}
             <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
