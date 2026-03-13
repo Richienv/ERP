@@ -23,8 +23,6 @@ import { Badge } from "@/components/ui/badge"
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
-    DialogFooter,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
@@ -36,12 +34,12 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { disputeBill, type VendorBill } from "@/lib/actions/finance"
 import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
+import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
 import { useBills, useBanks } from "@/hooks/use-bills"
 import { useQueryClient } from "@tanstack/react-query"
@@ -438,20 +436,22 @@ export default function APBillsStackPage() {
 
             {/* ═══ BILL DETAIL DIALOG ═══ */}
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="sm:max-w-[600px] p-0 border-2 border-black rounded-none">
+                <DialogContent className={NB.contentNarrow}>
                     {activeBill && (
                         <>
-                            <div className="px-6 py-4 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+                            <DialogHeader className={NB.header}>
                                 <div className="flex items-center justify-between">
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Detail Tagihan</p>
-                                        <h3 className="text-lg font-black uppercase mt-1">{activeBill.vendor?.name}</h3>
+                                        <DialogTitle className={NB.title}>
+                                            <FileText className="h-5 w-5" /> Detail Tagihan
+                                        </DialogTitle>
+                                        <p className={NB.subtitle}>{activeBill.vendor?.name || "Unknown Vendor"}</p>
                                     </div>
                                     <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest border ${getStatusColor(activeBill.status, activeBill.isOverdue)}`}>
                                         {activeBill.isOverdue ? "Overdue" : activeBill.status}
                                     </span>
                                 </div>
-                            </div>
+                            </DialogHeader>
 
                             {/* Stamped overlay */}
                             {stamped && (
@@ -465,40 +465,43 @@ export default function APBillsStackPage() {
                             <div className="px-6 py-5 space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">No. Invoice</p>
+                                        <label className={NB.label}>No. Invoice</label>
                                         <p className="font-mono font-bold text-sm">{activeBill.number}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Jatuh Tempo</p>
+                                        <label className={NB.label}>Jatuh Tempo</label>
                                         <p className="font-bold text-sm">{new Date(activeBill.dueDate).toLocaleDateString("id-ID")}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Total Tagihan</p>
+                                        <label className={NB.label}>Total Tagihan</label>
                                         <p className="text-2xl font-black">{formatIDR(activeBill.amount)}</p>
                                     </div>
                                     <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Sisa Bayar</p>
+                                        <label className={NB.label}>Sisa Bayar</label>
                                         <p className="text-2xl font-black text-red-600">{formatIDR(activeBill.balanceDue)}</p>
                                     </div>
                                 </div>
 
                                 {activeBill.vendor?.bankAccountNumber && (
-                                    <div className="p-4 border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 flex items-center gap-2">
-                                            <Building2 className="h-3 w-3" /> Info Bank Vendor
-                                        </p>
-                                        <div className="grid grid-cols-3 gap-3 text-xs">
-                                            <div>
-                                                <p className="text-zinc-400 font-medium">Bank</p>
-                                                <p className="font-bold">{activeBill.vendor.bankName || "-"}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-zinc-400 font-medium">No. Rekening</p>
-                                                <p className="font-bold font-mono">{activeBill.vendor.bankAccountNumber}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-zinc-400 font-medium">Nama Rekening</p>
-                                                <p className="font-bold">{activeBill.vendor.bankAccountName || "-"}</p>
+                                    <div className={NB.section}>
+                                        <div className={NB.sectionHead}>
+                                            <Building2 className="h-3.5 w-3.5" />
+                                            <span className={NB.sectionTitle}>Info Bank Vendor</span>
+                                        </div>
+                                        <div className="p-4">
+                                            <div className="grid grid-cols-3 gap-3 text-xs">
+                                                <div>
+                                                    <label className={NB.label}>Bank</label>
+                                                    <p className="font-bold">{activeBill.vendor.bankName || "-"}</p>
+                                                </div>
+                                                <div>
+                                                    <label className={NB.label}>No. Rekening</label>
+                                                    <p className="font-bold font-mono">{activeBill.vendor.bankAccountNumber}</p>
+                                                </div>
+                                                <div>
+                                                    <label className={NB.label}>Nama Rekening</label>
+                                                    <p className="font-bold">{activeBill.vendor.bankAccountName || "-"}</p>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -510,14 +513,14 @@ export default function APBillsStackPage() {
                                     variant="outline"
                                     onClick={() => { setIsDetailOpen(false); setIsDisputeOpen(true) }}
                                     disabled={activeBill.status === "PAID"}
-                                    className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9"
+                                    className={NB.cancelBtn}
                                 >
                                     <XCircle className="mr-2 h-3.5 w-3.5" /> Dispute
                                 </Button>
                                 <Button
                                     onClick={() => { setIsDetailOpen(false); setIsPayOpen(true) }}
                                     disabled={activeBill.status === "PAID" || activeBill.balanceDue <= 0}
-                                    className="bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-6"
+                                    className="bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-8 h-9 rounded-none"
                                 >
                                     <CreditCard className="mr-2 h-3.5 w-3.5" /> Bayar Sekarang
                                 </Button>
@@ -529,159 +532,178 @@ export default function APBillsStackPage() {
 
             {/* ═══ DISPUTE DIALOG ═══ */}
             <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5 text-amber-500" />
-                            Dispute Tagihan
+                <DialogContent className={NB.contentNarrow}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}>
+                            <AlertCircle className="h-5 w-5" /> Dispute Tagihan
                         </DialogTitle>
-                        <DialogDescription>
+                        <p className="text-red-400 text-[11px] font-bold mt-0.5">
                             Masukkan alasan dispute. Vendor akan mendapat notifikasi.
-                        </DialogDescription>
+                        </p>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="reason">Alasan</Label>
+                    <div className="px-6 py-5 space-y-4">
+                        <div className="space-y-1">
+                            <label className={NB.label}>Alasan <span className={NB.labelRequired}>*</span></label>
                             <Textarea
                                 id="reason"
-                                placeholder="Contoh: Jumlah salah, barang rusak..."
+                                placeholder="Jumlah salah, barang rusak..."
                                 value={disputeReason}
                                 onChange={(e) => setDisputeReason(e.target.value)}
                                 rows={4}
+                                className={NB.textarea}
                             />
                         </div>
                     </div>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDisputeOpen(false)} disabled={processing}>
-                            Batal
-                        </Button>
-                        <Button variant="destructive" onClick={handleDisputeSubmit} disabled={processing}>
-                            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Submit Dispute
-                        </Button>
-                    </DialogFooter>
+                    <div className="px-6 py-4 border-t-2 border-black">
+                        <div className={NB.footer}>
+                            <Button variant="outline" onClick={() => setIsDisputeOpen(false)} disabled={processing} className={NB.cancelBtn}>
+                                Batal
+                            </Button>
+                            <Button onClick={handleDisputeSubmit} disabled={processing} className="bg-red-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-8 h-9 rounded-none">
+                                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Submit Dispute
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
 
             {/* ═══ PAY DIALOG ═══ */}
             <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <CreditCard className="h-5 w-5 text-emerald-600" />
-                            Bayar via Xendit
+                <DialogContent className={NB.content}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}>
+                            <CreditCard className="h-5 w-5" /> Bayar via Xendit
                         </DialogTitle>
-                        <DialogDescription>
-                            Konfirmasi detail pembayaran. Dana akan ditransfer via Xendit.
-                        </DialogDescription>
+                        <p className={NB.subtitle}>Konfirmasi detail pembayaran. Dana akan ditransfer via Xendit.</p>
                     </DialogHeader>
 
-                    <div className="space-y-4 py-4">
-                        <div className="bg-emerald-50 border-2 border-emerald-200 p-4 text-center">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700">Jumlah Bayar</p>
-                            <p className="text-3xl font-black text-emerald-700">
-                                {activeBill ? formatIDR(activeBill.balanceDue) : "-"}
-                            </p>
+                    <div className={`overflow-y-auto ${NB.scroll}`}>
+                        {/* Amount Section */}
+                        <div className={NB.section}>
+                            <div className={NB.sectionHead}>
+                                <Receipt className="h-3.5 w-3.5" />
+                                <span className={NB.sectionTitle}>Jumlah Bayar</span>
+                            </div>
+                            <div className="p-4 bg-emerald-50 text-center">
+                                <p className="text-3xl font-black text-emerald-700">
+                                    {activeBill ? formatIDR(activeBill.balanceDue) : "-"}
+                                </p>
+                            </div>
                         </div>
 
-                        <Tabs defaultValue="bank" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="bank" className="flex items-center gap-2">
-                                    <Building2 className="h-4 w-4" /> Bank Transfer
-                                </TabsTrigger>
-                                <TabsTrigger value="ewallet" className="flex items-center gap-2">
-                                    <Wallet className="h-4 w-4" /> E-Wallet
-                                </TabsTrigger>
-                            </TabsList>
+                        {/* Payment Method Section */}
+                        <div className="px-6 py-5 space-y-4">
+                            <Tabs defaultValue="bank" className="w-full">
+                                <TabsList className="grid w-full grid-cols-2 border-2 border-black rounded-none">
+                                    <TabsTrigger value="bank" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider">
+                                        <Building2 className="h-4 w-4" /> Bank Transfer
+                                    </TabsTrigger>
+                                    <TabsTrigger value="ewallet" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider">
+                                        <Wallet className="h-4 w-4" /> E-Wallet
+                                    </TabsTrigger>
+                                </TabsList>
 
-                            <TabsContent value="bank" className="space-y-4 mt-4">
-                                <div className="space-y-2">
-                                    <Label>Bank</Label>
-                                    <Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}>
-                                        <SelectTrigger><SelectValue placeholder="Pilih bank..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {banks.map((bank) => (
-                                                <SelectItem key={bank.key} value={bank.key}>{bank.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>No. Rekening</Label>
-                                    <Input
-                                        placeholder="Masukkan nomor rekening"
-                                        value={paymentForm.accountNumber}
-                                        onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
-                                        className="font-mono"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Nama Pemilik Rekening</Label>
-                                    <Input
-                                        placeholder="Nama sesuai rekening"
-                                        value={paymentForm.accountHolderName}
-                                        onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })}
-                                    />
-                                    <p className="text-xs text-zinc-400">Harus sesuai data bank</p>
-                                </div>
-                            </TabsContent>
+                                <TabsContent value="bank" className="space-y-4 mt-4">
+                                    <div className="space-y-1">
+                                        <label className={NB.label}>Bank <span className={NB.labelRequired}>*</span></label>
+                                        <Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}>
+                                            <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih bank..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {banks.map((bank) => (
+                                                    <SelectItem key={bank.key} value={bank.key}>{bank.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={NB.label}>No. Rekening <span className={NB.labelRequired}>*</span></label>
+                                        <Input
+                                            placeholder="1234567890"
+                                            value={paymentForm.accountNumber}
+                                            onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
+                                            className={NB.inputMono}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={NB.label}>Nama Pemilik Rekening <span className={NB.labelRequired}>*</span></label>
+                                        <Input
+                                            placeholder="Nama sesuai rekening"
+                                            value={paymentForm.accountHolderName}
+                                            onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })}
+                                            className={NB.input}
+                                        />
+                                        <p className="text-[10px] font-bold text-zinc-400 mt-1">Harus sesuai data bank</p>
+                                    </div>
+                                </TabsContent>
 
-                            <TabsContent value="ewallet" className="space-y-4 mt-4">
-                                <div className="space-y-2">
-                                    <Label>E-Wallet</Label>
-                                    <Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}>
-                                        <SelectTrigger><SelectValue placeholder="Pilih e-wallet..." /></SelectTrigger>
-                                        <SelectContent>
-                                            {ewallets.map((ew) => (
-                                                <SelectItem key={ew.key} value={ew.key}>{ew.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>No. Telepon</Label>
-                                    <Input
-                                        placeholder="08123456789"
-                                        value={paymentForm.accountNumber}
-                                        onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
-                                        className="font-mono"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label>Nama Akun</Label>
-                                    <Input
-                                        placeholder="Nama pemilik akun"
-                                        value={paymentForm.accountHolderName}
-                                        onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })}
-                                    />
-                                </div>
-                            </TabsContent>
-                        </Tabs>
+                                <TabsContent value="ewallet" className="space-y-4 mt-4">
+                                    <div className="space-y-1">
+                                        <label className={NB.label}>E-Wallet <span className={NB.labelRequired}>*</span></label>
+                                        <Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}>
+                                            <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih e-wallet..." /></SelectTrigger>
+                                            <SelectContent>
+                                                {ewallets.map((ew) => (
+                                                    <SelectItem key={ew.key} value={ew.key}>{ew.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={NB.label}>No. Telepon <span className={NB.labelRequired}>*</span></label>
+                                        <Input
+                                            placeholder="08123456789"
+                                            value={paymentForm.accountNumber}
+                                            onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
+                                            className={NB.inputMono}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className={NB.label}>Nama Akun <span className={NB.labelRequired}>*</span></label>
+                                        <Input
+                                            placeholder="Nama pemilik akun"
+                                            value={paymentForm.accountHolderName}
+                                            onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })}
+                                            className={NB.input}
+                                        />
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
+                        </div>
 
-                        <div className="bg-zinc-50 p-3 text-sm border border-zinc-200">
-                            <div className="flex justify-between">
-                                {/* Placeholder fee — actual Xendit fee depends on channel & amount */}
-                                <span className="text-zinc-400">Biaya Transfer (estimasi)</span>
-                                <span className="font-medium">Rp 2.775</span>
+                        {/* Confirmation Section */}
+                        <div className={NB.section}>
+                            <div className={NB.sectionHead}>
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span className={NB.sectionTitle}>Ringkasan</span>
                             </div>
-                            <div className="flex justify-between mt-1">
-                                <span className="text-zinc-400">Total Charge</span>
-                                <span className="font-bold">
-                                    {activeBill ? formatIDR(activeBill.balanceDue + 2775) : "-"}
-                                </span>
+                            <div className="p-4 space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                    {/* Placeholder fee — actual Xendit fee depends on channel & amount */}
+                                    <span className="text-zinc-400 font-bold text-xs">Biaya Transfer (estimasi)</span>
+                                    <span className="font-bold font-mono text-xs">Rp 2.775</span>
+                                </div>
+                                <div className="flex justify-between border-t-2 border-black pt-2">
+                                    <span className="font-black text-xs uppercase tracking-wider">Total Charge</span>
+                                    <span className="font-black font-mono">
+                                        {activeBill ? formatIDR(activeBill.balanceDue + 2775) : "-"}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsPayOpen(false)} disabled={processing}>
-                            Batal
-                        </Button>
-                        <Button onClick={handlePaySubmit} disabled={processing || !!paymentPendingBillId} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                            {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                            Konfirmasi Pembayaran
-                        </Button>
-                    </DialogFooter>
+                    <div className="px-6 py-4 border-t-2 border-black">
+                        <div className={NB.footer}>
+                            <Button variant="outline" onClick={() => setIsPayOpen(false)} disabled={processing} className={NB.cancelBtn}>
+                                Batal
+                            </Button>
+                            <Button onClick={handlePaySubmit} disabled={processing || !!paymentPendingBillId} className={NB.submitBtn}>
+                                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Konfirmasi Pembayaran
+                            </Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
 
