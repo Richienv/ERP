@@ -201,7 +201,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             totalAmount: toNum(inv.totalAmount),
             balanceDue: toNum(inv.balanceDue),
             customer: inv.customer?.name ?? inv.customer ?? null,
-            supplier: inv.supplier?.name ?? inv.supplier ?? null,
+            supplier: typeof inv.supplier === 'object' ? inv.supplier?.name ?? null : inv.supplier ?? null,
         })
 
         return {
