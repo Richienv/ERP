@@ -8,6 +8,8 @@
  *
  * Accounting rules:
  *   PO_RECEIVE      → DR Inventory Asset (1300),  CR Accounts Payable (2100)
+ *   SO_SHIPMENT     → DR Cost of Goods Sold (5100), CR Inventory Asset (1300)
+ *   PRODUCTION_OUT  → DR Work-in-Progress (1320),  CR Raw Materials (1310)
  *   ADJUSTMENT_IN   → DR Inventory Asset (1300),  CR Inventory Adjustment (8300)
  *   ADJUSTMENT_OUT  → DR Inventory Adjustment (8300), CR Inventory Asset (1300)
  *   SCRAP           → DR Loss/Write-off (8200),   CR Inventory Asset (1300)
@@ -18,6 +20,8 @@
 
 export type InventoryGLType =
     | 'PO_RECEIVE'
+    | 'SO_SHIPMENT'
+    | 'PRODUCTION_OUT'
     | 'ADJUSTMENT_IN'
     | 'ADJUSTMENT_OUT'
     | 'SCRAP'
@@ -37,7 +41,10 @@ export type PostInventoryGLParams = {
 // ---- GL Account code constants ----
 
 const GL_INVENTORY_ASSET = '1300'
+const GL_RAW_MATERIALS = '1310'
+const GL_WORK_IN_PROGRESS = '1320'
 const GL_ACCOUNTS_PAYABLE = '2100'
+const GL_COGS = '5100'
 const GL_LOSS_WRITEOFF = '8200'
 const GL_INVENTORY_ADJUSTMENT = '8300'
 
@@ -48,6 +55,10 @@ function glDescription(type: InventoryGLType, productName: string, ref?: string)
     switch (type) {
         case 'PO_RECEIVE':
             return `Penerimaan barang dari PO - ${productName}${suffix}`
+        case 'SO_SHIPMENT':
+            return `Pengiriman barang (HPP) - ${productName}${suffix}`
+        case 'PRODUCTION_OUT':
+            return `Konsumsi bahan baku produksi - ${productName}${suffix}`
         case 'ADJUSTMENT_IN':
             return `Penyesuaian persediaan masuk - ${productName}${suffix}`
         case 'ADJUSTMENT_OUT':
@@ -82,14 +93,15 @@ async function findGLAccount(
     return prisma.gLAccount.findFirst({ where })
 }
 
-/** Generate entry number: JV-INV-YYYYMMDD-XXXX */
+/** Generate entry number: JV-INV-YYYYMMDD-XXXXXX (timestamp-based, collision-resistant) */
 function generateEntryNumber(): string {
     const now = new Date()
     const y = now.getFullYear()
     const m = String(now.getMonth() + 1).padStart(2, '0')
     const d = String(now.getDate()).padStart(2, '0')
-    const seq = String(Math.floor(Math.random() * 10000)).padStart(4, '0')
-    return `JV-INV-${y}${m}${d}-${seq}`
+    // Use millisecond timestamp + small random suffix for uniqueness
+    const ms = String(now.getTime() % 1000000).padStart(6, '0')
+    return `JV-INV-${y}${m}${d}-${ms}`
 }
 
 // ---- Main function ----
@@ -129,6 +141,22 @@ export async function postInventoryGLEntry(
                     findGLAccount(prisma, GL_ACCOUNTS_PAYABLE, 'Hutang', 'LIABILITY'),
                 ])
                 pair = { debitAccount: inv, creditAccount: ap }
+                break
+            }
+            case 'SO_SHIPMENT': {
+                const [cogs, inv] = await Promise.all([
+                    findGLAccount(prisma, GL_COGS, 'Harga Pokok', 'EXPENSE'),
+                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+                ])
+                pair = { debitAccount: cogs, creditAccount: inv }
+                break
+            }
+            case 'PRODUCTION_OUT': {
+                const [wip, raw] = await Promise.all([
+                    findGLAccount(prisma, GL_WORK_IN_PROGRESS, 'Barang Dalam Proses', 'ASSET'),
+                    findGLAccount(prisma, GL_RAW_MATERIALS, 'Bahan Baku', 'ASSET'),
+                ])
+                pair = { debitAccount: wip, creditAccount: raw }
                 break
             }
             case 'ADJUSTMENT_IN': {

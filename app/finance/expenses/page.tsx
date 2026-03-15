@@ -26,6 +26,7 @@ import { toast } from "sonner"
 import { useExpenses } from "@/hooks/use-expenses"
 import { recordExpense } from "@/lib/actions/finance"
 import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 const CATEGORIES = [
     "Operasional",
@@ -111,8 +112,12 @@ export default function ExpensesPage() {
                     reference: "",
                 })
                 setShowForm(false)
-                queryClient.invalidateQueries({ queryKey: ["expenses"] })
-                queryClient.invalidateQueries({ queryKey: ["journal"] })
+                queryClient.invalidateQueries({ queryKey: queryKeys.expenses.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
             } else {
                 toast.error(result.error || "Gagal mencatat pengeluaran")
             }

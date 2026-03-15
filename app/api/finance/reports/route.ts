@@ -204,14 +204,11 @@ async function fetchBalanceSheet(asOfDate: Date) {
 async function fetchCashFlow(start: Date, end: Date) {
     const pnlData = await fetchPnL(start, end)
 
+    // Include all cash & bank accounts (10xx series): 1000 Kas, 1010 BCA, 1020 Mandiri, 1050 Petty Cash, etc.
     const cashAccounts = await prisma.gLAccount.findMany({
         where: {
             type: 'ASSET',
-            OR: [
-                { code: { startsWith: '1000' } },
-                { code: { startsWith: '1010' } },
-                { code: { startsWith: '1020' } },
-            ],
+            code: { gte: '1000', lt: '1100' },
         },
         include: {
             lines: {

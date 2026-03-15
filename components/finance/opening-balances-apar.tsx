@@ -7,6 +7,8 @@ import { toast } from "sonner"
 import { IconPlus, IconTrash, IconFileInvoice, IconReceipt } from "@tabler/icons-react"
 import { createOpeningInvoices, getOpeningBalanceParties } from "@/lib/actions/finance-gl"
 import type { OpeningInvoiceRow } from "@/lib/actions/finance-gl"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface PartyOption {
     id: string
@@ -21,6 +23,7 @@ const emptyRow = (): OpeningInvoiceRow => ({
 })
 
 export function OpeningBalancesAPAR() {
+    const queryClient = useQueryClient()
     const [activeSection, setActiveSection] = useState<"AP" | "AR">("AP")
     const [customers, setCustomers] = useState<PartyOption[]>([])
     const [suppliers, setSuppliers] = useState<PartyOption[]>([])
@@ -73,6 +76,12 @@ export function OpeningBalancesAPAR() {
             if (result.success) {
                 toast.success(`${result.createdCount} saldo awal ${activeSection === "AP" ? "hutang" : "piutang"} berhasil dibuat`)
                 setRows([emptyRow()])
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.openingBalances.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
             } else {
                 toast.error(result.error || "Gagal menyimpan")
             }

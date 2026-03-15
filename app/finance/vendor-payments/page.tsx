@@ -270,6 +270,9 @@ export default function APCheckbookPage() {
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
             } else {
                 toast.error(("error" in result ? result.error : "Failed to record payment") || "Failed to record payment")
             }

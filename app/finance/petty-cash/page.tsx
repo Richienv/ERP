@@ -150,6 +150,8 @@ export default function PettyCashPage() {
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
             }} />
 
             {/* DISBURSEMENT DIALOG */}
@@ -159,6 +161,8 @@ export default function PettyCashPage() {
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
             }} />
         </div>
     )

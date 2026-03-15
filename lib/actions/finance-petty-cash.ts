@@ -81,6 +81,26 @@ export async function topUpPettyCash(data: {
     const currentBalance = latest ? Number(latest.balanceAfter) : 0
     const newBalance = currentBalance + data.amount
 
+    // Post GL first: DR Petty Cash, CR Bank — if this fails, no transaction is created
+    const now = new Date()
+    const tempRef = `PETTY-TOPUP-${Date.now()}`
+    const journalResult = await postJournalEntry({
+        description: `Top Up Peti Kas — ${data.description}`,
+        date: now,
+        reference: tempRef,
+        lines: [
+            { accountCode: PETTY_CASH_ACCOUNT, debit: data.amount, credit: 0, description: "Top up peti kas" },
+            { accountCode: data.bankAccountCode, debit: 0, credit: data.amount, description: "Transfer ke peti kas" },
+        ],
+    })
+
+    if (!journalResult?.success) {
+        const errMsg = 'error' in (journalResult ?? {}) ? (journalResult as any).error : "Gagal posting jurnal untuk top up peti kas"
+        throw new Error(errMsg)
+    }
+
+    const journalId = 'id' in journalResult ? journalResult.id : undefined
+
     const tx = await basePrisma.pettyCashTransaction.create({
         data: {
             type: "TOPUP",
@@ -88,22 +108,16 @@ export async function topUpPettyCash(data: {
             description: data.description || "Top up dari bank",
             bankAccountId: bankAccount.id,
             balanceAfter: newBalance,
+            journalEntryId: journalId ?? undefined,
         },
     })
 
-    // Post GL: DR Petty Cash, CR Bank
-    try {
-        await postJournalEntry({
-            description: `Top Up Peti Kas — ${data.description}`,
-            date: new Date(),
-            reference: `PETTY-${tx.id.slice(0, 8).toUpperCase()}`,
-            lines: [
-                { accountCode: PETTY_CASH_ACCOUNT, debit: data.amount, credit: 0, description: "Top up peti kas" },
-                { accountCode: data.bankAccountCode, debit: 0, credit: data.amount, description: "Transfer ke peti kas" },
-            ],
-        })
-    } catch (glErr) {
-        console.warn("GL entry failed for petty cash top-up:", glErr)
+    // Update reference to include actual tx ID
+    if (journalId) {
+        await basePrisma.journalEntry.update({
+            where: { id: journalId },
+            data: { reference: `PETTY-${tx.id.slice(0, 8).toUpperCase()}` },
+        }).catch(() => {})
     }
 
     return { success: true as const }
@@ -130,6 +144,26 @@ export async function disbursePettyCash(data: {
 
     const newBalance = currentBalance - data.amount
 
+    // Post GL first: DR Expense, CR Petty Cash — if this fails, no transaction is created
+    const now = new Date()
+    const tempRef = `PETTY-DISB-${Date.now()}`
+    const journalResult = await postJournalEntry({
+        description: `Pengeluaran Peti Kas — ${data.recipientName}: ${data.description}`,
+        date: now,
+        reference: tempRef,
+        lines: [
+            { accountCode: data.expenseAccountCode, debit: data.amount, credit: 0, description: `${data.recipientName}: ${data.description}` },
+            { accountCode: PETTY_CASH_ACCOUNT, debit: 0, credit: data.amount, description: "Pengeluaran peti kas" },
+        ],
+    })
+
+    if (!journalResult?.success) {
+        const errMsg = 'error' in (journalResult ?? {}) ? (journalResult as any).error : "Gagal posting jurnal untuk pengeluaran peti kas"
+        return { success: false as const, error: errMsg }
+    }
+
+    const journalId = 'id' in journalResult ? journalResult.id : undefined
+
     const tx = await basePrisma.pettyCashTransaction.create({
         data: {
             type: "DISBURSEMENT",
@@ -138,22 +172,16 @@ export async function disbursePettyCash(data: {
             description: data.description,
             expenseAccountId: expenseAccount.id,
             balanceAfter: newBalance,
+            journalEntryId: journalId ?? undefined,
         },
     })
 
-    // Post GL: DR Expense, CR Petty Cash
-    try {
-        await postJournalEntry({
-            description: `Pengeluaran Peti Kas — ${data.recipientName}: ${data.description}`,
-            date: new Date(),
-            reference: `PETTY-${tx.id.slice(0, 8).toUpperCase()}`,
-            lines: [
-                { accountCode: data.expenseAccountCode, debit: data.amount, credit: 0, description: `${data.recipientName}: ${data.description}` },
-                { accountCode: PETTY_CASH_ACCOUNT, debit: 0, credit: data.amount, description: "Pengeluaran peti kas" },
-            ],
-        })
-    } catch (glErr) {
-        console.warn("GL entry failed for petty cash disbursement:", glErr)
+    // Update reference to include actual tx ID
+    if (journalId) {
+        await basePrisma.journalEntry.update({
+            where: { id: journalId },
+            data: { reference: `PETTY-${tx.id.slice(0, 8).toUpperCase()}` },
+        }).catch(() => {})
     }
 
     return { success: true as const }

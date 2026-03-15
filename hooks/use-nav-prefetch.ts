@@ -30,6 +30,7 @@ import { getDocumentNumbering, getPermissionMatrix } from "@/lib/actions/setting
 import { getDocumentSystemOverview } from "@/app/actions/documents-system"
 import { getHCMDashboardData } from "@/app/actions/hcm"
 import { getWarehouses } from "@/app/actions/inventory"
+import { getFixedAssets, getFixedAssetCategories } from "@/lib/actions/finance-fixed-assets"
 /**
  * Maps sidebar routes to their data prefetch config.
  * Used for both hover-prefetch and warm-cache-on-mount.
@@ -607,6 +608,28 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const result = await getPermissionMatrix()
             return result && "data" in result ? result.data : []
+        },
+    },
+    // --- Fixed Assets ---
+    "/finance/fixed-assets": {
+        queryKey: queryKeys.fixedAssets.list(),
+        queryFn: async () => {
+            const [assets, categories] = await Promise.all([
+                getFixedAssets(),
+                getFixedAssetCategories(),
+            ])
+            return { ...assets, categories: categories.categories ?? [] }
+        },
+    },
+    "/finance/payables": {
+        queryKey: [...queryKeys.bills.all, "payables"],
+        queryFn: async () => {
+            const { getVendorAPBalances, getAPStats } = await import("@/lib/actions/finance-ap")
+            const [balances, stats] = await Promise.all([
+                getVendorAPBalances().catch(() => []),
+                getAPStats().catch(() => ({})),
+            ])
+            return { balances, stats }
         },
     },
 }

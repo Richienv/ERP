@@ -127,6 +127,28 @@ export async function DELETE(
     try {
         const { id } = await params
 
+        // Check for foreign key references before deleting
+        const [workOrderCount, routingStepCount, processStationCount] = await Promise.all([
+            prisma.workOrder.count({ where: { machineId: id } }),
+            prisma.routingStep.count({ where: { machineId: id } }),
+            prisma.processStation.count({ where: { machineId: id } }),
+        ])
+
+        const references: string[] = []
+        if (workOrderCount > 0) references.push(`${workOrderCount} Work Order`)
+        if (routingStepCount > 0) references.push(`${routingStepCount} Routing Step`)
+        if (processStationCount > 0) references.push(`${processStationCount} Process Station`)
+
+        if (references.length > 0) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: `Mesin tidak bisa dihapus karena masih digunakan oleh: ${references.join(', ')}. Nonaktifkan mesin sebagai gantinya.`,
+                },
+                { status: 400 }
+            )
+        }
+
         await prisma.machine.delete({
             where: { id },
         })

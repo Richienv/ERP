@@ -7,6 +7,8 @@ import { toast } from "sonner"
 import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { getGLAccountsList, postOpeningBalancesGL } from "@/lib/actions/finance-gl"
 import type { OpeningBalanceGLRow } from "@/lib/actions/finance-gl"
+import { useQueryClient } from "@tanstack/react-query"
+import { queryKeys } from "@/lib/query-keys"
 
 interface GLAccountOption {
     id: string
@@ -22,6 +24,7 @@ const emptyRow = (): OpeningBalanceGLRow => ({
 })
 
 export function OpeningBalancesGL() {
+    const queryClient = useQueryClient()
     const [accounts, setAccounts] = useState<GLAccountOption[]>([])
     const [rows, setRows] = useState<OpeningBalanceGLRow[]>([emptyRow()])
     const [loading, setLoading] = useState(false)
@@ -70,6 +73,12 @@ export function OpeningBalancesGL() {
             if (result.success) {
                 toast.success("Saldo awal GL berhasil diposting ke jurnal")
                 setRows([emptyRow()])
+                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.openingBalances.all })
             } else {
                 toast.error(result.error || "Gagal menyimpan")
             }

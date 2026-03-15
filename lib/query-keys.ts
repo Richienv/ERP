@@ -406,4 +406,26 @@ export const queryKeys = {
         list: (filters?: Record<string, string>) => [...queryKeys.ceoFlags.all, "list", filters ?? {}] as const,
         count: () => [...queryKeys.ceoFlags.all, "count"] as const,
     },
+    fixedAssets: {
+        all: ["fixedAssets"] as const,
+        list: (filters?: Record<string, string>) => [...["fixedAssets"], "list", filters ?? {}] as const,
+        detail: (id: string) => [...["fixedAssets"], "detail", id] as const,
+    },
+    fixedAssetCategories: {
+        all: ["fixedAssetCategories"] as const,
+        list: () => [...["fixedAssetCategories"], "list"] as const,
+    },
+    depreciationRuns: {
+        all: ["depreciationRuns"] as const,
+        list: () => [...["depreciationRuns"], "list"] as const,
+        detail: (id: string) => [...["depreciationRuns"], "detail", id] as const,
+        preview: (start: string, end: string) => [...["depreciationRuns"], "preview", start, end] as const,
+    },
+    fixedAssetReports: {
+        all: ["fixedAssetReports"] as const,
+        register: () => [...["fixedAssetReports"], "register"] as const,
+        schedule: (assetId?: string) => [...["fixedAssetReports"], "schedule", assetId] as const,
+        movements: (start?: string, end?: string) => [...["fixedAssetReports"], "movements", start, end] as const,
+        nbv: () => [...["fixedAssetReports"], "nbv"] as const,
+    },
 } as const

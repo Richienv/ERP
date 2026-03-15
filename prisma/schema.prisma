@@ -1054,10 +1054,12 @@ model Supplier {
 
   isActive Boolean @default(true)
 
-  purchaseOrders   PurchaseOrder[]
-  supplierItems    SupplierProduct[]
-  categories       SupplierCategory[]
-  debitCreditNotes DebitCreditNote[]
+  purchaseOrders       PurchaseOrder[]
+  supplierItems        SupplierProduct[]
+  categories           SupplierCategory[]
+  debitCreditNotes     DebitCreditNote[]
+  fixedAssets          FixedAsset[]
+  preferredPRItems     PurchaseRequestItem[] @relation("PRItemPreferredSupplier")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1212,13 +1214,15 @@ model PurchaseRequestItem {
   purchaseRequestId String @db.Uuid
   productId         String @db.Uuid
 
-  quantity   Int
-  status     PRItemStatus @default(PENDING)
-  targetDate DateTime?
-  notes      String?
+  quantity            Int
+  status              PRItemStatus @default(PENDING)
+  targetDate          DateTime?
+  notes               String?
+  preferredSupplierId String?      @db.Uuid
 
-  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
-  product         Product         @relation(fields: [productId], references: [id])
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  product           Product         @relation(fields: [productId], references: [id])
+  preferredSupplier Supplier?       @relation("PRItemPreferredSupplier", fields: [preferredSupplierId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2071,6 +2075,12 @@ model GLAccount {
   budgetLines           BudgetLine[]
   cashflowPlanItems     CashflowPlanItem[]
 
+  // Fixed Asset relations
+  fixedAssetCategoriesAsset   FixedAssetCategory[] @relation("CategoryAssetAccount")
+  fixedAssetCategoriesAccDep  FixedAssetCategory[] @relation("CategoryAccDepAccount")
+  fixedAssetCategoriesDepExp  FixedAssetCategory[] @relation("CategoryDepExpAccount")
+  fixedAssetCategoriesGainLoss FixedAssetCategory[] @relation("CategoryGainLossAccount")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2106,6 +2116,8 @@ model JournalEntry {
   inventoryTransaction InventoryTransaction? @relation(fields: [inventoryTransactionId], references: [id])
   pettyCashTransaction  PettyCashTransaction?
   debitCreditNote      DebitCreditNote?
+  fixedAssetDeprecEntries FixedAssetDeprecEntry[]
+  fixedAssetMovements     FixedAssetMovement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3419,4 +3431,216 @@ model CeoFlag {
   @@index([sourceType, sourceId])
   @@index([createdAt])
   @@map("ceo_flags")
+}
+
+// ================================
+// Fixed Asset Register (Aset Tetap)
+// ================================
+
+enum DepreciationMethod {
+  STRAIGHT_LINE      // Garis Lurus
+  DECLINING_BALANCE  // Saldo Menurun
+  UNITS_OF_PRODUCTION // Unit Produksi
+}
+
+enum DepreciationFrequency {
+  MONTHLY // Bulanan
+  YEARLY  // Tahunan
+}
+
+enum AssetStatus {
+  DRAFT              // Draf
+  ACTIVE             // Aktif
+  FULLY_DEPRECIATED  // Disusutkan Penuh
+  DISPOSED           // Dihapus
+  SOLD               // Dijual
+  WRITTEN_OFF        // Dihapusbukukan
+}
+
+enum AssetMovementType {
+  DISPOSAL   // Penghapusan
+  SALE       // Penjualan
+  WRITE_OFF  // Hapus Buku
+  TRANSFER   // Transfer
+}
+
+enum DepreciationRunStatus {
+  PREVIEW  // Pratinjau
+  POSTED   // Diposting
+  REVERSED // Dibatalkan
+}
+
+model FixedAssetCategory {
+  id          String  @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code        String  @unique
+  name        String // e.g. "Mesin", "Kendaraan", "Komputer", "Furnitur", "Bangunan"
+  description String?
+
+  defaultMethod       DepreciationMethod    @default(STRAIGHT_LINE)
+  defaultUsefulLife    Int                   @default(60) // bulan
+  defaultResidualPct  Decimal               @default(0) @db.Decimal(5, 2) // % dari harga beli
+
+  // Akun GL default untuk kategori ini
+  assetAccountId      String?  @db.Uuid
+  accDepAccountId     String?  @db.Uuid
+  depExpAccountId     String?  @db.Uuid
+  gainLossAccountId   String?  @db.Uuid
+
+  assetAccount    GLAccount? @relation("CategoryAssetAccount", fields: [assetAccountId], references: [id])
+  accDepAccount   GLAccount? @relation("CategoryAccDepAccount", fields: [accDepAccountId], references: [id])
+  depExpAccount   GLAccount? @relation("CategoryDepExpAccount", fields: [depExpAccountId], references: [id])
+  gainLossAccount GLAccount? @relation("CategoryGainLossAccount", fields: [gainLossAccountId], references: [id])
+
+  isActive Boolean @default(true)
+  assets   FixedAsset[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("fixed_asset_categories")
+}
+
+model FixedAsset {
+  id         String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  assetCode  String @unique // Auto-generated: FA-XXXX
+  name       String
+  categoryId String @db.Uuid
+
+  // Informasi pembelian
+  purchaseDate      DateTime  @db.Date
+  capitalizationDate DateTime @db.Date
+  supplierId        String?   @db.Uuid
+  purchaseCost      Decimal   @db.Decimal(15, 2)
+  residualValue     Decimal   @default(0) @db.Decimal(15, 2)
+
+  // Penyusutan
+  usefulLifeMonths     Int
+  depreciationMethod   DepreciationMethod @default(STRAIGHT_LINE)
+  depreciationFrequency DepreciationFrequency @default(MONTHLY)
+  depreciationStartDate DateTime @db.Date
+
+  // Akumulasi (denormalized for performance)
+  accumulatedDepreciation Decimal @default(0) @db.Decimal(15, 2)
+  netBookValue            Decimal @default(0) @db.Decimal(15, 2) // purchaseCost - accumulatedDepreciation
+
+  // Lokasi & identifikasi
+  location     String?
+  department   String?
+  serialNumber String?
+  notes        String?
+
+  status AssetStatus @default(DRAFT)
+
+  // Relasi
+  category  FixedAssetCategory @relation(fields: [categoryId], references: [id])
+  supplier  Supplier?          @relation(fields: [supplierId], references: [id])
+
+  depreciationSchedules FixedAssetDeprecSchedule[]
+  depreciationEntries   FixedAssetDeprecEntry[]
+  movements             FixedAssetMovement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([supplierId])
+  @@map("fixed_assets")
+}
+
+model FixedAssetDeprecSchedule {
+  id       String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  assetId  String @db.Uuid
+  periodNo Int // 1, 2, 3, ... (nomor periode penyusutan)
+
+  scheduledDate      DateTime @db.Date
+  depreciationAmount Decimal  @db.Decimal(15, 2)
+  accumulatedAmount  Decimal  @db.Decimal(15, 2)
+  bookValueAfter     Decimal  @db.Decimal(15, 2)
+  isPosted           Boolean  @default(false) // Sudah di-posting via depreciation run?
+
+  asset FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, periodNo])
+  @@index([assetId])
+  @@index([scheduledDate])
+  @@map("fixed_asset_deprec_schedules")
+}
+
+model FixedAssetDeprecRun {
+  id          String               @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  runDate     DateTime             @default(now())
+  periodStart DateTime             @db.Date
+  periodEnd   DateTime             @db.Date
+  status      DepreciationRunStatus @default(PREVIEW)
+
+  totalAssets       Int
+  totalDepreciation Decimal @db.Decimal(15, 2)
+
+  postedBy   String?   @db.Uuid
+  postedAt   DateTime?
+  reversedBy String?   @db.Uuid
+  reversedAt DateTime?
+  notes      String?
+
+  entries FixedAssetDeprecEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([periodStart, periodEnd])
+  @@map("fixed_asset_deprec_runs")
+}
+
+model FixedAssetDeprecEntry {
+  id    String @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  runId String @db.Uuid
+  assetId String @db.Uuid
+
+  depreciationAmount    Decimal @db.Decimal(15, 2)
+  accumulatedAfter      Decimal @db.Decimal(15, 2)
+  bookValueAfter        Decimal @db.Decimal(15, 2)
+
+  journalEntryId String? @db.Uuid
+
+  run          FixedAssetDeprecRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  asset        FixedAsset          @relation(fields: [assetId], references: [id])
+  journalEntry JournalEntry?       @relation(fields: [journalEntryId], references: [id])
+
+  @@unique([runId, assetId])
+  @@index([runId])
+  @@index([assetId])
+  @@map("fixed_asset_deprec_entries")
+}
+
+model FixedAssetMovement {
+  id      String            @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  assetId String            @db.Uuid
+  type    AssetMovementType
+  date    DateTime          @db.Date
+
+  // Disposal / Sale fields
+  proceeds     Decimal? @db.Decimal(15, 2) // Hasil penjualan
+  gainLoss     Decimal? @db.Decimal(15, 2) // Laba/Rugi disposal
+
+  // Transfer fields
+  fromLocation   String?
+  fromDepartment String?
+  toLocation     String?
+  toDepartment   String?
+
+  notes          String?
+  journalEntryId String? @db.Uuid
+
+  executedBy String? @db.Uuid
+
+  asset        FixedAsset    @relation(fields: [assetId], references: [id])
+  journalEntry JournalEntry? @relation(fields: [journalEntryId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([assetId])
+  @@index([type])
+  @@map("fixed_asset_movements")
 }

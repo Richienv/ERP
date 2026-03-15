@@ -50,7 +50,7 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
   const [notes, setNotes] = useState("");
 
   const handleSubmit = async () => {
-    if (!productId || !warehouseId || !quantity) {
+    if (!productId || !warehouseId || !quantity || Number(quantity) <= 0) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -82,6 +82,10 @@ export function ManualMovementDialog({ products, warehouses, userId = "system-us
         setOpen(false);
         setQuantity("");
         setNotes("");
+        setProductId("");
+        setWarehouseId("");
+        setTargetWarehouseId("");
+        setType("ADJUSTMENT_IN");
         queryClient.invalidateQueries({ queryKey: queryKeys.products.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all });
         queryClient.invalidateQueries({ queryKey: queryKeys.adjustments.all });

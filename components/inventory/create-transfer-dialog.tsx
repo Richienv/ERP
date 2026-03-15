@@ -71,26 +71,31 @@ export function CreateTransferDialog({ warehouses, products, trigger }: CreateTr
         }
 
         setLoading(true)
-        const result = await createStockTransfer({
-            fromWarehouseId,
-            toWarehouseId,
-            productId,
-            quantity: qty,
-            notes: notes || undefined,
-        })
-        setLoading(false)
+        try {
+            const result = await createStockTransfer({
+                fromWarehouseId,
+                toWarehouseId,
+                productId,
+                quantity: qty,
+                notes: notes || undefined,
+            })
 
-        if (result.success) {
-            toast.success("Transfer berhasil dibuat")
-            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
-            resetForm()
-            setOpen(false)
-        } else {
-            toast.error(result.error || "Gagal membuat transfer")
+            if (result.success) {
+                toast.success("Transfer berhasil dibuat")
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+                resetForm()
+                setOpen(false)
+            } else {
+                toast.error(result.error || "Gagal membuat transfer")
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Gagal membuat transfer")
+        } finally {
+            setLoading(false)
         }
     }
 

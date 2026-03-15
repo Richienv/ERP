@@ -815,37 +815,35 @@ export async function recordARPayment(data: {
                     })
 
                     // Post GL Entry: DR Cash/Bank, CR Piutang Usaha (AR)
-                    try {
-                        await postJournalEntry({
-                            description: `Penerimaan ${paymentNumber} untuk ${invoice.number}`,
-                            date: data.date || new Date(),
-                            reference: paymentNumber,
-                            invoiceId: data.invoiceId,
-                            lines: [
-                                { accountCode: cashCode, debit: data.amount, credit: 0 },
-                                { accountCode: '1100', debit: 0, credit: data.amount } // Piutang Usaha
-                            ]
-                        })
-                    } catch (glError) {
-                        console.error("GL posting failed (payment recorded):", glError)
+                    const glResult = await postJournalEntry({
+                        description: `Penerimaan ${paymentNumber} untuk ${invoice.number}`,
+                        date: data.date || new Date(),
+                        reference: paymentNumber,
+                        invoiceId: data.invoiceId,
+                        lines: [
+                            { accountCode: cashCode, debit: data.amount, credit: 0 },
+                            { accountCode: '1100', debit: 0, credit: data.amount } // Piutang Usaha
+                        ]
+                    })
+                    if (!glResult?.success) {
+                        console.error("GL posting failed (payment recorded):", glResult?.error)
                     }
                 }
             } else {
                 // Advance payment (Uang Muka / DP) — no invoice yet
                 // Per PSAK 72: DR Cash/Bank, CR 2121 Pendapatan Diterima Dimuka (Unearned Revenue)
                 // Revenue is NOT recognized until goods/services delivered
-                try {
-                    await postJournalEntry({
-                        description: `Uang Muka dari Customer - ${paymentNumber}`,
-                        date: data.date || new Date(),
-                        reference: paymentNumber,
-                        lines: [
-                            { accountCode: cashCode, debit: data.amount, credit: 0 },
-                            { accountCode: '2121', debit: 0, credit: data.amount } // Pendapatan Diterima Dimuka
-                        ]
-                    })
-                } catch (glError) {
-                    console.error("GL posting failed (advance payment):", glError)
+                const advGlResult = await postJournalEntry({
+                    description: `Uang Muka dari Customer - ${paymentNumber}`,
+                    date: data.date || new Date(),
+                    reference: paymentNumber,
+                    lines: [
+                        { accountCode: cashCode, debit: data.amount, credit: 0 },
+                        { accountCode: '2121', debit: 0, credit: data.amount } // Pendapatan Diterima Dimuka
+                    ]
+                })
+                if (!advGlResult?.success) {
+                    console.error("GL posting failed (advance payment):", advGlResult?.error)
                 }
             }
 
@@ -892,18 +890,17 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
             })
 
             // Post GL Entry: DR Cash, CR AR
-            try {
-                await postJournalEntry({
-                    description: `Payment ${payment.number} matched to Invoice ${invoice.number}`,
-                    date: payment.date,
-                    reference: payment.number,
-                    lines: [
-                        { accountCode: '1000', debit: paymentAmount, credit: 0 }, // Kas Besar
-                        { accountCode: '1100', debit: 0, credit: paymentAmount }  // Piutang Usaha (AR)
-                    ]
-                })
-            } catch (glError) {
-                console.error("GL posting failed (match recorded):", glError)
+            const matchGlResult = await postJournalEntry({
+                description: `Payment ${payment.number} matched to Invoice ${invoice.number}`,
+                date: payment.date,
+                reference: payment.number,
+                lines: [
+                    { accountCode: '1000', debit: paymentAmount, credit: 0 }, // Kas Besar
+                    { accountCode: '1100', debit: 0, credit: paymentAmount }  // Piutang Usaha (AR)
+                ]
+            })
+            if (!matchGlResult?.success) {
+                console.error("GL posting failed (match recorded):", matchGlResult?.error)
             }
 
             return { success: true, message: `Payment matched to invoice ${invoice.number}` }

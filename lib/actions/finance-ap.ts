@@ -313,12 +313,15 @@ export async function approveVendorBill(billId: string) {
             })
 
             // Post Journal Entry
-            await postJournalEntry({
+            const glResult = await postJournalEntry({
                 description: `Bill Approval #${bill.number} - ${bill.supplier?.name}`,
                 date: new Date(),
                 reference: bill.number,
                 lines: glLines
             })
+            if (!glResult?.success) {
+                return { success: false, error: `Bill diapprove tapi jurnal gagal: ${(glResult as any)?.error || 'GL error'}` }
+            }
 
             return { success: true }
         })
@@ -470,7 +473,7 @@ export async function recordVendorPayment(data: {
                 select: { name: true }
             })
             const bankAccountName = bankAccount?.name || 'Kas Besar'
-            await postJournalEntry({
+            const glResult = await postJournalEntry({
                 description: `Vendor Payment ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
@@ -479,6 +482,9 @@ export async function recordVendorPayment(data: {
                     { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
                 ]
             })
+            if (!glResult?.success) {
+                console.error("GL posting failed for vendor payment:", (glResult as any)?.error)
+            }
 
             return { success: true, paymentId: payment.id, paymentNumber }
         })
@@ -600,7 +606,7 @@ export async function recordMultiBillPayment(data: {
 
             // Post single GL entry for total amount: DR AP, CR Bank/Cash
             const bankCode = data.bankAccountCode || '1010'
-            await postJournalEntry({
+            const multiGlResult = await postJournalEntry({
                 description: `Pembayaran Vendor Multi-Bill ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
@@ -609,6 +615,9 @@ export async function recordMultiBillPayment(data: {
                     { accountCode: bankCode, debit: 0, credit: totalAmount, description: `Pembayaran via ${data.method || 'TRANSFER'}` }
                 ]
             })
+            if (!multiGlResult?.success) {
+                console.error("GL posting failed for multi-bill payment:", (multiGlResult as any)?.error)
+            }
 
             return { success: true, paymentNumber, paymentIds, totalAmount }
         })
@@ -746,10 +755,9 @@ export async function disputeBill(billId: string, reason: string) {
                 where: { id: billId },
                 data: {
                     status: 'DISPUTED' as InvoiceStatus,
-                    notes: `Dispute Reason: ${reason}\n` + (await prisma.invoice.findUnique({ where: { id: billId }, select: { notes: true } }))?.notes || ''
                 }
             })
-            return { success: true }
+            return { success: true, reason }
         })
     } catch (error: any) {
         console.error("Failed to dispute bill:", error)
@@ -833,12 +841,15 @@ export async function approveAndPayBill(
                     description: `Hutang - ${bill.supplier?.name}`
                 })
 
-                await postJournalEntry({
+                const approvalGl = await postJournalEntry({
                     description: `Bill Approval (Instant Pay) #${bill.number} - ${bill.supplier?.name}`,
                     date: new Date(),
                     reference: bill.number,
                     lines: glLines
                 })
+                if (!approvalGl?.success) {
+                    return { success: false, error: `Jurnal approval gagal: ${(approvalGl as any)?.error || 'GL error'}` }
+                }
             }
 
             // 4. Pay (Debit AP, Credit Cash/Bank)
@@ -864,8 +875,8 @@ export async function approveAndPayBill(
                 data: { status: 'PAID', balanceDue: 0 }
             })
 
-            // Post Cash Journal (Credit Bank 1100, Debit AP 2000)
-            await postJournalEntry({
+            // Post Cash Journal (Credit Bank, Debit AP)
+            const payGl = await postJournalEntry({
                 description: `Payment to ${bill.supplier?.name} for ${bill.number}`,
                 date: new Date(),
                 reference: paymentNumber,
@@ -874,6 +885,9 @@ export async function approveAndPayBill(
                     { accountCode: '1010', debit: 0, credit: paymentDetails.amount, description: `Transfer Bank` } // Credit Bank
                 ]
             })
+            if (!payGl?.success) {
+                console.error("GL posting failed for payment:", (payGl as any)?.error)
+            }
 
             return { success: true }
         })

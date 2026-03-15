@@ -43,18 +43,23 @@ export function StockTransferList({ transfers, warehouses, products }: StockTran
 
     const handleTransition = async (transferId: string, newStatus: TransferStatus) => {
         setTransitioning(transferId)
-        const result = await transitionStockTransfer(transferId, newStatus)
-        setTransitioning(null)
+        try {
+            const result = await transitionStockTransfer(transferId, newStatus)
 
-        if (result.success) {
-            toast.success(`Transfer berhasil diubah ke ${TRANSFER_STATUS_LABELS[newStatus]}`)
-            queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
-            queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
-        } else {
-            toast.error(result.error || "Gagal mengubah status")
+            if (result.success) {
+                toast.success(`Transfer berhasil diubah ke ${TRANSFER_STATUS_LABELS[newStatus]}`)
+                queryClient.invalidateQueries({ queryKey: queryKeys.stockTransfers.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.stockMovements.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
+            } else {
+                toast.error(result.error || "Gagal mengubah status")
+            }
+        } catch (err: any) {
+            toast.error(err.message || "Gagal mengubah status transfer")
+        } finally {
+            setTransitioning(null)
         }
     }
 

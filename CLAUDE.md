@@ -20,6 +20,87 @@ This file provides guidance to Claude Code when working with this Indonesian ERP
 4. **No feature without a use-case** — Before implementing, identify: Who is the user? What problem do they have? How does this solve it? If the answer is vague, clarify first.
 5. **Industry standard as baseline, simplify from there** — Match what competitors offer (Accurate, Jurnal, HashMicro) but strip away enterprise bloat that SMEs don't need.
 
+## UI Design System — NB (Neo-Brutalist) Standard
+
+> **Reference implementation:** `app/finance/invoices/page.tsx` (Invoice Center)
+> **Style constants:** `lib/dialog-styles.ts` — import as `import { NB } from "@/lib/dialog-styles"`
+
+Our design identity is Neo-Brutalist (NB) — `border-2 border-black`, `shadow-[4px_4px...]`, bold uppercase headings, `rounded-none`. All new pages and components MUST follow these patterns.
+
+### Page Layout: Unified Header Card
+
+Every list page uses **one card** (`NB.pageCard`) with an orange accent bar and 3 internal rows separated by light borders (`border-b border-zinc-200`), NOT 3 separate heavy blocks.
+
+```
+┌─ orange gradient accent bar (h-1) ────────────────────────┐
+│ Row 1: Title + Toolbar Actions                            │
+│   Left: icon (orange bg) + title + subtitle               │
+│   Right: [Export | Transaksi] + [+ Buat Invoice]          │
+│          ↑ joined (border-r-0)    ↑ primary CTA (orange)  │
+├───────────────────────────────────────────────────────────│
+│ Row 2: KPI Strip                                          │
+│   ● Semua    12  Rp xxx  │  ● Draft  3  │  ● Terkirim  5 │
+│   label left, count+amount right, divide-x between cells  │
+├───────────────────────────────────────────────────────────│
+│ Row 3: Filter Toolbar (bg-zinc-50/80)                     │
+│   [🔍 Search input  ][Tipe ▼][Status ▼][Terapkan]  12 inv│
+│   ↑ joined strip, all h-9, border-r-0 between elements   │
+└───────────────────────────────────────────────────────────┘
+```
+
+### Toolbar Button System
+
+All toolbar buttons are `h-9 rounded-none text-[10px] font-bold uppercase tracking-wider`.
+
+- **Secondary buttons** (Export, Transaksi): `NB.toolbarBtn` — `border border-zinc-300`, ghost style. Joined with `NB.toolbarBtnJoin` (`border-r-0`) when adjacent.
+- **Primary CTA** (Buat Invoice): `NB.toolbarBtnPrimary` — `bg-orange-500 text-white border-orange-600`, separated with `ml-2`.
+- **Filter toolbar** uses the same h-9 system. Search, dropdowns, and action buttons join into one continuous strip via `border-r-0`.
+
+### Active Input Indicator (MANDATORY)
+
+Every input, select, and filter in the system must show a visual state change when it has a value. This is a core UX pattern — the user should always know at a glance which fields have data.
+
+```tsx
+// Usage pattern:
+<Input className={`... ${value ? NB.inputActive : NB.inputEmpty}`} />
+<Icon className={`... ${value ? NB.inputIconActive : NB.inputIconEmpty}`} />
+```
+
+| State | Border | Background | Icon |
+|-------|--------|------------|------|
+| **Empty** | `border-zinc-300` | `bg-white` | `text-zinc-500` |
+| **Has value** | `border-orange-400` | `bg-orange-50/50` | `text-orange-500` |
+
+When the input has a value, also show a small **X clear button** on the right (`absolute right-2`) to let the user clear the field.
+
+### KPI Strip
+
+Horizontal cells with `flex-1` equal width, `divide-x divide-zinc-200` between. Each cell: label+dot left, count+amount right (`justify-between`). Count is `text-xl font-black`. Amounts are `text-xs font-mono font-bold`. Overdue counts use `text-red-600`.
+
+### CheckboxFilter Integration
+
+When using `CheckboxFilter` in toolbars (not in dialogs), pass `hideLabel` and `triggerClassName={NB.filterDropdown}` to match the toolbar height and borders.
+
+### Dialog Styling
+
+Dialogs use `NB.content` / `NB.contentNarrow` / `NB.contentWide` with `NB.header` (black bg), `NB.section` containers, and `NB.submitBtn*` colored action buttons. See `lib/dialog-styles.ts` for all tokens.
+
+### NB Constants Quick Reference
+
+| Token | Purpose |
+|-------|---------|
+| `NB.pageCard` | Page-level card wrapper |
+| `NB.pageAccent` | Orange gradient top bar |
+| `NB.toolbarBtn` | Secondary toolbar button |
+| `NB.toolbarBtnPrimary` | Primary CTA button |
+| `NB.filterBar` | Filter row container |
+| `NB.filterDropdown` | CheckboxFilter trigger in toolbars |
+| `NB.inputActive` / `NB.inputEmpty` | Active input indicator |
+| `NB.inputIconActive` / `NB.inputIconEmpty` | Icon color for active inputs |
+| `NB.kpiStrip` / `NB.kpiCell` | KPI summary row |
+| `NB.content` / `NB.header` | Dialog container + header |
+| `NB.submitBtnOrange` | Orange submit button (dialogs) |
+
 ## Development Commands
 
 ```bash

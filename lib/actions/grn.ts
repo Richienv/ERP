@@ -5,11 +5,13 @@ import { prisma, safeQuery, withRetry, withPrismaAuth } from "@/lib/db"
 import { ProcurementStatus } from "@prisma/client"
 import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition } from "@/lib/po-state-machine"
-import { 
-    FALLBACK_PENDING_POS, 
-    FALLBACK_GRNS, 
-    FALLBACK_WAREHOUSES, 
-    FALLBACK_EMPLOYEES 
+import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
+import { revalidatePath } from "next/cache"
+import {
+    FALLBACK_PENDING_POS,
+    FALLBACK_GRNS,
+    FALLBACK_WAREHOUSES,
+    FALLBACK_EMPLOYEES
 } from "@/lib/db-fallbacks"
 
 const prismaAny = prisma as any
@@ -383,11 +385,13 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             return await prisma.$transaction(async (tx) => {
                 const txAny = tx as any
 
-                // 1. Get GRN with items (read-only, for data access)
+                // 1. Get GRN with items + product cost data (read-only, for data access)
                 const grn = await txAny.goodsReceivedNote.findUnique({
                     where: { id: grnId },
                     include: {
-                        items: true,
+                        items: {
+                            include: { product: { select: { name: true, costPrice: true } } }
+                        },
                         purchaseOrder: {
                             include: { items: true }
                         }
@@ -448,13 +452,16 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
 
                 // 3. Update PO item received quantities (with over-receive guard)
                 for (const grnItem of grn.items) {
-                    // Guard: verify receivedQty + acceptedQty won't exceed orderedQty
-                    const poItem = grn.purchaseOrder.items.find((pi: any) => pi.id === grnItem.poItemId)
-                    if (poItem) {
-                        const newTotal = poItem.receivedQty + grnItem.quantityAccepted
-                        if (newTotal > poItem.quantity) {
+                    // Fresh read inside TX to prevent race condition with concurrent GRN acceptances
+                    const currentPoItem = await tx.purchaseOrderItem.findUnique({
+                        where: { id: grnItem.poItemId }
+                    })
+                    if (currentPoItem) {
+                        const newTotal = currentPoItem.receivedQty + grnItem.quantityAccepted
+                        if (newTotal > currentPoItem.quantity) {
                             throw new Error(
-                                "Jumlah penerimaan melebihi jumlah pesanan pada PO item ini."
+                                `Jumlah penerimaan melebihi jumlah pesanan pada PO item ${currentPoItem.id}. ` +
+                                `Sudah diterima: ${currentPoItem.receivedQty}, akan ditambah: ${grnItem.quantityAccepted}, maks: ${currentPoItem.quantity}.`
                             )
                         }
                     }
@@ -470,14 +477,17 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
 
                     // 4. Create inventory transaction for each accepted item
                     if (grnItem.quantityAccepted > 0) {
-                        await tx.inventoryTransaction.create({
+                        const unitCost = Number(grnItem.unitCost)
+                        const totalValue = unitCost * grnItem.quantityAccepted
+
+                        const invTx = await tx.inventoryTransaction.create({
                             data: {
                                 productId: grnItem.productId,
                                 warehouseId: grn.warehouseId,
                                 type: 'PO_RECEIVE',
                                 quantity: grnItem.quantityAccepted,
                                 unitCost: grnItem.unitCost,
-                                totalValue: Number(grnItem.unitCost) * grnItem.quantityAccepted,
+                                totalValue,
                                 purchaseOrderId: grn.purchaseOrderId,
                                 referenceId: grn.number,
                                 notes: `Received via ${grn.number}`
@@ -504,6 +514,18 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                                 quantity: { increment: grnItem.quantityAccepted },
                                 availableQty: { increment: grnItem.quantityAccepted }
                             }
+                        })
+
+                        // 6. Post GL entry: DR Inventory Asset (1300) / CR Accounts Payable (2100)
+                        const productName = grnItem.product?.name || grnItem.productId.slice(0, 8)
+                        await postInventoryGLEntry(tx, {
+                            transactionId: invTx.id,
+                            type: 'PO_RECEIVE',
+                            productName,
+                            quantity: grnItem.quantityAccepted,
+                            unitCost,
+                            totalValue,
+                            reference: grn.number,
                         })
                     }
                 }
@@ -577,6 +599,14 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             recalculateVendorRating(grnId).catch((err) =>
                 console.error("[acceptGRN] Vendor rating recalc failed (non-blocking):", err)
             )
+
+            // Revalidate all affected pages
+            revalidatePath("/inventory")
+            revalidatePath("/inventory/products")
+            revalidatePath("/inventory/stock")
+            revalidatePath("/inventory/movements")
+            revalidatePath("/procurement")
+            revalidatePath("/finance")
         }
 
         return result
@@ -620,6 +650,9 @@ export async function rejectGRN(grnId: string, reason: string) {
                 throw new Error("GRN tidak dalam status yang bisa ditolak. Refresh halaman.")
             }
         })
+
+        revalidatePath("/procurement")
+        revalidatePath("/inventory")
 
         return { success: true }
     } catch (error: any) {

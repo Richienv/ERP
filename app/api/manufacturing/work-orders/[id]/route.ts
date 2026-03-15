@@ -3,6 +3,34 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { calculateActualCostOnCompletion } from '@/lib/wo-cost-helpers'
 
+// Find the best default warehouse by type, with GENERAL as fallback.
+async function findDefaultWarehouse(
+    client: typeof prisma | Prisma.TransactionClient,
+    preferredType: 'RAW_MATERIAL' | 'FINISHED_GOODS' | 'WORK_IN_PROGRESS' | 'GENERAL' = 'GENERAL'
+) {
+    // Try preferred type first, then GENERAL as fallback
+    const warehouse = await client.warehouse.findFirst({
+        where: { isActive: true, warehouseType: preferredType },
+        select: { id: true },
+    })
+    if (warehouse) return warehouse
+
+    // Fallback to GENERAL
+    if (preferredType !== 'GENERAL') {
+        const general = await client.warehouse.findFirst({
+            where: { isActive: true, warehouseType: 'GENERAL' },
+            select: { id: true },
+        })
+        if (general) return general
+    }
+
+    // Last resort: any active warehouse
+    return client.warehouse.findFirst({
+        where: { isActive: true },
+        select: { id: true },
+    })
+}
+
 const WO_STATE_TRANSITIONS: Record<string, string[]> = {
     PLANNED: ['IN_PROGRESS', 'ON_HOLD', 'CANCELLED'],
     IN_PROGRESS: ['ON_HOLD', 'CANCELLED', 'COMPLETED'],
@@ -142,13 +170,42 @@ async function executeProductionPosting(
             throw new Error(`Insufficient stock for ${item.material.code}. Need ${requiredQty}, available ${sourceLevel?.quantity || 0}`)
         }
 
+        // Release from reservation first (WO start reserved stock),
+        // only decrement availableQty for the unreserved portion
+        const releaseFromReserved = Math.min(requiredQty, sourceLevel.reservedQty)
+        const releaseFromAvailable = requiredQty - releaseFromReserved
+
         await tx.stockLevel.update({
             where: { id: sourceLevel.id },
             data: {
                 quantity: { decrement: requiredQty },
-                availableQty: { decrement: requiredQty },
+                reservedQty: { decrement: releaseFromReserved },
+                availableQty: { decrement: releaseFromAvailable },
             },
         })
+
+        // Mark StockReservation as consumed if exists
+        if (releaseFromReserved > 0) {
+            const reservation = await tx.stockReservation.findUnique({
+                where: {
+                    workOrderId_productId_warehouseId: {
+                        workOrderId: workOrder.id,
+                        productId: item.materialId,
+                        warehouseId: params.warehouseId,
+                    },
+                },
+            })
+            if (reservation && reservation.status === 'ACTIVE') {
+                const newConsumed = reservation.consumedQty + releaseFromReserved
+                await tx.stockReservation.update({
+                    where: { id: reservation.id },
+                    data: {
+                        consumedQty: newConsumed,
+                        status: newConsumed >= reservation.reservedQty ? 'CONSUMED' : 'ACTIVE',
+                    },
+                })
+            }
+        }
 
         const unitCost = Number(item.material.costPrice || 0)
         totalMaterialCost += unitCost * requiredQty
@@ -413,11 +470,7 @@ async function reserveStockForWorkOrder(workOrderId: string) {
     const bomItems = wo.productionBom?.items ?? wo.product.BillOfMaterials[0]?.items ?? []
     if (bomItems.length === 0) return
 
-    const defaultWarehouse = await prisma.warehouse.findFirst({
-        where: { isActive: true },
-        select: { id: true },
-        orderBy: { createdAt: "asc" },
-    })
+    const defaultWarehouse = await findDefaultWarehouse(prisma, 'RAW_MATERIAL')
     if (!defaultWarehouse) return
 
     for (const item of bomItems) {
@@ -631,11 +684,7 @@ export async function PATCH(
                     throw new Error('quantityProduced must be greater than 0')
                 }
 
-                const warehouseId = body.warehouseId || (await tx.warehouse.findFirst({
-                    where: { isActive: true },
-                    select: { id: true },
-                    orderBy: { createdAt: 'asc' },
-                }))?.id
+                const warehouseId = body.warehouseId || (await findDefaultWarehouse(tx, 'RAW_MATERIAL'))?.id
 
                 if (!warehouseId) {
                     throw new Error('No active warehouse available for production posting')
@@ -688,11 +737,7 @@ export async function PATCH(
                     )
                 }
 
-                const warehouseId = body.warehouseId || (await tx.warehouse.findFirst({
-                    where: { isActive: true },
-                    select: { id: true },
-                    orderBy: { createdAt: 'asc' },
-                }))?.id
+                const warehouseId = body.warehouseId || (await findDefaultWarehouse(tx, 'RAW_MATERIAL'))?.id
 
                 if (!warehouseId) {
                     throw new Error('Tidak ada gudang aktif untuk proses retur')
@@ -726,11 +771,7 @@ export async function PATCH(
                         return completed
                     }
 
-                    const warehouseId = body.warehouseId || (await tx.warehouse.findFirst({
-                        where: { isActive: true },
-                        select: { id: true },
-                        orderBy: { createdAt: 'asc' },
-                    }))?.id
+                    const warehouseId = body.warehouseId || (await findDefaultWarehouse(tx, 'RAW_MATERIAL'))?.id
                     if (!warehouseId) {
                         throw new Error('No active warehouse available for completion posting')
                     }
@@ -789,7 +830,7 @@ export async function PATCH(
             try {
                 if (newStatus === 'IN_PROGRESS' && previousStatus !== 'IN_PROGRESS') {
                     await reserveStockForWorkOrder(id)
-                } else if (newStatus === 'CANCELLED') {
+                } else if (newStatus === 'CANCELLED' || newStatus === 'COMPLETED') {
                     await releaseReservationsForWorkOrder(id)
                 }
             } catch (reservationError) {

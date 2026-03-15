@@ -68,6 +68,11 @@ export function WarehouseFormDialog({ mode, warehouse, trigger }: WarehouseFormD
   }, [open, warehouse?.id, mode]);
 
   const handleSubmit = async () => {
+    if (!formData.code.trim() || !formData.name.trim()) {
+      toast.error("Kode dan nama gudang wajib diisi")
+      return
+    }
+    if (formData.capacity < 0) formData.capacity = 0
     setLoading(true);
     try {
       let result;

@@ -1026,6 +1026,29 @@ export async function cancelPurchaseOrder(id: string, reason: string) {
                     metadata: { source: "MANUAL_ENTRY" },
                 })
 
+                // Void any associated vendor bills (INV_IN) to keep finance clean
+                const associatedBills = await (tx as any).invoice.findMany({
+                    where: {
+                        type: 'INV_IN',
+                        OR: [{ orderId: id }, { purchaseOrderId: id }],
+                        status: { notIn: ['CANCELLED', 'VOID', 'PAID'] }
+                    }
+                })
+
+                for (const bill of associatedBills) {
+                    await (tx as any).invoice.update({
+                        where: { id: bill.id },
+                        data: {
+                            status: 'VOID',
+                            notes: `[AUTO-VOID] PO ${po.number} dibatalkan. Alasan: ${reason || '-'}`,
+                        }
+                    })
+                }
+
+                if (associatedBills.length > 0) {
+                    console.log(`[Cancel PO] Voided ${associatedBills.length} vendor bill(s) for PO ${po.number}`)
+                }
+
                 return { success: true, data: updated }
             })
         })
@@ -1184,17 +1207,18 @@ export async function confirmPurchaseOrder(id: string) {
             })
         })
 
-        // Auto-create vendor bill (AP) from completed PO
+        // Ensure vendor bill exists (normally created at approval stage)
+        // Only creates if missing — recordPendingBillFromPO has built-in duplicate check
         try {
-            const { createBillFromPOId } = await import("@/lib/actions/finance-invoices")
-            const billResult = await createBillFromPOId(id)
-            if (billResult.success) {
-                console.log(`[Auto-AP] Vendor bill ${(billResult as any).billNumber || 'created'} for PO ${id}`)
-            } else {
-                console.warn(`[Auto-AP] Could not create bill for PO ${id}:`, billResult.error)
+            const po = await prisma.purchaseOrder.findUnique({
+                where: { id },
+                include: { supplier: true, items: { include: { product: true } } }
+            })
+            if (po) {
+                await recordPendingBillFromPO(po)
             }
         } catch (billError) {
-            console.warn("[Auto-AP] Bill creation failed (PO still completed):", billError)
+            console.warn("[Auto-AP] Bill check failed (PO still completed):", billError)
         }
 
         return { success: true }

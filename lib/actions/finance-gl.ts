@@ -152,8 +152,10 @@ export async function postJournalEntry(data: {
 
             const accountMap = new Map(accounts.map(a => [a.code, a]))
 
+            let entryId: string | undefined
+
             await prisma.$transaction(async (tx) => {
-                const _entry = await tx.journalEntry.create({
+                const entry = await tx.journalEntry.create({
                     data: {
                         date: data.date,
                         description: data.description,
@@ -177,6 +179,8 @@ export async function postJournalEntry(data: {
                     }
                 })
 
+                entryId = entry.id
+
                 for (const line of data.lines) {
                     const account = accountMap.get(line.accountCode)!
                     let balanceChange = 0
@@ -194,7 +198,7 @@ export async function postJournalEntry(data: {
                 }
             })
 
-            return { success: true }
+            return { success: true, id: entryId }
         })
     } catch (error: any) {
         console.error("Journal Posting Error:", error)
@@ -908,6 +912,68 @@ export async function createOpeningInvoices(data: {
 
                 await prisma.invoice.create({ data: invoiceData })
                 count++
+            }
+
+            // Post GL journal entry for opening AP/AR balances
+            const totalAmount = validRows.reduce((sum, r) => sum + r.amount, 0)
+            if (totalAmount > 0) {
+                // AR opening: DR Piutang (1100), CR Opening Balance Equity (3900)
+                // AP opening: DR Opening Balance Equity (3900), CR Hutang (2100)
+                const arCode = "1100"
+                const apCode = "2100"
+                const openingEquityCode = "3900"
+                const balanceAccountCode = data.type === "AR" ? arCode : apCode
+
+                // Ensure accounts exist
+                const accountCodes = [balanceAccountCode, openingEquityCode]
+                const accounts = await prisma.gLAccount.findMany({
+                    where: { code: { in: accountCodes } }
+                })
+
+                // Auto-create missing accounts
+                if (!accounts.find(a => a.code === openingEquityCode)) {
+                    await prisma.gLAccount.create({
+                        data: { code: openingEquityCode, name: "Saldo Awal Ekuitas", type: "EQUITY", balance: 0 }
+                    })
+                }
+
+                const allAccounts = await prisma.gLAccount.findMany({
+                    where: { code: { in: accountCodes } }
+                })
+                const accountMap = new Map(allAccounts.map(a => [a.code, a]))
+                const balanceAccount = accountMap.get(balanceAccountCode)
+                const equityAccount = accountMap.get(openingEquityCode)
+
+                if (balanceAccount && equityAccount) {
+                    const lines = data.type === "AR"
+                        ? [
+                            { accountId: balanceAccount.id, debit: totalAmount, credit: 0, description: `Saldo Awal Piutang (${count} invoice)` },
+                            { accountId: equityAccount.id, debit: 0, credit: totalAmount, description: `Saldo Awal Piutang (${count} invoice)` },
+                        ]
+                        : [
+                            { accountId: equityAccount.id, debit: totalAmount, credit: 0, description: `Saldo Awal Hutang (${count} bill)` },
+                            { accountId: balanceAccount.id, debit: 0, credit: totalAmount, description: `Saldo Awal Hutang (${count} bill)` },
+                        ]
+
+                    await prisma.journalEntry.create({
+                        data: {
+                            date: new Date(),
+                            description: `Saldo Awal ${data.type === "AR" ? "Piutang Usaha" : "Hutang Usaha"}`,
+                            reference: `OPENING-${data.type}-${new Date().getFullYear()}`,
+                            status: 'POSTED',
+                            lines: { create: lines },
+                        }
+                    })
+
+                    // Update GL balances
+                    if (data.type === "AR") {
+                        await prisma.gLAccount.update({ where: { id: balanceAccount.id }, data: { balance: { increment: totalAmount } } })
+                        await prisma.gLAccount.update({ where: { id: equityAccount.id }, data: { balance: { increment: totalAmount } } })
+                    } else {
+                        await prisma.gLAccount.update({ where: { id: equityAccount.id }, data: { balance: { decrement: totalAmount } } })
+                        await prisma.gLAccount.update({ where: { id: balanceAccount.id }, data: { balance: { increment: totalAmount } } })
+                    }
+                }
             }
 
             return count

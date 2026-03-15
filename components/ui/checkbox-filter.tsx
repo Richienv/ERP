@@ -15,12 +15,19 @@ interface CheckboxFilterProps {
     options: CheckboxFilterOption[]
     selected: string[]
     onChange: (selected: string[]) => void
+    /** Hide the label above the trigger */
+    hideLabel?: boolean
+    /** Override trigger button classes */
+    triggerClassName?: string
+    /** Override trigger button classes when filter has active selections */
+    triggerActiveClassName?: string
 }
 
-export function CheckboxFilter({ label, options, selected, onChange }: CheckboxFilterProps) {
+export function CheckboxFilter({ label, options, selected, onChange, hideLabel, triggerClassName, triggerActiveClassName }: CheckboxFilterProps) {
     const [open, setOpen] = useState(false)
 
     const allSelected = selected.length === options.length || selected.length === 0
+    const hasActive = selected.length > 0 && !allSelected
     const displayText = allSelected
         ? "Semua"
         : selected.length === 1
@@ -38,14 +45,24 @@ export function CheckboxFilter({ label, options, selected, onChange }: CheckboxF
     const selectAll = () => onChange(options.map(o => o.value))
     const clearAll = () => onChange([])
 
+    // Determine which className to use
+    const resolvedClassName = triggerClassName
+        ? (hasActive && triggerActiveClassName ? triggerActiveClassName : triggerClassName)
+        : "flex items-center gap-2 border-2 border-black h-10 px-3 bg-white text-xs font-medium min-w-[160px] justify-between hover:bg-zinc-50 transition-colors"
+
+    // Build display: "Label: Value" when hideLabel, just "Value" otherwise
+    const triggerText = hideLabel
+        ? (hasActive ? `${label}: ${displayText}` : label)
+        : displayText
+
     return (
         <div>
-            <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">{label}</label>
+            {!hideLabel && <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">{label}</label>}
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
-                    <button className="flex items-center gap-2 border-2 border-black h-10 px-3 bg-white text-xs font-medium min-w-[160px] justify-between hover:bg-zinc-50 transition-colors">
-                        <span className="truncate">{displayText}</span>
-                        <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    <button className={resolvedClassName}>
+                        <span className="truncate">{triggerText}</span>
+                        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-colors ${hasActive && triggerActiveClassName ? 'text-orange-500' : 'text-zinc-400'}`} />
                     </button>
                 </PopoverTrigger>
                 <PopoverContent className="w-[220px] p-0 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] rounded-none" align="start">

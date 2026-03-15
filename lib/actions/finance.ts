@@ -117,9 +117,9 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                 take: 3,
             }),
 
-            // 5. Cash Balance — ALL cash/bank ASSET accounts (codes starting with 1)
+            // 5. Cash Balance — cash/bank ASSET accounts (10xx: 1000 Kas, 1010 BCA, 1020 Mandiri, 1050 Petty Cash)
             basePrisma.gLAccount.findMany({
-                where: { type: 'ASSET', code: { startsWith: '1' } },
+                where: { type: 'ASSET', code: { gte: '1000', lt: '1100' } },
                 select: { balance: true, code: true },
             }),
 
@@ -176,14 +176,12 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
         const revVal = toNum(revenueAgg._sum.totalAmount)
         const expVal = toNum(expenseAgg._sum.totalAmount)
 
-        // Fallback chain for KAS:
-        // 1. GL accounts (proper accounting — preferred)
-        // 2. Paid invoices (net cash = paid IN - paid OUT)
-        // 3. Revenue MTD minus receivables (estimated realized cash)
+        // Cash balance from GL is the single source of truth
+        // Only fall back to paid invoices if NO cash GL accounts exist at all
         const cashFromPaidIn = toNum(paidInAgg._sum.totalAmount)
         const cashFromPaidOut = toNum(paidOutAgg._sum.totalAmount)
         const cashFromPaid = cashFromPaidIn - cashFromPaidOut
-        const cashBal = cashFromGL > 0 ? cashFromGL : cashFromPaid > 0 ? cashFromPaid : Math.max(0, revVal - receivables)
+        const cashBal = cashAccounts.length > 0 ? cashFromGL : (cashFromPaid > 0 ? cashFromPaid : Math.max(0, revVal - receivables))
 
         // Burn Rate — try journal-based first, fallback to expense invoices (INV_IN) last 30 days
         const burnFromJournals = (burnLines as any[]).reduce((sum: number, item: any) => sum + toNum(item.debit), 0)
@@ -793,15 +791,11 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
-            // Get cash account changes
+            // Get cash account changes (all 10xx: 1000 Kas, 1010 BCA, 1020 Mandiri, 1050 Petty Cash, etc.)
             const cashAccounts = await basePrisma.gLAccount.findMany({
                 where: {
                     type: 'ASSET',
-                    OR: [
-                        { code: { startsWith: '1000' } },
-                        { code: { startsWith: '1010' } },
-                        { code: { startsWith: '1020' } }
-                    ]
+                    code: { gte: '1000', lt: '1100' },
                 }
             })
 
@@ -1254,7 +1248,7 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
 
                 if (arAccount && revenueAccount) {
                     // Post journal entry
-                    await postJournalEntry({
+                    const glResult = await postJournalEntry({
                         description: `Customer Invoice ${invoice.number} - ${salesOrder.customer?.name}`,
                         date: new Date(),
                         reference: invoice.number,
@@ -1273,6 +1267,9 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                             }
                         ]
                     })
+                    if (!glResult?.success) {
+                        console.error("GL posting failed:", glResult?.error)
+                    }
                     console.log("GL Entry Posted for Invoice:", invoice.number)
                 } else {
                     console.warn("GL Accounts not found - skipping auto-posting")
@@ -1418,7 +1415,7 @@ export async function processRefund(data: {
             let creditAccount = '1101' // Cash
             if (data.method === 'TRANSFER') creditAccount = '1102' // Bank
 
-            await postJournalEntry({
+            const glResult = await postJournalEntry({
                 description: `Refund to customer: ${data.reason}`,
                 date: new Date(),
                 reference: refund.id,
@@ -1435,6 +1432,9 @@ export async function processRefund(data: {
                     }
                 ]
             })
+            if (!glResult?.success) {
+                console.error("GL posting failed:", glResult?.error)
+            }
 
             return { success: true, refundId: refund.id }
         })
@@ -1522,7 +1522,7 @@ export async function createPaymentVoucher(data: {
             let creditAccount = '1101'
             if (data.method === 'TRANSFER') creditAccount = '1102'
 
-            await postJournalEntry({
+            const glResult = await postJournalEntry({
                 description: `Payment Voucher ${number} for ${bills.length} bills`,
                 date: new Date(),
                 reference: voucher.id,
@@ -1539,6 +1539,9 @@ export async function createPaymentVoucher(data: {
                     }
                 ]
             })
+            if (!glResult?.success) {
+                console.error("GL posting failed:", glResult?.error)
+            }
 
             return { success: true, voucherNumber: number }
         })
@@ -1647,7 +1650,7 @@ export async function recordInvoicePayment(data: {
 
             if (invoice.type === 'INV_OUT') {
                 // Customer Payment: Debit Cash, Credit AR
-                await postJournalEntry({
+                const arGlResult = await postJournalEntry({
                     description: `Payment for Invoice ${invoice.number}`,
                     date: data.paymentDate,
                     reference: payment.number,
@@ -1656,9 +1659,12 @@ export async function recordInvoicePayment(data: {
                         { accountCode: arAccountCode, debit: 0, credit: data.amount, description: `Payment for ${invoice.number}` }
                     ]
                 })
+                if (!arGlResult?.success) {
+                    console.error("GL posting failed:", arGlResult?.error)
+                }
             } else {
                 // Vendor Payment: Debit AP, Credit Cash
-                await postJournalEntry({
+                const apGlResult = await postJournalEntry({
                     description: `Payment for Bill ${invoice.number}`,
                     date: data.paymentDate,
                     reference: payment.number,
@@ -1667,6 +1673,9 @@ export async function recordInvoicePayment(data: {
                         { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Payment for ${invoice.number}` }
                     ]
                 })
+                if (!apGlResult?.success) {
+                    console.error("GL posting failed:", apGlResult?.error)
+                }
             }
 
             return { success: true }
@@ -1708,7 +1717,7 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
                 })
 
                 // Post to GL
-                await postJournalEntry({
+                const glResult = await postJournalEntry({
                     description: `GIRO ${voucher.number} cleared`,
                     date: new Date(),
                     reference: voucher.id,
@@ -1725,6 +1734,9 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
                         }
                     ]
                 })
+                if (!glResult?.success) {
+                    console.error("GL posting failed:", glResult?.error)
+                }
 
                 return { success: true, status: 'CLEARED' }
             } else {
@@ -2014,7 +2026,7 @@ export async function recordARPayment(data: {
 
                     // Post GL Entry: DR Cash, CR AR
                     try {
-                        await postJournalEntry({
+                        const glResult = await postJournalEntry({
                             description: `Payment ${paymentNumber} for Invoice ${invoice.number}`,
                             date: data.date || new Date(),
                             reference: paymentNumber,
@@ -2023,6 +2035,9 @@ export async function recordARPayment(data: {
                                 { accountCode: '1100', debit: 0, credit: data.amount }  // AR
                             ]
                         })
+                        if (!glResult?.success) {
+                            console.error("GL posting failed:", glResult?.error)
+                        }
                     } catch (glError) {
                         console.error("GL posting failed (payment recorded):", glError)
                     }
@@ -2073,7 +2088,7 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
 
             // Post GL Entry: DR Cash, CR AR
             try {
-                await postJournalEntry({
+                const glResult = await postJournalEntry({
                     description: `Payment ${payment.number} matched to Invoice ${invoice.number}`,
                     date: payment.date,
                     reference: payment.number,
@@ -2082,6 +2097,9 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
                         { accountCode: '1100', debit: 0, credit: paymentAmount }  // AR
                     ]
                 })
+                if (!glResult?.success) {
+                    console.error("GL posting failed:", glResult?.error)
+                }
             } catch (glError) {
                 console.error("GL posting failed (match recorded):", glError)
             }
@@ -2321,12 +2339,15 @@ export async function approveVendorBill(billId: string) {
             })
 
             // Post Journal Entry
-            await postJournalEntry({
+            const glResult = await postJournalEntry({
                 description: `Bill Approval #${bill.number} - ${bill.supplier?.name}`,
                 date: new Date(),
                 reference: bill.number,
                 lines: glLines
             })
+            if (!glResult?.success) {
+                console.error("GL posting failed:", glResult?.error)
+            }
 
             return { success: true }
         })
@@ -2460,7 +2481,7 @@ export async function recordVendorPayment(data: {
             } catch { /* fallback to default name */ }
 
             // Post GL entry: DR AP, CR Cash/Bank
-            await postJournalEntry({
+            const glResult = await postJournalEntry({
                 description: `Vendor Payment ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
@@ -2469,6 +2490,9 @@ export async function recordVendorPayment(data: {
                     { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
                 ]
             })
+            if (!glResult?.success) {
+                console.error("GL posting failed:", glResult?.error)
+            }
 
             return { success: true, paymentId: payment.id, paymentNumber }
         })
@@ -2864,12 +2888,15 @@ export async function approveAndPayBill(
                     description: `AP - ${bill.supplier?.name}`
                 })
 
-                await postJournalEntry({
+                const approvalGl = await postJournalEntry({
                     description: `Bill Approval (Instant Pay) #${bill.number} - ${bill.supplier?.name}`,
                     date: new Date(),
                     reference: bill.number,
                     lines: glLines
                 })
+                if (!approvalGl?.success) {
+                    console.error("GL posting failed:", approvalGl?.error)
+                }
             }
 
             // 4. Pay (Debit AP, Credit Cash/Bank)
@@ -2896,7 +2923,7 @@ export async function approveAndPayBill(
             })
 
             // Post Cash Journal (Credit Bank 1100, Debit AP 2000)
-            await postJournalEntry({
+            const paymentGl = await postJournalEntry({
                 description: `Payment to ${bill.supplier?.name} for ${bill.number}`,
                 date: new Date(),
                 reference: paymentNumber,
@@ -2905,6 +2932,9 @@ export async function approveAndPayBill(
                     { accountCode: '1010', debit: 0, credit: paymentDetails.amount, description: `Bank Transfer` } // Credit Bank (Asset decreases)
                 ]
             })
+            if (!paymentGl?.success) {
+                console.error("GL posting failed:", paymentGl?.error)
+            }
 
             return { success: true }
         })
@@ -2965,13 +2995,14 @@ export async function getFinanceDashboardData() {
             }),
         ])
 
-        // Populate cash flow from journal entries
+        // Populate cash flow from journal entries — only cash/bank accounts (10xx)
         for (const entry of cashFlowEntries) {
             const dateKey = new Date(entry.date).toISOString().slice(0, 10)
             const dayEntry = cashFlow.find(cf => cf.date === dateKey)
             if (!dayEntry) continue
             for (const line of entry.lines) {
-                if (line.account?.code?.startsWith('1')) {
+                const code = line.account?.code || ''
+                if (code >= '1000' && code < '1100') {
                     dayEntry.incoming += Number(line.debit)
                     dayEntry.outgoing += Number(line.credit)
                 }

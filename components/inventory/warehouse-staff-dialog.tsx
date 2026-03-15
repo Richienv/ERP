@@ -52,11 +52,16 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
     let active = true;
     setLoading(true);
     (async () => {
-      const payload = await getWarehouseStaffing(warehouseId);
-      if (!active) return;
-      setData(payload);
-      setSelectedManager(payload.currentManager?.id || "");
-      setLoading(false);
+      try {
+        const payload = await getWarehouseStaffing(warehouseId);
+        if (!active) return;
+        setData(payload);
+        setSelectedManager(payload.currentManager?.id || "");
+        setLoading(false);
+      } catch {
+        setLoading(false);
+        toast.error("Gagal memuat data staff");
+      }
     })();
     return () => {
       active = false;
@@ -79,6 +84,8 @@ export function WarehouseStaffDialog({ warehouseId, warehouseName, triggerMode }
       toast.success("Manager gudang berhasil diperbarui");
       queryClient.invalidateQueries({ queryKey: queryKeys.warehouses.all });
       setOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || "Gagal menugaskan manager");
     } finally {
       setSubmitting(false);
     }

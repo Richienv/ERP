@@ -616,6 +616,10 @@ export function BankReconciliationView({
                 setSelectedRec(null)
                 setSelectedRecId(null)
                 queryClient.invalidateQueries({ queryKey: queryKeys.reconciliation.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
             } else {
                 toast.error(result.error || "Gagal menutup")
             }

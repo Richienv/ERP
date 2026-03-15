@@ -55,7 +55,7 @@ export function AdjustmentForm({ products, warehouses }: AdjustmentFormProps) {
     const [notes, setNotes] = useState("")
 
     const handleSubmit = async () => {
-        if (!productId || !warehouseId || !quantity) {
+        if (!productId || !warehouseId || !quantity || Number(quantity) <= 0) {
             toast.error("Mohon lengkapi semua field yang wajib diisi")
             return
         }

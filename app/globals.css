@@ -502,6 +502,18 @@
     text-shadow: 0 0 20px rgb(var(--primary) / 0.5);
   }
 }
+/* Neo-Brutalist filled-state: auto-detect inputs that have content */
+input.nb-input:not(:placeholder-shown),
+textarea.nb-input:not(:placeholder-shown) {
+  border-color: theme(colors.zinc.800);
+  background: white;
+}
+:is(.dark) input.nb-input:not(:placeholder-shown),
+:is(.dark) textarea.nb-input:not(:placeholder-shown) {
+  border-color: theme(colors.zinc.300);
+  background: theme(colors.zinc.900);
+}
+
 @layer utilities {
   .mf-page {
     @apply flex-1 space-y-5 p-4 md:p-8 pt-6 font-sans;

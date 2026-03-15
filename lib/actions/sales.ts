@@ -3,6 +3,8 @@
 import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { formatIDR } from "@/lib/utils"
+import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
+import { revalidatePath } from "next/cache"
 
 import { InvoiceStatus, SalesOrderStatus } from "@prisma/client"
 
@@ -953,7 +955,10 @@ export async function recordPartialShipment(
             await prisma.$transaction(async (tx) => {
                 const item = await tx.salesOrderItem.findUniqueOrThrow({
                     where: { id: salesOrderItemId },
-                    select: { quantity: true, qtyDelivered: true, salesOrderId: true, productId: true },
+                    select: {
+                        quantity: true, qtyDelivered: true, salesOrderId: true, productId: true,
+                        product: { select: { name: true, costPrice: true } },
+                    },
                 })
 
                 const ordered = Number(item.quantity)
@@ -967,18 +972,24 @@ export async function recordPartialShipment(
                 // Find stock and deduct atomically within same transaction
                 const stockLevel = await tx.stockLevel.findFirst({
                     where: { productId: item.productId, quantity: { gte: qtyShipped } },
-                    select: { id: true, warehouseId: true, quantity: true },
+                    select: { id: true, warehouseId: true, quantity: true, reservedQty: true },
                 })
 
                 if (!stockLevel) {
                     throw new Error("Stok tidak mencukupi untuk pengiriman")
                 }
 
+                // Release from reservation first (SO creation reserved stock),
+                // only decrement availableQty for the unreserved portion
+                const releaseFromReserved = Math.min(qtyShipped, stockLevel.reservedQty)
+                const releaseFromAvailable = qtyShipped - releaseFromReserved
+
                 const updated = await tx.stockLevel.updateMany({
                     where: { id: stockLevel.id, quantity: { gte: qtyShipped } },
                     data: {
                         quantity: { decrement: qtyShipped },
-                        availableQty: { decrement: qtyShipped },
+                        reservedQty: { decrement: releaseFromReserved },
+                        availableQty: { decrement: releaseFromAvailable },
                     },
                 })
 
@@ -991,17 +1002,36 @@ export async function recordPartialShipment(
                     select: { id: true, number: true },
                 })
 
-                await tx.inventoryTransaction.create({
+                const unitCost = item.product?.costPrice ? Number(item.product.costPrice) : 0
+                const totalValue = unitCost * qtyShipped
+
+                const invTx = await tx.inventoryTransaction.create({
                     data: {
                         productId: item.productId,
                         warehouseId: stockLevel.warehouseId,
                         type: 'SO_SHIPMENT',
                         quantity: -qtyShipped,
+                        unitCost: unitCost > 0 ? unitCost : undefined,
+                        totalValue: totalValue > 0 ? totalValue : undefined,
                         referenceId: salesOrder.id,
                         salesOrderId: salesOrder.id,
                         notes: `Pengiriman SO ${salesOrder.number} - ${qtyShipped} unit`,
                     },
                 })
+
+                // Post GL entry: DR COGS (5100) / CR Inventory Asset (1300)
+                if (totalValue > 0) {
+                    const productName = item.product?.name || item.productId.slice(0, 8)
+                    await postInventoryGLEntry(tx, {
+                        transactionId: invTx.id,
+                        type: 'SO_SHIPMENT',
+                        productName,
+                        quantity: qtyShipped,
+                        unitCost,
+                        totalValue,
+                        reference: `SO ${salesOrder.number}`,
+                    })
+                }
 
                 await tx.salesOrderItem.update({
                     where: { id: salesOrderItemId },
@@ -1049,6 +1079,11 @@ export async function recordPartialShipment(
                 }
             })
         })
+
+        revalidatePath("/inventory")
+        revalidatePath("/inventory/stock")
+        revalidatePath("/inventory/movements")
+        revalidatePath("/sales/orders")
 
         return { success: true }
     } catch (error) {

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { assertTransferTransition } from "@/lib/stock-transfer-machine"
 import { getAuthzUser } from "@/lib/authz"
 import { resolveEmployeeContext } from "@/lib/employee-context"
+import { revalidatePath } from "next/cache"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -154,6 +155,9 @@ export async function createStockTransfer(data: {
             return transfer.id
         })
 
+        revalidatePath("/inventory")
+        revalidatePath("/inventory/movements")
+
         return { success: true, transferId }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal membuat transfer'
@@ -284,6 +288,10 @@ export async function transitionStockTransfer(
                 })
             }
         })
+
+        revalidatePath("/inventory")
+        revalidatePath("/inventory/stock")
+        revalidatePath("/inventory/movements")
 
         return { success: true }
     } catch (error) {

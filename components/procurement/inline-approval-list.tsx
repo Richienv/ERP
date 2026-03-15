@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { formatIDR } from "@/lib/utils"
-import { approvePurchaseOrder, rejectPurchaseOrder, approvePurchaseRequest, rejectPurchaseRequest } from "@/lib/actions/procurement"
+import { approvePurchaseOrder, rejectPurchaseOrder, approveAndCreatePOFromPR, rejectPurchaseRequest } from "@/lib/actions/procurement"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -43,11 +43,16 @@ export function InlineApprovalList({ pendingItems }: InlineApprovalListProps) {
         try {
             const result = item.type === 'PO'
                 ? await approvePurchaseOrder(item.id)
-                : await approvePurchaseRequest(item.id)
+                : await approveAndCreatePOFromPR(item.id)
             if (result.success) {
                 // Optimistically remove from list immediately
                 setRemovedIds(prev => new Set(prev).add(item.id))
-                toast.success(`${item.type} ${item.number} disetujui`)
+                if (item.type === 'PR' && (result as any).poCreated) {
+                    const poCount = ((result as any).poIds || []).length
+                    toast.success(`PR ${item.number} disetujui & ${poCount} PO dibuat`)
+                } else {
+                    toast.success(`${item.type} ${item.number} disetujui`)
+                }
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseOrders.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.purchaseRequests.all })

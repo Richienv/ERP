@@ -918,37 +918,37 @@ export async function recordInvoicePayment(data: {
         // 1000 = Kas Besar, 1010 = Bank, 1100 = Piutang Usaha, 2100 = Hutang Usaha
         const cashAccountCode = data.paymentMethod === 'CASH' ? '1000' : '1010'
 
-        try {
-            if (txResult.invoiceType === 'INV_OUT') {
-                // AR Payment: DR Kas/Bank, CR 1100 Piutang Usaha
-                await postJournalEntry({
-                    description: `Penerimaan Pembayaran ${txResult.invoiceNumber} - ${txResult.customerName || 'Customer'}`,
-                    date: data.paymentDate,
-                    reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
-                    invoiceId: data.invoiceId,
-                    lines: [
-                        { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${txResult.customerName}` },
-                        { accountCode: '1100', debit: 0, credit: data.amount, description: `Pelunasan ${txResult.invoiceNumber}` }
-                    ]
-                })
-            } else {
-                // AP Payment: DR 2100 Hutang Usaha, CR Kas/Bank
-                await postJournalEntry({
-                    description: `Pembayaran Tagihan ${txResult.invoiceNumber} - ${txResult.supplierName || 'Supplier'}`,
-                    date: data.paymentDate,
-                    reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
-                    invoiceId: data.invoiceId,
-                    lines: [
-                        { accountCode: '2100', debit: data.amount, credit: 0, description: `Pelunasan ${txResult.supplierName}` },
-                        { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${txResult.invoiceNumber}` }
-                    ]
-                })
-            }
-        } catch (glError: any) {
-            console.warn("Journal entry failed (GL accounts may not exist):", glError)
+        let glResult: any
+        if (txResult.invoiceType === 'INV_OUT') {
+            // AR Payment: DR Kas/Bank, CR 1100 Piutang Usaha
+            glResult = await postJournalEntry({
+                description: `Penerimaan Pembayaran ${txResult.invoiceNumber} - ${txResult.customerName || 'Customer'}`,
+                date: data.paymentDate,
+                reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
+                invoiceId: data.invoiceId,
+                lines: [
+                    { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${txResult.customerName}` },
+                    { accountCode: '1100', debit: 0, credit: data.amount, description: `Pelunasan ${txResult.invoiceNumber}` }
+                ]
+            })
+        } else {
+            // AP Payment: DR 2100 Hutang Usaha, CR Kas/Bank
+            glResult = await postJournalEntry({
+                description: `Pembayaran Tagihan ${txResult.invoiceNumber} - ${txResult.supplierName || 'Supplier'}`,
+                date: data.paymentDate,
+                reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
+                invoiceId: data.invoiceId,
+                lines: [
+                    { accountCode: '2100', debit: data.amount, credit: 0, description: `Pelunasan ${txResult.supplierName}` },
+                    { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${txResult.invoiceNumber}` }
+                ]
+            })
+        }
+
+        if (!glResult?.success) {
             return {
                 success: true,
-                glWarning: `Pembayaran berhasil dicatat, tetapi jurnal GL gagal diposting: ${glError?.message || 'Akun GL tidak ditemukan'}. Hubungi bagian akuntansi.`,
+                glWarning: `Pembayaran berhasil dicatat, tetapi jurnal GL gagal diposting: ${glResult?.error || 'Akun GL tidak ditemukan'}. Hubungi bagian akuntansi.`,
             }
         }
 

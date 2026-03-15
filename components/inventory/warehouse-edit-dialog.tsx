@@ -62,6 +62,11 @@ export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
   }, [open, warehouse.id]);
 
   const handleSave = async () => {
+    if (!formData.code.trim() || !formData.name.trim()) {
+      toast.error("Kode dan nama gudang wajib diisi")
+      return
+    }
+    if (formData.capacity < 0) formData.capacity = 0
     setLoading(true);
     try {
       const result = await updateWarehouse(warehouse.id, formData);

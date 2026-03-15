@@ -134,6 +134,7 @@ export async function createPRFromWorkOrder(
                     create: items.map((item) => ({
                         productId: item.materialId,
                         quantity: item.qty,
+                        preferredSupplierId: item.supplierId || null,
                     })),
                 },
             },

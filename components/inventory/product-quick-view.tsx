@@ -262,8 +262,8 @@ export function ProductQuickView({ productId, open, onOpenChange, categories = [
     // PR handler from quick view
     const handleQuickPR = async () => {
         if (!product || !productId) return
-        if (!prForm.quantity) {
-            toast.error("Jumlah harus diisi")
+        if (!prForm.quantity || Number(prForm.quantity) <= 0) {
+            toast.error("Kuantitas harus lebih dari 0")
             return
         }
         setPrSubmitting(true)

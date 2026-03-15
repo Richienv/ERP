@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -16,20 +16,11 @@ import {
     AlertCircle,
     ChevronRight,
     Factory,
-    Briefcase,
     Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    CardDescription
-} from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
     Sheet,
@@ -42,7 +33,6 @@ import {
     Dialog,
     DialogContent,
     DialogDescription,
-    DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
@@ -55,6 +45,10 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { CreateWorkOrderDialog } from "@/components/manufacturing/create-work-order-dialog";
+import { ProductionReturnDialog } from "@/components/manufacturing/production-return-dialog";
+import { ShortageDialog } from "@/components/manufacturing/shortage-dialog";
+import { MaterialVarianceSection } from "@/components/manufacturing/material-variance-section";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 
 interface WorkOrderTask {
@@ -114,6 +108,7 @@ export function WorkOrdersClient({ initialOrders }: Props) {
     const [warehouseOptions, setWarehouseOptions] = useState<WarehouseOption[]>([]);
     const [updating, setUpdating] = useState(false);
     const [createOpen, setCreateOpen] = useState(false);
+    const [shortageDialogOpen, setShortageDialogOpen] = useState(false);
 
     // Stats Calculation
     const stats = useMemo(() => {
@@ -341,13 +336,16 @@ export function WorkOrdersClient({ initialOrders }: Props) {
         }
     };
 
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleSearchChange = (value: string) => {
         setSearchQuery(value);
-        setTimeout(() => fetchWorkOrders(), 300);
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(() => fetchWorkOrders(), 300);
     };
 
     const handleStatusFilter = (filter: string | null) => {
         setStatusFilter(filter);
+        // Use callback to ensure latest filter value is used
         setTimeout(() => fetchWorkOrders(), 0);
     };
 
@@ -663,6 +661,35 @@ export function WorkOrdersClient({ initialOrders }: Props) {
                                         </div>
                                     )}
 
+                                    {/* Material Variance */}
+                                    {selectedSPK.status === 'IN_PROGRESS' || selectedSPK.status === 'COMPLETED' ? (
+                                        <MaterialVarianceSection workOrderId={selectedSPK.id} />
+                                    ) : null}
+
+                                    {/* Shortage Check & Production Return */}
+                                    {selectedSPK.status === 'IN_PROGRESS' && (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                variant="outline"
+                                                className="flex-1 border-2 border-amber-500 text-amber-700 rounded-none font-bold uppercase text-[10px] h-9 hover:bg-amber-50"
+                                                onClick={() => setShortageDialogOpen(true)}
+                                            >
+                                                <IconAlertTriangle className="h-3.5 w-3.5 mr-1.5" /> Cek Kebutuhan Material
+                                            </Button>
+                                            <ProductionReturnDialog
+                                                workOrderId={selectedSPK.id}
+                                                workOrderNumber={selectedSPK.number}
+                                                productName={selectedSPK.product.name}
+                                                productCode={selectedSPK.product.code}
+                                                productUnit={selectedSPK.product.unit}
+                                                actualQty={selectedSPK.actualQty}
+                                                warehouseOptions={warehouseOptions}
+                                                defaultWarehouseId={warehouseId}
+                                                onSuccess={refreshSelectedWorkOrder}
+                                            />
+                                        </div>
+                                    )}
+
                                 </div>
                             </div>
                         )}
@@ -758,6 +785,15 @@ export function WorkOrdersClient({ initialOrders }: Props) {
                     onCreated={fetchWorkOrders}
                     orderType="SPK"
                 />
+
+                {selectedSPK && (
+                    <ShortageDialog
+                        workOrderId={selectedSPK.id}
+                        open={shortageDialogOpen}
+                        onOpenChange={setShortageDialogOpen}
+                        onPRCreated={refreshSelectedWorkOrder}
+                    />
+                )}
             </div>
         </div>
     );

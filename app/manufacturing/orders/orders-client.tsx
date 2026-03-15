@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -350,9 +350,11 @@ export function OrdersClient({ initialOrders, initialSummary }: Props) {
         finally { setBomSubmitting(false); }
     };
 
+    const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const handleSearchChange = (value: string) => {
         setSearchQuery(value);
-        setTimeout(() => fetchWorkOrders(), 300);
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(() => fetchWorkOrders(), 300);
     };
 
     const handleStatusFilter = (filter: string | null) => {

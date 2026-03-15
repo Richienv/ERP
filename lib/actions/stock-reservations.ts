@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
+import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import {
   calculateBOMRequirements,
   calculateReservationDelta,
@@ -178,7 +179,7 @@ export async function consumeReservation(
       where: { id: reservationId },
       include: {
         workOrder: { select: { id: true, number: true } },
-        product: { select: { id: true, name: true } },
+        product: { select: { id: true, name: true, costPrice: true } },
       },
     })
 
@@ -230,19 +231,37 @@ export async function consumeReservation(
       })
     }
 
-    // Create inventory transaction for audit trail
-    await tx.inventoryTransaction.create({
+    // Create inventory transaction for audit trail (with cost data)
+    const unitCost = reservation.product.costPrice ? Number(reservation.product.costPrice) : 0
+    const totalValue = unitCost * qty
+
+    const invTx = await tx.inventoryTransaction.create({
       data: {
         productId: reservation.productId,
         warehouseId: reservation.warehouseId,
         type: "PRODUCTION_OUT",
         quantity: -qty, // Negative for outbound
+        unitCost: unitCost > 0 ? unitCost : undefined,
+        totalValue: totalValue > 0 ? totalValue : undefined,
         workOrderId: reservation.workOrderId,
         referenceId: reservationId,
         performedBy: user.id,
         notes: `Konsumsi material untuk WO ${reservation.workOrder.number}: ${reservation.product.name} x${qty}`,
       },
     })
+
+    // Post GL entry: DR WIP (1320) / CR Raw Materials (1310)
+    if (totalValue > 0) {
+      await postInventoryGLEntry(tx, {
+        transactionId: invTx.id,
+        type: 'PRODUCTION_OUT',
+        productName: reservation.product.name,
+        quantity: qty,
+        unitCost,
+        totalValue,
+        reference: `WO ${reservation.workOrder.number}`,
+      })
+    }
   })
 
   revalidatePath("/inventory")

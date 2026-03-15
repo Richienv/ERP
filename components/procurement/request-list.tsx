@@ -103,11 +103,9 @@ export function RequestList({ data }: { data: PurchaseRequest[] }) {
 
     const confirmApprove = async () => {
         if (!selectedReq) return
-        const approverId = "mock-approver-id"
-
         setProcessing(selectedReq.id)
         try {
-            const result = await approveAndCreatePOFromPR(selectedReq.id, approverId)
+            const result = await approveAndCreatePOFromPR(selectedReq.id)
             if (result.success) {
                 if ((result as any).poCreated) {
                     const total = ((result as any).poIds || []).length

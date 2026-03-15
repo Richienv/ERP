@@ -17,6 +17,7 @@ import { createProductSchema, createCategorySchema, type CreateProductInput, typ
 import { generateBarcode } from "@/lib/inventory-utils"
 import { logAudit, computeChanges } from "@/lib/audit-helpers"
 import { z } from "zod"
+import { revalidatePath } from "next/cache"
 
 export async function getNextCategoryCode(): Promise<string> {
     const supabase = await createClient()
@@ -63,6 +64,7 @@ export async function assignProductToCategory(productId: string, categoryId: str
             where: { id: productId },
             data: { categoryId },
         })
+        revalidatePath("/inventory")
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menambahkan produk'
@@ -80,6 +82,7 @@ export async function removeProductFromCategory(productId: string) {
             where: { id: productId },
             data: { categoryId: null },
         })
+        revalidatePath("/inventory")
         return { success: true }
     } catch (error) {
         const msg = error instanceof Error ? error.message : 'Gagal menghapus produk dari kategori'
@@ -133,6 +136,7 @@ export async function updateCategory(id: string, data: { name?: string; code?: s
             data: updateData,
         })
 
+        revalidatePath("/inventory/categories")
         return { success: true }
     } catch (error) {
         console.error("Failed to update category:", error)
@@ -156,10 +160,11 @@ export async function createCategory(input: CreateCategoryInput) {
             }
         })
 
+        revalidatePath("/inventory/categories")
         return { success: true, data: category }
     } catch (error) {
         if (error instanceof z.ZodError) {
-            return { success: false, error: (error as any).errors[0].message }
+            return { success: false, error: (error as any).issues[0].message }
         }
         return { success: false, error: "Failed to create category" }
     }
@@ -188,6 +193,7 @@ export async function deleteCategory(categoryId: string) {
         }
 
         await prisma.category.delete({ where: { id: categoryId } })
+        revalidatePath("/inventory/categories")
         return { success: true }
     } catch (error) {
         console.error("Failed to delete category:", error)
@@ -232,6 +238,10 @@ export async function getCategories() {
 }
 
 export async function getWarehouses() {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     const warehouses = await prisma.warehouse.findMany({
         where: { isActive: true },
         include: {
@@ -289,6 +299,10 @@ export async function getWarehouses() {
 }
 
 export async function getInventoryKPIs() {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     // Use the same query & status logic as the product table / kanban
     // so KPI numbers match what users see in the product list.
     const products = await prisma.product.findMany({
@@ -361,6 +375,10 @@ export async function getInventoryKPIs() {
 }
 
 export async function getMaterialGapAnalysis() {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     const [products, pendingTasks] = await Promise.all([
         prisma.product.findMany({
             where: { isActive: true },
@@ -641,8 +659,10 @@ export async function getProcurementInsights() {
                 totalRestockCost += (deficit * Number(p.costPrice))
             }
 
-            // Mock deadlines
-            const deadlineDays = Math.floor(Math.random() * 5) + 1
+            const po = p.purchaseOrderItems[0]?.purchaseOrder
+            const deadlineDays = po?.expectedDate
+                ? Math.ceil((new Date(po.expectedDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                : 0
 
             return {
                 id: p.id,
@@ -746,6 +766,10 @@ export async function setProductManualAlert(productId: string, isAlert: boolean)
 }
 
 export async function getWarehouseDetails(id: string) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     const warehouse = await prisma.warehouse.findUnique({
         where: { id },
         include: {
@@ -803,6 +827,8 @@ export async function createWarehouse(data: { name: string, code: string, addres
                     warehouseType: (data.warehouseType as any) || 'GENERAL'
                 }
             })
+            revalidatePath("/inventory")
+            revalidatePath("/inventory/warehouses")
             return { success: true }
         })
     } catch (e: any) {
@@ -861,6 +887,8 @@ export async function deleteWarehouse(warehouseId: string) {
             })
         } catch { /* audit is best-effort */ }
 
+        revalidatePath("/inventory")
+        revalidatePath("/inventory/warehouses")
         return { success: true }
     } catch (e: any) {
         console.error("Failed to delete warehouse", e)
@@ -1231,6 +1259,10 @@ export async function requestPurchase(data: {
 // ==========================================
 
 export async function getStockMovements(limit = 50) {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new Error("Unauthorized")
+
     const movements = await prisma.inventoryTransaction.findMany({
         take: limit,
         orderBy: { createdAt: 'desc' },
@@ -1454,6 +1486,8 @@ export async function updateWarehouse(id: string, data: { name: string, code: st
                     ...(data.warehouseType ? { warehouseType: data.warehouseType as any } : {})
                 }
             })
+            revalidatePath("/inventory")
+            revalidatePath("/inventory/warehouses")
             return { success: true }
         })
     } catch (e: any) {
@@ -1485,11 +1519,15 @@ export async function submitSpotAudit(data: {
             // 2. Update Stock (Only if discrepancy exists)
             if (discrepancy !== 0) {
                 if (existingStock) {
+                    // Calculate correct availableQty: newQuantity - reservedQty
+                    const reservedQty = existingStock.reservedQty || 0;
+                    const newAvailableQty = Math.max(0, actualQty - reservedQty);
+
                     await prisma.stockLevel.update({
                         where: { id: existingStock.id },
                         data: {
                             quantity: actualQty,
-                            availableQty: { increment: discrepancy },
+                            availableQty: newAvailableQty,
                         }
                     });
                 } else {
@@ -1631,6 +1669,10 @@ export async function generateNextSequence(prefix: string): Promise<number> {
 
 export async function createProduct(input: CreateProductInput) {
     try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error("Unauthorized")
+
         const data = createProductSchema.parse(input)
 
         // Build structured code from segments
@@ -1686,6 +1728,7 @@ export async function createProduct(input: CreateProductInput) {
         } catch { /* audit is best-effort */ }
 
         const safeProduct = JSON.parse(JSON.stringify(product))
+        revalidatePath("/inventory")
         return { success: true, data: safeProduct }
     } catch (error) {
         console.error("Failed to create product:", error)
@@ -1706,6 +1749,10 @@ export async function createProduct(input: CreateProductInput) {
 /** Get stock movement history for a specific product */
 export async function getProductMovements(productId: string) {
     try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error("Unauthorized")
+
         const movements = await prisma.inventoryTransaction.findMany({
             where: { productId },
             take: 50,
@@ -1740,6 +1787,10 @@ export async function getProductMovements(productId: string) {
 /** Get full product detail by ID */
 export async function getProductById(productId: string) {
     try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error("Unauthorized")
+
         const product = await prisma.product.findUnique({
             where: { id: productId },
             include: {
@@ -1794,6 +1845,10 @@ export async function updateProduct(productId: string, data: {
     barcode?: string
 }) {
     try {
+        const supabase = await createClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) throw new Error("Unauthorized")
+
         const updateData: any = {}
         if (data.name !== undefined) updateData.name = data.name
         if (data.description !== undefined) updateData.description = data.description
@@ -1837,6 +1892,7 @@ export async function updateProduct(productId: string, data: {
             }
         } catch { /* audit is best-effort */ }
 
+        revalidatePath("/inventory")
         return { success: true }
     } catch (error) {
         console.error("Failed to update product:", error)
@@ -1918,6 +1974,7 @@ export async function deleteProduct(productId: string) {
             data: { isActive: false },
         })
 
+        revalidatePath("/inventory")
         return { success: true }
     } catch (error) {
         console.error("Failed to delete product:", error)

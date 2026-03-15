@@ -138,35 +138,55 @@ export function ProductCreateDialog() {
 
     // Create handlers for inline creation
     const handleCreateBrand = async (name: string) => {
-        const code = name.substring(0, 2).toUpperCase()
-        const brand = await createBrand(code, name)
-        await invalidateBrands()
-        toast.success(`Brand "${name}" berhasil dibuat`)
-        return brand.code
+        try {
+            const code = name.substring(0, 2).toUpperCase()
+            const brand = await createBrand(code, name)
+            await invalidateBrands()
+            toast.success(`Brand "${name}" berhasil dibuat`)
+            return brand.code
+        } catch {
+            toast.error("Gagal membuat brand")
+            return ""
+        }
     }
 
     const handleCreateColor = async (name: string) => {
-        const code = name.substring(0, 3).toUpperCase()
-        const color = await createColor(code, name)
-        await invalidateColors()
-        toast.success(`Warna "${name}" berhasil dibuat`)
-        return color.code
+        try {
+            const code = name.substring(0, 3).toUpperCase()
+            const color = await createColor(code, name)
+            await invalidateColors()
+            toast.success(`Warna "${name}" berhasil dibuat`)
+            return color.code
+        } catch {
+            toast.error("Gagal membuat warna")
+            return ""
+        }
     }
 
     const handleCreateUnit = async (name: string) => {
-        const code = name.toLowerCase().replace(/\s+/g, '')
-        const unit = await createUnit(code, name)
-        await invalidateUnits()
-        toast.success(`Satuan "${name}" berhasil dibuat`)
-        return unit.code
+        try {
+            const code = name.toLowerCase().replace(/\s+/g, '')
+            const unit = await createUnit(code, name)
+            await invalidateUnits()
+            toast.success(`Satuan "${name}" berhasil dibuat`)
+            return unit.code
+        } catch {
+            toast.error("Gagal membuat satuan")
+            return ""
+        }
     }
 
     const handleCreateCategory = async (name: string) => {
-        const code = name.substring(0, 3).toUpperCase()
-        const category = await createCategory(code, name)
-        await invalidateCategories()
-        toast.success(`Kategori "${name}" berhasil dibuat`)
-        return category.id
+        try {
+            const code = name.substring(0, 3).toUpperCase()
+            const category = await createCategory(code, name)
+            await invalidateCategories()
+            toast.success(`Kategori "${name}" berhasil dibuat`)
+            return category.id
+        } catch {
+            toast.error("Gagal membuat kategori")
+            return ""
+        }
     }
 
     return (

@@ -121,6 +121,10 @@ export default function CreditDebitNotesPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
     }
 
     const handlePost = async (id: string) => {

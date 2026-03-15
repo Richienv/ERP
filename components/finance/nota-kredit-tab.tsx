@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { queryKeys } from "@/lib/query-keys"
 import { Plus, FileText, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -92,10 +93,13 @@ export function NotaKreditTab() {
                 toast.success(`Nota Kredit ${result.number} berhasil dibuat`)
                 setShowDialog(false)
                 resetForm()
-                queryClient.invalidateQueries({ queryKey: ["credit-debit-notes"] })
-                queryClient.invalidateQueries({ queryKey: ["invoices"] })
-                queryClient.invalidateQueries({ queryKey: ["journal"] })
-                queryClient.invalidateQueries({ queryKey: ["arPayments"] })
+                queryClient.invalidateQueries({ queryKey: queryKeys.dcNotes.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
             } else {
                 toast.error(result.error || "Gagal membuat Nota Kredit")
             }
