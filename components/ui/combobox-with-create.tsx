@@ -160,7 +160,7 @@ export function ComboboxWithCreate({
                             {options.map(option => (
                                 <CommandItem
                                     key={option.value}
-                                    value={option.label}
+                                    value={option.subtitle ? `${option.subtitle} ${option.label}` : option.label}
                                     onSelect={() => {
                                         onChange(option.value === value ? "" : option.value)
                                         setOpen(false)

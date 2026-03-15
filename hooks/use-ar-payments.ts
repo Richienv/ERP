@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getARPaymentRegistry, getARPaymentStats } from "@/lib/actions/finance"
+import { getARPaymentRegistry, getARPaymentStats } from "@/lib/actions/finance-ar"
 
 interface ARPaymentsParams {
     paymentsQ?: string

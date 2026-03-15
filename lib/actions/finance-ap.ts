@@ -5,6 +5,7 @@ import { withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { postJournalEntry } from "./finance-gl"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 
 // ==========================================
 // VENDOR BILLS (AP - From Purchase Orders)
@@ -243,70 +244,40 @@ export async function approveVendorBill(billId: string) {
             // 3. Post to General Ledger (Accrual Basis)
             // Debit: Expense / Asset
             // Credit: Accounts Payable (Liability)
+            await ensureSystemAccounts()
 
             // Prepare GL Lines
             const glLines: any[] = []
             let totalAmount = 0
-
-            // Credit AP (Liability increases)
-            // Using standard AP code '2000' (from seed/setup)
-            const apAccount = await prisma.gLAccount.findFirst({ where: { code: '2000' } })
-            if (!apAccount) throw new Error("AP Account (2000) not configured")
 
             // Determine Debit Accounts (Expenses/Assets)
             for (const item of bill.items) {
                 const amount = Number(item.amount)
                 totalAmount += amount
 
-                // Attempt to find expense account from product, else default
-                const debitAccountCode = '6000' // Default Expense
-                // If we had product.expenseAccount relation, we'd use it here.
-                // For now, let's look for a suitable account based on context or default.
-
                 // TODO: enhance with product-specific accounts in future
-                const expenseAccount = await prisma.gLAccount.findFirst({ where: { code: debitAccountCode } })
-
-                if (expenseAccount) {
-                    glLines.push({
-                        accountCode: debitAccountCode,
-                        debit: amount,
-                        credit: 0,
-                        description: `${item.description} (Qty: ${item.quantity})`
-                    })
-                } else {
-                    // Fallback if 6000 doesn't exist, try getting any Expense account
-                    const anyExpense = await prisma.gLAccount.findFirst({ where: { type: 'EXPENSE' } })
-                    if (anyExpense) {
-                        glLines.push({
-                            accountCode: anyExpense.code,
-                            debit: amount,
-                            credit: 0,
-                            description: `${item.description}`
-                        })
-                    } else {
-                        // Absolute fallback (should not happen in prod)
-                        console.warn("No Expense account found for bill item")
-                    }
-                }
+                glLines.push({
+                    accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
+                    debit: amount,
+                    credit: 0,
+                    description: `${item.description} (Qty: ${item.quantity})`
+                })
             }
 
             // Add Tax if applicable (Input VAT - Asset)
             if (Number(bill.taxAmount) > 0) {
-                const vatInAccount = await prisma.gLAccount.findFirst({ where: { code: '1330' } }) // PPN Masukan
-                if (vatInAccount) {
-                    glLines.push({
-                        accountCode: '1330',
-                        debit: Number(bill.taxAmount),
-                        credit: 0,
-                        description: `PPN Masukan - Bill ${bill.number}`
-                    })
-                    totalAmount += Number(bill.taxAmount)
-                }
+                glLines.push({
+                    accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
+                    debit: Number(bill.taxAmount),
+                    credit: 0,
+                    description: `PPN Masukan - Bill ${bill.number}`
+                })
+                totalAmount += Number(bill.taxAmount)
             }
 
             // Add AP Credit Line
             glLines.push({
-                accountCode: '2100', // Hutang Usaha
+                accountCode: SYS_ACCOUNTS.AP,
                 debit: 0,
                 credit: totalAmount, // Should match bill total
                 description: `Hutang - ${bill.supplier?.name}`
@@ -320,7 +291,14 @@ export async function approveVendorBill(billId: string) {
                 lines: glLines
             })
             if (!glResult?.success) {
-                return { success: false, error: `Bill diapprove tapi jurnal gagal: ${(glResult as any)?.error || 'GL error'}` }
+                // Revert bill to DRAFT — don't leave ISSUED without GL entry
+                try {
+                    await prisma.invoice.update({
+                        where: { id: billId },
+                        data: { status: 'DRAFT' },
+                    })
+                } catch { /* revert best-effort */ }
+                return { success: false, error: `Bill gagal diposting ke jurnal: ${(glResult as any)?.error || 'Akun GL tidak ditemukan'}. Status dikembalikan ke DRAFT.` }
             }
 
             return { success: true }
@@ -467,7 +445,7 @@ export async function recordVendorPayment(data: {
             }
 
             // Post GL entry: DR AP, CR Cash/Bank
-            const bankCode = data.bankAccountCode || '1000'
+            const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
             const bankAccount = await prisma.gLAccount.findFirst({
                 where: { code: bankCode },
                 select: { name: true }
@@ -478,7 +456,7 @@ export async function recordVendorPayment(data: {
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2100', debit: data.amount, credit: 0, description: 'Hutang Usaha' },
+                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Hutang Usaha' },
                     { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
                 ]
             })
@@ -605,13 +583,13 @@ export async function recordMultiBillPayment(data: {
             }
 
             // Post single GL entry for total amount: DR AP, CR Bank/Cash
-            const bankCode = data.bankAccountCode || '1010'
+            const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
             const multiGlResult = await postJournalEntry({
                 description: `Pembayaran Vendor Multi-Bill ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2100', debit: totalAmount, credit: 0, description: 'Pelunasan Hutang Usaha' },
+                    { accountCode: SYS_ACCOUNTS.AP, debit: totalAmount, credit: 0, description: 'Pelunasan Hutang Usaha' },
                     { accountCode: bankCode, debit: 0, credit: totalAmount, description: `Pembayaran via ${data.method || 'TRANSFER'}` }
                 ]
             })
@@ -787,6 +765,8 @@ export async function approveAndPayBill(
             })
             if (!bill) throw new Error("Bill not found")
 
+            await ensureSystemAccounts()
+
             // 2. Update Supplier Bank Details if provided
             if (bill.supplierId && paymentDetails.bankAccountNumber) {
                 await prisma.supplier.update({
@@ -815,7 +795,7 @@ export async function approveAndPayBill(
                     const amount = Number(item.amount)
                     totalAmount += amount
                     glLines.push({
-                        accountCode: '5000', // HPP
+                        accountCode: SYS_ACCOUNTS.COGS,
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
@@ -825,7 +805,7 @@ export async function approveAndPayBill(
                 // Add Tax
                 if (Number(bill.taxAmount) > 0) {
                     glLines.push({
-                        accountCode: '1330', // PPN Masukan
+                        accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
                         debit: Number(bill.taxAmount),
                         credit: 0,
                         description: `PPN Masukan - Bill ${bill.number}`
@@ -835,7 +815,7 @@ export async function approveAndPayBill(
 
                 // Add AP Credit
                 glLines.push({
-                    accountCode: '2100', // Hutang Usaha
+                    accountCode: SYS_ACCOUNTS.AP,
                     debit: 0,
                     credit: totalAmount,
                     description: `Hutang - ${bill.supplier?.name}`
@@ -881,8 +861,8 @@ export async function approveAndPayBill(
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2100', debit: paymentDetails.amount, credit: 0, description: `Pelunasan Hutang` }, // Debit AP (Hutang Usaha)
-                    { accountCode: '1010', debit: 0, credit: paymentDetails.amount, description: `Transfer Bank` } // Credit Bank
+                    { accountCode: SYS_ACCOUNTS.AP, debit: paymentDetails.amount, credit: 0, description: `Pelunasan Hutang` },
+                    { accountCode: SYS_ACCOUNTS.BANK_BCA, debit: 0, credit: paymentDetails.amount, description: `Transfer Bank` }
                 ]
             })
             if (!payGl?.success) {

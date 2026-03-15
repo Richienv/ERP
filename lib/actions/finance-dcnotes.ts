@@ -3,6 +3,7 @@
 import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import type { DCNoteType, DCNoteStatus } from "@prisma/client"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
 
 // ==========================================
 // AUTH HELPER (reads don't need withPrismaAuth)
@@ -177,7 +178,7 @@ export async function getDCNoteById(id: string) {
 /**
  * Get form data for creating a DC Note (customers, suppliers, products, GL accounts, invoices)
  */
-export async function getDCNoteFormData() {
+export async function getDCNoteFormData(filters?: { customerId?: string; supplierId?: string }) {
     try {
         await requireAuth()
 
@@ -218,7 +219,7 @@ export async function getDCNoteFormData() {
                     type: 'ASSET',
                     OR: [
                         { name: { contains: 'piutang', mode: 'insensitive' } },
-                        { code: { startsWith: '1100' } },
+                        { code: SYS_ACCOUNTS.AR },
                     ],
                 },
                 select: { id: true, code: true, name: true },
@@ -228,8 +229,8 @@ export async function getDCNoteFormData() {
                 where: {
                     type: 'LIABILITY',
                     OR: [
-                        { name: { contains: 'hutang', mode: 'insensitive' } },
-                        { code: { startsWith: '2100' } },
+                        { name: { contains: 'utang usaha', mode: 'insensitive' } },
+                        { code: SYS_ACCOUNTS.AP },
                     ],
                 },
                 select: { id: true, code: true, name: true },
@@ -241,12 +242,12 @@ export async function getDCNoteFormData() {
                 orderBy: { code: 'asc' },
             }),
             basePrisma.gLAccount.findMany({
-                where: { code: { startsWith: '2110' } },
+                where: { code: SYS_ACCOUNTS.PPN_KELUARAN },
                 select: { id: true, code: true, name: true },
                 orderBy: { code: 'asc' },
             }),
             basePrisma.gLAccount.findMany({
-                where: { code: { startsWith: '1330' } },
+                where: { code: SYS_ACCOUNTS.PPN_MASUKAN },
                 select: { id: true, code: true, name: true },
                 orderBy: { code: 'asc' },
             }),
@@ -255,6 +256,7 @@ export async function getDCNoteFormData() {
                     type: 'INV_OUT',
                     balanceDue: { gt: 0 },
                     status: { notIn: ['CANCELLED', 'VOID', 'DRAFT'] },
+                    ...(filters?.customerId ? { customerId: filters.customerId } : {}),
                 },
                 select: {
                     id: true,
@@ -271,6 +273,7 @@ export async function getDCNoteFormData() {
                     type: 'INV_IN',
                     balanceDue: { gt: 0 },
                     status: { notIn: ['CANCELLED', 'VOID', 'DRAFT'] },
+                    ...(filters?.supplierId ? { supplierId: filters.supplierId } : {}),
                 },
                 select: {
                     id: true,
@@ -450,31 +453,14 @@ export async function postDCNote(id: string) {
             const totalAmount = Number(note.totalAmount)
 
             // Auto-select GL accounts
+            await ensureSystemAccounts()
             const [revenueAccount, arAccount, apAccount, expenseAccount, ppnKeluaranAccount, ppnMasukanAccount] = await Promise.all([
-                prisma.gLAccount.findFirst({ where: { type: 'REVENUE' }, orderBy: { code: 'asc' } }),
-                prisma.gLAccount.findFirst({
-                    where: {
-                        type: 'ASSET',
-                        OR: [
-                            { code: { startsWith: '1100' } },
-                            { name: { contains: 'piutang', mode: 'insensitive' } },
-                        ],
-                    },
-                    orderBy: { code: 'asc' },
-                }),
-                prisma.gLAccount.findFirst({
-                    where: {
-                        type: 'LIABILITY',
-                        OR: [
-                            { code: { startsWith: '2100' } },
-                            { name: { contains: 'hutang', mode: 'insensitive' } },
-                        ],
-                    },
-                    orderBy: { code: 'asc' },
-                }),
-                prisma.gLAccount.findFirst({ where: { type: 'EXPENSE' }, orderBy: { code: 'asc' } }),
-                prisma.gLAccount.findFirst({ where: { code: { startsWith: '2110' } }, orderBy: { code: 'asc' } }),
-                prisma.gLAccount.findFirst({ where: { code: { startsWith: '1330' } }, orderBy: { code: 'asc' } }),
+                prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.REVENUE } }),
+                prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.AR } }),
+                prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.AP } }),
+                prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.EXPENSE_DEFAULT } }),
+                prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.PPN_KELUARAN } }),
+                prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.PPN_MASUKAN } }),
             ])
 
             // Build journal lines based on note type

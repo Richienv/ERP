@@ -30,6 +30,7 @@ async function main() {
         { code: '1300', name: 'Persediaan Barang Jadi', type: 'ASSET', isSystem: true },
         { code: '1310', name: 'Persediaan Bahan Baku', type: 'ASSET', isSystem: true },
         { code: '1320', name: 'Persediaan Dalam Proses (WIP)', type: 'ASSET', isSystem: true },
+        { code: '1330', name: 'PPN Masukan (Input VAT)', type: 'ASSET', isSystem: true },
 
         // 1200 - Fixed Assets (Harta Tetap)
         { code: '1500', name: 'Tanah & Bangunan', type: 'ASSET', isSystem: false },
@@ -43,6 +44,7 @@ async function main() {
         { code: '2100', name: 'Utang Gaji', type: 'LIABILITY', isSystem: false },
         { code: '2110', name: 'Utang Pajak (PPN/PPh)', type: 'LIABILITY', isSystem: false },
         { code: '2120', name: 'Biaya Yang Masih Harus Dibayar', type: 'LIABILITY', isSystem: false },
+        { code: '2121', name: 'Pendapatan Diterima Dimuka', type: 'LIABILITY', isSystem: false },
 
         // 2200 - Long Term Liabilities
         { code: '2500', name: 'Utang Bank Jangka Panjang', type: 'LIABILITY', isSystem: false },
@@ -80,6 +82,7 @@ async function main() {
         { code: '7100', name: 'Beban Bunga Bank', type: 'EXPENSE', isSystem: false },
         { code: '7200', name: 'Beban Administrasi Bank', type: 'EXPENSE', isSystem: false },
         { code: '7900', name: 'Beban Pajak Penghasilan', type: 'EXPENSE', isSystem: true },
+        { code: '6900', name: 'Beban Lain-lain', type: 'EXPENSE', isSystem: false },
     ]
 
     const accountMap = new Map<string, string>()

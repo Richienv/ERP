@@ -3,6 +3,7 @@
 import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -794,6 +795,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
         // Post GL entry for AR/AP recognition (outside withPrismaAuth to avoid nested transaction)
         // Idempotency: check if journal entry already exists for this invoice
         try {
+            await ensureSystemAccounts()
             const existingJE = await prisma.journalEntry.findFirst({
                 where: {
                     OR: [
@@ -806,15 +808,15 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
 
             if (!existingJE) {
                 if (txResult.type === 'INV_OUT') {
-                    // AR Invoice: DR 1100 Piutang Usaha, CR 4000 Pendapatan + CR 2110 PPN Keluaran
+                    // AR Invoice: DR Piutang Usaha, CR Pendapatan + CR PPN Keluaran
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = [
-                        { accountCode: '1100', debit: txResult.totalAmount, credit: 0, description: `Piutang - ${txResult.customerName || 'Customer'}` },
+                        { accountCode: SYS_ACCOUNTS.AR, debit: txResult.totalAmount, credit: 0, description: `Piutang - ${txResult.customerName || 'Customer'}` },
                     ]
                     if (txResult.taxAmount > 0) {
-                        lines.push({ accountCode: '4000', debit: 0, credit: txResult.subtotal, description: `Pendapatan - ${txResult.number}` })
-                        lines.push({ accountCode: '2110', debit: 0, credit: txResult.taxAmount, description: `PPN Keluaran - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: txResult.subtotal, description: `Pendapatan - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: 0, credit: txResult.taxAmount, description: `PPN Keluaran - ${txResult.number}` })
                     } else {
-                        lines.push({ accountCode: '4000', debit: 0, credit: txResult.totalAmount, description: `Pendapatan - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: txResult.totalAmount, description: `Pendapatan - ${txResult.number}` })
                     }
                     await postJournalEntry({
                         description: `Faktur Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
@@ -824,15 +826,15 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                         lines,
                     })
                 } else {
-                    // AP Bill: DR 5000 HPP + DR 1330 PPN Masukan, CR 2100 Hutang Usaha
+                    // AP Bill: DR HPP + DR PPN Masukan, CR Hutang Usaha
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                     if (txResult.taxAmount > 0) {
-                        lines.push({ accountCode: '5000', debit: txResult.subtotal, credit: 0, description: `HPP - ${txResult.number}` })
-                        lines.push({ accountCode: '1330', debit: txResult.taxAmount, credit: 0, description: `PPN Masukan - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: txResult.subtotal, credit: 0, description: `HPP - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: txResult.taxAmount, credit: 0, description: `PPN Masukan - ${txResult.number}` })
                     } else {
-                        lines.push({ accountCode: '5000', debit: txResult.totalAmount, credit: 0, description: `HPP - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: txResult.totalAmount, credit: 0, description: `HPP - ${txResult.number}` })
                     }
-                    lines.push({ accountCode: '2100', debit: 0, credit: txResult.totalAmount, description: `Hutang - ${txResult.supplierName || 'Supplier'}` })
+                    lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: txResult.totalAmount, description: `Hutang - ${txResult.supplierName || 'Supplier'}` })
                     await postJournalEntry({
                         description: `Tagihan Pembelian ${txResult.number} - ${txResult.supplierName || 'Supplier'}`,
                         date: txResult.issueDate,
@@ -848,7 +850,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
             try {
                 await prisma.invoice.update({
                     where: { id: invoiceId },
-                    data: { status: 'DRAFT', issueDate: null },
+                    data: { status: 'DRAFT' },
                 })
             } catch { /* revert best-effort */ }
             return {
@@ -914,13 +916,12 @@ export async function recordInvoicePayment(data: {
         })
 
         // Step 2: Post journal entry OUTSIDE the main transaction to avoid nested tx deadlock
-        // Standard account codes per erp_accounting_scenarios.json:
-        // 1000 = Kas Besar, 1010 = Bank, 1100 = Piutang Usaha, 2100 = Hutang Usaha
-        const cashAccountCode = data.paymentMethod === 'CASH' ? '1000' : '1010'
+        await ensureSystemAccounts()
+        const cashAccountCode = getCashAccountCode(data.paymentMethod)
 
         let glResult: any
         if (txResult.invoiceType === 'INV_OUT') {
-            // AR Payment: DR Kas/Bank, CR 1100 Piutang Usaha
+            // AR Payment: DR Kas/Bank, CR Piutang Usaha
             glResult = await postJournalEntry({
                 description: `Penerimaan Pembayaran ${txResult.invoiceNumber} - ${txResult.customerName || 'Customer'}`,
                 date: data.paymentDate,
@@ -928,18 +929,18 @@ export async function recordInvoicePayment(data: {
                 invoiceId: data.invoiceId,
                 lines: [
                     { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${txResult.customerName}` },
-                    { accountCode: '1100', debit: 0, credit: data.amount, description: `Pelunasan ${txResult.invoiceNumber}` }
+                    { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount, description: `Pelunasan ${txResult.invoiceNumber}` }
                 ]
             })
         } else {
-            // AP Payment: DR 2100 Hutang Usaha, CR Kas/Bank
+            // AP Payment: DR Hutang Usaha, CR Kas/Bank
             glResult = await postJournalEntry({
                 description: `Pembayaran Tagihan ${txResult.invoiceNumber} - ${txResult.supplierName || 'Supplier'}`,
                 date: data.paymentDate,
                 reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
                 invoiceId: data.invoiceId,
                 lines: [
-                    { accountCode: '2100', debit: data.amount, credit: 0, description: `Pelunasan ${txResult.supplierName}` },
+                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: `Pelunasan ${txResult.supplierName}` },
                     { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${txResult.invoiceNumber}` }
                 ]
             })

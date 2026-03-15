@@ -520,6 +520,56 @@ Sales Order → Work Order (BOM explosion) → Production → Quality Inspection
 - Server actions are split across `app/actions/` (page-level) and `lib/actions/` (shared)
 - Finance server actions are split by domain: `finance-ap.ts`, `finance-ar.ts`, `finance-gl.ts`, `finance-invoices.ts`, `finance-reports.ts`
 
+## Finance Module — Double-Entry Bookkeeping Rules
+
+> **CRITICAL**: This ERP is an accounting system. Every financial transaction MUST create double-entry journal entries. Implementing a feature that creates invoices, bills, payments, credit notes, or any money movement WITHOUT posting to the General Ledger is a **critical bug**. This has caused production issues multiple times — do NOT repeat it.
+
+### The Rule
+
+**Any server action that creates or changes a financial document (invoice, bill, payment, credit note, petty cash, fixed asset depreciation) MUST:**
+
+1. **Create balanced journal entries** via `postJournalEntry()` from `lib/actions/finance-gl.ts`
+2. **Use system account constants** from `lib/gl-accounts.ts` — NEVER hardcode account codes as string literals like `'1100'` or `'2100'`
+3. **Call `ensureSystemAccounts()`** before posting, to guarantee the referenced GL accounts exist in the database
+4. **Handle GL failures atomically** — if the journal entry fails, revert the document status change. NEVER leave a document in ISSUED/PAID status without a corresponding journal entry
+
+### Standard Journal Entry Patterns
+
+| Transaction | Debit | Credit |
+|-------------|-------|--------|
+| Invoice sent (AR) | Piutang Usaha | Pendapatan + PPN Keluaran |
+| Bill approved (AP) | Beban/HPP + PPN Masukan | Hutang Usaha |
+| AR Payment received | Kas/Bank | Piutang Usaha |
+| AP Payment made | Hutang Usaha | Kas/Bank |
+| Credit Note (AR) | Pendapatan | Piutang Usaha |
+| Petty Cash top-up | Kas Kecil | Kas/Bank |
+| Petty Cash disbursement | Beban | Kas Kecil |
+| Depreciation | Beban Penyusutan | Akumulasi Penyusutan |
+
+### System Account Constants (`lib/gl-accounts.ts`)
+
+All system-critical account codes are defined in `lib/gl-accounts.ts`, aligned with `prisma/seed-gl.ts`:
+- `SYS_ACCOUNTS.AR` = `"1200"` (Piutang Usaha)
+- `SYS_ACCOUNTS.AP` = `"2000"` (Hutang Usaha)
+- `SYS_ACCOUNTS.BANK_BCA` = `"1110"` (Bank BCA)
+- `SYS_ACCOUNTS.EXPENSE_DEFAULT` = `"6900"` (Beban Lain-lain)
+- `SYS_ACCOUNTS.PPN_MASUKAN` = `"1330"` (PPN Masukan)
+
+When adding new transaction types:
+1. Add the account code constant to `SYS_ACCOUNTS` in `lib/gl-accounts.ts`
+2. Add it to the `ensureSystemAccounts()` upsert list
+3. Reference it via `SYS_ACCOUNTS.YOUR_CODE` in your server action
+4. Add it to `prisma/seed-gl.ts` for fresh databases
+
+### Verification Checklist (after any finance feature implementation)
+
+- [ ] Does the transaction create a journal entry? Check `journalEntry` table after the action.
+- [ ] Is the journal balanced? `SUM(debit) === SUM(credit)` for each entry.
+- [ ] Do COA balances update? Check `GLAccount.balance` for affected accounts.
+- [ ] Do financial reports reflect it? Check Laba Rugi, Neraca, Arus Kas.
+- [ ] Does the AR/AP page show the correct outstanding balance?
+- [ ] If the GL posting fails, does the document revert to its previous status?
+
 ## Multi-Session Safety Rules
 
 > **CRITICAL**: This project is often worked on by **multiple Claude Code sessions running simultaneously** in separate terminals. If you don't follow these rules, sessions will overwrite each other's work and changes will be lost.

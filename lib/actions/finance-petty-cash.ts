@@ -3,6 +3,7 @@
 import { prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { postJournalEntry } from "./finance-gl"
+import { ensureSystemAccounts } from "@/lib/gl-accounts"
 
 const PETTY_CASH_ACCOUNT = "1050"
 
@@ -265,22 +266,7 @@ export async function createExpenseAccount(name: string) {
 export async function getBankAccounts() {
     try {
         await requireAuth()
-
-        // Ensure common cash/bank accounts exist
-        const defaults = [
-            { code: "1000", name: "Kas Besar (Cash on Hand)", type: "ASSET" as const },
-            { code: "1010", name: "Bank BCA", type: "ASSET" as const },
-            { code: "1020", name: "Bank Mandiri", type: "ASSET" as const },
-        ]
-        for (const d of defaults) {
-            await basePrisma.gLAccount.upsert({
-                where: { code: d.code },
-                create: { ...d, balance: 0 },
-                update: {},
-            })
-        }
-
-        // Return all ASSET accounts that are cash/bank (exclude petty cash itself and non-cash assets)
+        await ensureSystemAccounts()
         return await basePrisma.gLAccount.findMany({
             where: {
                 type: "ASSET",
@@ -294,7 +280,8 @@ export async function getBankAccounts() {
             orderBy: { code: "asc" },
             select: { code: true, name: true },
         })
-    } catch {
+    } catch (error) {
+        console.error("getBankAccounts failed:", error)
         return []
     }
 }

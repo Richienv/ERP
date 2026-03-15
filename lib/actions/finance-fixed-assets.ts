@@ -62,9 +62,37 @@ type MovementInput = {
 // FIXED ASSET CATEGORIES
 // ============================================================
 
+let _categoriesSeeded = false
+
 export async function getFixedAssetCategories() {
     try {
         return await withPrismaAuth(async (prisma) => {
+            if (!_categoriesSeeded) {
+                const defaults = [
+                    { code: "FA-TAN", name: "Tanah", defaultUsefulLife: 0, defaultResidualPct: 100 },
+                    { code: "FA-BNG", name: "Bangunan", defaultUsefulLife: 240, defaultResidualPct: 10 },
+                    { code: "FA-KND", name: "Kendaraan", defaultUsefulLife: 96, defaultResidualPct: 10 },
+                    { code: "FA-MSN", name: "Mesin & Peralatan", defaultUsefulLife: 96, defaultResidualPct: 5 },
+                    { code: "FA-KMP", name: "Komputer & IT", defaultUsefulLife: 48, defaultResidualPct: 0 },
+                    { code: "FA-FRN", name: "Furnitur & Inventaris", defaultUsefulLife: 48, defaultResidualPct: 5 },
+                    { code: "FA-LIN", name: "Peralatan Kantor", defaultUsefulLife: 48, defaultResidualPct: 5 },
+                ]
+                for (const d of defaults) {
+                    await prisma.fixedAssetCategory.upsert({
+                        where: { code: d.code },
+                        create: {
+                            code: d.code,
+                            name: d.name,
+                            defaultMethod: "STRAIGHT_LINE",
+                            defaultUsefulLife: d.defaultUsefulLife,
+                            defaultResidualPct: d.defaultResidualPct,
+                        },
+                        update: {},
+                    })
+                }
+                _categoriesSeeded = true
+            }
+
             const categories = await prisma.fixedAssetCategory.findMany({
                 include: {
                     assetAccount: { select: { id: true, code: true, name: true } },
