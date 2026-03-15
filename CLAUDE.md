@@ -519,3 +519,63 @@ Sales Order → Work Order (BOM explosion) → Production → Quality Inspection
 - Prisma client is regenerated on `npm install` via `postinstall` script
 - Server actions are split across `app/actions/` (page-level) and `lib/actions/` (shared)
 - Finance server actions are split by domain: `finance-ap.ts`, `finance-ar.ts`, `finance-gl.ts`, `finance-invoices.ts`, `finance-reports.ts`
+
+## Multi-Session Safety Rules
+
+> **CRITICAL**: This project is often worked on by **multiple Claude Code sessions running simultaneously** in separate terminals. If you don't follow these rules, sessions will overwrite each other's work and changes will be lost.
+
+### The Problem
+
+When 2+ Claude sessions edit the same file, the last write wins. Session A writes `receivables/page.tsx`, then session B writes a different version — session A's work is gone. Git only tracks the final state on disk, not each session's writes.
+
+### Rules for Every Session
+
+1. **ASK which files are yours before editing.** At the start of every session, confirm with the user which files/modules you are responsible for. Only edit those files. If you need to touch a file outside your scope, ask first.
+
+2. **Never run `git checkout`, `git restore`, `git reset`, or `git stash pop/apply` without user confirmation.** These commands can overwrite other sessions' uncommitted work.
+
+3. **Commit frequently.** After finishing a logical unit of work, suggest committing. Uncommitted changes are vulnerable to being overwritten by other sessions.
+
+4. **Check before writing.** Before editing a file, do a quick `git diff <file>` to see if it has uncommitted changes from another session. If it does, **do not overwrite** — ask the user.
+
+5. **Never run `git add .` or `git add -A`.** Only stage specific files you worked on. Other sessions may have in-progress work that shouldn't be committed yet.
+
+### Recommended Session Scoping
+
+Each terminal session should be assigned a **non-overlapping file scope**:
+
+| Session | Scope | Example Files |
+|---------|-------|---------------|
+| Session 1 | Finance pages | `app/finance/**/*.tsx` |
+| Session 2 | Finance components | `components/finance/**/*.tsx` |
+| Session 3 | HCM module | `app/hcm/**`, `components/hcm/**` |
+| Session 4 | Backend / actions | `lib/actions/**`, `app/api/**` |
+| Session 5 | Manufacturing | `app/manufacturing/**` |
+| Session 6 | Sales / Procurement | `app/sales/**`, `app/procurement/**` |
+
+### Best Practice: Git Worktrees
+
+For maximum safety, use **git worktrees** so each session has its own isolated copy:
+
+```bash
+# Create isolated working directories (run once):
+git worktree add ../ERP-finance -b work/finance
+git worktree add ../ERP-hcm -b work/hcm
+git worktree add ../ERP-backend -b work/backend
+
+# Each terminal uses its own directory:
+# Terminal 1: cd /Volumes/ORICO/ERP-MAC/ERP-finance
+# Terminal 2: cd /Volumes/ORICO/ERP-MAC/ERP-hcm
+# Terminal 3: cd /Volumes/ORICO/ERP-MAC/ERP-backend
+
+# When done, merge each branch back to main:
+git checkout main
+git merge work/finance
+git merge work/hcm
+git merge work/backend
+
+# Clean up:
+git worktree remove ../ERP-finance
+```
+
+With worktrees, sessions **cannot** overwrite each other because they work on separate copies of the repo.
