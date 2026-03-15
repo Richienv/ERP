@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getChartOfAccountsTree } from "@/lib/actions/finance"
+import { getChartOfAccountsTree } from "@/lib/actions/finance-gl"
 
 export function useChartOfAccounts() {
     return useQuery({

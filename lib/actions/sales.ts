@@ -198,6 +198,7 @@ export async function updateQuotationStatus(id: string, newStatus: string) {
 
 // 4. INVOICE ACTIONS
 import { postJournalEntry } from "@/lib/actions/finance"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
 
 // Create Invoice (Draft)
 export async function createInvoice(data: { customerId: string, items: { description: string, quantity: number, price: number }[], dueDate: Date }) {
@@ -270,23 +271,24 @@ export async function approveInvoice(id: string) {
         const taxAmount = Number(invoice.taxAmount)
         const totalAmount = Number(invoice.totalAmount)
 
+        await ensureSystemAccounts()
         await postJournalEntry({
             description: `Invoice ${invoice.number} issued to ${invoice.customer?.name || 'Customer'}`,
             date: new Date(),
             reference: id,
             lines: [
                 {
-                    accountCode: '1100', // Piutang Usaha (AR)
+                    accountCode: SYS_ACCOUNTS.AR, // Piutang Usaha (AR)
                     debit: totalAmount,
                     credit: 0
                 },
                 {
-                    accountCode: '2110', // PPN Keluaran
+                    accountCode: SYS_ACCOUNTS.PPN_KELUARAN, // PPN Keluaran
                     debit: 0,
                     credit: taxAmount
                 },
                 {
-                    accountCode: '4000', // Pendapatan Penjualan
+                    accountCode: SYS_ACCOUNTS.REVENUE, // Pendapatan Penjualan
                     debit: 0,
                     credit: subtotal
                 }
@@ -348,6 +350,7 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
         let debitAccount = '1110'
         if (method === 'CASH') debitAccount = '1101'
 
+        await ensureSystemAccounts()
         await postJournalEntry({
             description: `Payment for ${result.invoice.number} (${method})`,
             date: new Date(),
@@ -359,7 +362,7 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
                     credit: 0
                 },
                 {
-                    accountCode: '1100', // Piutang Usaha (AR)
+                    accountCode: SYS_ACCOUNTS.AR, // Piutang Usaha (AR)
                     credit: amount,
                     debit: 0
                 }
@@ -1379,6 +1382,7 @@ export async function createSalesReturn(
         const ppn = Math.round(subtotal * 0.11)
         const total = subtotal + ppn
 
+        await ensureSystemAccounts()
         await postJournalEntry({
             description: `Retur Penjualan ${result.creditNoteNumber}`,
             date: new Date(),
@@ -1391,13 +1395,13 @@ export async function createSalesReturn(
                     description: 'Retur Penjualan',
                 },
                 {
-                    accountCode: '2110', // PPN Keluaran
+                    accountCode: SYS_ACCOUNTS.PPN_KELUARAN, // PPN Keluaran
                     debit: ppn,
                     credit: 0,
                     description: 'Koreksi PPN Keluaran',
                 },
                 {
-                    accountCode: '1100', // Piutang Usaha (AR)
+                    accountCode: SYS_ACCOUNTS.AR, // Piutang Usaha (AR)
                     debit: 0,
                     credit: total,
                     description: 'Pengurangan Piutang',

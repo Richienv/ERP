@@ -2,6 +2,7 @@
 
 import { withPrismaAuth } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 
 // ==========================================
 // CREDIT NOTES & REFUNDS
@@ -74,23 +75,24 @@ export async function createCreditNote(data: {
             })
 
             // 6. Post Journal Entry
+            await ensureSystemAccounts()
             await postJournalEntry({
                 description: `Credit Note for ${originalInvoice.number}: ${data.reason}`,
                 date: new Date(),
                 reference: creditNote.id,
                 lines: [
                     {
-                        accountCode: '1100', // Piutang Usaha (AR)
+                        accountCode: SYS_ACCOUNTS.AR, // Piutang Usaha (AR)
                         debit: creditTotal,
                         credit: 0
                     },
                     {
-                        accountCode: '4000', // Pendapatan Penjualan (Revenue reversal)
+                        accountCode: SYS_ACCOUNTS.REVENUE, // Pendapatan Penjualan (Revenue reversal)
                         debit: 0,
                         credit: creditSubtotal
                     },
                     {
-                        accountCode: '2110', // PPN Keluaran (Output VAT)
+                        accountCode: SYS_ACCOUNTS.PPN_KELUARAN, // PPN Keluaran (Output VAT)
                         debit: 0,
                         credit: creditTax
                     }
@@ -146,16 +148,16 @@ export async function processRefund(data: {
             })
 
             // 3. Post Journal Entry
-            let creditAccount = '1101' // Cash
-            if (data.method === 'TRANSFER') creditAccount = '1010' // Bank
+            const creditAccount = getCashAccountCode(data.method)
 
+            await ensureSystemAccounts()
             await postJournalEntry({
                 description: `Refund to customer: ${data.reason}`,
                 date: new Date(),
                 reference: refund.id,
                 lines: [
                     {
-                        accountCode: '1100', // Piutang Usaha (AR)
+                        accountCode: SYS_ACCOUNTS.AR, // Piutang Usaha (AR)
                         debit: data.amount,
                         credit: 0
                     },
@@ -250,16 +252,16 @@ export async function createPaymentVoucher(data: {
             }
 
             // Post to GL
-            let creditAccount = '1101'
-            if (data.method === 'TRANSFER') creditAccount = '1102'
+            const creditAccount = getCashAccountCode(data.method, data.bankAccount)
 
+            await ensureSystemAccounts()
             await postJournalEntry({
                 description: `Payment Voucher ${number} for ${bills.length} bills`,
                 date: new Date(),
                 reference: voucher.id,
                 lines: [
                     {
-                        accountCode: '2100', // Hutang Usaha (AP)
+                        accountCode: SYS_ACCOUNTS.AP, // Hutang Usaha (AP)
                         debit: data.amount,
                         credit: 0
                     },
@@ -314,18 +316,19 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
                 })
 
                 // Post to GL
+                await ensureSystemAccounts()
                 await postJournalEntry({
                     description: `GIRO ${voucher.number} cleared`,
                     date: new Date(),
                     reference: voucher.id,
                     lines: [
                         {
-                            accountCode: '2100', // Hutang Usaha (AP)
+                            accountCode: SYS_ACCOUNTS.AP, // Hutang Usaha (AP)
                             debit: voucher.amount,
                             credit: 0
                         },
                         {
-                            accountCode: '1010', // Bank
+                            accountCode: SYS_ACCOUNTS.BANK_BCA, // Bank
                             debit: 0,
                             credit: voucher.amount
                         }
@@ -796,7 +799,9 @@ export async function recordARPayment(data: {
             })
 
             // Determine cash/bank account based on payment method
-            const cashCode = (data.method === 'TRANSFER' || data.method === 'CARD') ? '1010' : '1000'
+            const cashCode = getCashAccountCode(data.method || 'TRANSFER')
+
+            await ensureSystemAccounts()
 
             if (data.invoiceId) {
                 // Payment linked to invoice — reduce AR balance
@@ -822,7 +827,7 @@ export async function recordARPayment(data: {
                         invoiceId: data.invoiceId,
                         lines: [
                             { accountCode: cashCode, debit: data.amount, credit: 0 },
-                            { accountCode: '1100', debit: 0, credit: data.amount } // Piutang Usaha
+                            { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount } // Piutang Usaha
                         ]
                     })
                     if (!glResult?.success) {
@@ -831,7 +836,7 @@ export async function recordARPayment(data: {
                 }
             } else {
                 // Advance payment (Uang Muka / DP) — no invoice yet
-                // Per PSAK 72: DR Cash/Bank, CR 2121 Pendapatan Diterima Dimuka (Unearned Revenue)
+                // Per PSAK 72: DR Cash/Bank, CR Pendapatan Diterima Dimuka (Unearned Revenue)
                 // Revenue is NOT recognized until goods/services delivered
                 const advGlResult = await postJournalEntry({
                     description: `Uang Muka dari Customer - ${paymentNumber}`,
@@ -839,7 +844,7 @@ export async function recordARPayment(data: {
                     reference: paymentNumber,
                     lines: [
                         { accountCode: cashCode, debit: data.amount, credit: 0 },
-                        { accountCode: '2121', debit: 0, credit: data.amount } // Pendapatan Diterima Dimuka
+                        { accountCode: SYS_ACCOUNTS.DEFERRED_REV, debit: 0, credit: data.amount } // Pendapatan Diterima Dimuka
                     ]
                 })
                 if (!advGlResult?.success) {
@@ -890,13 +895,14 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
             })
 
             // Post GL Entry: DR Cash, CR AR
+            await ensureSystemAccounts()
             const matchGlResult = await postJournalEntry({
                 description: `Payment ${payment.number} matched to Invoice ${invoice.number}`,
                 date: payment.date,
                 reference: payment.number,
                 lines: [
-                    { accountCode: '1000', debit: paymentAmount, credit: 0 }, // Kas Besar
-                    { accountCode: '1100', debit: 0, credit: paymentAmount }  // Piutang Usaha (AR)
+                    { accountCode: getCashAccountCode(payment.method), debit: paymentAmount, credit: 0 }, // Kas/Bank
+                    { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: paymentAmount }  // Piutang Usaha (AR)
                 ]
             })
             if (!matchGlResult?.success) {

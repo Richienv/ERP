@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getGLAccountsList } from "@/lib/actions/finance"
+import { getGLAccountsList } from "@/lib/actions/finance-gl"
 
 export interface GLAccountRow {
     id: string

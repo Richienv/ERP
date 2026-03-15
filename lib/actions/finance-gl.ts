@@ -1,6 +1,7 @@
 'use server'
 
 import { withPrismaAuth } from "@/lib/db"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 // ==========================================
 // GL ACCOUNTS & CHART OF ACCOUNTS
@@ -919,8 +920,8 @@ export async function createOpeningInvoices(data: {
             if (totalAmount > 0) {
                 // AR opening: DR Piutang (1100), CR Opening Balance Equity (3900)
                 // AP opening: DR Opening Balance Equity (3900), CR Hutang (2100)
-                const arCode = "1100"
-                const apCode = "2100"
+                const arCode = SYS_ACCOUNTS.AR
+                const apCode = SYS_ACCOUNTS.AP
                 const openingEquityCode = "3900"
                 const balanceAccountCode = data.type === "AR" ? arCode : apCode
 

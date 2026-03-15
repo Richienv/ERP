@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance"
+import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance-gl"
 
 export function useJournal() {
     return useQuery({

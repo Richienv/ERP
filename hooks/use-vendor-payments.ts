@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getVendorPayments, getVendorBills, getVendorAPBalances } from "@/lib/actions/finance"
+import { getVendorPayments, getVendorBills, getVendorAPBalances } from "@/lib/actions/finance-ap"
 import { getVendors } from "@/lib/actions/procurement"
 
 export function useVendorPayments() {

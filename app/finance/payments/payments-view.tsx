@@ -38,7 +38,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { NB } from "@/lib/dialog-styles"
 import { matchPaymentToInvoice, recordARPayment } from "@/lib/actions/finance"
 import { toast } from "sonner"
@@ -648,7 +647,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             {/* CREATE PAYMENT DIALOG                      */}
             {/* ═══════════════════════════════════════════ */}
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogContent className={NB.content}>
+                <DialogContent className="max-w-[60rem] p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
                     <DialogHeader className={NB.header}>
                         <DialogTitle className={NB.title}>
                             <Wallet className="h-5 w-5" /> Catat Penerimaan Baru
@@ -658,8 +657,8 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         </p>
                     </DialogHeader>
 
-                    <ScrollArea className={NB.scroll}>
-                        <div className="p-6 space-y-5">
+                    <div className="max-h-[72vh] overflow-y-auto">
+                        <div className="p-8 space-y-6">
                             {/* Customer & Amount Section */}
                             <div className={NB.section}>
                                 <div className="bg-orange-50 dark:bg-orange-950/20 px-4 py-2 border-b-2 border-black flex items-center gap-2 border-l-[4px] border-l-orange-400">
@@ -667,33 +666,32 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                     <span className={NB.sectionTitle}>Data Penerimaan</span>
                                 </div>
                                 <div className={NB.sectionBody}>
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <div>
-                                            <label className={NB.label}>Pelanggan <span className="text-red-500">*</span></label>
-                                            <Select
-                                                value={createForm.customerId || EMPTY_INVOICE_VALUE}
-                                                onValueChange={(value) =>
-                                                    setCreateForm((prev) => ({
-                                                        ...prev,
-                                                        customerId: value === EMPTY_INVOICE_VALUE ? "" : value,
-                                                        invoiceId: ""
-                                                    }))
-                                                }
-                                            >
-                                                <SelectTrigger className={NB.select}>
-                                                    <SelectValue placeholder="Pilih pelanggan" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih pelanggan</SelectItem>
-                                                    {allCustomers.map((customer) => (
-                                                        <SelectItem key={customer.id} value={customer.id}>
-                                                            {customer.code ? `[${customer.code}] ` : ""}{customer.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
+                                    <div>
+                                        <label className={NB.label}>Pelanggan <span className="text-red-500">*</span></label>
+                                        <Select
+                                            value={createForm.customerId || EMPTY_INVOICE_VALUE}
+                                            onValueChange={(value) =>
+                                                setCreateForm((prev) => ({
+                                                    ...prev,
+                                                    customerId: value === EMPTY_INVOICE_VALUE ? "" : value,
+                                                    invoiceId: ""
+                                                }))
+                                            }
+                                        >
+                                            <SelectTrigger className={NB.select}>
+                                                <SelectValue placeholder="Pilih pelanggan" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih pelanggan</SelectItem>
+                                                {allCustomers.map((customer) => (
+                                                    <SelectItem key={customer.id} value={customer.id}>
+                                                        {customer.code ? `[${customer.code}] ` : ""}{customer.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="grid gap-4 md:grid-cols-3">
                                         <div>
                                             <label className={NB.label}>Nominal <span className="text-red-500">*</span></label>
                                             <div className="relative">
@@ -840,7 +838,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                 </Button>
                             </div>
                         </div>
-                    </ScrollArea>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

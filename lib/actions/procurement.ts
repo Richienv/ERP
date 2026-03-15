@@ -7,6 +7,7 @@ import { FALLBACK_PURCHASE_ORDERS, FALLBACK_VENDORS } from "@/lib/db-fallbacks"
 import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition } from "@/lib/po-state-machine"
 import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN", "ROLE_MANAGER"]
@@ -2204,7 +2205,7 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                         description: `Persediaan masuk — ${result.poNumber}`,
                     },
                     {
-                        accountCode: '2100',
+                        accountCode: SYS_ACCOUNTS.AP,
                         debit: 0,
                         credit: result.totalAmount,
                         description: `Hutang Usaha — ${result.poNumber}`,
@@ -2411,7 +2412,7 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
 
         // 3. Create GL journal entry: DR Accounts Payable, CR Inventory
         const apAccount = await (tx as any).gLAccount.findFirst({
-            where: { code: '2100' } // Accounts Payable
+            where: { code: SYS_ACCOUNTS.AP } // Accounts Payable
         })
         const inventoryAccount = await (tx as any).gLAccount.findFirst({
             where: { code: '1300' } // Inventory

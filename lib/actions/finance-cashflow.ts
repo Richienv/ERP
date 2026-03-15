@@ -3,6 +3,7 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import type { CashflowDirection, CashflowCategory, ProcurementStatus } from "@prisma/client"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 // ================================
 // Types
@@ -120,7 +121,7 @@ async function getARItems(monthStart: Date, monthEnd: Date): Promise<CashflowIte
         amount: toNum(inv.balanceDue),
         direction: "IN" as const,
         category: "AR_INVOICE",
-        glAccountCode: "1100",
+        glAccountCode: SYS_ACCOUNTS.AR,
         sourceId: inv.id,
         isRecurring: false,
         isManual: false,
@@ -149,7 +150,7 @@ async function getAPItems(monthStart: Date, monthEnd: Date): Promise<CashflowIte
         amount: toNum(inv.balanceDue),
         direction: "OUT" as const,
         category: "AP_BILL",
-        glAccountCode: "2100",
+        glAccountCode: SYS_ACCOUNTS.AP,
         sourceId: inv.id,
         isRecurring: false,
         isManual: false,
@@ -184,7 +185,7 @@ async function getPOItems(monthStart: Date, monthEnd: Date, allStatuses: boolean
         amount: toNum(po.totalAmount),
         direction: "OUT" as const,
         category: "PO_DIRECT",
-        glAccountCode: "2100",
+        glAccountCode: SYS_ACCOUNTS.AP,
         sourceId: po.id,
         isRecurring: false,
         isManual: false,
@@ -626,7 +627,7 @@ async function getSOItems(monthStart: Date, monthEnd: Date): Promise<CashflowIte
         amount: toNum(so.total),
         direction: "IN" as const,
         category: "SO_ORDER",
-        glAccountCode: "1100",
+        glAccountCode: SYS_ACCOUNTS.AR,
         sourceId: so.id,
         isRecurring: false,
         isManual: false,
@@ -1193,7 +1194,7 @@ export async function getUpcomingObligations(days: number = 90): Promise<Upcomin
             category: "AR_INVOICE",
             sourceType: "AR" as const,
             sourceUrl: `/finance/invoices?highlight=${inv.id}`,
-            glAccountCode: "1100",
+            glAccountCode: SYS_ACCOUNTS.AR,
         }
     })
 
@@ -1224,7 +1225,7 @@ export async function getUpcomingObligations(days: number = 90): Promise<Upcomin
             category: "AP_BILL",
             sourceType: "AP" as const,
             sourceUrl: `/finance/invoices?highlight=${inv.id}`,
-            glAccountCode: "2100",
+            glAccountCode: SYS_ACCOUNTS.AP,
         }
     })
 
@@ -1251,7 +1252,7 @@ export async function getUpcomingObligations(days: number = 90): Promise<Upcomin
         category: "PO_DIRECT",
         sourceType: "PO",
         sourceUrl: `/procurement/orders?highlight=${po.id}`,
-        glAccountCode: "2100",
+        glAccountCode: SYS_ACCOUNTS.AP,
     }))
 
     // 4. Payroll — next 3 months
@@ -1647,7 +1648,7 @@ export async function getCashflowActualData(month: number, year: number): Promis
             source: "INVOICE_PARTIAL",
             status: "SEBAGIAN" as const,
             paidPercentage: pct,
-            glAccountCode: "1100",
+            glAccountCode: SYS_ACCOUNTS.AR,
             glAccountName: "Piutang Usaha",
         }
     })
@@ -1682,7 +1683,7 @@ export async function getCashflowActualData(month: number, year: number): Promis
             source: "INVOICE_PARTIAL",
             status: "SEBAGIAN" as const,
             paidPercentage: pct,
-            glAccountCode: "2100",
+            glAccountCode: SYS_ACCOUNTS.AP,
             glAccountName: "Hutang Usaha",
         }
     })

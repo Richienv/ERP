@@ -1,5 +1,7 @@
 'use server'
 
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+
 /**
  * Inventory → General Ledger integration.
  *
@@ -43,7 +45,7 @@ export type PostInventoryGLParams = {
 const GL_INVENTORY_ASSET = '1300'
 const GL_RAW_MATERIALS = '1310'
 const GL_WORK_IN_PROGRESS = '1320'
-const GL_ACCOUNTS_PAYABLE = '2100'
+const GL_ACCOUNTS_PAYABLE = SYS_ACCOUNTS.AP
 const GL_COGS = '5100'
 const GL_LOSS_WRITEOFF = '8200'
 const GL_INVENTORY_ADJUSTMENT = '8300'

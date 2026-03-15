@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getVendorBillsRegistry } from "@/lib/actions/finance"
+import { getVendorBillsRegistry } from "@/lib/actions/finance-ap"
 import { getAvailableBanks } from "@/lib/actions/xendit"
 
 interface BillsQueryParams {

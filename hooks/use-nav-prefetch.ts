@@ -266,7 +266,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     "/finance/receivables": {
         queryKey: queryKeys.arPayments.list(),
         queryFn: async () => {
-            const { getARPaymentRegistry, getARPaymentStats } = await import("@/lib/actions/finance")
+            const { getARPaymentRegistry, getARPaymentStats } = await import("@/lib/actions/finance-ar")
             const [registry, stats] = await Promise.all([
                 getARPaymentRegistry({}),
                 getARPaymentStats(),

@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { getFinancialMetrics, getFinanceDashboardData } from "@/lib/actions/finance"
+import { getFinancialMetrics, getFinanceDashboardData } from "@/lib/actions/finance-reports"
 
 export function useFinanceDashboard() {
     return useQuery({
