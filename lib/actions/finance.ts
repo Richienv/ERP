@@ -200,8 +200,8 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             discountAmount: toNum(inv.discountAmount),
             totalAmount: toNum(inv.totalAmount),
             balanceDue: toNum(inv.balanceDue),
-            customer: inv.customer,
-            supplier: inv.supplier,
+            customer: inv.customer?.name ?? inv.customer ?? null,
+            supplier: inv.supplier?.name ?? inv.supplier ?? null,
         })
 
         return {
@@ -3762,9 +3762,14 @@ export async function getExpenses() {
 export async function getExpenseAccounts() {
     try {
         return await withPrismaAuth(async (prisma) => {
-            const [expenseAccounts, cashAccounts] = await Promise.all([
+            const [expenseAccounts, revenueAccounts, cashAccounts] = await Promise.all([
                 prisma.gLAccount.findMany({
                     where: { type: 'EXPENSE' },
+                    select: { id: true, code: true, name: true },
+                    orderBy: { code: 'asc' },
+                }),
+                prisma.gLAccount.findMany({
+                    where: { type: 'REVENUE' },
                     select: { id: true, code: true, name: true },
                     orderBy: { code: 'asc' },
                 }),
@@ -3782,11 +3787,11 @@ export async function getExpenseAccounts() {
                     orderBy: { code: 'asc' },
                 }),
             ])
-            return { expenseAccounts, cashAccounts }
+            return { expenseAccounts, revenueAccounts, cashAccounts }
         })
     } catch (error) {
         console.error("Failed to fetch expense accounts:", error)
-        return { expenseAccounts: [], cashAccounts: [] }
+        return { expenseAccounts: [], revenueAccounts: [], cashAccounts: [] }
     }
 }
 

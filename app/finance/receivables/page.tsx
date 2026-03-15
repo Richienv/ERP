@@ -35,7 +35,7 @@ export default function ReceivablesPage() {
             <motion.div
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                transition={{ type: "spring" as const, stiffness: 320, damping: 26 }}
                 className={NB.pageCard}
             >
                 <div className={NB.pageAccent} />

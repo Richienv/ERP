@@ -13,14 +13,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NB } from "@/lib/dialog-styles"
 import {
-    IconCalendar,
-    IconLock,
-    IconLockOpen,
     IconPlus,
     IconRefresh,
     IconBookDownload,
 } from "@tabler/icons-react"
-import { Calendar, Lock, LockOpen, X } from "lucide-react"
+import { Calendar, Lock, LockOpen } from "lucide-react"
 import { motion } from "framer-motion"
 import { ClosingYearDialog } from "@/components/finance/closing-year-dialog"
 import {
@@ -40,7 +37,7 @@ const stagger = {
 }
 const fadeUp = {
     hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 
 export default function FiscalPeriodsPage() {
@@ -151,7 +148,7 @@ export default function FiscalPeriodsPage() {
                                 key={kpi.count}
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
                                 className={NB.kpiCount}
                             >
                                 {kpi.count}

@@ -32,7 +32,7 @@ const stagger = {
 }
 const fadeUp = {
     hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 
 // ─── Types ───────────────────────────────────────────────
@@ -521,7 +521,7 @@ export default function AccountTransactionsPage() {
                                         key={kpi.count}
                                         initial={{ scale: 0.8, opacity: 0 }}
                                         animate={{ scale: 1, opacity: 1 }}
-                                        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                        transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
                                         className={NB.kpiCount}
                                     >
                                         {kpi.count}
@@ -534,7 +534,7 @@ export default function AccountTransactionsPage() {
                                                 initial={{ opacity: 0, x: -8 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 exit={{ opacity: 0, x: -8 }}
-                                                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                                                transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                                                 className={`text-xs font-mono font-bold ${
                                                     kpi.color === "red"
                                                         ? "text-red-600 dark:text-red-400"

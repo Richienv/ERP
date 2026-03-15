@@ -166,7 +166,7 @@ export default function FinancialReportsPage() {
         if (reportType === 'bs' && balanceSheetData?.balanceCheck && !balanceSheetData.balanceCheck.isBalanced && !diagnosticTBData) {
             loadTrialBalance()
         }
-    }, [reportType, balanceSheetData])
+    }, [reportType, balanceSheetData, diagnosticTBData])
 
     function applyDateRange() {
         const nextStart = new Date(draftStartDate)
@@ -608,7 +608,7 @@ export default function FinancialReportsPage() {
                                                 key={kpi_item.value}
                                                 initial={{ opacity: 0, scale: 0.8 }}
                                                 animate={{ opacity: 1, scale: 1 }}
-                                                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                                transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
                                                 className={`text-lg font-black ${textColors[kpi_item.color] || "text-zinc-900 dark:text-white"}`}
                                             >
                                                 {kpi_item.value}

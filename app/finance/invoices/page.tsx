@@ -70,11 +70,11 @@ const stagger = {
 }
 const fadeUp = {
     hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 const fadeX = {
     hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 
 const emptyKanban: InvoiceKanbanData = { draft: [], sent: [], overdue: [], paid: [] }
@@ -469,7 +469,7 @@ export default function InvoicesPage() {
                                     key={kpi.count}
                                     initial={{ scale: 0.8, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                    transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
                                     className={`text-xl font-black ${
                                         kpi.color === 'red' && kpi.count > 0
                                             ? 'text-red-600 dark:text-red-400'
@@ -485,7 +485,7 @@ export default function InvoicesPage() {
                                                 initial={{ opacity: 0, x: -8 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 exit={{ opacity: 0, x: -8 }}
-                                                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                                                transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                                                 className="text-xs font-mono font-bold text-zinc-500 dark:text-zinc-400"
                                             >
                                                 {formatIDR(kpi.amount)}
@@ -617,7 +617,7 @@ export default function InvoicesPage() {
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                            transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                             className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
                         >
                             <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
@@ -1050,7 +1050,7 @@ export default function InvoicesPage() {
                                     >
                                         <motion.span
                                             layout
-                                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                            transition={{ type: "spring" as const, stiffness: 500, damping: 30 }}
                                             className={`${NB.toggleThumb} ${editIncludeTax ? 'left-5' : 'left-0.5'}`}
                                         />
                                     </button>
@@ -1087,7 +1087,7 @@ export default function InvoicesPage() {
                                                         key={total}
                                                         initial={{ scale: 1.1 }}
                                                         animate={{ scale: 1 }}
-                                                        transition={{ type: "spring", stiffness: 300 }}
+                                                        transition={{ type: "spring" as const, stiffness: 300 }}
                                                         className="font-mono font-black text-xl text-white dark:text-zinc-900"
                                                     >
                                                         {formatIDR(total)}

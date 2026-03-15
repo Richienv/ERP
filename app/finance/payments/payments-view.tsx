@@ -229,10 +229,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             toast.error("Pilih pelanggan terlebih dahulu")
             return
         }
-        if (!createForm.invoiceId) {
-            toast.error("Pilih invoice penjualan untuk mengalokasikan penerimaan")
-            return
-        }
+        // invoiceId is optional — payment can be saved as unallocated
         if (!Number.isFinite(amount) || amount <= 0) {
             toast.error("Nominal penerimaan harus lebih besar dari 0")
             return
@@ -244,7 +241,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 customerId: createForm.customerId,
                 amount,
                 date: createForm.date ? new Date(`${createForm.date}T00:00:00`) : new Date(),
-                method: createForm.method,
+                method: createForm.method as "CASH" | "TRANSFER" | "CHECK" | "CARD",
                 reference: createForm.reference.trim() || undefined,
                 notes: createForm.notes.trim() || undefined,
                 invoiceId: createForm.invoiceId || undefined

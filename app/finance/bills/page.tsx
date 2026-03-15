@@ -53,11 +53,11 @@ import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 /* ─── Animation variants ─── */
 const fadeUp = {
     hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 const fadeX = {
     hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 
 export default function APBillsStackPage() {

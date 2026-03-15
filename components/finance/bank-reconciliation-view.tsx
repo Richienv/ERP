@@ -579,7 +579,7 @@ export function BankReconciliationView({
                 toast.success("Item berhasil dicocokkan")
                 setSelectedBankIds(new Set())
                 setSelectedSystemIds(new Set())
-                await reloadDetail(selectedRec!.id)
+                if (selectedRec) await reloadDetail(selectedRec.id)
             } else {
                 toast.error(result.error || "Gagal mencocokkan")
             }
@@ -596,7 +596,7 @@ export function BankReconciliationView({
             const result = await onUnmatchItem(itemId)
             if (result.success) {
                 toast.success("Pencocokan dibatalkan")
-                await reloadDetail(selectedRec!.id)
+                if (selectedRec) await reloadDetail(selectedRec.id)
             } else {
                 toast.error(result.error || "Gagal membatalkan pencocokan")
             }
@@ -694,7 +694,7 @@ export function BankReconciliationView({
             <motion.div
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                transition={{ type: "spring" as const, stiffness: 320, damping: 26 }}
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900"
             >
                 {/* Orange accent bar */}
@@ -981,7 +981,7 @@ export function BankReconciliationView({
                                 key={kpi.count}
                                 initial={{ scale: 0.8, opacity: 0 }}
                                 animate={{ scale: 1, opacity: 1 }}
-                                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
                                 className={`text-xl font-black ${
                                     kpi.color === "amber" && kpi.count > 0
                                         ? "text-amber-600 dark:text-amber-400"
@@ -1053,7 +1053,7 @@ export function BankReconciliationView({
             <motion.div
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ type: "spring", stiffness: 320, damping: 26, delay: 0.08 }}
+                transition={{ type: "spring" as const, stiffness: 320, damping: 26, delay: 0.08 }}
                 className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex"
                 style={{ minHeight: 480 }}
             >
@@ -1947,7 +1947,7 @@ export function BankReconciliationView({
                         </div>
                     )}
                 </div>
-            </div>
+            </motion.div>
 
             {/* ── Exclude Item Dialog ─────────────────────────────────────────── */}
             <Dialog open={excludeDialogOpen} onOpenChange={setExcludeDialogOpen}>

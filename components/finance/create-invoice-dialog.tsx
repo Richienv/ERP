@@ -39,7 +39,7 @@ import { NB } from "@/lib/dialog-styles"
 /* ─── Animation variants ─── */
 const sectionFade = {
     hidden: { opacity: 0, y: 10 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } },
     exit: { opacity: 0, y: -10, transition: { duration: 0.15 } },
 }
 
@@ -92,7 +92,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 ])
                 if (active) {
                     setCustomers(customerList)
-                    setRevenueAccounts(accountsData.expenseAccounts ?? [])
+                    setRevenueAccounts([...(accountsData.revenueAccounts ?? []), ...(accountsData.expenseAccounts ?? [])])
                     setPendingSOs(soData)
                     setPendingPOs(poData)
                     setDataReady(true)
@@ -143,7 +143,8 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                         quantity: manualQty,
                         unitPrice: parseFloat(manualPrice) || 0
                     }],
-                    type: manualType
+                    type: manualType,
+                    ...(selectedAccountId ? { accountId: selectedAccountId } : {}),
                 })
             }
 
@@ -353,7 +354,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                                 >
                                                     <motion.span
                                                         layout
-                                                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                                        transition={{ type: "spring" as const, stiffness: 500, damping: 30 }}
                                                         className={`${NB.toggleThumb} ${includeTax ? 'left-5' : 'left-0.5'}`}
                                                     />
                                                 </button>
@@ -399,7 +400,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                                                 key={total}
                                                                 initial={{ scale: 1.1 }}
                                                                 animate={{ scale: 1 }}
-                                                                transition={{ type: "spring", stiffness: 300 }}
+                                                                transition={{ type: "spring" as const, stiffness: 300 }}
                                                                 className="font-mono font-black text-xl text-white dark:text-zinc-900"
                                                             >
                                                                 {formatIDR(total)}

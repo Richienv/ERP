@@ -38,11 +38,11 @@ const stagger = {
 }
 const fadeUp = {
     hidden: { opacity: 0, y: 14 },
-    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+    show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 const fadeX = {
     hidden: { opacity: 0, x: -12 },
-    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+    show: { opacity: 1, x: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } },
 }
 
 // ──────────────────────────────────────────
@@ -303,7 +303,7 @@ export default function CreditDebitNotesPage() {
                                     key={kpi.count}
                                     initial={{ scale: 0.8, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                    transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
                                     className={NB.kpiCount}
                                 >
                                     {kpi.count}
@@ -315,7 +315,7 @@ export default function CreditDebitNotesPage() {
                                                 initial={{ opacity: 0, x: -8 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 exit={{ opacity: 0, x: -8 }}
-                                                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                                                transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                                                 className={NB.kpiAmount}
                                             >
                                                 {formatIDR(kpi.amount)}
@@ -427,7 +427,7 @@ export default function CreditDebitNotesPage() {
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                            transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
                             className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
                         >
                             <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
