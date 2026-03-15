@@ -351,75 +351,74 @@ export function CashflowPlanningBoard({
     return (
         <div className="space-y-6">
             {/* ═══ SECTION 1: TOP STRIP ═══════════════════════════════════ */}
-            <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                {/* Orange accent bar */}
+                <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+
                 {/* Header row */}
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 border-b-2 border-black">
-                    <div className="flex items-center gap-4">
-                        <div className="flex h-12 w-12 items-center justify-center border-2 border-black bg-emerald-400 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                            <IconWallet size={24} stroke={2} />
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 px-5 py-3.5 border-b border-zinc-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                            <IconWallet size={20} stroke={2} className="text-white" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black uppercase tracking-tight">
+                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
                                 Perencanaan Arus Kas
                             </h1>
-                            <p className="text-sm text-zinc-500 font-medium">
-                                Cashflow Planning by Management
+                            <p className="text-zinc-400 text-[11px] font-medium">
+                                {MONTH_NAMES[month]} {year} — Cashflow Planning
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                        {/* Month navigator */}
-                        <div className="flex items-center border-2 border-black bg-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                            <Button variant="ghost" size="sm" onClick={handlePrevMonth} className="rounded-none border-r-2 border-black h-10 px-3">
-                                <IconChevronLeft size={18} />
-                            </Button>
-                            <span className="px-5 font-black text-sm uppercase min-w-[170px] text-center">
-                                {MONTH_NAMES[month]} {year}
-                            </span>
-                            <Button variant="ghost" size="sm" onClick={handleNextMonth} className="rounded-none border-l-2 border-black h-10 px-3">
-                                <IconChevronRight size={18} />
-                            </Button>
-                        </div>
-
-                        {/* View mode toggle */}
-                        <div className="flex border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-                            <button
-                                onClick={() => setViewMode("planning")}
-                                className={`px-4 py-2 text-xs font-black uppercase tracking-wider transition-colors ${
-                                    viewMode === "planning" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
-                                }`}
-                            >
-                                Planning
-                            </button>
-                            <button
-                                onClick={() => setViewMode("riil")}
-                                className={`px-4 py-2 text-xs font-black uppercase tracking-wider border-l-2 border-black transition-colors ${
-                                    viewMode === "riil" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
-                                }`}
-                            >
-                                Riil
-                            </button>
-                        </div>
-
-                        <Button
-                            onClick={() => { setEditItem(null); setItemDialogOpen(true) }}
-                            className="border-2 border-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-10 bg-emerald-400 hover:bg-emerald-500 text-black"
-                        >
-                            <IconPlus size={16} className="mr-1" /> Tambah
+                    <div className="flex items-center gap-0 flex-wrap">
+                        {/* Month navigator — joined */}
+                        <Button variant="outline" size="sm" onClick={handlePrevMonth} className="border border-zinc-300 dark:border-zinc-700 border-r-0 text-zinc-500 h-9 px-3 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                            <IconChevronLeft size={16} />
                         </Button>
+                        <span className="border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-5 flex items-center font-black text-xs uppercase tracking-wider min-w-[160px] justify-center bg-white dark:bg-zinc-900">
+                            {MONTH_NAMES[month]} {year}
+                        </span>
+                        <Button variant="outline" size="sm" onClick={handleNextMonth} className="border border-zinc-300 dark:border-zinc-700 border-r-0 text-zinc-500 h-9 px-3 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                            <IconChevronRight size={16} />
+                        </Button>
+
+                        {/* View mode toggle — joined */}
+                        <button
+                            onClick={() => setViewMode("planning")}
+                            className={`h-9 px-3.5 text-[10px] font-bold uppercase tracking-wider border border-zinc-300 dark:border-zinc-700 border-r-0 rounded-none transition-colors ${
+                                viewMode === "planning" ? "bg-black text-white border-black" : "bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-50"
+                            }`}
+                        >
+                            Planning
+                        </button>
+                        <button
+                            onClick={() => setViewMode("riil")}
+                            className={`h-9 px-3.5 text-[10px] font-bold uppercase tracking-wider border border-zinc-300 dark:border-zinc-700 rounded-none transition-colors ${
+                                viewMode === "riil" ? "bg-black text-white border-black" : "bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-50"
+                            }`}
+                        >
+                            Riil
+                        </button>
 
                         <Button
                             variant="outline" size="sm" onClick={handleSaveSnapshot} disabled={savingSnapshot}
-                            className="border-2 border-black font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] h-10"
+                            className="border border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 transition-colors ml-2"
                         >
-                            <IconCamera size={16} className="mr-1" /> {savingSnapshot ? "..." : "Snapshot"}
+                            <IconCamera size={14} className="mr-1.5" /> {savingSnapshot ? "..." : "Snapshot"}
+                        </Button>
+
+                        <Button
+                            onClick={() => { setEditItem(null); setItemDialogOpen(true) }}
+                            className="bg-orange-500 text-white border border-orange-600 hover:bg-orange-600 font-bold uppercase text-[10px] tracking-wider px-4 h-9 rounded-none transition-colors ml-2"
+                        >
+                            <IconPlus size={14} className="mr-1.5" /> Tambah
                         </Button>
                     </div>
                 </div>
 
                 {/* Cash position + runway + bank pills */}
-                <div className="flex flex-col lg:flex-row gap-0 divide-y-2 lg:divide-y-0 lg:divide-x-2 divide-black">
+                <div className="flex flex-col lg:flex-row gap-0 divide-y lg:divide-y-0 lg:divide-x divide-zinc-200 dark:divide-zinc-800">
                     {/* Total Cash Position */}
                     <div
                         className="p-5 flex-shrink-0 lg:w-[280px] cursor-pointer hover:bg-zinc-50 transition-colors"
@@ -674,114 +673,146 @@ export function CashflowPlanningBoard({
                 })}
             </div>
 
-            {/* ═══ SECTION 3: SUMMARY BAR ════════════════════════════════ */}
-            <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-wrap divide-x-2 divide-black">
-                <SummaryCell label="Saldo Awal" value={data.effectiveStartingBalance} />
-                <SummaryCell label="Total Masuk" value={data.summary.totalIn} color="text-emerald-600" prefix="+" />
-                <SummaryCell label="Total Keluar" value={data.summary.totalOut} color="text-red-600" prefix="-" />
-                <SummaryCell label="Net" value={data.summary.netFlow} color={data.summary.netFlow >= 0 ? "text-emerald-600" : "text-red-600"} prefix={data.summary.netFlow >= 0 ? "+" : ""} />
-                <SummaryCell label="Saldo Akhir" value={data.summary.estimatedEndBalance} highlight={data.summary.estimatedEndBalance < 0} />
+            {/* ═══ UNIFIED SUMMARY & INSIGHTS CARD ════════════════════ */}
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                {/* Orange accent bar */}
+                <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+
+                {/* Row 1: KPI Summary Strip */}
+                <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 border-b border-zinc-200 dark:border-zinc-800">
+                    {[
+                        { label: "Saldo Awal", value: data.effectiveStartingBalance, color: "" },
+                        { label: "Total Masuk", value: data.summary.totalIn, color: "text-emerald-600", prefix: "+" },
+                        { label: "Total Keluar", value: data.summary.totalOut, color: "text-red-600", prefix: "-" },
+                        { label: "Net", value: data.summary.netFlow, color: data.summary.netFlow >= 0 ? "text-emerald-600" : "text-red-600", prefix: data.summary.netFlow >= 0 ? "+" : "" },
+                        { label: "Saldo Akhir", value: data.summary.estimatedEndBalance, color: data.summary.estimatedEndBalance < 0 ? "text-red-600" : "text-emerald-700", highlight: data.summary.estimatedEndBalance < 0 },
+                    ].map((cell) => (
+                        <div key={cell.label} className="flex-1 px-4 py-3 flex items-center justify-between gap-2 cursor-default">
+                            <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 ${
+                                    cell.label === "Saldo Awal" ? "bg-zinc-400" :
+                                    cell.label === "Total Masuk" ? "bg-emerald-500" :
+                                    cell.label === "Total Keluar" ? "bg-red-500" :
+                                    cell.label === "Net" ? (data.summary.netFlow >= 0 ? "bg-emerald-500" : "bg-red-500") :
+                                    "bg-orange-500"
+                                }`} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{cell.label}</span>
+                            </div>
+                            <span className={`text-lg font-black tabular-nums ${cell.color || "text-zinc-900 dark:text-white"}`}>
+                                {cell.prefix || ""}{formatCurrency(cell.value)}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Row 2: Last Month + Snapshot in one row */}
+                {(data.lastMonthSummary || data.snapshot) && (
+                    <div className="flex items-stretch divide-x divide-zinc-200 dark:divide-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/30">
+                        {data.lastMonthSummary && (
+                            <div className="flex-1 px-5 py-2.5 flex items-center gap-4">
+                                <IconHistory size={16} className="text-blue-500 flex-shrink-0" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Bulan Lalu</span>
+                                <div className="flex items-center gap-3 ml-auto text-xs font-bold">
+                                    <span className="text-emerald-600">+{formatCompact(data.lastMonthSummary.totalIn)}</span>
+                                    <span className="text-red-600">-{formatCompact(data.lastMonthSummary.totalOut)}</span>
+                                    <span className={data.lastMonthSummary.netFlow >= 0 ? "text-emerald-700" : "text-red-700"}>
+                                        Net {data.lastMonthSummary.netFlow >= 0 ? "+" : ""}{formatCompact(data.lastMonthSummary.netFlow)}
+                                    </span>
+                                    <span className="text-zinc-400">{data.lastMonthSummary.itemCount} tx</span>
+                                </div>
+                            </div>
+                        )}
+                        {data.snapshot && (
+                            <div className="flex-1 px-5 py-2.5 flex items-center gap-4">
+                                <IconCamera size={16} className="text-amber-500 flex-shrink-0" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Snapshot</span>
+                                <div className="flex items-center gap-3 ml-auto text-xs font-bold">
+                                    <span className="text-zinc-600">{new Date(data.snapshot.snapshotDate).toLocaleDateString("id-ID", { day: "2-digit", month: "short" })}</span>
+                                    <span className="text-emerald-600">+{formatCompact(data.snapshot.totalPlannedIn)}</span>
+                                    <span className="text-red-600">-{formatCompact(data.snapshot.totalPlannedOut)}</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* ═══ LAST MONTH REFERENCE ═══════════════════════════════════ */}
-            {data.lastMonthSummary && (
-                <div className="border-2 border-black bg-blue-50 px-5 py-3 flex items-center gap-5 text-sm font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <IconHistory size={18} className="text-blue-600 flex-shrink-0" />
-                    <span className="text-blue-800">Referensi bulan lalu:</span>
-                    <span className="text-emerald-700">Masuk {formatCurrency(data.lastMonthSummary.totalIn)}</span>
-                    <span className="text-red-700">Keluar {formatCurrency(data.lastMonthSummary.totalOut)}</span>
-                    <span className={data.lastMonthSummary.netFlow >= 0 ? "text-emerald-700" : "text-red-700"}>
-                        Net {data.lastMonthSummary.netFlow >= 0 ? "+" : ""}{formatCurrency(data.lastMonthSummary.netFlow)}
-                    </span>
-                    <span className="text-zinc-500 ml-auto">{data.lastMonthSummary.itemCount} transaksi</span>
-                </div>
-            )}
-
-            {/* ═══ SNAPSHOT INFO ══════════════════════════════════════════ */}
-            {data.snapshot && (
-                <div className="border-2 border-black bg-amber-50 px-5 py-3 text-sm font-bold flex items-center gap-3 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                    <IconCamera size={18} />
-                    Snapshot: {new Date(data.snapshot.snapshotDate).toLocaleDateString("id-ID")}
-                    <span className="text-zinc-500 ml-2">
-                        Rencana: {formatCurrency(data.snapshot.totalPlannedIn)} masuk, {formatCurrency(data.snapshot.totalPlannedOut)} keluar
-                    </span>
-                </div>
-            )}
-
-            {/* ═══ SECTION 4: ACCURACY (Collapsible) ═════════════════════ */}
-            {data.snapshot && (
-                <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <button
-                        onClick={() => setShowAccuracy(!showAccuracy)}
-                        className="w-full px-5 py-3 text-left flex items-center justify-between hover:bg-zinc-50 transition-colors"
-                    >
-                        <div className="flex items-center gap-2">
-                            <IconScale size={18} />
-                            <span className="text-sm font-black uppercase tracking-wider">
-                                Akurasi: Rencana vs Realisasi
-                            </span>
-                            {(() => {
-                                const plannedNet = data.snapshot!.totalPlannedIn - data.snapshot!.totalPlannedOut
-                                const actualIn = actualItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
-                                const actualOut = actualItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
-                                const actualNet = actualIn - actualOut
-                                const pct = plannedNet !== 0 ? ((actualNet - plannedNet) / plannedNet) * 100 : null
-                                const accuracy = pct !== null ? Math.max(0, 100 - Math.abs(pct)) : null
-                                if (accuracy === null) return null
-                                const color = accuracy >= 80 ? "text-emerald-600 border-emerald-400" : accuracy >= 60 ? "text-amber-600 border-amber-400" : "text-red-600 border-red-400"
-                                return <span className={`text-xs font-bold px-2 py-0.5 border ${color} ml-2`}>Akurasi: {accuracy.toFixed(0)}%</span>
-                            })()}
+            {/* ═══ ACCURACY + FORECAST UNIFIED CARD ═══════════════════════ */}
+            {(data.snapshot || (forecast && forecast.months.length > 0)) && (
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                    {/* Black header with sections */}
+                    <div className="bg-black dark:bg-zinc-950 px-5 py-2.5 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            {data.snapshot && (
+                                <button
+                                    onClick={() => setShowAccuracy(!showAccuracy)}
+                                    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 transition-all ${
+                                        showAccuracy ? "bg-white text-black" : "text-zinc-400 hover:text-white"
+                                    }`}
+                                >
+                                    <IconScale size={14} className="inline mr-1.5 -mt-0.5" />
+                                    Akurasi
+                                    {(() => {
+                                        const plannedNet = data.snapshot!.totalPlannedIn - data.snapshot!.totalPlannedOut
+                                        const aIn = actualItems.filter(i => i.direction === "IN").reduce((s, i) => s + i.amount, 0)
+                                        const aOut = actualItems.filter(i => i.direction === "OUT").reduce((s, i) => s + i.amount, 0)
+                                        const pct = plannedNet !== 0 ? ((aIn - aOut - plannedNet) / plannedNet) * 100 : null
+                                        const acc = pct !== null ? Math.max(0, 100 - Math.abs(pct)) : null
+                                        if (acc === null) return null
+                                        return <span className={`ml-1.5 ${acc >= 80 ? "text-emerald-400" : acc >= 60 ? "text-amber-400" : "text-red-400"}`}>{acc.toFixed(0)}%</span>
+                                    })()}
+                                </button>
+                            )}
+                            {forecast && forecast.months.length > 0 && (
+                                <button
+                                    onClick={() => setShowAccuracy(false)}
+                                    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 transition-all ${
+                                        !showAccuracy ? "bg-white text-black" : "text-zinc-400 hover:text-white"
+                                    }`}
+                                >
+                                    <IconCalendarWeek size={14} className="inline mr-1.5 -mt-0.5" />
+                                    Proyeksi 6 Bulan
+                                </button>
+                            )}
                         </div>
-                        <IconChevronDown size={18} className={`transition-transform ${showAccuracy ? "rotate-180" : ""}`} />
-                    </button>
+                    </div>
 
-                    {showAccuracy && (
+                    {/* Accuracy content */}
+                    {showAccuracy && data.snapshot && (
                         <AccuracySection
                             snapshot={data.snapshot}
                             actualItems={actualItems}
                             accuracyTrend={accuracyTrend}
                         />
                     )}
-                </div>
-            )}
 
-            {/* ═══ 6-MONTH FORECAST (from old forecast page) ═════════════ */}
-            {forecast && forecast.months.length > 0 && (
-                <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <div className="bg-black text-white px-5 py-3 flex items-center gap-2">
-                        <IconCalendarWeek size={18} />
-                        <span className="text-sm font-black uppercase tracking-wider">Proyeksi 6 Bulan</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead>
-                                <tr className="border-b-2 border-black bg-zinc-50">
-                                    <th className="text-left px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Bulan</th>
-                                    <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-emerald-600">Kas Masuk</th>
-                                    <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-red-600">Kas Keluar</th>
-                                    <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Net</th>
-                                    <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Saldo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {forecast.months.map(m => (
-                                    <tr key={`${m.month}-${m.year}`} className="border-b border-zinc-100 hover:bg-zinc-50">
-                                        <td className="px-5 py-3 font-bold">{m.label}</td>
-                                        <td className="px-5 py-3 text-right font-medium text-emerald-600">{formatCurrency(m.totalIn)}</td>
-                                        <td className="px-5 py-3 text-right font-medium text-red-600">{formatCurrency(m.totalOut)}</td>
-                                        <td className={`px-5 py-3 text-right font-bold ${m.netFlow >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                            {m.netFlow >= 0 ? "+" : ""}{formatCurrency(m.netFlow)}
-                                        </td>
-                                        <td className="px-5 py-3 text-right font-black">{formatCurrency(m.runningBalance)}</td>
-                                    </tr>
+                    {/* Forecast content */}
+                    {!showAccuracy && forecast && forecast.months.length > 0 && (
+                        <div className="overflow-x-auto">
+                            <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-2 px-5 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                                {["Bulan", "Kas Masuk", "Kas Keluar", "Net", "Saldo"].map((h) => (
+                                    <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
                                 ))}
-                            </tbody>
-                        </table>
-                    </div>
+                            </div>
+                            <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                {forecast.months.map((m, idx) => (
+                                    <div key={`${m.month}-${m.year}`} className={`grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}>
+                                        <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{m.label}</span>
+                                        <span className="font-mono text-sm text-emerald-600">{formatCurrency(m.totalIn)}</span>
+                                        <span className="font-mono text-sm text-red-600">{formatCurrency(m.totalOut)}</span>
+                                        <span className={`font-mono text-sm font-bold ${m.netFlow >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                            {m.netFlow >= 0 ? "+" : ""}{formatCurrency(m.netFlow)}
+                                        </span>
+                                        <span className="font-mono text-sm font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(m.runningBalance)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
-            {/* ═══ SECTION 6: UPCOMING OBLIGATIONS ═══════════════════════ */}
+            {/* ═══ UPCOMING OBLIGATIONS ═══════════════════════════════════ */}
             <UpcomingObligationsSection upcoming={upcoming} />
 
             {/* ═══ DIALOGS ═══════════════════════════════════════════════ */}
@@ -947,19 +978,14 @@ function AccuracySection({
     const netPct = variancePct(actualNet, plannedNet)
 
     return (
-        <div className="border-t-2 border-black">
+        <div>
             <div className="overflow-x-auto">
+                <div className="hidden md:grid grid-cols-[120px_1fr_1fr_1fr_100px_80px] gap-2 px-5 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                    {["", "Pemasukan", "Pengeluaran", "Nett", "Varians", "Status"].map((h) => (
+                        <span key={h || "empty"} className={`text-[10px] font-black uppercase tracking-widest ${h === "Pemasukan" ? "text-emerald-600" : h === "Pengeluaran" ? "text-red-600" : "text-zinc-400"}`}>{h}</span>
+                    ))}
+                </div>
                 <table className="w-full text-sm">
-                    <thead>
-                        <tr className="border-b-2 border-black bg-zinc-50">
-                            <th className="text-left px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500 w-[120px]" />
-                            <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-emerald-600">Pemasukan</th>
-                            <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-red-600">Pengeluaran</th>
-                            <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Nett</th>
-                            <th className="text-right px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Varians</th>
-                            <th className="text-center px-5 py-3 font-black uppercase text-xs tracking-wider text-zinc-500">Status</th>
-                        </tr>
-                    </thead>
                     <tbody>
                         <tr className="border-b border-zinc-200">
                             <td className="px-5 py-3 font-black">Rencana</td>
@@ -1107,34 +1133,42 @@ function UpcomingObligationsSection({ upcoming }: { upcoming?: UpcomingObligatio
     }
 
     return (
-        <div className="border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-            {/* Header */}
-            <div className="bg-black text-white px-5 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <IconCalendarWeek size={18} />
-                    <span className="text-sm font-black uppercase tracking-wider">
-                        Kewajiban Mendatang — {upcoming?.periodLabel ?? "90 hari ke depan"}
-                    </span>
-                    <span className="text-xs text-zinc-400 ml-2">{upcoming?.summary.itemCount ?? 0} item</span>
+        <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+            {/* Orange accent bar */}
+            <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+
+            {/* Header row */}
+            <div className="px-5 py-3 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-orange-500 flex items-center justify-center">
+                        <IconCalendarWeek size={16} className="text-white" />
+                    </div>
+                    <div>
+                        <span className="text-sm font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                            Kewajiban Mendatang
+                        </span>
+                        <p className="text-zinc-400 text-[10px] font-medium">{upcoming?.periodLabel ?? "90 hari ke depan"} — {upcoming?.summary.itemCount ?? 0} item</p>
+                    </div>
                 </div>
             </div>
 
-            {/* Summary strip */}
-            <div className="flex divide-x-2 divide-black border-b-2 border-black">
-                <div className="flex-1 p-4 text-center">
-                    <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Akan Diterima</div>
-                    <div className="text-xl font-black text-emerald-600 tabular-nums">+{formatCompact(upcoming?.summary.totalIn ?? 0)}</div>
-                </div>
-                <div className="flex-1 p-4 text-center">
-                    <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Harus Dibayar</div>
-                    <div className="text-xl font-black text-red-600 tabular-nums">-{formatCompact(upcoming?.summary.totalOut ?? 0)}</div>
-                </div>
-                <div className="flex-1 p-4 text-center">
-                    <div className="text-[10px] font-black uppercase tracking-wider text-zinc-400">Net</div>
-                    <div className={`text-xl font-black tabular-nums ${(upcoming?.summary.net ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                        {(upcoming?.summary.net ?? 0) >= 0 ? "+" : ""}{formatCompact(upcoming?.summary.net ?? 0)}
+            {/* KPI strip */}
+            <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 border-b border-zinc-200 dark:border-zinc-800">
+                {[
+                    { label: "Akan Diterima", value: upcoming?.summary.totalIn ?? 0, color: "text-emerald-600", dot: "bg-emerald-500", prefix: "+" },
+                    { label: "Harus Dibayar", value: upcoming?.summary.totalOut ?? 0, color: "text-red-600", dot: "bg-red-500", prefix: "-" },
+                    { label: "Net", value: upcoming?.summary.net ?? 0, color: (upcoming?.summary.net ?? 0) >= 0 ? "text-emerald-600" : "text-red-600", dot: (upcoming?.summary.net ?? 0) >= 0 ? "bg-emerald-500" : "bg-red-500", prefix: (upcoming?.summary.net ?? 0) >= 0 ? "+" : "" },
+                ].map(kpi => (
+                    <div key={kpi.label} className="flex-1 px-4 py-3 flex items-center justify-between gap-2 cursor-default">
+                        <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 ${kpi.dot}`} />
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
+                        </div>
+                        <span className={`text-lg font-black tabular-nums ${kpi.color}`}>
+                            {kpi.prefix}{formatCompact(kpi.value)}
+                        </span>
                     </div>
-                </div>
+                ))}
             </div>
 
             {/* Weekly grouped items */}

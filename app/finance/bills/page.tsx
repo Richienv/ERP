@@ -13,13 +13,16 @@ import {
     AlertCircle,
     Wallet,
     Search,
-    Clock,
-    Ban,
     FileText,
     Eye,
+    X,
+    ChevronLeft,
+    ChevronRight,
+    Filter,
+    RotateCcw,
 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
     Dialog,
     DialogContent,
@@ -36,6 +39,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { disputeBill, type VendorBill } from "@/lib/actions/finance"
 import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
@@ -45,6 +49,16 @@ import { useBills, useBanks } from "@/hooks/use-bills"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+
+/* ─── Animation variants ─── */
+const fadeUp = {
+    hidden: { opacity: 0, y: 14 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+}
+const fadeX = {
+    hidden: { opacity: 0, x: -12 },
+    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+}
 
 export default function APBillsStackPage() {
     const router = useRouter()
@@ -67,7 +81,10 @@ export default function APBillsStackPage() {
     const banks = banksData?.banks ?? []
     const ewallets = banksData?.ewallets ?? []
 
-    const [queryState, setQueryState] = useState({ q: searchParams.get("q") || "", status: searchParams.get("status") || "__all__" })
+    const [searchText, setSearchText] = useState(searchParams.get("q") || "")
+    const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
+        searchParams.get("status") ? [searchParams.get("status")!] : []
+    )
     const [activeBill, setActiveBill] = useState<VendorBill | null>(null)
     const [stamped, setStamped] = useState(false)
     const [processing, setProcessing] = useState(false)
@@ -82,16 +99,16 @@ export default function APBillsStackPage() {
         bankCode: "",
         accountNumber: "",
         accountHolderName: "",
-        description: ""
+        description: "",
     })
 
     useEffect(() => {
         if (activeBill && activeBill.vendor) {
             setPaymentForm({
-                bankCode: activeBill.vendor.bankName?.toUpperCase().replace(/\s+/g, '_').replace(/^BANK_/, '') || "",
+                bankCode: activeBill.vendor.bankName?.toUpperCase().replace(/\s+/g, "_").replace(/^BANK_/, "") || "",
                 accountNumber: activeBill.vendor.bankAccountNumber || "",
                 accountHolderName: activeBill.vendor.bankAccountName || "",
-                description: `Payment for ${activeBill.number}`
+                description: `Payment for ${activeBill.number}`,
             })
         }
     }, [activeBill])
@@ -105,24 +122,26 @@ export default function APBillsStackPage() {
 
     const applyFilters = () => {
         pushSearchParams((params) => {
-            const normalizedQ = queryState.q.trim()
-            if (normalizedQ) params.set("q", normalizedQ)
+            const q = searchText.trim()
+            if (q) params.set("q", q)
             else params.delete("q")
-            if (queryState.status === "__all__") params.delete("status")
-            else params.set("status", queryState.status)
+            if (selectedStatuses.length === 1) params.set("status", selectedStatuses[0])
+            else params.delete("status")
             params.set("page", "1")
         })
     }
 
-    const setPage = (page: number) => {
+    const resetFilters = () => {
+        setSearchText("")
+        setSelectedStatuses([])
         pushSearchParams((params) => {
-            params.set("page", String(Math.max(1, page)))
+            params.delete("q")
+            params.delete("status")
+            params.set("page", "1")
         })
     }
 
-    const invalidateBills = () => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
-    }
+    const setPage = (page: number) => pushSearchParams((params) => params.set("page", String(Math.max(1, page))))
 
     const invalidateAfterDispute = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
@@ -142,395 +161,337 @@ export default function APBillsStackPage() {
     }
 
     const handleDisputeSubmit = async () => {
-        if (!activeBill || !disputeReason.trim()) {
-            toast.error("Please enter a dispute reason")
-            return
-        }
+        if (!activeBill || !disputeReason.trim()) { toast.error("Masukkan alasan dispute"); return }
         setProcessing(true)
         try {
             const result = await disputeBill(activeBill.id, disputeReason)
-            if (result.success) {
-                toast.success("Bill disputed successfully")
-                setIsDisputeOpen(false)
-                setDisputeReason("")
-                invalidateAfterDispute()
-            } else {
-                toast.error("Failed to dispute bill")
-            }
-        } catch {
-            toast.error("An error occurred")
-        } finally {
-            setProcessing(false)
-        }
+            if (result.success) { toast.success("Bill disputed"); setIsDisputeOpen(false); setDisputeReason(""); invalidateAfterDispute() }
+            else toast.error("Gagal dispute bill")
+        } catch { toast.error("Terjadi kesalahan") } finally { setProcessing(false) }
     }
 
     const handlePaySubmit = async () => {
         if (!activeBill) return
-        if (paymentPendingBillId) {
-            toast.error("Pembayaran lain sedang diproses. Harap tunggu.")
-            return
-        }
-        if (!paymentForm.bankCode) { toast.error("Please select a bank"); return }
-        if (!paymentForm.accountNumber) { toast.error("Please enter account number"); return }
-        if (!paymentForm.accountHolderName) { toast.error("Please enter account holder name"); return }
-
+        if (paymentPendingBillId) { toast.error("Pembayaran lain sedang diproses"); return }
+        if (!paymentForm.bankCode) { toast.error("Pilih bank"); return }
+        if (!paymentForm.accountNumber) { toast.error("Masukkan nomor rekening"); return }
+        if (!paymentForm.accountHolderName) { toast.error("Masukkan nama pemilik rekening"); return }
         setPaymentPendingBillId(activeBill.id)
         setProcessing(true)
         try {
-            const result = await processXenditPayout({
-                billId: activeBill.id,
-                amount: activeBill.balanceDue,
-                bankCode: paymentForm.bankCode,
-                accountNumber: paymentForm.accountNumber,
-                accountHolderName: paymentForm.accountHolderName,
-                description: paymentForm.description
-            })
-            if (result.success) {
-                setStamped(true)
-                toast.success('message' in result ? result.message : "Payment initiated successfully")
-                setIsPayOpen(false)
-                setTimeout(() => { setStamped(false); invalidateAfterPayout() }, 2000)
-            } else {
-                toast.error('error' in result ? result.error : "Failed to process payment")
-            }
-        } catch (error: any) {
-            toast.error(error.message || "An error occurred")
-        } finally {
-            setProcessing(false)
-            setPaymentPendingBillId(null)
-        }
+            const result = await processXenditPayout({ billId: activeBill.id, amount: activeBill.balanceDue, bankCode: paymentForm.bankCode, accountNumber: paymentForm.accountNumber, accountHolderName: paymentForm.accountHolderName, description: paymentForm.description })
+            if (result.success) { setStamped(true); toast.success("message" in result ? result.message : "Pembayaran berhasil"); setIsPayOpen(false); setTimeout(() => { setStamped(false); invalidateAfterPayout() }, 2000) }
+            else toast.error("error" in result ? result.error : "Gagal bayar")
+        } catch (error: any) { toast.error(error.message || "Terjadi kesalahan") } finally { setProcessing(false); setPaymentPendingBillId(null) }
     }
 
-    const openBillDetail = (bill: VendorBill) => {
-        setActiveBill(bill)
-        setStamped(false)
-        setIsDetailOpen(true)
-    }
+    const openBillDetail = (bill: VendorBill) => { setActiveBill(bill); setStamped(false); setIsDetailOpen(true) }
 
-    // KPI calculations
+    // KPI
     const totalBills = billMeta.total
-    const pendingBills = bills.filter(b => b.status === "ISSUED" || b.status === "DRAFT").length
-    const overdueBills = bills.filter(b => b.isOverdue).length
-    const disputedBills = bills.filter(b => b.status === "DISPUTED").length
+    const pendingBills = bills.filter((b) => b.status === "ISSUED" || b.status === "DRAFT").length
+    const overdueBills = bills.filter((b) => b.isOverdue).length
     const totalAmount = bills.reduce((sum, b) => sum + b.balanceDue, 0)
-
-    const statusFilters = ["__all__", "DRAFT", "ISSUED", "PARTIAL", "OVERDUE", "DISPUTED", "PAID"] as const
-    const statusLabels: Record<string, string> = {
-        "__all__": "Semua",
-        DRAFT: "Draft",
-        ISSUED: "Issued",
-        PARTIAL: "Partial",
-        OVERDUE: "Overdue",
-        DISPUTED: "Disputed",
-        PAID: "Paid",
-    }
+    const hasActiveFilters = searchText || selectedStatuses.length > 0
 
     const getStatusColor = (status: string, isOverdue: boolean) => {
-        if (isOverdue) return "bg-red-100 text-red-700 border-red-300"
+        if (isOverdue) return "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
         switch (status) {
-            case "PAID": return "bg-emerald-100 text-emerald-700 border-emerald-300"
-            case "DISPUTED": return "bg-amber-100 text-amber-700 border-amber-300"
-            case "PARTIAL": return "bg-blue-100 text-blue-700 border-blue-300"
-            case "DRAFT": return "bg-zinc-100 text-zinc-600 border-zinc-300"
-            default: return "bg-zinc-100 text-zinc-700 border-zinc-300"
+            case "PAID": return "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
+            case "DISPUTED": return "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
+            case "PARTIAL": return "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+            case "DRAFT": return "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
+            default: return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
         }
     }
 
-    if (isLoading) {
-        return <TablePageSkeleton accentColor="bg-red-400" />
-    }
+    if (isLoading) return <TablePageSkeleton accentColor="bg-orange-400" />
 
     return (
         <div className="mf-page">
-
-            {/* ═══ COMMAND HEADER ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-red-400">
+            {/* ─── Single unified card: KPI + Filter + Table ─── */}
+            <motion.div
+                variants={fadeUp}
+                initial="hidden"
+                animate="show"
+                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden"
+            >
+                {/* Row 1: Toolbar — Scan Bill button + count */}
+                <div className="px-5 py-2.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
-                        <Receipt className="h-5 w-5 text-red-500" />
-                        <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
-                                Tagihan Vendor
-                            </h1>
-                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
-                                Review, approve, dan bayar tagihan vendor via Xendit
-                            </p>
-                        </div>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                            Tagihan Vendor
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5">
+                            {billMeta.total}
+                        </span>
                     </div>
-                    <Button onClick={() => toast.info("Fitur scan bill belum tersedia")} className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4">
-                        <Plus className="mr-2 h-3.5 w-3.5" /> Scan Bill
+                    <Button
+                        onClick={() => toast.info("Fitur scan bill belum tersedia")}
+                        className={NB.toolbarBtnPrimary}
+                    >
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Scan Bill
                     </Button>
                 </div>
-            </div>
 
-            {/* ═══ KPI PULSE STRIP ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Tagihan</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{totalBills}</div>
-                        <div className="text-[10px] font-bold text-red-600 mt-1">{formatIDR(totalAmount)} sisa</div>
-                    </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Clock className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pending</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{pendingBills}</div>
-                        <div className="text-[10px] font-bold text-amber-600 mt-1">Menunggu proses</div>
-                    </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-rose-500" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <AlertCircle className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Overdue</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-rose-600">{overdueBills}</div>
-                        <div className="text-[10px] font-bold text-rose-600 mt-1">Jatuh tempo</div>
-                    </div>
-                    <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Ban className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Disputed</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">{disputedBills}</div>
-                        <div className="text-[10px] font-bold text-orange-600 mt-1">Dalam sengketa</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══ SEARCH & FILTER BAR ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="px-4 py-3 flex items-center gap-3 flex-wrap">
-                    <div className="relative flex-1 min-w-[200px] max-w-lg">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                            value={queryState.q}
-                            onChange={(e) => setQueryState(prev => ({ ...prev, q: e.target.value }))}
-                            onKeyDown={(e) => e.key === "Enter" && applyFilters()}
-                            placeholder="Cari nomor bill / vendor..."
-                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
-                        />
-                    </div>
-                    <div className="flex border-2 border-black">
-                        {statusFilters.map((s) => (
-                            <button
-                                key={s}
-                                onClick={() => {
-                                    setQueryState(prev => ({ ...prev, status: s }))
-                                    pushSearchParams((params) => {
-                                        if (s === "__all__") params.delete("status")
-                                        else params.set("status", s)
-                                        params.set("page", "1")
-                                    })
-                                }}
-                                className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 ${
-                                    queryState.status === s
-                                        ? "bg-black text-white"
-                                        : "bg-white text-zinc-400 hover:bg-zinc-50"
-                                }`}
-                            >
-                                {statusLabels[s]}
-                            </button>
-                        ))}
-                    </div>
-                    <div className="text-[10px] font-black uppercase tracking-widest text-zinc-400 hidden md:block">
-                        {billMeta.total} tagihan
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══ BILLS TABLE ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                {/* Table Header */}
-                <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                    <div className="col-span-2">No. Bill</div>
-                    <div className="col-span-3">Vendor</div>
-                    <div className="col-span-2">Jatuh Tempo</div>
-                    <div className="col-span-1 text-center">Status</div>
-                    <div className="col-span-2 text-right">Jumlah</div>
-                    <div className="col-span-2 text-right">Aksi</div>
-                </div>
-
-                {bills.length === 0 ? (
-                    <div className="p-12 text-center">
-                        <CheckCircle2 className="h-8 w-8 mx-auto text-emerald-400 mb-2" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Semua tagihan sudah terbayar</p>
-                    </div>
-                ) : (
-                    bills.map((bill) => (
-                        <div
-                            key={bill.id}
-                            className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors items-center group"
-                        >
-                            <div className="col-span-2">
-                                <span className="font-mono font-bold text-xs">{bill.number}</span>
-                            </div>
-                            <div className="col-span-3">
-                                <p className="font-bold text-sm truncate">{bill.vendor?.name || "Unknown Vendor"}</p>
-                            </div>
-                            <div className="col-span-2">
-                                <span className={`text-xs font-bold ${bill.isOverdue ? "text-red-600" : "text-zinc-500"}`}>
-                                    {new Date(bill.dueDate).toLocaleDateString("id-ID")}
+                {/* Row 2: KPI Strip — horizontal, minimal color */}
+                <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 border-b border-zinc-200 dark:border-zinc-800">
+                    {[
+                        { label: "Total", count: String(totalBills), sub: formatIDR(totalAmount), color: "zinc" },
+                        { label: "Pending", count: String(pendingBills), sub: null, color: "zinc" },
+                        { label: "Jatuh Tempo", count: String(overdueBills), sub: null, color: overdueBills > 0 ? "red" : "zinc" },
+                    ].map((kpi) => (
+                        <div key={kpi.label} className="flex-1 px-4 py-2.5 flex items-center justify-between gap-3 cursor-default">
+                            <div className="flex items-center gap-1.5">
+                                <span className={`w-1.5 h-1.5 ${
+                                    kpi.color === "red" ? "bg-red-500" : "bg-zinc-400 dark:bg-zinc-600"
+                                }`} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                    {kpi.label}
                                 </span>
                             </div>
-                            <div className="col-span-1 text-center">
-                                <span className={`inline-block px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border ${getStatusColor(bill.status, bill.isOverdue)}`}>
-                                    {bill.isOverdue ? "Overdue" : bill.status}
+                            <div className="flex items-center gap-2">
+                                <span className={`text-lg font-black ${
+                                    kpi.color === "red" && Number(kpi.count) > 0
+                                        ? "text-red-600 dark:text-red-400"
+                                        : "text-zinc-900 dark:text-white"
+                                }`}>
+                                    {kpi.count}
                                 </span>
-                            </div>
-                            <div className="col-span-2 text-right">
-                                <p className="font-black text-sm">{formatIDR(bill.amount)}</p>
-                                {bill.balanceDue !== bill.amount && (
-                                    <p className="text-[10px] font-bold text-red-500">Sisa: {formatIDR(bill.balanceDue)}</p>
+                                {kpi.sub && (
+                                    <span className="text-[10px] font-mono font-bold text-zinc-400">
+                                        {kpi.sub}
+                                    </span>
                                 )}
                             </div>
-                            <div className="col-span-2 text-right flex items-center justify-end gap-1">
-                                <button
-                                    onClick={() => openBillDetail(bill)}
-                                    className="p-1.5 border border-black text-[9px] font-black uppercase hover:bg-black hover:text-white transition-colors"
-                                >
-                                    <Eye className="h-3.5 w-3.5" />
+                        </div>
+                    ))}
+                </div>
+
+                {/* Row 3: Filter Toolbar */}
+                <div className={NB.filterBar}>
+                    <div className="flex items-center gap-0">
+                        {/* Search */}
+                        <div className="relative">
+                            <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 z-10 transition-colors ${searchText ? NB.inputIconActive : NB.inputIconEmpty}`} />
+                            <input
+                                className={`border border-r-0 font-medium h-9 w-[280px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${searchText ? NB.inputActive : NB.inputEmpty}`}
+                                placeholder="Cari nomor bill, vendor..."
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+                            />
+                            {searchText && (
+                                <button onClick={() => setSearchText("")} className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors z-10">
+                                    <X className="h-3 w-3" />
                                 </button>
-                                {bill.status !== "PAID" && bill.balanceDue > 0 && (
-                                    <button
-                                        onClick={() => { setActiveBill(bill); setStamped(false); setIsPayOpen(true) }}
-                                        disabled={!!paymentPendingBillId}
-                                        className={`px-2 py-1.5 text-white text-[9px] font-black uppercase tracking-widest transition-colors flex items-center gap-1 ${paymentPendingBillId ? 'bg-zinc-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'}`}
-                                    >
-                                        <CreditCard className="h-3 w-3" /> Bayar
-                                    </button>
-                                )}
-                            </div>
+                            )}
                         </div>
-                    ))
-                )}
+                        {/* Status filter */}
+                        <CheckboxFilter
+                            label="Status"
+                            hideLabel
+                            triggerClassName={NB.filterDropdown}
+                            triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                            options={[
+                                { value: "DRAFT", label: "Draft" },
+                                { value: "ISSUED", label: "Issued" },
+                                { value: "PARTIAL", label: "Partial" },
+                                { value: "OVERDUE", label: "Overdue" },
+                                { value: "DISPUTED", label: "Disputed" },
+                                { value: "PAID", label: "Paid" },
+                            ]}
+                            selected={selectedStatuses}
+                            onChange={setSelectedStatuses}
+                        />
+                        <Button onClick={applyFilters} variant="outline" className={NB.toolbarBtn}>
+                            <Filter className="h-3.5 w-3.5 mr-1.5" /> Terapkan
+                        </Button>
+                        {hasActiveFilters && (
+                            <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
+                                <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                            </Button>
+                        )}
+                    </div>
+                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                        <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{billMeta.total}</span> tagihan
+                    </span>
+                </div>
 
-                {/* Pagination */}
+                {/* ─── Table Header — black bar ─── */}
+                <div className="hidden md:grid grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                    {["No. Bill", "Vendor", "Jatuh Tempo", "Status", "Jumlah", "Aksi"].map((h) => (
+                        <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                    ))}
+                </div>
+
+                {/* ─── Table Body ─── */}
+                <div className="min-h-[200px]">
+                    {bills.length === 0 ? (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="flex flex-col items-center justify-center py-16 text-zinc-400"
+                        >
+                            <div className="w-14 h-14 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-3">
+                                <CheckCircle2 className="h-6 w-6 text-zinc-200 dark:text-zinc-700" />
+                            </div>
+                            <span className="text-sm font-bold text-zinc-500 dark:text-zinc-400">Semua tagihan sudah terbayar</span>
+                            <span className="text-xs text-zinc-400 mt-1">Tidak ada tagihan yang perlu diproses</span>
+                        </motion.div>
+                    ) : (
+                        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            {bills.map((bill, idx) => {
+                                const isOverdue = bill.isOverdue
+                                return (
+                                    <motion.div
+                                        key={bill.id}
+                                        variants={fadeX}
+                                        initial="hidden"
+                                        animate="show"
+                                        transition={{ delay: idx * 0.03 }}
+                                        className={`grid grid-cols-1 md:grid-cols-[1fr_1.5fr_110px_100px_140px_110px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
+                                            idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"
+                                        } ${isOverdue ? "border-l-4 border-l-red-500" : ""}`}
+                                    >
+                                        {/* Bill number */}
+                                        <div>
+                                            <span className="font-mono text-sm font-black text-zinc-900 dark:text-zinc-100">{bill.number}</span>
+                                        </div>
+                                        {/* Vendor */}
+                                        <div className="truncate">
+                                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{bill.vendor?.name || "Unknown Vendor"}</span>
+                                        </div>
+                                        {/* Due date */}
+                                        <div>
+                                            <span className={`text-xs font-medium ${isOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-zinc-500"}`}>
+                                                {new Date(bill.dueDate).toLocaleDateString("id-ID")}
+                                            </span>
+                                        </div>
+                                        {/* Status */}
+                                        <div>
+                                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue)}`}>
+                                                <span className={`w-1.5 h-1.5 ${
+                                                    isOverdue ? "bg-red-500" :
+                                                    bill.status === "PAID" ? "bg-emerald-500" :
+                                                    bill.status === "DISPUTED" ? "bg-amber-500" :
+                                                    "bg-zinc-400"
+                                                }`} />
+                                                {isOverdue ? "Overdue" : bill.status}
+                                            </span>
+                                        </div>
+                                        {/* Amount */}
+                                        <div>
+                                            <span className={`font-mono font-black text-sm ${
+                                                isOverdue ? "text-red-600 dark:text-red-400" :
+                                                bill.status === "PAID" ? "text-emerald-600 dark:text-emerald-400" :
+                                                "text-zinc-900 dark:text-zinc-100"
+                                            }`}>
+                                                {formatIDR(bill.amount)}
+                                            </span>
+                                            {bill.balanceDue !== bill.amount && bill.balanceDue > 0 && (
+                                                <span className="text-[9px] text-zinc-400 block font-mono">Sisa {formatIDR(bill.balanceDue)}</span>
+                                            )}
+                                        </div>
+                                        {/* Actions */}
+                                        <div className="flex gap-1 justify-end">
+                                            <motion.button
+                                                whileHover={{ y: -1 }}
+                                                whileTap={{ scale: 0.92 }}
+                                                onClick={() => openBillDetail(bill)}
+                                                title="Detail"
+                                                className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-600 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 hover:text-zinc-600 transition-colors rounded-none"
+                                            >
+                                                <Eye className="h-3 w-3" />
+                                            </motion.button>
+                                            {bill.status !== "PAID" && bill.balanceDue > 0 && (
+                                                <motion.button
+                                                    whileHover={{ y: -1 }}
+                                                    whileTap={{ scale: 0.92 }}
+                                                    onClick={() => { setActiveBill(bill); setStamped(false); setIsPayOpen(true) }}
+                                                    disabled={!!paymentPendingBillId}
+                                                    title="Bayar"
+                                                    className="h-7 px-2 flex items-center gap-1 border border-emerald-300 dark:border-emerald-600 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none text-[9px] font-bold uppercase"
+                                                >
+                                                    <CreditCard className="h-3 w-3" /> Bayar
+                                                </motion.button>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                )
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Pagination footer */}
                 {billMeta.totalPages > 1 && (
-                    <div className="px-4 py-3 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                            Halaman {billMeta.page} / {billMeta.totalPages}
+                    <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                            {billMeta.total} tagihan
                         </span>
-                        <div className="flex gap-1">
-                            <button
-                                onClick={() => setPage(billMeta.page - 1)}
-                                disabled={billMeta.page <= 1}
-                                className="px-3 py-1.5 border-2 border-black text-[10px] font-black uppercase disabled:opacity-30 hover:bg-black hover:text-white transition-colors"
-                            >
-                                Prev
-                            </button>
-                            <button
-                                onClick={() => setPage(billMeta.page + 1)}
-                                disabled={billMeta.page >= billMeta.totalPages}
-                                className="px-3 py-1.5 border-2 border-black text-[10px] font-black uppercase disabled:opacity-30 hover:bg-black hover:text-white transition-colors"
-                            >
-                                Next
-                            </button>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="icon" className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none" disabled={billMeta.page <= 1} onClick={() => setPage(billMeta.page - 1)}>
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="text-xs font-black min-w-[50px] text-center">{billMeta.page}/{billMeta.totalPages}</span>
+                            <Button variant="outline" size="icon" className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none" disabled={billMeta.page >= billMeta.totalPages} onClick={() => setPage(billMeta.page + 1)}>
+                                <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
                         </div>
                     </div>
                 )}
-            </div>
+            </motion.div>
 
             {/* ═══ BILL DETAIL DIALOG ═══ */}
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
                 <DialogContent className={NB.contentNarrow}>
-                    {activeBill && (
-                        <>
-                            <DialogHeader className={NB.header}>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <DialogTitle className={NB.title}>
-                                            <FileText className="h-5 w-5" /> Detail Tagihan
-                                        </DialogTitle>
-                                        <p className={NB.subtitle}>{activeBill.vendor?.name || "Unknown Vendor"}</p>
-                                    </div>
-                                    <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest border ${getStatusColor(activeBill.status, activeBill.isOverdue)}`}>
-                                        {activeBill.isOverdue ? "Overdue" : activeBill.status}
-                                    </span>
+                    {activeBill && (<>
+                        <DialogHeader className={NB.header}>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <DialogTitle className={NB.title}><FileText className="h-5 w-5" /> Detail Tagihan</DialogTitle>
+                                    <p className={NB.subtitle}>{activeBill.vendor?.name || "Unknown Vendor"}</p>
                                 </div>
-                            </DialogHeader>
-
-                            {/* Stamped overlay */}
-                            {stamped && (
-                                <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
-                                    <div className="border-8 border-emerald-600 text-emerald-600 font-black text-5xl uppercase px-6 py-3 -rotate-12 opacity-70 tracking-widest">
-                                        PAID
+                                <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-widest border ${getStatusColor(activeBill.status, activeBill.isOverdue)}`}>
+                                    {activeBill.isOverdue ? "Overdue" : activeBill.status}
+                                </span>
+                            </div>
+                        </DialogHeader>
+                        {stamped && (
+                            <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+                                <div className="border-8 border-emerald-600 text-emerald-600 font-black text-5xl uppercase px-6 py-3 -rotate-12 opacity-70 tracking-widest">PAID</div>
+                            </div>
+                        )}
+                        <div className="px-6 py-5 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div><label className={NB.label}>No. Invoice</label><p className="font-mono font-bold text-sm">{activeBill.number}</p></div>
+                                <div><label className={NB.label}>Jatuh Tempo</label><p className="font-bold text-sm">{new Date(activeBill.dueDate).toLocaleDateString("id-ID")}</p></div>
+                                <div><label className={NB.label}>Total Tagihan</label><p className="text-2xl font-black">{formatIDR(activeBill.amount)}</p></div>
+                                <div><label className={NB.label}>Sisa Bayar</label><p className="text-2xl font-black text-red-600">{formatIDR(activeBill.balanceDue)}</p></div>
+                            </div>
+                            {activeBill.vendor?.bankAccountNumber && (
+                                <div className={NB.section}>
+                                    <div className={NB.sectionHead}><Building2 className="h-3.5 w-3.5" /><span className={NB.sectionTitle}>Info Bank Vendor</span></div>
+                                    <div className="p-4">
+                                        <div className="grid grid-cols-3 gap-3 text-xs">
+                                            <div><label className={NB.label}>Bank</label><p className="font-bold">{activeBill.vendor.bankName || "-"}</p></div>
+                                            <div><label className={NB.label}>No. Rekening</label><p className="font-bold font-mono">{activeBill.vendor.bankAccountNumber}</p></div>
+                                            <div><label className={NB.label}>Nama Rekening</label><p className="font-bold">{activeBill.vendor.bankAccountName || "-"}</p></div>
+                                        </div>
                                     </div>
                                 </div>
                             )}
-
-                            <div className="px-6 py-5 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={NB.label}>No. Invoice</label>
-                                        <p className="font-mono font-bold text-sm">{activeBill.number}</p>
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Jatuh Tempo</label>
-                                        <p className="font-bold text-sm">{new Date(activeBill.dueDate).toLocaleDateString("id-ID")}</p>
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Total Tagihan</label>
-                                        <p className="text-2xl font-black">{formatIDR(activeBill.amount)}</p>
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Sisa Bayar</label>
-                                        <p className="text-2xl font-black text-red-600">{formatIDR(activeBill.balanceDue)}</p>
-                                    </div>
-                                </div>
-
-                                {activeBill.vendor?.bankAccountNumber && (
-                                    <div className={NB.section}>
-                                        <div className={NB.sectionHead}>
-                                            <Building2 className="h-3.5 w-3.5" />
-                                            <span className={NB.sectionTitle}>Info Bank Vendor</span>
-                                        </div>
-                                        <div className="p-4">
-                                            <div className="grid grid-cols-3 gap-3 text-xs">
-                                                <div>
-                                                    <label className={NB.label}>Bank</label>
-                                                    <p className="font-bold">{activeBill.vendor.bankName || "-"}</p>
-                                                </div>
-                                                <div>
-                                                    <label className={NB.label}>No. Rekening</label>
-                                                    <p className="font-bold font-mono">{activeBill.vendor.bankAccountNumber}</p>
-                                                </div>
-                                                <div>
-                                                    <label className={NB.label}>Nama Rekening</label>
-                                                    <p className="font-bold">{activeBill.vendor.bankAccountName || "-"}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="px-6 py-4 border-t-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between gap-3">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => { setIsDetailOpen(false); setIsDisputeOpen(true) }}
-                                    disabled={activeBill.status === "PAID"}
-                                    className={NB.cancelBtn}
-                                >
-                                    <XCircle className="mr-2 h-3.5 w-3.5" /> Dispute
-                                </Button>
-                                <Button
-                                    onClick={() => { setIsDetailOpen(false); setIsPayOpen(true) }}
-                                    disabled={activeBill.status === "PAID" || activeBill.balanceDue <= 0}
-                                    className="bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-8 h-9 rounded-none"
-                                >
-                                    <CreditCard className="mr-2 h-3.5 w-3.5" /> Bayar Sekarang
-                                </Button>
-                            </div>
-                        </>
-                    )}
+                        </div>
+                        <div className="px-6 py-4 border-t-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between gap-3">
+                            <Button variant="outline" onClick={() => { setIsDetailOpen(false); setIsDisputeOpen(true) }} disabled={activeBill.status === "PAID"} className={NB.cancelBtn}>
+                                <XCircle className="mr-2 h-3.5 w-3.5" /> Dispute
+                            </Button>
+                            <Button onClick={() => { setIsDetailOpen(false); setIsPayOpen(true) }} disabled={activeBill.status === "PAID" || activeBill.balanceDue <= 0} className={NB.submitBtnGreen}>
+                                <CreditCard className="mr-2 h-3.5 w-3.5" /> Bayar Sekarang
+                            </Button>
+                        </div>
+                    </>)}
                 </DialogContent>
             </Dialog>
 
@@ -538,34 +499,20 @@ export default function APBillsStackPage() {
             <Dialog open={isDisputeOpen} onOpenChange={setIsDisputeOpen}>
                 <DialogContent className={NB.contentNarrow}>
                     <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <AlertCircle className="h-5 w-5" /> Dispute Tagihan
-                        </DialogTitle>
-                        <p className="text-red-400 text-[11px] font-bold mt-0.5">
-                            Masukkan alasan dispute. Vendor akan mendapat notifikasi.
-                        </p>
+                        <DialogTitle className={NB.title}><AlertCircle className="h-5 w-5" /> Dispute Tagihan</DialogTitle>
+                        <p className="text-red-400 text-[11px] font-bold mt-0.5">Masukkan alasan dispute. Vendor akan mendapat notifikasi.</p>
                     </DialogHeader>
                     <div className="px-6 py-5 space-y-4">
                         <div className="space-y-1">
                             <label className={NB.label}>Alasan <span className={NB.labelRequired}>*</span></label>
-                            <Textarea
-                                id="reason"
-                                placeholder="Jumlah salah, barang rusak..."
-                                value={disputeReason}
-                                onChange={(e) => setDisputeReason(e.target.value)}
-                                rows={4}
-                                className={NB.textarea}
-                            />
+                            <Textarea placeholder="Jumlah salah, barang rusak..." value={disputeReason} onChange={(e) => setDisputeReason(e.target.value)} rows={4} className={NB.textarea} />
                         </div>
                     </div>
                     <div className="px-6 py-4 border-t-2 border-black">
                         <div className={NB.footer}>
-                            <Button variant="outline" onClick={() => setIsDisputeOpen(false)} disabled={processing} className={NB.cancelBtn}>
-                                Batal
-                            </Button>
-                            <Button onClick={handleDisputeSubmit} disabled={processing} className="bg-red-600 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-8 h-9 rounded-none">
-                                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Submit Dispute
+                            <Button variant="outline" onClick={() => setIsDisputeOpen(false)} disabled={processing} className={NB.cancelBtn}>Batal</Button>
+                            <Button onClick={handleDisputeSubmit} disabled={processing} className="bg-red-600 text-white border-2 border-red-700 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:bg-red-700 hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-8 h-11 rounded-none">
+                                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Submit Dispute
                             </Button>
                         </div>
                     </div>
@@ -576,141 +523,50 @@ export default function APBillsStackPage() {
             <Dialog open={isPayOpen} onOpenChange={setIsPayOpen}>
                 <DialogContent className={NB.content}>
                     <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <CreditCard className="h-5 w-5" /> Bayar via Xendit
-                        </DialogTitle>
+                        <DialogTitle className={NB.title}><CreditCard className="h-5 w-5" /> Bayar via Xendit</DialogTitle>
                         <p className={NB.subtitle}>Konfirmasi detail pembayaran. Dana akan ditransfer via Xendit.</p>
                     </DialogHeader>
-
                     <div className={`overflow-y-auto ${NB.scroll}`}>
-                        {/* Amount Section */}
                         <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <Receipt className="h-3.5 w-3.5" />
-                                <span className={NB.sectionTitle}>Jumlah Bayar</span>
-                            </div>
-                            <div className="p-4 bg-emerald-50 text-center">
-                                <p className="text-3xl font-black text-emerald-700">
-                                    {activeBill ? formatIDR(activeBill.balanceDue) : "-"}
-                                </p>
+                            <div className={NB.sectionHead}><Receipt className="h-3.5 w-3.5" /><span className={NB.sectionTitle}>Jumlah Bayar</span></div>
+                            <div className="p-4 bg-emerald-50 dark:bg-emerald-950/20 text-center">
+                                <p className="text-3xl font-black text-emerald-700 dark:text-emerald-400">{activeBill ? formatIDR(activeBill.balanceDue) : "-"}</p>
                             </div>
                         </div>
-
-                        {/* Payment Method Section */}
                         <div className="px-6 py-5 space-y-4">
                             <Tabs defaultValue="bank" className="w-full">
                                 <TabsList className="grid w-full grid-cols-2 border-2 border-black rounded-none">
-                                    <TabsTrigger value="bank" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider">
-                                        <Building2 className="h-4 w-4" /> Bank Transfer
-                                    </TabsTrigger>
-                                    <TabsTrigger value="ewallet" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider">
-                                        <Wallet className="h-4 w-4" /> E-Wallet
-                                    </TabsTrigger>
+                                    <TabsTrigger value="bank" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider"><Building2 className="h-4 w-4" /> Bank Transfer</TabsTrigger>
+                                    <TabsTrigger value="ewallet" className="flex items-center gap-2 rounded-none font-black uppercase text-xs tracking-wider"><Wallet className="h-4 w-4" /> E-Wallet</TabsTrigger>
                                 </TabsList>
-
                                 <TabsContent value="bank" className="space-y-4 mt-4">
-                                    <div className="space-y-1">
-                                        <label className={NB.label}>Bank <span className={NB.labelRequired}>*</span></label>
-                                        <Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}>
-                                            <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih bank..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {banks.map((bank) => (
-                                                    <SelectItem key={bank.key} value={bank.key}>{bank.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className={NB.label}>No. Rekening <span className={NB.labelRequired}>*</span></label>
-                                        <Input
-                                            placeholder="1234567890"
-                                            value={paymentForm.accountNumber}
-                                            onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
-                                            className={NB.inputMono}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className={NB.label}>Nama Pemilik Rekening <span className={NB.labelRequired}>*</span></label>
-                                        <Input
-                                            placeholder="Nama sesuai rekening"
-                                            value={paymentForm.accountHolderName}
-                                            onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })}
-                                            className={NB.input}
-                                        />
-                                        <p className="text-[10px] font-bold text-zinc-400 mt-1">Harus sesuai data bank</p>
-                                    </div>
+                                    <div className="space-y-1"><label className={NB.label}>Bank <span className={NB.labelRequired}>*</span></label><Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}><SelectTrigger className={NB.select}><SelectValue placeholder="Pilih bank..." /></SelectTrigger><SelectContent>{banks.map((bank) => <SelectItem key={bank.key} value={bank.key}>{bank.name}</SelectItem>)}</SelectContent></Select></div>
+                                    <div className="space-y-1"><label className={NB.label}>No. Rekening <span className={NB.labelRequired}>*</span></label><Input placeholder="1234567890" value={paymentForm.accountNumber} onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })} className={NB.inputMono} /></div>
+                                    <div className="space-y-1"><label className={NB.label}>Nama Pemilik Rekening <span className={NB.labelRequired}>*</span></label><Input placeholder="Nama sesuai rekening" value={paymentForm.accountHolderName} onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })} className={NB.input} /><p className="text-[10px] font-bold text-zinc-400 mt-1">Harus sesuai data bank</p></div>
                                 </TabsContent>
-
                                 <TabsContent value="ewallet" className="space-y-4 mt-4">
-                                    <div className="space-y-1">
-                                        <label className={NB.label}>E-Wallet <span className={NB.labelRequired}>*</span></label>
-                                        <Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}>
-                                            <SelectTrigger className={NB.select}><SelectValue placeholder="Pilih e-wallet..." /></SelectTrigger>
-                                            <SelectContent>
-                                                {ewallets.map((ew) => (
-                                                    <SelectItem key={ew.key} value={ew.key}>{ew.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className={NB.label}>No. Telepon <span className={NB.labelRequired}>*</span></label>
-                                        <Input
-                                            placeholder="08123456789"
-                                            value={paymentForm.accountNumber}
-                                            onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })}
-                                            className={NB.inputMono}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <label className={NB.label}>Nama Akun <span className={NB.labelRequired}>*</span></label>
-                                        <Input
-                                            placeholder="Nama pemilik akun"
-                                            value={paymentForm.accountHolderName}
-                                            onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })}
-                                            className={NB.input}
-                                        />
-                                    </div>
+                                    <div className="space-y-1"><label className={NB.label}>E-Wallet <span className={NB.labelRequired}>*</span></label><Select value={paymentForm.bankCode} onValueChange={(v) => setPaymentForm({ ...paymentForm, bankCode: v })}><SelectTrigger className={NB.select}><SelectValue placeholder="Pilih e-wallet..." /></SelectTrigger><SelectContent>{ewallets.map((ew) => <SelectItem key={ew.key} value={ew.key}>{ew.name}</SelectItem>)}</SelectContent></Select></div>
+                                    <div className="space-y-1"><label className={NB.label}>No. Telepon <span className={NB.labelRequired}>*</span></label><Input placeholder="08123456789" value={paymentForm.accountNumber} onChange={(e) => setPaymentForm({ ...paymentForm, accountNumber: e.target.value })} className={NB.inputMono} /></div>
+                                    <div className="space-y-1"><label className={NB.label}>Nama Akun <span className={NB.labelRequired}>*</span></label><Input placeholder="Nama pemilik akun" value={paymentForm.accountHolderName} onChange={(e) => setPaymentForm({ ...paymentForm, accountHolderName: e.target.value })} className={NB.input} /></div>
                                 </TabsContent>
                             </Tabs>
                         </div>
-
-                        {/* Confirmation Section */}
                         <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span className={NB.sectionTitle}>Ringkasan</span>
-                            </div>
+                            <div className={NB.sectionHead}><CheckCircle2 className="h-3.5 w-3.5" /><span className={NB.sectionTitle}>Ringkasan</span></div>
                             <div className="p-4 space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                    {/* Placeholder fee — actual Xendit fee depends on channel & amount */}
-                                    <span className="text-zinc-400 font-bold text-xs">Biaya Transfer (estimasi)</span>
-                                    <span className="font-bold font-mono text-xs">Rp 2.775</span>
-                                </div>
-                                <div className="flex justify-between border-t-2 border-black pt-2">
-                                    <span className="font-black text-xs uppercase tracking-wider">Total Charge</span>
-                                    <span className="font-black font-mono">
-                                        {activeBill ? formatIDR(activeBill.balanceDue + 2775) : "-"}
-                                    </span>
-                                </div>
+                                <div className="flex justify-between"><span className="text-zinc-400 font-bold text-xs">Biaya Transfer (estimasi)</span><span className="font-bold font-mono text-xs">Rp 2.775</span></div>
+                                <div className="flex justify-between border-t-2 border-black pt-2"><span className="font-black text-xs uppercase tracking-wider">Total Charge</span><span className="font-black font-mono">{activeBill ? formatIDR(activeBill.balanceDue + 2775) : "-"}</span></div>
                             </div>
                         </div>
                     </div>
-
                     <div className="px-6 py-4 border-t-2 border-black">
                         <div className={NB.footer}>
-                            <Button variant="outline" onClick={() => setIsPayOpen(false)} disabled={processing} className={NB.cancelBtn}>
-                                Batal
-                            </Button>
-                            <Button onClick={handlePaySubmit} disabled={processing || !!paymentPendingBillId} className={NB.submitBtn}>
-                                {processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                Konfirmasi Pembayaran
-                            </Button>
+                            <Button variant="outline" onClick={() => setIsPayOpen(false)} disabled={processing} className={NB.cancelBtn}>Batal</Button>
+                            <Button onClick={handlePaySubmit} disabled={processing || !!paymentPendingBillId} className={NB.submitBtn}>{processing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Konfirmasi Pembayaran</Button>
                         </div>
                     </div>
                 </DialogContent>
             </Dialog>
-
         </div>
     )
 }

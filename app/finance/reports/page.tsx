@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { motion, AnimatePresence } from "framer-motion"
+import { Eye, EyeOff } from "lucide-react"
 import {
     Calendar as CalendarIcon,
     Download,
@@ -101,6 +103,7 @@ export default function FinancialReportsPage() {
     const [dateDialogOpen, setDateDialogOpen] = useState(false)
     const [exportDialogOpen, setExportDialogOpen] = useState(false)
     const [exportFormat, setExportFormat] = useState<"CSV" | "XLS">("CSV")
+    const [showAmounts, setShowAmounts] = useState(false)
     const [bsExpanded, setBsExpanded] = useState<{ currentAssets: boolean; currentLiabilities: boolean; capital: boolean }>({
         currentAssets: false, currentLiabilities: false, capital: false,
     })
@@ -477,34 +480,47 @@ export default function FinancialReportsPage() {
 
     const reportLabel = sidebarGroups.flatMap(g => g.items).find(i => i.key === reportType)?.label ?? ""
 
-    return (
-        <div className="mf-page">
+    /* ─── Animation variants ─── */
+    const stagger = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.07 } } } as const
+    const fadeUp = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 320, damping: 26 } } }
 
-            {/* COMMAND HEADER */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-blue-400">
+    const reportKpis = [
+        { label: "Pendapatan", value: kpiLoading ? null : formatIDR(kpi?.revenue || 0), color: "blue" },
+        { label: "Laba Bersih", value: kpiLoading ? null : formatIDR(kpi?.netIncome || 0), color: (kpi?.netIncome || 0) >= 0 ? "emerald" : "red" },
+        { label: "Piutang (AR)", value: kpiLoading ? null : formatIDR(kpi?.arOutstanding || 0), color: "orange" },
+        { label: "Hutang (AP)", value: kpiLoading ? null : formatIDR(kpi?.apOutstanding || 0), color: "red" },
+    ]
+    const dotColors: Record<string, string> = { blue: "bg-blue-500", emerald: "bg-emerald-500", orange: "bg-orange-500", red: "bg-red-500" }
+    const textColors: Record<string, string> = { blue: "text-zinc-900 dark:text-white", emerald: "text-emerald-600 dark:text-emerald-400", orange: "text-orange-600 dark:text-orange-400", red: "text-red-600 dark:text-red-400" }
+
+    return (
+        <motion.div className="mf-page" variants={stagger} initial="hidden" animate="show">
+
+            {/* ─── Unified Page Header ─── */}
+            <motion.div variants={fadeUp} className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
+                {/* Blue gradient accent bar */}
+                <div className="h-1 bg-gradient-to-r from-blue-500 via-indigo-400 to-blue-500" />
+
+                {/* Row 1: Title + Actions */}
+                <div className="px-5 py-3.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
                     <div className="flex items-center gap-3">
-                        <BarChart3 className="h-5 w-5 text-blue-500" />
+                        <div className="w-9 h-9 bg-blue-500 flex items-center justify-center">
+                            <BarChart3 className="h-4.5 w-4.5 text-white" />
+                        </div>
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
+                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
                                 Laporan Keuangan
                             </h1>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="inline-flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 text-[11px] font-bold px-2.5 py-0.5 rounded-sm">
-                                    <CalendarIcon className="h-3 w-3" />
-                                    Fiscal {currentYear}
-                                </span>
-                                <span className="text-zinc-900 dark:text-zinc-100 text-[11px] font-bold tracking-wide">
-                                    {startDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} — {endDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
-                                </span>
-                            </div>
+                            <p className="text-zinc-400 text-[11px] font-medium">
+                                {startDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })} — {endDate.toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0">
                         <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button variant="outline" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9 px-4 rounded-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none">
-                                    <CalendarIcon className="mr-2 h-3.5 w-3.5" /> Periode
+                                <Button variant="outline" className="border border-zinc-300 dark:border-zinc-700 border-r-0 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
+                                    <CalendarIcon className="h-3.5 w-3.5 mr-1.5" /> Periode
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className={NB.contentNarrow}>
@@ -535,8 +551,8 @@ export default function FinancialReportsPage() {
                         </Dialog>
                         <Dialog open={exportDialogOpen} onOpenChange={setExportDialogOpen}>
                             <DialogTrigger asChild>
-                                <Button className="bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4">
-                                    <Download className="mr-2 h-3.5 w-3.5" /> Export
+                                <Button className="bg-blue-500 text-white border border-blue-600 hover:bg-blue-600 font-bold uppercase text-[10px] tracking-wider px-4 h-9 rounded-none transition-colors ml-2">
+                                    <Download className="h-3.5 w-3.5 mr-1.5" /> Export
                                 </Button>
                             </DialogTrigger>
                             <DialogContent className={NB.contentNarrow}>
@@ -573,82 +589,60 @@ export default function FinancialReportsPage() {
                         </Dialog>
                     </div>
                 </div>
-            </div>
 
-            {/* KPI PULSE STRIP */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <TrendingUp className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pendapatan</span>
+                {/* Row 2: KPI Summary Strip */}
+                <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 divide-x divide-zinc-200 dark:divide-zinc-800">
+                    {reportKpis.map((kpi_item) => (
+                        <div key={kpi_item.label} className="flex-1 px-4 py-3 flex items-center justify-between gap-3 cursor-default">
+                            <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 ${dotColors[kpi_item.color] || "bg-zinc-400"}`} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi_item.label}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {kpi_item.value === null ? (
+                                    <span className="inline-block h-5 w-20 bg-zinc-200 dark:bg-zinc-700 animate-pulse" />
+                                ) : (
+                                    <AnimatePresence mode="wait">
+                                        {showAmounts ? (
+                                            <motion.span
+                                                key={kpi_item.value}
+                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                                className={`text-lg font-black ${textColors[kpi_item.color] || "text-zinc-900 dark:text-white"}`}
+                                            >
+                                                {kpi_item.value}
+                                            </motion.span>
+                                        ) : (
+                                            <motion.span
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                className="text-lg font-black text-zinc-300 dark:text-zinc-600"
+                                            >
+                                                ••••
+                                            </motion.span>
+                                        )}
+                                    </AnimatePresence>
+                                )}
+                                <button
+                                    onClick={() => setShowAmounts(!showAmounts)}
+                                    className="p-0.5 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
+                                    title={showAmounts ? "Sembunyikan nominal" : "Tampilkan nominal"}
+                                >
+                                    {showAmounts ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                </button>
+                            </div>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.revenue || 0)}</div>
-                        <div className="text-[10px] font-bold text-blue-600 mt-1">Total pendapatan periode ini</div>
-                    </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Laba Bersih</span>
-                        </div>
-                        <div className={`text-2xl md:text-3xl font-black tracking-tighter ${(kpi?.netIncome || 0) >= 0 ? "text-emerald-600" : "text-red-600"}`}>{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.netIncome || 0)}</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-1">Setelah pajak</div>
-                    </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Users className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Piutang Usaha</span>
-                        </div>
-                        {kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : (
-                            <>
-                                <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">{formatIDR(kpi?.arOutstanding || 0)}</div>
-                                {/* Collection progress bar */}
-                                {(() => {
-                                    const invoiced = kpi?.invoicedRevenue || 0
-                                    const paid = kpi?.invoicedPaid || 0
-                                    const collectPct = invoiced > 0 ? Math.round((paid / invoiced) * 100) : 0
-                                    return invoiced > 0 ? (
-                                        <div className="mt-2 space-y-1">
-                                            <div className="flex items-center justify-between text-[9px] font-bold">
-                                                <span className="text-zinc-400">Penagihan</span>
-                                                <span className={collectPct >= 50 ? "text-emerald-600" : "text-orange-600"}>{collectPct}%</span>
-                                            </div>
-                                            <div className="h-1.5 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                                                <div className={`h-full rounded-full transition-all ${collectPct >= 50 ? "bg-emerald-500" : "bg-orange-400"}`} style={{ width: `${Math.min(collectPct, 100)}%` }} />
-                                            </div>
-                                            <div className="flex items-center justify-between text-[9px]">
-                                                <span className="text-emerald-600 font-bold">Terbayar {formatIDR(paid)}</span>
-                                                <span className="text-zinc-400">dari {formatIDR(invoiced)}</span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-[10px] font-bold text-orange-600 mt-1">Belum tertagih periode ini</div>
-                                    )
-                                })()}
-                            </>
-                        )}
-                    </div>
-                    <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Truck className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hutang Usaha</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">{kpiLoading ? <span className="inline-block h-8 w-28 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded" /> : formatIDR(kpi?.apOutstanding || 0)}</div>
-                        <div className="text-[10px] font-bold text-red-600 mt-1">Belum dibayar periode ini</div>
-                    </div>
+                    ))}
                 </div>
-            </div>
+            </motion.div>
 
-            {/* SIDEBAR + REPORT CONTENT LAYOUT */}
-            <div className="flex gap-4">
+            {/* ─── SIDEBAR + REPORT CONTENT LAYOUT ─── */}
+            <motion.div variants={fadeUp} className="flex gap-4">
                 {/* Sidebar Navigation */}
                 <div className="hidden md:block w-[220px] shrink-0">
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden sticky top-24">
-                        <div className="px-3 py-2.5 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
+                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden sticky top-24">
+                        <div className="px-3 py-2.5 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/30">
                             <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Pilih Laporan</span>
                         </div>
                         <div className="py-1">
@@ -663,7 +657,7 @@ export default function FinancialReportsPage() {
                                             onClick={() => setReportType(item.key)}
                                             className={`w-full text-left px-3 py-2 flex items-center gap-2 text-[11px] font-bold transition-all ${
                                                 reportType === item.key
-                                                    ? "bg-black text-white"
+                                                    ? "bg-blue-500 text-white"
                                                     : "text-zinc-600 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800"
                                             }`}
                                         >
@@ -678,17 +672,17 @@ export default function FinancialReportsPage() {
                     </div>
                 </div>
 
-                {/* Mobile Report Selector (visible on small screens) */}
+                {/* Mobile Report Selector */}
                 <div className="md:hidden w-full">
-                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden mb-4">
+                    <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden mb-4">
                         <div className="px-4 py-3 flex items-center gap-3 overflow-x-auto">
-                            <div className="flex border-2 border-black flex-wrap">
+                            <div className="flex border border-zinc-300 dark:border-zinc-700 flex-wrap">
                                 {sidebarGroups.flatMap(g => g.items).map((t) => (
                                     <button
                                         key={t.key}
                                         onClick={() => setReportType(t.key)}
-                                        className={`px-3 py-2 text-[9px] font-black uppercase tracking-widest transition-all border-r border-black last:border-r-0 flex items-center gap-1.5 whitespace-nowrap ${
-                                            reportType === t.key ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
+                                        className={`px-3 py-2 text-[9px] font-bold uppercase tracking-widest transition-all border-r border-zinc-300 dark:border-zinc-700 last:border-r-0 flex items-center gap-1.5 whitespace-nowrap ${
+                                            reportType === t.key ? "bg-blue-500 text-white" : "bg-white dark:bg-zinc-900 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                         }`}
                                     >
                                         {t.icon}
@@ -1845,7 +1839,7 @@ export default function FinancialReportsPage() {
                         </>
                     )}
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     )
 }

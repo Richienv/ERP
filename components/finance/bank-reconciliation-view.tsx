@@ -46,7 +46,10 @@ import {
     Ban,
     Undo2,
     MessageSquare,
+    Eye,
+    EyeOff,
 } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { NB } from "@/lib/dialog-styles"
 import type {
@@ -677,28 +680,47 @@ export function BankReconciliationView({
         })
     }
 
+    // ── KPI counts ─────────────────────────────────────────────────────────
+    const recList = reconciliations || []
+    const kpiAll = recList.length
+    const kpiDraft = recList.filter(r => r.status === "REC_DRAFT").length
+    const kpiInProgress = recList.filter(r => r.status === "REC_IN_PROGRESS").length
+    const kpiCompleted = recList.filter(r => r.status === "REC_COMPLETED").length
+
     // ── Render ────────────────────────────────────────────────────────────────
     return (
         <div className="space-y-4">
-            {/* Header */}
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-3">
-                    <div className="flex items-center justify-center h-9 w-9 bg-purple-100 border-2 border-black rounded-none">
-                        <Landmark className="h-4.5 w-4.5 text-purple-700" />
+            {/* ─── Unified Page Header ─── */}
+            <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900"
+            >
+                {/* Orange accent bar */}
+                <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+
+                {/* Row 1: Title + Actions */}
+                <div className="px-5 py-3.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                            <Landmark className="h-4.5 w-4.5 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                                Rekonsiliasi Bank
+                            </h1>
+                            <p className="text-zinc-400 text-[11px] font-medium">
+                                Cocokkan mutasi bank dengan jurnal sistem
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-sm font-black uppercase tracking-widest">Rekonsiliasi Bank</h2>
-                        <p className="text-[10px] text-zinc-400 font-bold">
-                            {(reconciliations || []).length} sesi &middot; {(reconciliations || []).filter(r => r.status === "REC_IN_PROGRESS").length} dalam proses
-                        </p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-0">
                     {/* Tambah Bank Dialog */}
                     <Dialog open={addBankOpen} onOpenChange={setAddBankOpen}>
                         <DialogTrigger asChild>
-                            <Button variant="outline" className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-9 px-3 rounded-none hover:bg-zinc-50 gap-1.5">
-                                <Landmark className="h-3.5 w-3.5" /> Tambah Bank
+                            <Button variant="outline" className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}>
+                                <Landmark className="h-3.5 w-3.5 mr-1.5" /> Tambah Bank
                             </Button>
                         </DialogTrigger>
                         <DialogContent className={NB.contentNarrow}>
@@ -805,8 +827,8 @@ export function BankReconciliationView({
                         }
                     }}>
                         <DialogTrigger asChild>
-                            <Button className={NB.triggerBtn + " gap-1.5"}>
-                                <Plus className="h-4 w-4" /> Rekonsiliasi Baru
+                            <Button className={NB.toolbarBtnPrimary}>
+                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Rekonsiliasi Baru
                             </Button>
                         </DialogTrigger>
                         <DialogContent className="max-w-lg p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
@@ -936,67 +958,133 @@ export function BankReconciliationView({
                             </div>
                         </DialogContent>
                     </Dialog>
+                    </div>
                 </div>
-            </div>
 
-            {/* Main layout: sidebar + detail */}
-            <div className="flex gap-4">
-                {/* ── Sidebar: reconciliation list ─────────────────────────────── */}
-                <div className="w-80 shrink-0 space-y-2">
-                    {/* Search & filter */}
-                    {reconciliations.length > 0 && (
-                        <div className="space-y-2">
-                            <div className="relative">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
-                                <Input
-                                    placeholder="Cari akun..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-8 pl-8 text-[11px] font-medium border-2 border-black rounded-none placeholder:text-zinc-300"
-                                />
+                {/* Row 2: KPI Strip */}
+                <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 divide-x divide-zinc-200 dark:divide-zinc-800">
+                    {[
+                        { label: "Semua", count: kpiAll, color: "orange", dot: "bg-orange-500" },
+                        { label: "Draft", count: kpiDraft, color: "zinc", dot: "bg-zinc-400" },
+                        { label: "Dalam Proses", count: kpiInProgress, color: "amber", dot: "bg-amber-500" },
+                        { label: "Selesai", count: kpiCompleted, color: "emerald", dot: "bg-emerald-500" },
+                    ].map((kpi) => (
+                        <div
+                            key={kpi.label}
+                            className="flex-1 px-4 py-3 flex items-center justify-between gap-3 cursor-default"
+                        >
+                            <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 ${kpi.dot}`} />
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
                             </div>
-                            <div className="flex gap-1">
-                                {[
-                                    { key: "all", label: "Semua" },
-                                    { key: "REC_DRAFT", label: "Draft" },
-                                    { key: "REC_IN_PROGRESS", label: "Proses" },
-                                    { key: "REC_COMPLETED", label: "Selesai" },
-                                ].map((f) => (
-                                    <button
-                                        key={f.key}
-                                        onClick={() => setStatusFilter(f.key)}
-                                        className={`text-[8px] font-black uppercase tracking-wider px-2 py-1 border transition-all ${
-                                            statusFilter === f.key
-                                                ? "bg-zinc-900 text-white border-black"
-                                                : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400"
-                                        }`}
-                                    >
-                                        {f.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <motion.span
+                                key={kpi.count}
+                                initial={{ scale: 0.8, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                className={`text-xl font-black ${
+                                    kpi.color === "amber" && kpi.count > 0
+                                        ? "text-amber-600 dark:text-amber-400"
+                                        : "text-zinc-900 dark:text-white"
+                                }`}
+                            >
+                                {kpi.count}
+                            </motion.span>
                         </div>
-                    )}
+                    ))}
+                </div>
+
+                {/* Row 3: Filter Toolbar */}
+                <div className="px-5 py-2.5 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-800/30">
+                    <div className="flex items-center gap-0">
+                        {/* Search input with active indicator */}
+                        <div className="relative">
+                            <Search
+                                className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 z-10 transition-colors ${
+                                    searchQuery ? "text-orange-500" : "text-zinc-500 dark:text-zinc-400"
+                                }`}
+                            />
+                            <input
+                                className={`border border-r-0 font-medium h-9 w-[220px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
+                                    searchQuery
+                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
+                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                }`}
+                                placeholder="Cari akun bank..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery("")}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors z-10"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            )}
+                        </div>
+                        {/* Status filter buttons — joined strip */}
+                        {[
+                            { key: "all", label: "Semua" },
+                            { key: "REC_DRAFT", label: "Draft" },
+                            { key: "REC_IN_PROGRESS", label: "Proses" },
+                            { key: "REC_COMPLETED", label: "Selesai" },
+                        ].map((f, idx, arr) => (
+                            <button
+                                key={f.key}
+                                onClick={() => setStatusFilter(f.key)}
+                                className={`h-9 px-3 text-[10px] font-black uppercase tracking-widest transition-all border ${idx < arr.length - 1 ? "border-r-0" : ""} rounded-none ${
+                                    statusFilter === f.key
+                                        ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                        : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
+                                }`}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                        <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filteredReconciliations.length}</span> sesi
+                    </span>
+                </div>
+            </motion.div>
+
+            {/* Main layout: sidebar + detail — single unified card */}
+            <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 26, delay: 0.08 }}
+                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex"
+                style={{ minHeight: 480 }}
+            >
+                {/* ── Sidebar: reconciliation list ─────────────────────────────── */}
+                <div className="w-80 shrink-0 border-r-2 border-black flex flex-col">
+                    {/* Sidebar header */}
+                    <div className="px-4 py-2.5 bg-black dark:bg-zinc-950 border-b border-zinc-800">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                            Sesi Rekonsiliasi
+                        </span>
+                    </div>
 
                     {reconciliations.length === 0 ? (
-                        <div className="bg-white border-2 border-black p-8 text-center space-y-3">
-                            <div className="flex items-center justify-center h-12 w-12 mx-auto bg-purple-50 border-2 border-purple-200 rounded-none">
-                                <Landmark className="h-6 w-6 text-purple-300" />
+                        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                            <div className="w-14 h-14 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                                <Landmark className="h-6 w-6 text-zinc-200 dark:text-zinc-700" />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">
                                 Belum ada rekonsiliasi
                             </span>
                             <p className="text-[10px] text-zinc-400">Klik &quot;Rekonsiliasi Baru&quot; untuk memulai</p>
                         </div>
                     ) : filteredReconciliations.length === 0 ? (
-                        <div className="bg-white border-2 border-black p-6 text-center space-y-2">
-                            <Filter className="h-5 w-5 mx-auto text-zinc-300" />
-                            <span className="text-[10px] font-bold text-zinc-400 block">
+                        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                            <Filter className="h-5 w-5 mx-auto text-zinc-300 mb-3" />
+                            <span className="text-[10px] font-bold text-zinc-400 block mb-2">
                                 Tidak ada hasil untuk filter ini
                             </span>
                             <button
                                 onClick={() => { setSearchQuery(""); setStatusFilter("all") }}
-                                className="text-[9px] font-black text-purple-600 hover:underline uppercase"
+                                className="text-[9px] font-black text-orange-600 hover:underline uppercase"
                             >
                                 Reset Filter
                             </button>
@@ -1016,7 +1104,7 @@ export function BankReconciliationView({
                                             key={rec.id}
                                             className={`w-full text-left bg-white border-2 border-black p-3.5 transition-all duration-150 group ${
                                                 isSelected
-                                                    ? "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-purple-50/50"
+                                                    ? "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-orange-50/50 dark:bg-orange-950/10"
                                                     : "hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-1px] hover:translate-y-[-1px]"
                                             }`}
                                             onClick={() => handleSelectRec(rec)}
@@ -1050,7 +1138,7 @@ export function BankReconciliationView({
                                             </div>
                                             {/* Loading indicator */}
                                             {detailLoading && isSelected && (
-                                                <div className="flex items-center gap-1.5 mt-2 text-[9px] font-bold text-purple-600">
+                                                <div className="flex items-center gap-1.5 mt-2 text-[9px] font-bold text-orange-600">
                                                     <Loader2 className="h-3 w-3 animate-spin" /> Memuat detail...
                                                 </div>
                                             )}
@@ -1063,13 +1151,20 @@ export function BankReconciliationView({
                 </div>
 
                 {/* ── Detail panel ─────────────────────────────────────────────── */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 flex flex-col">
                     {detailLoading ? (
-                        <DetailSkeleton />
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="text-center space-y-3">
+                                <Loader2 className="h-8 w-8 animate-spin text-orange-400 mx-auto" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block">
+                                    Memuat detail rekonsiliasi...
+                                </span>
+                            </div>
+                        </div>
                     ) : selectedRec ? (
-                        <div className="bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                        <div className="flex-1 flex flex-col">
                             {/* Account header with progress ring */}
-                            <div className="flex items-center justify-between px-5 py-3 border-b-2 border-black bg-zinc-50">
+                            <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/30">
                                 <div className="flex items-center gap-3">
                                     <ProgressRing percent={matchedPercent} />
                                     <div>
@@ -1148,7 +1243,7 @@ export function BankReconciliationView({
                             )}
 
                             {/* KPI strip */}
-                            <div className="grid grid-cols-4 border-b-2 border-black">
+                            <div className="grid grid-cols-4 border-b border-zinc-200 dark:border-zinc-800">
                                 {[
                                     { label: "Total Item", value: totalItems, icon: FileSpreadsheet, color: "text-zinc-700", topColor: "bg-zinc-300" },
                                     { label: "Cocok", value: matchedBankItems.length, icon: CheckCircle2, color: "text-emerald-700", topColor: "bg-emerald-400" },
@@ -1176,10 +1271,10 @@ export function BankReconciliationView({
                                 const bsBalance = selectedRec.bankStatementBalance ?? 0
                                 const diff = adjustedBookBalance - bsBalance
                                 return (
-                                    <div className="border-b-2 border-black bg-white">
-                                        <div className="bg-zinc-900 px-5 py-2 flex items-center gap-2">
+                                    <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                                        <div className="bg-black dark:bg-zinc-950 px-5 py-2 flex items-center gap-2">
                                             <ArrowRightLeft className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-white">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
                                                 Ringkasan Rekonsiliasi
                                             </span>
                                         </div>
@@ -1234,43 +1329,42 @@ export function BankReconciliationView({
 
                             {/* Action bar */}
                             {!isCompleted && (
-                                <div className="px-5 py-2.5 border-b border-zinc-200 flex items-center gap-2 flex-wrap bg-white">
+                                <div className="px-5 py-2.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-0 flex-wrap bg-zinc-50/80 dark:bg-zinc-800/30">
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-8 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1.5 hover:bg-purple-50"
+                                        className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}
                                         disabled={actionLoading !== null}
                                         onClick={handleAutoMatch}
                                     >
                                         {actionLoading === "automatch" ? (
-                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
                                         ) : (
-                                            <Wand2 className="h-3 w-3" />
+                                            <Wand2 className="h-3 w-3 mr-1.5" />
                                         )}
                                         {actionLoading === "automatch" ? "Mencocokkan..." : "Auto-Match"}
                                     </Button>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="h-8 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1.5 hover:bg-red-50 text-red-600 border-red-300"
+                                        className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}
+                                        onClick={downloadTemplateCSV}
+                                    >
+                                        <Download className="h-3 w-3 mr-1.5" /> Template CSV
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="border border-red-300 dark:border-red-700 text-red-500 dark:text-red-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-700 dark:hover:text-red-300 transition-colors"
                                         disabled={actionLoading !== null || unmatchedBankItems.length > 0}
                                         onClick={handleClose}
                                     >
                                         {actionLoading === "close" ? (
-                                            <Loader2 className="h-3 w-3 animate-spin" />
+                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
                                         ) : (
-                                            <Lock className="h-3 w-3" />
+                                            <Lock className="h-3 w-3 mr-1.5" />
                                         )}
                                         Tutup Rekonsiliasi
-                                    </Button>
-                                    <div className="flex-1" />
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 text-[9px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 hover:bg-blue-50 gap-1 px-2"
-                                        onClick={downloadTemplateCSV}
-                                    >
-                                        <Download className="h-3 w-3" /> Template CSV
                                     </Button>
                                 </div>
                             )}

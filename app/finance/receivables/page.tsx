@@ -1,16 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
+import { motion } from "framer-motion"
 import { NotaKreditTab } from "@/components/finance/nota-kredit-tab"
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { NB } from "@/lib/dialog-styles"
+import { Banknote } from "lucide-react"
 
 const PaymentsTab = dynamic(() => import("@/app/finance/payments/page"), {
     ssr: false,
-    loading: () => <TablePageSkeleton accentColor="bg-green-400" />,
+    loading: () => <TablePageSkeleton accentColor="bg-orange-400" />,
 })
+
+const tabs = [
+    { value: "penerimaan", label: "Penerimaan" },
+    { value: "nota-kredit", label: "Nota Kredit" },
+] as const
 
 export default function ReceivablesPage() {
     const searchParams = useSearchParams()
@@ -18,31 +25,63 @@ export default function ReceivablesPage() {
     const [activeTab, setActiveTab] = useState(initialTab)
 
     return (
-        <div className="mf-page">
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <h1 className="text-2xl font-black tracking-tight">Piutang Usaha (AR)</h1>
-                    <p className="text-xs text-zinc-500 font-medium mt-1">Kelola penerimaan pembayaran dan nota kredit pelanggan</p>
+        <motion.div
+            className="mf-page"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+        >
+            {/* ─── Unified Page Header ─── */}
+            <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: "spring", stiffness: 320, damping: 26 }}
+                className={NB.pageCard}
+            >
+                <div className={NB.pageAccent} />
+
+                {/* Row 1: Title + Tab Navigation */}
+                <div className="px-5 py-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                            <Banknote className="h-4.5 w-4.5 text-white" />
+                        </div>
+                        <div>
+                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                                Piutang Usaha (AR)
+                            </h1>
+                            <p className="text-zinc-400 text-[11px] font-medium">
+                                Kelola penerimaan pembayaran dan nota kredit pelanggan
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Tab buttons — joined toolbar style */}
+                    <div className="flex items-center gap-0">
+                        {tabs.map((tab, idx) => (
+                            <button
+                                key={tab.value}
+                                onClick={() => setActiveTab(tab.value)}
+                                className={`h-9 px-4 text-[10px] font-black uppercase tracking-widest transition-all border rounded-none ${
+                                    idx < tabs.length - 1 ? "border-r-0" : ""
+                                } ${
+                                    activeTab === tab.value
+                                        ? "bg-black dark:bg-white text-white dark:text-black border-black dark:border-white"
+                                        : "bg-white dark:bg-zinc-900 text-zinc-400 border-zinc-300 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-600 dark:hover:text-zinc-300"
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
+            </motion.div>
+
+            {/* ─── Tab Content ─── */}
+            <div className="[&>.mf-page]:p-0 [&>.mf-page]:pt-0 [&>.mf-page]:bg-transparent">
+                {activeTab === "penerimaan" && <PaymentsTab />}
+                {activeTab === "nota-kredit" && <NotaKreditTab />}
             </div>
-
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="border-2 border-black bg-white h-10 p-1 gap-1">
-                    <TabsTrigger value="penerimaan" className="font-bold text-xs uppercase tracking-wider data-[state=active]:bg-black data-[state=active]:text-white">
-                        Penerimaan
-                    </TabsTrigger>
-                    <TabsTrigger value="nota-kredit" className="font-bold text-xs uppercase tracking-wider data-[state=active]:bg-black data-[state=active]:text-white">
-                        Nota Kredit
-                    </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="penerimaan" className="mt-4 [&>.mf-page]:p-0 [&>.mf-page]:pt-0 [&>.mf-page]:bg-transparent">
-                    <PaymentsTab />
-                </TabsContent>
-                <TabsContent value="nota-kredit" className="mt-4">
-                    <NotaKreditTab />
-                </TabsContent>
-            </Tabs>
-        </div>
+        </motion.div>
     )
 }

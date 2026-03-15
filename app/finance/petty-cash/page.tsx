@@ -8,17 +8,47 @@ import { topUpPettyCash, disbursePettyCash, getExpenseAccounts, getBankAccounts,
 import { TablePageSkeleton } from "@/components/ui/page-skeleton"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { Wallet, ArrowUpCircle, ArrowDownCircle, Plus, Minus, Loader2, RefreshCcw } from "lucide-react"
+import {
+    Wallet,
+    ArrowUpCircle,
+    ArrowDownCircle,
+    Plus,
+    Minus,
+    Loader2,
+    RefreshCcw,
+    Download,
+    Eye,
+    EyeOff,
+    ChevronLeft,
+    ChevronRight,
+} from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { NB } from "@/lib/dialog-styles"
+import { exportToExcel } from "@/lib/table-export"
 
 export const dynamic = "force-dynamic"
 
+/* ─── Animation variants ─── */
+const stagger = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.07 } },
+}
+const fadeUp = {
+    hidden: { opacity: 0, y: 14 },
+    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+}
+const fadeX = {
+    hidden: { opacity: 0, x: -12 },
+    show: { opacity: 1, x: 0, transition: { type: "spring", stiffness: 320, damping: 26 } },
+}
+
 const formatCurrency = (val: number) =>
     new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val)
+
+const PAGE_SIZE = 15
 
 export default function PettyCashPage() {
     const { data, isLoading } = usePettyCash()
@@ -26,145 +56,311 @@ export default function PettyCashPage() {
 
     const [topUpOpen, setTopUpOpen] = useState(false)
     const [disburseOpen, setDisburseOpen] = useState(false)
+    const [showAmounts, setShowAmounts] = useState(true)
+    const [page, setPage] = useState(1)
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-emerald-400" />
+    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-orange-400" />
+
+    const transactions = data.transactions || []
+    const totalPages = Math.max(1, Math.ceil(transactions.length / PAGE_SIZE))
+    const pagedTransactions = transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+    const invalidateAll = () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.pettyCash.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
+    }
+
+    const topUpCount = transactions.filter((tx: any) => tx.type === "TOPUP").length
+    const disburseCount = transactions.filter((tx: any) => tx.type !== "TOPUP").length
 
     return (
-        <div className="mf-page min-h-screen space-y-4">
-            {/* HEADER */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-500">
+        <motion.div
+            className="mf-page"
+            variants={stagger}
+            initial="hidden"
+            animate="show"
+        >
+            {/* ─── Unified Page Header Card ─── */}
+            <motion.div
+                variants={fadeUp}
+                className={NB.pageCard}
+            >
+                {/* Orange accent bar */}
+                <div className={NB.pageAccent} />
+
+                {/* Row 1: Title + Toolbar Actions */}
+                <div className={`px-5 py-3.5 flex items-center justify-between ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-3">
-                        <Wallet className="h-6 w-6 text-emerald-500" />
+                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
+                            <Wallet className="h-4.5 w-4.5 text-white" />
+                        </div>
                         <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900">Peti Kas</h1>
-                            <p className="text-zinc-600 text-xs font-bold mt-0.5">Kas kecil untuk pengeluaran operasional harian</p>
+                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
+                                Peti Kas
+                            </h1>
+                            <p className="text-zinc-400 text-[11px] font-medium">
+                                Kas kecil untuk pengeluaran operasional harian
+                            </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-0">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                const cols = [
+                                    { header: "Tanggal", accessorKey: "_date" },
+                                    { header: "Tipe", accessorKey: "type" },
+                                    { header: "Nama", accessorKey: "recipientName" },
+                                    { header: "Keterangan", accessorKey: "description" },
+                                    { header: "Jumlah", accessorKey: "amount" },
+                                    { header: "Saldo", accessorKey: "balanceAfter" },
+                                ]
+                                const rows = transactions.map((tx: any) => ({
+                                    ...tx,
+                                    _date: new Date(tx.date).toLocaleDateString("id-ID"),
+                                }))
+                                exportToExcel(cols, rows as unknown as Record<string, unknown>[], { filename: "peti-kas" })
+                            }}
+                            className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}
+                        >
+                            <Download className="h-3.5 w-3.5 mr-1.5" /> Export
+                        </Button>
                         <Button
                             variant="outline"
                             onClick={() => queryClient.invalidateQueries({ queryKey: queryKeys.pettyCash.all })}
-                            className="h-9 border-2 border-black font-bold uppercase text-[10px] tracking-wider shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[1px] hover:shadow-none transition-all bg-white"
+                            className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}
                         >
-                            <RefreshCcw className="mr-2 h-3.5 w-3.5" /> Refresh
+                            <RefreshCcw className="h-3.5 w-3.5 mr-1.5" /> Refresh
                         </Button>
                         <Button
+                            variant="outline"
                             onClick={() => setTopUpOpen(true)}
-                            className="h-9 bg-emerald-600 text-white hover:bg-emerald-700 border-2 border-emerald-700 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all px-4"
+                            className={NB.toolbarBtn}
                         >
-                            <Plus className="mr-2 h-3.5 w-3.5" /> Top Up
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Top Up
                         </Button>
                         <Button
                             onClick={() => setDisburseOpen(true)}
-                            className="h-9 bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase font-black text-[10px] tracking-wider hover:translate-y-[1px] hover:shadow-none transition-all px-4"
+                            className={NB.toolbarBtnPrimary}
                         >
-                            <Minus className="mr-2 h-3.5 w-3.5" /> Catat Pengeluaran
+                            <Minus className="h-3.5 w-3.5 mr-1.5" /> Catat Pengeluaran
                         </Button>
                     </div>
                 </div>
-            </div>
 
-            {/* KPI STRIP */}
-            <div className="bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="grid grid-cols-3">
-                    <div className="relative p-4 border-r-2 border-zinc-100">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Saldo Saat Ini</div>
-                        <div className="text-2xl font-black text-emerald-600">{formatCurrency(data.currentBalance)}</div>
-                    </div>
-                    <div className="relative p-4 border-r-2 border-zinc-100">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500" />
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Top Up Bulan Ini</div>
-                        <div className="text-2xl font-black text-blue-600">{formatCurrency(data.totalTopup)}</div>
-                    </div>
-                    <div className="relative p-4">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
-                        <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Pengeluaran Bulan Ini</div>
-                        <div className="text-2xl font-black text-red-600">{formatCurrency(data.totalDisbursement)}</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* TRANSACTION TABLE */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white flex flex-col min-h-[400px]">
-                <div className="p-4 border-b-2 border-black bg-zinc-50">
-                    <h2 className="text-lg font-black uppercase tracking-tight">Riwayat Transaksi</h2>
-                </div>
-                <div className="overflow-x-auto">
-                    {data.transactions.length === 0 ? (
-                        <div className="text-center py-20 text-zinc-400">
-                            <Wallet className="h-12 w-12 mx-auto mb-4 text-zinc-200" />
-                            <p className="font-bold text-lg text-zinc-500">Belum ada transaksi</p>
-                            <p className="text-sm mt-1">Top up peti kas untuk memulai</p>
+                {/* Row 2: KPI Summary Strip */}
+                <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800">
+                    {[
+                        { label: "Saldo Saat Ini", value: data.currentBalance, color: "emerald" },
+                        { label: "Top Up Bulan Ini", value: data.totalTopup, color: "blue" },
+                        { label: "Pengeluaran Bulan Ini", value: data.totalDisbursement, color: "red" },
+                        { label: "Transaksi Masuk", count: topUpCount, color: "zinc" },
+                        { label: "Transaksi Keluar", count: disburseCount, color: "zinc" },
+                    ].map((kpi) => (
+                        <div
+                            key={kpi.label}
+                            className={NB.kpiCell}
+                        >
+                            <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 ${
+                                    kpi.color === "emerald" ? "bg-emerald-500" :
+                                    kpi.color === "blue" ? "bg-blue-500" :
+                                    kpi.color === "red" ? "bg-red-500" : "bg-zinc-400"
+                                }`} />
+                                <span className={NB.kpiLabel}>{kpi.label}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {"count" in kpi ? (
+                                    <motion.span
+                                        key={kpi.count}
+                                        initial={{ scale: 0.8, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                                        className={NB.kpiCount}
+                                    >
+                                        {kpi.count}
+                                    </motion.span>
+                                ) : (
+                                    <>
+                                        <AnimatePresence>
+                                            {showAmounts ? (
+                                                <motion.span
+                                                    key="amount"
+                                                    initial={{ opacity: 0, x: -8 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: -8 }}
+                                                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                                                    className={`text-lg font-black ${
+                                                        kpi.color === "emerald" ? "text-emerald-600 dark:text-emerald-400" :
+                                                        kpi.color === "blue" ? "text-blue-600 dark:text-blue-400" :
+                                                        "text-red-600 dark:text-red-400"
+                                                    }`}
+                                                >
+                                                    {formatCurrency(kpi.value!)}
+                                                </motion.span>
+                                            ) : (
+                                                <motion.span
+                                                    key="hidden"
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    className="text-lg font-black text-zinc-300 dark:text-zinc-600"
+                                                >
+                                                    *** ***
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                        <button
+                                            onClick={() => setShowAmounts(!showAmounts)}
+                                            className="p-0.5 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
+                                            title={showAmounts ? "Sembunyikan nominal" : "Tampilkan nominal"}
+                                        >
+                                            {showAmounts ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
                         </div>
+                    ))}
+                </div>
+            </motion.div>
+
+            {/* ─── Transaction Table ─── */}
+            <motion.div
+                variants={fadeUp}
+                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col"
+                style={{ minHeight: 480 }}
+            >
+                {/* Table Header */}
+                <div className="hidden md:grid grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-2.5 bg-black dark:bg-zinc-950 border-b-2 border-black">
+                    {["Tanggal", "Tipe", "Nama", "Keterangan", "Jumlah", "Saldo"].map((h) => (
+                        <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                    ))}
+                </div>
+
+                {/* Table Body */}
+                <div className="w-full flex-1 flex flex-col">
+                    {transactions.length === 0 ? (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                            className="flex-1 flex flex-col items-center justify-center py-16 text-zinc-400"
+                        >
+                            <div className="w-16 h-16 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
+                                <Wallet className="h-7 w-7 text-zinc-200 dark:text-zinc-700" />
+                            </div>
+                            <span className="text-sm font-bold">Belum ada transaksi</span>
+                            <span className="text-xs text-zinc-400 mt-1">Top up peti kas untuk memulai</span>
+                        </motion.div>
                     ) : (
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b-2 border-black bg-zinc-50">
-                                    <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal</th>
-                                    <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Tipe</th>
-                                    <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama</th>
-                                    <th className="text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Keterangan</th>
-                                    <th className="text-right px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Jumlah</th>
-                                    <th className="text-right px-4 py-3 text-[10px] font-black uppercase tracking-widest text-zinc-500">Saldo</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.transactions.map((tx: any) => (
-                                    <tr key={tx.id} className="border-b border-zinc-100 hover:bg-zinc-50 transition-colors">
-                                        <td className="px-4 py-3 text-xs font-mono text-zinc-600">
-                                            {new Date(tx.date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            {tx.type === "TOPUP" ? (
-                                                <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase px-2 py-0.5 border border-emerald-300">
+                        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                            {pagedTransactions.map((tx: any, idx: number) => {
+                                const isTopUp = tx.type === "TOPUP"
+
+                                return (
+                                    <motion.div
+                                        key={tx.id}
+                                        custom={idx}
+                                        variants={fadeX}
+                                        initial="hidden"
+                                        animate="show"
+                                        transition={{ delay: idx * 0.03 }}
+                                        className={`grid grid-cols-1 md:grid-cols-[120px_90px_1fr_1.5fr_130px_130px] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}
+                                    >
+                                        {/* Date */}
+                                        <div>
+                                            <span className="text-xs font-mono font-medium text-zinc-600 dark:text-zinc-400">
+                                                {new Date(tx.date).toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" })}
+                                            </span>
+                                        </div>
+
+                                        {/* Type badge */}
+                                        <div>
+                                            {isTopUp ? (
+                                                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400">
                                                     <ArrowUpCircle className="h-3 w-3" /> Masuk
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 bg-red-100 text-red-700 text-[10px] font-black uppercase px-2 py-0.5 border border-red-300">
+                                                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-700 text-red-600 dark:text-red-400">
                                                     <ArrowDownCircle className="h-3 w-3" /> Keluar
                                                 </span>
                                             )}
-                                        </td>
-                                        <td className="px-4 py-3 text-xs font-bold text-zinc-800">{tx.recipientName || "\u2014"}</td>
-                                        <td className="px-4 py-3 text-xs text-zinc-600">{tx.description}</td>
-                                        <td className={`px-4 py-3 text-xs font-mono font-bold text-right ${tx.type === "TOPUP" ? "text-emerald-600" : "text-red-600"}`}>
-                                            {tx.type === "TOPUP" ? "+" : "\u2212"}{formatCurrency(tx.amount)}
-                                        </td>
-                                        <td className="px-4 py-3 text-xs font-mono font-bold text-right text-zinc-800">
-                                            {formatCurrency(tx.balanceAfter)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                        </div>
+
+                                        {/* Recipient */}
+                                        <div className="truncate">
+                                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{tx.recipientName || "\u2014"}</span>
+                                        </div>
+
+                                        {/* Description */}
+                                        <div className="truncate">
+                                            <span className="text-xs text-zinc-500">{tx.description}</span>
+                                        </div>
+
+                                        {/* Amount */}
+                                        <div>
+                                            <span className={`font-mono text-sm font-black ${isTopUp ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                                                {isTopUp ? "+" : "\u2212"}{formatCurrency(tx.amount)}
+                                            </span>
+                                        </div>
+
+                                        {/* Balance */}
+                                        <div>
+                                            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">
+                                                {formatCurrency(tx.balanceAfter)}
+                                            </span>
+                                        </div>
+                                    </motion.div>
+                                )
+                            })}
+                        </div>
                     )}
                 </div>
-            </div>
 
-            {/* TOP-UP DIALOG */}
-            <TopUpDialog open={topUpOpen} onOpenChange={setTopUpOpen} onSuccess={() => {
-                queryClient.invalidateQueries({ queryKey: queryKeys.pettyCash.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
-            }} />
+                {/* Pagination */}
+                <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
+                    <span className={NB.label + " !mb-0 !text-[10px]"}>
+                        {transactions.length} transaksi
+                    </span>
+                    {transactions.length > PAGE_SIZE ? (
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none"
+                                disabled={page <= 1}
+                                onClick={() => setPage(p => p - 1)}
+                            >
+                                <ChevronLeft className="h-3.5 w-3.5" />
+                            </Button>
+                            <span className="text-xs font-black min-w-[50px] text-center">{page}/{totalPages}</span>
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7 border border-zinc-300 dark:border-zinc-600 rounded-none"
+                                disabled={page >= totalPages}
+                                onClick={() => setPage(p => p + 1)}
+                            >
+                                <ChevronRight className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                    ) : (
+                        <div />
+                    )}
+                </div>
+            </motion.div>
 
-            {/* DISBURSEMENT DIALOG */}
-            <DisburseDialog open={disburseOpen} onOpenChange={setDisburseOpen} onSuccess={() => {
-                queryClient.invalidateQueries({ queryKey: queryKeys.pettyCash.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
-                queryClient.invalidateQueries({ queryKey: queryKeys.cashflowPlan.all })
-            }} />
-        </div>
+            {/* ─── Top-Up Dialog ─── */}
+            <TopUpDialog open={topUpOpen} onOpenChange={setTopUpOpen} onSuccess={invalidateAll} />
+
+            {/* ─── Disbursement Dialog ─── */}
+            <DisburseDialog open={disburseOpen} onOpenChange={setDisburseOpen} onSuccess={invalidateAll} />
+        </motion.div>
     )
 }
 
@@ -352,14 +548,11 @@ function DisburseDialog({ open, onOpenChange, onSuccess }: { open: boolean; onOp
                             onCreate={async (name) => {
                                 const result = await createExpenseAccount(name)
                                 if (result.success && result.code) {
-                                    // Immediately add to local state (don't rely on refetch timing)
                                     setExpenses(prev => {
                                         if (prev.some(e => e.code === result.code)) return prev
                                         return [...prev, { code: result.code!, name: result.name || name }].sort((a, b) => a.code.localeCompare(b.code))
                                     })
-                                    // Also refetch in background for consistency
                                     loadExpenses()
-                                    // Invalidate cross-module queries
                                     queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
                                     queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
                                     queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })

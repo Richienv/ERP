@@ -2633,6 +2633,7 @@ export interface JournalEntryItem {
     date: Date
     description: string
     reference?: string
+    status: string
     lines: {
         account: { code: string; name: string }
         debit: number
@@ -2666,6 +2667,7 @@ export async function getJournalEntries(limit = 50): Promise<JournalEntryItem[]>
                 date: entry.date,
                 description: entry.description || '',
                 reference: entry.reference || undefined,
+                status: entry.status,
                 lines: entry.lines.map(line => ({
                     account: { code: line.account.code, name: line.account.name },
                     debit: Number(line.debit),

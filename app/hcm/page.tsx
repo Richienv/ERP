@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Users, UserPlus, Download, RefreshCw } from "lucide-react"
+import { Users, UserPlus, Download, RefreshCw, BookOpen } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 
@@ -177,6 +177,11 @@ export default function HCMPage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleRefresh} disabled={refreshing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} /> Muat Ulang
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/finance/journal">
+              <BookOpen className="mr-2 h-4 w-4" /> Lihat Jurnal Gaji
+            </Link>
           </Button>
           <Button variant="outline" asChild>
             <Link href="/hcm/employee-master">

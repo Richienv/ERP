@@ -309,249 +309,62 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
     return (
         <div className="mf-page">
 
-            {/* ═══════════════════════════════════════════ */}
-            {/* COMMAND HEADER                              */}
-            {/* ═══════════════════════════════════════════ */}
+            {/* ─── TOOLBAR ─── */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-400">
-                    <div className="flex items-center gap-3">
-                        <Wallet className="h-5 w-5 text-orange-500" />
-                        <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
-                                Penerimaan Piutang (AR)
-                            </h1>
-                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
-                                Alokasikan dana masuk ke invoice pelanggan secara otomatis
-                            </p>
-                        </div>
+                {/* Row 1: Stats + Actions */}
+                <div className="px-5 py-3 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                        <span className="font-bold">{stats.unallocatedCount} belum dialokasi</span>
+                        <span className="text-zinc-200 dark:text-zinc-700">|</span>
+                        <span className="font-bold">{stats.openInvoicesCount} invoice terbuka &middot; {formatIDR(stats.outstandingAmount)}</span>
+                        {stats.todayPayments > 0 && (<><span className="text-zinc-200 dark:text-zinc-700">|</span><span className="font-bold">Hari ini: {formatIDR(stats.todayPayments)}</span></>)}
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                const cols = [
-                                    { header: "No. Pembayaran", accessorKey: "number" },
-                                    { header: "Dari", accessorKey: "from" },
-                                    { header: "Jumlah", accessorKey: "amount" },
-                                    { header: "Metode", accessorKey: "method" },
-                                    { header: "Referensi", accessorKey: "reference" },
-                                    { header: "Tanggal", accessorKey: "date" },
-                                    { header: "Status", accessorKey: "allocated" },
-                                ]
-                                const rows = unallocated.map(p => ({
-                                    number: p.number,
-                                    from: p.from,
-                                    amount: p.amount,
-                                    method: p.method,
-                                    reference: p.reference || "-",
-                                    date: new Date(p.date).toLocaleDateString("id-ID"),
-                                    allocated: p.allocated ? "Teralokasi" : "Belum",
-                                }))
-                                exportToExcel(cols, rows as Record<string, unknown>[], { filename: "penerimaan-ar" })
-                            }}
-                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
-                        >
-                            <Download className="mr-1.5 h-3.5 w-3.5" /> Export
+                    <div className="flex items-center gap-0">
+                        <Button variant="outline" onClick={() => { exportToExcel([{ header: "No.", accessorKey: "number" },{ header: "Dari", accessorKey: "from" },{ header: "Jumlah", accessorKey: "amount" },{ header: "Metode", accessorKey: "method" },{ header: "Referensi", accessorKey: "reference" },{ header: "Tanggal", accessorKey: "date" },{ header: "Status", accessorKey: "allocated" }], unallocated.map(p => ({ number: p.number, from: p.from, amount: p.amount, method: p.method, reference: p.reference || "-", date: new Date(p.date).toLocaleDateString("id-ID"), allocated: p.allocated ? "Teralokasi" : "Belum" })) as Record<string, unknown>[], { filename: "penerimaan-ar" }) }} className="border border-zinc-200 dark:border-zinc-700 border-r-0 text-zinc-500 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                            <Download className="h-3.5 w-3.5 mr-1" /> Export
                         </Button>
-                        <Button
-                            variant="outline"
-                            onClick={() => {
-                                queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
-                                queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
-                                queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
-                                queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
-                            }}
-                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
-                        >
-                            <RefreshCcw className="mr-1.5 h-3.5 w-3.5" /> Segarkan
+                        <Button variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }); queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all }); queryClient.invalidateQueries({ queryKey: queryKeys.journal.all }) }} className="border border-zinc-200 dark:border-zinc-700 text-zinc-500 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                            <RefreshCcw className="h-3.5 w-3.5 mr-1" /> Refresh
                         </Button>
-                        <Button
-                            onClick={() => setIsCreateDialogOpen(true)}
-                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-5 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all"
-                        >
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Catat Penerimaan
+                        <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider h-8 px-4 rounded-none transition-colors ml-2">
+                            <Plus className="h-3.5 w-3.5 mr-1" /> Catat Penerimaan
                         </Button>
+                    </div>
+                </div>
+                {/* Row 2: Search + Steps */}
+                <div className="px-5 py-2.5 flex items-center gap-3 bg-zinc-50/50 dark:bg-zinc-800/20">
+                    <div className="relative flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                        <input className="border border-zinc-200 dark:border-zinc-700 font-medium h-8 w-full text-xs rounded-none pl-9 pr-3 outline-none placeholder:text-zinc-400 bg-white dark:bg-zinc-900 focus:border-zinc-900 dark:focus:border-zinc-400 transition-colors" placeholder="Cari pembayaran..." value={paymentQuery} onChange={(e) => setPaymentQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyRegistryFilters()} />
+                    </div>
+                    <div className="relative flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                        <input className="border border-zinc-200 dark:border-zinc-700 font-medium h-8 w-full text-xs rounded-none pl-9 pr-3 outline-none placeholder:text-zinc-400 bg-white dark:bg-zinc-900 focus:border-zinc-900 dark:focus:border-zinc-400 transition-colors" placeholder="Cari invoice..." value={invoiceQuery} onChange={(e) => setInvoiceQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && applyRegistryFilters()} />
+                    </div>
+                    <button onClick={applyRegistryFilters} className="h-8 px-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[10px] font-bold uppercase tracking-wider hover:bg-zinc-700 dark:hover:bg-zinc-300 transition-colors">Cari</button>
+                    {(paymentQuery || invoiceQuery) && <button onClick={resetRegistryFilters} className="text-[10px] font-bold text-zinc-400 hover:text-zinc-600 transition-colors">Reset</button>}
+                    {/* Minimal step indicator */}
+                    <div className="hidden md:flex items-center gap-1.5 ml-auto pl-4 border-l border-zinc-200 dark:border-zinc-700">
+                        {[{ s: 1, l: "Pembayaran" }, { s: 2, l: "Invoice" }, { s: 3, l: "Alokasi" }].map(({ s, l }) => (
+                            <div key={s} className="flex items-center gap-1">
+                                {s > 1 && <div className={`w-4 h-px ${currentStep >= s ? "bg-zinc-900 dark:bg-zinc-300" : "bg-zinc-200 dark:bg-zinc-700"}`} />}
+                                <div className={`h-5 w-5 flex items-center justify-center text-[9px] font-bold transition-colors ${currentStep >= s ? "bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"}`}>
+                                    {currentStep > s ? <Check className="h-3 w-3" /> : s}
+                                </div>
+                                <span className={`text-[10px] font-bold ${currentStep >= s ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400"}`}>{l}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
 
-            {/* ═══════════════════════════════════════════ */}
-            {/* KPI PULSE STRIP                            */}
-            {/* ═══════════════════════════════════════════ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="grid grid-cols-2 md:grid-cols-4">
-                    {/* Unallocated Funds */}
-                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Wallet className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Dana Belum Dialokasi</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                            {stats.unallocatedAmount === 0
-                                ? <span className="text-zinc-300 text-lg">Rp 0</span>
-                                : formatIDR(stats.unallocatedAmount)}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-emerald-600">{stats.unallocatedCount} transaksi</span>
-                        </div>
-                    </div>
-
-                    {/* Open Invoices */}
-                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Invoice Terbuka</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                            {stats.openInvoicesCount}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-blue-600">Belum lunas / parsial</span>
-                        </div>
-                    </div>
-
-                    {/* Outstanding Amount */}
-                    <div className="relative p-4 md:p-5 md:border-r-2 border-b-2 md:border-b-0 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <CircleDollarSign className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Piutang</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                            {stats.outstandingAmount === 0
-                                ? <span className="text-zinc-300 text-lg">Rp 0</span>
-                                : formatIDR(stats.outstandingAmount)}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-amber-600">Saldo belum tertagih</span>
-                        </div>
-                    </div>
-
-                    {/* Today's Payments */}
-                    <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-violet-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <CalendarClock className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hari Ini</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">
-                            {stats.todayPayments === 0
-                                ? <span className="text-zinc-300 text-lg">Rp 0</span>
-                                : formatIDR(stats.todayPayments)}
-                        </div>
-                        <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-violet-600">Penerimaan masuk hari ini</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══════════════════════════════════════════ */}
-            {/* SEARCH & FILTER BAR                        */}
-            {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                <div className="p-4">
-                    <div className="flex flex-col md:flex-row gap-3">
-                        <div className="relative flex-1">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                            <Input
-                                className="border-2 border-black h-10 pl-9 font-medium rounded-none"
-                                placeholder="Cari pembayaran (no., pelanggan, metode)..."
-                                value={paymentQuery}
-                                onChange={(e) => setPaymentQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && applyRegistryFilters()}
-                            />
-                        </div>
-                        <div className="relative flex-1">
-                            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                            <Input
-                                className="border-2 border-black h-10 pl-9 font-medium rounded-none"
-                                placeholder="Cari invoice (no., pelanggan)..."
-                                value={invoiceQuery}
-                                onChange={(e) => setInvoiceQuery(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && applyRegistryFilters()}
-                            />
-                        </div>
-                        <Button
-                            onClick={applyRegistryFilters}
-                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-4"
-                        >
-                            Terapkan
-                        </Button>
-                        <Button
-                            variant="outline"
-                            onClick={resetRegistryFilters}
-                            className="border-2 border-zinc-300 font-bold uppercase text-[10px] tracking-wide h-10 px-4"
-                        >
-                            Reset
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══════════════════════════════════════════ */}
-            {/* WORKFLOW STEPS INDICATOR                    */}
-            {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                <div className="px-6 py-3 flex items-center gap-0">
-                    {/* Step 1 */}
-                    <div className="flex items-center gap-2">
-                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${currentStep >= 1 ? "bg-emerald-500 text-white" : "bg-zinc-100 text-zinc-400"
-                            }`}>
-                            {currentStep > 1 ? <Check className="h-4 w-4" /> : "1"}
-                        </div>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep >= 1 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
-                            }`}>
-                            Pilih Pembayaran
-                        </span>
-                    </div>
-                    {/* Connector */}
-                    <div className={`flex-1 h-0.5 mx-3 ${currentStep > 1 ? "bg-emerald-500" : "bg-zinc-200"}`} />
-                    {/* Step 2 */}
-                    <div className="flex items-center gap-2">
-                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${currentStep >= 2 ? "bg-blue-500 text-white" : "bg-zinc-100 text-zinc-400"
-                            }`}>
-                            {currentStep > 2 ? <Check className="h-4 w-4" /> : "2"}
-                        </div>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep >= 2 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
-                            }`}>
-                            Pilih Invoice
-                        </span>
-                    </div>
-                    {/* Connector */}
-                    <div className={`flex-1 h-0.5 mx-3 ${currentStep > 2 ? "bg-orange-500" : "bg-zinc-200"}`} />
-                    {/* Step 3 */}
-                    <div className="flex items-center gap-2">
-                        <div className={`h-8 w-8 flex items-center justify-center border-2 border-black text-xs font-black transition-all ${currentStep >= 3 ? "bg-orange-500 text-white" : "bg-zinc-100 text-zinc-400"
-                            }`}>
-                            3
-                        </div>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${currentStep >= 3 ? "text-zinc-900 dark:text-white" : "text-zinc-400"
-                            }`}>
-                            Konfirmasi
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══════════════════════════════════════════ */}
-            {/* MAIN WORKFLOW: TWO PANELS                   */}
-            {/* ═══════════════════════════════════════════ */}
+            {/* ─── TWO PANELS ─── */}
             <div className="grid gap-4 xl:grid-cols-2">
-
-                {/* ── LEFT PANEL: Payments ── */}
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 420 }}>
-                    {/* Panel Header */}
-                    <div className="bg-emerald-50 dark:bg-emerald-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-emerald-400">
-                        <Wallet className="h-4 w-4 text-emerald-600" />
-                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
-                            Pembayaran Masuk
-                        </h3>
-                        <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
-                            {registryMeta.payments.total}
-                        </span>
+                {/* ── LEFT: Payments ── */}
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 420 }}>
+                    <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Pembayaran Masuk</h3>
+                        <span className="text-[10px] font-bold text-zinc-400">{registryMeta.payments.total}</span>
                     </div>
 
                     {/* Payment Items */}
@@ -587,27 +400,13 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                             <span className="text-sm font-medium text-zinc-600 dark:text-zinc-300 truncate">{item.from}</span>
                                             <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-400 whitespace-nowrap">{formatIDR(item.amount)}</span>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${item.method === "TRANSFER" ? "bg-blue-50 border-blue-200 text-blue-600" :
-                                                item.method === "CASH" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
-                                                    item.method === "CHECK" ? "bg-amber-50 border-amber-200 text-amber-600" :
-                                                        item.method === "GIRO" ? "bg-orange-50 border-orange-200 text-orange-600" :
-                                                        "bg-violet-50 border-violet-200 text-violet-600"
-                                                }`}>
-                                                {METHOD_LABEL[item.method as PaymentMethod] ?? item.method}
+                                        <div className="flex items-center gap-2 mt-1 text-[10px]">
+                                            <span className="font-bold text-zinc-400">{METHOD_LABEL[item.method as PaymentMethod] ?? item.method}</span>
+                                            <span className="text-zinc-200 dark:text-zinc-700">&middot;</span>
+                                            <span className={`font-bold ${item.allocated ? "text-zinc-600 dark:text-zinc-300" : "text-zinc-400"}`}>
+                                                {item.allocated ? (item.invoiceNumber ? `→ ${item.invoiceNumber}` : "Teralokasi") : "Belum dialokasi"}
                                             </span>
-                                            {item.allocated ? (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-emerald-50 border-emerald-200 text-emerald-600">
-                                                    {item.invoiceNumber ? `→ ${item.invoiceNumber}` : "Teralokasi"}
-                                                </span>
-                                            ) : (
-                                                <span className="text-[10px] font-bold px-2 py-0.5 border rounded-sm bg-orange-50 border-orange-200 text-orange-600">
-                                                    Belum dialokasi
-                                                </span>
-                                            )}
-                                            {item.reference && (
-                                                <span className="text-[10px] font-medium text-zinc-400 truncate">Ref: {item.reference}</span>
-                                            )}
+                                            {item.reference && <span className="font-medium text-zinc-300 dark:text-zinc-600 truncate">Ref: {item.reference}</span>}
                                         </div>
                                     </button>
                                 )
@@ -616,62 +415,24 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                     </div>
 
                     {/* Pagination */}
-                    <div className="px-5 py-3 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                            Hal {registryMeta.payments.page}/{registryMeta.payments.totalPages}
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 border-2 border-black"
-                                disabled={registryMeta.payments.page <= 1}
-                                onClick={() =>
-                                    pushSearchParams((params) => {
-                                        params.set("pay_page", String(Math.max(1, registryMeta.payments.page - 1)))
-                                    })
-                                }
-                            >
-                                <ChevronLeft className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 border-2 border-black"
-                                disabled={registryMeta.payments.page >= registryMeta.payments.totalPages}
-                                onClick={() =>
-                                    pushSearchParams((params) => {
-                                        params.set("pay_page", String(Math.min(registryMeta.payments.totalPages, registryMeta.payments.page + 1)))
-                                    })
-                                }
-                            >
-                                <ChevronRight className="h-3.5 w-3.5" />
-                            </Button>
+                    <div className="px-5 py-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-zinc-400">{registryMeta.payments.page}/{registryMeta.payments.totalPages}</span>
+                        <div className="flex items-center gap-1">
+                            <button className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors" disabled={registryMeta.payments.page <= 1} onClick={() => pushSearchParams((p) => { p.set("pay_page", String(Math.max(1, registryMeta.payments.page - 1))) })}><ChevronLeft className="h-3.5 w-3.5" /></button>
+                            <button className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors" disabled={registryMeta.payments.page >= registryMeta.payments.totalPages} onClick={() => pushSearchParams((p) => { p.set("pay_page", String(Math.min(registryMeta.payments.totalPages, registryMeta.payments.page + 1))) })}><ChevronRight className="h-3.5 w-3.5" /></button>
                         </div>
                     </div>
                 </div>
 
-                {/* ── RIGHT PANEL: Invoices ── */}
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 420 }}>
-                    {/* Panel Header */}
-                    <div className="bg-blue-50 dark:bg-blue-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-blue-400">
-                        <FileText className="h-4 w-4 text-blue-600" />
-                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
-                            Invoice Tujuan
-                        </h3>
-                        {selectedPayment && (
-                            <span className="bg-blue-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
-                                {filteredInvoices.length}
-                            </span>
-                        )}
+                {/* ── RIGHT: Invoices ── */}
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex flex-col" style={{ minHeight: 420 }}>
+                    <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Invoice Tujuan</h3>
+                        {selectedPayment && <span className="text-[10px] font-bold text-zinc-400">{filteredInvoices.length}</span>}
                     </div>
-
-                    {/* Filtered-for notice */}
                     {selectedPayment && (
-                        <div className="px-5 py-2 border-b border-zinc-100 bg-blue-50/50 dark:bg-blue-950/10">
-                            <span className="text-[10px] font-bold text-blue-600">
-                                Difilter untuk: {selectedPayment.from}
-                            </span>
+                        <div className="px-5 py-1.5 border-b border-zinc-100 dark:border-zinc-800">
+                            <span className="text-[10px] font-bold text-zinc-500">Difilter: {selectedPayment.from}</span>
                         </div>
                     )}
 
@@ -729,37 +490,11 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                     </div>
 
                     {/* Pagination */}
-                    <div className="px-5 py-3 border-t-2 border-black flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                            Hal {registryMeta.invoices.page}/{registryMeta.invoices.totalPages}
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 border-2 border-black"
-                                disabled={registryMeta.invoices.page <= 1}
-                                onClick={() =>
-                                    pushSearchParams((params) => {
-                                        params.set("inv_page", String(Math.max(1, registryMeta.invoices.page - 1)))
-                                    })
-                                }
-                            >
-                                <ChevronLeft className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8 border-2 border-black"
-                                disabled={registryMeta.invoices.page >= registryMeta.invoices.totalPages}
-                                onClick={() =>
-                                    pushSearchParams((params) => {
-                                        params.set("inv_page", String(Math.min(registryMeta.invoices.totalPages, registryMeta.invoices.page + 1)))
-                                    })
-                                }
-                            >
-                                <ChevronRight className="h-3.5 w-3.5" />
-                            </Button>
+                    <div className="px-5 py-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-zinc-400">{registryMeta.invoices.page}/{registryMeta.invoices.totalPages}</span>
+                        <div className="flex items-center gap-1">
+                            <button className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors" disabled={registryMeta.invoices.page <= 1} onClick={() => pushSearchParams((p) => { p.set("inv_page", String(Math.max(1, registryMeta.invoices.page - 1))) })}><ChevronLeft className="h-3.5 w-3.5" /></button>
+                            <button className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-700 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-30 transition-colors" disabled={registryMeta.invoices.page >= registryMeta.invoices.totalPages} onClick={() => pushSearchParams((p) => { p.set("inv_page", String(Math.min(registryMeta.invoices.totalPages, registryMeta.invoices.page + 1))) })}><ChevronRight className="h-3.5 w-3.5" /></button>
                         </div>
                     </div>
                 </div>
@@ -769,52 +504,24 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             {/* RECENT ALLOCATED PAYMENTS                   */}
             {/* ═══════════════════════════════════════════ */}
             {recentPayments.length > 0 && (
-                <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                    <div className="bg-violet-50 dark:bg-violet-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-violet-400">
-                        <History className="h-4 w-4 text-violet-600" />
-                        <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
-                            Riwayat Pembayaran Terakhir
-                        </h3>
-                        <span className="bg-violet-500 text-white text-[10px] font-black px-2 py-0.5 min-w-[20px] text-center rounded-sm">
-                            {recentPayments.length}
-                        </span>
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                        <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Riwayat Terakhir</h3>
+                        <span className="text-[10px] font-bold text-zinc-400">{recentPayments.length}</span>
                     </div>
-                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[360px] overflow-auto">
+                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[320px] overflow-auto">
                         {recentPayments.map((payment) => (
-                            <div key={payment.id} className="px-5 py-3 flex items-center gap-4">
+                            <div key={payment.id} className="px-5 py-2.5 flex items-center gap-4">
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        {payment.invoice && (
-                                            <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">
-                                                {payment.invoice.number}
-                                            </span>
-                                        )}
-                                        <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-sm ${
-                                            payment.method === "TRANSFER" ? "bg-blue-50 border-blue-200 text-blue-600" :
-                                            payment.method === "CASH" ? "bg-emerald-50 border-emerald-200 text-emerald-600" :
-                                            payment.method === "CHECK" ? "bg-amber-50 border-amber-200 text-amber-600" :
-                                            payment.method === "GIRO" ? "bg-orange-50 border-orange-200 text-orange-600" :
-                                            "bg-violet-50 border-violet-200 text-violet-600"
-                                        }`}>
-                                            {METHOD_LABEL[payment.method as PaymentMethod] ?? payment.method}
-                                        </span>
-                                        <Badge variant="outline" className="text-[10px] font-black uppercase border-emerald-300 text-emerald-600 bg-emerald-50">
-                                            Teralokasi
-                                        </Badge>
-                                    </div>
                                     <div className="flex items-center gap-2">
-                                        {payment.reference && (
-                                            <span className="text-[10px] font-medium text-zinc-400 truncate">Ref: {payment.reference}</span>
-                                        )}
+                                        {payment.invoice && <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100 truncate">{payment.invoice.number}</span>}
+                                        <span className="text-[10px] font-bold text-zinc-400">{METHOD_LABEL[payment.method as PaymentMethod] ?? payment.method}</span>
+                                        {payment.reference && <span className="text-[10px] text-zinc-300 dark:text-zinc-600 truncate">Ref: {payment.reference}</span>}
                                     </div>
                                 </div>
-                                <div className="text-right shrink-0">
-                                    <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-400 block">
-                                        {formatIDR(payment.amount)}
-                                    </span>
-                                    <span className="text-[10px] font-bold text-zinc-400">
-                                        {new Date(payment.createdAt).toLocaleDateString("id-ID")}
-                                    </span>
+                                <div className="text-right shrink-0 flex items-center gap-3">
+                                    <span className="font-mono font-bold text-sm text-zinc-900 dark:text-zinc-100">{formatIDR(payment.amount)}</span>
+                                    <span className="text-[10px] font-bold text-zinc-400">{new Date(payment.createdAt).toLocaleDateString("id-ID")}</span>
                                 </div>
                             </div>
                         ))}
@@ -825,23 +532,19 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             {/* ═══════════════════════════════════════════ */}
             {/* CONFIRMATION PANEL                         */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                {/* Panel Header */}
-                <div className="bg-orange-50 dark:bg-orange-950/20 px-5 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-orange-400">
-                    <BadgeCheck className="h-4 w-4 text-orange-600" />
-                    <h3 className="text-[11px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-200">
-                        Konfirmasi Alokasi
-                    </h3>
+            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                <div className="px-5 py-2.5 border-b border-zinc-100 dark:border-zinc-800 flex items-center gap-2">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Konfirmasi Alokasi</h3>
                 </div>
 
                 <div className="p-5 space-y-4">
                     {/* Summary Cards */}
                     <div className="grid gap-4 md:grid-cols-2">
                         {/* Selected Payment */}
-                        <div className={`border-2 p-4 ${selectedPayment ? "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-zinc-200 bg-zinc-50 dark:bg-zinc-800"}`}>
+                        <div className={`border p-4 ${selectedPayment ? "border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50" : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/30 dark:bg-zinc-800/30"}`}>
                             <div className="flex items-center gap-2 mb-3">
-                                <Wallet className={`h-4 w-4 ${selectedPayment ? "text-emerald-600" : "text-zinc-400"}`} />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Pembayaran Terpilih</span>
+                                <Wallet className="h-4 w-4 text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Pembayaran Terpilih</span>
                             </div>
                             {selectedPayment ? (
                                 <div className="space-y-1.5">
@@ -858,10 +561,10 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         </div>
 
                         {/* Selected Invoice */}
-                        <div className={`border-2 p-4 ${selectedInvoice ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : "border-zinc-200 bg-zinc-50 dark:bg-zinc-800"}`}>
+                        <div className={`border p-4 ${selectedInvoice ? "border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50" : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/30 dark:bg-zinc-800/30"}`}>
                             <div className="flex items-center gap-2 mb-3">
-                                <FileText className={`h-4 w-4 ${selectedInvoice ? "text-blue-600" : "text-zinc-400"}`} />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Invoice Tujuan</span>
+                                <FileText className="h-4 w-4 text-zinc-400" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Invoice Tujuan</span>
                             </div>
                             {selectedInvoice ? (
                                 <div className="space-y-1.5">
@@ -882,7 +585,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
 
                     {/* Amount Comparison */}
                     {selectedPayment && selectedInvoice && (
-                        <div className="border-2 border-black bg-zinc-50 dark:bg-zinc-800 p-4">
+                        <div className="border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30 p-4">
                             <div className="flex items-center justify-between">
                                 <div className="text-center flex-1">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Pembayaran</span>
@@ -911,7 +614,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
 
                     {/* Mismatch Warning */}
                     {paymentInvoiceMismatch && (
-                        <div className="border-2 border-red-400 bg-red-50 dark:bg-red-950/20 p-3 flex items-center gap-3">
+                        <div className="border border-red-200 bg-red-50/50 dark:bg-red-950/10 p-3 flex items-center gap-3">
                             <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0" />
                             <span className="text-sm font-bold text-red-700 dark:text-red-400">
                                 Pelanggan pembayaran tidak sama dengan pelanggan invoice. Pilih invoice yang sesuai.
@@ -928,7 +631,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         <Button
                             disabled={!canMatch}
                             onClick={() => selectedPayment && selectedInvoice && handleMatch(selectedPayment.id, selectedInvoice.id)}
-                            className="bg-orange-500 text-white hover:bg-orange-600 border-2 border-orange-600 font-black uppercase text-[10px] tracking-wide h-10 px-6 shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[1px] transition-all disabled:opacity-40 disabled:shadow-none"
+                            className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider h-9 px-6 rounded-none transition-colors disabled:opacity-30"
                         >
                             {processing ? (
                                 <>

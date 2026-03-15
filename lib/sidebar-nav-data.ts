@@ -71,7 +71,7 @@ import {
   IconCalendarTime,
   // HCM sub-icons
   IconUserCheck,
-  IconCurrencyDollar as IconPayroll,
+  // IconCurrencyDollar as IconPayroll, // unused
   IconFingerprint,
   IconClock,
   IconRocket,
@@ -182,6 +182,7 @@ export const navMain: SidebarNavItem[] = [
       { title: "Kurs Mata Uang", url: "/finance/currencies", icon: IconCoin },
       { title: "Periode Fiskal", url: "/finance/fiscal-periods", icon: IconCalendarStats },
       { title: "Aset Tetap", url: "/finance/fixed-assets", icon: IconBuilding, group: "Aset Tetap" },
+      { title: "Gaji & SDM", url: "/hcm/payroll", icon: IconCash, group: "Terkait" },
     ],
   },
   {

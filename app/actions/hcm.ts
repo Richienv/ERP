@@ -1363,7 +1363,7 @@ export async function getPayrollRun(period: string) {
                 run: {
                     period: payload.period,
                     periodLabel: payload.periodLabel,
-                    summary: payload.summary,
+                    summary: payload.summary ?? { gross: 0, deductions: 0, net: 0, employees: 0, overtimeHours: 0 },
                     status:
                         payload.status === 'POSTED' || payload.postedJournalReference
                             ? 'POSTED'
