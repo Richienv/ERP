@@ -822,6 +822,8 @@ async function fetchInventoryTurnover(start: Date, end: Date) {
 // ─── 10. Tax Report (PPN) ──────────────────────────────────────────────────
 
 async function fetchTaxReport(start: Date, end: Date) {
+    const PPN_RATE = 0.11 // PPN 11% — Indonesian standard
+
     const [outInvoices, inInvoices] = await Promise.all([
         prisma.invoice.findMany({
             where: {
@@ -851,20 +853,28 @@ async function fetchTaxReport(start: Date, end: Date) {
         }),
     ])
 
-    const totalPPNKeluaran = outInvoices.reduce((s, i) => s + Number(i.taxAmount || 0), 0)
-    const totalPPNMasukan = inInvoices.reduce((s, i) => s + Number(i.taxAmount || 0), 0)
+    // Helper: use stored taxAmount if > 0, otherwise compute at PPN_RATE from subtotal
+    const effectivePPN = (taxAmount: unknown, subtotal: unknown): number => {
+        const stored = Number(taxAmount || 0)
+        if (stored > 0.01) return stored
+        const sub = Number(subtotal || 0)
+        return sub > 0 ? Math.round(sub * PPN_RATE) : 0
+    }
+
+    const totalPPNKeluaran = outInvoices.reduce((s, i) => s + effectivePPN(i.taxAmount, i.subtotal), 0)
+    const totalPPNMasukan = inInvoices.reduce((s, i) => s + effectivePPN(i.taxAmount, i.subtotal), 0)
     const netPPN = totalPPNKeluaran - totalPPNMasukan
 
     const months: Record<string, { keluaran: number; masukan: number }> = {}
     for (const inv of outInvoices) {
         const key = new Date(inv.issueDate).toISOString().slice(0, 7)
         if (!months[key]) months[key] = { keluaran: 0, masukan: 0 }
-        months[key].keluaran += Number(inv.taxAmount || 0)
+        months[key].keluaran += effectivePPN(inv.taxAmount, inv.subtotal)
     }
     for (const inv of inInvoices) {
         const key = new Date(inv.issueDate).toISOString().slice(0, 7)
         if (!months[key]) months[key] = { keluaran: 0, masukan: 0 }
-        months[key].masukan += Number(inv.taxAmount || 0)
+        months[key].masukan += effectivePPN(inv.taxAmount, inv.subtotal)
     }
 
     const monthlyBreakdown = Object.entries(months)
@@ -881,26 +891,34 @@ async function fetchTaxReport(start: Date, end: Date) {
         ppnKeluaran: {
             total: totalPPNKeluaran,
             invoiceCount: outInvoices.length,
-            items: outInvoices.map(i => ({
-                number: i.number,
-                date: i.issueDate,
-                partyName: i.customer?.name || '\u2014',
-                dpp: Number(i.subtotal),
-                ppn: Number(i.taxAmount || 0),
-                total: Number(i.totalAmount),
-            })),
+            items: outInvoices.map(i => {
+                const ppn = effectivePPN(i.taxAmount, i.subtotal)
+                const dpp = Number(i.subtotal)
+                return {
+                    number: i.number,
+                    date: i.issueDate,
+                    partyName: i.customer?.name || '\u2014',
+                    dpp,
+                    ppn,
+                    total: dpp + ppn,
+                }
+            }),
         },
         ppnMasukan: {
             total: totalPPNMasukan,
             invoiceCount: inInvoices.length,
-            items: inInvoices.map(i => ({
-                number: i.number,
-                date: i.issueDate,
-                partyName: i.supplier?.name || '\u2014',
-                dpp: Number(i.subtotal),
-                ppn: Number(i.taxAmount || 0),
-                total: Number(i.totalAmount),
-            })),
+            items: inInvoices.map(i => {
+                const ppn = effectivePPN(i.taxAmount, i.subtotal)
+                const dpp = Number(i.subtotal)
+                return {
+                    number: i.number,
+                    date: i.issueDate,
+                    partyName: i.supplier?.name || '\u2014',
+                    dpp,
+                    ppn,
+                    total: dpp + ppn,
+                }
+            }),
         },
         netPPN,
         status: netPPN >= 0 ? 'KURANG_BAYAR' as const : 'LEBIH_BAYAR' as const,
