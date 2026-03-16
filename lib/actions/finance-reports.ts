@@ -822,6 +822,7 @@ export async function getTaxReport(startDate: string, endDate: string) {
                         total: totalPPNKeluaran,
                         invoiceCount: outInvoices.length,
                         items: outInvoices.map(i => ({
+                            id: i.id,
                             number: i.number,
                             date: i.issueDate,
                             partyName: i.customer?.name || '—',
@@ -834,6 +835,7 @@ export async function getTaxReport(startDate: string, endDate: string) {
                         total: totalPPNMasukan,
                         invoiceCount: inInvoices.length,
                         items: inInvoices.map(i => ({
+                            id: i.id,
                             number: i.number,
                             date: i.issueDate,
                             partyName: i.supplier?.name || '—',

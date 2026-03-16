@@ -1274,6 +1274,7 @@ export default function FinancialReportsPage() {
                             })()}
 
                             {/* Cash Flow */}
+                            {/* Cash Flow — drill-down skipped: CF line items only have description+amount, no GL account codes to drill into */}
                             {reportType === "cf" && cashFlowData && (
                                 <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
                                     <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center gap-2">
@@ -1479,16 +1480,33 @@ export default function FinancialReportsPage() {
                                                         </TableRow>
                                                     ) : (
                                                         equityData.accounts.map((acc: any, idx: number) => (
-                                                            <TableRow key={idx}>
-                                                                <TableCell className="text-sm font-bold">
-                                                                    <span className="font-mono text-zinc-400 mr-2">{acc.accountCode}</span>
-                                                                    {acc.accountName}
-                                                                </TableCell>
-                                                                <TableCell className="text-right font-mono text-sm">{formatIDR(acc.openingBalance)}</TableCell>
-                                                                <TableCell className="text-right font-mono text-sm text-emerald-600">{acc.additions > 0 ? formatIDR(acc.additions) : "-"}</TableCell>
-                                                                <TableCell className="text-right font-mono text-sm text-red-600">{acc.deductions > 0 ? `(${formatIDR(acc.deductions)})` : "-"}</TableCell>
-                                                                <TableCell className="text-right font-mono text-sm font-bold">{formatIDR(acc.closingBalance)}</TableCell>
-                                                            </TableRow>
+                                                            <React.Fragment key={idx}>
+                                                                <TableRow
+                                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                    onClick={() => toggleDrillDown(`eq-${acc.accountCode}`, acc.accountCode)}
+                                                                >
+                                                                    <TableCell className="text-sm font-bold">
+                                                                        <span className="flex items-center gap-2">
+                                                                            <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`eq-${acc.accountCode}`) ? 'rotate-90' : ''}`} />
+                                                                            <span className="font-mono text-zinc-400 mr-2">{acc.accountCode}</span>
+                                                                            {acc.accountName}
+                                                                        </span>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{formatIDR(acc.openingBalance)}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm text-emerald-600">{acc.additions > 0 ? formatIDR(acc.additions) : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm text-red-600">{acc.deductions > 0 ? `(${formatIDR(acc.deductions)})` : "-"}</TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm font-bold">{formatIDR(acc.closingBalance)}</TableCell>
+                                                                </TableRow>
+                                                                {expandedAccounts.has(`eq-${acc.accountCode}`) && (
+                                                                    <TableRow>
+                                                                        <TableCell colSpan={5} className="p-0">
+                                                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} transition={{ duration: 0.2 }}>
+                                                                                <DrillDownPanel rows={drillDownCache.get(`eq-${acc.accountCode}`) || []} loading={drillDownLoading === `eq-${acc.accountCode}`} formatIDR={formatIDR} />
+                                                                            </motion.div>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                )}
+                                                            </React.Fragment>
                                                         ))
                                                     )}
                                                     {/* Net Income row */}
@@ -1892,8 +1910,14 @@ export default function FinancialReportsPage() {
                                                                 </TableRow>
                                                             ) : (
                                                                 taxData.ppnKeluaran.items.map((item: any, idx: number) => (
-                                                                    <TableRow key={idx}>
-                                                                        <TableCell className="font-mono text-sm">{item.number}</TableCell>
+                                                                    <TableRow key={idx} className="hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors">
+                                                                        <TableCell className="font-mono text-sm">
+                                                                            {item.id ? (
+                                                                                <Link href={`/finance/invoices?highlight=${item.id}`} className="text-orange-500 hover:text-orange-700 hover:underline font-bold">
+                                                                                    {item.number}
+                                                                                </Link>
+                                                                            ) : item.number}
+                                                                        </TableCell>
                                                                         <TableCell className="text-sm">{new Date(item.date).toLocaleDateString("id-ID")}</TableCell>
                                                                         <TableCell className="text-sm">{item.partyName}</TableCell>
                                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(item.dpp)}</TableCell>
@@ -1944,8 +1968,14 @@ export default function FinancialReportsPage() {
                                                                 </TableRow>
                                                             ) : (
                                                                 taxData.ppnMasukan.items.map((item: any, idx: number) => (
-                                                                    <TableRow key={idx}>
-                                                                        <TableCell className="font-mono text-sm">{item.number}</TableCell>
+                                                                    <TableRow key={idx} className="hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors">
+                                                                        <TableCell className="font-mono text-sm">
+                                                                            {item.id ? (
+                                                                                <Link href={`/finance/bills?highlight=${item.id}`} className="text-orange-500 hover:text-orange-700 hover:underline font-bold">
+                                                                                    {item.number}
+                                                                                </Link>
+                                                                            ) : item.number}
+                                                                        </TableCell>
                                                                         <TableCell className="text-sm">{new Date(item.date).toLocaleDateString("id-ID")}</TableCell>
                                                                         <TableCell className="text-sm">{item.partyName}</TableCell>
                                                                         <TableCell className="text-right font-mono text-sm">{formatIDR(item.dpp)}</TableCell>
