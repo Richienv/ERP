@@ -312,8 +312,8 @@ export default function InvoicesPage() {
                 const text = encodeURIComponent(sendMessage)
                 window.open(`https://wa.me/${phone}?text=${text}`, '_blank')
             }
-        } catch {
-            toast.error("Gagal mengirim invoice")
+        } catch (err: any) {
+            toast.error(err?.message || "Gagal mengirim invoice")
         } finally {
             setSending(false)
             setActiveInvoice(null)
