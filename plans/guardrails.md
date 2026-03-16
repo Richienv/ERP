@@ -73,3 +73,18 @@ Learned constraints that prevent repeated failures. Append-only — mistakes eva
 **Trigger:** Seeing test failures in `app/actions/inventory.test.ts`
 **Instruction:** Baseline is 296/301 tests pass. 5 failures are pre-existing (cookies scope + pool exhaustion). Do NOT attempt to fix these unless explicitly tasked. They are not regressions from your work.
 **Reason:** Fixing unrelated pre-existing failures wastes iterations and risks introducing new bugs.
+
+### SIGN-015: Never Hardcode GL Account Codes
+**Trigger:** Writing any server action that references a GL account code (e.g., '1100', '2100', '1010', '4000')
+**Instruction:** ALWAYS use `SYS_ACCOUNTS` from `lib/gl-accounts.ts`. Call `await ensureSystemAccounts()` before `postJournalEntry()`. If a new account code is needed, add it to `SYS_ACCOUNTS` and `SYSTEM_ACCOUNT_DEFS` first.
+**Reason:** Finance bugs B-012 through B-018 were ALL caused by hardcoded codes not matching the database. The codes in the seed file and the codes in the server actions were different, causing "Account code not found" errors and empty COA/reports.
+
+### SIGN-016: Every Financial Transaction Needs a Journal Entry
+**Trigger:** Implementing any feature that creates, modifies, or settles a financial document (invoice, bill, payment, credit note, petty cash, fixed asset depreciation, inventory adjustment)
+**Instruction:** The transaction MUST call `postJournalEntry()` with balanced debit/credit lines. If GL posting fails, revert the document status. See CLAUDE.md "Finance Module — Double-Entry Bookkeeping Rules" for standard patterns.
+**Reason:** Without journal entries, data exists in the module's table but never appears in COA, financial reports, or aging reports. This was the #1 bug pattern found in the March 2026 finance audit.
+
+### SIGN-017: Import from Domain-Specific Finance Files
+**Trigger:** Writing imports for finance server actions
+**Instruction:** Import from domain-specific files (`finance-ar.ts`, `finance-ap.ts`, `finance-gl.ts`, `finance-invoices.ts`, `finance-reports.ts`), NOT from the monolithic `finance.ts`. The monolithic file has deprecated/inferior implementations.
+**Reason:** The `finance.ts` getARPaymentRegistry had a broken 100-invoice hard limit with client-side filtering. The correct implementation in `finance-ar.ts` uses DB-level filtering. 7 hooks were found importing from the wrong file.

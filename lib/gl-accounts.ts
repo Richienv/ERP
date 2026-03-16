@@ -23,6 +23,11 @@ export const SYS_ACCOUNTS = {
   // --- Receivables ---
   AR:             "1200",  // Piutang Usaha (seed: 1200)
 
+  // --- Inventory ---
+  INVENTORY_ASSET: "1300",  // Persediaan Barang Jadi (Finished Goods)
+  RAW_MATERIALS:   "1310",  // Persediaan Bahan Baku
+  WIP:             "1320",  // Persediaan Dalam Proses (Work in Progress)
+
   // --- Tax Assets ---
   PPN_MASUKAN:    "1330",  // PPN Masukan (Input VAT) — added to seed
 
@@ -35,6 +40,9 @@ export const SYS_ACCOUNTS = {
   // --- Deferred Revenue ---
   DEFERRED_REV:   "2121",  // Pendapatan Diterima Dimuka
 
+  // --- Equity ---
+  RETAINED_EARNINGS: "3100", // Laba Ditahan (for opening balances)
+
   // --- Revenue ---
   REVENUE:        "4000",  // Pendapatan Penjualan (seed: 4000)
 
@@ -46,6 +54,10 @@ export const SYS_ACCOUNTS = {
                            // NOT 6000 — Raymond's DB has 6000 as LIABILITY "Accrued Expenses"
   DEPRECIATION:   "6290",  // Beban Penyusutan (seed: 6290)
 
+  // --- Losses & Adjustments ---
+  LOSS_WRITEOFF:    "8200",  // Kerugian / Penghapusan
+  INV_ADJUSTMENT:   "8300",  // Penyesuaian Persediaan
+
   // --- Accumulated Depreciation ---
   ACC_DEPRECIATION: "1590", // Akumulasi Penyusutan (seed: 1590)
 } as const
@@ -56,15 +68,21 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.BANK_BCA,         name: "Bank BCA",                      type: "ASSET" },
   { code: SYS_ACCOUNTS.BANK_MANDIRI,     name: "Bank Mandiri",                  type: "ASSET" },
   { code: SYS_ACCOUNTS.AR,               name: "Piutang Usaha",                 type: "ASSET" },
+  { code: SYS_ACCOUNTS.INVENTORY_ASSET,  name: "Persediaan Barang Jadi",          type: "ASSET" },
+  { code: SYS_ACCOUNTS.RAW_MATERIALS,   name: "Persediaan Bahan Baku",           type: "ASSET" },
+  { code: SYS_ACCOUNTS.WIP,             name: "Persediaan Dalam Proses (WIP)",   type: "ASSET" },
   { code: SYS_ACCOUNTS.PPN_MASUKAN,      name: "PPN Masukan (Input VAT)",       type: "ASSET" },
   { code: SYS_ACCOUNTS.ACC_DEPRECIATION, name: "Akumulasi Penyusutan",          type: "ASSET" },
   { code: SYS_ACCOUNTS.AP,               name: "Utang Usaha (AP)",              type: "LIABILITY" },
   { code: SYS_ACCOUNTS.PPN_KELUARAN,     name: "Utang Pajak (PPN/PPh)",         type: "LIABILITY" },
   { code: SYS_ACCOUNTS.DEFERRED_REV,     name: "Pendapatan Diterima Dimuka",    type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.RETAINED_EARNINGS, name: "Laba Ditahan",                  type: "EQUITY" },
   { code: SYS_ACCOUNTS.REVENUE,          name: "Pendapatan Penjualan",          type: "REVENUE" },
   { code: SYS_ACCOUNTS.COGS,             name: "Beban Pokok Penjualan (HPP)",   type: "EXPENSE" },
   { code: SYS_ACCOUNTS.EXPENSE_DEFAULT,  name: "Beban Lain-lain",              type: "EXPENSE" },
   { code: SYS_ACCOUNTS.DEPRECIATION,     name: "Beban Penyusutan",              type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.LOSS_WRITEOFF,   name: "Kerugian / Penghapusan",          type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.INV_ADJUSTMENT,  name: "Penyesuaian Persediaan",          type: "EXPENSE" },
 ]
 
 let _ensured = false

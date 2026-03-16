@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
 
 /**
  * GET /api/inventory/opening-stock
@@ -105,32 +106,17 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // Ensure system GL accounts exist before posting
+        await ensureSystemAccounts()
+
         // Find GL accounts for journal entry
-        // DR: Inventory Asset (typically code starts with "1" for Asset)
-        // CR: Opening Balance Equity (typically code starts with "3" for Equity)
+        // DR: Inventory Asset, CR: Retained Earnings (opening balance equity)
         const [inventoryAssetAccount, openingBalanceEquityAccount] = await Promise.all([
             prisma.gLAccount.findFirst({
-                where: {
-                    OR: [
-                        { code: "1300" }, // Common: Inventory Asset
-                        { code: "1400" },
-                        { name: { contains: "Persediaan", mode: "insensitive" } },
-                        { name: { contains: "Inventory", mode: "insensitive" } },
-                    ],
-                    type: "ASSET",
-                },
+                where: { code: SYS_ACCOUNTS.INVENTORY_ASSET, type: "ASSET" },
             }),
             prisma.gLAccount.findFirst({
-                where: {
-                    OR: [
-                        { code: "3100" }, // Common: Opening Balance Equity
-                        { code: "3000" },
-                        { name: { contains: "Saldo Awal", mode: "insensitive" } },
-                        { name: { contains: "Opening Balance", mode: "insensitive" } },
-                        { name: { contains: "Modal", mode: "insensitive" } },
-                    ],
-                    type: "EQUITY",
-                },
+                where: { code: SYS_ACCOUNTS.RETAINED_EARNINGS, type: "EQUITY" },
             }),
         ])
 

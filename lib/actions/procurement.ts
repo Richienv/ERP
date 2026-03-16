@@ -2199,7 +2199,7 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                 invoiceId: result.billId,
                 lines: [
                     {
-                        accountCode: '1300',
+                        accountCode: SYS_ACCOUNTS.INVENTORY_ASSET,
                         debit: result.totalAmount,
                         credit: 0,
                         description: `Persediaan masuk — ${result.poNumber}`,
@@ -2415,7 +2415,7 @@ export async function createPurchaseReturn(input: CreatePurchaseReturnInput) {
             where: { code: SYS_ACCOUNTS.AP } // Accounts Payable
         })
         const inventoryAccount = await (tx as any).gLAccount.findFirst({
-            where: { code: '1300' } // Inventory
+            where: { code: SYS_ACCOUNTS.INVENTORY_ASSET } // Inventory
         })
 
         if (apAccount && inventoryAccount) {

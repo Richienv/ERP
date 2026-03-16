@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import { calculateActualCostOnCompletion } from '@/lib/wo-cost-helpers'
+import { SYS_ACCOUNTS } from '@/lib/gl-accounts'
 
 // Find the best default warehouse by type, with GENERAL as fallback.
 async function findDefaultWarehouse(
@@ -268,8 +269,8 @@ async function executeProductionPosting(
             description: `WO ${workOrder.number} - Material to WIP`,
             reference: workOrder.number,
             lines: [
-                { accountCode: '1320', debit: totalMaterialCost, credit: 0, description: 'WIP increase' },
-                { accountCode: '1310', debit: 0, credit: totalMaterialCost, description: 'Raw material decrease' },
+                { accountCode: SYS_ACCOUNTS.WIP, debit: totalMaterialCost, credit: 0, description: 'WIP increase' },
+                { accountCode: SYS_ACCOUNTS.RAW_MATERIALS, debit: 0, credit: totalMaterialCost, description: 'Raw material decrease' },
             ],
         })
 
@@ -277,8 +278,8 @@ async function executeProductionPosting(
             description: `WO ${workOrder.number} - WIP to Finished Goods`,
             reference: workOrder.number,
             lines: [
-                { accountCode: '1300', debit: totalMaterialCost, credit: 0, description: 'Finished goods increase' },
-                { accountCode: '1320', debit: 0, credit: totalMaterialCost, description: 'WIP release' },
+                { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: totalMaterialCost, credit: 0, description: 'Finished goods increase' },
+                { accountCode: SYS_ACCOUNTS.WIP, debit: 0, credit: totalMaterialCost, description: 'WIP release' },
             ],
         })
     }
@@ -424,8 +425,8 @@ async function executeProductionReturn(
             description: `WO ${workOrder.number} - Retur Produksi: ${params.reason}`,
             reference: workOrder.number,
             lines: [
-                { accountCode: '1310', debit: totalMaterialCost, credit: 0, description: 'Retur bahan baku masuk' },
-                { accountCode: '1300', debit: 0, credit: totalMaterialCost, description: 'Barang jadi dikurangi' },
+                { accountCode: SYS_ACCOUNTS.RAW_MATERIALS, debit: totalMaterialCost, credit: 0, description: 'Retur bahan baku masuk' },
+                { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: 0, credit: totalMaterialCost, description: 'Barang jadi dikurangi' },
             ],
         })
     }

@@ -9,12 +9,14 @@ import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
  * keeping the balance sheet Inventory Asset account accurate.
  *
  * Accounting rules:
- *   PO_RECEIVE      → DR Inventory Asset (1300),  CR Accounts Payable (2100)
- *   SO_SHIPMENT     → DR Cost of Goods Sold (5100), CR Inventory Asset (1300)
+ *   PO_RECEIVE      → DR Inventory Asset (1300),  CR Accounts Payable (2000)
+ *   SO_SHIPMENT     → DR Cost of Goods Sold (5000), CR Inventory Asset (1300)
  *   PRODUCTION_OUT  → DR Work-in-Progress (1320),  CR Raw Materials (1310)
  *   ADJUSTMENT_IN   → DR Inventory Asset (1300),  CR Inventory Adjustment (8300)
  *   ADJUSTMENT_OUT  → DR Inventory Adjustment (8300), CR Inventory Asset (1300)
  *   SCRAP           → DR Loss/Write-off (8200),   CR Inventory Asset (1300)
+ *   RETURN_IN       → DR Inventory Asset (1300),  CR COGS (5000) — reversal of SO_SHIPMENT
+ *   RETURN_OUT      → DR AP (2000),               CR Inventory Asset (1300) — reversal of PO_RECEIVE
  *   TRANSFER        → No GL entry (intra-entity movement)
  */
 
@@ -27,6 +29,8 @@ export type InventoryGLType =
     | 'ADJUSTMENT_IN'
     | 'ADJUSTMENT_OUT'
     | 'SCRAP'
+    | 'RETURN_IN'
+    | 'RETURN_OUT'
 
 export type PostInventoryGLParams = {
     transactionId: string
@@ -42,13 +46,13 @@ export type PostInventoryGLParams = {
 
 // ---- GL Account code constants ----
 
-const GL_INVENTORY_ASSET = '1300'
-const GL_RAW_MATERIALS = '1310'
-const GL_WORK_IN_PROGRESS = '1320'
+const GL_INVENTORY_ASSET = SYS_ACCOUNTS.INVENTORY_ASSET
+const GL_RAW_MATERIALS = SYS_ACCOUNTS.RAW_MATERIALS
+const GL_WORK_IN_PROGRESS = SYS_ACCOUNTS.WIP
 const GL_ACCOUNTS_PAYABLE = SYS_ACCOUNTS.AP
-const GL_COGS = '5100'
-const GL_LOSS_WRITEOFF = '8200'
-const GL_INVENTORY_ADJUSTMENT = '8300'
+const GL_COGS = SYS_ACCOUNTS.COGS  // Fixed: was '5100', now '5000' (HPP)
+const GL_LOSS_WRITEOFF = SYS_ACCOUNTS.LOSS_WRITEOFF
+const GL_INVENTORY_ADJUSTMENT = SYS_ACCOUNTS.INV_ADJUSTMENT
 
 // ---- Description templates (Bahasa Indonesia) ----
 
@@ -67,6 +71,10 @@ function glDescription(type: InventoryGLType, productName: string, ref?: string)
             return `Penyesuaian persediaan keluar - ${productName}${suffix}`
         case 'SCRAP':
             return `Penghapusan persediaan (scrap) - ${productName}${suffix}`
+        case 'RETURN_IN':
+            return `Retur penjualan masuk (reversal HPP) - ${productName}${suffix}`
+        case 'RETURN_OUT':
+            return `Retur pembelian keluar - ${productName}${suffix}`
     }
 }
 
@@ -183,6 +191,24 @@ export async function postInventoryGLEntry(
                     findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
                 ])
                 pair = { debitAccount: loss, creditAccount: inv }
+                break
+            }
+            case 'RETURN_IN': {
+                // Reversal of SO_SHIPMENT: DR Inventory Asset, CR COGS
+                const [inv, cogs] = await Promise.all([
+                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+                    findGLAccount(prisma, GL_COGS, 'Harga Pokok', 'EXPENSE'),
+                ])
+                pair = { debitAccount: inv, creditAccount: cogs }
+                break
+            }
+            case 'RETURN_OUT': {
+                // Reversal of PO_RECEIVE: DR AP, CR Inventory Asset
+                const [ap, inv] = await Promise.all([
+                    findGLAccount(prisma, GL_ACCOUNTS_PAYABLE, 'Hutang', 'LIABILITY'),
+                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+                ])
+                pair = { debitAccount: ap, creditAccount: inv }
                 break
             }
         }
