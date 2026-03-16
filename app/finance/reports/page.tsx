@@ -2069,19 +2069,37 @@ export default function FinancialReportsPage() {
                                                     ) : (
                                                         budgetVsActualData.items.map((item: any, idx: number) => {
                                                             const isNegativeVariance = item.variance < 0
+                                                            const bKey = `bva-${item.accountCode}`
                                                             return (
-                                                                <TableRow key={idx} className={isNegativeVariance ? "bg-red-50/50 dark:bg-red-900/10" : ""}>
-                                                                    <TableCell className="font-mono font-bold text-sm">{item.accountCode}</TableCell>
-                                                                    <TableCell className="text-sm">{item.accountName}</TableCell>
-                                                                    <TableCell className="text-right font-mono text-sm">{formatIDR(item.budgetAmount)}</TableCell>
-                                                                    <TableCell className="text-right font-mono text-sm">{formatIDR(item.actualAmount)}</TableCell>
-                                                                    <TableCell className={`text-right font-mono text-sm font-bold ${isNegativeVariance ? "text-red-600" : "text-emerald-600"}`}>
-                                                                        {isNegativeVariance ? `(${formatIDR(Math.abs(item.variance))})` : formatIDR(item.variance)}
-                                                                    </TableCell>
-                                                                    <TableCell className={`text-right font-mono text-sm font-bold ${isNegativeVariance ? "text-red-600" : "text-emerald-600"}`}>
-                                                                        {isNegativeVariance ? "-" : ""}{Math.abs(item.variancePct).toFixed(1)}%
-                                                                    </TableCell>
-                                                                </TableRow>
+                                                                <React.Fragment key={idx}>
+                                                                    <TableRow
+                                                                        className={`cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors ${isNegativeVariance ? "bg-red-50/50 dark:bg-red-900/10" : ""}`}
+                                                                        onClick={() => toggleDrillDown(bKey, item.accountCode)}
+                                                                    >
+                                                                        <TableCell className="font-mono font-bold text-sm">
+                                                                            <span className="flex items-center gap-1.5">
+                                                                                <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(bKey) ? 'rotate-90' : ''}`} />
+                                                                                {item.accountCode}
+                                                                            </span>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-sm">{item.accountName}</TableCell>
+                                                                        <TableCell className="text-right font-mono text-sm">{formatIDR(item.budgetAmount)}</TableCell>
+                                                                        <TableCell className="text-right font-mono text-sm">{formatIDR(item.actualAmount)}</TableCell>
+                                                                        <TableCell className={`text-right font-mono text-sm font-bold ${isNegativeVariance ? "text-red-600" : "text-emerald-600"}`}>
+                                                                            {isNegativeVariance ? `(${formatIDR(Math.abs(item.variance))})` : formatIDR(item.variance)}
+                                                                        </TableCell>
+                                                                        <TableCell className={`text-right font-mono text-sm font-bold ${isNegativeVariance ? "text-red-600" : "text-emerald-600"}`}>
+                                                                            {isNegativeVariance ? "-" : ""}{Math.abs(item.variancePct).toFixed(1)}%
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                    {expandedAccounts.has(bKey) && (
+                                                                        <TableRow><TableCell colSpan={6} className="p-0">
+                                                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                                                <DrillDownPanel rows={drillDownCache.get(bKey) || []} loading={drillDownLoading === bKey} formatIDR={formatIDR} />
+                                                                            </motion.div>
+                                                                        </TableCell></TableRow>
+                                                                    )}
+                                                                </React.Fragment>
                                                             )
                                                         })
                                                     )}
