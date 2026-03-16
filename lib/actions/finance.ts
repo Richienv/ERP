@@ -5,6 +5,7 @@ import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { supabase } from "@/lib/supabase"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -2534,13 +2535,14 @@ export async function recordVendorPayment(data: {
                 if (bankAcct) bankAccountName = bankAcct.name
             } catch { /* fallback to default name */ }
 
-            // Post GL entry: DR AP, CR Cash/Bank
+            // Post GL entry: DR Hutang Usaha, CR Cash/Bank
+            await ensureSystemAccounts()
             const glResult = await postJournalEntry({
-                description: `Vendor Payment ${paymentNumber}`,
+                description: `Pembayaran Vendor ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2100', debit: data.amount, credit: 0, description: 'Hutang Usaha' },
+                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Pelunasan Hutang Usaha' },
                     { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
                 ]
             })
@@ -2910,42 +2912,43 @@ export async function approveAndPayBill(
                 await prisma.invoice.update({ where: { id: billId }, data: { status: 'ISSUED' } })
 
                 // Post AP Journal (Expense vs AP)
-                const glLines: any[] = []
+                await ensureSystemAccounts()
+                const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                 let totalAmount = 0
 
-                // Add Expense Lines
+                // Add Expense Lines — DR HPP/COGS
                 for (const item of bill.items) {
                     const amount = Number(item.amount)
                     totalAmount += amount
                     glLines.push({
-                        accountCode: '5000', // Default Expense (HPP)
+                        accountCode: SYS_ACCOUNTS.COGS,
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
                     })
                 }
 
-                // Add Tax
+                // Add Tax — DR PPN Masukan
                 if (Number(bill.taxAmount) > 0) {
                     glLines.push({
-                        accountCode: '1330', // VAT In
+                        accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
                         debit: Number(bill.taxAmount),
                         credit: 0,
-                        description: `VAT In - Bill ${bill.number}`
+                        description: `PPN Masukan - Bill ${bill.number}`
                     })
                     totalAmount += Number(bill.taxAmount)
                 }
 
-                // Add AP Credit
+                // Add AP Credit — CR Hutang Usaha
                 glLines.push({
-                    accountCode: '2100',
+                    accountCode: SYS_ACCOUNTS.AP,
                     debit: 0,
                     credit: totalAmount,
-                    description: `AP - ${bill.supplier?.name}`
+                    description: `Hutang - ${bill.supplier?.name}`
                 })
 
                 const approvalGl = await postJournalEntry({
-                    description: `Bill Approval (Instant Pay) #${bill.number} - ${bill.supplier?.name}`,
+                    description: `Tagihan Pembelian ${bill.number} - ${bill.supplier?.name}`,
                     date: new Date(),
                     reference: bill.number,
                     lines: glLines
@@ -2978,14 +2981,14 @@ export async function approveAndPayBill(
                 data: { status: 'PAID', balanceDue: 0 }
             })
 
-            // Post Cash Journal (Credit Bank 1100, Debit AP 2000)
+            // Post Cash Journal — DR Hutang Usaha, CR Bank
             const paymentGl = await postJournalEntry({
-                description: `Payment to ${bill.supplier?.name} for ${bill.number}`,
+                description: `Pembayaran ${bill.supplier?.name} - ${bill.number}`,
                 date: new Date(),
                 reference: paymentNumber,
                 lines: [
-                    { accountCode: '2100', debit: paymentDetails.amount, credit: 0, description: `AP Payment` }, // Debit AP (Liability connects)
-                    { accountCode: '1010', debit: 0, credit: paymentDetails.amount, description: `Bank Transfer` } // Credit Bank (Asset decreases)
+                    { accountCode: SYS_ACCOUNTS.AP, debit: paymentDetails.amount, credit: 0, description: `Pelunasan hutang ${bill.number}` },
+                    { accountCode: SYS_ACCOUNTS.BANK_BCA, debit: 0, credit: paymentDetails.amount, description: `Transfer ke ${bill.supplier?.name}` }
                 ]
             })
             if (!paymentGl?.success) {
