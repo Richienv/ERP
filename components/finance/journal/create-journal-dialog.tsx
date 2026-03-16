@@ -197,7 +197,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[92vw] w-full p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
+            <DialogContent className="max-w-[92vw] sm:max-w-[92vw] w-full p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
                 {/* ── Black header ── */}
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}>
