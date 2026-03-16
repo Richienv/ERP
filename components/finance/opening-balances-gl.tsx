@@ -10,6 +10,7 @@ import type { OpeningBalanceGLRow } from "@/lib/actions/finance-gl"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { motion, AnimatePresence } from "framer-motion"
+import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
 
 interface GLAccountOption {
     id: string
@@ -54,6 +55,12 @@ export function OpeningBalancesGL() {
     const isBalanced = difference < 0.01
     const validRows = rows.filter(r => r.accountCode && (r.debit > 0 || r.credit > 0))
     const getAccountForCode = (code: string) => accounts.find(a => a.code === code)
+
+    const accountOptions: ComboboxOption[] = accounts.map(a => ({
+        value: a.code,
+        label: a.name,
+        subtitle: a.code,
+    }))
 
     async function handleSubmit() {
         if (validRows.length === 0) { toast.error("Tidak ada baris yang valid"); return }
@@ -122,19 +129,16 @@ export function OpeningBalancesGL() {
                             >
                                 <div className="px-2 py-2 text-[11px] text-zinc-300 font-black text-center">{idx + 1}</div>
                                 <div className="px-2 py-1.5">
-                                    <select
+                                    <ComboboxWithCreate
+                                        options={accountOptions}
                                         value={row.accountCode}
-                                        onChange={(e) => updateRow(idx, "accountCode", e.target.value)}
-                                        className={`w-full h-8 text-xs font-bold border rounded-none px-2 transition-all ${
-                                            row.accountCode ? NB.inputActive : "border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900"
-                                        }`}
-                                        disabled={accountsLoading}
-                                    >
-                                        <option value="">Pilih akun...</option>
-                                        {accounts.map((a) => (
-                                            <option key={a.id} value={a.code}>{a.code} — {a.name}</option>
-                                        ))}
-                                    </select>
+                                        onChange={(v) => updateRow(idx, "accountCode", v)}
+                                        placeholder="Pilih akun..."
+                                        searchPlaceholder="Cari kode atau nama..."
+                                        emptyMessage="Akun tidak ditemukan"
+                                        isLoading={accountsLoading}
+                                        className="h-8 text-xs"
+                                    />
                                 </div>
                                 <div className="px-2 py-1.5 flex justify-center">
                                     {badge && (
