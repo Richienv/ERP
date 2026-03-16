@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Fragment } from "react"
+import { useState, useEffect, Fragment, useRef } from "react"
 import Link from "next/link"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -1112,12 +1112,18 @@ function groupByWeek(items: UpcomingObligationItem[]): { weekLabel: string; week
 const MONTH_NAMES_SHORT = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
 
 function UpcomingObligationsSection({ upcoming }: { upcoming?: UpcomingObligationsData }) {
-    const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
     const items = upcoming?.items ?? []
     const weekGroups = groupByWeek(items)
+    const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
+    const didInit = useRef(false)
 
-    // Auto-expand first 2 weeks
-    const initialExpanded = weekGroups.slice(0, 2).map(g => g.weekStart)
+    // Auto-expand first 2 weeks on initial data load
+    useEffect(() => {
+        if (!didInit.current && weekGroups.length > 0) {
+            setExpandedWeeks(new Set(weekGroups.slice(0, 2).map(g => g.weekStart)))
+            didInit.current = true
+        }
+    }, [weekGroups])
 
     function toggleWeek(weekStart: string) {
         setExpandedWeeks(prev => {
@@ -1129,7 +1135,7 @@ function UpcomingObligationsSection({ upcoming }: { upcoming?: UpcomingObligatio
     }
 
     function isExpanded(weekStart: string) {
-        return expandedWeeks.has(weekStart) || initialExpanded.includes(weekStart)
+        return expandedWeeks.has(weekStart)
     }
 
     return (
@@ -1196,79 +1202,124 @@ function UpcomingObligationsSection({ upcoming }: { upcoming?: UpcomingObligatio
                             {/* Week header — clickable */}
                             <button
                                 onClick={() => toggleWeek(group.weekStart)}
-                                className={`w-full px-5 py-3 flex items-center justify-between text-left hover:bg-zinc-50 transition-colors ${
-                                    isCurrentWeek ? "bg-emerald-50/50" : ""
+                                className={`w-full px-5 py-3 flex items-center justify-between text-left transition-all duration-200 group border-l-[3px] ${
+                                    expanded
+                                        ? "bg-orange-50/60 dark:bg-orange-950/10 border-l-orange-400"
+                                        : isCurrentWeek
+                                            ? "bg-emerald-50/50 hover:bg-emerald-50 border-l-emerald-400"
+                                            : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-transparent"
                                 }`}
                             >
                                 <div className="flex items-center gap-3">
-                                    <IconChevronDown
-                                        size={16}
-                                        className={`transition-transform text-zinc-400 ${expanded ? "" : "-rotate-90"}`}
-                                    />
+                                    <div className={`w-6 h-6 flex items-center justify-center transition-all duration-200 ${
+                                        expanded
+                                            ? "bg-orange-500 text-white"
+                                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 group-hover:bg-zinc-200 dark:group-hover:bg-zinc-700"
+                                    }`}>
+                                        <IconChevronDown
+                                            size={14}
+                                            className={`transition-transform duration-300 ${expanded ? "" : "-rotate-90"}`}
+                                        />
+                                    </div>
                                     <span className="text-sm font-black">{group.weekLabel}</span>
                                     {isCurrentWeek && (
                                         <span className="text-[10px] font-black bg-emerald-500 text-white px-2 py-0.5 uppercase tracking-wider">
                                             Minggu Ini
                                         </span>
                                     )}
-                                    <span className="text-xs text-zinc-400">{group.items.length} item</span>
+                                    <span className={`text-[10px] font-bold px-2 py-0.5 border transition-colors ${
+                                        expanded ? "border-orange-300 bg-orange-100 text-orange-700 dark:border-orange-600 dark:bg-orange-900/30 dark:text-orange-400" : "border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                                    }`}>
+                                        {group.items.length} item
+                                    </span>
                                 </div>
-                                <div className="flex items-center gap-4 text-sm font-bold">
-                                    {group.totalIn > 0 && <span className="text-emerald-600">+{formatCompact(group.totalIn)}</span>}
-                                    {group.totalOut > 0 && <span className="text-red-600">-{formatCompact(group.totalOut)}</span>}
+                                <div className="flex items-center gap-3 text-sm font-bold">
+                                    {group.totalIn > 0 && (
+                                        <span className="text-emerald-600 flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                                            +{formatCompact(group.totalIn)}
+                                        </span>
+                                    )}
+                                    {group.totalOut > 0 && (
+                                        <span className="text-red-600 flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+                                            -{formatCompact(group.totalOut)}
+                                        </span>
+                                    )}
+                                    {(() => {
+                                        const net = group.totalIn - group.totalOut
+                                        return (
+                                            <span className={`text-xs font-black px-1.5 py-0.5 border ${
+                                                net >= 0
+                                                    ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400"
+                                                    : "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400"
+                                            }`}>
+                                                {net >= 0 ? "+" : ""}{formatCompact(net)}
+                                            </span>
+                                        )
+                                    })()}
                                 </div>
                             </button>
 
-                            {/* Expanded items */}
-                            {expanded && (
-                                <div className="border-t border-zinc-100">
-                                    <table className="w-full text-sm">
-                                        <thead>
-                                            <tr className="bg-zinc-50">
-                                                <th className="text-left px-5 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider w-[90px]">Tanggal</th>
-                                                <th className="text-left px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider w-[90px]">Tipe</th>
-                                                <th className="text-left px-3 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider">Deskripsi</th>
-                                                <th className="text-right px-5 py-2 text-xs font-bold text-zinc-400 uppercase tracking-wider w-[150px]">Jumlah</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {group.items.map(item => {
-                                                const dateStr = item.date.split("-")
-                                                const displayDate = `${dateStr[2]}/${dateStr[1]}/${dateStr[0].slice(2)}`
-                                                const typeColor = SOURCE_TYPE_COLORS[item.sourceType] || SOURCE_TYPE_COLORS.MANUAL
-                                                const typeLabel = SOURCE_TYPE_LABELS[item.sourceType] || item.sourceType
-                                                const isPastDue = item.date < today
+                            {/* Expanded items — smooth CSS grid transition */}
+                            <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                                <div className="overflow-hidden">
+                                    <div className={`border-t border-zinc-100 transition-opacity duration-200 ${expanded ? "opacity-100" : "opacity-0"}`}>
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="bg-zinc-50 dark:bg-zinc-800/50">
+                                                    <th className="text-left px-5 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-widest w-[90px]">Tanggal</th>
+                                                    <th className="text-left px-3 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-widest w-[90px]">Tipe</th>
+                                                    <th className="text-left px-3 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Deskripsi</th>
+                                                    <th className="text-right px-5 py-2 text-[10px] font-black text-zinc-400 uppercase tracking-widest w-[150px]">Jumlah</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {group.items.map((item, itemIdx) => {
+                                                    const dateStr = item.date.split("-")
+                                                    const displayDate = `${dateStr[2]}/${dateStr[1]}/${dateStr[0].slice(2)}`
+                                                    const typeColor = SOURCE_TYPE_COLORS[item.sourceType] || SOURCE_TYPE_COLORS.MANUAL
+                                                    const typeLabel = SOURCE_TYPE_LABELS[item.sourceType] || item.sourceType
+                                                    const isPastDue = item.date < today
 
-                                                return (
-                                                    <tr key={item.id} className={`border-b border-zinc-100 hover:bg-zinc-50 ${isPastDue ? "bg-red-50/30" : ""}`}>
-                                                        <td className="px-5 py-2.5 font-bold text-zinc-500 tabular-nums">
-                                                            {displayDate}
-                                                            {isPastDue && <span className="text-[9px] text-red-500 font-black ml-1">TELAT</span>}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <span className={`text-[10px] font-bold px-2 py-0.5 border ${typeColor}`}>
-                                                                {typeLabel}
-                                                            </span>
-                                                        </td>
-                                                        <td className="px-3 py-2.5 max-w-[350px]">
-                                                            {item.sourceUrl ? (
-                                                                <Link href={item.sourceUrl} className="hover:underline text-blue-700 font-medium truncate block" title={item.description}>
-                                                                    {item.description}
-                                                                </Link>
-                                                            ) : (
-                                                                <span className="truncate block" title={item.description}>{item.description}</span>
-                                                            )}
-                                                        </td>
-                                                        <td className={`px-5 py-2.5 text-right font-black tabular-nums ${item.direction === "IN" ? "text-emerald-600" : "text-red-600"}`}>
-                                                            {item.direction === "IN" ? "+" : "-"}{formatCurrency(item.amount)}
-                                                        </td>
-                                                    </tr>
-                                                )
-                                            })}
-                                        </tbody>
-                                    </table>
+                                                    return (
+                                                        <tr
+                                                            key={item.id}
+                                                            className={`border-b border-zinc-100 dark:border-zinc-800 transition-colors hover:bg-orange-50/40 dark:hover:bg-orange-950/10 ${
+                                                                isPastDue ? "bg-red-50/40 dark:bg-red-950/10" : itemIdx % 2 === 1 ? "bg-zinc-50/40 dark:bg-zinc-800/20" : ""
+                                                            }`}
+                                                        >
+                                                            <td className="px-5 py-2.5 font-bold text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                                                {displayDate}
+                                                                {isPastDue && (
+                                                                    <span className="text-[9px] text-red-500 font-black ml-1.5 bg-red-100 dark:bg-red-900/30 px-1 py-0.5 border border-red-200 dark:border-red-800">TELAT</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <span className={`text-[10px] font-bold px-2 py-0.5 border ${typeColor}`}>
+                                                                    {typeLabel}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-3 py-2.5 max-w-[350px]">
+                                                                {item.sourceUrl ? (
+                                                                    <Link href={item.sourceUrl} className="hover:underline text-blue-700 dark:text-blue-400 font-medium truncate block" title={item.description}>
+                                                                        {item.description}
+                                                                    </Link>
+                                                                ) : (
+                                                                    <span className="truncate block text-zinc-700 dark:text-zinc-300" title={item.description}>{item.description}</span>
+                                                                )}
+                                                            </td>
+                                                            <td className={`px-5 py-2.5 text-right font-black tabular-nums ${item.direction === "IN" ? "text-emerald-600" : "text-red-600"}`}>
+                                                                {item.direction === "IN" ? "+" : "-"}{formatCurrency(item.amount)}
+                                                            </td>
+                                                        </tr>
+                                                    )
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                            )}
+                            </div>
                         </div>
                     )
                 })}
