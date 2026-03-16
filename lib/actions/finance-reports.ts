@@ -788,17 +788,8 @@ export async function getTaxReport(startDate: string, endDate: string) {
                 orderBy: { issueDate: 'asc' },
             })
 
-            // PPN 11% — if taxAmount is 0 in DB, compute from subtotal
-            const PPN_RATE = 0.11
-            const effectivePPN = (taxAmount: unknown, subtotal: unknown): number => {
-                const stored = Number(taxAmount || 0)
-                if (stored > 0.01) return stored
-                const sub = Number(subtotal || 0)
-                return sub > 0 ? Math.round(sub * PPN_RATE) : 0
-            }
-
-            const totalPPNKeluaran = outInvoices.reduce((s, i) => s + effectivePPN(i.taxAmount, i.subtotal), 0)
-            const totalPPNMasukan = inInvoices.reduce((s, i) => s + effectivePPN(i.taxAmount, i.subtotal), 0)
+            const totalPPNKeluaran = outInvoices.reduce((s, i) => s + Number(i.taxAmount || 0), 0)
+            const totalPPNMasukan = inInvoices.reduce((s, i) => s + Number(i.taxAmount || 0), 0)
             const netPPN = totalPPNKeluaran - totalPPNMasukan
 
             // Monthly breakdown
@@ -806,12 +797,12 @@ export async function getTaxReport(startDate: string, endDate: string) {
             for (const inv of outInvoices) {
                 const key = new Date(inv.issueDate).toISOString().slice(0, 7) // YYYY-MM
                 if (!months[key]) months[key] = { keluaran: 0, masukan: 0 }
-                months[key].keluaran += effectivePPN(inv.taxAmount, inv.subtotal)
+                months[key].keluaran += Number(inv.taxAmount || 0)
             }
             for (const inv of inInvoices) {
                 const key = new Date(inv.issueDate).toISOString().slice(0, 7)
                 if (!months[key]) months[key] = { keluaran: 0, masukan: 0 }
-                months[key].masukan += effectivePPN(inv.taxAmount, inv.subtotal)
+                months[key].masukan += Number(inv.taxAmount || 0)
             }
 
             const monthlyBreakdown = Object.entries(months)
@@ -830,36 +821,28 @@ export async function getTaxReport(startDate: string, endDate: string) {
                     ppnKeluaran: {
                         total: totalPPNKeluaran,
                         invoiceCount: outInvoices.length,
-                        items: outInvoices.map(i => {
-                            const ppn = effectivePPN(i.taxAmount, i.subtotal)
-                            const dpp = Number(i.subtotal)
-                            return {
-                                id: i.id,
-                                number: i.number,
-                                date: i.issueDate,
-                                partyName: i.customer?.name || '—',
-                                dpp,
-                                ppn,
-                                total: dpp + ppn,
-                            }
-                        }),
+                        items: outInvoices.map(i => ({
+                            id: i.id,
+                            number: i.number,
+                            date: i.issueDate,
+                            partyName: i.customer?.name || '—',
+                            dpp: Number(i.subtotal),
+                            ppn: Number(i.taxAmount || 0),
+                            total: Number(i.totalAmount),
+                        })),
                     },
                     ppnMasukan: {
                         total: totalPPNMasukan,
                         invoiceCount: inInvoices.length,
-                        items: inInvoices.map(i => {
-                            const ppn = effectivePPN(i.taxAmount, i.subtotal)
-                            const dpp = Number(i.subtotal)
-                            return {
-                                id: i.id,
-                                number: i.number,
-                                date: i.issueDate,
-                                partyName: i.supplier?.name || '—',
-                                dpp,
-                                ppn,
-                                total: dpp + ppn,
-                            }
-                        }),
+                        items: inInvoices.map(i => ({
+                            id: i.id,
+                            number: i.number,
+                            date: i.issueDate,
+                            partyName: i.supplier?.name || '—',
+                            dpp: Number(i.subtotal),
+                            ppn: Number(i.taxAmount || 0),
+                            total: Number(i.totalAmount),
+                        })),
                     },
                     netPPN,
                     status: netPPN >= 0 ? 'KURANG_BAYAR' : 'LEBIH_BAYAR',
