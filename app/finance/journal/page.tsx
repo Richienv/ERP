@@ -540,11 +540,11 @@ export default function GeneralLedgerPage() {
 
                                             {/* Status + actions */}
                                             <div className="flex items-center gap-2 justify-end">
-                                                {/* Edit button for DRAFT */}
+                                                {/* Edit button for DRAFT — always visible */}
                                                 {isDraft && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); setEditEntry(entry) }}
-                                                        className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 transition-all flex items-center gap-1.5 opacity-0 group-hover/row:opacity-100"
+                                                        className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider border-2 border-amber-400 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 hover:bg-amber-500 hover:text-white hover:border-amber-500 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,0.15)] hover:-translate-x-[0.5px] hover:-translate-y-[0.5px] active:translate-x-0 active:translate-y-0 active:shadow-none transition-all flex items-center gap-1.5"
                                                     >
                                                         <Pencil className="h-3 w-3" /> Edit
                                                     </button>
