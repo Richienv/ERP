@@ -27,6 +27,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
 import { NB } from "@/lib/dialog-styles"
 import { postJournalEntry } from "@/lib/actions/finance"
+import { updateJournalEntry } from "@/lib/actions/finance-gl"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -41,14 +42,24 @@ interface JournalLine {
     credit: number
 }
 
+interface EditEntry {
+    id: string
+    date: Date
+    description: string
+    reference?: string
+    lines: { account: { code: string; name: string }; debit: number; credit: number; description?: string }[]
+}
+
 interface CreateJournalDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     glAccounts: { id: string; code: string; name: string }[]
+    editEntry?: EditEntry | null
 }
 
-export function CreateJournalDialog({ open, onOpenChange, glAccounts }: CreateJournalDialogProps) {
+export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry }: CreateJournalDialogProps) {
     const queryClient = useQueryClient()
+    const isEditMode = !!editEntry
     const [date, setDate] = useState<Date>(new Date())
     const [calOpen, setCalOpen] = useState(false)
     const [desc, setDesc] = useState("")
@@ -58,6 +69,24 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts }: CreateJo
         { accountId: "", description: "", debit: 0, credit: 0 },
         { accountId: "", description: "", debit: 0, credit: 0 },
     ])
+
+    // Pre-fill form when editEntry changes
+    const [lastEditId, setLastEditId] = useState<string | null>(null)
+    if (editEntry && editEntry.id !== lastEditId) {
+        setLastEditId(editEntry.id)
+        setDate(new Date(editEntry.date))
+        setDesc(editEntry.description)
+        setRef(editEntry.reference || "")
+        setLines(editEntry.lines.map(l => {
+            const acc = glAccounts.find(a => a.code === l.account.code)
+            return {
+                accountId: acc?.id || "",
+                description: l.description || "",
+                debit: l.debit,
+                credit: l.credit,
+            }
+        }))
+    }
 
     const totalDebit = lines.reduce((acc, l) => acc + (Number(l.debit) || 0), 0)
     const totalCredit = lines.reduce((acc, l) => acc + (Number(l.credit) || 0), 0)
@@ -94,6 +123,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts }: CreateJo
         setDate(new Date())
         setDesc("")
         setRef("")
+        setLastEditId(null)
         setLines([
             { accountId: "", description: "", debit: 0, credit: 0 },
             { accountId: "", description: "", debit: 0, credit: 0 },
@@ -131,15 +161,22 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts }: CreateJo
                 }
             })
 
-            const result = await postJournalEntry({
-                date,
-                description: desc,
-                reference: ref,
-                lines: entryLines,
-            })
+            const result = isEditMode
+                ? await updateJournalEntry(editEntry!.id, {
+                    date,
+                    description: desc,
+                    reference: ref,
+                    lines: entryLines,
+                })
+                : await postJournalEntry({
+                    date,
+                    description: desc,
+                    reference: ref,
+                    lines: entryLines,
+                })
 
             if (result.success) {
-                toast.success("Jurnal berhasil diposting")
+                toast.success(isEditMode ? "Jurnal berhasil diperbarui" : "Jurnal berhasil diposting")
                 resetForm()
                 onOpenChange(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
@@ -148,7 +185,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts }: CreateJo
                 queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
             } else {
-                toast.error(("error" in result ? result.error : "Gagal posting entry") || "Gagal posting entry")
+                toast.error(("error" in result ? String(result.error) : "Gagal posting entry") || "Gagal posting entry")
             }
         } catch {
             toast.error("Terjadi kesalahan saat posting")
@@ -163,10 +200,10 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts }: CreateJo
                 {/* ── Black header ── */}
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}>
-                        <BookText className="h-5 w-5" /> Buat Jurnal Baru
+                        <BookText className="h-5 w-5" /> {isEditMode ? "Edit Jurnal" : "Buat Jurnal Baru"}
                     </DialogTitle>
                     <p className={NB.subtitle}>
-                        Catat transaksi manual ke buku besar
+                        {isEditMode ? `Mengedit entri jurnal draft` : "Catat transaksi manual ke buku besar"}
                     </p>
                 </DialogHeader>
 
@@ -382,9 +419,9 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts }: CreateJo
                                 className={`${NB.submitBtn} gap-2 disabled:opacity-40`}
                             >
                                 {posting ? (
-                                    "Posting..."
+                                    isEditMode ? "Menyimpan..." : "Posting..."
                                 ) : (
-                                    <><Save className="h-3.5 w-3.5" /> Post Entry</>
+                                    <><Save className="h-3.5 w-3.5" /> {isEditMode ? "Simpan Perubahan" : "Post Entry"}</>
                                 )}
                             </Button>
                         </div>

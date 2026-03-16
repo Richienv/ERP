@@ -32,6 +32,7 @@ export interface JournalEntryItem {
     date: Date
     description: string
     reference?: string
+    status: string
     lines: {
         account: { code: string; name: string }
         debit: number

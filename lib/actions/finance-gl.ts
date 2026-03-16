@@ -230,6 +230,7 @@ export async function getJournalEntries(limit = 50): Promise<JournalEntryItem[]>
                 date: entry.date,
                 description: entry.description || '',
                 reference: entry.reference || undefined,
+                status: entry.status,
                 lines: entry.lines.map(line => ({
                     account: { code: line.account.code, name: line.account.name },
                     debit: Number(line.debit),
@@ -267,6 +268,7 @@ export async function getJournalEntryById(entryId: string): Promise<JournalEntry
                 date: entry.date,
                 description: entry.description || '',
                 reference: entry.reference || undefined,
+                status: entry.status,
                 lines: entry.lines.map(line => ({
                     account: { code: line.account.code, name: line.account.name },
                     debit: Number(line.debit),
@@ -280,6 +282,78 @@ export async function getJournalEntryById(entryId: string): Promise<JournalEntry
     } catch (error) {
         console.error("Failed to fetch journal entry:", error)
         return null
+    }
+}
+
+export async function updateJournalEntry(
+    entryId: string,
+    data: {
+        description: string
+        date: Date
+        reference: string
+        lines: {
+            accountCode: string
+            debit: number
+            credit: number
+            description?: string
+        }[]
+    }
+) {
+    try {
+        const totalDebit = data.lines.reduce((sum, line) => sum + line.debit, 0)
+        const totalCredit = data.lines.reduce((sum, line) => sum + line.credit, 0)
+
+        if (Math.abs(totalDebit - totalCredit) > 0.01) {
+            throw new Error(`Unbalanced Journal: Debit (${totalDebit}) != Credit (${totalCredit})`)
+        }
+
+        return await withPrismaAuth(async (prisma) => {
+            const existing = await prisma.journalEntry.findUnique({
+                where: { id: entryId },
+                select: { status: true }
+            })
+
+            if (!existing) throw new Error("Jurnal tidak ditemukan")
+            if (existing.status !== "DRAFT") throw new Error("Hanya jurnal DRAFT yang dapat diedit")
+
+            const codes = data.lines.map(l => l.accountCode)
+            const accounts = await prisma.gLAccount.findMany({
+                where: { code: { in: codes } }
+            })
+            const accountMap = new Map(accounts.map(a => [a.code, a]))
+
+            await prisma.$transaction(async (tx) => {
+                // Delete old lines
+                await tx.journalLine.deleteMany({ where: { entryId } })
+
+                // Update entry + create new lines
+                await tx.journalEntry.update({
+                    where: { id: entryId },
+                    data: {
+                        date: data.date,
+                        description: data.description,
+                        reference: data.reference,
+                        lines: {
+                            create: data.lines.map(line => {
+                                const account = accountMap.get(line.accountCode)
+                                if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
+                                return {
+                                    accountId: account.id,
+                                    debit: line.debit,
+                                    credit: line.credit,
+                                    description: line.description || data.description
+                                }
+                            })
+                        }
+                    }
+                })
+            })
+
+            return { success: true }
+        })
+    } catch (error: any) {
+        console.error("Journal Update Error:", error)
+        return { success: false, error: error?.message || "Failed to update journal entry" }
     }
 }
 

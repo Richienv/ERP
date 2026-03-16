@@ -14,6 +14,7 @@ import {
     EyeOff,
     Hash,
     Calendar,
+    Pencil,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -53,6 +54,7 @@ export default function GeneralLedgerPage() {
     const [exportOpen, setExportOpen] = useState(false)
     const [createOpen, setCreateOpen] = useState(false)
     const [closingOpen, setClosingOpen] = useState(false)
+    const [editEntry, setEditEntry] = useState<typeof entries[number] | null>(null)
     const [searchText, setSearchText] = useState("")
     const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
     const [showAmounts, setShowAmounts] = useState(false)
@@ -382,11 +384,15 @@ export default function GeneralLedgerPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* ─── Create Journal Dialog ─── */}
+            {/* ─── Create / Edit Journal Dialog ─── */}
             <CreateJournalDialog
-                open={createOpen}
-                onOpenChange={setCreateOpen}
+                open={createOpen || !!editEntry}
+                onOpenChange={(v) => {
+                    if (!v) { setCreateOpen(false); setEditEntry(null) }
+                    else setCreateOpen(v)
+                }}
                 glAccounts={glAccounts}
+                editEntry={editEntry}
             />
 
             {/* ─── Journal Entries Table ─── */}
@@ -443,124 +449,141 @@ export default function GeneralLedgerPage() {
                         </motion.div>
                     ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {filteredEntries.map((entry, idx) => (
-                                <motion.div
-                                    key={entry.id}
-                                    custom={idx}
-                                    variants={fadeX}
-                                    initial="hidden"
-                                    animate="show"
-                                    transition={{ delay: idx * 0.03 }}
-                                    className={`transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${
-                                        idx % 2 === 0
-                                            ? "bg-white dark:bg-zinc-900"
-                                            : "bg-zinc-50/60 dark:bg-zinc-800/20"
-                                    }`}
-                                >
-                                    {/* Entry Header Row */}
-                                    <div className="grid grid-cols-1 md:grid-cols-[80px_1fr_140px_100px] gap-2 px-5 py-3 items-center">
-                                        {/* Date block */}
-                                        <div className="w-16 text-center">
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                                {new Date(entry.date).toLocaleString("id-ID", {
-                                                    month: "short",
-                                                })}
-                                            </p>
-                                            <p className="text-xl font-black text-zinc-900 dark:text-white">
-                                                {new Date(entry.date).getDate()}
-                                            </p>
-                                        </div>
-
-                                        {/* Description + tags */}
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-0.5">
-                                                <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-400 bg-zinc-50 dark:bg-zinc-800 font-mono">
-                                                    JE-{entry.id.substring(0, 8)}
-                                                </span>
-                                                {entry.reference && (
-                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-mono">
-                                                        {entry.reference}
-                                                    </span>
-                                                )}
+                            {filteredEntries.map((entry, idx) => {
+                                const isDraft = entry.status === "DRAFT"
+                                return (
+                                    <motion.div
+                                        key={entry.id}
+                                        custom={idx}
+                                        variants={fadeX}
+                                        initial="hidden"
+                                        animate="show"
+                                        transition={{ delay: idx * 0.03 }}
+                                        className={`group/row transition-all border-l-[3px] ${
+                                            isDraft
+                                                ? "border-l-amber-400 hover:bg-amber-50/40 dark:hover:bg-amber-950/10"
+                                                : entry.status === "VOID"
+                                                    ? "border-l-red-300 hover:bg-red-50/30 dark:hover:bg-red-950/10"
+                                                    : "border-l-transparent hover:bg-orange-50/50 dark:hover:bg-orange-950/10"
+                                        } ${
+                                            idx % 2 === 0
+                                                ? "bg-white dark:bg-zinc-900"
+                                                : "bg-zinc-50/60 dark:bg-zinc-800/20"
+                                        } ${isDraft ? "cursor-pointer" : ""}`}
+                                        onClick={isDraft ? () => setEditEntry(entry) : undefined}
+                                    >
+                                        {/* Entry Header Row */}
+                                        <div className="grid grid-cols-1 md:grid-cols-[80px_1fr_140px_100px] gap-2 px-5 py-3 items-center">
+                                            {/* Date block */}
+                                            <div className={`w-16 text-center border border-zinc-200 dark:border-zinc-700 py-1.5 ${
+                                                isDraft ? "bg-amber-50 dark:bg-amber-950/20" : "bg-zinc-50 dark:bg-zinc-800/50"
+                                            }`}>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                                    {new Date(entry.date).toLocaleString("id-ID", {
+                                                        month: "short",
+                                                    })}
+                                                </p>
+                                                <p className="text-xl font-black text-zinc-900 dark:text-white leading-none">
+                                                    {new Date(entry.date).getDate()}
+                                                </p>
                                             </div>
-                                            <p className="font-bold text-sm text-zinc-900 dark:text-white">
-                                                {entry.description}
-                                            </p>
-                                        </div>
 
-                                        {/* Amount */}
-                                        <div className="text-right">
-                                            <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
-                                                {formatIDR(entry.totalDebit)}
-                                            </span>
-                                        </div>
+                                            {/* Description + tags */}
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-400 bg-zinc-50 dark:bg-zinc-800 font-mono">
+                                                        JE-{entry.id.substring(0, 8)}
+                                                    </span>
+                                                    {entry.reference && (
+                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 font-mono">
+                                                            {entry.reference}
+                                                        </span>
+                                                    )}
+                                                    {isDraft && (
+                                                        <span className="text-[9px] font-bold text-amber-500 dark:text-amber-400 opacity-0 group-hover/row:opacity-100 transition-opacity flex items-center gap-1">
+                                                            <Pencil className="h-2.5 w-2.5" /> Klik untuk edit
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="font-bold text-sm text-zinc-900 dark:text-white">
+                                                    {entry.description}
+                                                </p>
+                                            </div>
 
-                                        {/* Status */}
-                                        <div>
-                                            <span
-                                                className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${
-                                                    entry.status === "POSTED"
-                                                        ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400"
-                                                        : entry.status === "VOID"
-                                                          ? "bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700 text-red-700 dark:text-red-400"
-                                                          : "bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-400"
-                                                }`}
-                                            >
+                                            {/* Amount */}
+                                            <div className="text-right">
+                                                <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400 tabular-nums">
+                                                    {formatIDR(entry.totalDebit)}
+                                                </span>
+                                            </div>
+
+                                            {/* Status */}
+                                            <div className="flex items-center justify-between">
                                                 <span
-                                                    className={`w-1.5 h-1.5 ${
+                                                    className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${
                                                         entry.status === "POSTED"
-                                                            ? "bg-emerald-500"
+                                                            ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400"
                                                             : entry.status === "VOID"
-                                                              ? "bg-red-500"
-                                                              : "bg-zinc-400"
+                                                              ? "bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700 text-red-700 dark:text-red-400"
+                                                              : "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400"
                                                     }`}
-                                                />
-                                                {entry.status}
-                                            </span>
+                                                >
+                                                    <span
+                                                        className={`w-1.5 h-1.5 ${
+                                                            entry.status === "POSTED"
+                                                                ? "bg-emerald-500"
+                                                                : entry.status === "VOID"
+                                                                  ? "bg-red-500"
+                                                                  : "bg-amber-500"
+                                                        }`}
+                                                    />
+                                                    {entry.status}
+                                                </span>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    {/* Line Items Table */}
-                                    <div className="mx-5 mb-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50">
-                                        <table className="w-full text-xs">
-                                            <thead>
-                                                <tr className="text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-200 dark:border-zinc-700">
-                                                    <th className="text-left py-1.5 px-3 w-1/2">
-                                                        Akun
-                                                    </th>
-                                                    <th className="text-right py-1.5 px-3">Debit</th>
-                                                    <th className="text-right py-1.5 px-3">
-                                                        Credit
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="font-mono">
-                                                {entry.lines.map((item, lineIdx) => (
-                                                    <tr
-                                                        key={lineIdx}
-                                                        className="border-b border-zinc-100 dark:border-zinc-700 last:border-b-0"
-                                                    >
-                                                        <td className="py-1.5 px-3 font-sans font-medium text-zinc-700 dark:text-zinc-300">
-                                                            {item.account.code} -{" "}
-                                                            {item.account.name}
-                                                        </td>
-                                                        <td className="py-1.5 px-3 text-right text-emerald-700 dark:text-emerald-400">
-                                                            {item.debit > 0
-                                                                ? formatIDR(item.debit)
-                                                                : "-"}
-                                                        </td>
-                                                        <td className="py-1.5 px-3 text-right text-red-700 dark:text-red-400">
-                                                            {item.credit > 0
-                                                                ? formatIDR(item.credit)
-                                                                : "-"}
-                                                        </td>
+                                        {/* Line Items Table */}
+                                        <div className="mx-5 mb-3 border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 overflow-hidden">
+                                            <table className="w-full text-xs">
+                                                <thead>
+                                                    <tr className="text-[10px] font-black uppercase tracking-widest text-zinc-400 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-100/80 dark:bg-zinc-800/80">
+                                                        <th className="text-left py-1.5 px-3 w-1/2">
+                                                            Akun
+                                                        </th>
+                                                        <th className="text-right py-1.5 px-3">Debit</th>
+                                                        <th className="text-right py-1.5 px-3">
+                                                            Kredit
+                                                        </th>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </motion.div>
-                            ))}
+                                                </thead>
+                                                <tbody className="font-mono">
+                                                    {entry.lines.map((item, lineIdx) => (
+                                                        <tr
+                                                            key={lineIdx}
+                                                            className="border-b border-zinc-100 dark:border-zinc-700 last:border-b-0"
+                                                        >
+                                                            <td className="py-1.5 px-3 font-sans font-medium text-zinc-700 dark:text-zinc-300">
+                                                                <span className="text-zinc-400 font-mono text-[10px] mr-1.5">{item.account.code}</span>
+                                                                {item.account.name}
+                                                            </td>
+                                                            <td className={`py-1.5 px-3 text-right font-bold tabular-nums ${item.debit > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-600"}`}>
+                                                                {item.debit > 0
+                                                                    ? formatIDR(item.debit)
+                                                                    : "-"}
+                                                            </td>
+                                                            <td className={`py-1.5 px-3 text-right font-bold tabular-nums ${item.credit > 0 ? "text-red-700 dark:text-red-400" : "text-zinc-300 dark:text-zinc-600"}`}>
+                                                                {item.credit > 0
+                                                                    ? formatIDR(item.credit)
+                                                                    : "-"}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </motion.div>
+                                )
+                            })}
                         </div>
                     )}
                 </div>
