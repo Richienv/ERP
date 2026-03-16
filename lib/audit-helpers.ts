@@ -105,7 +105,7 @@ export async function logAudit(
  * Fetch audit log for an entity. Used by detail pages via API route.
  */
 export async function getAuditLog(entityType: string, entityId: string) {
-  const prisma = (await import("@/lib/db")).default
+  const { prisma } = await import("@/lib/db")
   return prisma.auditLog.findMany({
     where: { entityType, entityId },
     orderBy: { createdAt: "desc" },

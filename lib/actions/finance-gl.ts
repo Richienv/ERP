@@ -1096,7 +1096,7 @@ export async function getOpeningBalanceParties(): Promise<{
 import type { TrialBalanceRow, TrialBalanceData, ReconciliationPreviewRow, ReconciliationPreview } from '@/lib/finance-gl-helpers'
 
 export async function getTrialBalance(asOfDate?: Date): Promise<TrialBalanceData> {
-  const prisma = (await import('@/lib/db')).default
+  const { prisma } = await import('@/lib/db')
   const cutoff = asOfDate || new Date()
 
   const accounts = await prisma.gLAccount.findMany({
@@ -1157,7 +1157,7 @@ export async function previewBalanceReconciliation(): Promise<ReconciliationPrev
 }
 
 export async function applyBalanceReconciliation(): Promise<{ updated: number }> {
-  const prisma = (await import('@/lib/db')).default
+  const { prisma } = await import('@/lib/db')
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
