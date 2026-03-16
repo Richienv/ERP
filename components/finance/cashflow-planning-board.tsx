@@ -560,40 +560,64 @@ export function CashflowPlanningBoard({
                     return (
                         <div
                             key={week.label}
-                            className={`border-2 border-black bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col ${
-                                week.isCurrent ? "ring-3 ring-emerald-400 ring-offset-2" : ""
+                            className={`border-2 border-black bg-white dark:bg-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col transition-all duration-200 hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:-translate-x-[1px] hover:-translate-y-[1px] ${
+                                week.isCurrent ? "ring-2 ring-emerald-400 ring-offset-2" : ""
                             }`}
                         >
+                            {/* Top accent bar */}
+                            <div className={`h-[3px] ${week.isCurrent ? "bg-emerald-400" : "bg-zinc-300 dark:bg-zinc-600"}`} />
+
                             {/* Week header */}
-                            <div className={`px-4 py-3 border-b-2 border-black flex items-center justify-between ${
-                                week.isCurrent ? "bg-emerald-400" : "bg-zinc-100"
+                            <div className={`px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between ${
+                                week.isCurrent ? "bg-emerald-50 dark:bg-emerald-950/20" : ""
                             }`}>
-                                <div>
-                                    <div className={`text-sm font-black uppercase tracking-wider ${week.isCurrent ? "text-black" : "text-zinc-700"}`}>
-                                        {week.shortLabel}
+                                <div className="flex items-center gap-2.5">
+                                    <div className={`w-7 h-7 flex items-center justify-center text-xs font-black ${
+                                        week.isCurrent
+                                            ? "bg-emerald-500 text-white"
+                                            : "bg-zinc-900 dark:bg-white text-white dark:text-black"
+                                    }`}>
+                                        {weekIdx + 1}
                                     </div>
-                                    <div className={`text-xs ${week.isCurrent ? "text-emerald-900" : "text-zinc-500"}`}>
-                                        {week.start}-{week.end} {MONTH_NAMES[month]}
+                                    <div>
+                                        <div className={`text-sm font-black uppercase tracking-wider ${week.isCurrent ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-800 dark:text-zinc-200"}`}>
+                                            {week.shortLabel}
+                                        </div>
+                                        <div className={`text-[11px] font-medium ${week.isCurrent ? "text-emerald-600 dark:text-emerald-500" : "text-zinc-400"}`}>
+                                            {week.start}–{week.end} {MONTH_NAMES[month]}
+                                        </div>
                                     </div>
                                 </div>
-                                {week.isCurrent && (
-                                    <span className="text-[10px] font-black bg-black text-white px-2 py-1 uppercase tracking-wider">
-                                        Minggu Ini
-                                    </span>
-                                )}
-                                {weekItems.length > 0 && (
-                                    <span className="text-xs font-bold text-zinc-400">
-                                        {weekItems.length} item
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {week.isCurrent && (
+                                        <span className="text-[9px] font-black bg-emerald-500 text-white px-2 py-0.5 uppercase tracking-widest">
+                                            Minggu Ini
+                                        </span>
+                                    )}
+                                    {weekItems.length > 0 && (
+                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 border ${
+                                            week.isCurrent
+                                                ? "border-emerald-300 dark:border-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
+                                                : "border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-500"
+                                        }`}>
+                                            {weekItems.length}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
-                            {/* Kas Masuk zone */}
+                            {/* Kas Masuk / Keluar zones */}
                             <div className="flex-1 min-h-[120px]">
                                 {inItems.length > 0 && (
                                     <div className="p-3 space-y-2">
-                                        <div className="text-[10px] font-black uppercase tracking-wider text-emerald-600 flex items-center gap-1">
-                                            <IconArrowDownRight size={12} /> Kas Masuk
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-[2px] bg-emerald-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">
+                                                Kas Masuk
+                                            </span>
+                                            <span className="text-[10px] font-bold text-emerald-500 ml-auto tabular-nums">
+                                                +{formatCompact(totalIn)}
+                                            </span>
                                         </div>
                                         {inItems.slice(0, 5).map(item => (
                                             <SwimLaneCard
@@ -604,21 +628,33 @@ export function CashflowPlanningBoard({
                                             />
                                         ))}
                                         {inItems.length > 5 && (
-                                            <div className="text-xs text-zinc-400 font-bold pl-1">+{inItems.length - 5} lagi</div>
+                                            <div className="text-[10px] text-zinc-400 font-bold pl-6 border-l-2 border-zinc-200 dark:border-zinc-700 ml-0.5">
+                                                +{inItems.length - 5} lagi
+                                            </div>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Divider */}
+                                {/* Diamond divider */}
                                 {inItems.length > 0 && outItems.length > 0 && (
-                                    <div className="border-t border-dashed border-zinc-200 mx-3" />
+                                    <div className="mx-3 flex items-center gap-2 py-1">
+                                        <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                                        <div className="w-1.5 h-1.5 bg-zinc-300 dark:bg-zinc-600 rotate-45" />
+                                        <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
+                                    </div>
                                 )}
 
                                 {/* Kas Keluar zone */}
                                 {outItems.length > 0 && (
                                     <div className="p-3 space-y-2">
-                                        <div className="text-[10px] font-black uppercase tracking-wider text-red-600 flex items-center gap-1">
-                                            <IconArrowUpRight size={12} /> Kas Keluar
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-[2px] bg-red-500" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">
+                                                Kas Keluar
+                                            </span>
+                                            <span className="text-[10px] font-bold text-red-500 ml-auto tabular-nums">
+                                                -{formatCompact(totalOut)}
+                                            </span>
                                         </div>
                                         {outItems.slice(0, 5).map(item => (
                                             <SwimLaneCard
@@ -629,41 +665,60 @@ export function CashflowPlanningBoard({
                                             />
                                         ))}
                                         {outItems.length > 5 && (
-                                            <div className="text-xs text-zinc-400 font-bold pl-1">+{outItems.length - 5} lagi</div>
+                                            <div className="text-[10px] text-zinc-400 font-bold pl-6 border-l-2 border-zinc-200 dark:border-zinc-700 ml-0.5">
+                                                +{outItems.length - 5} lagi
+                                            </div>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Empty state */}
+                                {/* Empty state — diagonal stripes */}
                                 {weekItems.length === 0 && (
-                                    <div className="flex items-center justify-center h-full p-6">
-                                        <div className="text-center">
-                                            <div className="text-zinc-300 font-black text-sm">—</div>
-                                            <div className="text-zinc-400 text-xs mt-1">Belum ada item</div>
+                                    <div className="flex items-center justify-center h-full p-6 relative">
+                                        <div
+                                            className="absolute inset-0 opacity-[0.025] dark:opacity-[0.04]"
+                                            style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 10px, currentColor 10px, currentColor 11px)" }}
+                                        />
+                                        <div className="text-center relative">
+                                            <div className="w-8 h-8 mx-auto mb-2 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center">
+                                                <IconScale size={14} className="text-zinc-300 dark:text-zinc-600" />
+                                            </div>
+                                            <div className="text-zinc-400 text-[11px] font-bold">Belum ada item</div>
                                         </div>
                                     </div>
                                 )}
                             </div>
 
                             {/* Week footer — totals + running balance */}
-                            <div className="border-t-2 border-black bg-zinc-50 p-3 space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-emerald-600 font-bold">+{formatCompact(totalIn)}</span>
-                                    <span className="text-red-600 font-bold">-{formatCompact(totalOut)}</span>
-                                    <span className={`font-black ${net >= 0 ? "text-emerald-700" : "text-red-700"}`}>
-                                        {net >= 0 ? "+" : ""}{formatCompact(net)}
-                                    </span>
+                            <div className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50 p-3 space-y-2.5">
+                                {/* Three-column totals */}
+                                <div className="grid grid-cols-3 gap-1">
+                                    <div className="text-center">
+                                        <div className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 mb-0.5">Masuk</div>
+                                        <div className="text-sm font-black text-emerald-600 tabular-nums">+{formatCompact(totalIn)}</div>
+                                    </div>
+                                    <div className="text-center border-x border-zinc-200 dark:border-zinc-700">
+                                        <div className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 mb-0.5">Keluar</div>
+                                        <div className="text-sm font-black text-red-600 tabular-nums">-{formatCompact(totalOut)}</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 mb-0.5">Net</div>
+                                        <div className={`text-sm font-black tabular-nums ${net >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
+                                            {net >= 0 ? "+" : ""}{formatCompact(net)}
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Saldo</span>
-                                    <span className={`text-sm font-black ${runningBal < 0 ? "text-red-600" : ""}`}>
+                                {/* Saldo row */}
+                                <div className="flex items-center justify-between pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Saldo</span>
+                                    <span className={`text-base font-black tabular-nums ${runningBal < 0 ? "text-red-600" : "text-zinc-900 dark:text-white"}`}>
                                         {formatCurrency(runningBal)}
                                     </span>
                                 </div>
                                 {/* Balance bar */}
-                                <div className="h-1.5 bg-zinc-200 overflow-hidden">
+                                <div className="h-2 bg-zinc-200 dark:bg-zinc-700 overflow-hidden border border-zinc-300 dark:border-zinc-600">
                                     <div
-                                        className={`h-full transition-all ${runningBal < 0 ? "bg-red-500" : runningBal < data.effectiveStartingBalance * 0.3 ? "bg-amber-500" : "bg-emerald-500"}`}
+                                        className={`h-full transition-all duration-500 ${runningBal < 0 ? "bg-red-500" : runningBal < data.effectiveStartingBalance * 0.3 ? "bg-amber-500" : "bg-emerald-500"}`}
                                         style={{ width: `${Math.min(100, Math.max(3, (runningBal / Math.max(data.effectiveStartingBalance, 1)) * 100))}%` }}
                                     />
                                 </div>
@@ -740,17 +795,22 @@ export function CashflowPlanningBoard({
             {/* ═══ ACCURACY + FORECAST UNIFIED CARD ═══════════════════════ */}
             {(data.snapshot || (forecast && forecast.months.length > 0)) && (
                 <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                    {/* Black header with sections */}
-                    <div className="bg-black dark:bg-zinc-950 px-5 py-2.5 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                    {/* Orange accent bar */}
+                    <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
+
+                    {/* Header with tab navigation */}
+                    <div className="bg-zinc-900 dark:bg-zinc-950 px-5 py-0 flex items-stretch justify-between">
+                        <div className="flex items-stretch gap-0">
                             {data.snapshot && (
                                 <button
                                     onClick={() => setShowAccuracy(!showAccuracy)}
-                                    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 transition-all ${
-                                        showAccuracy ? "bg-white text-black" : "text-zinc-400 hover:text-white"
+                                    className={`relative text-[10px] font-black uppercase tracking-widest px-4 py-3 transition-all flex items-center gap-1.5 ${
+                                        showAccuracy
+                                            ? "text-white"
+                                            : "text-zinc-500 hover:text-zinc-300"
                                     }`}
                                 >
-                                    <IconScale size={14} className="inline mr-1.5 -mt-0.5" />
+                                    <IconScale size={14} />
                                     Akurasi
                                     {(() => {
                                         const plannedNet = data.snapshot!.totalPlannedIn - data.snapshot!.totalPlannedOut
@@ -759,22 +819,40 @@ export function CashflowPlanningBoard({
                                         const pct = plannedNet !== 0 ? ((aIn - aOut - plannedNet) / plannedNet) * 100 : null
                                         const acc = pct !== null ? Math.max(0, 100 - Math.abs(pct)) : null
                                         if (acc === null) return null
-                                        return <span className={`ml-1.5 ${acc >= 80 ? "text-emerald-400" : acc >= 60 ? "text-amber-400" : "text-red-400"}`}>{acc.toFixed(0)}%</span>
+                                        return (
+                                            <span className={`ml-0.5 text-[10px] font-black px-1.5 py-0.5 ${
+                                                acc >= 80 ? "bg-emerald-500/20 text-emerald-400" : acc >= 60 ? "bg-amber-500/20 text-amber-400" : "bg-red-500/20 text-red-400"
+                                            }`}>
+                                                {acc.toFixed(0)}%
+                                            </span>
+                                        )
                                     })()}
+                                    {/* Active indicator bar */}
+                                    {showAccuracy && <div className="absolute bottom-0 left-2 right-2 h-[3px] bg-orange-500" />}
                                 </button>
                             )}
                             {forecast && forecast.months.length > 0 && (
                                 <button
                                     onClick={() => setShowAccuracy(false)}
-                                    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 transition-all ${
-                                        !showAccuracy ? "bg-white text-black" : "text-zinc-400 hover:text-white"
+                                    className={`relative text-[10px] font-black uppercase tracking-widest px-4 py-3 transition-all flex items-center gap-1.5 ${
+                                        !showAccuracy
+                                            ? "text-white"
+                                            : "text-zinc-500 hover:text-zinc-300"
                                     }`}
                                 >
-                                    <IconCalendarWeek size={14} className="inline mr-1.5 -mt-0.5" />
+                                    <IconCalendarWeek size={14} />
                                     Proyeksi 6 Bulan
+                                    {/* Active indicator bar */}
+                                    {!showAccuracy && <div className="absolute bottom-0 left-2 right-2 h-[3px] bg-orange-500" />}
                                 </button>
                             )}
                         </div>
+                        {/* Month range label */}
+                        {!showAccuracy && forecast && forecast.months.length > 0 && (
+                            <div className="flex items-center text-[10px] font-bold text-zinc-500 tracking-wider">
+                                {forecast.months[0]?.label} — {forecast.months[forecast.months.length - 1]?.label}
+                            </div>
+                        )}
                     </div>
 
                     {/* Accuracy content */}
@@ -787,28 +865,96 @@ export function CashflowPlanningBoard({
                     )}
 
                     {/* Forecast content */}
-                    {!showAccuracy && forecast && forecast.months.length > 0 && (
-                        <div className="overflow-x-auto">
-                            <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-2 px-5 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
-                                {["Bulan", "Kas Masuk", "Kas Keluar", "Net", "Saldo"].map((h) => (
-                                    <span key={h} className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
-                                ))}
+                    {!showAccuracy && forecast && forecast.months.length > 0 && (() => {
+                        const maxAmount = Math.max(
+                            ...forecast.months.map(m => Math.max(m.totalIn, m.totalOut, Math.abs(m.runningBalance))),
+                            1
+                        )
+                        return (
+                            <div className="overflow-x-auto">
+                                {/* Column headers */}
+                                <div className="hidden md:grid grid-cols-[1.2fr_1fr_1fr_1fr_1.2fr] gap-0 px-5 py-2.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                                    {[
+                                        { h: "Bulan", dot: "bg-zinc-400" },
+                                        { h: "Kas Masuk", dot: "bg-emerald-500" },
+                                        { h: "Kas Keluar", dot: "bg-red-500" },
+                                        { h: "Net", dot: "bg-orange-500" },
+                                        { h: "Saldo", dot: "bg-zinc-900 dark:bg-white" },
+                                    ].map(({ h, dot }) => (
+                                        <div key={h} className="flex items-center gap-1.5">
+                                            <span className={`w-1.5 h-1.5 ${dot}`} />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{h}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {/* Data rows */}
+                                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                    {forecast.months.map((m, idx) => {
+                                        const isFirst = idx === 0
+                                        const barInPct = maxAmount > 0 ? (m.totalIn / maxAmount) * 100 : 0
+                                        const barOutPct = maxAmount > 0 ? (m.totalOut / maxAmount) * 100 : 0
+                                        return (
+                                            <div
+                                                key={`${m.month}-${m.year}`}
+                                                className={`group grid grid-cols-[1.2fr_1fr_1fr_1fr_1.2fr] gap-0 px-5 py-0 items-stretch transition-all ${
+                                                    isFirst
+                                                        ? "bg-orange-50/40 dark:bg-orange-950/10 border-l-[3px] border-l-orange-400"
+                                                        : idx % 2 === 0
+                                                            ? "bg-white dark:bg-zinc-900 border-l-[3px] border-l-transparent"
+                                                            : "bg-zinc-50/60 dark:bg-zinc-800/20 border-l-[3px] border-l-transparent"
+                                                } hover:bg-orange-50/60 dark:hover:bg-orange-950/15 hover:border-l-orange-300`}
+                                            >
+                                                {/* Month */}
+                                                <div className="py-3.5 flex items-center gap-2">
+                                                    <span className={`text-sm font-black ${isFirst ? "text-orange-700 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300"}`}>
+                                                        {m.label}
+                                                    </span>
+                                                    {isFirst && (
+                                                        <span className="text-[9px] font-black bg-orange-500 text-white px-1.5 py-0.5 uppercase tracking-widest">
+                                                            Now
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {/* Kas Masuk — with mini bar */}
+                                                <div className="py-3.5 flex flex-col justify-center gap-1">
+                                                    <span className="font-mono text-sm font-bold text-emerald-600 tabular-nums">{formatCurrency(m.totalIn)}</span>
+                                                    <div className="h-1 bg-zinc-100 dark:bg-zinc-800 overflow-hidden w-full max-w-[120px]">
+                                                        <div className="h-full bg-emerald-400 transition-all duration-500" style={{ width: `${Math.max(2, barInPct)}%` }} />
+                                                    </div>
+                                                </div>
+                                                {/* Kas Keluar — with mini bar */}
+                                                <div className="py-3.5 flex flex-col justify-center gap-1">
+                                                    <span className="font-mono text-sm font-bold text-red-600 tabular-nums">{formatCurrency(m.totalOut)}</span>
+                                                    <div className="h-1 bg-zinc-100 dark:bg-zinc-800 overflow-hidden w-full max-w-[120px]">
+                                                        <div className="h-full bg-red-400 transition-all duration-500" style={{ width: `${Math.max(2, barOutPct)}%` }} />
+                                                    </div>
+                                                </div>
+                                                {/* Net */}
+                                                <div className="py-3.5 flex items-center">
+                                                    <span className={`font-mono text-sm font-black tabular-nums ${m.netFlow >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                                        {m.netFlow >= 0 ? "+" : ""}{formatCurrency(m.netFlow)}
+                                                    </span>
+                                                </div>
+                                                {/* Saldo — emphasized */}
+                                                <div className="py-3.5 flex items-center justify-between">
+                                                    <span className={`font-mono text-sm font-black tabular-nums ${
+                                                        m.runningBalance < 0 ? "text-red-600" : "text-zinc-900 dark:text-white"
+                                                    }`}>
+                                                        {formatCurrency(m.runningBalance)}
+                                                    </span>
+                                                    {m.runningBalance < 0 && (
+                                                        <span className="text-[9px] font-black bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 px-1 py-0.5">
+                                                            DEFISIT
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
                             </div>
-                            <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                {forecast.months.map((m, idx) => (
-                                    <div key={`${m.month}-${m.year}`} className={`grid grid-cols-[1fr_1fr_1fr_1fr_1fr] gap-2 px-5 py-3 items-center transition-all hover:bg-orange-50/50 dark:hover:bg-orange-950/10 ${idx % 2 === 0 ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/60 dark:bg-zinc-800/20"}`}>
-                                        <span className="text-sm font-bold text-zinc-700 dark:text-zinc-300">{m.label}</span>
-                                        <span className="font-mono text-sm text-emerald-600">{formatCurrency(m.totalIn)}</span>
-                                        <span className="font-mono text-sm text-red-600">{formatCurrency(m.totalOut)}</span>
-                                        <span className={`font-mono text-sm font-bold ${m.netFlow >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                            {m.netFlow >= 0 ? "+" : ""}{formatCurrency(m.netFlow)}
-                                        </span>
-                                        <span className="font-mono text-sm font-black text-zinc-900 dark:text-zinc-100">{formatCurrency(m.runningBalance)}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
+                        )
+                    })()}
                 </div>
             )}
 
@@ -883,21 +1029,27 @@ function SwimLaneCard({
     const bank = shortBankName(item.glAccountName, item.glAccountCode)
     const isEstimate = viewMode === "planning" && !item.isManual
     const isClickable = !!onEdit
+    const isIn = item.direction === "IN"
 
     return (
         <div
-            className={`${cat.bg} border-l-[3px] ${cat.border} px-3 py-2 ${
-                isEstimate ? "border border-dashed border-zinc-300" : "border border-zinc-200"
-            } ${isClickable ? "cursor-pointer hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,0.15)] hover:border-black transition-all" : ""}`}
+            className={`group/card border-l-4 ${cat.border} px-3 py-2.5 transition-all duration-200 ${
+                isEstimate
+                    ? `border border-dashed border-zinc-300 dark:border-zinc-600 bg-white/60 dark:bg-zinc-800/30`
+                    : `border border-zinc-200 dark:border-zinc-700 ${cat.bg} dark:bg-zinc-800/40`
+            } ${isClickable
+                ? "cursor-pointer hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,0.1)] hover:-translate-x-[0.5px] hover:-translate-y-[0.5px] hover:border-zinc-400 dark:hover:border-zinc-500 active:translate-x-0 active:translate-y-0 active:shadow-none"
+                : ""
+            }`}
             onClick={onEdit}
             title={`${item.description}\n${formatCurrency(item.amount)}${item.glAccountName ? `\nRek: ${item.glAccountName}` : ""}`}
         >
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                    <div className="text-sm font-black tabular-nums">
-                        {item.direction === "IN" ? "+" : "-"}{formatCompact(item.amount)}
+                    <div className={`text-sm font-black tabular-nums ${isIn ? "text-emerald-700 dark:text-emerald-400" : "text-red-700 dark:text-red-400"}`}>
+                        {isIn ? "+" : "-"}{formatCompact(item.amount)}
                     </div>
-                    <div className="text-xs text-zinc-600 truncate mt-0.5" title={item.description}>
+                    <div className="text-xs text-zinc-600 dark:text-zinc-400 truncate mt-0.5" title={item.description}>
                         {item.description}
                     </div>
                 </div>
@@ -913,7 +1065,7 @@ function SwimLaneCard({
                 </div>
             </div>
             {isClickable && (
-                <div className="flex items-center gap-1 mt-1 text-[10px] text-zinc-400">
+                <div className="flex items-center gap-1 mt-1.5 text-[10px] text-zinc-300 dark:text-zinc-600 group-hover/card:text-zinc-500 dark:group-hover/card:text-zinc-400 transition-colors">
                     <IconPencil size={10} /> Edit
                 </div>
             )}
