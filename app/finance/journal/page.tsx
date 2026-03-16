@@ -459,18 +459,18 @@ export default function GeneralLedgerPage() {
                                         initial="hidden"
                                         animate="show"
                                         transition={{ delay: idx * 0.03 }}
-                                        className={`group/row transition-all border-l-[3px] ${
+                                        className={`group/row transition-all duration-200 border-l-[3px] cursor-pointer ${
                                             isDraft
-                                                ? "border-l-amber-400 hover:bg-amber-50/40 dark:hover:bg-amber-950/10"
+                                                ? "border-l-amber-400 hover:border-l-amber-500 hover:bg-amber-50/50 dark:hover:bg-amber-950/15 hover:shadow-[inset_0_0_0_1px_rgba(245,158,11,0.15)]"
                                                 : entry.status === "VOID"
                                                     ? "border-l-red-300 hover:bg-red-50/30 dark:hover:bg-red-950/10"
-                                                    : "border-l-transparent hover:bg-orange-50/50 dark:hover:bg-orange-950/10"
+                                                    : "border-l-transparent hover:border-l-orange-400 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 hover:shadow-[inset_0_0_0_1px_rgba(249,115,22,0.1)]"
                                         } ${
                                             idx % 2 === 0
                                                 ? "bg-white dark:bg-zinc-900"
                                                 : "bg-zinc-50/60 dark:bg-zinc-800/20"
-                                        } ${isDraft ? "cursor-pointer" : ""}`}
-                                        onClick={isDraft ? () => setEditEntry(entry) : undefined}
+                                        }`}
+                                        onClick={() => isDraft ? setEditEntry(entry) : null}
                                     >
                                         {/* Entry Header Row */}
                                         <div className="grid grid-cols-1 md:grid-cols-[80px_1fr_140px_100px] gap-2 px-5 py-3 items-center">
@@ -499,11 +499,11 @@ export default function GeneralLedgerPage() {
                                                             {entry.reference}
                                                         </span>
                                                     )}
-                                                    {isDraft && (
-                                                        <span className="text-[9px] font-bold text-amber-500 dark:text-amber-400 opacity-0 group-hover/row:opacity-100 transition-opacity flex items-center gap-1">
-                                                            <Pencil className="h-2.5 w-2.5" /> Klik untuk edit
-                                                        </span>
-                                                    )}
+                                                    <span className={`text-[9px] font-bold opacity-0 group-hover/row:opacity-100 transition-opacity flex items-center gap-1 ${
+                                                        isDraft ? "text-amber-500 dark:text-amber-400" : "text-orange-400 dark:text-orange-500"
+                                                    }`}>
+                                                        <Pencil className="h-2.5 w-2.5" /> {isDraft ? "Klik untuk edit" : "Lihat detail"}
+                                                    </span>
                                                 </div>
                                                 <p className="font-bold text-sm text-zinc-900 dark:text-white">
                                                     {entry.description}
@@ -517,8 +517,8 @@ export default function GeneralLedgerPage() {
                                                 </span>
                                             </div>
 
-                                            {/* Status */}
-                                            <div className="flex items-center justify-between">
+                                            {/* Status + hover action */}
+                                            <div className="flex items-center gap-2">
                                                 <span
                                                     className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${
                                                         entry.status === "POSTED"
@@ -539,6 +539,12 @@ export default function GeneralLedgerPage() {
                                                     />
                                                     {entry.status}
                                                 </span>
+                                                {/* Hover action button */}
+                                                {isDraft && (
+                                                    <span className="opacity-0 group-hover/row:opacity-100 transition-all duration-200 w-7 h-7 flex items-center justify-center bg-amber-500 text-white hover:bg-amber-600">
+                                                        <Pencil className="h-3 w-3" />
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
 
