@@ -368,38 +368,35 @@ export default function APBillsStackPage() {
                     </Button>
                 </div>
 
-                {/* Row 2: KPI Strip — horizontal, minimal color */}
-                <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 border-b border-zinc-200 dark:border-zinc-800">
-                    {[
-                        { label: "Total", count: String(totalBills), sub: formatIDR(totalAmount), color: "zinc" },
-                        { label: "Pending", count: String(pendingBills), sub: null, color: "zinc" },
-                        { label: "Jatuh Tempo", count: String(overdueBills), sub: null, color: overdueBills > 0 ? "red" : "zinc" },
-                    ].map((kpi) => (
-                        <div key={kpi.label} className="flex-1 px-4 py-2.5 flex items-center justify-between gap-3 cursor-default">
-                            <div className="flex items-center gap-1.5">
-                                <span className={`w-1.5 h-1.5 ${
-                                    kpi.color === "red" ? "bg-red-500" : "bg-zinc-400 dark:bg-zinc-600"
-                                }`} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                                    {kpi.label}
-                                </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className={`text-lg font-black ${
-                                    kpi.color === "red" && Number(kpi.count) > 0
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-zinc-900 dark:text-white"
-                                }`}>
-                                    {kpi.count}
-                                </span>
-                                {kpi.sub && (
-                                    <span className="text-[10px] font-mono font-bold text-zinc-400">
-                                        {kpi.sub}
-                                    </span>
-                                )}
-                            </div>
+                {/* Row 2: KPI Strip — big, colorful, attention-grabbing */}
+                <div className="grid grid-cols-3 border-b border-zinc-200 dark:border-zinc-800">
+                    {/* Total Tagihan */}
+                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-950/10">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Total Tagihan</span>
                         </div>
-                    ))}
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{totalBills}</span>
+                            <span className="text-sm font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(totalAmount)}</span>
+                        </div>
+                    </div>
+                    {/* Pending */}
+                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className="w-2 h-2 bg-amber-500 rounded-full" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400">Pending</span>
+                        </div>
+                        <span className="text-3xl font-black text-amber-600 dark:text-amber-400 tabular-nums">{pendingBills}</span>
+                    </div>
+                    {/* Jatuh Tempo / Overdue */}
+                    <div className={`px-5 py-4 ${overdueBills > 0 ? "bg-red-50 dark:bg-red-950/20" : ""}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`w-2 h-2 rounded-full ${overdueBills > 0 ? "bg-red-500 animate-pulse" : "bg-zinc-300"}`} />
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${overdueBills > 0 ? "text-red-600 dark:text-red-400" : "text-zinc-400"}`}>Jatuh Tempo</span>
+                        </div>
+                        <span className={`text-3xl font-black tabular-nums ${overdueBills > 0 ? "text-red-600 dark:text-red-400" : "text-zinc-300 dark:text-zinc-600"}`}>{overdueBills}</span>
+                    </div>
                 </div>
 
                 {/* Row 3: Filter Toolbar */}

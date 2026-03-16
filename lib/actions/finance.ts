@@ -616,6 +616,34 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
+            // Auto-fix misclassified accounts (e.g., 5xxx/6xxx coded as LIABILITY instead of EXPENSE)
+            // This prevents balance sheet imbalance from wrong account types
+            const expectedType = (code: string): "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | null => {
+                if (code >= '1000' && code < '2000') return 'ASSET'
+                if (code >= '2000' && code < '3000') return 'LIABILITY'
+                if (code >= '3000' && code < '4000') return 'EQUITY'
+                if (code >= '4000' && code < '5000') return 'REVENUE'
+                if (code >= '5000' && code < '9000') return 'EXPENSE'
+                return null
+            }
+            const misclassified = await basePrisma.gLAccount.findMany({
+                where: { OR: [
+                    { code: { gte: '5000', lt: '9000' }, type: { not: 'EXPENSE' } },
+                    { code: { gte: '4000', lt: '5000' }, type: { not: 'REVENUE' } },
+                    { code: { gte: '1000', lt: '2000' }, type: { not: 'ASSET' } },
+                    { code: { gte: '2000', lt: '3000' }, type: { not: 'LIABILITY' } },
+                    { code: { gte: '3000', lt: '4000' }, type: { not: 'EQUITY' } },
+                ]},
+                select: { id: true, code: true, type: true },
+            })
+            for (const acc of misclassified) {
+                const correct = expectedType(acc.code)
+                if (correct && correct !== acc.type) {
+                    console.warn(`[Neraca] Auto-fixing account ${acc.code}: ${acc.type} → ${correct}`)
+                    await basePrisma.gLAccount.update({ where: { id: acc.id }, data: { type: correct } })
+                }
+            }
+
             // Get all BS accounts (ASSET, LIABILITY, EQUITY) with journal lines up to asOfDate
             const accounts = await basePrisma.gLAccount.findMany({
                 where: {
@@ -660,20 +688,39 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 totalEquity: 0
             }
 
-            // Calculate retained earnings: prior years + current year net income
+            // Calculate retained earnings + current year net income
+            // IMPORTANT: Use raw journal line sums (not getProfitLossStatement which has phantom tax)
+            // to keep the balance sheet mathematically consistent with GL entries.
             const currentYear = date.getFullYear()
-            const priorYearEnd = new Date(currentYear - 1, 11, 31, 23, 59, 59)
             const currentYearStart = new Date(currentYear, 0, 1)
 
-            // Prior-year retained earnings (all P&L from inception to end of last year)
-            if (currentYear > 2000) {
-                const priorPnl = await getProfitLossStatement(new Date(2000, 0, 1), priorYearEnd)
-                equity.retainedEarnings = priorPnl.netIncome
+            // Helper: compute net income directly from journal lines (Revenue - Expenses)
+            const computeNetIncomeFromGL = async (from: Date, to: Date) => {
+                const pnlLines = await basePrisma.journalLine.findMany({
+                    where: {
+                        entry: { date: { gte: from, lte: to }, status: 'POSTED' },
+                        account: { type: { in: ['REVENUE', 'EXPENSE'] } },
+                    },
+                    include: { account: { select: { type: true } } },
+                })
+                let income = 0
+                for (const line of pnlLines) {
+                    const amount = Number(line.debit) - Number(line.credit)
+                    // REVENUE normal=CREDIT → effective = -amount; EXPENSE normal=DEBIT → effective = amount
+                    if (line.account.type === 'REVENUE') income += -amount // revenue increases income
+                    else income -= amount // expense decreases income
+                }
+                return income
             }
 
-            // Current-year net income (YTD)
-            const currentPnl = await getProfitLossStatement(currentYearStart, date)
-            equity.currentYearNetIncome = currentPnl.netIncome
+            // Prior-year retained earnings
+            const priorYearEnd = new Date(currentYear - 1, 11, 31, 23, 59, 59)
+            if (currentYear > 2000) {
+                equity.retainedEarnings = await computeNetIncomeFromGL(new Date(2000, 0, 1), priorYearEnd)
+            }
+
+            // Current-year net income (YTD) — NO phantom tax deduction
+            equity.currentYearNetIncome = await computeNetIncomeFromGL(currentYearStart, date)
 
             for (const account of accounts) {
                 // Compute balance from journal entries (debit - credit for ASSET, credit - debit for LIABILITY/EQUITY)
@@ -723,37 +770,11 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 }
             }
 
-            // ── Fallback: compute AR/AP from outstanding invoices/bills ──
-            const hasAR = assets.currentAssets.some(a => a.code === '1200')
-            const hasAP = liabilities.currentLiabilities.some(l => l.code === '2000')
-
-            if (!hasAR || !hasAP) {
-                const [arAgg, apAgg] = await Promise.all([
-                    !hasAR ? basePrisma.invoice.aggregate({
-                        where: { type: 'INV_OUT', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
-                        _sum: { balanceDue: true },
-                    }) : Promise.resolve(null),
-                    !hasAP ? basePrisma.invoice.aggregate({
-                        where: { type: 'INV_IN', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
-                        _sum: { balanceDue: true },
-                    }) : Promise.resolve(null),
-                ])
-
-                if (!hasAR && arAgg) {
-                    const arAmount = Number(arAgg._sum.balanceDue || 0)
-                    if (arAmount > 0.01) {
-                        assets.currentAssets.push({ code: '1200', name: 'Piutang Usaha', amount: arAmount })
-                        assets.totalCurrentAssets += arAmount
-                    }
-                }
-                if (!hasAP && apAgg) {
-                    const apAmount = Number(apAgg._sum.balanceDue || 0)
-                    if (apAmount > 0.01) {
-                        liabilities.currentLiabilities.push({ code: '2000', name: 'Hutang Usaha', amount: apAmount })
-                        liabilities.totalCurrentLiabilities += apAmount
-                    }
-                }
-            }
+            // NOTE: Removed one-sided AR/AP fallback logic that added invoice balanceDue
+            // without corresponding GL entries. This caused Neraca imbalance because it added
+            // liabilities (AP) or assets (AR) without the counter-entry (expense/revenue).
+            // The balance sheet MUST be driven entirely by journal entries to stay balanced.
+            // If AR/AP show zero, it means invoices haven't been ISSUED (GL not yet posted).
 
             assets.totalAssets = assets.totalCurrentAssets + assets.totalFixedAssets + assets.totalOtherAssets
             liabilities.totalLiabilities = liabilities.totalCurrentLiabilities + liabilities.totalLongTermLiabilities
