@@ -826,13 +826,14 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                         lines,
                     })
                 } else {
-                    // AP Bill: DR HPP + DR PPN Masukan, CR Hutang Usaha
+                    // AP Bill: DR Beban + DR PPN Masukan, CR Hutang Usaha
+                    // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                     if (txResult.taxAmount > 0) {
-                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: txResult.subtotal, credit: 0, description: `HPP - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT, debit: txResult.subtotal, credit: 0, description: `Beban - ${txResult.number}` })
                         lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: txResult.taxAmount, credit: 0, description: `PPN Masukan - ${txResult.number}` })
                     } else {
-                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: txResult.totalAmount, credit: 0, description: `HPP - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT, debit: txResult.totalAmount, credit: 0, description: `Beban - ${txResult.number}` })
                     }
                     lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: txResult.totalAmount, description: `Hutang - ${txResult.supplierName || 'Supplier'}` })
                     await postJournalEntry({
@@ -947,9 +948,29 @@ export async function recordInvoicePayment(data: {
         }
 
         if (!glResult?.success) {
+            // Atomic: GL gagal → rollback payment dan invoice status secara manual
+            // (karena GL di luar Prisma transaction untuk menghindari nested tx deadlock)
+            try {
+                const { prisma } = await import("@/lib/prisma")
+                // Revert invoice balance and status
+                const invoice = await prisma.invoice.findUnique({ where: { id: data.invoiceId } })
+                if (invoice) {
+                    await prisma.invoice.update({
+                        where: { id: data.invoiceId },
+                        data: {
+                            balanceDue: { increment: data.amount },
+                            status: invoice.status === 'PAID' ? 'ISSUED' : invoice.status === 'PARTIAL' ? 'ISSUED' : invoice.status,
+                        }
+                    })
+                }
+                // Delete the payment record
+                await prisma.payment.deleteMany({ where: { number: txResult.paymentNumber } })
+            } catch (revertError) {
+                console.error("Failed to revert payment after GL failure:", revertError)
+            }
             return {
-                success: true,
-                glWarning: `Pembayaran berhasil dicatat, tetapi jurnal GL gagal diposting: ${glResult?.error || 'Akun GL tidak ditemukan'}. Hubungi bagian akuntansi.`,
+                success: false,
+                error: `Jurnal gagal — pembayaran dibatalkan: ${glResult?.error || 'Akun GL tidak ditemukan'}`,
             }
         }
 

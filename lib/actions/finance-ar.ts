@@ -831,7 +831,8 @@ export async function recordARPayment(data: {
                         ]
                     })
                     if (!glResult?.success) {
-                        console.error("GL posting failed (payment recorded):", glResult?.error)
+                        // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + invoice update
+                        throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
                     }
                 }
             } else {
@@ -848,7 +849,8 @@ export async function recordARPayment(data: {
                     ]
                 })
                 if (!advGlResult?.success) {
-                    console.error("GL posting failed (advance payment):", advGlResult?.error)
+                    // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment
+                    throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(advGlResult as any)?.error || 'Unknown GL error'}`)
                 }
             }
 
@@ -906,7 +908,8 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
                 ]
             })
             if (!matchGlResult?.success) {
-                console.error("GL posting failed (match recorded):", matchGlResult?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback match
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(matchGlResult as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true, message: `Payment matched to invoice ${invoice.number}` }

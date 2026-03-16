@@ -1,79 +1,196 @@
 {
-  "branchName": "main",
-  "source": "Cross-module data connection audit — prevent FINANCE_BUGS_20260315.md pattern recurring in other modules",
+  "branchName": "feat/accounting-integration",
+  "source": "OIC ERP Accounting Module — Complete Transaction & Financial Report Integration (from meeting bug list + PDF technical guides)",
+  "verifyCommand": "npx vitest run && npx tsc --noEmit",
   "features": [
     {
-      "id": "AUDIT-001",
-      "title": "Inventory Module — Hardcoded GL Codes & Data Flow Audit",
+      "id": "ACCT-001",
+      "title": "Standardize AP Bill Expense Account — COGS vs EXPENSE_DEFAULT Consistency",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in lib/actions/inventory-gl.ts — all replaced with SYS_ACCOUNTS",
-        "Zero hardcoded GL codes in app/actions/inventory.ts that reference account codes",
-        "Stock adjustments (ADJUSTMENT_IN/OUT) create correct GL journal entries via postJournalEntry",
-        "Stock transfers between warehouses create GL entries if they affect asset accounts",
-        "PO receive (PRODUCTION_IN) creates GL entry: DR Inventory Asset, CR AP or GRN clearing",
-        "SO shipment (SO_SHIPMENT) creates GL entry: DR COGS, CR Inventory Asset",
-        "All inventory hooks import from correct action files (not monolithic finance.ts)",
-        "Grep verification: zero matches for hardcoded codes in inventory action files"
-      ]
+        "moveInvoiceToSent() in finance-invoices.ts uses SYS_ACCOUNTS.EXPENSE_DEFAULT for INV_IN (vendor bill) posting, NOT SYS_ACCOUNTS.COGS — COGS is reserved for manufacturing/sales COGS only",
+        "approveVendorBill() in finance-ap.ts already uses EXPENSE_DEFAULT — verify it matches moveInvoiceToSent()",
+        "approveAndPayBill() in finance-ap.ts uses EXPENSE_DEFAULT consistently (not COGS)",
+        "Add code comment explaining: 'Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.'",
+        "npx vitest run passes (no regressions)",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
     },
     {
-      "id": "AUDIT-002",
-      "title": "Procurement Module — Hardcoded GL Codes & PO→GRN→Bill Flow Audit",
+      "id": "ACCT-002",
+      "title": "Atomic GL Posting — Revert Document Status on Journal Entry Failure",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in lib/actions/procurement.ts — all replaced with SYS_ACCOUNTS",
-        "PO approval creates AP bill via recordPendingBillFromPO (verified working)",
-        "GRN creation updates inventory correctly",
-        "PO return creates proper GL reversal entry (DR AP, CR Inventory)",
-        "All procurement hooks import from correct action files",
-        "Grep verification: zero matches for hardcoded codes in procurement action files"
-      ]
+        "recordVendorPayment() in finance-ap.ts: if postJournalEntry() fails, delete the Payment record and revert bill balanceDue/status — payment must NOT exist without corresponding GL entry",
+        "recordARPayment() in finance-ar.ts: same atomic behavior — if GL posting fails, revert payment and invoice status",
+        "recordInvoicePayment() in finance-invoices.ts: same atomic behavior",
+        "recordMultiBillPayment() in finance-ap.ts: if GL posting fails, revert all bill balance updates and delete payment",
+        "Each revert path logs a clear error: 'Jurnal gagal — pembayaran dibatalkan' (Journal failed — payment reverted)",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
     },
     {
-      "id": "AUDIT-003",
-      "title": "HCM/SDM Module — Payroll→GL & Attendance Data Flow Audit",
+      "id": "ACCT-003",
+      "title": "Fixed Asset Depreciation GL Posting (Penyusutan Aset Tetap)",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in app/actions/hcm.ts — uses dynamic account lookup from config",
-        "Payroll posting creates proper journal entries (DR Salary Expense, CR Salary Payable, CR BPJS, CR PPh21)",
-        "Payroll disbursement creates GL entry (DR Salary Payable, CR Bank/Cash)",
-        "HCM imports postJournalEntry from finance-gl.ts (fixed from finance.ts)",
-        "Payroll GL account codes are configurable via getPayrollAccounts(), not hardcoded"
-      ]
+        "New function postDepreciationRun() in finance-fixed-assets.ts that: queries all ACTIVE fixed assets with pending depreciation schedules, creates one journal entry per asset: DR SYS_ACCOUNTS.DEPRECIATION (6290 Beban Penyusutan), CR SYS_ACCOUNTS.ACC_DEPRECIATION (1590 Akumulasi Penyusutan)",
+        "Each depreciation schedule row stores journal_entry_id after posting and is marked as posted (is_posted = true or similar flag)",
+        "Depreciation amount calculated as: (purchaseCost - salvageValue) / usefulLifeMonths per the straight-line method",
+        "Function validates fiscal period is OPEN before posting — rejects if period is CLOSED",
+        "Updates the fixed asset's accumulatedDepreciation and currentBookValue (NBV = cost - accum) after posting",
+        "Idempotency: calling postDepreciationRun() twice for the same period does NOT create duplicate entries",
+        "Uses ensureSystemAccounts() before posting",
+        "Balance Sheet impact: Account 1500 stays at original cost, Account 1590 (contra-asset) increases. Net Book Value = 1500 - 1590",
+        "P&L impact: Account 6290 (Depreciation Expense) increases → reduces Net Profit",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
     },
     {
-      "id": "AUDIT-004",
-      "title": "Sales & CRM Module — SO→Invoice→AR & Hardcoded GL Codes Audit",
+      "id": "ACCT-004",
+      "title": "Complete Debit/Credit Note GL Posting (Nota Debit & Nota Kredit)",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in lib/actions/sales.ts — all replaced with SYS_ACCOUNTS",
-        "SO delivery auto-creates AR invoice (createInvoiceFromSalesOrder now imports from finance-invoices.ts)",
-        "Sales return creates correct GL reversal using SYS_ACCOUNTS",
-        "All sales hooks import from correct action files",
-        "Grep verification: zero matches for hardcoded GL codes in sales action files"
-      ]
+        "createDCNote() in finance-dcnotes.ts is complete (not truncated) and posts journal entries via postJournalEntry()",
+        "Sales Credit Note (SALES_CN) journal: DR Revenue (4000) + DR PPN Keluaran (2110), CR AR (1200) — reverses original invoice revenue and tax",
+        "Purchase Debit Note (PURCHASE_DN) journal: DR AP (2000), CR Expense/Inventory + CR PPN Masukan (1330) — reverses vendor bill",
+        "Settlement logic: when DC note is applied to an invoice, update invoice.balanceDue accordingly",
+        "If goods are physically returned with Sales CN, also post: DR Inventory (1300), CR COGS (5000) — COGS reversal",
+        "Each note stores journalEntryId for audit trail",
+        "Uses ensureSystemAccounts() and SYS_ACCOUNTS constants (no hardcoded codes)",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
     },
     {
-      "id": "AUDIT-005",
-      "title": "Manufacturing Module — WO→Inventory→GL & BOM Cost Flow Audit",
+      "id": "ACCT-005",
+      "title": "Cash Flow Statement Reconciliation (Arus Kas — Metode Tidak Langsung)",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in manufacturing API routes — all use SYS_ACCOUNTS",
-        "Work order completion creates correct GL entries (DR WIP→FG, CR Raw Materials→WIP)",
-        "Production return creates proper GL reversal entries",
-        "Grep verification: zero matches for hardcoded GL codes in manufacturing files"
-      ]
+        "getCashFlowStatement() in finance-reports.ts or finance-cashflow.ts calculates Opening Cash = GL balance of accounts 1000+1050+1110+1111 at period start",
+        "Operating Activities: Net Profit (from P&L) + add-back non-cash items (Depreciation 6290, Bad Debt 6500) + working capital changes (delta AR 1200, delta Inventory 1300, delta AP 2000, delta PPN)",
+        "Investing Activities: Fixed asset purchases (debits to 1500) and disposals (credits from 1500 minus accum depreciation)",
+        "Financing Activities: Changes in equity accounts (3xxx) and long-term liabilities (2500 if exists)",
+        "FINAL CHECK: Opening Cash + Operating + Investing + Financing = Closing Cash (must equal GL cash account balances at period end)",
+        "If reconciliation doesn't balance, report shows 'Selisih Arus Kas' (Cash Flow Discrepancy) amount",
+        "Report displays all three sections with subtotals in Rupiah format",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT-006",
+      "title": "Finance Dashboard KPIs from GL Accounts (Not Invoice Table)",
+      "priority": "medium",
+      "passes": true,
+      "completed_at": "2026-03-16",
+      "acceptance_criteria": [
+        "Dashboard Cash Balance KPI queries SUM of GL account balances for accounts 1000, 1050, 1110, 1111 (all cash/bank accounts) — NOT from invoice payments",
+        "Dashboard AR Outstanding KPI queries GL account 1200 balance — NOT SUM(invoice.balanceDue WHERE type=INV_OUT)",
+        "Dashboard AP Outstanding KPI queries GL account 2000 balance — NOT SUM(invoice.balanceDue WHERE type=INV_IN)",
+        "Dashboard Net Margin calculates from GL: (SUM 4xxx credits - SUM 5xxx+6xxx+7xxx debits) / SUM 4xxx credits × 100",
+        "If GL balance and invoice sub-ledger disagree, show a warning badge: 'Saldo GL tidak cocok dengan sub-ledger' (GL balance doesn't match sub-ledger)",
+        "All KPIs update when journal entries are posted (not just when invoices change)",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT-007",
+      "title": "GL Integrity Checks API Endpoint (Pemeriksaan Integritas Buku Besar)",
+      "priority": "medium",
+      "passes": true,
+      "completed_at": "2026-03-16",
+      "acceptance_criteria": [
+        "New server action runIntegrityChecks() in finance-gl.ts that returns an array of check results",
+        "Check 1: AR sub-ledger = GL 1200 — SUM(invoice.balanceDue WHERE type=INV_OUT AND status NOT IN CANCELLED/VOID) must equal GLAccount 1200 balance. Report any difference.",
+        "Check 2: AP sub-ledger = GL 2000 — SUM(invoice.balanceDue WHERE type=INV_IN AND status NOT IN CANCELLED/VOID) must equal GLAccount 2000 balance",
+        "Check 3: Trial Balance — SUM(all journal line debits) = SUM(all journal line credits) for POSTED entries",
+        "Check 4: Balance Sheet equation — Total Assets (1xxx accounts) = Total Liabilities (2xxx) + Total Equity (3xxx + current year earnings from 4xxx-7xxx)",
+        "Check 5: No orphan journal lines — every JournalLine has a valid, POSTED JournalEntry parent",
+        "Each check returns: { name, status: 'PASS'|'FAIL', expected, actual, difference }",
+        "Results are in Bahasa Indonesia (e.g., 'Piutang Usaha Cocok', 'Neraca Seimbang')",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT-008",
+      "title": "PPN Settlement Journal Entry (Setor PPN Bulanan)",
+      "priority": "medium",
+      "passes": true,
+      "completed_at": "2026-03-16",
+      "acceptance_criteria": [
+        "New function postPPNSettlement() in finance-gl.ts or a new finance-tax.ts file",
+        "Calculates net PPN: PPN Keluaran (2110 balance) minus PPN Masukan (1330 balance) for the specified period",
+        "If PPN Keluaran > PPN Masukan (owe tax): DR PPN Keluaran (2110), CR PPN Masukan (1330), CR Bank (1110) for the net amount",
+        "If PPN Masukan > PPN Keluaran (excess input tax): DR PPN Keluaran (2110), CR PPN Masukan (1330), CR PPN Lebih Bayar (new account 1410 — add to SYS_ACCOUNTS)",
+        "After settlement, both PPN Keluaran and PPN Masukan balances are zeroed for the period",
+        "Validates fiscal period is still OPEN before posting",
+        "Stores settlement reference for e-Faktur reconciliation",
+        "Uses ensureSystemAccounts() — adds PPN_LEBIH_BAYAR to SYS_ACCOUNTS if missing",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT-009",
+      "title": "Fixed Asset Disposal GL Posting (Pelepasan Aset Tetap)",
+      "priority": "medium",
+      "passes": true,
+      "completed_at": "2026-03-16",
+      "acceptance_criteria": [
+        "New function disposeFixedAsset() in finance-fixed-assets.ts that handles 3 scenarios",
+        "Scenario A — Sold at book value: DR Bank (1110) [proceeds], DR Accumulated Depreciation (1590) [total accum], CR Fixed Assets (1500) [original cost]",
+        "Scenario B — Sold above book value (gain): same as A plus CR Other Income (4300) [proceeds - book value]",
+        "Scenario C — Sold below book value (loss): same as A plus DR Loss on Disposal (add LOSS_DISPOSAL to SYS_ACCOUNTS, e.g. 8100) [book value - proceeds]",
+        "Book Value calculated as: originalCost - accumulatedDepreciation",
+        "Updates fixed asset status to DISPOSED or SOLD",
+        "Prevents disposal if asset has unposted depreciation for current period (force user to run depreciation first)",
+        "Journal entry includes source_document_type: ASSET_DISPOSAL for audit trail",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT-010",
+      "title": "AR/AP Aging Summary on Receivables & Payables Pages",
+      "priority": "low",
+      "passes": true,
+      "completed_at": "2026-03-16",
+      "acceptance_criteria": [
+        "app/finance/receivables/page.tsx shows aging KPI strip at top: Current | 1-30 Hari | 31-60 Hari | 61-90 Hari | >90 Hari — each bucket shows count and total Rp amount",
+        "app/finance/payables/page.tsx shows same aging KPI strip for AP",
+        "Aging data sourced from getARAgingReport() and getAPAgingReport() from finance-reports.ts (reuse existing logic)",
+        "Each aging bucket is clickable — filters the list below to show only invoices/bills in that bucket",
+        "Total Outstanding shown matches GL account balance (1200 for AR, 2000 for AP)",
+        "Overdue amounts (>0 days past due) shown in red text per NB design system",
+        "KPI strip follows NB.kpiStrip / NB.kpiCell pattern from lib/dialog-styles.ts",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
     }
   ]
 }

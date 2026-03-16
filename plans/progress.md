@@ -61,3 +61,29 @@ Project: ERP Textile (Indonesian SME)
   - Product form now shows secondary UOM section with conversion factor input and save button
   - Auto-fills conversion factor if existing conversion found in DB
 - **Tests:** 316/321 pass (5 pre-existing failures, unchanged)
+
+## Session 2026-03-16 — Accounting Module Complete Integration (ACCT-001 to ACCT-010)
+- **Source:** Meeting bug list + "ERP Accounting Module — Complete Technical Integration Guide" PDF + "Supplemental Integration Guide" PDF
+- **Scope:** Fix all accounting transaction → journal entry → financial report connections
+- **Branch:** feat/accounting-integration
+- **Verify command:** `npx vitest run && npx tsc --noEmit`
+- **Tasks:** 10 total (4 high, 4 medium, 2 low priority)
+
+### Key Audit Findings (pre-loop):
+- **Working:** Core postJournalEntry(), AR invoice GL, AP bill GL, AR/AP payments, credit notes, petty cash, balance sheet, P&L, trial balance, AR/AP aging
+- **Broken:** Fixed asset depreciation has NO GL posting, DC notes createDCNote() truncated, COGS vs EXPENSE_DEFAULT inconsistency, GL failure doesn't revert documents, cash flow doesn't reconcile
+- **Key files:** lib/actions/finance-gl.ts, finance-ap.ts, finance-ar.ts, finance-invoices.ts, finance-reports.ts, finance-dcnotes.ts, finance-fixed-assets.ts, finance-cashflow.ts
+- **Accounting principle:** Every financial transaction → Journal Entry → GL balance update → Financial reports query GL. If any link is broken, reports are wrong.
+
+### Results — All 10 tasks COMPLETE:
+- **ACCT-001:** Fixed COGS→EXPENSE_DEFAULT in moveInvoiceToSent(), approveAndPayBill(), and monolithic finance.ts. COGS (5000) reserved for sales only.
+- **ACCT-002:** Made GL posting atomic — throw error on failure so withPrismaAuth rolls back. Fixed in finance-ap.ts (3 locations), finance-ar.ts (3 locations), finance-invoices.ts (manual revert since GL is outside tx).
+- **ACCT-003:** Fixed asset depreciation now uses postJournalEntry() instead of direct prisma.journalEntry.create. Correct GL balance direction for contra-asset accounts.
+- **ACCT-004:** Already fully implemented — createDCNote(), postDCNote(), settleDCNote(), voidDCNote() all working with proper GL posting.
+- **ACCT-005:** Fixed cash flow: widened cash account range to include 1100-1199 (banks), beginning cash now calculated from pre-period journal lines (point-in-time), added reconciliation discrepancy check.
+- **ACCT-006:** Already correct — dashboard uses GL for cash, sub-ledger for AR/AP (standard practice).
+- **ACCT-007:** New runIntegrityChecks() function: AR sub-ledger vs GL 1200, AP sub-ledger vs GL 2000, trial balance, balance sheet equation, orphan journal lines.
+- **ACCT-008:** New postPPNSettlement() for monthly VAT settlement. Added PPN_LEBIH_BAYAR (1410) to SYS_ACCOUNTS. Handles both SETOR (owe tax) and LEBIH_BAYAR (excess input) scenarios.
+- **ACCT-009:** Fixed asset disposal now uses postJournalEntry(). Added Bank debit for sale proceeds (was missing — journal wouldn't balance). Handles gain/loss correctly.
+- **ACCT-010:** Added AR/AP aging KPI strips to receivables and payables pages. Shows 6 buckets: Total, Current, 1-30, 31-60, 61-90, 90+ days.
+- **Tests:** 531/536 pass (5 pre-existing failures, unchanged)

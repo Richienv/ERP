@@ -1488,3 +1488,226 @@ export async function getAccountDrillDown(
         return []
     }
 }
+
+// ==========================================
+// GL INTEGRITY CHECKS (Pemeriksaan Integritas Buku Besar)
+// ==========================================
+
+export type IntegrityCheckResult = {
+    name: string
+    nameBahasa: string
+    status: 'PASS' | 'FAIL'
+    expected: number
+    actual: number
+    difference: number
+}
+
+/**
+ * Run automated integrity checks on the General Ledger.
+ * Returns an array of check results — any FAIL indicates data inconsistency.
+ */
+export async function runIntegrityChecks(): Promise<{ success: true; checks: IntegrityCheckResult[] } | { success: false; error: string }> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            await ensureSystemAccounts()
+            const checks: IntegrityCheckResult[] = []
+            const TOLERANCE = 0.01
+
+            // Check 1: AR sub-ledger = GL 1200
+            const arSubLedger = await prisma.invoice.aggregate({
+                where: { type: 'INV_OUT', status: { notIn: ['CANCELLED', 'VOID', 'DRAFT'] } },
+                _sum: { balanceDue: true },
+            })
+            const arGLAccount = await prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.AR } })
+            const arSubTotal = Number(arSubLedger._sum.balanceDue || 0)
+            const arGLBalance = Number(arGLAccount?.balance || 0)
+            checks.push({
+                name: 'AR Sub-ledger vs GL 1200',
+                nameBahasa: 'Piutang Usaha — Sub-ledger vs Buku Besar',
+                status: Math.abs(arSubTotal - arGLBalance) <= TOLERANCE ? 'PASS' : 'FAIL',
+                expected: arSubTotal,
+                actual: arGLBalance,
+                difference: arGLBalance - arSubTotal,
+            })
+
+            // Check 2: AP sub-ledger = GL 2000
+            const apSubLedger = await prisma.invoice.aggregate({
+                where: { type: 'INV_IN', status: { notIn: ['CANCELLED', 'VOID', 'DRAFT'] } },
+                _sum: { balanceDue: true },
+            })
+            const apGLAccount = await prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.AP } })
+            const apSubTotal = Number(apSubLedger._sum.balanceDue || 0)
+            const apGLBalance = Number(apGLAccount?.balance || 0)
+            checks.push({
+                name: 'AP Sub-ledger vs GL 2000',
+                nameBahasa: 'Hutang Usaha — Sub-ledger vs Buku Besar',
+                status: Math.abs(apSubTotal - apGLBalance) <= TOLERANCE ? 'PASS' : 'FAIL',
+                expected: apSubTotal,
+                actual: apGLBalance,
+                difference: apGLBalance - apSubTotal,
+            })
+
+            // Check 3: Trial Balance — total debits = total credits (POSTED entries only)
+            const trialBalance = await prisma.journalLine.aggregate({
+                where: { entry: { status: 'POSTED' } },
+                _sum: { debit: true, credit: true },
+            })
+            const totalDebits = Number(trialBalance._sum.debit || 0)
+            const totalCredits = Number(trialBalance._sum.credit || 0)
+            checks.push({
+                name: 'Trial Balance (Debits = Credits)',
+                nameBahasa: 'Neraca Saldo — Total Debit = Total Kredit',
+                status: Math.abs(totalDebits - totalCredits) <= TOLERANCE ? 'PASS' : 'FAIL',
+                expected: totalDebits,
+                actual: totalCredits,
+                difference: totalDebits - totalCredits,
+            })
+
+            // Check 4: Balance Sheet equation — Assets = Liabilities + Equity
+            const allAccounts = await prisma.gLAccount.findMany({ select: { code: true, type: true, balance: true } })
+            let totalAssets = 0
+            let totalLiabilities = 0
+            let totalEquity = 0
+
+            for (const acc of allAccounts) {
+                const bal = Number(acc.balance)
+                if (acc.type === 'ASSET') totalAssets += bal
+                else if (acc.type === 'LIABILITY') totalLiabilities += bal
+                else if (acc.type === 'EQUITY') totalEquity += bal
+                else if (acc.type === 'REVENUE') totalEquity += bal // Revenue increases equity
+                else if (acc.type === 'EXPENSE') totalEquity -= bal // Expense decreases equity
+            }
+            const liabPlusEquity = totalLiabilities + totalEquity
+            checks.push({
+                name: 'Balance Sheet (Assets = Liabilities + Equity)',
+                nameBahasa: 'Neraca Seimbang — Aset = Kewajiban + Ekuitas',
+                status: Math.abs(totalAssets - liabPlusEquity) <= TOLERANCE ? 'PASS' : 'FAIL',
+                expected: totalAssets,
+                actual: liabPlusEquity,
+                difference: totalAssets - liabPlusEquity,
+            })
+
+            // Check 5: No orphan journal lines
+            const orphanLines = await prisma.journalLine.count({
+                where: {
+                    entry: { status: { not: 'POSTED' } }
+                }
+            })
+            checks.push({
+                name: 'No Orphan Journal Lines',
+                nameBahasa: 'Tidak Ada Baris Jurnal Yatim',
+                status: orphanLines === 0 ? 'PASS' : 'FAIL',
+                expected: 0,
+                actual: orphanLines,
+                difference: orphanLines,
+            })
+
+            return { success: true as const, checks }
+        })
+    } catch (error: any) {
+        console.error("[runIntegrityChecks] Error:", error)
+        return { success: false as const, error: error.message || "Gagal menjalankan pemeriksaan integritas" }
+    }
+}
+
+// ==========================================
+// PPN SETTLEMENT (Setor PPN Bulanan)
+// ==========================================
+
+/**
+ * Post monthly PPN settlement: offset PPN Keluaran (2110) against PPN Masukan (1330).
+ *
+ * If PPN Keluaran > PPN Masukan: DR PPN Keluaran, CR PPN Masukan, CR Bank (net owed)
+ * If PPN Masukan > PPN Keluaran: DR PPN Keluaran, CR PPN Masukan, CR PPN Lebih Bayar (1410, carry-forward)
+ */
+export async function postPPNSettlement(data: {
+    periodStart: string
+    periodEnd: string
+    bankAccountCode?: string
+    notes?: string
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const start = new Date(data.periodStart)
+            const end = new Date(data.periodEnd)
+
+            // Validate fiscal period is open
+            const lockedPeriod = await prisma.fiscalPeriod.findFirst({
+                where: { isClosed: true, startDate: { lte: end }, endDate: { gte: start } },
+            })
+            if (lockedPeriod) {
+                return { success: false as const, error: `Periode ${lockedPeriod.name} sudah dikunci` }
+            }
+
+            await ensureSystemAccounts()
+
+            // Calculate PPN Keluaran balance (output tax, LIABILITY — credit normal)
+            const ppnKeluaranAccount = await prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.PPN_KELUARAN } })
+            const ppnMasukanAccount = await prisma.gLAccount.findFirst({ where: { code: SYS_ACCOUNTS.PPN_MASUKAN } })
+
+            if (!ppnKeluaranAccount || !ppnMasukanAccount) {
+                return { success: false as const, error: "Akun PPN Keluaran atau PPN Masukan tidak ditemukan" }
+            }
+
+            const ppnKeluaranBalance = Number(ppnKeluaranAccount.balance) // Positive = we owe tax
+            const ppnMasukanBalance = Number(ppnMasukanAccount.balance)   // Positive = tax we can claim
+
+            if (ppnKeluaranBalance <= 0 && ppnMasukanBalance <= 0) {
+                return { success: false as const, error: "Tidak ada saldo PPN untuk disetor" }
+            }
+
+            const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
+
+            if (ppnKeluaranBalance >= ppnMasukanBalance) {
+                // We owe tax: net = PPN Keluaran - PPN Masukan
+                const netOwed = ppnKeluaranBalance - ppnMasukanBalance
+
+                // DR PPN Keluaran (zero out the liability)
+                lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: ppnKeluaranBalance, credit: 0, description: 'Offset PPN Keluaran' })
+                // CR PPN Masukan (zero out the asset)
+                if (ppnMasukanBalance > 0) {
+                    lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: 0, credit: ppnMasukanBalance, description: 'Offset PPN Masukan' })
+                }
+                // CR Bank (pay the net amount to tax office)
+                if (netOwed > 0) {
+                    const bankCode = data.bankAccountCode || SYS_ACCOUNTS.BANK_BCA
+                    lines.push({ accountCode: bankCode, debit: 0, credit: netOwed, description: `Setor PPN ke kas negara` })
+                }
+            } else {
+                // Excess input tax: PPN Masukan > PPN Keluaran — carry forward
+                const excessInput = ppnMasukanBalance - ppnKeluaranBalance
+
+                // DR PPN Keluaran (zero out)
+                if (ppnKeluaranBalance > 0) {
+                    lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: ppnKeluaranBalance, credit: 0, description: 'Offset PPN Keluaran' })
+                }
+                // CR PPN Masukan (use up to match keluaran)
+                lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: 0, credit: ppnMasukanBalance, description: 'Offset PPN Masukan' })
+                // DR PPN Lebih Bayar (carry-forward excess)
+                lines.push({ accountCode: SYS_ACCOUNTS.PPN_LEBIH_BAYAR, debit: excessInput, credit: 0, description: 'PPN Lebih Bayar (carry-forward)' })
+            }
+
+            const glResult = await postJournalEntry({
+                description: `Setor PPN Bulanan — ${data.periodStart} s/d ${data.periodEnd}${data.notes ? ` (${data.notes})` : ''}`,
+                date: end,
+                reference: `PPN-${data.periodStart.substring(0, 7)}`,
+                lines,
+            })
+
+            if (!glResult?.success) {
+                return { success: false as const, error: `Jurnal PPN gagal: ${(glResult as any)?.error || 'Unknown error'}` }
+            }
+
+            return {
+                success: true as const,
+                ppnKeluaran: ppnKeluaranBalance,
+                ppnMasukan: ppnMasukanBalance,
+                netAmount: Math.abs(ppnKeluaranBalance - ppnMasukanBalance),
+                direction: ppnKeluaranBalance >= ppnMasukanBalance ? 'SETOR' : 'LEBIH_BAYAR',
+            }
+        })
+    } catch (error: any) {
+        console.error("[postPPNSettlement] Error:", error)
+        return { success: false as const, error: error.message || "Gagal memposting setor PPN" }
+    }
+}

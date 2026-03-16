@@ -832,6 +832,8 @@ export interface CashFlowData {
     netIncreaseInCash: number
     beginningCash: number
     endingCash: number
+    calculatedEndingCash?: number
+    cashFlowDiscrepancy?: number  // Selisih Arus Kas — non-zero means unclassified cash movements
     period: { startDate: string; endDate: string }
 }
 
@@ -846,19 +848,31 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
-            // Get cash account changes (all 10xx: 1000 Kas, 1010 BCA, 1020 Mandiri, 1050 Petty Cash, etc.)
+            // Get cash & bank accounts: 1000 Kas, 1050 Petty Cash, 1110 Bank BCA, 1111 Bank Mandiri
             const cashAccounts = await basePrisma.gLAccount.findMany({
                 where: {
                     type: 'ASSET',
-                    code: { gte: '1000', lt: '1100' },
+                    OR: [
+                        { code: { gte: '1000', lt: '1100' } },  // Cash accounts (1000-1099)
+                        { code: { gte: '1100', lt: '1200' } },  // Bank accounts (1100-1199)
+                    ],
                 }
             })
 
-            // Get beginning balance (start of period)
-            const beginningCash = cashAccounts.reduce((sum, acc) => sum + Number(acc.balance), 0)
-
-            // Get journal entries affecting cash, including all sibling lines for counter-party analysis
+            // Calculate beginning cash from journal entries BEFORE the period start
+            // (GL balance is current, not historical — we need point-in-time balance)
             const cashAccountIds = cashAccounts.map(a => a.id)
+            const prePeriodLines = await basePrisma.journalLine.findMany({
+                where: {
+                    accountId: { in: cashAccountIds },
+                    entry: { date: { lt: start }, status: 'POSTED' }
+                },
+                select: { debit: true, credit: true }
+            })
+            // For ASSET accounts: balance = SUM(debits) - SUM(credits)
+            const beginningCash = prePeriodLines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+
+            // Get journal entries affecting cash IN the period, including sibling lines for counter-party analysis
             const cashJournalLines = await basePrisma.journalLine.findMany({
                 where: {
                     accountId: { in: cashAccountIds },
@@ -998,13 +1012,30 @@ export async function getCashFlowStatement(startDate?: Date | string, endDate?: 
                 investingActivities.netCashFromInvesting +
                 financingActivities.netCashFromFinancing
 
+            // Actual ending cash from GL (journal lines up to end date)
+            const endPeriodLines = await basePrisma.journalLine.findMany({
+                where: {
+                    accountId: { in: cashAccountIds },
+                    entry: { date: { lte: end }, status: 'POSTED' }
+                },
+                select: { debit: true, credit: true }
+            })
+            const actualEndingCash = endPeriodLines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+            const calculatedEndingCash = beginningCash + netIncreaseInCash
+
+            // Reconciliation: calculated vs actual should match
+            const discrepancy = Math.abs(calculatedEndingCash - actualEndingCash)
+
             return {
                 operatingActivities,
                 investingActivities,
                 financingActivities,
                 netIncreaseInCash,
                 beginningCash,
-                endingCash: beginningCash + netIncreaseInCash,
+                endingCash: actualEndingCash,
+                calculatedEndingCash,
+                // Selisih Arus Kas — if > 0.01, there are unclassified cash movements
+                cashFlowDiscrepancy: discrepancy > 0.01 ? discrepancy : 0,
                 period: {
                     startDate: start.toISOString(),
                     endDate: end.toISOString()
@@ -2916,12 +2947,13 @@ export async function approveAndPayBill(
                 const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                 let totalAmount = 0
 
-                // Add Expense Lines — DR HPP/COGS
+                // Add Expense Lines — DR Beban (Expense)
+                // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
                 for (const item of bill.items) {
                     const amount = Number(item.amount)
                     totalAmount += amount
                     glLines.push({
-                        accountCode: SYS_ACCOUNTS.COGS,
+                        accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`

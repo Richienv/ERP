@@ -59,6 +59,9 @@ export const SYS_ACCOUNTS = {
   LOSS_WRITEOFF:    "8200",  // Kerugian / Penghapusan
   INV_ADJUSTMENT:   "8300",  // Penyesuaian Persediaan
 
+  // --- Tax Carry-Forward ---
+  PPN_LEBIH_BAYAR: "1410",  // PPN Lebih Bayar (Input Tax Carry-Forward)
+
   // --- Accumulated Depreciation ---
   ACC_DEPRECIATION: "1590", // Akumulasi Penyusutan (seed: 1590)
 } as const
@@ -73,6 +76,7 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.RAW_MATERIALS,   name: "Persediaan Bahan Baku",           type: "ASSET" },
   { code: SYS_ACCOUNTS.WIP,             name: "Persediaan Dalam Proses (WIP)",   type: "ASSET" },
   { code: SYS_ACCOUNTS.PPN_MASUKAN,      name: "PPN Masukan (Input VAT)",       type: "ASSET" },
+  { code: SYS_ACCOUNTS.PPN_LEBIH_BAYAR,  name: "PPN Lebih Bayar",              type: "ASSET" },
   { code: SYS_ACCOUNTS.ACC_DEPRECIATION, name: "Akumulasi Penyusutan",          type: "ASSET" },
   { code: SYS_ACCOUNTS.AP,               name: "Utang Usaha (AP)",              type: "LIABILITY" },
   { code: SYS_ACCOUNTS.PPN_KELUARAN,     name: "Utang Pajak (PPN/PPh)",         type: "LIABILITY" },

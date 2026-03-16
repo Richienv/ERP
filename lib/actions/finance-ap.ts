@@ -461,7 +461,8 @@ export async function recordVendorPayment(data: {
                 ]
             })
             if (!glResult?.success) {
-                console.error("GL posting failed for vendor payment:", (glResult as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + bill update
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true, paymentId: payment.id, paymentNumber }
@@ -594,7 +595,8 @@ export async function recordMultiBillPayment(data: {
                 ]
             })
             if (!multiGlResult?.success) {
-                console.error("GL posting failed for multi-bill payment:", (multiGlResult as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback semua pembayaran + bill updates
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(multiGlResult as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true, paymentNumber, paymentIds, totalAmount }
@@ -791,11 +793,12 @@ export async function approveAndPayBill(
                 let totalAmount = 0
 
                 // Add Expense Lines
+                // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
                 for (const item of bill.items) {
                     const amount = Number(item.amount)
                     totalAmount += amount
                     glLines.push({
-                        accountCode: SYS_ACCOUNTS.COGS,
+                        accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
@@ -866,7 +869,8 @@ export async function approveAndPayBill(
                 ]
             })
             if (!payGl?.success) {
-                console.error("GL posting failed for payment:", (payGl as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback approval + payment
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(payGl as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true }
