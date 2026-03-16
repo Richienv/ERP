@@ -2,6 +2,7 @@
 
 import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 // ==========================================
 // TYPES
@@ -386,7 +387,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             supabase.from('gl_accounts')
                 .select('balance')
                 .eq('type', 'ASSET')
-                .in('code', ['1000', '1010', '1020']),
+                .in('code', [SYS_ACCOUNTS.CASH, SYS_ACCOUNTS.BANK_BCA, SYS_ACCOUNTS.BANK_MANDIRI, SYS_ACCOUNTS.PETTY_CASH]),
 
             expenseAccountIds.length > 0 ? supabase.from('journal_lines')
                 .select('debit, journal_entries!inner(date)')
@@ -450,7 +451,7 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
                         select: { balanceDue: true },
                     }),
                     prisma.gLAccount.findMany({
-                        where: { type: 'ASSET', code: { in: ['1000', '1010', '1020'] } },
+                        where: { type: 'ASSET', code: { in: [SYS_ACCOUNTS.CASH, SYS_ACCOUNTS.BANK_BCA, SYS_ACCOUNTS.BANK_MANDIRI, SYS_ACCOUNTS.PETTY_CASH] } },
                         select: { balance: true },
                     }),
                     prisma.invoice.findMany({

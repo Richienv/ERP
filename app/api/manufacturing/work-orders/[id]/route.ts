@@ -419,13 +419,24 @@ async function executeProductionReturn(
         })
     }
 
-    // 3. GL reversal: DR Raw Materials (1310), CR Finished Goods (1300)
+    // 3. GL reversal through WIP (mirrors the 2-step production posting)
+    //    Step A: DR Raw Materials, CR WIP (reverse material consumption)
+    //    Step B: DR WIP, CR Inventory Asset/FG (reverse FG completion)
     if (totalMaterialCost > 0) {
         await postJournalWithBalanceUpdate(tx, {
-            description: `WO ${workOrder.number} - Retur Produksi: ${params.reason}`,
+            description: `WO ${workOrder.number} - Material Return: ${params.reason}`,
             reference: workOrder.number,
             lines: [
-                { accountCode: SYS_ACCOUNTS.RAW_MATERIALS, debit: totalMaterialCost, credit: 0, description: 'Retur bahan baku masuk' },
+                { accountCode: SYS_ACCOUNTS.RAW_MATERIALS, debit: totalMaterialCost, credit: 0, description: 'Material dikembalikan dari produksi' },
+                { accountCode: SYS_ACCOUNTS.WIP, debit: 0, credit: totalMaterialCost, description: 'Pengurangan WIP' },
+            ],
+        })
+
+        await postJournalWithBalanceUpdate(tx, {
+            description: `WO ${workOrder.number} - Retur Barang Jadi: ${params.reason}`,
+            reference: workOrder.number,
+            lines: [
+                { accountCode: SYS_ACCOUNTS.WIP, debit: totalMaterialCost, credit: 0, description: 'WIP reversal dari barang jadi' },
                 { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: 0, credit: totalMaterialCost, description: 'Barang jadi dikurangi' },
             ],
         })

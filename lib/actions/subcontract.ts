@@ -4,6 +4,7 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, SubcontractOrderStatus, SubcontractShipmentDirection } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertSubcontractTransition } from "@/lib/subcontract-state-machine"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()
@@ -713,6 +714,73 @@ export async function updateSubcontractOrderStatus(
 }
 
 // ==============================================================================
+// GL Posting Helper (within transaction context)
+// ==============================================================================
+
+function ledgerBalanceDelta(accountType: string, debit: number, credit: number) {
+    if (accountType === 'ASSET' || accountType === 'EXPENSE') {
+        return debit - credit
+    }
+    return credit - debit
+}
+
+async function postJournalInTx(
+    tx: any,
+    data: {
+        description: string
+        reference: string
+        lines: Array<{ accountCode: string; debit: number; credit: number; description?: string }>
+    }
+) {
+    const totalDebit = data.lines.reduce((s, l) => s + l.debit, 0)
+    const totalCredit = data.lines.reduce((s, l) => s + l.credit, 0)
+    if (Math.abs(totalDebit - totalCredit) > 0.01) {
+        throw new Error('Unbalanced journal entry')
+    }
+
+    const accountCodes = Array.from(new Set(data.lines.map((l) => l.accountCode)))
+    const accounts = await tx.gLAccount.findMany({
+        where: { code: { in: accountCodes } },
+    })
+    const accountMap = new Map(accounts.map((a: any) => [a.code, a]))
+
+    for (const code of accountCodes) {
+        if (!accountMap.has(code)) {
+            throw new Error(`GL account not configured: ${code}`)
+        }
+    }
+
+    await tx.journalEntry.create({
+        data: {
+            date: new Date(),
+            description: data.description,
+            reference: data.reference,
+            status: 'POSTED',
+            lines: {
+                create: data.lines.map((line) => {
+                    const account = accountMap.get(line.accountCode)!
+                    return {
+                        accountId: (account as any).id,
+                        debit: line.debit,
+                        credit: line.credit,
+                        description: line.description || data.description,
+                    }
+                }),
+            },
+        },
+    })
+
+    for (const line of data.lines) {
+        const account = accountMap.get(line.accountCode)!
+        const delta = ledgerBalanceDelta((account as any).type, line.debit, line.credit)
+        await tx.gLAccount.update({
+            where: { id: (account as any).id },
+            data: { balance: { increment: delta } },
+        })
+    }
+}
+
+// ==============================================================================
 // Shipments with Inventory Integration (write — keep withPrismaAuth)
 // ==============================================================================
 
@@ -796,6 +864,29 @@ export async function recordShipment(data: {
                                 availableQty: { decrement: item.quantity },
                             },
                         })
+
+                        // GL: DR WIP (material sent to CMT), CR Inventory Asset
+                        try {
+                            await ensureSystemAccounts()
+                            const product = await tx.product.findUnique({
+                                where: { id: item.productId },
+                                select: { costPrice: true },
+                            })
+                            const unitCost = Number(product?.costPrice || 0)
+                            const totalValue = unitCost * item.quantity
+                            if (totalValue > 0) {
+                                await postJournalInTx(tx, {
+                                    description: `Subkon keluar ke ${order.subcontractor.name} - ${order.number}`,
+                                    reference: order.number,
+                                    lines: [
+                                        { accountCode: SYS_ACCOUNTS.WIP, debit: totalValue, credit: 0, description: 'Material ke subkontraktor' },
+                                        { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: 0, credit: totalValue, description: 'Pengeluaran material subkon' },
+                                    ],
+                                })
+                            }
+                        } catch (glErr) {
+                            console.error("GL posting failed for SUBCONTRACT_OUT:", glErr)
+                        }
                     } else {
                         // INBOUND: receive materials back from CMT
                         const goodQty = item.quantity
@@ -839,6 +930,39 @@ export async function recordShipment(data: {
                                 availableQty: { increment: goodQty },
                             },
                         })
+
+                        // GL: DR Inventory Asset (good qty), CR WIP
+                        // If there's scrap (defect + wastage): DR Loss/Writeoff, CR WIP
+                        try {
+                            await ensureSystemAccounts()
+                            const product = await tx.product.findUnique({
+                                where: { id: item.productId },
+                                select: { costPrice: true },
+                            })
+                            const unitCost = Number(product?.costPrice || 0)
+                            const goodValue = unitCost * goodQty
+                            const scrapQty = defect + wastage
+                            const scrapValue = unitCost * scrapQty
+                            const totalWipRelease = goodValue + scrapValue
+                            if (totalWipRelease > 0) {
+                                const glLines: Array<{ accountCode: string; debit: number; credit: number; description?: string }> = [
+                                    { accountCode: SYS_ACCOUNTS.WIP, debit: 0, credit: totalWipRelease, description: 'Penyelesaian subkon' },
+                                ]
+                                if (goodValue > 0) {
+                                    glLines.push({ accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: goodValue, credit: 0, description: 'Material kembali dari subkon' })
+                                }
+                                if (scrapValue > 0) {
+                                    glLines.push({ accountCode: SYS_ACCOUNTS.LOSS_WRITEOFF, debit: scrapValue, credit: 0, description: 'Scrap subkon' })
+                                }
+                                await postJournalInTx(tx, {
+                                    description: `Subkon masuk dari ${order.subcontractor.name} - ${order.number}`,
+                                    reference: order.number,
+                                    lines: glLines,
+                                })
+                            }
+                        } catch (glErr) {
+                            console.error("GL posting failed for SUBCONTRACT_IN:", glErr)
+                        }
 
                         // Auto-update SubcontractOrderItem returnedQty/defectQty/wastageQty
                         const orderItem = await tx.subcontractOrderItem.findFirst({

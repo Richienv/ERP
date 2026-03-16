@@ -3,6 +3,7 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 import { findMatchesIndexed, buildTransactionIndex, type BankLine, type SystemTransaction, type MatchResult } from "@/lib/finance-reconciliation-helpers"
 async function requireAuth() {
     const supabase = await createClient()
@@ -311,7 +312,7 @@ export async function getBankAccounts(): Promise<
                     { name: { contains: 'bank', mode: 'insensitive' as const } },
                     { name: { contains: 'kas', mode: 'insensitive' as const } },
                     { name: { contains: 'cash', mode: 'insensitive' as const } },
-                    { code: { in: ['1000', '1010', '1020', '1100', '1110'] } },
+                    { code: { in: [SYS_ACCOUNTS.CASH, SYS_ACCOUNTS.PETTY_CASH, SYS_ACCOUNTS.BANK_BCA, SYS_ACCOUNTS.BANK_MANDIRI] } },
                 ],
             },
             select: { id: true, code: true, name: true, balance: true },
