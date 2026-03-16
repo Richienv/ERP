@@ -1058,7 +1058,7 @@ export async function recordPartialShipment(
 
                     // Auto-create AR invoice when SO fully delivered
                     try {
-                        const { createInvoiceFromSalesOrder: autoCreateInvoice } = await import("@/lib/actions/finance")
+                        const { createInvoiceFromSalesOrder: autoCreateInvoice } = await import("@/lib/actions/finance-invoices")
                         const invResult: any = await autoCreateInvoice(item.salesOrderId)
                         if (invResult.success) {
                             console.log(`[Auto-AR] Invoice ${invResult.invoiceNumber || 'created'} for SO ${item.salesOrderId}`)

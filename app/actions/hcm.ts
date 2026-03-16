@@ -12,7 +12,7 @@ import {
 } from '@prisma/client'
 import { withPrismaAuth } from '@/lib/db'
 import { assertRole, getAuthzUser } from '@/lib/authz'
-import { postJournalEntry } from '@/lib/actions/finance'
+import { postJournalEntry } from '@/lib/actions/finance-gl'
 import {
     calculateBPJS,
     calculateMonthlyPPh21,
