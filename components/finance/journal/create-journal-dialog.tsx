@@ -197,7 +197,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
+            <DialogContent className="max-w-[92vw] w-full p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
                 {/* ── Black header ── */}
                 <DialogHeader className={NB.header}>
                     <DialogTitle className={NB.title}>
@@ -209,7 +209,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                 </DialogHeader>
 
                 {/* ── Scrollable body ── */}
-                <div className="max-h-[78vh] overflow-y-auto">
+                <div className="max-h-[65vh] overflow-y-auto">
                     <div className="p-5 space-y-5">
                         {/* ── Info section ── */}
                         <div className={NB.section}>
@@ -285,7 +285,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                             </div>
 
                             {/* Column headers */}
-                            <div className={`grid grid-cols-[32px_1fr_1fr_120px_120px_36px] gap-2 px-4 py-2.5 ${NB.tableHead}`}>
+                            <div className={`grid grid-cols-[36px_1.2fr_1fr_150px_150px_40px] gap-2 px-4 py-2.5 ${NB.tableHead}`}>
                                 <div className={NB.tableHeadCell}>#</div>
                                 <div className={NB.tableHeadCell}>Akun</div>
                                 <div className={NB.tableHeadCell}>Keterangan</div>
@@ -310,7 +310,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                 return (
                                     <div
                                         key={i}
-                                        className={`group/line grid grid-cols-[32px_1fr_1fr_120px_120px_36px] gap-2 px-4 py-2.5 items-center transition-colors ${NB.tableRow} ${
+                                        className={`group/line grid grid-cols-[36px_1.2fr_1fr_150px_150px_40px] gap-2 px-4 py-2.5 items-center transition-colors ${NB.tableRow} ${
                                             hasValue ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/50 dark:bg-zinc-800/20"
                                         }`}
                                     >
@@ -405,7 +405,7 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                             </div>
 
                             {/* Totals row */}
-                            <div className="grid grid-cols-[32px_1fr_1fr_120px_120px_36px] gap-2 px-4 py-3 bg-zinc-100 dark:bg-zinc-800/80 border-t-2 border-black dark:border-white">
+                            <div className="grid grid-cols-[36px_1.2fr_1fr_150px_150px_40px] gap-2 px-4 py-3 bg-zinc-100 dark:bg-zinc-800/80 border-t-2 border-black dark:border-white">
                                 <div></div>
                                 <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center col-span-2">
                                     Total — {lines.filter(l => (Number(l.debit) || 0) > 0 || (Number(l.credit) || 0) > 0).length} baris aktif
