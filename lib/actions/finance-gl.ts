@@ -1,7 +1,21 @@
 'use server'
 
 import { withPrismaAuth } from "@/lib/db"
-import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+
+// ==========================================
+// JOURNAL REFERENCE NUMBER GENERATION
+// ==========================================
+
+export async function getNextJournalRef(prefix: string): Promise<string> {
+    const year = new Date().getFullYear()
+    const search = `${prefix}-${year}`
+    const { prisma } = await withPrismaAuth()
+    const count = await prisma.journalEntry.count({
+        where: { reference: { startsWith: search } }
+    })
+    return `${search}-${String(count + 1).padStart(4, '0')}`
+}
 
 // ==========================================
 // GL ACCOUNTS & CHART OF ACCOUNTS
@@ -889,6 +903,20 @@ export async function postOpeningBalancesGL(data: {
         const year = new Date(data.date).getFullYear()
 
         return await withPrismaAuth(async (prisma) => {
+            await ensureSystemAccounts()
+
+            // Check for existing opening balance for this year
+            const existing = await prisma.journalEntry.findFirst({
+                where: { reference: `OPENING-BALANCE-${year}` },
+                select: { id: true },
+            })
+            if (existing) {
+                return {
+                    success: false,
+                    error: `Saldo awal untuk tahun ${year} sudah pernah diposting. Hapus jurnal OPENING-BALANCE-${year} terlebih dahulu jika ingin mengulang.`
+                }
+            }
+
             const codes = filledRows.map(r => r.accountCode)
             const accounts = await prisma.gLAccount.findMany({
                 where: { code: { in: codes } }
@@ -963,6 +991,7 @@ export async function createOpeningInvoices(data: {
         const invoiceType = data.type === "AP" ? "INV_IN" : "INV_OUT"
 
         const createdCount = await withPrismaAuth(async (prisma) => {
+            await ensureSystemAccounts()
             let count = 0
 
             for (const row of validRows) {
@@ -996,7 +1025,7 @@ export async function createOpeningInvoices(data: {
                 // AP opening: DR Opening Balance Equity (3900), CR Hutang (2100)
                 const arCode = SYS_ACCOUNTS.AR
                 const apCode = SYS_ACCOUNTS.AP
-                const openingEquityCode = "3900"
+                const openingEquityCode = SYS_ACCOUNTS.OPENING_EQUITY
                 const balanceAccountCode = data.type === "AR" ? arCode : apCode
 
                 // Ensure accounts exist
@@ -1004,13 +1033,6 @@ export async function createOpeningInvoices(data: {
                 const accounts = await prisma.gLAccount.findMany({
                     where: { code: { in: accountCodes } }
                 })
-
-                // Auto-create missing accounts
-                if (!accounts.find(a => a.code === openingEquityCode)) {
-                    await prisma.gLAccount.create({
-                        data: { code: openingEquityCode, name: "Saldo Awal Ekuitas", type: "EQUITY", balance: 0 }
-                    })
-                }
 
                 const allAccounts = await prisma.gLAccount.findMany({
                     where: { code: { in: accountCodes } }
@@ -1058,6 +1080,61 @@ export async function createOpeningInvoices(data: {
     } catch (error: any) {
         console.error("[createOpeningInvoices] Error:", error)
         return { success: false, error: error?.message || "Gagal membuat saldo awal invoice" }
+    }
+}
+
+/**
+ * Get summary of existing opening balance data for the KPI strip.
+ */
+export async function getOpeningBalanceSummary(): Promise<{
+    glPosted: boolean
+    glDate: string | null
+    glAccountCount: number
+    apCount: number
+    apTotal: number
+    arCount: number
+    arTotal: number
+}> {
+    try {
+        const { prisma } = await import('@/lib/db')
+
+        const [glEntry, apAgg, arAgg] = await Promise.all([
+            prisma.journalEntry.findFirst({
+                where: { reference: { startsWith: 'OPENING-BALANCE-' } },
+                include: { lines: { select: { id: true } } },
+                orderBy: { date: 'desc' },
+            }),
+            prisma.invoice.aggregate({
+                where: {
+                    type: 'INV_IN',
+                    status: 'ISSUED',
+                    journalEntries: { some: { reference: { startsWith: 'OPENING-AP' } } },
+                },
+                _count: true,
+                _sum: { totalAmount: true },
+            }).catch(() => ({ _count: 0, _sum: { totalAmount: null } })),
+            prisma.invoice.aggregate({
+                where: {
+                    type: 'INV_OUT',
+                    status: 'ISSUED',
+                    journalEntries: { some: { reference: { startsWith: 'OPENING-AR' } } },
+                },
+                _count: true,
+                _sum: { totalAmount: true },
+            }).catch(() => ({ _count: 0, _sum: { totalAmount: null } })),
+        ])
+
+        return {
+            glPosted: !!glEntry,
+            glDate: glEntry?.date?.toISOString().slice(0, 10) ?? null,
+            glAccountCount: glEntry?.lines.length ?? 0,
+            apCount: apAgg._count ?? 0,
+            apTotal: Number(apAgg._sum.totalAmount ?? 0),
+            arCount: arAgg._count ?? 0,
+            arTotal: Number(arAgg._sum.totalAmount ?? 0),
+        }
+    } catch {
+        return { glPosted: false, glDate: null, glAccountCount: 0, apCount: 0, apTotal: 0, arCount: 0, arTotal: 0 }
     }
 }
 

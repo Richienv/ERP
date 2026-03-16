@@ -105,7 +105,7 @@ export function OpeningBalancesGL() {
                     type="date"
                     value={balanceDate}
                     onChange={(e) => setBalanceDate(e.target.value)}
-                    className={`${NB.input} w-48`}
+                    className={`${NB.input} w-48 ${balanceDate ? NB.inputActive : NB.inputEmpty}`}
                 />
             </div>
 
@@ -129,7 +129,7 @@ export function OpeningBalancesGL() {
                                     <select
                                         value={row.accountCode}
                                         onChange={(e) => updateRow(idx, "accountCode", e.target.value)}
-                                        className={`${NB.select} text-sm`}
+                                        className={`${NB.select} text-sm ${row.accountCode ? NB.inputActive : NB.inputEmpty}`}
                                         disabled={accountsLoading}
                                     >
                                         <option value="">-- Pilih Akun --</option>
@@ -144,7 +144,7 @@ export function OpeningBalancesGL() {
                                         value={row.debit || ""}
                                         onChange={(e) => updateRow(idx, "debit", Number(e.target.value) || 0)}
                                         placeholder="0"
-                                        className={`${NB.inputMono} w-full text-sm text-right`}
+                                        className={`${NB.inputMono} w-full text-sm text-right ${row.debit > 0 ? NB.inputActive : NB.inputEmpty}`}
                                         min={0}
                                     />
                                 </td>
@@ -154,7 +154,7 @@ export function OpeningBalancesGL() {
                                         value={row.credit || ""}
                                         onChange={(e) => updateRow(idx, "credit", Number(e.target.value) || 0)}
                                         placeholder="0"
-                                        className={`${NB.inputMono} w-full text-sm text-right`}
+                                        className={`${NB.inputMono} w-full text-sm text-right ${row.credit > 0 ? NB.inputActive : NB.inputEmpty}`}
                                         min={0}
                                     />
                                 </td>

@@ -151,7 +151,7 @@ export function OpeningBalancesAPAR() {
                                     <select
                                         value={row.partyId}
                                         onChange={(e) => updateRow(idx, "partyId", e.target.value)}
-                                        className={`${NB.select} text-sm`}
+                                        className={`${NB.select} text-sm ${row.partyId ? NB.inputActive : NB.inputEmpty}`}
                                         disabled={partiesLoading}
                                     >
                                         <option value="">-- Pilih {partyLabel} --</option>
@@ -166,7 +166,7 @@ export function OpeningBalancesAPAR() {
                                         value={row.invoiceNumber}
                                         onChange={(e) => updateRow(idx, "invoiceNumber", e.target.value)}
                                         placeholder="INV-001..."
-                                        className={`${NB.input} w-full text-sm`}
+                                        className={`${NB.input} w-full text-sm ${row.invoiceNumber.trim() ? NB.inputActive : NB.inputEmpty}`}
                                     />
                                 </td>
                                 <td className={NB.tableCell}>
@@ -175,7 +175,7 @@ export function OpeningBalancesAPAR() {
                                         value={row.amount || ""}
                                         onChange={(e) => updateRow(idx, "amount", Number(e.target.value) || 0)}
                                         placeholder="0"
-                                        className={`${NB.inputMono} w-full text-sm text-right`}
+                                        className={`${NB.inputMono} w-full text-sm text-right ${row.amount > 0 ? NB.inputActive : NB.inputEmpty}`}
                                         min={0}
                                     />
                                 </td>
@@ -184,7 +184,7 @@ export function OpeningBalancesAPAR() {
                                         type="date"
                                         value={row.dueDate}
                                         onChange={(e) => updateRow(idx, "dueDate", e.target.value)}
-                                        className={`${NB.input} w-full text-sm`}
+                                        className={`${NB.input} w-full text-sm ${row.dueDate ? NB.inputActive : NB.inputEmpty}`}
                                     />
                                 </td>
                                 <td className={NB.tableCell}>
