@@ -37,7 +37,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog"
 import { NB } from "@/lib/dialog-styles"
-import { matchPaymentToInvoice, recordARPayment } from "@/lib/actions/finance"
+import { matchPaymentToInvoice, recordARPayment } from "@/lib/actions/finance-ar"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -190,10 +190,13 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 toast.success("message" in result ? result.message : "Pembayaran berhasil dialokasikan")
                 setSelectedPaymentId(null)
                 setSelectedInvoiceId(null)
+                queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
             } else {
                 toast.error("error" in result ? String(result.error) : "Gagal mengalokasikan pembayaran")
             }
@@ -244,10 +247,13 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 notes: "",
                 invoiceId: ""
             })
+            queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
         } catch {
             toast.error("Terjadi kesalahan saat mencatat penerimaan")
         } finally {
@@ -288,23 +294,50 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         <div className="mf-page">
 
             {/* ─── TOOLBAR ─── */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                {/* Row 1: Stats + Actions */}
-                <div className="px-5 py-3 flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800">
-                    <div className="flex items-center gap-5 text-[11px] text-zinc-500 dark:text-zinc-400">
-                        <span className="font-bold">{stats.unallocatedCount} belum dialokasi</span>
-                        <span className="text-zinc-200 dark:text-zinc-700">|</span>
-                        <span className="font-bold">{stats.openInvoicesCount} invoice terbuka &middot; {formatIDR(stats.outstandingAmount)}</span>
-                        {stats.todayPayments > 0 && (<><span className="text-zinc-200 dark:text-zinc-700">|</span><span className="font-bold">Hari ini: {formatIDR(stats.todayPayments)}</span></>)}
+            <div className={NB.pageCard}>
+                <div className={NB.pageAccent} />
+
+                {/* Row 1: KPI Strip — big, colorful */}
+                <div className={`grid grid-cols-3 ${NB.pageRowBorder}`}>
+                    {/* Belum Dialokasi */}
+                    <div className={`px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 ${stats.unallocatedCount > 0 ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`w-2 h-2 rounded-full ${stats.unallocatedCount > 0 ? "bg-amber-500" : "bg-zinc-300"}`} />
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-400"}`}>Belum Dialokasi</span>
+                        </div>
+                        <span className={`text-3xl font-black tabular-nums ${stats.unallocatedCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-zinc-300 dark:text-zinc-600"}`}>{stats.unallocatedCount}</span>
                     </div>
+                    {/* Invoice Terbuka */}
+                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-950/10">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Invoice Terbuka</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{stats.openInvoicesCount}</span>
+                            <span className="text-sm font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(stats.outstandingAmount)}</span>
+                        </div>
+                    </div>
+                    {/* Hari Ini */}
+                    <div className={`px-5 py-4 ${stats.todayPayments > 0 ? "bg-emerald-50/50 dark:bg-emerald-950/10" : ""}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className={`w-2 h-2 rounded-full ${stats.todayPayments > 0 ? "bg-emerald-500" : "bg-zinc-300"}`} />
+                            <span className={`text-[10px] font-black uppercase tracking-widest ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>Penerimaan Hari Ini</span>
+                        </div>
+                        <span className={`text-3xl font-black tabular-nums ${stats.todayPayments > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-300 dark:text-zinc-600"}`}>{formatIDR(stats.todayPayments)}</span>
+                    </div>
+                </div>
+
+                {/* Row 2: Actions */}
+                <div className={`px-5 py-2.5 flex items-center justify-end ${NB.pageRowBorder}`}>
                     <div className="flex items-center gap-0">
-                        <Button variant="outline" onClick={() => { exportToExcel([{ header: "No.", accessorKey: "number" },{ header: "Dari", accessorKey: "from" },{ header: "Jumlah", accessorKey: "amount" },{ header: "Metode", accessorKey: "method" },{ header: "Referensi", accessorKey: "reference" },{ header: "Tanggal", accessorKey: "date" },{ header: "Status", accessorKey: "allocated" }], unallocated.map(p => ({ number: p.number, from: p.from, amount: p.amount, method: p.method, reference: p.reference || "-", date: new Date(p.date).toLocaleDateString("id-ID"), allocated: p.allocated ? "Teralokasi" : "Belum" })) as Record<string, unknown>[], { filename: "penerimaan-ar" }) }} className="border border-zinc-200 dark:border-zinc-700 border-r-0 text-zinc-500 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                        <Button variant="outline" onClick={() => { exportToExcel([{ header: "No.", accessorKey: "number" },{ header: "Dari", accessorKey: "from" },{ header: "Jumlah", accessorKey: "amount" },{ header: "Metode", accessorKey: "method" },{ header: "Referensi", accessorKey: "reference" },{ header: "Tanggal", accessorKey: "date" },{ header: "Status", accessorKey: "allocated" }], unallocated.map(p => ({ number: p.number, from: p.from, amount: p.amount, method: p.method, reference: p.reference || "-", date: new Date(p.date).toLocaleDateString("id-ID"), allocated: p.allocated ? "Teralokasi" : "Belum" })) as Record<string, unknown>[], { filename: "penerimaan-ar" }) }} className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}>
                             <Download className="h-3.5 w-3.5 mr-1" /> Export
                         </Button>
-                        <Button variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }); queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all }); queryClient.invalidateQueries({ queryKey: queryKeys.journal.all }) }} className="border border-zinc-200 dark:border-zinc-700 text-zinc-500 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
+                        <Button variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }); queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all }); queryClient.invalidateQueries({ queryKey: queryKeys.journal.all }) }} className={NB.toolbarBtn}>
                             <RefreshCcw className="h-3.5 w-3.5 mr-1" /> Refresh
                         </Button>
-                        <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-[10px] font-bold uppercase tracking-wider h-8 px-4 rounded-none transition-colors ml-2">
+                        <Button onClick={() => setIsCreateDialogOpen(true)} className={NB.toolbarBtnPrimary}>
                             <Plus className="h-3.5 w-3.5 mr-1" /> Catat Penerimaan
                         </Button>
                     </div>
