@@ -31,7 +31,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
+// Textarea removed — using Input for compact layout
 import {
     Dialog,
     DialogContent,
@@ -647,25 +647,26 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             {/* CREATE PAYMENT DIALOG                      */}
             {/* ═══════════════════════════════════════════ */}
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-                <DialogContent className="max-w-[60rem] p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                    <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <Wallet className="h-5 w-5" /> Catat Penerimaan Baru
+                <DialogContent className="max-w-3xl sm:max-w-3xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
+                    {/* Black header */}
+                    <DialogHeader className="bg-black text-white px-5 py-3">
+                        <DialogTitle className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                            <Wallet className="h-4 w-4" /> Catat Penerimaan Baru
                         </DialogTitle>
                         <p className={NB.subtitle}>
-                            Isi data penerimaan pelanggan. Simpan sebagai dana belum dialokasikan atau langsung kaitkan ke invoice.
+                            Catat penerimaan pelanggan — bisa langsung dialokasikan atau disimpan dulu
                         </p>
                     </DialogHeader>
 
-                    <div className="max-h-[72vh] overflow-y-auto">
-                        <div className="p-8 space-y-6">
-                            {/* Customer & Amount Section */}
-                            <div className={NB.section}>
-                                <div className="bg-orange-50 dark:bg-orange-950/20 px-4 py-2 border-b-2 border-black flex items-center gap-2 border-l-[4px] border-l-orange-400">
-                                    <CircleDollarSign className="h-4 w-4 text-orange-600" />
-                                    <span className={NB.sectionTitle}>Data Penerimaan</span>
+                    <div className={NB.scroll}>
+                        <div className="p-4 space-y-3">
+                            {/* Data Penerimaan Section */}
+                            <div className="border border-zinc-200 dark:border-zinc-700">
+                                <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
+                                    <CircleDollarSign className="h-3.5 w-3.5 text-zinc-400" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Data Penerimaan</span>
                                 </div>
-                                <div className={NB.sectionBody}>
+                                <div className="p-3 space-y-3">
                                     <div>
                                         <label className={NB.label}>Pelanggan <span className="text-red-500">*</span></label>
                                         <Select
@@ -678,7 +679,11 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                 }))
                                             }
                                         >
-                                            <SelectTrigger className={NB.select}>
+                                            <SelectTrigger className={`h-8 text-sm rounded-none border ${
+                                                createForm.customerId
+                                                    ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
+                                                    : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                            }`}>
                                                 <SelectValue placeholder="Pilih pelanggan" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -691,46 +696,62 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                             </SelectContent>
                                         </Select>
                                     </div>
-                                    <div className="grid gap-4 md:grid-cols-3">
+                                    <div className="grid grid-cols-3 gap-3">
                                         <div>
                                             <label className={NB.label}>Nominal <span className="text-red-500">*</span></label>
-                                            <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400">Rp</span>
-                                                <Input
-                                                    type="number"
-                                                    min={0}
-                                                    step="0.01"
-                                                    value={createForm.amount}
-                                                    onChange={(event) =>
-                                                        setCreateForm((prev) => ({ ...prev, amount: event.target.value }))
-                                                    }
-                                                    placeholder="250000"
-                                                    className={`${NB.inputMono} pl-9`}
+                                            <div className={`flex items-center border h-8 rounded-none transition-colors ${
+                                                Number(createForm.amount) > 0
+                                                    ? "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20"
+                                                    : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                            }`}>
+                                                <span className={`pl-2 text-[10px] font-bold select-none ${
+                                                    Number(createForm.amount) > 0 ? "text-emerald-500" : "text-zinc-300 dark:text-zinc-600"
+                                                }`}>Rp</span>
+                                                <input
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    className={`w-full h-full bg-transparent text-right text-sm font-mono font-bold pr-2 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
+                                                        Number(createForm.amount) > 0 ? "text-emerald-700 dark:text-emerald-400" : ""
+                                                    }`}
+                                                    value={Number(createForm.amount) ? Number(createForm.amount).toLocaleString("id-ID") : createForm.amount}
+                                                    onChange={(e) => {
+                                                        const raw = e.target.value.replace(/\D/g, "")
+                                                        setCreateForm((prev) => ({ ...prev, amount: raw }))
+                                                    }}
                                                 />
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label className={NB.label}>Tanggal Penerimaan</label>
+                                            <label className={NB.label}>Tanggal</label>
                                             <Input
                                                 type="date"
                                                 value={createForm.date}
                                                 onChange={(event) =>
                                                     setCreateForm((prev) => ({ ...prev, date: event.target.value }))
                                                 }
-                                                className={NB.input}
+                                                className={`border font-medium h-8 text-sm rounded-none transition-colors ${
+                                                    createForm.date
+                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                                }`}
                                             />
                                         </div>
 
                                         <div>
-                                            <label className={NB.label}>Metode Pembayaran</label>
+                                            <label className={NB.label}>Metode</label>
                                             <Select
                                                 value={createForm.method}
                                                 onValueChange={(value) =>
                                                     setCreateForm((prev) => ({ ...prev, method: value as PaymentMethod }))
                                                 }
                                             >
-                                                <SelectTrigger className={NB.select}>
+                                                <SelectTrigger className={`h-8 text-sm rounded-none border ${
+                                                    createForm.method
+                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
+                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                                }`}>
                                                     <SelectValue />
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -747,14 +768,15 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                             </div>
 
                             {/* Invoice Link Section */}
-                            <div className={NB.section}>
-                                <div className="bg-blue-50 dark:bg-blue-950/20 px-4 py-2 border-b-2 border-black flex items-center gap-2 border-l-[4px] border-l-blue-400">
-                                    <FileText className="h-4 w-4 text-blue-600" />
-                                    <span className={NB.sectionTitle}>Hubungkan ke Invoice</span>
+                            <div className="border border-zinc-200 dark:border-zinc-700">
+                                <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
+                                    <FileText className="h-3.5 w-3.5 text-zinc-400" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Hubungkan ke Invoice</span>
+                                    <span className="text-[10px] font-medium text-zinc-400 ml-auto">opsional</span>
                                 </div>
-                                <div className={NB.sectionBody}>
+                                <div className="p-3 space-y-3">
                                     <div>
-                                        <label className={NB.label}>Invoice Penjualan <span className="text-red-500">*</span></label>
+                                        <label className={NB.label}>Invoice Penjualan</label>
                                         <Select
                                             value={createForm.invoiceId || EMPTY_INVOICE_VALUE}
                                             onValueChange={(value) => {
@@ -770,74 +792,86 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                                 }))
                                             }}
                                         >
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue placeholder="Pilih invoice" />
+                                            <SelectTrigger className={`h-8 text-sm rounded-none border ${
+                                                createForm.invoiceId
+                                                    ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 font-bold"
+                                                    : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                            }`}>
+                                                <SelectValue placeholder="Kosongkan untuk simpan tanpa alokasi" />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value={EMPTY_INVOICE_VALUE}>Pilih invoice</SelectItem>
+                                                <SelectItem value={EMPTY_INVOICE_VALUE}>Tanpa alokasi</SelectItem>
                                                 {openInvoices
                                                     .filter((inv) => !createForm.customerId || inv.customer?.id === createForm.customerId)
                                                     .map((invoice) => (
                                                         <SelectItem key={invoice.id} value={invoice.id}>
-                                                            {invoice.number} — {invoice.customer?.name ?? "?"} — Sisa: {formatIDR(invoice.balanceDue)} {invoice.isOverdue ? "⚠️ OVERDUE" : ""}
+                                                            {invoice.number} {"\u2014"} {invoice.customer?.name ?? "?"} {"\u2014"} Sisa: {formatIDR(invoice.balanceDue)} {invoice.isOverdue ? " OVERDUE" : ""}
                                                         </SelectItem>
                                                     ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
 
-                                    <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="grid grid-cols-2 gap-3">
                                         <div>
-                                            <label className={NB.label}>Referensi (Opsional)</label>
+                                            <label className={NB.label}>Referensi</label>
                                             <Input
                                                 value={createForm.reference}
                                                 onChange={(event) =>
                                                     setCreateForm((prev) => ({ ...prev, reference: event.target.value }))
                                                 }
                                                 placeholder="No. transfer / no. cek"
-                                                className={NB.input}
+                                                className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
+                                                    createForm.reference
+                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                                }`}
                                             />
                                         </div>
 
                                         <div>
-                                            <label className={NB.label}>Catatan (Opsional)</label>
-                                            <Textarea
+                                            <label className={NB.label}>Catatan</label>
+                                            <Input
                                                 value={createForm.notes}
                                                 onChange={(event) =>
                                                     setCreateForm((prev) => ({ ...prev, notes: event.target.value }))
                                                 }
                                                 placeholder="Catatan tambahan"
-                                                className={NB.textarea}
+                                                className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
+                                                    createForm.notes
+                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                                }`}
                                             />
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Footer Actions */}
-                            <div className="flex items-center justify-end gap-3 pt-2">
-                                <Button
-                                    variant="outline"
-                                    onClick={() => setIsCreateDialogOpen(false)}
-                                    className={NB.cancelBtn}
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    onClick={handleCreatePayment}
-                                    disabled={submittingPayment}
-                                    className={NB.submitBtn}
-                                >
-                                    {submittingPayment ? (
-                                        <>
-                                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Menyimpan...
-                                        </>
-                                    ) : (
-                                        "Simpan Penerimaan"
-                                    )}
-                                </Button>
-                            </div>
                         </div>
+                    </div>
+
+                    {/* Sticky footer */}
+                    <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-end gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => setIsCreateDialogOpen(false)}
+                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            onClick={handleCreatePayment}
+                            disabled={submittingPayment}
+                            className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-40 transition-colors"
+                        >
+                            {submittingPayment ? (
+                                <>
+                                    <Loader2 className="h-3 w-3 animate-spin" /> Menyimpan...
+                                </>
+                            ) : (
+                                "Simpan Penerimaan"
+                            )}
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>
