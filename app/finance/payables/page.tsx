@@ -5,17 +5,17 @@ import { useSearchParams } from "next/navigation"
 import dynamic from "next/dynamic"
 import { motion } from "framer-motion"
 import { NotaDebitTab } from "@/components/finance/nota-debit-tab"
-import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { TabContentSkeleton } from "@/components/ui/page-skeleton"
 import { NB } from "@/lib/dialog-styles"
 import { Receipt } from "lucide-react"
 
 const BillsTab = dynamic(() => import("@/app/finance/bills/page"), {
     ssr: false,
-    loading: () => <TablePageSkeleton accentColor="bg-orange-400" />,
+    loading: () => <TabContentSkeleton kpiCells={3} />,
 })
 const VendorPaymentsTab = dynamic(() => import("@/app/finance/vendor-payments/page"), {
     ssr: false,
-    loading: () => <TablePageSkeleton accentColor="bg-orange-400" />,
+    loading: () => <TabContentSkeleton kpiCells={3} />,
 })
 
 const tabs = [

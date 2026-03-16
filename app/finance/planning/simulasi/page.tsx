@@ -7,7 +7,7 @@ import { useCashflowScenarios, useCashflowScenario, useCreateScenario, useSaveSc
 import { useCashflowForecast } from "@/hooks/use-cashflow-forecast"
 import { CashflowSimulasiSidebar } from "@/components/finance/cashflow-simulasi-sidebar"
 import { CashflowSimulasiBoard } from "@/components/finance/cashflow-simulasi-board"
-import { TablePageSkeleton } from "@/components/ui/page-skeleton"
+import { CashflowSubpageSkeleton } from "@/components/finance/cashflow-planning-skeleton"
 import type { ScenarioConfig } from "@/lib/actions/finance-cashflow"
 
 export default function SimulasiPage() {
@@ -87,7 +87,7 @@ export default function SimulasiPage() {
         }
     }, [deleteMutation, activeScenarioId])
 
-    if (isLoading || !data) return <TablePageSkeleton accentColor="bg-emerald-400" />
+    if (isLoading || !data) return <CashflowSubpageSkeleton variant="simulasi" />
 
     return (
         <div className="flex gap-0 border-2 border-black rounded-xl overflow-hidden mt-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" style={{ minHeight: "70vh" }}>
