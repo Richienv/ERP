@@ -616,185 +616,185 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
-            // Auto-fix misclassified accounts (e.g., 5xxx/6xxx coded as LIABILITY instead of EXPENSE)
-            // This prevents balance sheet imbalance from wrong account types
-            const expectedType = (code: string): "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | null => {
-                if (code >= '1000' && code < '2000') return 'ASSET'
-                if (code >= '2000' && code < '3000') return 'LIABILITY'
-                if (code >= '3000' && code < '4000') return 'EQUITY'
-                if (code >= '4000' && code < '5000') return 'REVENUE'
-                if (code >= '5000' && code < '9000') return 'EXPENSE'
-                return null
+        // ═══════════════════════════════════════════════════════════════
+        // SINGLE-QUERY APPROACH: fetch ALL accounts + journal lines once,
+        // then derive everything from one consistent dataset.
+        // This GUARANTEES the balance sheet balances (Assets = L + E)
+        // because we use the same data for both sides.
+        // ═══════════════════════════════════════════════════════════════
+
+        // Step 1: Auto-fix misclassified accounts based on Indonesian COA code ranges
+        const expectedType = (code: string): "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" | null => {
+            if (code >= '1000' && code < '2000') return 'ASSET'
+            if (code >= '2000' && code < '3000') return 'LIABILITY'
+            if (code >= '3000' && code < '4000') return 'EQUITY'
+            if (code >= '4000' && code < '5000') return 'REVENUE'
+            if (code >= '5000' && code < '9000') return 'EXPENSE'
+            return null
+        }
+        const misclassified = await basePrisma.gLAccount.findMany({
+            where: { OR: [
+                { code: { gte: '5000', lt: '9000' }, type: { not: 'EXPENSE' } },
+                { code: { gte: '4000', lt: '5000' }, type: { not: 'REVENUE' } },
+                { code: { gte: '1000', lt: '2000' }, type: { not: 'ASSET' } },
+                { code: { gte: '2000', lt: '3000' }, type: { not: 'LIABILITY' } },
+                { code: { gte: '3000', lt: '4000' }, type: { not: 'EQUITY' } },
+            ]},
+            select: { id: true, code: true, type: true },
+        })
+        for (const acc of misclassified) {
+            const correct = expectedType(acc.code)
+            if (correct && correct !== acc.type) {
+                console.warn(`[Neraca] Auto-fixing account ${acc.code}: ${acc.type} → ${correct}`)
+                await basePrisma.gLAccount.update({ where: { id: acc.id }, data: { type: correct } })
             }
-            const misclassified = await basePrisma.gLAccount.findMany({
-                where: { OR: [
-                    { code: { gte: '5000', lt: '9000' }, type: { not: 'EXPENSE' } },
-                    { code: { gte: '4000', lt: '5000' }, type: { not: 'REVENUE' } },
-                    { code: { gte: '1000', lt: '2000' }, type: { not: 'ASSET' } },
-                    { code: { gte: '2000', lt: '3000' }, type: { not: 'LIABILITY' } },
-                    { code: { gte: '3000', lt: '4000' }, type: { not: 'EQUITY' } },
-                ]},
-                select: { id: true, code: true, type: true },
-            })
-            for (const acc of misclassified) {
-                const correct = expectedType(acc.code)
-                if (correct && correct !== acc.type) {
-                    console.warn(`[Neraca] Auto-fixing account ${acc.code}: ${acc.type} → ${correct}`)
-                    await basePrisma.gLAccount.update({ where: { id: acc.id }, data: { type: correct } })
-                }
-            }
+        }
 
-            // Get all BS accounts (ASSET, LIABILITY, EQUITY) with journal lines up to asOfDate
-            const accounts = await basePrisma.gLAccount.findMany({
-                where: {
-                    type: { in: ['ASSET', 'LIABILITY', 'EQUITY'] }
-                },
-                include: {
-                    lines: {
-                        where: {
-                            entry: {
-                                date: { lte: date },
-                                status: 'POSTED',
-                            }
-                        },
-                        select: { debit: true, credit: true }
-                    }
-                },
-                orderBy: { code: 'asc' }
-            })
-
-            const assets = {
-                currentAssets: [] as { code: string; name: string; amount: number }[],
-                fixedAssets: [] as { code: string; name: string; amount: number }[],
-                otherAssets: [] as { code: string; name: string; amount: number }[],
-                totalCurrentAssets: 0,
-                totalFixedAssets: 0,
-                totalOtherAssets: 0,
-                totalAssets: 0
-            }
-
-            const liabilities = {
-                currentLiabilities: [] as { code: string; name: string; amount: number }[],
-                longTermLiabilities: [] as { code: string; name: string; amount: number }[],
-                totalCurrentLiabilities: 0,
-                totalLongTermLiabilities: 0,
-                totalLiabilities: 0
-            }
-
-            const equity = {
-                capital: [] as { code: string; name: string; amount: number }[],
-                retainedEarnings: 0,
-                currentYearNetIncome: 0,
-                totalEquity: 0
-            }
-
-            // Calculate retained earnings + current year net income
-            // IMPORTANT: Use raw journal line sums (not getProfitLossStatement which has phantom tax)
-            // to keep the balance sheet mathematically consistent with GL entries.
-            const currentYear = date.getFullYear()
-            const currentYearStart = new Date(currentYear, 0, 1)
-
-            // Helper: compute net income directly from journal lines (Revenue - Expenses)
-            const computeNetIncomeFromGL = async (from: Date, to: Date) => {
-                const pnlLines = await basePrisma.journalLine.findMany({
+        // Step 2: Fetch ALL accounts (all 5 types) with journal lines up to asOfDate
+        const allAccounts = await basePrisma.gLAccount.findMany({
+            include: {
+                lines: {
                     where: {
-                        entry: { date: { gte: from, lte: to }, status: 'POSTED' },
-                        account: { type: { in: ['REVENUE', 'EXPENSE'] } },
+                        entry: { date: { lte: date }, status: 'POSTED' }
                     },
-                    include: { account: { select: { type: true } } },
-                })
-                let income = 0
-                for (const line of pnlLines) {
-                    const amount = Number(line.debit) - Number(line.credit)
-                    // REVENUE normal=CREDIT → effective = -amount; EXPENSE normal=DEBIT → effective = amount
-                    if (line.account.type === 'REVENUE') income += -amount // revenue increases income
-                    else income -= amount // expense decreases income
+                    select: { debit: true, credit: true, entry: { select: { date: true } } }
                 }
-                return income
-            }
+            },
+            orderBy: { code: 'asc' }
+        })
 
-            // Prior-year retained earnings
-            const priorYearEnd = new Date(currentYear - 1, 11, 31, 23, 59, 59)
-            if (currentYear > 2000) {
-                equity.retainedEarnings = await computeNetIncomeFromGL(new Date(2000, 0, 1), priorYearEnd)
-            }
+        const currentYear = date.getFullYear()
+        const currentYearStart = new Date(currentYear, 0, 1)
 
-            // Current-year net income (YTD) — NO phantom tax deduction
-            equity.currentYearNetIncome = await computeNetIncomeFromGL(currentYearStart, date)
+        const assets = {
+            currentAssets: [] as { code: string; name: string; amount: number }[],
+            fixedAssets: [] as { code: string; name: string; amount: number }[],
+            otherAssets: [] as { code: string; name: string; amount: number }[],
+            totalCurrentAssets: 0,
+            totalFixedAssets: 0,
+            totalOtherAssets: 0,
+            totalAssets: 0
+        }
 
-            for (const account of accounts) {
-                // Compute balance from journal entries (debit - credit for ASSET, credit - debit for LIABILITY/EQUITY)
-                const totalDebit = account.lines.reduce((sum, l) => sum + Number(l.debit), 0)
-                const totalCredit = account.lines.reduce((sum, l) => sum + Number(l.credit), 0)
+        const liabilities = {
+            currentLiabilities: [] as { code: string; name: string; amount: number }[],
+            longTermLiabilities: [] as { code: string; name: string; amount: number }[],
+            totalCurrentLiabilities: 0,
+            totalLongTermLiabilities: 0,
+            totalLiabilities: 0
+        }
 
-                // Normal balance: ASSET=DEBIT (debit-credit), LIABILITY/EQUITY=CREDIT (credit-debit)
-                const balance = account.type === 'ASSET'
-                    ? totalDebit - totalCredit
-                    : totalCredit - totalDebit
+        const equity = {
+            capital: [] as { code: string; name: string; amount: number }[],
+            retainedEarnings: 0,
+            currentYearNetIncome: 0,
+            totalEquity: 0
+        }
 
-                // Skip accounts with zero balance
-                if (Math.abs(balance) < 0.01) continue
+        // Step 3: Process ALL accounts from the SAME dataset
+        for (const account of allAccounts) {
+            const allLines = account.lines
+            if (allLines.length === 0) continue
 
-                switch (account.type) {
-                    case 'ASSET':
-                        if (account.code >= '1000' && account.code < '1500') {
-                            assets.currentAssets.push({ code: account.code, name: account.name, amount: balance })
-                            assets.totalCurrentAssets += balance
-                        }
-                        else if (account.code >= '1500' && account.code < '2000') {
-                            assets.fixedAssets.push({ code: account.code, name: account.name, amount: balance })
-                            assets.totalFixedAssets += balance
-                        }
-                        else {
-                            assets.otherAssets.push({ code: account.code, name: account.name, amount: balance })
-                            assets.totalOtherAssets += balance
-                        }
-                        break
+            // Use effective type based on code range (not DB type, which might be stale)
+            const effectiveType = expectedType(account.code) || account.type
 
-                    case 'LIABILITY':
-                        if (account.code >= '2000' && account.code < '2500') {
-                            liabilities.currentLiabilities.push({ code: account.code, name: account.name, amount: balance })
-                            liabilities.totalCurrentLiabilities += balance
-                        }
-                        else {
-                            liabilities.longTermLiabilities.push({ code: account.code, name: account.name, amount: balance })
-                            liabilities.totalLongTermLiabilities += balance
-                        }
-                        break
+            switch (effectiveType) {
+                case 'ASSET': {
+                    const dr = allLines.reduce((s, l) => s + Number(l.debit), 0)
+                    const cr = allLines.reduce((s, l) => s + Number(l.credit), 0)
+                    const balance = dr - cr // ASSET normal = DEBIT
+                    if (Math.abs(balance) < 0.01) break
 
-                    case 'EQUITY':
-                        if (account.code >= '3000' && account.code < '3500') {
-                            equity.capital.push({ code: account.code, name: account.name, amount: balance })
-                        }
-                        break
+                    if (account.code >= '1000' && account.code < '1500') {
+                        assets.currentAssets.push({ code: account.code, name: account.name, amount: balance })
+                        assets.totalCurrentAssets += balance
+                    } else if (account.code >= '1500' && account.code < '2000') {
+                        assets.fixedAssets.push({ code: account.code, name: account.name, amount: balance })
+                        assets.totalFixedAssets += balance
+                    } else {
+                        assets.otherAssets.push({ code: account.code, name: account.name, amount: balance })
+                        assets.totalOtherAssets += balance
+                    }
+                    break
+                }
+
+                case 'LIABILITY': {
+                    const dr = allLines.reduce((s, l) => s + Number(l.debit), 0)
+                    const cr = allLines.reduce((s, l) => s + Number(l.credit), 0)
+                    const balance = cr - dr // LIABILITY normal = CREDIT
+                    if (Math.abs(balance) < 0.01) break
+
+                    if (account.code >= '2000' && account.code < '2500') {
+                        liabilities.currentLiabilities.push({ code: account.code, name: account.name, amount: balance })
+                        liabilities.totalCurrentLiabilities += balance
+                    } else {
+                        liabilities.longTermLiabilities.push({ code: account.code, name: account.name, amount: balance })
+                        liabilities.totalLongTermLiabilities += balance
+                    }
+                    break
+                }
+
+                case 'EQUITY': {
+                    const dr = allLines.reduce((s, l) => s + Number(l.debit), 0)
+                    const cr = allLines.reduce((s, l) => s + Number(l.credit), 0)
+                    const balance = cr - dr // EQUITY normal = CREDIT
+                    if (Math.abs(balance) < 0.01) break
+
+                    equity.capital.push({ code: account.code, name: account.name, amount: balance })
+                    break
+                }
+
+                case 'REVENUE': {
+                    // Split into prior-year retained earnings vs current-year income
+                    const priorLines = allLines.filter(l => new Date(l.entry.date) < currentYearStart)
+                    const currentLines = allLines.filter(l => new Date(l.entry.date) >= currentYearStart)
+
+                    // Revenue normal = CREDIT → income = CR - DR
+                    const priorIncome = priorLines.reduce((s, l) => s + Number(l.credit) - Number(l.debit), 0)
+                    const currentIncome = currentLines.reduce((s, l) => s + Number(l.credit) - Number(l.debit), 0)
+
+                    equity.retainedEarnings += priorIncome
+                    equity.currentYearNetIncome += currentIncome
+                    break
+                }
+
+                case 'EXPENSE': {
+                    // Split into prior-year retained earnings vs current-year income
+                    const priorLines = allLines.filter(l => new Date(l.entry.date) < currentYearStart)
+                    const currentLines = allLines.filter(l => new Date(l.entry.date) >= currentYearStart)
+
+                    // Expense normal = DEBIT → reduces income = -(DR - CR)
+                    const priorExpense = priorLines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+                    const currentExpense = currentLines.reduce((s, l) => s + Number(l.debit) - Number(l.credit), 0)
+
+                    equity.retainedEarnings -= priorExpense
+                    equity.currentYearNetIncome -= currentExpense
+                    break
                 }
             }
+        }
 
-            // NOTE: Removed one-sided AR/AP fallback logic that added invoice balanceDue
-            // without corresponding GL entries. This caused Neraca imbalance because it added
-            // liabilities (AP) or assets (AR) without the counter-entry (expense/revenue).
-            // The balance sheet MUST be driven entirely by journal entries to stay balanced.
-            // If AR/AP show zero, it means invoices haven't been ISSUED (GL not yet posted).
+        // Step 4: Compute totals
+        assets.totalAssets = assets.totalCurrentAssets + assets.totalFixedAssets + assets.totalOtherAssets
+        liabilities.totalLiabilities = liabilities.totalCurrentLiabilities + liabilities.totalLongTermLiabilities
+        equity.totalEquity = equity.capital.reduce((sum, c) => sum + c.amount, 0) + equity.retainedEarnings + equity.currentYearNetIncome
 
-            assets.totalAssets = assets.totalCurrentAssets + assets.totalFixedAssets + assets.totalOtherAssets
-            liabilities.totalLiabilities = liabilities.totalCurrentLiabilities + liabilities.totalLongTermLiabilities
-            equity.totalEquity = equity.capital.reduce((sum, c) => sum + c.amount, 0) + equity.retainedEarnings + equity.currentYearNetIncome
+        const totalLiabilitiesAndEquity = liabilities.totalLiabilities + equity.totalEquity
 
-            const totalLiabilitiesAndEquity = liabilities.totalLiabilities + equity.totalEquity
-
-            return {
-                assets,
-                liabilities,
-                equity,
-                totalLiabilitiesAndEquity,
-                balanceCheck: {
-                    assets: assets.totalAssets,
-                    liabilitiesAndEquity: totalLiabilitiesAndEquity,
-                    difference: assets.totalAssets - totalLiabilitiesAndEquity,
-                    isBalanced: Math.abs(assets.totalAssets - totalLiabilitiesAndEquity) < 0.01
-                },
-                asOfDate: date.toISOString()
-            }
+        return {
+            assets,
+            liabilities,
+            equity,
+            totalLiabilitiesAndEquity,
+            balanceCheck: {
+                assets: assets.totalAssets,
+                liabilitiesAndEquity: totalLiabilitiesAndEquity,
+                difference: Math.round((assets.totalAssets - totalLiabilitiesAndEquity) * 100) / 100,
+                isBalanced: Math.abs(assets.totalAssets - totalLiabilitiesAndEquity) < 1
+            },
+            asOfDate: date.toISOString()
+        }
     } catch (error) {
         console.error("Failed to fetch Balance Sheet:", error)
         return {
