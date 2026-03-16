@@ -6,7 +6,6 @@ import { formatIDR } from "@/lib/utils"
 import {
     ArrowRightLeft,
     BadgeCheck,
-    CalendarClock,
     Check,
     ChevronLeft,
     ChevronRight,
@@ -17,7 +16,6 @@ import {
     RefreshCcw,
     Search,
     AlertTriangle,
-    History,
     Wallet,
     Download,
 } from "lucide-react"
@@ -153,23 +151,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
         router.replace(qs ? `${pathname}?${qs}` : pathname)
     }
 
-    const customerOptions = useMemo(() => {
-        const map = new Map<string, string>()
-        for (const invoice of openInvoices) {
-            if (invoice.customer?.id) {
-                map.set(invoice.customer.id, invoice.customer.name)
-            }
-        }
-        for (const payment of unallocated) {
-            if (payment.customerId && !map.has(payment.customerId)) {
-                map.set(payment.customerId, payment.from)
-            }
-        }
 
-        return Array.from(map.entries())
-            .map(([id, name]) => ({ id, name }))
-            .sort((a, b) => a.name.localeCompare(b.name))
-    }, [openInvoices, unallocated])
 
     const selectedPayment = useMemo(
         () => unallocated.find((item) => item.id === selectedPaymentId) ?? null,

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState, useMemo, type PointerEvent as ReactPointerEvent } from "react"
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import { useSearchParams } from "next/navigation"
 import Image from "next/image"
 import {
@@ -9,9 +9,6 @@ import {
     PenLine,
     PenTool,
     Landmark,
-    ReceiptText,
-    CreditCard,
-    Wallet,
     Plus,
     ChevronDown,
     ChevronUp,
@@ -20,7 +17,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import {
     Select,
@@ -31,7 +27,7 @@ import {
 } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { NB } from "@/lib/dialog-styles"
-import { recordVendorPayment, type VendorPayment } from "@/lib/actions/finance"
+import { recordVendorPayment } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { useVendorPayments } from "@/hooks/use-vendor-payments"
@@ -430,6 +426,7 @@ export default function APCheckbookPage() {
                         </div>
                     ))}
                 </div>
+            </div>
 
             {/* ═══ PAYMENT FORM (Collapsible) ═══ */}
             {showForm && (
@@ -654,17 +651,12 @@ export default function APCheckbookPage() {
                 vendorAPBalances={apBalances}
             />
 
-            {/* ═══ PAYMENT HISTORY TABLE ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                        <History className="h-3.5 w-3.5" /> Riwayat Pembayaran
-                    </p>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{payments.length} record</span>
-                </div>
+            {/* ═══ PAYMENT HISTORY (inside unified card) ═══ */}
+            <div className={NB.pageCard}>
+                <div className={NB.pageAccent} />
 
-                {/* Table Header */}
-                <div className="grid grid-cols-12 gap-2 px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                {/* Table header row */}
+                <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-zinc-50/80 dark:bg-zinc-800/30 border-b border-zinc-200 dark:border-zinc-700 text-[9px] font-black uppercase tracking-widest text-zinc-400">
                     <div className="col-span-2">No.</div>
                     <div className="col-span-3">Vendor</div>
                     <div className="col-span-1 text-center">Metode</div>
@@ -674,40 +666,49 @@ export default function APCheckbookPage() {
                 </div>
 
                 {payments.length === 0 ? (
-                    <div className="p-12 text-center">
-                        <History className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
+                    <div className="py-12 text-center">
+                        <History className="h-6 w-6 mx-auto text-zinc-200 dark:text-zinc-700 mb-2" />
                         <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada riwayat pembayaran</p>
                     </div>
                 ) : (
-                    payments.map((p) => {
+                    payments.map((p, idx) => {
                         const meta = parsePaymentMeta(p.notes)
                         return (
-                            <div key={p.id} data-vendor-payment-id={p.id} className={`grid grid-cols-12 gap-2 px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors items-center ${highlightPaymentId === p.id ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500" : ""}`}>
+                            <div key={p.id} data-vendor-payment-id={p.id} className={`grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 hover:bg-orange-50/30 dark:hover:bg-orange-950/10 transition-colors items-center ${
+                                highlightPaymentId === p.id ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500" : idx % 2 !== 0 ? "bg-zinc-50/40 dark:bg-zinc-800/10" : ""
+                            }`}>
                                 <div className="col-span-2">
-                                    <span className="font-mono text-xs font-bold text-zinc-500">{p.number}</span>
+                                    <span className="font-mono text-[11px] font-bold text-zinc-600 dark:text-zinc-300">{p.number}</span>
                                     <p className="text-[10px] text-zinc-400">{new Date(p.date).toLocaleDateString("id-ID")}</p>
                                 </div>
                                 <div className="col-span-3">
-                                    <p className="font-bold text-sm truncate">{p.vendor?.name}</p>
+                                    <p className="font-bold text-sm truncate text-zinc-900 dark:text-zinc-100">{p.vendor?.name}</p>
                                 </div>
                                 <div className="col-span-1 text-center">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border border-zinc-300 bg-zinc-50 dark:bg-zinc-800">
-                                        {p.method === "CHECK" ? <Landmark className="h-3 w-3" /> : <ReceiptText className="h-3 w-3" />}
+                                    <span className="inline-flex items-center px-1.5 py-0.5 text-[8px] font-black uppercase tracking-widest border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
                                         {p.method}
                                     </span>
                                 </div>
                                 <div className="col-span-2">
-                                    <span className="font-mono text-xs text-zinc-500">{p.reference || meta.checkNumber || "-"}</span>
+                                    <span className="font-mono text-[11px] text-zinc-500">{p.reference || meta.checkNumber || "-"}</span>
                                 </div>
                                 <div className="col-span-2">
-                                    {meta.signedBy && <span className="text-[10px] font-bold text-blue-700">{meta.signedBy}</span>}
+                                    {meta.signedBy && <span className="text-[10px] font-bold text-zinc-600 dark:text-zinc-400">{meta.signedBy}</span>}
                                 </div>
                                 <div className="col-span-2 text-right">
-                                    <span className="font-mono font-bold text-sm text-red-600">- {formatIDR(p.amount)}</span>
+                                    <span className="font-mono font-bold text-sm text-red-600 dark:text-red-400 tabular-nums">{formatIDR(p.amount)}</span>
                                 </div>
                             </div>
                         )
                     })
+                )}
+
+                {/* Table footer */}
+                {payments.length > 0 && (
+                    <div className="px-4 py-2 bg-zinc-50/80 dark:bg-zinc-800/30 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-zinc-400">{payments.length} pembayaran</span>
+                        <span className="font-mono font-black text-sm text-red-600 dark:text-red-400 tabular-nums">Total: {formatIDR(totalPaid)}</span>
+                    </div>
                 )}
             </div>
         </div>
