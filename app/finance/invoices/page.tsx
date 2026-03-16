@@ -141,6 +141,10 @@ export default function InvoicesPage() {
     const invalidateAfterSend = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
     }
     const invalidateAfterPayment = () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
@@ -287,25 +291,27 @@ export default function InvoicesPage() {
 
     const handleConfirmSend = async () => {
         if (!activeInvoice) return
-        if (sendMethod === 'WHATSAPP') {
-            if (!recipientContact) {
-                toast.error("Masukkan nomor WhatsApp")
-                return
-            }
-            const phone = recipientContact.replace(/\D/g, '')
-            const text = encodeURIComponent(sendMessage)
-            window.open(`https://wa.me/${phone}?text=${text}`, '_blank')
+        if (sendMethod === 'WHATSAPP' && !recipientContact) {
+            toast.error("Masukkan nomor WhatsApp")
+            return
         }
         if (sendMethod === 'EMAIL') {
             toast.info("Email akan dikirim ke pelanggan (fitur SMTP belum aktif — status invoice tetap diupdate)")
         }
         setSending(true)
         try {
+            // Update status FIRST, then redirect to WhatsApp
             const result: any = await moveInvoiceToSent(activeInvoice.id, sendMessage, sendMethod)
             if (!result.success) throw new Error(result.error || "Gagal mengirim invoice")
             toast.success(result.status === 'OVERDUE' ? "Invoice dipindahkan ke Jatuh Tempo." : "Invoice terkirim!")
             setIsSendDialogOpen(false)
             invalidateAfterSend()
+            // Open WhatsApp AFTER status is updated and cache invalidated
+            if (sendMethod === 'WHATSAPP' && recipientContact) {
+                const phone = recipientContact.replace(/\D/g, '')
+                const text = encodeURIComponent(sendMessage)
+                window.open(`https://wa.me/${phone}?text=${text}`, '_blank')
+            }
         } catch {
             toast.error("Gagal mengirim invoice")
         } finally {
