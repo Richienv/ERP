@@ -334,6 +334,7 @@ export async function addCutPlanLayer(data: {
                 where: { id: data.fabricRollId },
                 include: {
                     transactions: { select: { type: true, meters: true } },
+                    product: { select: { id: true, name: true, costPrice: true } },
                 },
             })
 
@@ -367,6 +368,39 @@ export async function addCutPlanLayer(data: {
                     reference: `Cut plan ${cutPlan.number} layer #${data.layerNumber}`,
                 },
             })
+
+            // Create CUT_CONSUME inventory transaction for GL tracking
+            const unitCost = Number(roll.product.costPrice || 0)
+            const totalValue = unitCost > 0 ? data.metersUsed * unitCost : 0
+            const invTx = await prisma.inventoryTransaction.create({
+                data: {
+                    productId: roll.product.id,
+                    warehouseId: roll.warehouseId,
+                    type: 'CUT_CONSUME' as any,
+                    quantity: -data.metersUsed,
+                    unitCost,
+                    totalValue,
+                    notes: `Potong kain - ${cutPlan.number} layer #${data.layerNumber} (${roll.rollNumber})`,
+                },
+            })
+
+            // Post GL entry: DR WIP, CR Raw Materials
+            if (totalValue > 0) {
+                try {
+                    const { postInventoryGLEntry } = await import("@/lib/actions/inventory-gl")
+                    await postInventoryGLEntry(prisma, {
+                        transactionId: invTx.id,
+                        type: 'CUT_CONSUME',
+                        productName: roll.product.name,
+                        quantity: data.metersUsed,
+                        unitCost,
+                        totalValue,
+                        reference: `${cutPlan.number} layer #${data.layerNumber}`,
+                    })
+                } catch (glErr) {
+                    console.error("[addCutPlanLayer] GL posting failed:", glErr)
+                }
+            }
 
             // Update fabric roll status
             const newRemaining = currentRemaining - data.metersUsed

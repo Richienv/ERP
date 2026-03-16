@@ -31,6 +31,7 @@ export type InventoryGLType =
     | 'SCRAP'
     | 'RETURN_IN'
     | 'RETURN_OUT'
+    | 'CUT_CONSUME'
 
 export type PostInventoryGLParams = {
     transactionId: string
@@ -75,6 +76,8 @@ function glDescription(type: InventoryGLType, productName: string, ref?: string)
             return `Retur penjualan masuk (reversal HPP) - ${productName}${suffix}`
         case 'RETURN_OUT':
             return `Retur pembelian keluar - ${productName}${suffix}`
+        case 'CUT_CONSUME':
+            return `Konsumsi kain potong - ${productName}${suffix}`
     }
 }
 
@@ -209,6 +212,15 @@ export async function postInventoryGLEntry(
                     findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
                 ])
                 pair = { debitAccount: ap, creditAccount: inv }
+                break
+            }
+            case 'CUT_CONSUME': {
+                // Fabric cutting: DR WIP (fabric enters cutting process), CR Raw Materials
+                const [wip, raw] = await Promise.all([
+                    findGLAccount(prisma, GL_WORK_IN_PROGRESS, 'Barang Dalam Proses', 'ASSET'),
+                    findGLAccount(prisma, GL_RAW_MATERIALS, 'Bahan Baku', 'ASSET'),
+                ])
+                pair = { debitAccount: wip, creditAccount: raw }
                 break
             }
         }
