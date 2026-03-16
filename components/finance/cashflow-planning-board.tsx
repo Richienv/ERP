@@ -792,6 +792,9 @@ export function CashflowPlanningBoard({
                 )}
             </div>
 
+            {/* ═══ UPCOMING OBLIGATIONS ═══════════════════════════════════ */}
+            <UpcomingObligationsSection upcoming={upcoming} />
+
             {/* ═══ ACCURACY + FORECAST UNIFIED CARD ═══════════════════════ */}
             {(data.snapshot || (forecast && forecast.months.length > 0)) && (
                 <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
@@ -957,9 +960,6 @@ export function CashflowPlanningBoard({
                     })()}
                 </div>
             )}
-
-            {/* ═══ UPCOMING OBLIGATIONS ═══════════════════════════════════ */}
-            <UpcomingObligationsSection upcoming={upcoming} />
 
             {/* ═══ DIALOGS ═══════════════════════════════════════════════ */}
             <CreateCashflowItemDialog
@@ -1323,7 +1323,7 @@ function UpcomingObligationsSection({ upcoming }: { upcoming?: UpcomingObligatio
                             <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
                         </div>
                         <span className={`text-lg font-black tabular-nums ${kpi.color}`}>
-                            {kpi.prefix}{formatCompact(kpi.value)}
+                            {kpi.prefix}{formatCurrency(kpi.value)}
                         </span>
                     </div>
                 ))}
