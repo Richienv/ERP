@@ -44,7 +44,7 @@ import { useFinanceReportsAll } from "@/hooks/use-finance-reports"
 import { Loader2 } from "lucide-react"
 import { TrialBalancePanel } from "@/components/finance/reports/trial-balance-panel"
 import { ReconciliationPreviewDialog } from "@/components/finance/reports/reconciliation-preview-dialog"
-import { getTrialBalance } from "@/lib/actions/finance-gl"
+import { getTrialBalance, getAccountDrillDown, type DrillDownRow } from "@/lib/actions/finance-gl"
 import type { TrialBalanceData } from "@/lib/actions/finance-gl"
 
 type ReportType = "pnl" | "bs" | "cf" | "tb" | "equity_changes" | "ar_aging" | "ap_aging" | "inventory_turnover" | "tax_report" | "budget_vs_actual"
@@ -98,6 +98,89 @@ const sidebarGroups: SidebarGroup[] = [
     },
 ]
 
+const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
+    INVOICE_AR: { label: "FAKTUR", cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" },
+    INVOICE_AP: { label: "TAGIHAN", cls: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400" },
+    PAYMENT: { label: "BAYAR", cls: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" },
+    JOURNAL: { label: "JURNAL", cls: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" },
+    PETTY_CASH: { label: "PETTY", cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" },
+    OPENING: { label: "SALDO AWAL", cls: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
+}
+
+function DrillDownPanel({ rows, loading, formatIDR: fmt }: { rows: DrillDownRow[]; loading: boolean; formatIDR: (n: number) => string }) {
+    if (loading) {
+        return (
+            <div className="px-8 py-4 flex items-center gap-2 text-xs text-zinc-400 bg-zinc-50/50 dark:bg-zinc-800/30">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Memuat transaksi...
+            </div>
+        )
+    }
+    if (rows.length === 0) {
+        return (
+            <div className="px-8 py-3 text-xs text-zinc-400 italic bg-zinc-50/50 dark:bg-zinc-800/30">
+                Tidak ada transaksi untuk periode ini
+            </div>
+        )
+    }
+    return (
+        <div className="bg-zinc-50/50 dark:bg-zinc-800/20 border-t border-zinc-200 dark:border-zinc-700">
+            <table className="w-full">
+                <thead>
+                    <tr className="text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                        <th className="px-3 py-1.5 text-left pl-10">Tanggal</th>
+                        <th className="px-3 py-1.5 text-left">Tipe</th>
+                        <th className="px-3 py-1.5 text-left">Referensi</th>
+                        <th className="px-3 py-1.5 text-left">Deskripsi</th>
+                        <th className="px-3 py-1.5 text-left">Pihak</th>
+                        <th className="px-3 py-1.5 text-left">Akun</th>
+                        <th className="px-3 py-1.5 text-right">Debit</th>
+                        <th className="px-3 py-1.5 text-right">Kredit</th>
+                        <th className="px-3 py-1.5 w-8" />
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows.map((row, idx) => {
+                        const badge = SOURCE_BADGE[row.sourceType] || SOURCE_BADGE.JOURNAL
+                        return (
+                            <motion.tr
+                                key={row.id}
+                                initial={{ opacity: 0, y: -4 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.03 }}
+                                className="border-t border-zinc-100 dark:border-zinc-800 hover:bg-orange-50/40 dark:hover:bg-orange-950/10 group transition-colors text-xs"
+                            >
+                                <td className="px-3 py-1.5 pl-10 font-mono text-zinc-500 whitespace-nowrap">{row.date}</td>
+                                <td className="px-3 py-1.5">
+                                    <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 whitespace-nowrap ${badge.cls}`}>{badge.label}</span>
+                                </td>
+                                <td className="px-3 py-1.5 font-bold text-zinc-700 dark:text-zinc-300">{row.reference || '\u2014'}</td>
+                                <td className="px-3 py-1.5 text-zinc-500 max-w-[200px] truncate">{row.description}</td>
+                                <td className="px-3 py-1.5 font-medium text-zinc-600 dark:text-zinc-400">{row.counterparty || '\u2014'}</td>
+                                <td className="px-3 py-1.5 font-mono text-[10px] text-zinc-400">{row.accountCode}</td>
+                                <td className="px-3 py-1.5 text-right font-mono text-emerald-600 tabular-nums">
+                                    {row.debit > 0 ? fmt(row.debit) : ''}
+                                </td>
+                                <td className="px-3 py-1.5 text-right font-mono text-red-500 tabular-nums">
+                                    {row.credit > 0 ? fmt(row.credit) : ''}
+                                </td>
+                                <td className="px-3 py-1.5">
+                                    <Link
+                                        href={row.sourceUrl}
+                                        className="opacity-0 group-hover:opacity-100 text-orange-500 hover:text-orange-700 transition-all"
+                                        title="Lihat sumber"
+                                    >
+                                        <ArrowRight className="h-3.5 w-3.5" />
+                                    </Link>
+                                </td>
+                            </motion.tr>
+                        )
+                    })}
+                </tbody>
+            </table>
+        </div>
+    )
+}
+
 export default function FinancialReportsPage() {
     const [reportType, setReportType] = useState<ReportType>("pnl")
     const [dateDialogOpen, setDateDialogOpen] = useState(false)
@@ -116,6 +199,34 @@ export default function FinancialReportsPage() {
 
     const [expandedAR, setExpandedAR] = useState<Set<string>>(new Set())
     const [expandedAP, setExpandedAP] = useState<Set<string>>(new Set())
+
+    // Drill-down state for P&L and Balance Sheet
+    const [expandedAccounts, setExpandedAccounts] = useState<Set<string>>(new Set())
+    const [drillDownCache, setDrillDownCache] = useState<Map<string, DrillDownRow[]>>(new Map())
+    const [drillDownLoading, setDrillDownLoading] = useState<string | null>(null)
+
+    async function toggleDrillDown(accountKey: string, accountFilter: string, useFullHistory = false) {
+        if (expandedAccounts.has(accountKey)) {
+            setExpandedAccounts(prev => { const next = new Set(prev); next.delete(accountKey); return next })
+            return
+        }
+        if (drillDownCache.has(accountKey)) {
+            setExpandedAccounts(prev => new Set(prev).add(accountKey))
+            return
+        }
+        setDrillDownLoading(accountKey)
+        try {
+            const start = useFullHistory ? new Date(2020, 0, 1) : startDate
+            const end = endDate
+            const rows = await getAccountDrillDown(accountFilter, start, end)
+            setDrillDownCache(prev => new Map(prev).set(accountKey, rows))
+            setExpandedAccounts(prev => new Set(prev).add(accountKey))
+        } catch {
+            toast.error("Gagal memuat detail transaksi")
+        } finally {
+            setDrillDownLoading(null)
+        }
+    }
 
     const [diagnosticTBData, setDiagnosticTBData] = useState<TrialBalanceData | null>(null)
     const [reconDialogOpen, setReconDialogOpen] = useState(false)
@@ -745,14 +856,44 @@ export default function FinancialReportsPage() {
                                     </div>
                                     <Table>
                                         <TableBody>
-                                            <TableRow className="font-black bg-zinc-50 dark:bg-zinc-800">
-                                                <TableCell className="w-[60%]">Pendapatan (Revenue)</TableCell>
+                                            <TableRow
+                                                className="font-black bg-zinc-50 dark:bg-zinc-800 cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                onClick={() => toggleDrillDown('pnl-revenue', 'REVENUE')}
+                                            >
+                                                <TableCell className="w-[60%]">
+                                                    <span className="flex items-center gap-2">
+                                                        <ChevronRight className={`h-3.5 w-3.5 text-zinc-400 transition-transform ${expandedAccounts.has('pnl-revenue') ? 'rotate-90' : ''}`} />
+                                                        Pendapatan (Revenue)
+                                                    </span>
+                                                </TableCell>
                                                 <TableCell className="text-right font-mono">{formatIDR(pnlData.revenue)}</TableCell>
                                             </TableRow>
-                                            <TableRow>
-                                                <TableCell className="pl-8">Harga Pokok Penjualan (HPP)</TableCell>
+                                            {expandedAccounts.has('pnl-revenue') && (
+                                                <TableRow><TableCell colSpan={2} className="p-0">
+                                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
+                                                        <DrillDownPanel rows={drillDownCache.get('pnl-revenue') || []} loading={drillDownLoading === 'pnl-revenue'} formatIDR={formatIDR} />
+                                                    </motion.div>
+                                                </TableCell></TableRow>
+                                            )}
+                                            <TableRow
+                                                className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                onClick={() => toggleDrillDown('pnl-cogs', '5000')}
+                                            >
+                                                <TableCell className="pl-8">
+                                                    <span className="flex items-center gap-2">
+                                                        <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has('pnl-cogs') ? 'rotate-90' : ''}`} />
+                                                        Harga Pokok Penjualan (HPP)
+                                                    </span>
+                                                </TableCell>
                                                 <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.costOfGoodsSold)})</TableCell>
                                             </TableRow>
+                                            {expandedAccounts.has('pnl-cogs') && (
+                                                <TableRow><TableCell colSpan={2} className="p-0">
+                                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                        <DrillDownPanel rows={drillDownCache.get('pnl-cogs') || []} loading={drillDownLoading === 'pnl-cogs'} formatIDR={formatIDR} />
+                                                    </motion.div>
+                                                </TableCell></TableRow>
+                                            )}
                                             <TableRow className="font-bold bg-blue-50 dark:bg-blue-900/20">
                                                 <TableCell>Laba Kotor</TableCell>
                                                 <TableCell className="text-right font-mono text-blue-600">{formatIDR(pnlData.grossProfit)}</TableCell>
@@ -762,26 +903,78 @@ export default function FinancialReportsPage() {
                                                 <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.totalOperatingExpenses)})</TableCell>
                                             </TableRow>
                                             {pnlData.operatingExpenses?.map((exp: any, idx: number) => (
-                                                <TableRow key={idx}>
-                                                    <TableCell className="pl-12 text-sm text-zinc-500">{exp.category}</TableCell>
-                                                    <TableCell className="text-right font-mono text-sm text-red-600">({formatIDR(exp.amount)})</TableCell>
-                                                </TableRow>
+                                                <React.Fragment key={idx}>
+                                                    <TableRow
+                                                        className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                        onClick={() => toggleDrillDown(`pnl-opex-${idx}`, exp.code || 'EXPENSE')}
+                                                    >
+                                                        <TableCell className="pl-12 text-sm text-zinc-500">
+                                                            <span className="flex items-center gap-2">
+                                                                <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`pnl-opex-${idx}`) ? 'rotate-90' : ''}`} />
+                                                                {exp.category}
+                                                                {exp.code && <span className="font-mono text-[10px] text-zinc-300">{exp.code}</span>}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell className="text-right font-mono text-sm text-red-600">({formatIDR(exp.amount)})</TableCell>
+                                                    </TableRow>
+                                                    {expandedAccounts.has(`pnl-opex-${idx}`) && (
+                                                        <TableRow><TableCell colSpan={2} className="p-0">
+                                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                                <DrillDownPanel rows={drillDownCache.get(`pnl-opex-${idx}`) || []} loading={drillDownLoading === `pnl-opex-${idx}`} formatIDR={formatIDR} />
+                                                            </motion.div>
+                                                        </TableCell></TableRow>
+                                                    )}
+                                                </React.Fragment>
                                             ))}
                                             <TableRow className="font-bold bg-indigo-50 dark:bg-indigo-900/20">
                                                 <TableCell>Laba Operasional</TableCell>
                                                 <TableCell className="text-right font-mono text-indigo-600">{formatIDR(pnlData.operatingIncome)}</TableCell>
                                             </TableRow>
                                             {(pnlData.otherIncome > 0) && (
-                                                <TableRow>
-                                                    <TableCell className="pl-8">Pendapatan Lain-lain</TableCell>
+                                                <>
+                                                <TableRow
+                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                    onClick={() => toggleDrillDown('pnl-other-income', '7000-8999')}
+                                                >
+                                                    <TableCell className="pl-8">
+                                                        <span className="flex items-center gap-2">
+                                                            <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has('pnl-other-income') ? 'rotate-90' : ''}`} />
+                                                            Pendapatan Lain-lain
+                                                        </span>
+                                                    </TableCell>
                                                     <TableCell className="text-right font-mono text-emerald-600">{formatIDR(pnlData.otherIncome)}</TableCell>
                                                 </TableRow>
+                                                {expandedAccounts.has('pnl-other-income') && (
+                                                    <TableRow><TableCell colSpan={2} className="p-0">
+                                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                            <DrillDownPanel rows={drillDownCache.get('pnl-other-income') || []} loading={drillDownLoading === 'pnl-other-income'} formatIDR={formatIDR} />
+                                                        </motion.div>
+                                                    </TableCell></TableRow>
+                                                )}
+                                                </>
                                             )}
                                             {(pnlData.otherExpenses > 0) && (
-                                                <TableRow>
-                                                    <TableCell className="pl-8">Biaya Lain-lain</TableCell>
+                                                <>
+                                                <TableRow
+                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                    onClick={() => toggleDrillDown('pnl-other-expense', '8000-9999')}
+                                                >
+                                                    <TableCell className="pl-8">
+                                                        <span className="flex items-center gap-2">
+                                                            <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has('pnl-other-expense') ? 'rotate-90' : ''}`} />
+                                                            Biaya Lain-lain
+                                                        </span>
+                                                    </TableCell>
                                                     <TableCell className="text-right font-mono text-red-600">({formatIDR(pnlData.otherExpenses)})</TableCell>
                                                 </TableRow>
+                                                {expandedAccounts.has('pnl-other-expense') && (
+                                                    <TableRow><TableCell colSpan={2} className="p-0">
+                                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                            <DrillDownPanel rows={drillDownCache.get('pnl-other-expense') || []} loading={drillDownLoading === 'pnl-other-expense'} formatIDR={formatIDR} />
+                                                        </motion.div>
+                                                    </TableCell></TableRow>
+                                                )}
+                                                </>
                                             )}
                                             {(pnlData.otherIncome > 0 || pnlData.otherExpenses > 0) && (
                                                 <TableRow className="font-bold bg-zinc-50 dark:bg-zinc-800">
@@ -856,10 +1049,28 @@ export default function FinancialReportsPage() {
                                                     <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalCurrentAssets)}</TableCell>
                                                 </TableRow>
                                                 {(bsExpanded.currentAssets ? currentAssets : currentAssets.slice(0, PREVIEW_COUNT)).map((asset: any, idx: number) => (
-                                                    <TableRow key={idx}>
-                                                        <TableCell className="pl-10 text-sm text-zinc-500">{asset.name}</TableCell>
-                                                        <TableCell className="text-right font-mono text-sm">{formatIDR(asset.amount)}</TableCell>
-                                                    </TableRow>
+                                                    <React.Fragment key={asset.code || idx}>
+                                                        <TableRow
+                                                            className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                            onClick={() => toggleDrillDown(`bs-${asset.code}`, asset.code, true)}
+                                                        >
+                                                            <TableCell className="pl-10 text-sm">
+                                                                <span className="flex items-center gap-2">
+                                                                    <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${asset.code}`) ? 'rotate-90' : ''}`} />
+                                                                    <span className="font-mono text-[10px] text-zinc-400">{asset.code}</span>
+                                                                    <span className="text-zinc-500">{asset.name}</span>
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-right font-mono text-sm">{formatIDR(asset.amount)}</TableCell>
+                                                        </TableRow>
+                                                        {expandedAccounts.has(`bs-${asset.code}`) && (
+                                                            <TableRow><TableCell colSpan={2} className="p-0">
+                                                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                                    <DrillDownPanel rows={drillDownCache.get(`bs-${asset.code}`) || []} loading={drillDownLoading === `bs-${asset.code}`} formatIDR={formatIDR} />
+                                                                </motion.div>
+                                                            </TableCell></TableRow>
+                                                        )}
+                                                    </React.Fragment>
                                                 ))}
                                                 {!bsExpanded.currentAssets && currentAssets.length > PREVIEW_COUNT && (
                                                     <TableRow>
@@ -906,10 +1117,28 @@ export default function FinancialReportsPage() {
                                                         <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.liabilities?.totalCurrentLiabilities)}</TableCell>
                                                     </TableRow>
                                                     {(bsExpanded.currentLiabilities ? currentLiabilities : currentLiabilities.slice(0, PREVIEW_COUNT)).map((liab: any, idx: number) => (
-                                                        <TableRow key={idx}>
-                                                            <TableCell className="pl-10 text-sm text-zinc-500">{liab.name}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{formatIDR(liab.amount)}</TableCell>
-                                                        </TableRow>
+                                                        <React.Fragment key={liab.code || idx}>
+                                                            <TableRow
+                                                                className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                onClick={() => toggleDrillDown(`bs-${liab.code}`, liab.code, true)}
+                                                            >
+                                                                <TableCell className="pl-10 text-sm">
+                                                                    <span className="flex items-center gap-2">
+                                                                        <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${liab.code}`) ? 'rotate-90' : ''}`} />
+                                                                        <span className="font-mono text-[10px] text-zinc-400">{liab.code}</span>
+                                                                        <span className="text-zinc-500">{liab.name}</span>
+                                                                    </span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right font-mono text-sm">{formatIDR(liab.amount)}</TableCell>
+                                                            </TableRow>
+                                                            {expandedAccounts.has(`bs-${liab.code}`) && (
+                                                                <TableRow><TableCell colSpan={2} className="p-0">
+                                                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                                        <DrillDownPanel rows={drillDownCache.get(`bs-${liab.code}`) || []} loading={drillDownLoading === `bs-${liab.code}`} formatIDR={formatIDR} />
+                                                                    </motion.div>
+                                                                </TableCell></TableRow>
+                                                            )}
+                                                        </React.Fragment>
                                                     ))}
                                                     {!bsExpanded.currentLiabilities && currentLiabilities.length > PREVIEW_COUNT && (
                                                         <TableRow>
@@ -938,10 +1167,28 @@ export default function FinancialReportsPage() {
                                             <Table>
                                                 <TableBody>
                                                     {(bsExpanded.capital ? capitalItems : capitalItems.slice(0, PREVIEW_COUNT)).map((cap: any, idx: number) => (
-                                                        <TableRow key={idx}>
-                                                            <TableCell className="text-sm text-zinc-500">{cap.name}</TableCell>
-                                                            <TableCell className="text-right font-mono text-sm">{formatIDR(cap.amount)}</TableCell>
-                                                        </TableRow>
+                                                        <React.Fragment key={cap.code || idx}>
+                                                            <TableRow
+                                                                className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                onClick={() => toggleDrillDown(`bs-${cap.code}`, cap.code, true)}
+                                                            >
+                                                                <TableCell className="text-sm">
+                                                                    <span className="flex items-center gap-2">
+                                                                        <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${cap.code}`) ? 'rotate-90' : ''}`} />
+                                                                        <span className="font-mono text-[10px] text-zinc-400">{cap.code}</span>
+                                                                        <span className="text-zinc-500">{cap.name}</span>
+                                                                    </span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right font-mono text-sm">{formatIDR(cap.amount)}</TableCell>
+                                                            </TableRow>
+                                                            {expandedAccounts.has(`bs-${cap.code}`) && (
+                                                                <TableRow><TableCell colSpan={2} className="p-0">
+                                                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                                        <DrillDownPanel rows={drillDownCache.get(`bs-${cap.code}`) || []} loading={drillDownLoading === `bs-${cap.code}`} formatIDR={formatIDR} />
+                                                                    </motion.div>
+                                                                </TableCell></TableRow>
+                                                            )}
+                                                        </React.Fragment>
                                                     ))}
                                                     {!bsExpanded.capital && capitalItems.length > PREVIEW_COUNT && (
                                                         <TableRow>

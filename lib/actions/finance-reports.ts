@@ -80,23 +80,23 @@ export interface ProfitLossData {
 
 export interface BalanceSheetData {
     assets: {
-        currentAssets: { name: string; amount: number }[]
-        fixedAssets: { name: string; amount: number }[]
-        otherAssets: { name: string; amount: number }[]
+        currentAssets: { code: string; name: string; amount: number }[]
+        fixedAssets: { code: string; name: string; amount: number }[]
+        otherAssets: { code: string; name: string; amount: number }[]
         totalCurrentAssets: number
         totalFixedAssets: number
         totalOtherAssets: number
         totalAssets: number
     }
     liabilities: {
-        currentLiabilities: { name: string; amount: number }[]
-        longTermLiabilities: { name: string; amount: number }[]
+        currentLiabilities: { code: string; name: string; amount: number }[]
+        longTermLiabilities: { code: string; name: string; amount: number }[]
         totalCurrentLiabilities: number
         totalLongTermLiabilities: number
         totalLiabilities: number
     }
     equity: {
-        capital: { name: string; amount: number }[]
+        capital: { code: string; name: string; amount: number }[]
         retainedEarnings: number
         totalEquity: number
     }

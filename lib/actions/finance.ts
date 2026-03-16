@@ -442,6 +442,7 @@ export interface ProfitLossData {
     operatingExpenses: {
         category: string
         amount: number
+        code?: string
     }[]
     totalOperatingExpenses: number
     operatingIncome: number
@@ -487,12 +488,12 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
             // Calculate by account type
             let revenue = 0
             let costOfGoodsSold = 0
-            const operatingExpenses: { category: string; amount: number }[] = []
+            const operatingExpenses: { category: string; amount: number; code?: string }[] = []
             let otherIncome = 0
             let otherExpenses = 0
 
             // Group expenses by account
-            const expenseMap = new Map<string, number>()
+            const expenseMap = new Map<string, { amount: number; code: string }>()
 
             for (const line of journalLines) {
                 const account = line.account
@@ -521,17 +522,17 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                             otherExpenses += effectiveAmount
                         } else {
                             // Operating expenses — show each account by name (Beban Transportasi, Beban Makan & Minum, etc.)
-                            const current = expenseMap.get(account.name) || 0
-                            expenseMap.set(account.name, current + effectiveAmount)
+                            const current = expenseMap.get(account.name) || { amount: 0, code: account.code }
+                            expenseMap.set(account.name, { amount: current.amount + effectiveAmount, code: current.code })
                         }
                         break
                 }
             }
 
             // Convert expense map to array, sorted by amount descending
-            expenseMap.forEach((amount, category) => {
+            expenseMap.forEach(({ amount, code }, category) => {
                 if (amount > 0) {
-                    operatingExpenses.push({ category, amount })
+                    operatingExpenses.push({ category, amount, code })
                 }
             })
             operatingExpenses.sort((a, b) => b.amount - a.amount)
@@ -581,23 +582,23 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
 
 export interface BalanceSheetData {
     assets: {
-        currentAssets: { name: string; amount: number }[]
-        fixedAssets: { name: string; amount: number }[]
-        otherAssets: { name: string; amount: number }[]
+        currentAssets: { code: string; name: string; amount: number }[]
+        fixedAssets: { code: string; name: string; amount: number }[]
+        otherAssets: { code: string; name: string; amount: number }[]
         totalCurrentAssets: number
         totalFixedAssets: number
         totalOtherAssets: number
         totalAssets: number
     }
     liabilities: {
-        currentLiabilities: { name: string; amount: number }[]
-        longTermLiabilities: { name: string; amount: number }[]
+        currentLiabilities: { code: string; name: string; amount: number }[]
+        longTermLiabilities: { code: string; name: string; amount: number }[]
         totalCurrentLiabilities: number
         totalLongTermLiabilities: number
         totalLiabilities: number
     }
     equity: {
-        capital: { name: string; amount: number }[]
+        capital: { code: string; name: string; amount: number }[]
         retainedEarnings: number
         currentYearNetIncome: number
         totalEquity: number
@@ -635,9 +636,9 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
             })
 
             const assets = {
-                currentAssets: [] as { name: string; amount: number }[],
-                fixedAssets: [] as { name: string; amount: number }[],
-                otherAssets: [] as { name: string; amount: number }[],
+                currentAssets: [] as { code: string; name: string; amount: number }[],
+                fixedAssets: [] as { code: string; name: string; amount: number }[],
+                otherAssets: [] as { code: string; name: string; amount: number }[],
                 totalCurrentAssets: 0,
                 totalFixedAssets: 0,
                 totalOtherAssets: 0,
@@ -645,15 +646,15 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
             }
 
             const liabilities = {
-                currentLiabilities: [] as { name: string; amount: number }[],
-                longTermLiabilities: [] as { name: string; amount: number }[],
+                currentLiabilities: [] as { code: string; name: string; amount: number }[],
+                longTermLiabilities: [] as { code: string; name: string; amount: number }[],
                 totalCurrentLiabilities: 0,
                 totalLongTermLiabilities: 0,
                 totalLiabilities: 0
             }
 
             const equity = {
-                capital: [] as { name: string; amount: number }[],
+                capital: [] as { code: string; name: string; amount: number }[],
                 retainedEarnings: 0,
                 currentYearNetIncome: 0,
                 totalEquity: 0
@@ -690,33 +691,33 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 switch (account.type) {
                     case 'ASSET':
                         if (account.code >= '1000' && account.code < '1500') {
-                            assets.currentAssets.push({ name: account.name, amount: balance })
+                            assets.currentAssets.push({ code: account.code, name: account.name, amount: balance })
                             assets.totalCurrentAssets += balance
                         }
                         else if (account.code >= '1500' && account.code < '2000') {
-                            assets.fixedAssets.push({ name: account.name, amount: balance })
+                            assets.fixedAssets.push({ code: account.code, name: account.name, amount: balance })
                             assets.totalFixedAssets += balance
                         }
                         else {
-                            assets.otherAssets.push({ name: account.name, amount: balance })
+                            assets.otherAssets.push({ code: account.code, name: account.name, amount: balance })
                             assets.totalOtherAssets += balance
                         }
                         break
 
                     case 'LIABILITY':
                         if (account.code >= '2000' && account.code < '2500') {
-                            liabilities.currentLiabilities.push({ name: account.name, amount: balance })
+                            liabilities.currentLiabilities.push({ code: account.code, name: account.name, amount: balance })
                             liabilities.totalCurrentLiabilities += balance
                         }
                         else {
-                            liabilities.longTermLiabilities.push({ name: account.name, amount: balance })
+                            liabilities.longTermLiabilities.push({ code: account.code, name: account.name, amount: balance })
                             liabilities.totalLongTermLiabilities += balance
                         }
                         break
 
                     case 'EQUITY':
                         if (account.code >= '3000' && account.code < '3500') {
-                            equity.capital.push({ name: account.name, amount: balance })
+                            equity.capital.push({ code: account.code, name: account.name, amount: balance })
                         }
                         break
                 }

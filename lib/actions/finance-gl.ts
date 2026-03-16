@@ -1355,3 +1355,136 @@ export async function postClosingJournal(fiscalYear: number): Promise<{
         return { success: false, error: msg }
     }
 }
+
+// ==========================================
+// DRILL-DOWN — Transaction Detail for Reports
+// ==========================================
+
+export interface DrillDownRow {
+    id: string
+    date: string
+    reference: string
+    description: string
+    counterparty: string
+    journalNumber: string
+    accountCode: string
+    accountName: string
+    debit: number
+    credit: number
+    sourceType: 'INVOICE_AR' | 'INVOICE_AP' | 'PAYMENT' | 'JOURNAL' | 'PETTY_CASH' | 'OPENING'
+    sourceUrl: string
+}
+
+export async function getAccountDrillDown(
+    accountFilter: string,
+    startDate: Date,
+    endDate: Date,
+    limit = 100
+): Promise<DrillDownRow[]> {
+    try {
+        const { prisma } = await import('@/lib/db')
+
+        let accountWhere: any = {}
+        if (accountFilter.includes('-')) {
+            const [from, to] = accountFilter.split('-')
+            accountWhere = { code: { gte: from, lte: to } }
+        } else if (['ASSET', 'LIABILITY', 'EQUITY', 'REVENUE', 'EXPENSE'].includes(accountFilter)) {
+            accountWhere = { type: accountFilter }
+        } else {
+            accountWhere = { code: accountFilter }
+        }
+
+        const lines = await prisma.journalLine.findMany({
+            where: {
+                account: accountWhere,
+                entry: {
+                    status: 'POSTED',
+                    date: { gte: startDate, lte: endDate },
+                },
+            },
+            include: {
+                account: { select: { code: true, name: true } },
+                entry: {
+                    select: {
+                        id: true,
+                        date: true,
+                        reference: true,
+                        description: true,
+                        invoiceId: true,
+                        paymentId: true,
+                        pettyCashTransaction: { select: { id: true } },
+                        invoice: {
+                            select: {
+                                id: true,
+                                number: true,
+                                type: true,
+                                customer: { select: { name: true } },
+                                supplier: { select: { name: true } },
+                            },
+                        },
+                        payment: {
+                            select: {
+                                id: true,
+                                number: true,
+                                customer: { select: { name: true } },
+                                supplier: { select: { name: true } },
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: { entry: { date: 'desc' } },
+            take: limit,
+        })
+
+        return lines.map((line: any) => {
+            const entry = line.entry
+            const invoice = entry.invoice
+            const payment = entry.payment
+
+            let sourceType: DrillDownRow['sourceType'] = 'JOURNAL'
+            let sourceUrl = '/finance/journal'
+            let counterparty = ''
+
+            if (invoice) {
+                if (invoice.type === 'INV_OUT') {
+                    sourceType = 'INVOICE_AR'
+                    sourceUrl = `/finance/invoices?highlight=${invoice.id}`
+                    counterparty = invoice.customer?.name || ''
+                } else {
+                    sourceType = 'INVOICE_AP'
+                    sourceUrl = `/finance/bills?highlight=${invoice.id}`
+                    counterparty = invoice.supplier?.name || ''
+                }
+            } else if (payment) {
+                sourceType = 'PAYMENT'
+                sourceUrl = '/finance/payments'
+                counterparty = payment.customer?.name || payment.supplier?.name || ''
+            } else if (entry.pettyCashTransaction) {
+                sourceType = 'PETTY_CASH'
+                sourceUrl = '/finance/petty-cash'
+            } else if (entry.reference?.startsWith('OPENING')) {
+                sourceType = 'OPENING'
+                sourceUrl = '/finance/opening-balances'
+            }
+
+            return {
+                id: line.id,
+                date: entry.date.toISOString().slice(0, 10),
+                reference: invoice?.number || payment?.number || entry.reference || '',
+                description: entry.description || '',
+                counterparty,
+                journalNumber: entry.reference || entry.id.slice(0, 8),
+                accountCode: line.account.code,
+                accountName: line.account.name,
+                debit: Number(line.debit),
+                credit: Number(line.credit),
+                sourceType,
+                sourceUrl,
+            }
+        })
+    } catch (error) {
+        console.error('[getAccountDrillDown] Error:', error)
+        return []
+    }
+}

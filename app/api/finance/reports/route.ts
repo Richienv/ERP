@@ -115,23 +115,23 @@ async function fetchBalanceSheet(asOfDate: Date) {
     ])
 
     const assets = {
-        currentAssets: [] as { name: string; amount: number }[],
-        fixedAssets: [] as { name: string; amount: number }[],
-        otherAssets: [] as { name: string; amount: number }[],
+        currentAssets: [] as { code: string; name: string; amount: number }[],
+        fixedAssets: [] as { code: string; name: string; amount: number }[],
+        otherAssets: [] as { code: string; name: string; amount: number }[],
         totalCurrentAssets: 0,
         totalFixedAssets: 0,
         totalOtherAssets: 0,
         totalAssets: 0,
     }
     const liabilities = {
-        currentLiabilities: [] as { name: string; amount: number }[],
-        longTermLiabilities: [] as { name: string; amount: number }[],
+        currentLiabilities: [] as { code: string; name: string; amount: number }[],
+        longTermLiabilities: [] as { code: string; name: string; amount: number }[],
         totalCurrentLiabilities: 0,
         totalLongTermLiabilities: 0,
         totalLiabilities: 0,
     }
     const equity = {
-        capital: [] as { name: string; amount: number }[],
+        capital: [] as { code: string; name: string; amount: number }[],
         retainedEarnings: priorPnL.netIncome,
         currentYearNetIncome: currentPnL.netIncome,
         totalEquity: 0,
@@ -147,28 +147,28 @@ async function fetchBalanceSheet(asOfDate: Date) {
         switch (account.type) {
             case 'ASSET':
                 if (account.code >= '1000' && account.code < '1500') {
-                    assets.currentAssets.push({ name: account.name, amount: balance })
+                    assets.currentAssets.push({ code: account.code, name: account.name, amount: balance })
                     assets.totalCurrentAssets += balance
                 } else if (account.code >= '1500' && account.code < '2000') {
-                    assets.fixedAssets.push({ name: account.name, amount: balance })
+                    assets.fixedAssets.push({ code: account.code, name: account.name, amount: balance })
                     assets.totalFixedAssets += balance
                 } else {
-                    assets.otherAssets.push({ name: account.name, amount: balance })
+                    assets.otherAssets.push({ code: account.code, name: account.name, amount: balance })
                     assets.totalOtherAssets += balance
                 }
                 break
             case 'LIABILITY':
                 if (account.code >= '2000' && account.code < '2500') {
-                    liabilities.currentLiabilities.push({ name: account.name, amount: balance })
+                    liabilities.currentLiabilities.push({ code: account.code, name: account.name, amount: balance })
                     liabilities.totalCurrentLiabilities += balance
                 } else {
-                    liabilities.longTermLiabilities.push({ name: account.name, amount: balance })
+                    liabilities.longTermLiabilities.push({ code: account.code, name: account.name, amount: balance })
                     liabilities.totalLongTermLiabilities += balance
                 }
                 break
             case 'EQUITY':
                 // Include ALL equity accounts (capital, retained earnings GL, other equity)
-                equity.capital.push({ name: account.name, amount: balance })
+                equity.capital.push({ code: account.code, name: account.name, amount: balance })
                 break
         }
     }
