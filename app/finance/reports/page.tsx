@@ -187,8 +187,8 @@ export default function FinancialReportsPage() {
     const [exportDialogOpen, setExportDialogOpen] = useState(false)
     const [exportFormat, setExportFormat] = useState<"CSV" | "XLS">("CSV")
     const [showAmounts, setShowAmounts] = useState(false)
-    const [bsExpanded, setBsExpanded] = useState<{ currentAssets: boolean; currentLiabilities: boolean; capital: boolean }>({
-        currentAssets: false, currentLiabilities: false, capital: false,
+    const [bsExpanded, setBsExpanded] = useState<{ currentAssets: boolean; fixedAssets: boolean; currentLiabilities: boolean; longTermLiabilities: boolean; capital: boolean }>({
+        currentAssets: false, fixedAssets: false, currentLiabilities: false, longTermLiabilities: false, capital: false,
     })
 
     const currentYear = new Date().getFullYear()
@@ -1000,7 +1000,10 @@ export default function FinancialReportsPage() {
                             {/* Balance Sheet */}
                             {reportType === "bs" && balanceSheetData && (() => {
                                 const currentAssets = balanceSheetData.assets?.currentAssets || []
+                                const fixedAssets = balanceSheetData.assets?.fixedAssets || []
+                                const otherAssets = balanceSheetData.assets?.otherAssets || []
                                 const currentLiabilities = balanceSheetData.liabilities?.currentLiabilities || []
+                                const longTermLiabilities = balanceSheetData.liabilities?.longTermLiabilities || []
                                 const capitalItems = balanceSheetData.equity?.capital || []
                                 const PREVIEW_COUNT = 3
                                 return (
@@ -1083,10 +1086,64 @@ export default function FinancialReportsPage() {
                                                         </TableCell>
                                                     </TableRow>
                                                 )}
-                                                <TableRow className="bg-zinc-50 dark:bg-zinc-800 font-bold">
-                                                    <TableCell>Aset Tetap</TableCell>
+                                                {/* Aset Tetap — expandable */}
+                                                <TableRow
+                                                    className="bg-zinc-50 dark:bg-zinc-800 font-bold cursor-pointer hover:bg-zinc-100/50 transition-colors"
+                                                    onClick={() => setBsExpanded(prev => ({ ...prev, fixedAssets: !prev.fixedAssets }))}
+                                                >
+                                                    <TableCell className="flex items-center gap-1">
+                                                        {bsExpanded.fixedAssets ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                                        Aset Tetap
+                                                        {fixedAssets.length > 0 && (
+                                                            <span className="text-[9px] font-medium text-zinc-400 ml-1">({fixedAssets.length} akun)</span>
+                                                        )}
+                                                    </TableCell>
                                                     <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalFixedAssets)}</TableCell>
                                                 </TableRow>
+                                                {bsExpanded.fixedAssets && fixedAssets.map((asset: any, idx: number) => (
+                                                    <React.Fragment key={asset.code || idx}>
+                                                        <TableRow
+                                                            className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                            onClick={() => toggleDrillDown(`bs-${asset.code}`, asset.code, true)}
+                                                        >
+                                                            <TableCell className="pl-10 text-sm">
+                                                                <span className="flex items-center gap-2">
+                                                                    <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${asset.code}`) ? 'rotate-90' : ''}`} />
+                                                                    <span className="font-mono text-[10px] text-zinc-400">{asset.code}</span>
+                                                                    <span className="text-zinc-500">{asset.name}</span>
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell className="text-right font-mono text-sm">{formatIDR(asset.amount)}</TableCell>
+                                                        </TableRow>
+                                                        {expandedAccounts.has(`bs-${asset.code}`) && (
+                                                            <TableRow><TableCell colSpan={2} className="p-0">
+                                                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                                    <DrillDownPanel rows={drillDownCache.get(`bs-${asset.code}`) || []} loading={drillDownLoading === `bs-${asset.code}`} formatIDR={formatIDR} />
+                                                                </motion.div>
+                                                            </TableCell></TableRow>
+                                                        )}
+                                                    </React.Fragment>
+                                                ))}
+                                                {/* Aset Lainnya — if any */}
+                                                {otherAssets.length > 0 && (
+                                                    <>
+                                                        <TableRow className="bg-zinc-50 dark:bg-zinc-800 font-bold">
+                                                            <TableCell>Aset Lainnya</TableCell>
+                                                            <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalOtherAssets)}</TableCell>
+                                                        </TableRow>
+                                                        {otherAssets.map((asset: any, idx: number) => (
+                                                            <TableRow key={asset.code || idx}>
+                                                                <TableCell className="pl-10 text-sm">
+                                                                    <span className="flex items-center gap-2">
+                                                                        <span className="font-mono text-[10px] text-zinc-400">{asset.code}</span>
+                                                                        <span className="text-zinc-500">{asset.name}</span>
+                                                                    </span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right font-mono text-sm">{formatIDR(asset.amount)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </>
+                                                )}
                                                 <TableRow className="font-black bg-emerald-100 dark:bg-emerald-900/30 border-t-2 border-black">
                                                     <TableCell>TOTAL ASET</TableCell>
                                                     <TableCell className="text-right font-mono text-emerald-700">{formatIDR(balanceSheetData.assets?.totalAssets)}</TableCell>
@@ -1150,6 +1207,46 @@ export default function FinancialReportsPage() {
                                                                 + {currentLiabilities.length - PREVIEW_COUNT} akun lainnya
                                                             </TableCell>
                                                         </TableRow>
+                                                    )}
+                                                    {/* Kewajiban Jangka Panjang — if any */}
+                                                    {longTermLiabilities.length > 0 && (
+                                                        <>
+                                                            <TableRow
+                                                                className="bg-red-50/30 dark:bg-red-900/5 font-bold cursor-pointer hover:bg-red-100/50 transition-colors"
+                                                                onClick={() => setBsExpanded(prev => ({ ...prev, longTermLiabilities: !prev.longTermLiabilities }))}
+                                                            >
+                                                                <TableCell className="flex items-center gap-1">
+                                                                    {bsExpanded.longTermLiabilities ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                                                    Kewajiban Jangka Panjang
+                                                                    <span className="text-[9px] font-medium text-zinc-400 ml-1">({longTermLiabilities.length} akun)</span>
+                                                                </TableCell>
+                                                                <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.liabilities?.totalLongTermLiabilities)}</TableCell>
+                                                            </TableRow>
+                                                            {bsExpanded.longTermLiabilities && longTermLiabilities.map((liab: any, idx: number) => (
+                                                                <React.Fragment key={liab.code || idx}>
+                                                                    <TableRow
+                                                                        className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                        onClick={() => toggleDrillDown(`bs-${liab.code}`, liab.code, true)}
+                                                                    >
+                                                                        <TableCell className="pl-10 text-sm">
+                                                                            <span className="flex items-center gap-2">
+                                                                                <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${liab.code}`) ? 'rotate-90' : ''}`} />
+                                                                                <span className="font-mono text-[10px] text-zinc-400">{liab.code}</span>
+                                                                                <span className="text-zinc-500">{liab.name}</span>
+                                                                            </span>
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right font-mono text-sm">{formatIDR(liab.amount)}</TableCell>
+                                                                    </TableRow>
+                                                                    {expandedAccounts.has(`bs-${liab.code}`) && (
+                                                                        <TableRow><TableCell colSpan={2} className="p-0">
+                                                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                                                <DrillDownPanel rows={drillDownCache.get(`bs-${liab.code}`) || []} loading={drillDownLoading === `bs-${liab.code}`} formatIDR={formatIDR} />
+                                                                            </motion.div>
+                                                                        </TableCell></TableRow>
+                                                                    )}
+                                                                </React.Fragment>
+                                                            ))}
+                                                        </>
                                                     )}
                                                     <TableRow className="font-black bg-red-100 dark:bg-red-900/30 border-t-2 border-black">
                                                         <TableCell>TOTAL KEWAJIBAN</TableCell>

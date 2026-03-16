@@ -723,6 +723,38 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                 }
             }
 
+            // ── Fallback: compute AR/AP from outstanding invoices/bills ──
+            const hasAR = assets.currentAssets.some(a => a.code === '1200')
+            const hasAP = liabilities.currentLiabilities.some(l => l.code === '2000')
+
+            if (!hasAR || !hasAP) {
+                const [arAgg, apAgg] = await Promise.all([
+                    !hasAR ? basePrisma.invoice.aggregate({
+                        where: { type: 'INV_OUT', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
+                        _sum: { balanceDue: true },
+                    }) : Promise.resolve(null),
+                    !hasAP ? basePrisma.invoice.aggregate({
+                        where: { type: 'INV_IN', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
+                        _sum: { balanceDue: true },
+                    }) : Promise.resolve(null),
+                ])
+
+                if (!hasAR && arAgg) {
+                    const arAmount = Number(arAgg._sum.balanceDue || 0)
+                    if (arAmount > 0.01) {
+                        assets.currentAssets.push({ code: '1200', name: 'Piutang Usaha', amount: arAmount })
+                        assets.totalCurrentAssets += arAmount
+                    }
+                }
+                if (!hasAP && apAgg) {
+                    const apAmount = Number(apAgg._sum.balanceDue || 0)
+                    if (apAmount > 0.01) {
+                        liabilities.currentLiabilities.push({ code: '2000', name: 'Hutang Usaha', amount: apAmount })
+                        liabilities.totalCurrentLiabilities += apAmount
+                    }
+                }
+            }
+
             assets.totalAssets = assets.totalCurrentAssets + assets.totalFixedAssets + assets.totalOtherAssets
             liabilities.totalLiabilities = liabilities.totalCurrentLiabilities + liabilities.totalLongTermLiabilities
             equity.totalEquity = equity.capital.reduce((sum, c) => sum + c.amount, 0) + equity.retainedEarnings + equity.currentYearNetIncome
