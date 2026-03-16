@@ -762,7 +762,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
             })
 
             if (!existing) throw new Error("Invoice not found")
-            if (existing.status !== 'DRAFT') throw new Error("Hanya invoice DRAFT yang bisa dikirim")
+            if (existing.status !== 'DRAFT') throw new Error(`Invoice ${existing.number} sudah berstatus ${existing.status}. Refresh halaman untuk melihat status terbaru.`)
 
             const fallbackDueDate = new Date(now)
             fallbackDueDate.setDate(fallbackDueDate.getDate() + 30)
