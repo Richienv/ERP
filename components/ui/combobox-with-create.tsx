@@ -149,37 +149,51 @@ export function ComboboxWithCreate({
                     <ChevronsUpDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
                 </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 border-2 border-black rounded-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]" align="start">
-                <Command>
-                    <CommandInput placeholder={searchPlaceholder} className="h-9 text-xs" />
-                    <CommandList>
-                        <CommandEmpty className="py-4 text-center text-xs text-zinc-500">
+            <PopoverContent className="w-[--radix-popover-trigger-width] p-0 border border-zinc-300 dark:border-zinc-600 rounded-none shadow-md" align="start">
+                <Command className="rounded-none">
+                    <CommandInput placeholder={searchPlaceholder} className="h-7 text-[11px]" />
+                    <CommandList className="max-h-[200px] overscroll-contain">
+                        <CommandEmpty className="py-3 text-center text-[10px] text-zinc-400 font-medium">
                             {emptyMessage}
                         </CommandEmpty>
-                        <CommandGroup>
-                            {options.map(option => (
-                                <CommandItem
-                                    key={option.value}
-                                    value={option.subtitle ? `${option.subtitle} ${option.label}` : option.label}
-                                    onSelect={() => {
-                                        onChange(option.value === value ? "" : option.value)
-                                        setOpen(false)
-                                    }}
-                                    className="text-xs"
-                                >
-                                    <Check className={cn("mr-2 h-3 w-3", value === option.value ? "opacity-100" : "opacity-0")} />
-                                    {option.subtitle ? (
-                                        <><span className="font-mono font-bold mr-1.5">{option.subtitle}</span><span className="text-zinc-500">{option.label}</span></>
-                                    ) : (
-                                        option.label
-                                    )}
-                                </CommandItem>
-                            ))}
+                        <CommandGroup className="p-0.5">
+                            {options.map(option => {
+                                const isSelected = value === option.value
+                                return (
+                                    <CommandItem
+                                        key={option.value}
+                                        value={option.subtitle ? `${option.subtitle} ${option.label}` : option.label}
+                                        onSelect={() => {
+                                            onChange(option.value === value ? "" : option.value)
+                                            setOpen(false)
+                                        }}
+                                        className={cn(
+                                            "text-[11px] py-1.5 px-2 rounded-none gap-1.5 cursor-pointer",
+                                            isSelected && "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400"
+                                        )}
+                                    >
+                                        <div className={cn(
+                                            "w-3.5 h-3.5 flex items-center justify-center shrink-0",
+                                            isSelected ? "text-orange-500" : "text-transparent"
+                                        )}>
+                                            <Check className="h-3 w-3" />
+                                        </div>
+                                        {option.subtitle ? (
+                                            <span className="truncate">
+                                                <span className={cn("font-mono font-bold mr-1.5 text-[11px]", isSelected ? "text-orange-600 dark:text-orange-400" : "text-zinc-700 dark:text-zinc-300")}>{option.subtitle}</span>
+                                                <span className={cn("text-[11px]", isSelected ? "text-orange-600/70 dark:text-orange-400/70" : "text-zinc-400 dark:text-zinc-500")}>{option.label}</span>
+                                            </span>
+                                        ) : (
+                                            <span className="truncate">{option.label}</span>
+                                        )}
+                                    </CommandItem>
+                                )
+                            })}
                         </CommandGroup>
                         {onCreate && (
                             <>
                                 <CommandSeparator />
-                                <CommandGroup>
+                                <CommandGroup className="p-0.5">
                                     <CommandItem
                                         value="__create_new__"
                                         onSelect={() => {
@@ -187,9 +201,9 @@ export function ComboboxWithCreate({
                                             setOpen(false)
                                             setTimeout(() => inputRef.current?.focus(), 50)
                                         }}
-                                        className="text-xs font-bold text-emerald-700"
+                                        className="text-[11px] py-1.5 px-2 rounded-none font-bold text-emerald-700 dark:text-emerald-400 cursor-pointer"
                                     >
-                                        <Plus className="mr-2 h-3 w-3" />
+                                        <Plus className="mr-1 h-3 w-3" />
                                         {createLabel}
                                     </CommandItem>
                                 </CommandGroup>

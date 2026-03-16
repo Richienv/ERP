@@ -1378,7 +1378,7 @@ export async function getPayrollRun(period: string) {
                     generatedAt: payload.generatedAt,
                     generatedBy: payload.generatedBy,
                     approverName: toEmployeeName(runTask.employee.firstName, runTask.employee.lastName),
-                    lines: payload.lines,
+                    lines: payload.lines || [],
                 },
             }
         })
@@ -1467,7 +1467,7 @@ export async function getPayslipData(period: string, employeeId: string) {
             const payload = parsePayrollPayload(runTask.notes)
             if (!payload) return { success: false, error: 'Data payroll run tidak valid' }
 
-            const payrollLine = payload.lines.find((line) => line.employeeId === employeeId)
+            const payrollLine = (payload.lines || []).find((line) => line.employeeId === employeeId)
             if (!payrollLine) return { success: false, error: 'Data payroll karyawan tidak ditemukan pada periode ini' }
 
             const employee = await prisma.employee.findUnique({
@@ -1795,11 +1795,12 @@ export async function approvePayrollRun(period: string) {
             const accounts = await resolvePayrollAccounts(prisma)
             if (!accounts.success) return { success: false, error: accounts.error }
 
-            const bpjsTotal = payload.lines.reduce(
+            const payrollLines = payload.lines || []
+            const bpjsTotal = payrollLines.reduce(
                 (sum, line) => sum + line.bpjsKesehatan + line.bpjsKetenagakerjaan,
                 0
             )
-            const taxTotal = payload.lines.reduce((sum, line) => sum + line.pph21, 0)
+            const taxTotal = payrollLines.reduce((sum, line) => sum + line.pph21, 0)
 
             const lines: Array<{
                 accountCode: string

@@ -9,7 +9,6 @@ import {
     CheckCircle2,
     AlertCircle,
     CalendarIcon,
-    Hash,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,13 +27,22 @@ import { Calendar } from "@/components/ui/calendar"
 import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
 import { NB } from "@/lib/dialog-styles"
 import { postJournalEntry } from "@/lib/actions/finance"
-import { updateJournalEntry } from "@/lib/actions/finance-gl"
+import { updateJournalEntry, getNextJournalRef } from "@/lib/actions/finance-gl"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { format } from "date-fns"
 import { id as localeId } from "date-fns/locale"
+
+const JOURNAL_TYPES = [
+    { value: "ADJ", label: "Penyesuaian" },
+    { value: "KOR", label: "Koreksi" },
+    { value: "OPN", label: "Saldo Awal" },
+    { value: "CLS", label: "Jurnal Penutup" },
+    { value: "RCL", label: "Reklasifikasi" },
+    { value: "MEM", label: "Memorial" },
+] as const
 
 interface JournalLine {
     accountId: string
@@ -64,7 +72,8 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
     const [date, setDate] = useState<Date>(new Date())
     const [calOpen, setCalOpen] = useState(false)
     const [desc, setDesc] = useState("")
-    const [ref, setRef] = useState("")
+    const [journalType, setJournalType] = useState("")
+    const [generatedRef, setGeneratedRef] = useState("")
     const [posting, setPosting] = useState(false)
     const [lines, setLines] = useState<JournalLine[]>([
         { accountId: "", description: "", debit: 0, credit: 0 },
@@ -77,7 +86,10 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
         setLastEditId(editEntry.id)
         setDate(new Date(editEntry.date))
         setDesc(editEntry.description)
-        setRef(editEntry.reference || "")
+        const existingRef = editEntry.reference || ""
+        const matchedType = JOURNAL_TYPES.find(t => existingRef.startsWith(t.value))
+        setJournalType(matchedType?.value || "")
+        setGeneratedRef(existingRef)
         setLines(editEntry.lines.map(l => {
             const acc = glAccounts.find(a => a.code === l.account.code)
             return {
@@ -123,7 +135,8 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
     const resetForm = () => {
         setDate(new Date())
         setDesc("")
-        setRef("")
+        setJournalType("")
+        setGeneratedRef("")
         setLastEditId(null)
         setLines([
             { accountId: "", description: "", debit: 0, credit: 0 },
@@ -162,17 +175,22 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                 }
             })
 
+            // Generate sequential reference from type
+            const reference = journalType
+                ? (isEditMode ? generatedRef : await getNextJournalRef(journalType))
+                : ""
+
             const result = isEditMode
                 ? await updateJournalEntry(editEntry!.id, {
                     date,
                     description: desc,
-                    reference: ref,
+                    reference,
                     lines: entryLines,
                 })
                 : await postJournalEntry({
                     date,
                     description: desc,
-                    reference: ref,
+                    reference,
                     lines: entryLines,
                 })
 
@@ -197,11 +215,11 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[92vw] sm:max-w-[92vw] w-full p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
+            <DialogContent className="max-w-5xl sm:max-w-5xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
                 {/* ── Black header ── */}
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <BookText className="h-5 w-5" /> {isEditMode ? "Edit Jurnal" : "Buat Jurnal Baru"}
+                <DialogHeader className="bg-black text-white px-5 py-3">
+                    <DialogTitle className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
+                        <BookText className="h-4 w-4" /> {isEditMode ? "Edit Jurnal" : "Buat Jurnal Baru"}
                     </DialogTitle>
                     <p className={NB.subtitle}>
                         {isEditMode ? `Mengedit entri jurnal draft` : "Catat transaksi manual ke buku besar"}
@@ -209,16 +227,16 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                 </DialogHeader>
 
                 {/* ── Scrollable body ── */}
-                <div className="max-h-[65vh] overflow-y-auto">
-                    <div className="p-5 space-y-5">
+                <div className={NB.scroll}>
+                    <div className="p-4 space-y-3">
                         {/* ── Info section ── */}
-                        <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <CalendarIcon className="h-4 w-4 text-zinc-500" />
-                                <span className={NB.sectionTitle}>Informasi Jurnal</span>
+                        <div className="border border-zinc-200 dark:border-zinc-700">
+                            <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
+                                <CalendarIcon className="h-3.5 w-3.5 text-zinc-400" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Informasi Jurnal</span>
                             </div>
-                            <div className={NB.sectionBody}>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="p-3">
+                                <div className="grid grid-cols-3 gap-3">
                                     {/* Date picker */}
                                     <div>
                                         <label className={NB.label}>
@@ -228,9 +246,9 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                             <PopoverTrigger asChild>
                                                 <Button
                                                     variant="outline"
-                                                    className={`${NB.input} w-full justify-start text-left font-bold`}
+                                                    className={`font-bold h-8 w-full justify-start text-left text-xs rounded-none border ${NB.inputActive}`}
                                                 >
-                                                    <CalendarIcon className="mr-2 h-4 w-4 text-zinc-400" />
+                                                    <CalendarIcon className={`mr-2 h-3.5 w-3.5 ${NB.inputIconActive}`} />
                                                     {format(date, "dd MMM yyyy", { locale: localeId })}
                                                 </Button>
                                             </PopoverTrigger>
@@ -256,52 +274,79 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                             value={desc}
                                             onChange={e => setDesc(e.target.value)}
                                             placeholder="Manual Adjustment..."
-                                            className={NB.input}
+                                            className={`border font-medium h-8 text-sm rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal transition-colors ${
+                                                desc
+                                                    ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
+                                                    : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900"
+                                            }`}
                                         />
                                     </div>
 
-                                    {/* Reference */}
+                                    {/* Journal Type + Generated Ref */}
                                     <div>
-                                        <label className={NB.label}>Referensi</label>
-                                        <Input
-                                            value={ref}
-                                            onChange={e => setRef(e.target.value)}
-                                            placeholder="REF-001"
-                                            className={NB.input}
-                                        />
+                                        <label className={NB.label}>Tipe Jurnal</label>
+                                        <div className="flex gap-1.5">
+                                            <select
+                                                value={journalType}
+                                                onChange={e => {
+                                                    setJournalType(e.target.value)
+                                                    if (e.target.value) {
+                                                        const year = new Date().getFullYear()
+                                                        setGeneratedRef(`${e.target.value}-${year}-···`)
+                                                    } else {
+                                                        setGeneratedRef("")
+                                                    }
+                                                }}
+                                                className={`border font-medium h-8 text-[11px] rounded-none px-2 flex-1 transition-colors cursor-pointer ${
+                                                    journalType
+                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white font-bold"
+                                                        : "border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-400"
+                                                }`}
+                                            >
+                                                <option value="">Pilih tipe...</option>
+                                                {JOURNAL_TYPES.map(t => (
+                                                    <option key={t.value} value={t.value}>{t.value} — {t.label}</option>
+                                                ))}
+                                            </select>
+                                            {generatedRef && (
+                                                <div className="flex items-center px-2 h-8 border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-[10px] font-mono font-bold text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                                                    {generatedRef}
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* ── Line items ── */}
-                        <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <BookText className="h-4 w-4 text-zinc-500" />
-                                <span className={NB.sectionTitle}>Baris Jurnal</span>
-                                <span className={NB.sectionHint}>
+                        <div className="border border-zinc-200 dark:border-zinc-700">
+                            <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
+                                <BookText className="h-3.5 w-3.5 text-zinc-400" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Baris Jurnal</span>
+                                <span className="text-[10px] font-medium text-zinc-400 ml-auto">
                                     {lines.length} baris
                                 </span>
                             </div>
 
                             {/* Column headers */}
-                            <div className={`grid grid-cols-[36px_1.2fr_1fr_150px_150px_40px] gap-2 px-4 py-2.5 ${NB.tableHead}`}>
-                                <div className={NB.tableHeadCell}>#</div>
-                                <div className={NB.tableHeadCell}>Akun</div>
-                                <div className={NB.tableHeadCell}>Keterangan</div>
-                                <div className={`${NB.tableHeadCell} text-right`}>
+                            <div className={`grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200 dark:border-zinc-700`}>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">#</div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Akun</div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Keterangan</div>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">
                                     <span className="inline-flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 bg-emerald-500 inline-block" />
+                                        <span className="w-1 h-1 bg-emerald-500 inline-block" />
                                         Debit
                                     </span>
                                 </div>
-                                <div className={`${NB.tableHeadCell} text-right`}>
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">
                                     <span className="inline-flex items-center gap-1">
-                                        <span className="w-1.5 h-1.5 bg-red-500 inline-block" />
+                                        <span className="w-1 h-1 bg-red-500 inline-block" />
                                         Kredit
                                     </span>
                                 </div>
-                                <div className={NB.tableHeadCell}></div>
+                                <div></div>
                             </div>
 
                             {/* Rows */}
@@ -310,13 +355,13 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                 return (
                                     <div
                                         key={i}
-                                        className={`group/line grid grid-cols-[36px_1.2fr_1fr_150px_150px_40px] gap-2 px-4 py-2.5 items-center transition-colors ${NB.tableRow} ${
-                                            hasValue ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/50 dark:bg-zinc-800/20"
+                                        className={`group/line grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-1.5 items-center transition-colors border-b border-zinc-100 dark:border-zinc-800 last:border-b-0 ${
+                                            hasValue ? "bg-white dark:bg-zinc-900" : "bg-zinc-50/30 dark:bg-zinc-800/10"
                                         }`}
                                     >
                                         {/* Row number */}
                                         <div className="flex items-center justify-center">
-                                            <span className={`w-6 h-6 flex items-center justify-center text-[10px] font-black ${
+                                            <span className={`w-5 h-5 flex items-center justify-center text-[9px] font-black ${
                                                 hasValue
                                                     ? "bg-zinc-900 dark:bg-white text-white dark:text-black"
                                                     : "bg-zinc-200 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500"
@@ -334,7 +379,10 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                                 placeholder="Cari akun..."
                                                 searchPlaceholder="Ketik kode atau nama..."
                                                 emptyMessage="Akun tidak ditemukan"
-                                                className="h-9 text-xs"
+                                                className={`h-7 text-[11px] ${line.accountId
+                                                    ? "!border-orange-400 dark:!border-orange-500 !bg-orange-50/50 dark:!bg-orange-950/20"
+                                                    : "!border-zinc-200 dark:!border-zinc-700 !border"
+                                                }`}
                                             />
                                         </div>
 
@@ -344,37 +392,59 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                                 value={line.description}
                                                 onChange={e => updateLine(i, { description: e.target.value })}
                                                 placeholder="Opsional..."
-                                                className="border border-zinc-200 dark:border-zinc-700 h-9 text-xs font-medium rounded-none placeholder:text-zinc-300"
+                                                className={`border h-7 text-[11px] font-medium rounded-none placeholder:text-zinc-300 ${
+                                                    line.description
+                                                        ? "border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                                                        : "border-zinc-200 dark:border-zinc-700"
+                                                }`}
                                             />
                                         </div>
 
                                         {/* Debit */}
-                                        <div>
-                                            <Input
-                                                type="number"
+                                        <div className={`flex items-center border h-7 rounded-none transition-colors ${
+                                            (Number(line.debit) || 0) > 0
+                                                ? "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20"
+                                                : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
+                                        }`}>
+                                            <span className={`pl-1.5 text-[9px] font-bold select-none ${
+                                                (Number(line.debit) || 0) > 0 ? "text-emerald-500 dark:text-emerald-500" : "text-zinc-300 dark:text-zinc-600"
+                                            }`}>Rp</span>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
                                                 placeholder="0"
-                                                className={`border h-9 text-right text-xs font-mono font-bold rounded-none placeholder:text-zinc-300 placeholder:font-normal ${
-                                                    (Number(line.debit) || 0) > 0
-                                                        ? "border-emerald-400 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-950/20 text-emerald-700 dark:text-emerald-400"
-                                                        : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
+                                                className={`w-full h-full bg-transparent text-right text-[11px] font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
+                                                    (Number(line.debit) || 0) > 0 ? "text-emerald-700 dark:text-emerald-400" : ""
                                                 }`}
-                                                value={line.debit || ""}
-                                                onChange={e => handleDebitChange(i, parseFloat(e.target.value) || 0)}
+                                                value={line.debit ? Number(line.debit).toLocaleString("id-ID") : ""}
+                                                onChange={e => {
+                                                    const raw = e.target.value.replace(/\D/g, "")
+                                                    handleDebitChange(i, parseInt(raw) || 0)
+                                                }}
                                             />
                                         </div>
 
                                         {/* Credit */}
-                                        <div>
-                                            <Input
-                                                type="number"
+                                        <div className={`flex items-center border h-7 rounded-none transition-colors ${
+                                            (Number(line.credit) || 0) > 0
+                                                ? "border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/20"
+                                                : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
+                                        }`}>
+                                            <span className={`pl-1.5 text-[9px] font-bold select-none ${
+                                                (Number(line.credit) || 0) > 0 ? "text-red-500 dark:text-red-500" : "text-zinc-300 dark:text-zinc-600"
+                                            }`}>Rp</span>
+                                            <input
+                                                type="text"
+                                                inputMode="numeric"
                                                 placeholder="0"
-                                                className={`border h-9 text-right text-xs font-mono font-bold rounded-none placeholder:text-zinc-300 placeholder:font-normal ${
-                                                    (Number(line.credit) || 0) > 0
-                                                        ? "border-red-400 dark:border-red-600 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-400"
-                                                        : "border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30"
+                                                className={`w-full h-full bg-transparent text-right text-[11px] font-mono font-bold pr-1.5 pl-1 outline-none placeholder:text-zinc-300 placeholder:font-normal ${
+                                                    (Number(line.credit) || 0) > 0 ? "text-red-700 dark:text-red-400" : ""
                                                 }`}
-                                                value={line.credit || ""}
-                                                onChange={e => handleCreditChange(i, parseFloat(e.target.value) || 0)}
+                                                value={line.credit ? Number(line.credit).toLocaleString("id-ID") : ""}
+                                                onChange={e => {
+                                                    const raw = e.target.value.replace(/\D/g, "")
+                                                    handleCreditChange(i, parseInt(raw) || 0)
+                                                }}
                                             />
                                         </div>
 
@@ -384,9 +454,9 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                                                 type="button"
                                                 onClick={() => handleRemoveLine(i)}
                                                 disabled={lines.length <= 2}
-                                                className="w-7 h-7 flex items-center justify-center text-zinc-300 dark:text-zinc-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                                                className="w-5 h-5 flex items-center justify-center text-zinc-300 dark:text-zinc-600 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
                                             >
-                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <Trash2 className="h-3 w-3" />
                                             </button>
                                         </div>
                                     </div>
@@ -394,26 +464,26 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                             })}
 
                             {/* Add row button */}
-                            <div className="px-4 py-3 border-t border-zinc-200 dark:border-zinc-700">
+                            <div className="px-3 py-2 border-t border-zinc-200 dark:border-zinc-700">
                                 <button
                                     type="button"
                                     onClick={handleAddLine}
-                                    className="w-full py-2.5 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:hover:text-white border-2 border-dashed border-zinc-200 dark:border-zinc-700 hover:border-black dark:hover:border-white transition-all flex items-center justify-center gap-2"
+                                    className="w-full py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-400 hover:text-black dark:hover:text-white border border-dashed border-zinc-200 dark:border-zinc-700 hover:border-black dark:hover:border-white transition-all flex items-center justify-center gap-1.5"
                                 >
-                                    <Plus className="h-3 w-3" /> Tambah Baris
+                                    <Plus className="h-2.5 w-2.5" /> Tambah Baris
                                 </button>
                             </div>
 
                             {/* Totals row */}
-                            <div className="grid grid-cols-[36px_1.2fr_1fr_150px_150px_40px] gap-2 px-4 py-3 bg-zinc-100 dark:bg-zinc-800/80 border-t-2 border-black dark:border-white">
+                            <div className="grid grid-cols-[24px_1.3fr_1fr_100px_100px_28px] gap-1.5 px-3 py-2 bg-zinc-100 dark:bg-zinc-800/80 border-t-2 border-black dark:border-white">
                                 <div></div>
-                                <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center col-span-2">
+                                <div className="text-[9px] font-black uppercase tracking-widest text-zinc-500 flex items-center col-span-2">
                                     Total — {lines.filter(l => (Number(l.debit) || 0) > 0 || (Number(l.credit) || 0) > 0).length} baris aktif
                                 </div>
-                                <div className="text-right font-mono font-black text-sm text-emerald-700 dark:text-emerald-400 tabular-nums">
+                                <div className="text-right font-mono font-black text-xs text-emerald-700 dark:text-emerald-400 tabular-nums">
                                     {formatIDR(totalDebit)}
                                 </div>
-                                <div className="text-right font-mono font-black text-sm text-red-700 dark:text-red-400 tabular-nums">
+                                <div className="text-right font-mono font-black text-xs text-red-700 dark:text-red-400 tabular-nums">
                                     {formatIDR(totalCredit)}
                                 </div>
                                 <div></div>
@@ -422,21 +492,21 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
 
                         {/* ── Balance indicator ── */}
                         <div
-                            className={`flex items-center justify-between p-3 text-[10px] font-black uppercase tracking-widest border-2 ${
+                            className={`flex items-center justify-between px-3 py-2 text-[9px] font-black uppercase tracking-widest border ${
                                 isBalanced
-                                    ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 border-emerald-400 dark:border-emerald-600"
-                                    : "bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 border-red-400 dark:border-red-600"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-600"
+                                    : "bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-400 border-red-300 dark:border-red-600"
                             }`}
                         >
                             <span className="flex items-center">
                                 {isBalanced ? (
-                                    <><CheckCircle2 className="mr-2 h-4 w-4" /> Seimbang — Siap {isEditMode ? "Disimpan" : "Posting"}</>
+                                    <><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" /> Seimbang — Siap {isEditMode ? "Disimpan" : "Posting"}</>
                                 ) : (
-                                    <><AlertCircle className="mr-2 h-4 w-4" /> Tidak Seimbang</>
+                                    <><AlertCircle className="mr-1.5 h-3.5 w-3.5" /> Tidak Seimbang</>
                                 )}
                             </span>
                             {!isBalanced && (
-                                <span className="text-sm font-black tabular-nums">
+                                <span className="text-xs font-black tabular-nums">
                                     Selisih {formatIDR(Math.abs(totalDebit - totalCredit))}
                                 </span>
                             )}
@@ -445,30 +515,33 @@ export function CreateJournalDialog({ open, onOpenChange, glAccounts, editEntry 
                 </div>
 
                 {/* ── Sticky footer ── */}
-                <div className="border-t-2 border-black dark:border-white bg-zinc-50 dark:bg-zinc-800/50 px-5 py-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3 text-xs text-zinc-400">
+                <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-[10px] text-zinc-400">
                         <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">D: {formatIDR(totalDebit)}</span>
                         <span className="text-zinc-300 dark:text-zinc-600">|</span>
                         <span className="font-mono font-bold text-red-600 dark:text-red-400">K: {formatIDR(totalCredit)}</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         <Button
                             type="button"
                             variant="outline"
                             onClick={() => onOpenChange(false)}
-                            className={NB.cancelBtn}
+                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
                         >
                             Batal
                         </Button>
                         <Button
                             onClick={handleSave}
                             disabled={!isBalanced || !desc.trim() || posting}
-                            className={`${isEditMode ? NB.submitBtnOrange : NB.submitBtn} gap-2 disabled:opacity-40`}
+                            className={`${isEditMode
+                                ? "bg-orange-500 text-white border border-orange-600 hover:bg-orange-600"
+                                : "bg-black text-white border border-black hover:bg-zinc-800"
+                            } font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-40 transition-colors`}
                         >
                             {posting ? (
                                 isEditMode ? "Menyimpan..." : "Posting..."
                             ) : (
-                                <><Save className="h-3.5 w-3.5" /> {isEditMode ? "Simpan Perubahan" : "Post Entry"}</>
+                                <><Save className="h-3 w-3" /> {isEditMode ? "Simpan" : "Post Entry"}</>
                             )}
                         </Button>
                     </div>

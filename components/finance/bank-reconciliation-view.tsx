@@ -226,9 +226,11 @@ function ProgressRing({ percent, size = 44, stroke = 4 }: { percent: number; siz
     const circ = 2 * Math.PI * radius
     const offset = circ - (percent / 100) * circ
     const color = percent >= 80 ? "#10b981" : percent >= 40 ? "#f59e0b" : "#ef4444"
+    const trackColor = percent >= 80 ? "#d1fae5" : percent >= 40 ? "#fef3c7" : "#fee2e2"
+    const fontSize = size >= 52 ? 13 : 11
     return (
         <svg width={size} height={size} className="shrink-0 -rotate-90">
-            <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e4e4e7" strokeWidth={stroke} />
+            <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={trackColor} strokeWidth={stroke} />
             <circle
                 cx={size / 2} cy={size / 2} r={radius} fill="none"
                 stroke={color} strokeWidth={stroke}
@@ -240,7 +242,7 @@ function ProgressRing({ percent, size = 44, stroke = 4 }: { percent: number; siz
                 x={size / 2} y={size / 2}
                 textAnchor="middle" dominantBaseline="central"
                 className="rotate-90 origin-center fill-zinc-700 dark:fill-zinc-300"
-                fontSize="11" fontWeight="800"
+                fontSize={fontSize} fontWeight="800"
             >
                 {Math.round(percent)}%
             </text>
@@ -756,9 +758,30 @@ export function BankReconciliationView({
                                 </div>
                                 <div>
                                     <label className={NB.label}>Saldo Awal</label>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-black text-zinc-400 shrink-0">Rp</span>
-                                        <Input className={NB.inputMono + " flex-1"} type="number" placeholder="0" value={newBankBalance} onChange={(e) => setNewBankBalance(e.target.value)} />
+                                    <div className="relative">
+                                        <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
+                                            newBankBalance ? "text-orange-500" : "text-zinc-400"
+                                        }`}>Rp</span>
+                                        <input
+                                            inputMode="numeric"
+                                            placeholder="0"
+                                            value={newBankBalance ? Number(newBankBalance).toLocaleString("id-ID") : ""}
+                                            onChange={(e) => {
+                                                const raw = e.target.value.replace(/[^\d]/g, "")
+                                                setNewBankBalance(raw)
+                                            }}
+                                            onKeyDown={(e) => {
+                                                const allowed = ["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"]
+                                                if (allowed.includes(e.key)) return
+                                                if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) return
+                                                if (!/^\d$/.test(e.key)) e.preventDefault()
+                                            }}
+                                            className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
+                                                newBankBalance
+                                                    ? "border-2 border-orange-400 bg-orange-50/50 text-zinc-900"
+                                                    : "border-2 border-zinc-300 bg-zinc-50/50 text-zinc-900"
+                                            } placeholder:text-zinc-300 placeholder:font-normal focus:border-orange-400 focus:ring-2 focus:ring-orange-100`}
+                                        />
                                     </div>
                                 </div>
                                 {/* Preview */}
@@ -926,17 +949,32 @@ export function BankReconciliationView({
                                         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Saldo (Opsional)</span>
                                     </div>
                                     <div className="px-5 py-4">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-black text-zinc-400 shrink-0">Rp</span>
-                                            <Input
-                                                className={NB.inputMono + " flex-1"}
-                                                type="number"
+                                        <div className="relative">
+                                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
+                                                newBankStatementBalance ? "text-orange-500" : "text-zinc-400"
+                                            }`}>Rp</span>
+                                            <input
+                                                inputMode="numeric"
                                                 placeholder="0"
-                                                value={newBankStatementBalance}
-                                                onChange={(e) => setNewBankStatementBalance(e.target.value)}
+                                                value={newBankStatementBalance ? Number(newBankStatementBalance).toLocaleString("id-ID") : ""}
+                                                onChange={(e) => {
+                                                    const raw = e.target.value.replace(/[^\d]/g, "")
+                                                    setNewBankStatementBalance(raw)
+                                                }}
+                                                onKeyDown={(e) => {
+                                                    const allowed = ["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"]
+                                                    if (allowed.includes(e.key)) return
+                                                    if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) return
+                                                    if (!/^\d$/.test(e.key)) e.preventDefault()
+                                                }}
+                                                className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
+                                                    newBankStatementBalance
+                                                        ? "border-2 border-orange-400 bg-orange-50/50 text-zinc-900"
+                                                        : "border-2 border-zinc-300 bg-zinc-50/50 text-zinc-900"
+                                                } placeholder:text-zinc-300 placeholder:font-normal focus:border-orange-400 focus:ring-2 focus:ring-orange-100`}
                                             />
                                         </div>
-                                        <p className="text-[9px] text-zinc-400 mt-1">Saldo akhir di laporan bank — membantu verifikasi saat pencocokan</p>
+                                        <p className="text-[9px] text-zinc-400 mt-1">Ketik angka saja — format otomatis</p>
                                     </div>
                                 </div>
                             </div>
@@ -1054,31 +1092,34 @@ export function BankReconciliationView({
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ type: "spring" as const, stiffness: 320, damping: 26, delay: 0.08 }}
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden flex"
-                style={{ minHeight: 480 }}
+                className="border border-zinc-200 dark:border-zinc-700 shadow-sm bg-white dark:bg-zinc-900 overflow-hidden flex rounded-none"
+                style={{ minHeight: 520 }}
             >
                 {/* ── Sidebar: reconciliation list ─────────────────────────────── */}
-                <div className="w-80 shrink-0 border-r-2 border-black flex flex-col">
+                <div className="w-80 shrink-0 border-r border-zinc-200 dark:border-zinc-700 flex flex-col bg-zinc-50/50 dark:bg-zinc-900/50">
                     {/* Sidebar header */}
-                    <div className="px-4 py-2.5 bg-black dark:bg-zinc-950 border-b border-zinc-800">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    <div className="px-4 py-3 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                             Sesi Rekonsiliasi
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-zinc-400">
+                            {filteredReconciliations.length}
                         </span>
                     </div>
 
                     {reconciliations.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-                            <div className="w-14 h-14 border-2 border-zinc-200 dark:border-zinc-700 flex items-center justify-center mb-4">
-                                <Landmark className="h-6 w-6 text-zinc-200 dark:text-zinc-700" />
+                            <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-4">
+                                <Landmark className="h-5 w-5 text-zinc-300 dark:text-zinc-600" />
                             </div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">
+                            <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400 block mb-1">
                                 Belum ada rekonsiliasi
                             </span>
                             <p className="text-[10px] text-zinc-400">Klik &quot;Rekonsiliasi Baru&quot; untuk memulai</p>
                         </div>
                     ) : filteredReconciliations.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-                            <Filter className="h-5 w-5 mx-auto text-zinc-300 mb-3" />
+                            <Filter className="h-5 w-5 mx-auto text-zinc-300 dark:text-zinc-600 mb-3" />
                             <span className="text-[10px] font-bold text-zinc-400 block mb-2">
                                 Tidak ada hasil untuk filter ini
                             </span>
@@ -1090,55 +1131,77 @@ export function BankReconciliationView({
                             </button>
                         </div>
                     ) : (
-                        <ScrollArea className="max-h-[75vh]">
-                            <div className="space-y-2 pr-2">
+                        <ScrollArea className="flex-1">
+                            <div className="p-2 space-y-1">
                                 {filteredReconciliations.map((rec) => {
                                     const isSelected = selectedRecId === rec.id
                                     const total = rec.itemCount
                                     const belum = rec.itemCount - rec.matchedCount
                                     const pct = total > 0 ? (rec.matchedCount / total) * 100 : 0
                                     const statusCfg = STATUS_CONFIG[rec.status] || STATUS_CONFIG.REC_DRAFT
+                                    const progressColor = pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-400" : "bg-red-400"
 
                                     return (
                                         <button
                                             key={rec.id}
-                                            className={`w-full text-left bg-white border-2 border-black p-3.5 transition-all duration-150 group ${
+                                            className={`w-full text-left rounded-none px-3.5 py-3 transition-all duration-150 group relative ${
                                                 isSelected
-                                                    ? "shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-orange-50/50 dark:bg-orange-950/10"
-                                                    : "hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[-1px] hover:translate-y-[-1px]"
+                                                    ? "bg-white dark:bg-zinc-800 border border-zinc-300 dark:border-zinc-600 shadow-sm"
+                                                    : "bg-transparent border border-transparent hover:bg-white dark:hover:bg-zinc-800 hover:border-zinc-200 dark:hover:border-zinc-700"
                                             }`}
                                             onClick={() => handleSelectRec(rec)}
                                         >
-                                            <div className="flex items-start justify-between gap-2 mb-2">
-                                                <span className="text-xs font-black truncate">{rec.glAccountName}</span>
-                                                <span className={`text-[8px] font-black px-1.5 py-0.5 border shrink-0 ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                                            {/* Selected indicator — left accent bar */}
+                                            {isSelected && (
+                                                <div className="absolute left-0 top-2 bottom-2 w-[3px] bg-orange-500 rounded-r" />
+                                            )}
+                                            {/* Row 1: Account name + status */}
+                                            <div className="flex items-center justify-between gap-2 mb-1.5">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <Landmark className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-orange-500" : "text-zinc-400 dark:text-zinc-500"}`} />
+                                                    <span className={`text-xs font-bold truncate ${isSelected ? "text-zinc-900 dark:text-white" : "text-zinc-700 dark:text-zinc-300"}`}>
+                                                        {rec.glAccountName}
+                                                    </span>
+                                                </div>
+                                                <span className={`text-[7px] font-black px-1.5 py-0.5 border shrink-0 uppercase tracking-wider ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
                                                     {statusCfg.label}
                                                 </span>
                                             </div>
-                                            <div className="text-[9px] text-zinc-400 font-bold mb-2.5">
+                                            {/* Row 2: Period */}
+                                            <div className="text-[9px] text-zinc-400 font-medium ml-[22px] mb-2">
                                                 {formatDate(rec.periodStart)} — {formatDate(rec.periodEnd)}
                                             </div>
-                                            {/* Progress bar */}
-                                            <div className="space-y-1">
-                                                <div className="flex items-center justify-between text-[9px] font-bold">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-emerald-600">{rec.matchedCount} cocok</span>
-                                                        <span className="text-red-500">{belum} belum</span>
+                                            {/* Row 3: Progress bar + stats */}
+                                            <div className="ml-[22px]">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <div className="flex-1 h-1.5 bg-zinc-200/70 dark:bg-zinc-700 overflow-hidden rounded-full">
+                                                        <div
+                                                            className={`h-full transition-all duration-500 rounded-full ${progressColor}`}
+                                                            style={{ width: `${Math.max(pct, 2)}%` }}
+                                                        />
                                                     </div>
-                                                    <span className="text-zinc-400 font-mono">{Math.round(pct)}%</span>
+                                                    <span className={`text-[9px] font-mono font-bold shrink-0 ${
+                                                        pct >= 80 ? "text-emerald-600" : pct >= 40 ? "text-amber-600" : "text-zinc-400"
+                                                    }`}>
+                                                        {Math.round(pct)}%
+                                                    </span>
                                                 </div>
-                                                <div className="h-1.5 bg-zinc-100 border border-zinc-200 overflow-hidden">
-                                                    <div
-                                                        className={`h-full transition-all duration-500 ${
-                                                            pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-400" : "bg-red-400"
-                                                        }`}
-                                                        style={{ width: `${pct}%` }}
-                                                    />
+                                                <div className="flex items-center gap-3 text-[9px] font-medium">
+                                                    <span className="flex items-center gap-1">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                        <span className="text-zinc-500 dark:text-zinc-400">{rec.matchedCount} cocok</span>
+                                                    </span>
+                                                    {belum > 0 && (
+                                                        <span className="flex items-center gap-1">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                                                            <span className="text-zinc-500 dark:text-zinc-400">{belum} belum</span>
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
                                             {/* Loading indicator */}
                                             {detailLoading && isSelected && (
-                                                <div className="flex items-center gap-1.5 mt-2 text-[9px] font-bold text-orange-600">
+                                                <div className="flex items-center gap-1.5 mt-2 ml-[22px] text-[9px] font-bold text-orange-600">
                                                     <Loader2 className="h-3 w-3 animate-spin" /> Memuat detail...
                                                 </div>
                                             )}
@@ -1164,99 +1227,138 @@ export function BankReconciliationView({
                     ) : selectedRec ? (
                         <div className="flex-1 flex flex-col">
                             {/* Account header with progress ring */}
-                            <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/30">
-                                <div className="flex items-center gap-3">
-                                    <ProgressRing percent={matchedPercent} />
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm font-black">{selectedRec.glAccountName}</span>
-                                            <span className="text-[9px] font-mono text-zinc-400 bg-zinc-100 px-1.5 py-0.5 border border-zinc-200">
-                                                {selectedRec.glAccountCode}
-                                            </span>
+                            <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <ProgressRing percent={matchedPercent} size={52} stroke={5} />
+                                        <div>
+                                            <div className="flex items-center gap-2.5 mb-0.5">
+                                                <h2 className="text-base font-black tracking-tight text-zinc-900 dark:text-white">
+                                                    {selectedRec.glAccountName}
+                                                </h2>
+                                                <span className="text-[9px] font-mono font-bold text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 border border-zinc-200 dark:border-zinc-700">
+                                                    {selectedRec.glAccountCode}
+                                                </span>
+                                                {(() => {
+                                                    const statusCfg = STATUS_CONFIG[selectedRec.status] || STATUS_CONFIG.REC_DRAFT
+                                                    return (
+                                                        <span className={`text-[8px] font-black uppercase tracking-wider px-2 py-0.5 border ${statusCfg.bg} ${statusCfg.text} ${statusCfg.border}`}>
+                                                            {statusCfg.label}
+                                                        </span>
+                                                    )
+                                                })()}
+                                            </div>
+                                            <div className="flex items-center gap-4 text-[11px]">
+                                                <span className="text-zinc-400 font-medium">
+                                                    Saldo Buku: <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300">Rp {formatIDR(selectedRec.glAccountBalance)}</span>
+                                                </span>
+                                                <span className="text-zinc-300 dark:text-zinc-600">|</span>
+                                                <span className="text-zinc-400 font-medium">
+                                                    Periode: <span className="font-bold text-zinc-600 dark:text-zinc-300">{formatDate(selectedRec.periodStart)} — {formatDate(selectedRec.periodEnd)}</span>
+                                                </span>
+                                            </div>
                                         </div>
-                                        <span className="text-[10px] text-zinc-400 font-bold">
-                                            Saldo Buku: <span className="font-mono text-zinc-600">Rp {formatIDR(selectedRec.glAccountBalance)}</span>
-                                        </span>
                                     </div>
                                 </div>
-                                {isCompleted && (
-                                    <div className="flex items-center gap-1.5 bg-emerald-100 border border-emerald-300 px-2.5 py-1">
-                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                        <span className="text-[9px] font-black text-emerald-700 uppercase tracking-wider">Selesai</span>
-                                    </div>
-                                )}
                             </div>
 
                             {/* Editable meta: bank statement balance & notes */}
                             {!isCompleted && (
-                                <div className="px-5 py-3 border-b border-zinc-200 bg-white space-y-2">
-                                    <div className="flex items-center gap-4">
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 shrink-0">
-                                            Saldo Bank Statement:
-                                        </label>
-                                        <div className="flex items-center gap-1">
-                                            <span className="text-xs font-bold text-zinc-500">Rp</span>
-                                            <Input
-                                                type="number"
-                                                placeholder="0"
-                                                value={editBankStatementBalance}
-                                                onChange={(e) => setEditBankStatementBalance(e.target.value)}
+                                <div className="px-5 py-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/20">
+                                    <div className="grid grid-cols-2 gap-5">
+                                        <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 block">
+                                                Saldo Bank Statement
+                                            </label>
+                                            <div className="relative">
+                                                <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
+                                                    editBankStatementBalance ? "text-orange-500" : "text-zinc-400"
+                                                }`}>Rp</span>
+                                                <input
+                                                    inputMode="numeric"
+                                                    placeholder="0"
+                                                    value={editBankStatementBalance ? Number(editBankStatementBalance).toLocaleString("id-ID") : ""}
+                                                    onChange={(e) => {
+                                                        // Strip non-digit chars, keep only numbers
+                                                        const raw = e.target.value.replace(/[^\d]/g, "")
+                                                        setEditBankStatementBalance(raw)
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        // Allow: backspace, delete, tab, escape, enter, arrows
+                                                        const allowed = ["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"]
+                                                        if (allowed.includes(e.key)) return
+                                                        // Allow Ctrl/Cmd+A, Ctrl/Cmd+C, Ctrl/Cmd+V, Ctrl/Cmd+X
+                                                        if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) return
+                                                        // Block non-digit
+                                                        if (!/^\d$/.test(e.key)) {
+                                                            e.preventDefault()
+                                                        }
+                                                    }}
+                                                    onBlur={async () => {
+                                                        if (!selectedRec) return
+                                                        const val = Number(editBankStatementBalance) || 0
+                                                        if (val === (selectedRec.bankStatementBalance ?? 0)) return
+                                                        const result = await onUpdateMeta(selectedRec.id, { bankStatementBalance: val })
+                                                        if (result.success) {
+                                                            toast.success("Saldo bank statement diperbarui")
+                                                            await reloadDetail(selectedRec.id)
+                                                        } else {
+                                                            toast.error(result.error || "Gagal memperbarui")
+                                                        }
+                                                    }}
+                                                    className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
+                                                        editBankStatementBalance
+                                                            ? "border-2 border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white"
+                                                            : "border-2 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white"
+                                                    } placeholder:text-zinc-300 dark:placeholder:text-zinc-600 placeholder:font-normal focus:border-orange-400 focus:ring-2 focus:ring-orange-100 dark:focus:ring-orange-900/30`}
+                                                />
+                                            </div>
+                                            <p className="text-[9px] text-zinc-400 mt-1">Ketik angka saja, format otomatis</p>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-1.5 block">
+                                                Catatan
+                                            </label>
+                                            <textarea
+                                                placeholder="Catatan rekonsiliasi (opsional)..."
+                                                value={editNotes}
+                                                onChange={(e) => setEditNotes(e.target.value)}
                                                 onBlur={async () => {
                                                     if (!selectedRec) return
-                                                    const val = Number(editBankStatementBalance) || 0
-                                                    if (val === (selectedRec.bankStatementBalance ?? 0)) return
-                                                    const result = await onUpdateMeta(selectedRec.id, { bankStatementBalance: val })
+                                                    if (editNotes === (selectedRec.notes ?? "")) return
+                                                    const result = await onUpdateMeta(selectedRec.id, { notes: editNotes })
                                                     if (result.success) {
-                                                        toast.success("Saldo bank statement diperbarui")
+                                                        toast.success("Catatan diperbarui")
                                                         await reloadDetail(selectedRec.id)
                                                     } else {
                                                         toast.error(result.error || "Gagal memperbarui")
                                                     }
                                                 }}
-                                                className="h-7 w-48 border-2 border-black font-mono font-bold text-sm rounded-none placeholder:text-zinc-300 placeholder:font-normal"
+                                                className={`w-full font-medium text-xs min-h-[40px] max-h-[60px] rounded-none p-2.5 resize-none transition-colors ${
+                                                    editNotes
+                                                        ? "border-2 border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20"
+                                                        : "border-2 border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800"
+                                                } placeholder:text-zinc-300 dark:placeholder:text-zinc-600 placeholder:font-normal`}
                                             />
                                         </div>
-                                    </div>
-                                    <div className="flex items-start gap-4">
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 shrink-0 pt-1">
-                                            Catatan:
-                                        </label>
-                                        <textarea
-                                            placeholder="Catatan rekonsiliasi..."
-                                            value={editNotes}
-                                            onChange={(e) => setEditNotes(e.target.value)}
-                                            onBlur={async () => {
-                                                if (!selectedRec) return
-                                                if (editNotes === (selectedRec.notes ?? "")) return
-                                                const result = await onUpdateMeta(selectedRec.id, { notes: editNotes })
-                                                if (result.success) {
-                                                    toast.success("Catatan diperbarui")
-                                                    await reloadDetail(selectedRec.id)
-                                                } else {
-                                                    toast.error(result.error || "Gagal memperbarui")
-                                                }
-                                            }}
-                                            className="flex-1 border-2 border-black font-medium text-xs min-h-[36px] max-h-[60px] rounded-none p-2 resize-none placeholder:text-zinc-300 placeholder:font-normal"
-                                        />
                                     </div>
                                 </div>
                             )}
 
                             {/* KPI strip */}
-                            <div className="grid grid-cols-4 border-b border-zinc-200 dark:border-zinc-800">
+                            <div className="flex items-center divide-x divide-zinc-200 dark:divide-zinc-800 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                                 {[
-                                    { label: "Total Item", value: totalItems, icon: FileSpreadsheet, color: "text-zinc-700", topColor: "bg-zinc-300" },
-                                    { label: "Cocok", value: matchedBankItems.length, icon: CheckCircle2, color: "text-emerald-700", topColor: "bg-emerald-400" },
-                                    { label: "Belum Cocok", value: unmatchedBankItems.length, icon: AlertCircle, color: unmatchedBankItems.length > 0 ? "text-red-600" : "text-emerald-700", topColor: unmatchedBankItems.length > 0 ? "bg-red-400" : "bg-emerald-400" },
-                                    { label: "Dikecualikan", value: excludedBankItems.length, icon: Ban, color: excludedBankItems.length > 0 ? "text-zinc-600" : "text-zinc-400", topColor: excludedBankItems.length > 0 ? "bg-zinc-400" : "bg-zinc-200" },
-                                ].map((kpi, i) => (
-                                    <div key={kpi.label} className={`relative p-3.5 ${i < 3 ? "border-r border-zinc-200" : ""}`}>
-                                        <div className={`absolute top-0 left-0 right-0 h-[3px] ${kpi.topColor}`} />
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                            <kpi.icon className="h-3 w-3 text-zinc-400" />
-                                            <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">{kpi.label}</span>
+                                    { label: "Total Item", value: totalItems, dotColor: "bg-zinc-400", valueColor: "text-zinc-900 dark:text-white" },
+                                    { label: "Cocok", value: matchedBankItems.length, dotColor: "bg-emerald-500", valueColor: matchedBankItems.length > 0 ? "text-emerald-600" : "text-zinc-900 dark:text-white" },
+                                    { label: "Belum Cocok", value: unmatchedBankItems.length, dotColor: unmatchedBankItems.length > 0 ? "bg-red-500" : "bg-emerald-500", valueColor: unmatchedBankItems.length > 0 ? "text-red-600" : "text-emerald-600" },
+                                    { label: "Dikecualikan", value: excludedBankItems.length, dotColor: excludedBankItems.length > 0 ? "bg-zinc-500" : "bg-zinc-300", valueColor: "text-zinc-600 dark:text-zinc-400" },
+                                ].map((kpi) => (
+                                    <div key={kpi.label} className="flex-1 px-4 py-3 flex items-center justify-between">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className={`w-2 h-2 rounded-full ${kpi.dotColor}`} />
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
                                         </div>
-                                        <span className={`text-lg font-black font-mono ${kpi.color}`}>{kpi.value}</span>
+                                        <span className={`text-xl font-black font-mono ${kpi.valueColor}`}>{kpi.value}</span>
                                     </div>
                                 ))}
                             </div>
@@ -1270,54 +1372,68 @@ export function BankReconciliationView({
                                 const adjustedBookBalance = bookBalance + outstandingDeposits + outstandingChecks - excludedTotal
                                 const bsBalance = selectedRec.bankStatementBalance ?? 0
                                 const diff = adjustedBookBalance - bsBalance
+                                const isBalanced = Math.abs(diff) < 1
                                 return (
-                                    <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-                                        <div className="bg-black dark:bg-zinc-950 px-5 py-2 flex items-center gap-2">
+                                    <div className="border-b border-zinc-200 dark:border-zinc-800">
+                                        <div className="bg-zinc-50/80 dark:bg-zinc-800/30 px-5 py-2 flex items-center gap-2 border-b border-zinc-200 dark:border-zinc-700">
                                             <ArrowRightLeft className="h-3.5 w-3.5 text-zinc-400" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                                                 Ringkasan Rekonsiliasi
                                             </span>
                                         </div>
-                                        <div className="px-5 py-3 space-y-1.5">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-bold text-zinc-600">Saldo Buku (Book Balance)</span>
-                                                <span className="text-[11px] font-mono font-bold text-zinc-800">Rp {formatIDR(bookBalance)}</span>
+                                        <div className="bg-white dark:bg-zinc-900">
+                                            {/* Balance comparison — 2 column */}
+                                            <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-700 border-b border-zinc-100 dark:border-zinc-800">
+                                                <div className="px-5 py-3">
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Saldo Buku Disesuaikan</span>
+                                                    <span className="text-lg font-mono font-black text-zinc-900 dark:text-white">Rp {formatIDR(adjustedBookBalance)}</span>
+                                                </div>
+                                                <div className="px-5 py-3">
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 block mb-0.5">Saldo Bank Statement</span>
+                                                    <span className="text-lg font-mono font-black text-zinc-900 dark:text-white">Rp {formatIDR(bsBalance)}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-bold text-zinc-500">+ Setoran dalam perjalanan</span>
-                                                <span className="text-[11px] font-mono font-bold text-emerald-600">Rp {formatIDR(outstandingDeposits)}</span>
+                                            {/* Adjustment details — compact rows */}
+                                            <div className="px-5 py-2.5 space-y-1 border-b border-zinc-100 dark:border-zinc-800">
+                                                <div className="flex items-center justify-between text-[10px]">
+                                                    <span className="font-medium text-zinc-500">Saldo Buku (Book Balance)</span>
+                                                    <span className="font-mono font-bold text-zinc-700 dark:text-zinc-300">Rp {formatIDR(bookBalance)}</span>
+                                                </div>
+                                                {outstandingDeposits > 0 && (
+                                                    <div className="flex items-center justify-between text-[10px]">
+                                                        <span className="font-medium text-zinc-500">+ Setoran dalam perjalanan</span>
+                                                        <span className="font-mono font-bold text-emerald-600">+Rp {formatIDR(outstandingDeposits)}</span>
+                                                    </div>
+                                                )}
+                                                {outstandingChecks !== 0 && (
+                                                    <div className="flex items-center justify-between text-[10px]">
+                                                        <span className="font-medium text-zinc-500">- Cek beredar</span>
+                                                        <span className="font-mono font-bold text-red-600">-Rp {formatIDR(Math.abs(outstandingChecks))}</span>
+                                                    </div>
+                                                )}
+                                                {excludedTotal !== 0 && (
+                                                    <div className="flex items-center justify-between text-[10px]">
+                                                        <span className="font-medium text-zinc-500">- Item dikecualikan</span>
+                                                        <span className="font-mono font-bold text-zinc-500">-Rp {formatIDR(Math.abs(excludedTotal))}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-bold text-zinc-500">- Cek beredar</span>
-                                                <span className="text-[11px] font-mono font-bold text-red-600">Rp {formatIDR(Math.abs(outstandingChecks))}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-bold text-zinc-500">- Item dikecualikan</span>
-                                                <span className="text-[11px] font-mono font-bold text-zinc-500">Rp {formatIDR(Math.abs(excludedTotal))}</span>
-                                            </div>
-                                            <div className="border-t-2 border-black my-1" />
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-black text-zinc-800">Saldo Buku Disesuaikan</span>
-                                                <span className="text-sm font-mono font-black text-zinc-900">Rp {formatIDR(adjustedBookBalance)}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-black text-zinc-800">Saldo Bank Statement</span>
-                                                <span className="text-sm font-mono font-black text-zinc-900">Rp {formatIDR(bsBalance)}</span>
-                                            </div>
-                                            <div className="border-t border-dashed border-zinc-300 my-1" />
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[11px] font-black uppercase tracking-wider text-zinc-800">Selisih</span>
+                                            {/* Difference result */}
+                                            <div className={`px-5 py-2.5 flex items-center justify-between ${
+                                                isBalanced ? "bg-emerald-50/50 dark:bg-emerald-950/10" : "bg-red-50/50 dark:bg-red-950/10"
+                                            }`}>
+                                                <span className="text-[10px] font-black uppercase tracking-wider text-zinc-600 dark:text-zinc-400">Selisih</span>
                                                 <div className="flex items-center gap-2">
-                                                    <span className={`text-sm font-mono font-black ${Math.abs(diff) < 1 ? "text-emerald-600" : "text-red-600"}`}>
+                                                    <span className={`text-sm font-mono font-black ${isBalanced ? "text-emerald-600" : "text-red-600"}`}>
                                                         Rp {formatIDR(Math.abs(diff))}
                                                     </span>
-                                                    {Math.abs(diff) < 1 ? (
-                                                        <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-300 px-1.5 py-0.5">
-                                                            SEIMBANG
+                                                    {isBalanced ? (
+                                                        <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 px-1.5 py-0.5 flex items-center gap-1">
+                                                            <CheckCircle2 className="h-2.5 w-2.5" /> SEIMBANG
                                                         </span>
                                                     ) : (
-                                                        <span className="text-[8px] font-black uppercase tracking-wider bg-red-100 text-red-700 border border-red-300 px-1.5 py-0.5">
-                                                            BELUM SEIMBANG
+                                                        <span className="text-[8px] font-black uppercase tracking-wider bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-700 px-1.5 py-0.5 flex items-center gap-1">
+                                                            <AlertCircle className="h-2.5 w-2.5" /> BELUM SEIMBANG
                                                         </span>
                                                     )}
                                                 </div>
@@ -1329,33 +1445,35 @@ export function BankReconciliationView({
 
                             {/* Action bar */}
                             {!isCompleted && (
-                                <div className="px-5 py-2.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-0 flex-wrap bg-zinc-50/80 dark:bg-zinc-800/30">
+                                <div className="px-5 py-2.5 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-800/30">
+                                    <div className="flex items-center gap-0">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}
+                                            disabled={actionLoading !== null}
+                                            onClick={handleAutoMatch}
+                                        >
+                                            {actionLoading === "automatch" ? (
+                                                <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+                                            ) : (
+                                                <Wand2 className="h-3 w-3 mr-1.5" />
+                                            )}
+                                            {actionLoading === "automatch" ? "Mencocokkan..." : "Auto-Match"}
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className={NB.toolbarBtn}
+                                            onClick={downloadTemplateCSV}
+                                        >
+                                            <Download className="h-3 w-3 mr-1.5" /> Template CSV
+                                        </Button>
+                                    </div>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}
-                                        disabled={actionLoading !== null}
-                                        onClick={handleAutoMatch}
-                                    >
-                                        {actionLoading === "automatch" ? (
-                                            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
-                                        ) : (
-                                            <Wand2 className="h-3 w-3 mr-1.5" />
-                                        )}
-                                        {actionLoading === "automatch" ? "Mencocokkan..." : "Auto-Match"}
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className={NB.toolbarBtn + " " + NB.toolbarBtnJoin}
-                                        onClick={downloadTemplateCSV}
-                                    >
-                                        <Download className="h-3 w-3 mr-1.5" /> Template CSV
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="border border-red-300 dark:border-red-700 text-red-500 dark:text-red-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-700 dark:hover:text-red-300 transition-colors"
+                                        className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-red-100 dark:hover:bg-red-950/50 hover:text-red-700 dark:hover:text-red-300 transition-colors disabled:opacity-40"
                                         disabled={actionLoading !== null || unmatchedBankItems.length > 0}
                                         onClick={handleClose}
                                     >
@@ -1420,12 +1538,12 @@ export function BankReconciliationView({
                                             </Button>
                                         </div>
                                     ) : (
-                                        /* Drop zone */
+                                        /* Drop zone — compact */
                                         <div
-                                            className={`border-2 border-dashed p-5 text-center cursor-pointer transition-all duration-150 ${
+                                            className={`border border-dashed px-4 py-3 cursor-pointer transition-all duration-150 flex items-center gap-3 ${
                                                 dragging
-                                                    ? "border-purple-500 bg-purple-50 scale-[1.01]"
-                                                    : "border-zinc-300 hover:border-zinc-400 hover:bg-zinc-50"
+                                                    ? "border-orange-400 bg-orange-50/50"
+                                                    : "border-zinc-300 dark:border-zinc-600 hover:border-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                                             }`}
                                             onClick={() => fileInputRef.current?.click()}
                                             onDragOver={handleDragOver}
@@ -1439,11 +1557,17 @@ export function BankReconciliationView({
                                                 className="hidden"
                                                 onChange={handleFileChange}
                                             />
-                                            <UploadCloud className={`h-6 w-6 mx-auto mb-1.5 transition-colors ${dragging ? "text-purple-500" : "text-zinc-300"}`} />
-                                            <div className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                                Seret file bank statement atau klik untuk upload
+                                            <div className={`h-9 w-9 flex items-center justify-center border transition-colors shrink-0 ${
+                                                dragging ? "border-orange-300 bg-orange-100" : "border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800"
+                                            }`}>
+                                                <UploadCloud className={`h-4 w-4 transition-colors ${dragging ? "text-orange-500" : "text-zinc-400"}`} />
                                             </div>
-                                            <div className="text-[9px] text-zinc-400 mt-0.5">Format: CSV, Excel (.xlsx)</div>
+                                            <div>
+                                                <div className="text-xs font-bold text-zinc-600 dark:text-zinc-300">
+                                                    Seret file bank statement atau klik untuk upload
+                                                </div>
+                                                <div className="text-[9px] text-zinc-400">Format: CSV, Excel (.xlsx)</div>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -1504,13 +1628,18 @@ export function BankReconciliationView({
 
                             {/* Side-by-side panels */}
                             <ScrollArea className="max-h-[50vh]">
-                                <div className="grid grid-cols-2 divide-x-2 divide-black">
+                                <div className="grid grid-cols-2 divide-x divide-zinc-200 dark:divide-zinc-700">
                                     {/* Left: LAPORAN BANK */}
                                     <div>
-                                        <div className="bg-blue-50 px-4 py-2.5 border-b-2 border-black flex items-center gap-2">
-                                            <div className="h-2 w-2 rounded-full bg-blue-500" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-700">
-                                                Laporan Bank ({selectedRec?.bankPagination?.totalItems ?? unmatchedBankItems.length})
+                                        <div className="bg-sky-50/80 dark:bg-sky-950/20 px-4 py-2.5 border-b border-sky-200 dark:border-sky-800 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-2 w-2 rounded-full bg-sky-500" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-sky-700 dark:text-sky-400">
+                                                    Laporan Bank
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] font-mono font-bold text-sky-500 dark:text-sky-400">
+                                                {selectedRec?.bankPagination?.totalItems ?? unmatchedBankItems.length} item
                                             </span>
                                         </div>
                                         {unmatchedBankItems.length === 0 && excludedBankItems.length === 0 ? (
@@ -1685,10 +1814,15 @@ export function BankReconciliationView({
 
                                     {/* Right: JURNAL SISTEM */}
                                     <div>
-                                        <div className="bg-purple-50 px-4 py-2.5 border-b-2 border-black flex items-center gap-2">
-                                            <div className="h-2 w-2 rounded-full bg-purple-500" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-700">
-                                                Jurnal Sistem ({selectedRec?.systemPagination?.totalItems ?? unmatchedSystemEntries.length})
+                                        <div className="bg-violet-50/80 dark:bg-violet-950/20 px-4 py-2.5 border-b border-violet-200 dark:border-violet-800 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-2 w-2 rounded-full bg-violet-500" />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-violet-700 dark:text-violet-400">
+                                                    Jurnal Sistem
+                                                </span>
+                                            </div>
+                                            <span className="text-[10px] font-mono font-bold text-violet-500 dark:text-violet-400">
+                                                {selectedRec?.systemPagination?.totalItems ?? unmatchedSystemEntries.length} jurnal
                                             </span>
                                         </div>
                                         {unmatchedSystemEntries.length === 0 ? (
@@ -1845,11 +1979,16 @@ export function BankReconciliationView({
 
                             {/* Matched pairs section */}
                             {matchedBankItems.length > 0 && (
-                                <div className="border-t-2 border-black">
-                                    <div className="bg-emerald-50 px-5 py-2.5 border-b border-emerald-200 flex items-center gap-2">
-                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                                            Sudah Dicocokkan ({matchedBankItems.length} pasang)
+                                <div className="border-t border-zinc-200 dark:border-zinc-700">
+                                    <div className="bg-emerald-50/80 dark:bg-emerald-950/20 px-5 py-2.5 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                                                Sudah Dicocokkan
+                                            </span>
+                                        </div>
+                                        <span className="text-[10px] font-mono font-bold text-emerald-500 dark:text-emerald-400">
+                                            {matchedBankItems.length} pasang
                                         </span>
                                     </div>
                                     <div className="divide-y divide-emerald-100 bg-emerald-50/30">

@@ -832,13 +832,13 @@ export default function AccountTransactionsPage() {
                                                         Saldo Awal
                                                     </span>
                                                     <span className="text-xs font-mono text-right px-3 py-1.5">
-                                                        \u2014
+                                                        {"\u2014"}
                                                     </span>
                                                     <span className="text-xs font-mono text-right px-3 py-1.5">
-                                                        \u2014
+                                                        {"\u2014"}
                                                     </span>
                                                     <span className="text-xs font-mono text-right px-3 py-1.5">
-                                                        \u2014
+                                                        {"\u2014"}
                                                     </span>
                                                 </div>
 
@@ -954,10 +954,10 @@ export default function AccountTransactionsPage() {
                                                         Saldo Akhir
                                                     </span>
                                                     <span className="text-[11px] font-mono text-right px-3 py-1.5">
-                                                        \u2014
+                                                        {"\u2014"}
                                                     </span>
                                                     <span className="text-[11px] font-mono text-right px-3 py-1.5">
-                                                        \u2014
+                                                        {"\u2014"}
                                                     </span>
                                                     <span
                                                         className={`text-[11px] font-mono font-black text-right px-3 py-1.5 ${
