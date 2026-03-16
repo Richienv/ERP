@@ -328,24 +328,21 @@ export default function APCheckbookPage() {
         )
     }
 
+    const cashCount = payments.filter(p => p.method === "CASH").length
+
     return (
         <div className="mf-page">
 
-            {/* ═══ COMMAND HEADER ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-400">
-                    <div className="flex items-center gap-3">
-                        <Banknote className="h-5 w-5 text-emerald-500" />
-                        <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
-                                Pembayaran AP
-                            </h1>
-                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
-                                Transfer & cek pembayaran vendor dengan otorisasi tanda tangan
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
+            {/* ═══ UNIFIED CARD: Toolbar + KPI + Table ═══ */}
+            <div className={NB.pageCard}>
+                <div className={NB.pageAccent} />
+
+                {/* Row 1: Toolbar */}
+                <div className={`px-5 py-2.5 flex items-center justify-between ${NB.pageRowBorder}`}>
+                    <p className="text-[11px] font-bold text-zinc-400">
+                        Transfer & cek pembayaran vendor dengan otorisasi
+                    </p>
+                    <div className="flex items-center gap-0">
                         <Button
                             variant="outline"
                             onClick={() => {
@@ -370,21 +367,21 @@ export default function APCheckbookPage() {
                                 })
                                 exportToExcel(cols, rows as Record<string, unknown>[], { filename: "pembayaran-ap" })
                             }}
-                            className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-9 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all"
+                            className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}
                         >
-                            <Download className="mr-2 h-3.5 w-3.5" /> Export
+                            <Download className="h-3.5 w-3.5 mr-1" /> Export
                         </Button>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
                                     variant="outline"
                                     disabled={payments.length === 0}
-                                    className="border-2 border-black font-black uppercase text-[10px] tracking-widest h-9 px-4 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all bg-blue-50 hover:bg-blue-100 text-blue-700 disabled:opacity-40"
+                                    className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}
                                 >
-                                    <Landmark className="mr-2 h-3.5 w-3.5" /> Download Transfer <ChevronDown className="ml-1.5 h-3 w-3" />
+                                    <Landmark className="h-3.5 w-3.5 mr-1" /> Download Transfer <ChevronDown className="ml-1 h-3 w-3" />
                                 </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                            <DropdownMenuContent align="end" className="border border-zinc-300 shadow-md rounded-none">
                                 {BANK_FORMATS.map((fmt) => (
                                     <DropdownMenuItem
                                         key={fmt.name}
@@ -398,62 +395,41 @@ export default function APCheckbookPage() {
                             </DropdownMenuContent>
                         </DropdownMenu>
                         <Button
+                            variant="outline"
                             onClick={() => setShowMultiPay(true)}
-                            className="bg-emerald-700 text-white hover:bg-emerald-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"
+                            className={NB.toolbarBtn}
                         >
-                            <Banknote className="mr-2 h-3.5 w-3.5" /> Multi-Bayar
+                            <Banknote className="h-3.5 w-3.5 mr-1" /> Multi-Bayar
                         </Button>
                         <Button
                             onClick={() => setShowForm(!showForm)}
-                            className="bg-black text-white hover:bg-zinc-800 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:translate-y-[1px] active:shadow-none transition-all text-[10px] font-black uppercase tracking-widest h-9 px-4"
+                            className={NB.toolbarBtnPrimary}
                         >
-                            {showForm ? <><ChevronUp className="mr-2 h-3.5 w-3.5" /> Tutup Form</> : <><Plus className="mr-2 h-3.5 w-3.5" /> Buat Pembayaran</>}
+                            {showForm ? <><ChevronUp className="h-3.5 w-3.5 mr-1" /> Tutup</> : <><Plus className="h-3.5 w-3.5 mr-1" /> Buat Pembayaran</>}
                         </Button>
                     </div>
                 </div>
-            </div>
 
-            {/* ═══ KPI PULSE STRIP ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <History className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Total Bayar</span>
+                {/* Row 2: KPI Strip */}
+                <div className={`${NB.kpiStrip} ${NB.pageRowBorder}`}>
+                    {[
+                        { label: "Total Bayar", count: totalPayments, amount: formatIDR(totalPaid), dot: "bg-orange-500" },
+                        { label: "Transfer", count: transferCount, amount: null, dot: "bg-blue-500" },
+                        { label: "Cek/Giro", count: checkCount, amount: null, dot: "bg-amber-500" },
+                        { label: "Kas", count: cashCount, amount: null, dot: "bg-zinc-400" },
+                    ].map((kpi) => (
+                        <div key={kpi.label} className={NB.kpiCell}>
+                            <div className="flex items-center gap-1.5">
+                                <span className={`w-2 h-2 ${kpi.dot}`} />
+                                <span className={NB.kpiLabel}>{kpi.label}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={NB.kpiCount}>{kpi.count}</span>
+                                {kpi.amount && <span className={NB.kpiAmount}>{kpi.amount}</span>}
+                            </div>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-zinc-900 dark:text-white">{totalPayments}</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-1">{formatIDR(totalPaid)}</div>
-                    </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <CreditCard className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Transfer</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">{transferCount}</div>
-                        <div className="text-[10px] font-bold text-blue-600 mt-1">Bank transfer</div>
-                    </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Landmark className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Cek</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{checkCount}</div>
-                        <div className="text-[10px] font-bold text-amber-600 mt-1">Pembayaran cek</div>
-                    </div>
-                    <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-purple-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Wallet className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kas</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-purple-600">{payments.filter(p => p.method === "CASH").length}</div>
-                        <div className="text-[10px] font-bold text-purple-600 mt-1">Tunai</div>
-                    </div>
+                    ))}
                 </div>
-            </div>
 
             {/* ═══ PAYMENT FORM (Collapsible) ═══ */}
             {showForm && (
