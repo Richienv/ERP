@@ -155,3 +155,17 @@ Project: ERP Textile (Indonesian SME)
   - COGS failure does NOT block invoice posting (logged as warning, not thrown)
   - Added 14 unit tests in __tests__/cogs-recognition.test.ts
 - **Tests:** 570/575 pass (5 pre-existing failures, 14 new tests added)
+
+### ACCT2-007: Bad Debt Write-Off — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Added `provisionBadDebt()` in finance-ar.ts: DR Bad Debt Expense (6500), CR Allowance for Doubtful Debts (1210)
+  - Added `writeOffBadDebt()` in finance-ar.ts with two methods:
+    - DIRECT: DR Bad Debt Expense (6500), CR AR (1200) — hits P&L
+    - ALLOWANCE: DR Allowance for Doubtful Debts (1210), CR AR (1200) — no P&L impact
+  - Supports partial write-off (amount < balanceDue)
+  - Full write-off sets invoice status to VOID
+  - Uses ensureSystemAccounts() and sourceDocumentType: 'BAD_DEBT_WRITEOFF'
+  - GL failure throws to trigger withPrismaAuth rollback (atomic)
+  - Added 21 unit tests in __tests__/bad-debt-writeoff.test.ts
+- **Tests:** 591/596 pass (5 pre-existing failures, 21 new tests added)

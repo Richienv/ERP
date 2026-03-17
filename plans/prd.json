@@ -119,7 +119,8 @@
       "id": "ACCT2-007",
       "title": "Bad Debt Write-Off — Direct Write-Off & Allowance Method",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T17:55:00Z",
       "acceptance_criteria": [
         "New function writeOffBadDebt() in lib/actions/finance-ar.ts",
         "Parameters: invoiceId, method ('DIRECT' | 'ALLOWANCE'), amount (partial write-off supported)",
