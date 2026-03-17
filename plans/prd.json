@@ -64,7 +64,8 @@
       "id": "ACCT2-004",
       "title": "Fiscal Period Enforcement — Block Posting to Closed Periods",
       "priority": "high",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T17:42:00Z",
       "acceptance_criteria": [
         "In postJournalEntry() in finance-gl.ts: before creating the journal entry, look up the FiscalPeriod for the journal date's year/month",
         "If a FiscalPeriod exists AND isClosed=true, reject with error: 'Periode [month/year] sudah ditutup — tidak dapat membuat jurnal'",

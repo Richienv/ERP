@@ -124,3 +124,11 @@ Project: ERP Textile (Indonesian SME)
   - Added all 15 to SYSTEM_ACCOUNT_DEFS with correct AccountType
   - Updated seed-gl.ts: added new accounts, updated conflicting codes (4200, 6100) to match system names, added missing system accounts (1210, 1410, 2150, 2200, 2210, 2310, 2315, 2320, 2330, 2400, 3900, 4300, 4400, 6500, 8200, 8300)
 - **Tests:** 531/536 pass (baseline unchanged)
+
+### ACCT2-004: Fiscal Period Enforcement — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Implementation already existed in postJournalEntry() (lines 153-162 of finance-gl.ts) — checks FiscalPeriod by year/month, blocks if isClosed=true, allows if no period exists
+  - Added 12 unit tests in __tests__/fiscal-period-enforcement.test.ts covering: closed period blocking, open period allowing, missing period allowing, edge cases (first/last day, December month extraction), universal application to both manual and system entries
+  - Fixed timezone issue: use `new Date(year, month, day)` instead of ISO strings to avoid UTC parsing shifting months
+- **Tests:** 556/561 pass (5 pre-existing failures, 12 new tests added)
