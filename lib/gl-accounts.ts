@@ -22,6 +22,7 @@ export const SYS_ACCOUNTS = {
 
   // --- Receivables ---
   AR:             "1200",  // Piutang Usaha (seed: 1200)
+  ALLOWANCE_DOUBTFUL: "1210", // Cadangan Kerugian Piutang (contra-asset, CREDIT normal balance)
 
   // --- Inventory ---
   INVENTORY_ASSET: "1300",  // Persediaan Barang Jadi (Finished Goods)
@@ -40,20 +41,42 @@ export const SYS_ACCOUNTS = {
   // --- Deferred Revenue ---
   DEFERRED_REV:   "2121",  // Pendapatan Diterima Dimuka
 
+  // --- GR/IR Clearing ---
+  GR_IR_CLEARING: "2150",  // Barang Diterima / Faktur Belum Diterima
+
+  // --- Payroll & Benefit Liabilities ---
+  SALARY_PAYABLE:    "2200",  // Utang Gaji
+  MFG_OVERHEAD_APPLIED: "2210", // Overhead Manufaktur Dibebankan
+  PPH21_PAYABLE:     "2310",  // Utang PPh 21
+  PPH23_PAYABLE:     "2315",  // Utang PPh 23
+  BPJS_TK_PAYABLE:   "2320",  // Utang BPJS Ketenagakerjaan
+  BPJS_KES_PAYABLE:  "2330",  // Utang BPJS Kesehatan
+
+  // --- Unearned Revenue ---
+  UNEARNED_REVENUE:  "2400",  // Pendapatan Diterima Dimuka
+
   // --- Equity ---
   RETAINED_EARNINGS: "3100", // Laba Ditahan (for opening balances)
   OPENING_EQUITY:    "3900", // Saldo Awal Ekuitas (Opening Balance Equity)
 
   // --- Revenue ---
   REVENUE:        "4000",  // Pendapatan Penjualan (seed: 4000)
+  SERVICE_REVENUE: "4200",  // Pendapatan Jasa
+  OTHER_INCOME:    "4300",  // Pendapatan Lain-lain
+  INTEREST_INCOME: "4400",  // Pendapatan Bunga
 
   // --- COGS ---
   COGS:           "5000",  // Beban Pokok Penjualan / HPP (seed: 5000)
 
   // --- Expenses ---
+  SALARY_EXPENSE: "6100",  // Beban Gaji
+  DEPRECIATION:   "6290",  // Beban Penyusutan (seed: 6290)
+  BAD_DEBT_EXPENSE: "6500", // Beban Kerugian Piutang
   EXPENSE_DEFAULT:"6900",  // Beban Lain-lain (generic expense for AP bills)
                            // NOT 6000 — Raymond's DB has 6000 as LIABILITY "Accrued Expenses"
-  DEPRECIATION:   "6290",  // Beban Penyusutan (seed: 6290)
+
+  // --- Other Expenses ---
+  BANK_CHARGES:   "7200",  // Beban Administrasi Bank
 
   // --- Losses & Adjustments ---
   LOSS_WRITEOFF:    "8200",  // Kerugian / Penghapusan
@@ -72,6 +95,7 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.BANK_BCA,         name: "Bank BCA",                      type: "ASSET" },
   { code: SYS_ACCOUNTS.BANK_MANDIRI,     name: "Bank Mandiri",                  type: "ASSET" },
   { code: SYS_ACCOUNTS.AR,               name: "Piutang Usaha",                 type: "ASSET" },
+  { code: SYS_ACCOUNTS.ALLOWANCE_DOUBTFUL, name: "Cadangan Kerugian Piutang",    type: "ASSET" },
   { code: SYS_ACCOUNTS.INVENTORY_ASSET,  name: "Persediaan Barang Jadi",          type: "ASSET" },
   { code: SYS_ACCOUNTS.RAW_MATERIALS,   name: "Persediaan Bahan Baku",           type: "ASSET" },
   { code: SYS_ACCOUNTS.WIP,             name: "Persediaan Dalam Proses (WIP)",   type: "ASSET" },
@@ -81,12 +105,26 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.AP,               name: "Utang Usaha (AP)",              type: "LIABILITY" },
   { code: SYS_ACCOUNTS.PPN_KELUARAN,     name: "Utang Pajak (PPN/PPh)",         type: "LIABILITY" },
   { code: SYS_ACCOUNTS.DEFERRED_REV,     name: "Pendapatan Diterima Dimuka",    type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.GR_IR_CLEARING,   name: "Barang Diterima / Faktur Belum Diterima", type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.SALARY_PAYABLE,   name: "Utang Gaji",                   type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.MFG_OVERHEAD_APPLIED, name: "Overhead Manufaktur Dibebankan", type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PPH21_PAYABLE,    name: "Utang PPh 21",                 type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PPH23_PAYABLE,    name: "Utang PPh 23",                 type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.BPJS_TK_PAYABLE,  name: "Utang BPJS Ketenagakerjaan",   type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.BPJS_KES_PAYABLE, name: "Utang BPJS Kesehatan",         type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.UNEARNED_REVENUE, name: "Pendapatan Diterima Dimuka",    type: "LIABILITY" },
   { code: SYS_ACCOUNTS.RETAINED_EARNINGS, name: "Laba Ditahan",                  type: "EQUITY" },
   { code: SYS_ACCOUNTS.OPENING_EQUITY,    name: "Saldo Awal Ekuitas",             type: "EQUITY" },
   { code: SYS_ACCOUNTS.REVENUE,          name: "Pendapatan Penjualan",          type: "REVENUE" },
+  { code: SYS_ACCOUNTS.SERVICE_REVENUE,  name: "Pendapatan Jasa",               type: "REVENUE" },
+  { code: SYS_ACCOUNTS.OTHER_INCOME,     name: "Pendapatan Lain-lain",          type: "REVENUE" },
+  { code: SYS_ACCOUNTS.INTEREST_INCOME,  name: "Pendapatan Bunga",              type: "REVENUE" },
   { code: SYS_ACCOUNTS.COGS,             name: "Beban Pokok Penjualan (HPP)",   type: "EXPENSE" },
-  { code: SYS_ACCOUNTS.EXPENSE_DEFAULT,  name: "Beban Lain-lain",              type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.SALARY_EXPENSE,   name: "Beban Gaji",                    type: "EXPENSE" },
   { code: SYS_ACCOUNTS.DEPRECIATION,     name: "Beban Penyusutan",              type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.BAD_DEBT_EXPENSE, name: "Beban Kerugian Piutang",        type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.EXPENSE_DEFAULT,  name: "Beban Lain-lain",              type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.BANK_CHARGES,     name: "Beban Administrasi Bank",       type: "EXPENSE" },
   { code: SYS_ACCOUNTS.LOSS_WRITEOFF,   name: "Kerugian / Penghapusan",          type: "EXPENSE" },
   { code: SYS_ACCOUNTS.INV_ADJUSTMENT,  name: "Penyesuaian Persediaan",          type: "EXPENSE" },
 ]

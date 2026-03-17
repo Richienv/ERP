@@ -87,3 +87,16 @@ Project: ERP Textile (Indonesian SME)
 - **ACCT-009:** Fixed asset disposal now uses postJournalEntry(). Added Bank debit for sale proceeds (was missing — journal wouldn't balance). Handles gain/loss correctly.
 - **ACCT-010:** Added AR/AP aging KPI strips to receivables and payables pages. Shows 6 buckets: Total, Current, 1-30, 31-60, 61-90, 90+ days.
 - **Tests:** 531/536 pass (5 pre-existing failures, unchanged)
+
+## Session 2026-03-16 — Accounting Module V2 (ACCT2-001 to ACCT2-012)
+- **Source:** Gap analysis against full accounting spec
+- **Branch:** feat/accounting-integration
+- **Verify command:** `npx vitest run && npx tsc --noEmit`
+
+### ACCT2-001: COA Expansion — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Added 15 new accounts to SYS_ACCOUNTS: ALLOWANCE_DOUBTFUL (1210), GR_IR_CLEARING (2150), SALARY_PAYABLE (2200), MFG_OVERHEAD_APPLIED (2210), PPH21_PAYABLE (2310), PPH23_PAYABLE (2315), BPJS_TK_PAYABLE (2320), BPJS_KES_PAYABLE (2330), UNEARNED_REVENUE (2400), SERVICE_REVENUE (4200), OTHER_INCOME (4300), INTEREST_INCOME (4400), SALARY_EXPENSE (6100), BAD_DEBT_EXPENSE (6500), BANK_CHARGES (7200)
+  - Added all 15 to SYSTEM_ACCOUNT_DEFS with correct AccountType
+  - Updated seed-gl.ts: added new accounts, updated conflicting codes (4200, 6100) to match system names, added missing system accounts (1210, 1410, 2150, 2200, 2210, 2310, 2315, 2320, 2330, 2400, 3900, 4300, 4400, 6500, 8200, 8300)
+- **Tests:** 531/536 pass (baseline unchanged)
