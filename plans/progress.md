@@ -195,3 +195,16 @@ Project: ERP Textile (Indonesian SME)
   - Uses ensureSystemAccounts() before posting
   - Added 20 unit tests in __tests__/ar-bank-charges.test.ts
 - **Tests:** 629/634 pass (5 pre-existing failures, 20 new tests added)
+
+### ACCT2-010: Payroll GL Account Configuration — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Replaced `resolvePayrollAccounts(prisma)` keyword-matching function with direct `SYS_ACCOUNTS` references
+  - Import `SYS_ACCOUNTS` and `ensureSystemAccounts` from `lib/gl-accounts.ts`
+  - Payroll calculation journal now uses: DR SALARY_EXPENSE (6100), CR SALARY_PAYABLE (2200) [net], CR PPH21_PAYABLE (2310) [tax], CR BPJS_TK_PAYABLE (2320) [bpjs tk], CR BPJS_KES_PAYABLE (2330) [bpjs kes]
+  - Salary disbursement journal: DR SALARY_PAYABLE (2200), CR BANK_BCA (1110)
+  - Split single `bpjsCode` into separate `bpjsTkCode` and `bpjsKesCode` for proper BPJS TK vs KES tracking
+  - Removed all keyword-matching logic (`findByKeyword`, keyword arrays for gaji/salary/payroll/bpjs/pph)
+  - `ensureSystemAccounts()` called before posting to guarantee accounts exist
+  - Function no longer takes `prisma` parameter (no DB query needed for account lookup)
+- **Tests:** 629/634 pass (baseline unchanged, no regressions)

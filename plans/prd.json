@@ -176,7 +176,8 @@
       "id": "ACCT2-010",
       "title": "Payroll GL Account Configuration — SYS_ACCOUNTS Instead of Keyword Matching",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T18:10:00Z",
       "acceptance_criteria": [
         "In app/actions/hcm.ts payroll GL posting functions: replace keyword-matching account lookups (searching for 'gaji/salary/payroll') with direct SYS_ACCOUNTS references",
         "Payroll calculation journal: DR SYS_ACCOUNTS.SALARY_EXPENSE (6100), CR SYS_ACCOUNTS.SALARY_PAYABLE (2200) [net], CR SYS_ACCOUNTS.PPH21_PAYABLE (2310) [tax], CR SYS_ACCOUNTS.BPJS_TK_PAYABLE (2320) [bpjs tk], CR SYS_ACCOUNTS.BPJS_KES_PAYABLE (2330) [bpjs kes]",
