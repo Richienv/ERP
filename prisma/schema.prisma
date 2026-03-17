@@ -265,6 +265,16 @@ model Product {
   costLayers             CostLayer[]
   stockReservations      StockReservation[]
 
+  // Accounting Fields — link product to GL accounts for automated posting
+  cogsAccountId      String?    @db.Uuid
+  inventoryAccountId String?    @db.Uuid
+  incomeAccountId    String?    @db.Uuid
+  purchaseAccountId  String?    @db.Uuid
+  cogsAccount        GLAccount? @relation("ProductCogs", fields: [cogsAccountId], references: [id])
+  inventoryAccount   GLAccount? @relation("ProductInventory", fields: [inventoryAccountId], references: [id])
+  incomeAccount      GLAccount? @relation("ProductIncome", fields: [incomeAccountId], references: [id])
+  purchaseAccount    GLAccount? @relation("ProductPurchase", fields: [purchaseAccountId], references: [id])
+
   // Alternative / Substitute Products (Self-relation)
   alternativeProductId String?   @db.Uuid
   alternativeProduct   Product?  @relation("ProductAlternatives", fields: [alternativeProductId], references: [id])
@@ -2074,6 +2084,12 @@ model GLAccount {
   pettyCashExpenseTxns  PettyCashTransaction[] @relation("PettyCashExpense")
   budgetLines           BudgetLine[]
   cashflowPlanItems     CashflowPlanItem[]
+
+  // Product accounting relations
+  productsAsCogs      Product[] @relation("ProductCogs")
+  productsAsInventory Product[] @relation("ProductInventory")
+  productsAsIncome    Product[] @relation("ProductIncome")
+  productsAsPurchase  Product[] @relation("ProductPurchase")
 
   // Fixed Asset relations
   fixedAssetCategoriesAsset   FixedAssetCategory[] @relation("CategoryAssetAccount")

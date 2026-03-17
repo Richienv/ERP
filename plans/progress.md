@@ -93,6 +93,17 @@ Project: ERP Textile (Indonesian SME)
 - **Branch:** feat/accounting-integration
 - **Verify command:** `npx vitest run && npx tsc --noEmit`
 
+### ACCT2-002: Product Accounting Fields — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Added 4 optional FK fields to Product model: cogsAccountId, inventoryAccountId, incomeAccountId, purchaseAccountId (all String? @db.Uuid)
+  - Added 4 relations on Product: cogsAccount, inventoryAccount, incomeAccount, purchaseAccount → GLAccount
+  - Added 4 reverse relations on GLAccount: productsAsCogs, productsAsInventory, productsAsIncome, productsAsPurchase
+  - Created migration 20260316100000_add_product_accounting_fields (manual apply due to shadow DB issue)
+  - All fields default to NULL — existing products unaffected
+- **Tests:** 531/536 pass (baseline unchanged)
+- **Learned:** Shadow DB migrations fail due to old ProcurementStatus enum issue — use manual migration + db execute + migrate resolve workflow
+
 ### ACCT2-001: COA Expansion — DONE
 - **Iterations:** 1
 - **Changes:**

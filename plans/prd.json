@@ -29,7 +29,8 @@
       "id": "ACCT2-002",
       "title": "Product Item Master Accounting Fields — cogsAccountId, inventoryAccountId, incomeAccountId",
       "priority": "high",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T17:35:00Z",
       "acceptance_criteria": [
         "Add to Product model in prisma/schema.prisma: cogsAccountId (String? @db.Uuid, FK to GLAccount), inventoryAccountId (String? @db.Uuid, FK to GLAccount), incomeAccountId (String? @db.Uuid, FK to GLAccount), purchaseAccountId (String? @db.Uuid, FK to GLAccount)",
         "Add relations: cogsAccount, inventoryAccount, incomeAccount, purchaseAccount — all optional relations to GLAccount",
