@@ -169,3 +169,17 @@ Project: ERP Textile (Indonesian SME)
   - GL failure throws to trigger withPrismaAuth rollback (atomic)
   - Added 21 unit tests in __tests__/bad-debt-writeoff.test.ts
 - **Tests:** 591/596 pass (5 pre-existing failures, 21 new tests added)
+
+### ACCT2-008: WHT/PPh 23 on Vendor Payments — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Added `whtAmount` (Decimal 15,2) and `whtRate` (Decimal 5,4) optional fields to Payment model
+  - Created migration 20260316180000_add_payment_wht_fields
+  - Extended `recordVendorPayment()` in finance-ap.ts to accept optional `whtAmount` and `whtRate` params
+  - When whtAmount > 0: DR AP (gross), CR Bank (net = gross - WHT), CR PPh 23 Payable (2315) [WHT]
+  - Invoice balanceDue reduces by GROSS amount (WHT counts against invoice)
+  - When whtAmount is 0 or not provided: existing 2-line flow unchanged (backwards compatible)
+  - Payment record stores whtAmount and whtRate for tax reporting
+  - Uses ensureSystemAccounts() before posting
+  - Added 18 unit tests in __tests__/wht-vendor-payment.test.ts
+- **Tests:** 609/614 pass (5 pre-existing failures, 18 new tests added)

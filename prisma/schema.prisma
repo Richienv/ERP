@@ -1852,6 +1852,9 @@ model Payment {
   method    PaymentMethod @default(TRANSFER)
   reference String? // Cheque Num, Transfer Ref
 
+  whtAmount Decimal?      @db.Decimal(15, 2) // Withholding tax amount (PPh 23/PPh 21)
+  whtRate   Decimal?      @db.Decimal(5, 4)  // WHT rate (e.g. 0.0200 = 2%)
+
   notes String?
 
   invoice        Invoice?       @relation(fields: [invoiceId], references: [id])

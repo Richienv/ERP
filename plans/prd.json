@@ -140,7 +140,8 @@
       "id": "ACCT2-008",
       "title": "WHT/PPh 23 on Vendor Payments — Withholding Tax Deduction",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T17:58:00Z",
       "acceptance_criteria": [
         "Extend recordVendorPayment() in finance-ap.ts to accept optional whtAmount (withholding tax amount) and whtRate (e.g. 0.02 for 2% PPh 23)",
         "When whtAmount > 0, journal changes from: DR AP, CR Bank → DR AP (2000) [gross], CR Bank (1110) [net = gross - wht], CR PPh 23 Payable (SYS_ACCOUNTS.PPH23_PAYABLE '2315') [whtAmount]",
