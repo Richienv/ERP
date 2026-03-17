@@ -183,3 +183,15 @@ Project: ERP Textile (Indonesian SME)
   - Uses ensureSystemAccounts() before posting
   - Added 18 unit tests in __tests__/wht-vendor-payment.test.ts
 - **Tests:** 609/614 pass (5 pre-existing failures, 18 new tests added)
+
+### ACCT2-009: AR Payment Bank Charges — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Extended `recordARPayment()` in finance-ar.ts to accept optional `bankChargeAmount` parameter
+  - When bankChargeAmount > 0: DR Bank (net = amount - bankCharge), DR Bank Charges (7200) [bankChargeAmount], CR AR (1200) [full amount]
+  - Invoice balanceDue decreases by full amountReceived (bank charge is company's expense, not customer's)
+  - When bankChargeAmount is 0 or not provided: existing 2-line flow unchanged (backwards compatible)
+  - Bank charges flow to P&L as expense via SYS_ACCOUNTS.BANK_CHARGES (7200)
+  - Uses ensureSystemAccounts() before posting
+  - Added 20 unit tests in __tests__/ar-bank-charges.test.ts
+- **Tests:** 629/634 pass (5 pre-existing failures, 20 new tests added)

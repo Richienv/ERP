@@ -912,6 +912,7 @@ export async function recordARPayment(data: {
     reference?: string
     notes?: string
     invoiceId?: string // Optional: directly link to invoice
+    bankChargeAmount?: number // Optional: bank charges deducted from received amount
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -956,16 +957,28 @@ export async function recordARPayment(data: {
                         }
                     })
 
-                    // Post GL Entry: DR Cash/Bank, CR Piutang Usaha (AR)
+                    // Post GL Entry: DR Cash/Bank, DR Bank Charges (if any), CR Piutang Usaha (AR)
+                    const bankCharge = data.bankChargeAmount && data.bankChargeAmount > 0 ? data.bankChargeAmount : 0
+                    const bankDebitAmount = data.amount - bankCharge
+
+                    const journalLines: { accountCode: string; debit: number; credit: number }[] = [
+                        { accountCode: cashCode, debit: bankDebitAmount, credit: 0 },
+                    ]
+                    if (bankCharge > 0) {
+                        journalLines.push({
+                            accountCode: SYS_ACCOUNTS.BANK_CHARGES, debit: bankCharge, credit: 0
+                        })
+                    }
+                    journalLines.push({
+                        accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount // Full amount reduces AR
+                    })
+
                     const glResult = await postJournalEntry({
-                        description: `Penerimaan ${paymentNumber} untuk ${invoice.number}`,
+                        description: `Penerimaan ${paymentNumber} untuk ${invoice.number}${bankCharge > 0 ? ` (biaya bank: ${bankCharge})` : ''}`,
                         date: data.date || new Date(),
                         reference: paymentNumber,
                         invoiceId: data.invoiceId,
-                        lines: [
-                            { accountCode: cashCode, debit: data.amount, credit: 0 },
-                            { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount } // Piutang Usaha
-                        ]
+                        lines: journalLines
                     })
                     if (!glResult?.success) {
                         // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + invoice update

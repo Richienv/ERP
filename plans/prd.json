@@ -158,7 +158,8 @@
       "id": "ACCT2-009",
       "title": "AR Payment Bank Charges — Deduction Handling on Customer Payments",
       "priority": "medium",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T18:01:00Z",
       "acceptance_criteria": [
         "Extend recordARPayment() in finance-ar.ts to accept optional bankChargeAmount parameter",
         "When bankChargeAmount > 0, journal: DR Bank (1110) [amountReceived - bankCharge], DR Bank Charges (SYS_ACCOUNTS.BANK_CHARGES '7200') [bankChargeAmount], CR AR (1200) [amountReceived]",
