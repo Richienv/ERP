@@ -208,3 +208,20 @@ Project: ERP Textile (Indonesian SME)
   - `ensureSystemAccounts()` called before posting to guarantee accounts exist
   - Function no longer takes `prisma` parameter (no DB query needed for account lookup)
 - **Tests:** 629/634 pass (baseline unchanged, no regressions)
+
+### ACCT2-011: Bank Reconciliation Auto GL — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Added `itemType String?` field to BankReconciliationItem model (BANK_CHARGE, INTEREST_INCOME, or null)
+  - Created migration 20260316200000_add_recon_item_type
+  - Added `classifyReconciliationItem(itemId, type)` server action — marks items as BANK_CHARGE or INTEREST_INCOME with EXCLUDED matchStatus
+  - Modified `closeReconciliation()` to auto-post GL entries during finalization:
+    - BANK_CHARGE: DR Bank Charges (7200), CR Bank GL account
+    - INTEREST_INCOME: DR Bank GL account, CR Interest Income (4400)
+  - All auto-GL entries use sourceDocumentType: 'BANK_RECONCILIATION'
+  - Uses ensureSystemAccounts() before posting
+  - GL failure blocks reconciliation close (atomic — throws error to trigger rollback)
+  - Uses Math.abs() for amounts (bank charges may be negative on statement)
+  - Falls back to statementDate when item has no bankDate
+  - Added 13 unit tests in __tests__/bank-recon-auto-gl.test.ts
+- **Tests:** 642/647 pass (5 pre-existing failures, 13 new tests added)

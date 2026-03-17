@@ -2780,6 +2780,7 @@ model BankReconciliationItem {
   systemTransactionId String?     @db.Uuid // JournalEntry or Payment ID
   matchStatus         MatchStatus @default(UNMATCHED)
   excludeReason       String?                         // Alasan jika EXCLUDED
+  itemType            String?                         // BANK_CHARGE, INTEREST_INCOME, or null (regular)
   matchedBy           String?     @db.Uuid
   matchedAt           DateTime?
 

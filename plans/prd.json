@@ -193,7 +193,8 @@
       "id": "ACCT2-011",
       "title": "Bank Reconciliation Auto GL — Post Charges & Interest During Recon",
       "priority": "low",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T18:15:00Z",
       "acceptance_criteria": [
         "When a BankReconciliationItem is marked as 'bank_charge' (or type=BANK_CHARGE), auto-create journal: DR SYS_ACCOUNTS.BANK_CHARGES (7200), CR Bank GL account [bankAccount from reconciliation]",
         "When a BankReconciliationItem is marked as 'interest_income' (or type=INTEREST_INCOME), auto-create journal: DR Bank GL account, CR SYS_ACCOUNTS.INTEREST_INCOME (4400)",
