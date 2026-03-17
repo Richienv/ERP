@@ -133,6 +133,7 @@ export async function postJournalEntry(data: {
     reference: string
     invoiceId?: string
     paymentId?: string
+    sourceDocumentType?: string // e.g. 'MANUAL', 'INVOICE', 'PAYMENT', 'GRN', 'COGS_RECOGNITION', etc.
     lines: {
         accountCode: string
         debit: number
@@ -166,6 +167,18 @@ export async function postJournalEntry(data: {
             })
 
             const accountMap = new Map(accounts.map(a => [a.code, a]))
+
+            // Block manual journal entries from posting to control accounts (AR, AP, Inventory)
+            if (data.sourceDocumentType === 'MANUAL') {
+                for (const line of data.lines) {
+                    const account = accountMap.get(line.accountCode)
+                    if (account && !account.allowDirectPosting) {
+                        throw new Error(
+                            `Akun kontrol ${account.code} (${account.name}) tidak boleh diposting langsung — gunakan modul AR/AP/Inventory`
+                        )
+                    }
+                }
+            }
 
             let entryId: string | undefined
 

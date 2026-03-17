@@ -339,6 +339,7 @@ export async function postJournalEntry(data: {
     description: string
     date: Date
     reference: string
+    sourceDocumentType?: string
     lines: {
         accountCode: string
         debit: number
@@ -363,6 +364,18 @@ export async function postJournalEntry(data: {
             })
 
             const accountMap = new Map(accounts.map(a => [a.code, a]))
+
+            // Block manual journal entries from posting to control accounts
+            if (data.sourceDocumentType === 'MANUAL') {
+                for (const line of data.lines) {
+                    const account = accountMap.get(line.accountCode)
+                    if (account && !account.allowDirectPosting) {
+                        throw new Error(
+                            `Akun kontrol ${account.code} (${account.name}) tidak boleh diposting langsung — gunakan modul AR/AP/Inventory`
+                        )
+                    }
+                }
+            }
 
             // 3. Create Entry & Lines (already inside withPrismaAuth transaction)
             // Create Header

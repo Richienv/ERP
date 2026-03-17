@@ -26,9 +26,9 @@ async function main() {
         { code: '1102', name: 'Petty Cash', type: 'ASSET', isSystem: false },
         { code: '1110', name: 'Bank BCA', type: 'ASSET', isSystem: false },
         { code: '1111', name: 'Bank Mandiri', type: 'ASSET', isSystem: false },
-        { code: '1200', name: 'Piutang Usaha (AR)', type: 'ASSET', isSystem: true },
+        { code: '1200', name: 'Piutang Usaha (AR)', type: 'ASSET', isSystem: true, isControlAccount: true, allowDirectPosting: false },
         { code: '1210', name: 'Cadangan Kerugian Piutang', type: 'ASSET', isSystem: true },
-        { code: '1300', name: 'Persediaan Barang Jadi', type: 'ASSET', isSystem: true },
+        { code: '1300', name: 'Persediaan Barang Jadi', type: 'ASSET', isSystem: true, isControlAccount: true, allowDirectPosting: false },
         { code: '1310', name: 'Persediaan Bahan Baku', type: 'ASSET', isSystem: true },
         { code: '1320', name: 'Persediaan Dalam Proses (WIP)', type: 'ASSET', isSystem: true },
         { code: '1330', name: 'PPN Masukan (Input VAT)', type: 'ASSET', isSystem: true },
@@ -42,7 +42,7 @@ async function main() {
 
         // --- LIABILITIES (KEWAJIBAN) ---
         // 2100 - Short Term Liabilities
-        { code: '2000', name: 'Utang Usaha (AP)', type: 'LIABILITY', isSystem: true },
+        { code: '2000', name: 'Utang Usaha (AP)', type: 'LIABILITY', isSystem: true, isControlAccount: true, allowDirectPosting: false },
         { code: '2100', name: 'Utang Gaji', type: 'LIABILITY', isSystem: false },
         { code: '2110', name: 'Utang Pajak (PPN/PPh)', type: 'LIABILITY', isSystem: false },
         { code: '2120', name: 'Biaya Yang Masih Harus Dibayar', type: 'LIABILITY', isSystem: false },
@@ -121,7 +121,9 @@ async function main() {
                 code: acc.code,
                 name: acc.name,
                 type: acc.type,
-                isSystem: acc.isSystem
+                isSystem: acc.isSystem,
+                ...('isControlAccount' in acc ? { isControlAccount: (acc as any).isControlAccount } : {}),
+                ...('allowDirectPosting' in acc ? { allowDirectPosting: (acc as any).allowDirectPosting } : {}),
             },
         })
         accountMap.set(acc.code, created.id)

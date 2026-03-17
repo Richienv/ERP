@@ -2077,6 +2077,8 @@ model GLAccount {
   type     AccountType // ASSET, LIABILITY, etc.
   balance  Decimal     @default(0) @db.Decimal(15, 2)
   isSystem Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
+  isControlAccount  Boolean @default(false) // AR, AP, Inventory — sub-ledger controlled
+  allowDirectPosting Boolean @default(true) // false = block manual journal entries
 
   lines               JournalLine[]
   bankReconciliations BankReconciliation[]

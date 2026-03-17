@@ -124,6 +124,7 @@ export default function NewJournalEntryPage() {
                 date: new Date(transactionDate),
                 reference: reference.trim(),
                 description: description.trim(),
+                sourceDocumentType: 'MANUAL',
                 lines: journalLines,
             });
 

@@ -104,6 +104,19 @@ Project: ERP Textile (Indonesian SME)
 - **Tests:** 531/536 pass (baseline unchanged)
 - **Learned:** Shadow DB migrations fail due to old ProcurementStatus enum issue — use manual migration + db execute + migrate resolve workflow
 
+### ACCT2-003: GLAccount Control Account Flag & Direct Posting Restriction — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Added `isControlAccount` (Boolean, default false) and `allowDirectPosting` (Boolean, default true) to GLAccount model
+  - Created migration 20260316120000_add_gl_control_account_flags
+  - Set isControlAccount=true, allowDirectPosting=false for AR (1200), AP (2000), Inventory (1300) via migration + seed-gl.ts
+  - Added `sourceDocumentType` optional parameter to postJournalEntry() in both finance-gl.ts and finance.ts
+  - When sourceDocumentType='MANUAL', checks each line's account.allowDirectPosting — blocks with Indonesian error message
+  - System-generated entries (no sourceDocumentType or non-MANUAL) bypass the check — backwards compatible
+  - Updated manual journal page (app/finance/journal/new/page.tsx) to pass sourceDocumentType: 'MANUAL'
+  - Added 13 unit tests in __tests__/control-account-restriction.test.ts
+- **Tests:** 544/549 pass (5 pre-existing failures, 13 new tests added)
+
 ### ACCT2-001: COA Expansion — DONE
 - **Iterations:** 1
 - **Changes:**

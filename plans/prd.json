@@ -47,7 +47,8 @@
       "id": "ACCT2-003",
       "title": "GLAccount Control Account Flag & Direct Posting Restriction",
       "priority": "high",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T17:40:00Z",
       "acceptance_criteria": [
         "Add to GLAccount model in prisma/schema.prisma: isControlAccount (Boolean @default(false)), allowDirectPosting (Boolean @default(true))",
         "Create Prisma migration with: npx prisma migrate dev --name add_gl_control_account_flags",
