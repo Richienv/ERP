@@ -2123,6 +2123,12 @@ model JournalEntry {
   recurringPattern  String? // e.g. "MONTHLY", "WEEKLY"
   nextRecurringDate DateTime?
 
+  // Reversal tracking
+  isReversed   Boolean  @default(false)
+  reversedById String?  @unique @db.Uuid
+  reversedBy   JournalEntry? @relation("JournalReversal", fields: [reversedById], references: [id])
+  reversalOf   JournalEntry? @relation("JournalReversal")
+
   invoiceId              String? @db.Uuid
   paymentId              String? @db.Uuid
   salesOrderId           String? @db.Uuid

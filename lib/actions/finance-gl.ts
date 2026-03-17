@@ -341,6 +341,7 @@ export async function updateJournalEntry(
             })
 
             if (!existing) throw new Error("Jurnal tidak ditemukan")
+            if (existing.status === "POSTED") throw new Error("Jurnal yang sudah diposting tidak dapat diubah — buat jurnal balik")
             if (existing.status !== "DRAFT") throw new Error("Hanya jurnal DRAFT yang dapat diedit")
 
             const codes = data.lines.map(l => l.accountCode)
@@ -381,6 +382,96 @@ export async function updateJournalEntry(
     } catch (error: any) {
         console.error("Journal Update Error:", error)
         return { success: false, error: error?.message || "Failed to update journal entry" }
+    }
+}
+
+// ==========================================
+// JOURNAL ENTRY REVERSAL
+// ==========================================
+
+export async function reverseJournalEntry(journalEntryId: string) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            const original = await prisma.journalEntry.findUnique({
+                where: { id: journalEntryId },
+                include: {
+                    lines: {
+                        include: { account: true }
+                    }
+                }
+            })
+
+            if (!original) throw new Error("Jurnal tidak ditemukan")
+            if (original.status !== "POSTED") throw new Error("Hanya jurnal POSTED yang dapat dibalik")
+            if (original.isReversed) throw new Error("Jurnal ini sudah dibalik")
+
+            // Check if fiscal period is closed for today's date (reversal date)
+            const reversalDate = new Date()
+            const reversalMonth = reversalDate.getMonth() + 1
+            const reversalYear = reversalDate.getFullYear()
+            const fiscalPeriod = await prisma.fiscalPeriod.findUnique({
+                where: { year_month: { year: reversalYear, month: reversalMonth } }
+            })
+            if (fiscalPeriod?.isClosed) {
+                throw new Error(`Periode fiskal ${fiscalPeriod.name} sudah ditutup. Tidak bisa posting jurnal balik ke periode ini.`)
+            }
+
+            let reversalId: string | undefined
+
+            await prisma.$transaction(async (tx) => {
+                // Create reversal entry with swapped debit/credit lines
+                const reversal = await tx.journalEntry.create({
+                    data: {
+                        date: reversalDate,
+                        description: `Pembalikan: ${original.description}`,
+                        reference: original.reference ? `REV-${original.reference}` : `REV-${journalEntryId.slice(0, 8)}`,
+                        status: 'POSTED',
+                        lines: {
+                            create: original.lines.map(line => ({
+                                accountId: line.accountId,
+                                debit: Number(line.credit),   // swap: original credit → reversal debit
+                                credit: Number(line.debit),   // swap: original debit → reversal credit
+                                description: `Pembalikan: ${line.description || original.description}`
+                            }))
+                        }
+                    }
+                })
+
+                reversalId = reversal.id
+
+                // Mark original as reversed, linking to reversal entry
+                await tx.journalEntry.update({
+                    where: { id: journalEntryId },
+                    data: {
+                        isReversed: true,
+                        reversedById: reversal.id
+                    }
+                })
+
+                // Update GL account balances (reverse the original impact)
+                for (const line of original.lines) {
+                    let balanceChange = 0
+                    const debit = Number(line.credit)   // swapped
+                    const credit = Number(line.debit)    // swapped
+
+                    if (['ASSET', 'EXPENSE'].includes(line.account.type)) {
+                        balanceChange = debit - credit
+                    } else {
+                        balanceChange = credit - debit
+                    }
+
+                    await tx.gLAccount.update({
+                        where: { id: line.accountId },
+                        data: { balance: { increment: balanceChange } }
+                    })
+                }
+            })
+
+            return { success: true, id: reversalId }
+        })
+    } catch (error: any) {
+        console.error("Journal Reversal Error:", error)
+        return { success: false, error: error?.message || "Gagal membalik jurnal" }
     }
 }
 

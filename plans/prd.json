@@ -210,7 +210,8 @@
       "id": "ACCT2-012",
       "title": "Immutable Posted Entries & Journal Reversal Mechanism",
       "priority": "low",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T18:20:00Z",
       "acceptance_criteria": [
         "In finance-gl.ts: add guard to prevent updating or deleting journal entries where status=POSTED — throw error 'Jurnal yang sudah diposting tidak dapat diubah — buat jurnal balik'",
         "New function reverseJournalEntry(journalEntryId) in finance-gl.ts that: creates a new journal entry with all debit/credit lines swapped (debits become credits, credits become debits), sets source_document_type to 'REVERSAL', sets description to 'Pembalikan: [original description]', stores reference to original entry",

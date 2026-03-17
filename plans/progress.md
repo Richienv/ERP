@@ -225,3 +225,21 @@ Project: ERP Textile (Indonesian SME)
   - Falls back to statementDate when item has no bankDate
   - Added 13 unit tests in __tests__/bank-recon-auto-gl.test.ts
 - **Tests:** 642/647 pass (5 pre-existing failures, 13 new tests added)
+
+### ACCT2-012: Immutable Posted Entries & Journal Reversal Mechanism — DONE
+- **Iterations:** 1
+- **Changes:**
+  - Added `isReversed` (Boolean, default false) and `reversedById` (String? @db.Uuid, unique) to JournalEntry model
+  - Added self-referential "JournalReversal" relation (one-to-one: reversedBy/reversalOf)
+  - Created migration 20260316210000_add_journal_reversal_fields
+  - Enhanced `updateJournalEntry()` guard: explicit POSTED check with "buat jurnal balik" message
+  - Added `reverseJournalEntry(journalEntryId)` function in finance-gl.ts:
+    - Validates: must be POSTED, must not already be reversed
+    - Creates new entry with all debit/credit lines swapped
+    - Sets description: "Pembalikan: [original]", reference: "REV-[original]"
+    - Auto-posts reversal (status=POSTED)
+    - Marks original: isReversed=true, reversedById pointing to reversal
+    - Updates GL balances correctly (net impact of original + reversal = zero)
+    - Checks fiscal period before posting reversal
+  - Added 20 unit tests in __tests__/journal-reversal.test.ts
+- **Tests:** 662/667 pass (5 pre-existing failures, 20 new tests added)
