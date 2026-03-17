@@ -132,3 +132,14 @@ Project: ERP Textile (Indonesian SME)
   - Added 12 unit tests in __tests__/fiscal-period-enforcement.test.ts covering: closed period blocking, open period allowing, missing period allowing, edge cases (first/last day, December month extraction), universal application to both manual and system entries
   - Fixed timezone issue: use `new Date(year, month, day)` instead of ISO strings to avoid UTC parsing shifting months
 - **Tests:** 556/561 pass (5 pre-existing failures, 12 new tests added)
+
+### ACCT2-005: GR/IR Clearing Account Flow — DONE
+- **Iterations:** 1
+- **Changes:**
+  - **inventory-gl.ts**: PO_RECEIVE now credits GR/IR Clearing (2150) instead of AP (2000). Removed unused GL_ACCOUNTS_PAYABLE constant.
+  - **inventory-gl.ts**: RETURN_OUT now debits GR/IR Clearing (2150) instead of AP (2000) — reversal of PO_RECEIVE.
+  - **finance-invoices.ts**: moveInvoiceToSent() now checks `purchaseOrderId` and whether goods were received via GRN (ACCEPTED status).
+  - For PO-linked bills with received goods: DR GR/IR Clearing (2150) instead of DR Expense (6900), ensuring 2150 nets to zero after both GRN receipt and bill posting.
+  - For non-PO bills (direct expense purchases): existing flow unchanged (DR 6900).
+- **Two-step flow:** GRN receipt: DR Inventory (1300), CR GR/IR (2150). Bill posting: DR GR/IR (2150), DR PPN (1330), CR AP (2000). Net: GR/IR = 0.
+- **Tests:** 556/561 pass (baseline unchanged, no regressions)

@@ -9,14 +9,14 @@ import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
  * keeping the balance sheet Inventory Asset account accurate.
  *
  * Accounting rules:
- *   PO_RECEIVE      → DR Inventory Asset (1300),  CR Accounts Payable (2000)
+ *   PO_RECEIVE      → DR Inventory Asset (1300),  CR GR/IR Clearing (2150)
  *   SO_SHIPMENT     → DR Cost of Goods Sold (5000), CR Inventory Asset (1300)
  *   PRODUCTION_OUT  → DR Work-in-Progress (1320),  CR Raw Materials (1310)
  *   ADJUSTMENT_IN   → DR Inventory Asset (1300),  CR Inventory Adjustment (8300)
  *   ADJUSTMENT_OUT  → DR Inventory Adjustment (8300), CR Inventory Asset (1300)
  *   SCRAP           → DR Loss/Write-off (8200),   CR Inventory Asset (1300)
  *   RETURN_IN       → DR Inventory Asset (1300),  CR COGS (5000) — reversal of SO_SHIPMENT
- *   RETURN_OUT      → DR AP (2000),               CR Inventory Asset (1300) — reversal of PO_RECEIVE
+ *   RETURN_OUT      → DR GR/IR Clearing (2150),   CR Inventory Asset (1300) — reversal of PO_RECEIVE
  *   TRANSFER        → No GL entry (intra-entity movement)
  */
 
@@ -50,7 +50,7 @@ export type PostInventoryGLParams = {
 const GL_INVENTORY_ASSET = SYS_ACCOUNTS.INVENTORY_ASSET
 const GL_RAW_MATERIALS = SYS_ACCOUNTS.RAW_MATERIALS
 const GL_WORK_IN_PROGRESS = SYS_ACCOUNTS.WIP
-const GL_ACCOUNTS_PAYABLE = SYS_ACCOUNTS.AP
+const GL_GR_IR_CLEARING = SYS_ACCOUNTS.GR_IR_CLEARING
 const GL_COGS = SYS_ACCOUNTS.COGS  // Fixed: was '5100', now '5000' (HPP)
 const GL_LOSS_WRITEOFF = SYS_ACCOUNTS.LOSS_WRITEOFF
 const GL_INVENTORY_ADJUSTMENT = SYS_ACCOUNTS.INV_ADJUSTMENT
@@ -149,11 +149,13 @@ export async function postInventoryGLEntry(
 
         switch (type) {
             case 'PO_RECEIVE': {
-                const [inv, ap] = await Promise.all([
+                // Two-step receipt: DR Inventory, CR GR/IR Clearing (2150)
+                // AP recognition happens later when vendor bill is posted
+                const [inv, grir] = await Promise.all([
                     findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
-                    findGLAccount(prisma, GL_ACCOUNTS_PAYABLE, 'Hutang', 'LIABILITY'),
+                    findGLAccount(prisma, GL_GR_IR_CLEARING, 'Barang Diterima', 'LIABILITY'),
                 ])
-                pair = { debitAccount: inv, creditAccount: ap }
+                pair = { debitAccount: inv, creditAccount: grir }
                 break
             }
             case 'SO_SHIPMENT': {
@@ -206,12 +208,12 @@ export async function postInventoryGLEntry(
                 break
             }
             case 'RETURN_OUT': {
-                // Reversal of PO_RECEIVE: DR AP, CR Inventory Asset
-                const [ap, inv] = await Promise.all([
-                    findGLAccount(prisma, GL_ACCOUNTS_PAYABLE, 'Hutang', 'LIABILITY'),
+                // Reversal of PO_RECEIVE: DR GR/IR Clearing (2150), CR Inventory Asset
+                const [grir, inv] = await Promise.all([
+                    findGLAccount(prisma, GL_GR_IR_CLEARING, 'Barang Diterima', 'LIABILITY'),
                     findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
                 ])
-                pair = { debitAccount: ap, creditAccount: inv }
+                pair = { debitAccount: grir, creditAccount: inv }
                 break
             }
             case 'CUT_CONSUME': {

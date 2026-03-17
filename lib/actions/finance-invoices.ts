@@ -756,6 +756,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                     id: true, number: true, dueDate: true,
                     totalAmount: true, subtotal: true, taxAmount: true,
                     type: true, status: true,
+                    purchaseOrderId: true,
                     customer: { select: { name: true } },
                     supplier: { select: { name: true } },
                 }
@@ -778,6 +779,18 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 }
             })
 
+            // For PO-linked bills, check if goods were received via GRN (for GR/IR clearing)
+            let goodsReceivedViaPO = false
+            if (existing.type === 'INV_IN' && existing.purchaseOrderId) {
+                const grnCount = await prisma.goodsReceivedNote.count({
+                    where: {
+                        purchaseOrderId: existing.purchaseOrderId,
+                        status: 'ACCEPTED',
+                    }
+                })
+                goodsReceivedViaPO = grnCount > 0
+            }
+
             return {
                 number: existing.number,
                 type: existing.type,
@@ -786,6 +799,8 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 taxAmount: Number(existing.taxAmount || 0),
                 customerName: existing.customer?.name,
                 supplierName: existing.supplier?.name,
+                purchaseOrderId: existing.purchaseOrderId,
+                goodsReceivedViaPO,
                 nextStatus,
                 dueDate,
                 issueDate: now,
@@ -826,14 +841,24 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                         lines,
                     })
                 } else {
-                    // AP Bill: DR Beban + DR PPN Masukan, CR Hutang Usaha
-                    // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
+                    // AP Bill: DR [expense account] + DR PPN Masukan, CR Hutang Usaha (AP)
+                    // For PO-linked bills with received goods: DR GR/IR Clearing (2150) instead of Expense
+                    //   → This clears the GR/IR suspense created when GRN was accepted (DR Inventory, CR GR/IR)
+                    //   → Net effect: GR/IR Clearing balance returns to zero after both GRN + bill
+                    // For non-PO bills (direct expense purchase): DR Expense (6900) as before
+                    const debitAccount = txResult.goodsReceivedViaPO
+                        ? SYS_ACCOUNTS.GR_IR_CLEARING
+                        : SYS_ACCOUNTS.EXPENSE_DEFAULT
+                    const debitLabel = txResult.goodsReceivedViaPO
+                        ? `GR/IR Clearing - ${txResult.number}`
+                        : `Beban - ${txResult.number}`
+
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                     if (txResult.taxAmount > 0) {
-                        lines.push({ accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT, debit: txResult.subtotal, credit: 0, description: `Beban - ${txResult.number}` })
+                        lines.push({ accountCode: debitAccount, debit: txResult.subtotal, credit: 0, description: debitLabel })
                         lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: txResult.taxAmount, credit: 0, description: `PPN Masukan - ${txResult.number}` })
                     } else {
-                        lines.push({ accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT, debit: txResult.totalAmount, credit: 0, description: `Beban - ${txResult.number}` })
+                        lines.push({ accountCode: debitAccount, debit: txResult.totalAmount, credit: 0, description: debitLabel })
                     }
                     lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: txResult.totalAmount, description: `Hutang - ${txResult.supplierName || 'Supplier'}` })
                     await postJournalEntry({

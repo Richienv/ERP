@@ -81,7 +81,8 @@
       "id": "ACCT2-005",
       "title": "GR/IR Clearing Account Flow — Two-Step Inventory Receipt",
       "priority": "high",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T17:50:00Z",
       "acceptance_criteria": [
         "SYS_ACCOUNTS.GR_IR_CLEARING ('2150') exists (from ACCT2-001)",
         "In GRN receipt GL posting (lib/actions/inventory-gl.ts or wherever PO_RECEIVE is handled): change journal from DR Inventory CR AP → DR Inventory (1300) CR GR/IR Clearing (2150)",
