@@ -143,3 +143,15 @@ Project: ERP Textile (Indonesian SME)
   - For non-PO bills (direct expense purchases): existing flow unchanged (DR 6900).
 - **Two-step flow:** GRN receipt: DR Inventory (1300), CR GR/IR (2150). Bill posting: DR GR/IR (2150), DR PPN (1330), CR AP (2000). Net: GR/IR = 0.
 - **Tests:** 556/561 pass (baseline unchanged, no regressions)
+
+### ACCT2-006: COGS Trigger on Sales Delivery — DONE
+- **Iterations:** 1
+- **Changes:**
+  - In moveInvoiceToSent() for INV_OUT invoices: after AR/Revenue journal, fetches invoice items with product details (costPrice, cogsAccount, inventoryAccount)
+  - For each stock item with costPrice > 0: generates COGS journal line (DR COGS, CR Inventory)
+  - Uses product-specific cogsAccountId/inventoryAccountId when set, falls back to SYS_ACCOUNTS.COGS (5000) / SYS_ACCOUNTS.INVENTORY_ASSET (1300)
+  - COGS journal is separate from AR/Revenue entry, with sourceDocumentType: 'COGS_RECOGNITION' and reference: 'COGS-{invoiceNumber}'
+  - Items without product (service lines), zero costPrice, or zero quantity are skipped with console.warn
+  - COGS failure does NOT block invoice posting (logged as warning, not thrown)
+  - Added 14 unit tests in __tests__/cogs-recognition.test.ts
+- **Tests:** 570/575 pass (5 pre-existing failures, 14 new tests added)

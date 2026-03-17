@@ -870,6 +870,73 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                     })
                 }
             }
+
+            // --- COGS Recognition for Sales Invoices with Stock Items ---
+            if (txResult.type === 'INV_OUT') {
+                try {
+                    const invoiceItems = await prisma.invoiceItem.findMany({
+                        where: { invoiceId },
+                        select: {
+                            quantity: true,
+                            product: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    costPrice: true,
+                                    productType: true,
+                                    cogsAccountId: true,
+                                    inventoryAccountId: true,
+                                    cogsAccount: { select: { code: true } },
+                                    inventoryAccount: { select: { code: true } },
+                                }
+                            }
+                        }
+                    })
+
+                    const cogsLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
+                    for (const item of invoiceItems) {
+                        if (!item.product) continue // service/text line — skip
+                        const cost = Number(item.product.costPrice || 0)
+                        if (cost <= 0) {
+                            console.warn(`COGS skipped for product ${item.product.name} (id: ${item.product.id}) — costPrice is ${cost}`)
+                            continue
+                        }
+                        const qty = Number(item.quantity || 0)
+                        if (qty <= 0) continue
+                        const cogsAmount = qty * cost
+
+                        const cogsCode = item.product.cogsAccount?.code || SYS_ACCOUNTS.COGS
+                        const invCode = item.product.inventoryAccount?.code || SYS_ACCOUNTS.INVENTORY_ASSET
+
+                        cogsLines.push({
+                            accountCode: cogsCode,
+                            debit: cogsAmount,
+                            credit: 0,
+                            description: `HPP - ${item.product.name} (${qty} x ${cost})`,
+                        })
+                        cogsLines.push({
+                            accountCode: invCode,
+                            debit: 0,
+                            credit: cogsAmount,
+                            description: `Persediaan keluar - ${item.product.name}`,
+                        })
+                    }
+
+                    if (cogsLines.length > 0) {
+                        await postJournalEntry({
+                            description: `HPP Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
+                            date: txResult.issueDate,
+                            reference: `COGS-${txResult.number}`,
+                            invoiceId: invoiceId,
+                            sourceDocumentType: 'COGS_RECOGNITION',
+                            lines: cogsLines,
+                        })
+                    }
+                } catch (cogsError: any) {
+                    // COGS failure should not block invoice — log warning but continue
+                    console.warn(`COGS journal failed for invoice ${txResult.number}:`, cogsError?.message)
+                }
+            }
         } catch (glError: any) {
             console.error("GL posting failed:", glError)
             // Revert invoice to DRAFT so user knows GL posting failed

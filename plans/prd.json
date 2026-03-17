@@ -99,7 +99,8 @@
       "id": "ACCT2-006",
       "title": "COGS Trigger on Sales Delivery — Auto-Post HPP from Item Master Config",
       "priority": "high",
-      "passes": false,
+      "passes": true,
+      "completed_at": "2026-03-16T17:52:00Z",
       "acceptance_criteria": [
         "When a sales invoice (INV_OUT) with STOCK_ITEM products is posted via moveInvoiceToSent(), automatically generate a COGS journal entry",
         "COGS journal: DR COGS account (product.cogsAccountId or fallback SYS_ACCOUNTS.COGS '5000'), CR Inventory account (product.inventoryAccountId or fallback SYS_ACCOUNTS.INVENTORY_ASSET '1300')",
