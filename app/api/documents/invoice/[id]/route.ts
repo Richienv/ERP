@@ -2,7 +2,19 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { prisma } from "@/lib/db"
 import { DocumentService } from "@/lib/services/document-service"
-import { formatRupiah } from "@/lib/utils"
+
+/**
+ * Format number as Indonesian thousands-separated string for Typst template.
+ * Returns plain number string WITHOUT "Rp" prefix — the template adds the prefix.
+ * Example: 5000000 → "5.000.000"
+ */
+function formatNumber(amount: number): string {
+    if (isNaN(amount)) return "0"
+    return new Intl.NumberFormat("id-ID", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount)
+}
 
 export async function GET(
     req: NextRequest,
@@ -35,6 +47,7 @@ export async function GET(
                         id: true,
                         name: true,
                         npwp: true,
+                        paymentTerm: true,
                     },
                 },
                 supplier: {
@@ -42,6 +55,7 @@ export async function GET(
                         id: true,
                         name: true,
                         address: true,
+                        paymentTerm: true,
                     },
                 },
                 items: {
@@ -85,28 +99,45 @@ export async function GET(
         }
 
         // 4. Map to template data
-        const subtotal = Number(invoice.subtotal)
-        const taxAmount = Number(invoice.taxAmount)
-        const discountAmount = Number(invoice.discountAmount)
-        const totalAmount = Number(invoice.totalAmount)
+        const subtotal = Number(invoice.subtotal ?? 0)
+        const taxAmount = Number(invoice.taxAmount ?? 0)
+        const discountAmount = Number(invoice.discountAmount ?? 0)
+        const totalAmount = Number(invoice.totalAmount ?? 0)
 
         const party = invoice.customer || invoice.supplier
         const partyNpwp = invoice.customer?.npwp || ""
 
+        // Map PaymentTerm enum to human-readable Indonesian text
+        const paymentTermRaw = invoice.customer?.paymentTerm || invoice.supplier?.paymentTerm || ""
+        const PAYMENT_TERM_LABELS: Record<string, string> = {
+            CASH: "Tunai",
+            NET_15: "Net 15 Hari",
+            NET_30: "Net 30 Hari",
+            NET_45: "Net 45 Hari",
+            NET_60: "Net 60 Hari",
+            NET_90: "Net 90 Hari",
+            COD: "Cash on Delivery",
+        }
+        const paymentTermLabel = PAYMENT_TERM_LABELS[paymentTermRaw] || ""
+
         const templateData = {
-            number: invoice.number,
-            status: invoice.status,
-            type: invoice.type,
-            issue_date: invoice.issueDate.toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-            }),
-            due_date: invoice.dueDate.toLocaleDateString("id-ID", {
-                day: "2-digit",
-                month: "long",
-                year: "numeric",
-            }),
+            number: invoice.number ?? "",
+            status: invoice.status ?? "DRAFT",
+            type: invoice.type ?? "INV_OUT",
+            issue_date: invoice.issueDate
+                ? invoice.issueDate.toLocaleDateString("id-ID", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                })
+                : "\u2014",
+            due_date: invoice.dueDate
+                ? invoice.dueDate.toLocaleDateString("id-ID", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                })
+                : "\u2014",
             seller: {
                 name: "PT. Textile ERP Indonesia",
                 npwp: "00.000.000.0-000.000",
@@ -117,22 +148,22 @@ export async function GET(
                 npwp: partyNpwp || "\u2014",
                 address: buyerAddress || "\u2014",
             },
-            items: invoice.items.map((item, idx) => ({
+            items: (invoice.items ?? []).map((item, idx) => ({
                 no: idx + 1,
-                description: item.product?.name || item.description,
+                description: item.product?.name || item.description || "\u2014",
                 code: item.product?.code || "",
-                qty: Number(item.quantity),
-                unit_price: formatRupiah(Number(item.unitPrice), false),
-                total: formatRupiah(Number(item.amount), false),
+                qty: Number(item.quantity ?? 0),
+                unit_price: formatNumber(Number(item.unitPrice ?? 0)),
+                total: formatNumber(Number(item.amount ?? 0)),
             })),
             summary: {
-                dpp: formatRupiah(subtotal, false),
-                ppn: formatRupiah(taxAmount, false),
-                discount: formatRupiah(discountAmount, false),
-                total: formatRupiah(totalAmount, false),
+                dpp: formatNumber(subtotal),
+                ppn: formatNumber(taxAmount),
+                discount: formatNumber(discountAmount),
+                total: formatNumber(totalAmount),
             },
             payment: {
-                terms: "",
+                terms: paymentTermLabel,
                 bank: "",
                 account_number: "",
                 account_name: "",
@@ -157,9 +188,9 @@ export async function GET(
         console.error("[Invoice PDF API] Error:", error)
         const message =
             error instanceof Error ? error.message : "Unknown error"
-        return new NextResponse(
-            `<html><body><h1>Error generating invoice PDF</h1><p>${message}</p></body></html>`,
-            { status: 500, headers: { "Content-Type": "text/html" } }
+        return NextResponse.json(
+            { error: `Gagal membuat PDF invoice: ${message}` },
+            { status: 500 }
         )
     }
 }

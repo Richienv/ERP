@@ -180,8 +180,8 @@
         }
       },
       align(center, text(size: 9pt, weight: "bold")[#format-num(get-field(item, "qty"))]),
-      align(right, text(size: 9pt, font: "Courier New")[#format-num(get-field(item, "unit_price"))]),
-      align(right, text(size: 9pt, weight: "bold", font: "Courier New")[#format-num(get-field(item, "total"))]),
+      align(right, text(size: 9pt, font: "Courier New")[Rp #safe-text(get-field(item, "unit_price"))]),
+      align(right, text(size: 9pt, weight: "bold", font: "Courier New")[Rp #safe-text(get-field(item, "total"))]),
     )
   }).flatten()
 )
@@ -203,15 +203,15 @@
       columns: (1fr, auto),
       gutter: 6pt,
       text(size: 9pt, fill: colors.text-light)[Dasar Pengenaan Pajak (DPP)],
-      align(right, text(size: 9pt, font: "Courier New")[#format-num(get-field(summary, "dpp"))]),
+      align(right, text(size: 9pt, font: "Courier New")[Rp #safe-text(get-field(summary, "dpp"))]),
       text(size: 9pt, fill: colors.text-light)[PPN (11%)],
-      align(right, text(size: 9pt, font: "Courier New")[#format-num(get-field(summary, "ppn"))]),
+      align(right, text(size: 9pt, font: "Courier New")[Rp #safe-text(get-field(summary, "ppn"))]),
       text(size: 9pt, fill: colors.text-light)[Diskon],
-      align(right, text(size: 9pt, font: "Courier New")[\- #format-num(get-field(summary, "discount"))]),
+      align(right, text(size: 9pt, font: "Courier New")[\- Rp #safe-text(get-field(summary, "discount"))]),
       line(length: 100%, stroke: 1pt + colors.primary),
       [],
       text(size: 11pt, weight: "black")[Total],
-      align(right, text(size: 11pt, weight: "black", font: "Courier New")[Rp #format-num(get-field(summary, "total"))]),
+      align(right, text(size: 11pt, weight: "black", font: "Courier New")[Rp #safe-text(get-field(summary, "total"))]),
     )
   ]
 ]
@@ -222,7 +222,7 @@
 // PAYMENT INFO
 // ============================================
 #let payment = get-field(data, "payment", default: (:))
-#let has-payment = get-field(payment, "bank") != ""
+#let has-payment = get-field(payment, "bank") != "" or get-field(payment, "terms") != ""
 
 #if has-payment {
   rect(
