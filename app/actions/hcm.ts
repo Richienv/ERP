@@ -13,11 +13,22 @@ import {
 import { withPrismaAuth } from '@/lib/db'
 import { assertRole, getAuthzUser } from '@/lib/authz'
 import { postJournalEntry } from '@/lib/actions/finance-gl'
+import { SYS_ACCOUNTS, ensureSystemAccounts } from '@/lib/gl-accounts'
 import {
     calculateBPJS,
     calculateMonthlyPPh21,
     calculateWorkdayOvertimePay,
     STANDARD_DAILY_HOURS,
+    BPJS_KES_EMPLOYEE_RATE,
+    BPJS_KES_EMPLOYER_RATE,
+    BPJS_KES_MAX_SALARY,
+    BPJS_JHT_EMPLOYEE_RATE,
+    BPJS_JHT_EMPLOYER_RATE,
+    BPJS_JP_EMPLOYEE_RATE,
+    BPJS_JP_EMPLOYER_RATE,
+    BPJS_JP_MAX_SALARY,
+    BPJS_JKK_RATE,
+    BPJS_JKM_RATE,
 } from '@/lib/hcm-calculations'
 
 const LEAVE_APPROVAL_PREFIX = 'LEAVE_APPROVAL::'
@@ -1600,8 +1611,7 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
                 }
             }
 
-            const accounts = await resolvePayrollAccounts(prisma)
-            if (!accounts.success) return { success: false, error: accounts.error }
+            await ensureSystemAccounts()
 
             const year = new Date().getFullYear()
             const paymentCount = await prisma.payment.count({
@@ -1638,13 +1648,13 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
                 reference: disbursementJournalRef,
                 lines: [
                     {
-                        accountCode: accounts.data.payrollPayableCode,
+                        accountCode: SYS_ACCOUNTS.PAYROLL_PAYABLE,
                         debit: payload.summary.net,
                         credit: 0,
                         description: `Pelunasan utang gaji ${payload.periodLabel}`,
                     },
                     {
-                        accountCode: accounts.data.cashCode,
+                        accountCode: SYS_ACCOUNTS.BANK_BCA,
                         debit: 0,
                         credit: payload.summary.net,
                         description: `Pembayaran payroll ${payload.periodLabel}`,
@@ -1792,15 +1802,70 @@ export async function approvePayrollRun(period: string) {
                 }
             }
 
-            const accounts = await resolvePayrollAccounts(prisma)
-            if (!accounts.success) return { success: false, error: accounts.error }
+            // Ensure all payroll GL accounts exist before posting
+            await ensureSystemAccounts()
 
             const payrollLines = payload.lines || []
-            const bpjsTotal = payrollLines.reduce(
-                (sum, line) => sum + line.bpjsKesehatan + line.bpjsKetenagakerjaan,
-                0
-            )
-            const taxTotal = payrollLines.reduce((sum, line) => sum + line.pph21, 0)
+
+            // --- Aggregate employee-side deductions from stored payroll lines ---
+            const pph21Total = payrollLines.reduce((sum, l) => sum + l.pph21, 0)
+            const empKesTotal = payrollLines.reduce((sum, l) => sum + l.bpjsKesehatan, 0)
+            const empJHTTotal = payrollLines.reduce((sum, l) => sum + l.bpjsJHT, 0)
+            const empJPTotal = payrollLines.reduce((sum, l) => sum + l.bpjsJP, 0)
+
+            // --- Recalculate employer BPJS from basicSalary (not stored in payload) ---
+            let erKesTotal = 0
+            let erJHTTotal = 0
+            let erJPTotal = 0
+            let erJKKTotal = 0
+            let erJKMTotal = 0
+            for (const l of payrollLines) {
+                const kesSalary = Math.min(l.basicSalary, BPJS_KES_MAX_SALARY)
+                erKesTotal += Math.round(kesSalary * BPJS_KES_EMPLOYER_RATE)
+                erJHTTotal += Math.round(l.basicSalary * BPJS_JHT_EMPLOYER_RATE)
+                const jpSalary = Math.min(l.basicSalary, BPJS_JP_MAX_SALARY)
+                erJPTotal += Math.round(jpSalary * BPJS_JP_EMPLOYER_RATE)
+                erJKKTotal += Math.round(l.basicSalary * BPJS_JKK_RATE)
+                erJKMTotal += Math.round(l.basicSalary * BPJS_JKM_RATE)
+            }
+            const employerBPJSTotal = erKesTotal + erJHTTotal + erJPTotal + erJKKTotal + erJKMTotal
+
+            // --- BPJS payable totals (employee + employer combined per program) ---
+            const bpjsKesPayable = empKesTotal + erKesTotal
+            const bpjsJHTPayable = empJHTTotal + erJHTTotal
+            const bpjsJPPayable = empJPTotal + erJPTotal
+            const bpjsJKKPayable = erJKKTotal   // employer-only
+            const bpjsJKMPayable = erJKMTotal   // employer-only
+
+            // --- Build journal lines ---
+            // DEBIT side:
+            //   Beban Gaji (6200)              = gross
+            //   Beban BPJS Perusahaan (6210)   = employer BPJS total
+            // CREDIT side:
+            //   Hutang Gaji (2130)             = net
+            //   Hutang PPh 21 (2111)           = PPh 21
+            //   Hutang BPJS Kes (2140)         = employee + employer Kes
+            //   Hutang BPJS JHT (2141)         = employee + employer JHT
+            //   Hutang BPJS JP (2142)          = employee + employer JP
+            //   Hutang BPJS JKK (2143)         = employer JKK
+            //   Hutang BPJS JKM (2144)         = employer JKM
+            //
+            // Balance check:
+            //   gross + employerBPJS = net + pph21 + bpjsKes + bpjsJHT + bpjsJP + bpjsJKK + bpjsJKM
+
+            const totalDebit = payload.summary.gross + employerBPJSTotal
+            const totalCredit = payload.summary.net + pph21Total
+                + bpjsKesPayable + bpjsJHTPayable + bpjsJPPayable
+                + bpjsJKKPayable + bpjsJKMPayable
+
+            // Safety: verify balance before posting (should always match if payroll calc is correct)
+            if (Math.abs(totalDebit - totalCredit) > 1) {
+                console.error(`Payroll GL imbalance: debit=${totalDebit}, credit=${totalCredit}, diff=${totalDebit - totalCredit}`)
+                return {
+                    success: false,
+                    error: `Jurnal payroll tidak seimbang (selisih Rp ${Math.abs(totalDebit - totalCredit).toLocaleString('id-ID')}). Periksa data payroll.`,
+                }
+            }
 
             const lines: Array<{
                 accountCode: string
@@ -1808,35 +1873,90 @@ export async function approvePayrollRun(period: string) {
                 credit: number
                 description?: string
             }> = [
+                // DEBIT: Salary expense
                 {
-                    accountCode: accounts.data.expenseCode,
+                    accountCode: SYS_ACCOUNTS.SALARY_EXPENSE,
                     debit: payload.summary.gross,
                     credit: 0,
-                    description: `Beban payroll ${payload.periodLabel}`,
-                },
-                {
-                    accountCode: accounts.data.payrollPayableCode,
-                    debit: 0,
-                    credit: payload.summary.net,
-                    description: `Utang gaji ${payload.periodLabel}`,
+                    description: `Beban gaji ${payload.periodLabel}`,
                 },
             ]
 
-            if (bpjsTotal > 0) {
+            // DEBIT: Employer BPJS expense (only if > 0)
+            if (employerBPJSTotal > 0) {
                 lines.push({
-                    accountCode: accounts.data.bpjsCode,
-                    debit: 0,
-                    credit: bpjsTotal,
-                    description: `Kewajiban BPJS ${payload.periodLabel}`,
+                    accountCode: SYS_ACCOUNTS.BPJS_EMPLOYER_EXPENSE,
+                    debit: employerBPJSTotal,
+                    credit: 0,
+                    description: `Beban BPJS perusahaan ${payload.periodLabel}`,
                 })
             }
 
-            if (taxTotal > 0) {
+            // CREDIT: Net salary payable
+            lines.push({
+                accountCode: SYS_ACCOUNTS.PAYROLL_PAYABLE,
+                debit: 0,
+                credit: payload.summary.net,
+                description: `Hutang gaji karyawan ${payload.periodLabel}`,
+            })
+
+            // CREDIT: PPh 21 payable
+            if (pph21Total > 0) {
                 lines.push({
-                    accountCode: accounts.data.taxCode,
+                    accountCode: SYS_ACCOUNTS.PPH21_PAYABLE,
                     debit: 0,
-                    credit: taxTotal,
-                    description: `Kewajiban PPh21 ${payload.periodLabel}`,
+                    credit: pph21Total,
+                    description: `Hutang PPh 21 ${payload.periodLabel}`,
+                })
+            }
+
+            // CREDIT: BPJS Kesehatan payable (employee 1% + employer 4%)
+            if (bpjsKesPayable > 0) {
+                lines.push({
+                    accountCode: SYS_ACCOUNTS.BPJS_KES_PAYABLE,
+                    debit: 0,
+                    credit: bpjsKesPayable,
+                    description: `Hutang BPJS Kesehatan ${payload.periodLabel}`,
+                })
+            }
+
+            // CREDIT: BPJS JHT payable (employee 2% + employer 3.7%)
+            if (bpjsJHTPayable > 0) {
+                lines.push({
+                    accountCode: SYS_ACCOUNTS.BPJS_JHT_PAYABLE,
+                    debit: 0,
+                    credit: bpjsJHTPayable,
+                    description: `Hutang BPJS JHT ${payload.periodLabel}`,
+                })
+            }
+
+            // CREDIT: BPJS JP payable (employee 1% + employer 2%)
+            if (bpjsJPPayable > 0) {
+                lines.push({
+                    accountCode: SYS_ACCOUNTS.BPJS_JP_PAYABLE,
+                    debit: 0,
+                    credit: bpjsJPPayable,
+                    description: `Hutang BPJS JP ${payload.periodLabel}`,
+                })
+            }
+
+            // CREDIT: BPJS JKK payable (employer 0.89%)
+            if (bpjsJKKPayable > 0) {
+                lines.push({
+                    accountCode: SYS_ACCOUNTS.BPJS_JKK_PAYABLE,
+                    debit: 0,
+                    credit: bpjsJKKPayable,
+                    description: `Hutang BPJS JKK ${payload.periodLabel}`,
+                })
+            }
+
+            // CREDIT: BPJS JKM payable (employer 0.3%)
+            if (bpjsJKMPayable > 0) {
+                lines.push({
+                    accountCode: SYS_ACCOUNTS.BPJS_JKM_PAYABLE,
+                    debit: 0,
+                    credit: bpjsJKMPayable,
+                    description: `Hutang BPJS JKM ${payload.periodLabel}`,
                 })
             }
 

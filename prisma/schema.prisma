@@ -1056,6 +1056,10 @@ model Supplier {
   bankAccountNumber String?
   bankAccountName   String?
 
+  // PPh 23 Withholding Tax
+  pph23Rate       Decimal?  @db.Decimal(5, 2)  // Default 2% for services, 15% for dividends
+  isServiceVendor Boolean   @default(false)     // Flag for PPh 23 applicability
+
   isActive Boolean @default(true)
 
   purchaseOrders       PurchaseOrder[]
@@ -1846,6 +1850,8 @@ model Payment {
   amount    Decimal       @db.Decimal(15, 2)
   method    PaymentMethod @default(TRANSFER)
   reference String? // Cheque Num, Transfer Ref
+
+  pph23Amount Decimal? @default(0) @db.Decimal(15, 2) // PPh 23 withholding amount (if applicable)
 
   notes String?
 

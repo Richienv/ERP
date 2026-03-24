@@ -371,6 +371,17 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
 
 /**
  * Record a vendor payment (pay a bill)
+ *
+ * PPh 23 withholding logic:
+ * If the supplier has isServiceVendor === true AND pph23Rate > 0,
+ * the system withholds PPh 23 from the payment:
+ *   withholding = paymentAmount x (pph23Rate / 100)
+ *   netPayment  = paymentAmount - withholding
+ *
+ * GL entry becomes:
+ *   DR  AP (2000)            = paymentAmount   (full invoice amount settled)
+ *     CR  Bank/Cash          = netPayment      (actual cash out)
+ *     CR  PPh 23 Payable     = withholding     (tax liability to remit to DJP)
  */
 export async function recordVendorPayment(data: {
     supplierId: string
@@ -393,6 +404,24 @@ export async function recordVendorPayment(data: {
                 throw new Error("Check number/reference is required for CHECK payments")
             }
 
+            // Fetch supplier to check PPh 23 applicability
+            const supplier = await prisma.supplier.findUnique({
+                where: { id: data.supplierId },
+                select: { isServiceVendor: true, pph23Rate: true, name: true }
+            })
+            if (!supplier) {
+                throw new Error("Supplier tidak ditemukan")
+            }
+
+            // Calculate PPh 23 withholding
+            const pph23Rate = supplier.isServiceVendor && supplier.pph23Rate
+                ? Number(supplier.pph23Rate)
+                : 0
+            const pph23Amount = pph23Rate > 0
+                ? Math.round(data.amount * (pph23Rate / 100))
+                : 0
+            const netPayment = data.amount - pph23Amount
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -406,10 +435,13 @@ export async function recordVendorPayment(data: {
                     supplierId: data.supplierId,
                     invoiceId: data.billId,
                     amount: data.amount,
+                    pph23Amount: pph23Amount > 0 ? pph23Amount : 0,
                     date: new Date(),
                     method: data.method || 'TRANSFER',
                     reference: data.reference,
-                    notes: data.notes
+                    notes: pph23Amount > 0
+                        ? `${data.notes || ''} [PPh 23: ${pph23Rate}% = Rp ${pph23Amount.toLocaleString('id-ID')}]`.trim()
+                        : data.notes
                 }
             })
 
@@ -424,11 +456,17 @@ export async function recordVendorPayment(data: {
                         action: "CREATE",
                         userId: authUser.id,
                         userName: authUser.email || undefined,
+                        changes: pph23Amount > 0 ? {
+                            pph23Rate: { from: null, to: `${pph23Rate}%` },
+                            pph23Amount: { from: 0, to: pph23Amount },
+                            netPayment: { from: data.amount, to: netPayment },
+                        } : undefined,
                     })
                 }
             } catch { /* audit is best-effort */ }
 
             // If linked to bill, update bill balance
+            // The full amount (before withholding) settles the bill — PPh 23 is the vendor's tax obligation
             if (data.billId) {
                 const bill = await prisma.invoice.findUnique({
                     where: { id: data.billId }
@@ -445,27 +483,46 @@ export async function recordVendorPayment(data: {
                 }
             }
 
-            // Post GL entry: DR AP, CR Cash/Bank
+            // Post GL entry
+            await ensureSystemAccounts()
             const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
             const bankAccount = await prisma.gLAccount.findFirst({
                 where: { code: bankCode },
                 select: { name: true }
             })
             const bankAccountName = bankAccount?.name || 'Kas Besar'
+
+            // Build GL lines — PPh 23 splits the credit side
+            const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = [
+                { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Hutang Usaha' },
+                { accountCode: bankCode, debit: 0, credit: netPayment, description: bankAccountName },
+            ]
+            if (pph23Amount > 0) {
+                glLines.push({
+                    accountCode: SYS_ACCOUNTS.PPH23_PAYABLE,
+                    debit: 0,
+                    credit: pph23Amount,
+                    description: `PPh 23 (${pph23Rate}%) - ${supplier.name}`
+                })
+            }
+
             const glResult = await postJournalEntry({
-                description: `Vendor Payment ${paymentNumber}`,
+                description: `Vendor Payment ${paymentNumber}${pph23Amount > 0 ? ` (PPh 23: Rp ${pph23Amount.toLocaleString('id-ID')})` : ''}`,
                 date: new Date(),
                 reference: paymentNumber,
-                lines: [
-                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Hutang Usaha' },
-                    { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
-                ]
+                lines: glLines
             })
             if (!glResult?.success) {
                 console.error("GL posting failed for vendor payment:", (glResult as any)?.error)
             }
 
-            return { success: true, paymentId: payment.id, paymentNumber }
+            return {
+                success: true,
+                paymentId: payment.id,
+                paymentNumber,
+                pph23Amount,
+                netPayment,
+            }
         })
     } catch (error: any) {
         console.error("Failed to record vendor payment:", error)

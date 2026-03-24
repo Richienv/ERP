@@ -112,6 +112,8 @@ async function postJournalWithBalanceUpdate(
     }
 }
 
+const MONTHLY_WORK_MINUTES = 172 * 60 // 10,320 minutes (UU Ketenagakerjaan)
+
 async function executeProductionPosting(
     tx: Prisma.TransactionClient,
     params: {
@@ -252,7 +254,47 @@ async function executeProductionPosting(
         })
     }
 
-    const fgUnitCost = params.quantityProduced > 0 ? totalMaterialCost / params.quantityProduced : 0
+    // ---- Calculate labor + overhead costs from Production BOM steps ----
+    let laborCost = 0
+    let overheadCost = 0
+
+    if (workOrder.productionBomId) {
+        const steps = await tx.productionBOMStep.findMany({
+            where: { bomId: workOrder.productionBomId },
+            select: {
+                laborMonthlySalary: true,
+                durationMinutes: true,
+                actualTimeTotal: true,
+                useSubkon: true,
+                station: {
+                    select: { overheadPct: true, operationType: true, costPerUnit: true },
+                },
+            },
+        })
+
+        for (const step of steps) {
+            const isSubkon =
+                step.useSubkon ?? step.station?.operationType === 'SUBCONTRACTOR'
+            if (isSubkon) continue
+
+            const salary = Number(step.laborMonthlySalary || 0)
+            const actualTime = Number(step.actualTimeTotal || 0)
+            const estTime = Number(step.durationMinutes || 0) * params.quantityProduced
+
+            const timeUsed = actualTime > 0 ? actualTime : estTime
+            const labor =
+                salary > 0 && timeUsed > 0
+                    ? (salary * timeUsed) / MONTHLY_WORK_MINUTES
+                    : Number(step.station?.costPerUnit || 0) * params.quantityProduced
+            laborCost += labor
+
+            const pct = Number(step.station?.overheadPct || 0)
+            if (pct > 0) overheadCost += (labor * pct) / 100
+        }
+    }
+
+    const totalProductionCost = totalMaterialCost + laborCost + overheadCost
+    const fgUnitCost = params.quantityProduced > 0 ? totalProductionCost / params.quantityProduced : 0
     const productionInTx = await tx.inventoryTransaction.create({
         data: {
             productId: workOrder.productId,
@@ -261,35 +303,65 @@ async function executeProductionPosting(
             type: 'PRODUCTION_IN',
             quantity: params.quantityProduced,
             unitCost: fgUnitCost,
-            totalValue: totalMaterialCost,
+            totalValue: totalProductionCost,
             performedBy: params.performedBy,
             notes: params.note || `WO ${workOrder.number} finished goods receipt`,
         },
     })
 
+    // ---- GL Postings ----
+    // Step 1: DR WIP, CR Raw Materials (material cost)
     if (totalMaterialCost > 0) {
         await postJournalWithBalanceUpdate(tx, {
             description: `WO ${workOrder.number} - Material to WIP`,
             reference: workOrder.number,
             inventoryTransactionId: lastProductionOutTx?.id,
             lines: [
-                { accountCode: SYS_ACCOUNTS.WIP, debit: totalMaterialCost, credit: 0, description: 'WIP increase' },
-                { accountCode: SYS_ACCOUNTS.RAW_MATERIALS, debit: 0, credit: totalMaterialCost, description: 'Raw material decrease' },
+                { accountCode: SYS_ACCOUNTS.WIP, debit: totalMaterialCost, credit: 0, description: 'Bahan baku masuk WIP' },
+                { accountCode: SYS_ACCOUNTS.RAW_MATERIALS, debit: 0, credit: totalMaterialCost, description: 'Penurunan bahan baku' },
             ],
         })
+    }
 
+    // Step 2: DR WIP, CR Wages Payable (labor cost)
+    if (laborCost > 0) {
+        await postJournalWithBalanceUpdate(tx, {
+            description: `WO ${workOrder.number} - Labor to WIP`,
+            reference: workOrder.number,
+            lines: [
+                { accountCode: SYS_ACCOUNTS.WIP, debit: laborCost, credit: 0, description: 'Tenaga kerja langsung masuk WIP' },
+                { accountCode: SYS_ACCOUNTS.WAGES_PAYABLE, debit: 0, credit: laborCost, description: 'Hutang upah produksi' },
+            ],
+        })
+    }
+
+    // Step 3: DR WIP, CR MFG OH Applied (overhead cost)
+    if (overheadCost > 0) {
+        await postJournalWithBalanceUpdate(tx, {
+            description: `WO ${workOrder.number} - Overhead to WIP`,
+            reference: workOrder.number,
+            lines: [
+                { accountCode: SYS_ACCOUNTS.WIP, debit: overheadCost, credit: 0, description: 'Overhead pabrik masuk WIP' },
+                { accountCode: SYS_ACCOUNTS.MFG_OH_APPLIED, debit: 0, credit: overheadCost, description: 'Overhead pabrik dibebankan' },
+            ],
+        })
+    }
+
+    // Step 4: DR Finished Goods, CR WIP (total production cost — material + labor + overhead)
+    // This zeroes out WIP for this production run.
+    if (totalProductionCost > 0) {
         await postJournalWithBalanceUpdate(tx, {
             description: `WO ${workOrder.number} - WIP to Finished Goods`,
             reference: workOrder.number,
             inventoryTransactionId: productionInTx.id,
             lines: [
-                { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: totalMaterialCost, credit: 0, description: 'Finished goods increase' },
-                { accountCode: SYS_ACCOUNTS.WIP, debit: 0, credit: totalMaterialCost, description: 'WIP release' },
+                { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: totalProductionCost, credit: 0, description: 'Barang jadi masuk persediaan' },
+                { accountCode: SYS_ACCOUNTS.WIP, debit: 0, credit: totalProductionCost, description: 'WIP selesai ke barang jadi' },
             ],
         })
     }
 
-    return { workOrder, totalMaterialCost }
+    return { workOrder, totalMaterialCost, laborCost, overheadCost, totalProductionCost }
 }
 
 async function executeProductionReturn(

@@ -30,15 +30,28 @@ export const SYS_ACCOUNTS = {
 
   // --- Tax Assets ---
   PPN_MASUKAN:    "1330",  // PPN Masukan (Input VAT) — added to seed
+  PPH23_PREPAID:  "1340",  // PPh 23 Dibayar Dimuka (when we are withheld by customer)
 
   // --- Payables ---
   AP:             "2000",  // Hutang Usaha / Utang Usaha (seed: 2000)
 
   // --- Tax Liabilities ---
-  PPN_KELUARAN:   "2110",  // Utang Pajak PPN/PPh (seed: 2110)
+  PPN_KELUARAN:   "2110",  // Utang Pajak PPN Keluaran
+  PPH21_PAYABLE:  "2111",  // Hutang PPh 21 (employee income tax)
+  PPH23_PAYABLE:  "2112",  // Hutang PPh 23 (service withholding tax)
 
   // --- Deferred Revenue ---
   DEFERRED_REV:   "2121",  // Pendapatan Diterima Dimuka
+
+  // --- Payroll Liabilities ---
+  PAYROLL_PAYABLE:  "2130",  // Hutang Gaji Karyawan
+  BPJS_KES_PAYABLE: "2140",  // Hutang BPJS Kesehatan
+  BPJS_JHT_PAYABLE: "2141",  // Hutang BPJS JHT
+  BPJS_JP_PAYABLE:  "2142",  // Hutang BPJS JP
+  BPJS_JKK_PAYABLE: "2143",  // Hutang BPJS JKK
+  BPJS_JKM_PAYABLE: "2144",  // Hutang BPJS JKM
+  WAGES_PAYABLE:    "2150",  // Hutang Upah Produksi
+  MFG_OH_APPLIED:   "2160",  // Overhead Pabrik Dibebankan
 
   // --- Equity ---
   RETAINED_EARNINGS: "3100", // Laba Ditahan (for opening balances)
@@ -49,8 +62,12 @@ export const SYS_ACCOUNTS = {
 
   // --- COGS ---
   COGS:           "5000",  // Beban Pokok Penjualan / HPP (seed: 5000)
+  DIRECT_LABOR:   "5110",  // Beban Tenaga Kerja Langsung (manufacturing)
+  MFG_OVERHEAD:   "5120",  // Beban Overhead Pabrik (manufacturing)
 
   // --- Expenses ---
+  SALARY_EXPENSE:       "6200",  // Beban Gaji & Upah
+  BPJS_EMPLOYER_EXPENSE:"6210",  // Beban BPJS Perusahaan (employer portion)
   EXPENSE_DEFAULT:"6900",  // Beban Lain-lain (generic expense for AP bills)
                            // NOT 6000 — Raymond's DB has 6000 as LIABILITY "Accrued Expenses"
   DEPRECIATION:   "6290",  // Beban Penyusutan (seed: 6290)
@@ -73,14 +90,29 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.RAW_MATERIALS,   name: "Persediaan Bahan Baku",           type: "ASSET" },
   { code: SYS_ACCOUNTS.WIP,             name: "Persediaan Dalam Proses (WIP)",   type: "ASSET" },
   { code: SYS_ACCOUNTS.PPN_MASUKAN,      name: "PPN Masukan (Input VAT)",       type: "ASSET" },
+  { code: SYS_ACCOUNTS.PPH23_PREPAID,    name: "PPh 23 Dibayar Dimuka",        type: "ASSET" },
   { code: SYS_ACCOUNTS.ACC_DEPRECIATION, name: "Akumulasi Penyusutan",          type: "ASSET" },
   { code: SYS_ACCOUNTS.AP,               name: "Utang Usaha (AP)",              type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.PPN_KELUARAN,     name: "Utang Pajak (PPN/PPh)",         type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PPN_KELUARAN,     name: "Utang Pajak PPN Keluaran",     type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PPH21_PAYABLE,    name: "Hutang PPh 21",                type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PPH23_PAYABLE,    name: "Hutang PPh 23",                type: "LIABILITY" },
   { code: SYS_ACCOUNTS.DEFERRED_REV,     name: "Pendapatan Diterima Dimuka",    type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PAYROLL_PAYABLE,  name: "Hutang Gaji Karyawan",         type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.BPJS_KES_PAYABLE, name: "Hutang BPJS Kesehatan",       type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.BPJS_JHT_PAYABLE, name: "Hutang BPJS JHT",            type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.BPJS_JP_PAYABLE,  name: "Hutang BPJS JP",             type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.BPJS_JKK_PAYABLE, name: "Hutang BPJS JKK",            type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.BPJS_JKM_PAYABLE, name: "Hutang BPJS JKM",            type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.WAGES_PAYABLE,    name: "Hutang Upah Produksi",        type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.MFG_OH_APPLIED,   name: "Overhead Pabrik Dibebankan",  type: "LIABILITY" },
   { code: SYS_ACCOUNTS.RETAINED_EARNINGS, name: "Laba Ditahan",                  type: "EQUITY" },
   { code: SYS_ACCOUNTS.OPENING_EQUITY,    name: "Saldo Awal Ekuitas",             type: "EQUITY" },
   { code: SYS_ACCOUNTS.REVENUE,          name: "Pendapatan Penjualan",          type: "REVENUE" },
   { code: SYS_ACCOUNTS.COGS,             name: "Beban Pokok Penjualan (HPP)",   type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.DIRECT_LABOR,     name: "Beban Tenaga Kerja Langsung",  type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.MFG_OVERHEAD,     name: "Beban Overhead Pabrik",        type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.SALARY_EXPENSE,   name: "Beban Gaji & Upah",           type: "EXPENSE" },
+  { code: SYS_ACCOUNTS.BPJS_EMPLOYER_EXPENSE, name: "Beban BPJS Perusahaan",  type: "EXPENSE" },
   { code: SYS_ACCOUNTS.EXPENSE_DEFAULT,  name: "Beban Lain-lain",              type: "EXPENSE" },
   { code: SYS_ACCOUNTS.DEPRECIATION,     name: "Beban Penyusutan",              type: "EXPENSE" },
   { code: SYS_ACCOUNTS.LOSS_WRITEOFF,   name: "Kerugian / Penghapusan",          type: "EXPENSE" },

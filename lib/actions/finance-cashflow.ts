@@ -4,6 +4,16 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import type { CashflowDirection, CashflowCategory, ProcurementStatus } from "@prisma/client"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import {
+    BPJS_KES_EMPLOYEE_RATE,
+    BPJS_KES_EMPLOYER_RATE,
+    BPJS_JHT_EMPLOYEE_RATE,
+    BPJS_JHT_EMPLOYER_RATE,
+    BPJS_JP_EMPLOYEE_RATE,
+    BPJS_JP_EMPLOYER_RATE,
+    BPJS_JKK_RATE,
+    BPJS_JKM_RATE,
+} from "@/lib/hcm-calculations"
 
 // ================================
 // Types
@@ -238,8 +248,9 @@ async function getBPJSItems(month: number, year: number): Promise<CashflowItem[]
 
     const items: CashflowItem[] = []
 
-    // BPJS Kesehatan: 4% of total salary
-    const kesehatanAmount = totalSalary * 0.04
+    // BPJS Kesehatan: employee (1%) + employer (4%) = 5% of total salary
+    const kesehatanRate = BPJS_KES_EMPLOYEE_RATE + BPJS_KES_EMPLOYER_RATE
+    const kesehatanAmount = totalSalary * kesehatanRate
     if (kesehatanAmount > 0) {
         items.push({
             id: `bpjs-kes-${year}-${month}`,
@@ -253,8 +264,11 @@ async function getBPJSItems(month: number, year: number): Promise<CashflowItem[]
         })
     }
 
-    // BPJS Ketenagakerjaan: 5.74% of total salary
-    const ketenagakerjaanAmount = totalSalary * 0.0574
+    // BPJS Ketenagakerjaan: JHT (2%+3.7%) + JP (1%+2%) + JKK (0.89%) + JKM (0.3%) = 9.89%
+    const ketenagakerjaanRate = BPJS_JHT_EMPLOYEE_RATE + BPJS_JHT_EMPLOYER_RATE
+        + BPJS_JP_EMPLOYEE_RATE + BPJS_JP_EMPLOYER_RATE
+        + BPJS_JKK_RATE + BPJS_JKM_RATE
+    const ketenagakerjaanAmount = totalSalary * ketenagakerjaanRate
     if (ketenagakerjaanAmount > 0) {
         items.push({
             id: `bpjs-tk-${year}-${month}`,
@@ -1298,8 +1312,10 @@ export async function getUpcomingObligations(days: number = 90): Promise<Upcomin
 
             if (bpjsDate >= today && bpjsDate <= endDate) {
                 const monthName = await getMonthName(m)
-                const kesehatanAmt = totalSalary * 0.04
-                const tkAmt = totalSalary * 0.0574
+                const kesehatanAmt = totalSalary * (BPJS_KES_EMPLOYEE_RATE + BPJS_KES_EMPLOYER_RATE)
+                const tkAmt = totalSalary * (BPJS_JHT_EMPLOYEE_RATE + BPJS_JHT_EMPLOYER_RATE
+                    + BPJS_JP_EMPLOYEE_RATE + BPJS_JP_EMPLOYER_RATE
+                    + BPJS_JKK_RATE + BPJS_JKM_RATE)
 
                 if (kesehatanAmt > 0) {
                     bpjsItems.push({

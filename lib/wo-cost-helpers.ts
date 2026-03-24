@@ -101,4 +101,6 @@ export async function calculateActualCostOnCompletion(
                     : null,
         },
     })
+
+    return { materialCost, laborCost, overheadCost, actualCostTotal }
 }

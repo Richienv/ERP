@@ -12,6 +12,7 @@ import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
  *   PO_RECEIVE      → DR Inventory Asset (1300),  CR Accounts Payable (2000)
  *   SO_SHIPMENT     → DR Cost of Goods Sold (5000), CR Inventory Asset (1300)
  *   PRODUCTION_OUT  → DR Work-in-Progress (1320),  CR Raw Materials (1310)
+ *   PRODUCTION_IN   → DR Inventory Asset (1300),  CR Work-in-Progress (1320)
  *   ADJUSTMENT_IN   → DR Inventory Asset (1300),  CR Inventory Adjustment (8300)
  *   ADJUSTMENT_OUT  → DR Inventory Adjustment (8300), CR Inventory Asset (1300)
  *   SCRAP           → DR Loss/Write-off (8200),   CR Inventory Asset (1300)
@@ -26,6 +27,7 @@ export type InventoryGLType =
     | 'PO_RECEIVE'
     | 'SO_SHIPMENT'
     | 'PRODUCTION_OUT'
+    | 'PRODUCTION_IN'
     | 'ADJUSTMENT_IN'
     | 'ADJUSTMENT_OUT'
     | 'SCRAP'
@@ -66,6 +68,8 @@ function glDescription(type: InventoryGLType, productName: string, ref?: string)
             return `Pengiriman barang (HPP) - ${productName}${suffix}`
         case 'PRODUCTION_OUT':
             return `Konsumsi bahan baku produksi - ${productName}${suffix}`
+        case 'PRODUCTION_IN':
+            return `Penerimaan barang jadi dari produksi - ${productName}${suffix}`
         case 'ADJUSTMENT_IN':
             return `Penyesuaian persediaan masuk - ${productName}${suffix}`
         case 'ADJUSTMENT_OUT':
@@ -170,6 +174,14 @@ export async function postInventoryGLEntry(
                     findGLAccount(prisma, GL_RAW_MATERIALS, 'Bahan Baku', 'ASSET'),
                 ])
                 pair = { debitAccount: wip, creditAccount: raw }
+                break
+            }
+            case 'PRODUCTION_IN': {
+                const [fg, wip] = await Promise.all([
+                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+                    findGLAccount(prisma, GL_WORK_IN_PROGRESS, 'Barang Dalam Proses', 'ASSET'),
+                ])
+                pair = { debitAccount: fg, creditAccount: wip }
                 break
             }
             case 'ADJUSTMENT_IN': {

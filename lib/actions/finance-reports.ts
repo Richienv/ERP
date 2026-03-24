@@ -854,3 +854,151 @@ export async function getTaxReport(startDate: string, endDate: string) {
         return { success: false, error: error.message, data: null }
     }
 }
+
+// ==========================================
+// PPh 23 WITHHOLDING TAX REPORT
+// ==========================================
+
+export interface PPh23ReportItem {
+    paymentId: string
+    paymentNumber: string
+    vendorName: string
+    vendorNpwp: string | null
+    dpp: number            // Dasar Pengenaan Pajak (gross payment amount)
+    pphRate: number        // Withholding rate (e.g. 2 or 15)
+    pphAmount: number      // Actual withholding amount
+    netPayment: number     // Amount actually paid to vendor
+    paymentDate: Date
+    billNumber: string | null
+}
+
+export interface PPh23ReportData {
+    period: { startDate: string; endDate: string }
+    items: PPh23ReportItem[]
+    summary: {
+        totalDPP: number
+        totalPPh23: number
+        totalNetPayment: number
+        transactionCount: number
+        vendorCount: number
+    }
+    byVendor: {
+        vendorName: string
+        vendorNpwp: string | null
+        totalDPP: number
+        totalPPh23: number
+        transactionCount: number
+    }[]
+}
+
+/**
+ * Get PPh 23 withholding tax report for a given period.
+ * Shows all vendor payments where PPh 23 was withheld, grouped by vendor.
+ * Used for monthly PPh 23 tax filing (SPT Masa PPh 23).
+ */
+export async function getPPh23Report(startDate?: string, endDate?: string) {
+    try {
+        const supabaseClient = await createClient()
+        const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+        if (authError || !user) throw new Error('Unauthorized')
+
+        // Default to current month if no dates provided
+        const now = new Date()
+        const start = startDate
+            ? new Date(startDate)
+            : new Date(now.getFullYear(), now.getMonth(), 1)
+        const end = endDate
+            ? new Date(endDate)
+            : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+
+        // Query all payments with PPh 23 withholding in the period
+        const payments = await basePrisma.payment.findMany({
+            where: {
+                date: { gte: start, lte: end },
+                supplierId: { not: null },
+                pph23Amount: { gt: 0 },
+            },
+            include: {
+                supplier: {
+                    select: {
+                        name: true,
+                        code: true,
+                        pph23Rate: true,
+                    }
+                },
+                invoice: {
+                    select: { number: true }
+                },
+            },
+            orderBy: { date: 'asc' },
+        })
+
+        // Build report items
+        const items: PPh23ReportItem[] = payments.map(p => {
+            const pphAmount = Number(p.pph23Amount || 0)
+            const grossAmount = Number(p.amount)
+            const rate = p.supplier?.pph23Rate ? Number(p.supplier.pph23Rate) : 0
+            return {
+                paymentId: p.id,
+                paymentNumber: p.number,
+                vendorName: p.supplier?.name || 'Unknown',
+                vendorNpwp: p.supplier?.code || null, // Supplier code often stores NPWP
+                dpp: grossAmount,
+                pphRate: rate,
+                pphAmount,
+                netPayment: grossAmount - pphAmount,
+                paymentDate: p.date,
+                billNumber: p.invoice?.number || null,
+            }
+        })
+
+        // Summary totals
+        const totalDPP = items.reduce((s, i) => s + i.dpp, 0)
+        const totalPPh23 = items.reduce((s, i) => s + i.pphAmount, 0)
+        const totalNetPayment = items.reduce((s, i) => s + i.netPayment, 0)
+        const uniqueVendors = new Set(items.map(i => i.vendorName))
+
+        // Group by vendor
+        const vendorMap = new Map<string, { vendorName: string; vendorNpwp: string | null; totalDPP: number; totalPPh23: number; transactionCount: number }>()
+        for (const item of items) {
+            const existing = vendorMap.get(item.vendorName)
+            if (existing) {
+                existing.totalDPP += item.dpp
+                existing.totalPPh23 += item.pphAmount
+                existing.transactionCount += 1
+            } else {
+                vendorMap.set(item.vendorName, {
+                    vendorName: item.vendorName,
+                    vendorNpwp: item.vendorNpwp,
+                    totalDPP: item.dpp,
+                    totalPPh23: item.pphAmount,
+                    transactionCount: 1,
+                })
+            }
+        }
+        const byVendor = Array.from(vendorMap.values())
+            .sort((a, b) => b.totalPPh23 - a.totalPPh23)
+
+        return {
+            success: true,
+            data: {
+                period: {
+                    startDate: start.toISOString().split('T')[0],
+                    endDate: end.toISOString().split('T')[0],
+                },
+                items,
+                summary: {
+                    totalDPP,
+                    totalPPh23,
+                    totalNetPayment,
+                    transactionCount: items.length,
+                    vendorCount: uniqueVendors.size,
+                },
+                byVendor,
+            } as PPh23ReportData,
+        }
+    } catch (error: any) {
+        console.error("Failed to get PPh 23 report:", error)
+        return { success: false, error: error.message, data: null }
+    }
+}
