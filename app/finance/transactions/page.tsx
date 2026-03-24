@@ -1,7 +1,8 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
 import {
     BookOpen,
     Search,
@@ -156,6 +157,22 @@ function ReferenceLink({
             </button>
         )
     }
+    // Fallback: resolve source document from reference pattern
+    const sourceLink = getSourceDocumentLink(reference)
+    if (sourceLink) {
+        return (
+            <span className="px-3 py-1.5 flex items-center gap-1.5">
+                <span className="text-[11px] font-mono text-zinc-500">{ref}</span>
+                <Link
+                    href={sourceLink.href}
+                    className="text-[10px] text-orange-600 hover:text-orange-800 hover:underline font-bold whitespace-nowrap"
+                    title={`Lihat ${sourceLink.label}`}
+                >
+                    {sourceLink.label} &rarr;
+                </Link>
+            </span>
+        )
+    }
     return <span className="text-[11px] font-mono text-zinc-300 px-3 py-1.5">-</span>
 }
 
@@ -179,18 +196,37 @@ interface AccountRow {
     paymentCustomerId: string | null
 }
 
+// ─── Source document link resolver ───────────────────────
+function getSourceDocumentLink(reference: string | null): { href: string; label: string } | null {
+    if (!reference) return null
+    if (reference.startsWith('INV-')) return { href: `/finance/invoices?highlight=${reference}`, label: 'Invoice' }
+    if (reference.startsWith('BILL-')) return { href: `/finance/bills?highlight=${reference}`, label: 'Tagihan' }
+    if (reference.startsWith('PAY-') || reference.startsWith('VPAY-')) return { href: `/finance/payments`, label: 'Pembayaran' }
+    if (reference.startsWith('PC-')) return { href: `/finance/petty-cash`, label: 'Kas Kecil' }
+    if (reference.startsWith('DEP-')) return { href: `/finance/fixed-assets/depreciation`, label: 'Penyusutan' }
+    if (reference.startsWith('JE-')) return null // Manual journal — no source doc
+    return null
+}
+
 // ─── Page Component ──────────────────────────────────────
 export default function AccountTransactionsPage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const { data, isLoading } = useAccountTransactions()
 
-    // Filters
-    const [searchText, setSearchText] = useState("")
-    const [filterAccounts, setFilterAccounts] = useState<string[]>([])
+    // URL params for drill-down navigation (from reports, COA, etc.)
+    const initialAccount = searchParams.get('account') || ''
+    const initialFrom = searchParams.get('from') || ''
+    const initialTo = searchParams.get('to') || ''
+    const initialSearch = searchParams.get('search') || ''
+
+    // Filters — initialized from URL params when present
+    const [searchText, setSearchText] = useState(initialSearch)
+    const [filterAccounts, setFilterAccounts] = useState<string[]>(initialAccount ? [initialAccount] : [])
     const [filterTypes, setFilterTypes] = useState<string[]>([])
-    const [datePreset, setDatePreset] = useState<DatePreset>("THIS_YEAR")
-    const [dateFrom, setDateFrom] = useState("")
-    const [dateTo, setDateTo] = useState("")
+    const [datePreset, setDatePreset] = useState<DatePreset>(initialFrom || initialTo ? "CUSTOM" : "THIS_YEAR")
+    const [dateFrom, setDateFrom] = useState(initialFrom)
+    const [dateTo, setDateTo] = useState(initialTo)
     const [groupMode, setGroupMode] = useState<GroupMode>("ACCOUNT")
     const [filterAccountsInclude, setFilterAccountsInclude] = useState<string[]>([])
     const [amountMin, setAmountMin] = useState("")

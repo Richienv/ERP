@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Eye, EyeOff } from "lucide-react"
 import {
@@ -107,7 +108,7 @@ const SOURCE_BADGE: Record<string, { label: string; cls: string }> = {
     OPENING: { label: "SALDO AWAL", cls: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" },
 }
 
-function DrillDownPanel({ rows, loading, formatIDR: fmt }: { rows: DrillDownRow[]; loading: boolean; formatIDR: (n: number) => string }) {
+function DrillDownPanel({ rows, loading, formatIDR: fmt, accountFilter, startDate, endDate }: { rows: DrillDownRow[]; loading: boolean; formatIDR: (n: number) => string; accountFilter?: string; startDate?: Date; endDate?: Date }) {
     if (loading) {
         return (
             <div className="px-8 py-4 flex items-center gap-2 text-xs text-zinc-400 bg-zinc-50/50 dark:bg-zinc-800/30">
@@ -122,6 +123,13 @@ function DrillDownPanel({ rows, loading, formatIDR: fmt }: { rows: DrillDownRow[
             </div>
         )
     }
+
+    // Build link to transactions page with account filter + date range
+    const txLinkParts = [`/finance/transactions?account=${accountFilter || ''}`]
+    if (startDate) txLinkParts.push(`from=${startDate.toISOString().slice(0, 10)}`)
+    if (endDate) txLinkParts.push(`to=${endDate.toISOString().slice(0, 10)}`)
+    const txLink = txLinkParts.join('&')
+
     return (
         <div className="bg-zinc-50/50 dark:bg-zinc-800/20 border-t border-zinc-200 dark:border-zinc-700">
             <table className="w-full">
@@ -177,11 +185,22 @@ function DrillDownPanel({ rows, loading, formatIDR: fmt }: { rows: DrillDownRow[
                     })}
                 </tbody>
             </table>
+            {accountFilter && (
+                <div className="px-10 py-2 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-800/40">
+                    <Link
+                        href={txLink}
+                        className="text-xs text-orange-600 hover:text-orange-800 hover:underline font-bold"
+                    >
+                        Lihat semua transaksi &rarr;
+                    </Link>
+                </div>
+            )}
         </div>
     )
 }
 
 export default function FinancialReportsPage() {
+    const router = useRouter()
     const [reportType, setReportType] = useState<ReportType>("pnl")
     const [dateDialogOpen, setDateDialogOpen] = useState(false)
     const [exportDialogOpen, setExportDialogOpen] = useState(false)
@@ -871,7 +890,7 @@ export default function FinancialReportsPage() {
                                             {expandedAccounts.has('pnl-revenue') && (
                                                 <TableRow><TableCell colSpan={2} className="p-0">
                                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
-                                                        <DrillDownPanel rows={drillDownCache.get('pnl-revenue') || []} loading={drillDownLoading === 'pnl-revenue'} formatIDR={formatIDR} />
+                                                        <DrillDownPanel rows={drillDownCache.get('pnl-revenue') || []} loading={drillDownLoading === 'pnl-revenue'} formatIDR={formatIDR} accountFilter="REVENUE" startDate={startDate} endDate={endDate} />
                                                     </motion.div>
                                                 </TableCell></TableRow>
                                             )}
@@ -890,7 +909,7 @@ export default function FinancialReportsPage() {
                                             {expandedAccounts.has('pnl-cogs') && (
                                                 <TableRow><TableCell colSpan={2} className="p-0">
                                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                        <DrillDownPanel rows={drillDownCache.get('pnl-cogs') || []} loading={drillDownLoading === 'pnl-cogs'} formatIDR={formatIDR} />
+                                                        <DrillDownPanel rows={drillDownCache.get('pnl-cogs') || []} loading={drillDownLoading === 'pnl-cogs'} formatIDR={formatIDR} accountFilter="5000" startDate={startDate} endDate={endDate} />
                                                     </motion.div>
                                                 </TableCell></TableRow>
                                             )}
@@ -920,7 +939,7 @@ export default function FinancialReportsPage() {
                                                     {expandedAccounts.has(`pnl-opex-${idx}`) && (
                                                         <TableRow><TableCell colSpan={2} className="p-0">
                                                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                                <DrillDownPanel rows={drillDownCache.get(`pnl-opex-${idx}`) || []} loading={drillDownLoading === `pnl-opex-${idx}`} formatIDR={formatIDR} />
+                                                                <DrillDownPanel rows={drillDownCache.get(`pnl-opex-${idx}`) || []} loading={drillDownLoading === `pnl-opex-${idx}`} formatIDR={formatIDR} accountFilter={exp.code || 'EXPENSE'} startDate={startDate} endDate={endDate} />
                                                             </motion.div>
                                                         </TableCell></TableRow>
                                                     )}
@@ -947,7 +966,7 @@ export default function FinancialReportsPage() {
                                                 {expandedAccounts.has('pnl-other-income') && (
                                                     <TableRow><TableCell colSpan={2} className="p-0">
                                                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                            <DrillDownPanel rows={drillDownCache.get('pnl-other-income') || []} loading={drillDownLoading === 'pnl-other-income'} formatIDR={formatIDR} />
+                                                            <DrillDownPanel rows={drillDownCache.get('pnl-other-income') || []} loading={drillDownLoading === 'pnl-other-income'} formatIDR={formatIDR} accountFilter="7000" startDate={startDate} endDate={endDate} />
                                                         </motion.div>
                                                     </TableCell></TableRow>
                                                 )}
@@ -970,7 +989,7 @@ export default function FinancialReportsPage() {
                                                 {expandedAccounts.has('pnl-other-expense') && (
                                                     <TableRow><TableCell colSpan={2} className="p-0">
                                                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                            <DrillDownPanel rows={drillDownCache.get('pnl-other-expense') || []} loading={drillDownLoading === 'pnl-other-expense'} formatIDR={formatIDR} />
+                                                            <DrillDownPanel rows={drillDownCache.get('pnl-other-expense') || []} loading={drillDownLoading === 'pnl-other-expense'} formatIDR={formatIDR} accountFilter="8000" startDate={startDate} endDate={endDate} />
                                                         </motion.div>
                                                     </TableCell></TableRow>
                                                 )}
@@ -1069,7 +1088,7 @@ export default function FinancialReportsPage() {
                                                         {expandedAccounts.has(`bs-${asset.code}`) && (
                                                             <TableRow><TableCell colSpan={2} className="p-0">
                                                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                                    <DrillDownPanel rows={drillDownCache.get(`bs-${asset.code}`) || []} loading={drillDownLoading === `bs-${asset.code}`} formatIDR={formatIDR} />
+                                                                    <DrillDownPanel rows={drillDownCache.get(`bs-${asset.code}`) || []} loading={drillDownLoading === `bs-${asset.code}`} formatIDR={formatIDR} accountFilter={asset.code} />
                                                                 </motion.div>
                                                             </TableCell></TableRow>
                                                         )}
@@ -1118,7 +1137,7 @@ export default function FinancialReportsPage() {
                                                         {expandedAccounts.has(`bs-${asset.code}`) && (
                                                             <TableRow><TableCell colSpan={2} className="p-0">
                                                                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                                    <DrillDownPanel rows={drillDownCache.get(`bs-${asset.code}`) || []} loading={drillDownLoading === `bs-${asset.code}`} formatIDR={formatIDR} />
+                                                                    <DrillDownPanel rows={drillDownCache.get(`bs-${asset.code}`) || []} loading={drillDownLoading === `bs-${asset.code}`} formatIDR={formatIDR} accountFilter={asset.code} />
                                                                 </motion.div>
                                                             </TableCell></TableRow>
                                                         )}
@@ -1132,15 +1151,28 @@ export default function FinancialReportsPage() {
                                                             <TableCell className="text-right font-mono">{formatIDR(balanceSheetData.assets?.totalOtherAssets)}</TableCell>
                                                         </TableRow>
                                                         {otherAssets.map((asset: any, idx: number) => (
-                                                            <TableRow key={asset.code || idx}>
-                                                                <TableCell className="pl-10 text-sm">
-                                                                    <span className="flex items-center gap-2">
-                                                                        <span className="font-mono text-[10px] text-zinc-400">{asset.code}</span>
-                                                                        <span className="text-zinc-500">{asset.name}</span>
-                                                                    </span>
-                                                                </TableCell>
-                                                                <TableCell className="text-right font-mono text-sm">{formatIDR(asset.amount)}</TableCell>
-                                                            </TableRow>
+                                                            <React.Fragment key={asset.code || idx}>
+                                                                <TableRow
+                                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                    onClick={() => toggleDrillDown(`bs-${asset.code}`, asset.code, true)}
+                                                                >
+                                                                    <TableCell className="pl-10 text-sm">
+                                                                        <span className="flex items-center gap-2">
+                                                                            <ChevronRight className={`h-3 w-3 text-zinc-400 transition-transform ${expandedAccounts.has(`bs-${asset.code}`) ? 'rotate-90' : ''}`} />
+                                                                            <span className="font-mono text-[10px] text-zinc-400">{asset.code}</span>
+                                                                            <span className="text-zinc-500">{asset.name}</span>
+                                                                        </span>
+                                                                    </TableCell>
+                                                                    <TableCell className="text-right font-mono text-sm">{formatIDR(asset.amount)}</TableCell>
+                                                                </TableRow>
+                                                                {expandedAccounts.has(`bs-${asset.code}`) && (
+                                                                    <TableRow><TableCell colSpan={2} className="p-0">
+                                                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
+                                                                            <DrillDownPanel rows={drillDownCache.get(`bs-${asset.code}`) || []} loading={drillDownLoading === `bs-${asset.code}`} formatIDR={formatIDR} accountFilter={asset.code} />
+                                                                        </motion.div>
+                                                                    </TableCell></TableRow>
+                                                                )}
+                                                            </React.Fragment>
                                                         ))}
                                                     </>
                                                 )}
@@ -1191,7 +1223,7 @@ export default function FinancialReportsPage() {
                                                             {expandedAccounts.has(`bs-${liab.code}`) && (
                                                                 <TableRow><TableCell colSpan={2} className="p-0">
                                                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                                        <DrillDownPanel rows={drillDownCache.get(`bs-${liab.code}`) || []} loading={drillDownLoading === `bs-${liab.code}`} formatIDR={formatIDR} />
+                                                                        <DrillDownPanel rows={drillDownCache.get(`bs-${liab.code}`) || []} loading={drillDownLoading === `bs-${liab.code}`} formatIDR={formatIDR} accountFilter={liab.code} />
                                                                     </motion.div>
                                                                 </TableCell></TableRow>
                                                             )}
@@ -1240,7 +1272,7 @@ export default function FinancialReportsPage() {
                                                                     {expandedAccounts.has(`bs-${liab.code}`) && (
                                                                         <TableRow><TableCell colSpan={2} className="p-0">
                                                                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                                                <DrillDownPanel rows={drillDownCache.get(`bs-${liab.code}`) || []} loading={drillDownLoading === `bs-${liab.code}`} formatIDR={formatIDR} />
+                                                                                <DrillDownPanel rows={drillDownCache.get(`bs-${liab.code}`) || []} loading={drillDownLoading === `bs-${liab.code}`} formatIDR={formatIDR} accountFilter={liab.code} />
                                                                             </motion.div>
                                                                         </TableCell></TableRow>
                                                                     )}
@@ -1281,7 +1313,7 @@ export default function FinancialReportsPage() {
                                                             {expandedAccounts.has(`bs-${cap.code}`) && (
                                                                 <TableRow><TableCell colSpan={2} className="p-0">
                                                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                                        <DrillDownPanel rows={drillDownCache.get(`bs-${cap.code}`) || []} loading={drillDownLoading === `bs-${cap.code}`} formatIDR={formatIDR} />
+                                                                        <DrillDownPanel rows={drillDownCache.get(`bs-${cap.code}`) || []} loading={drillDownLoading === `bs-${cap.code}`} formatIDR={formatIDR} accountFilter={cap.code} />
                                                                     </motion.div>
                                                                 </TableCell></TableRow>
                                                             )}
@@ -1598,7 +1630,7 @@ export default function FinancialReportsPage() {
                                                                     <TableRow>
                                                                         <TableCell colSpan={5} className="p-0">
                                                                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} transition={{ duration: 0.2 }}>
-                                                                                <DrillDownPanel rows={drillDownCache.get(`eq-${acc.accountCode}`) || []} loading={drillDownLoading === `eq-${acc.accountCode}`} formatIDR={formatIDR} />
+                                                                                <DrillDownPanel rows={drillDownCache.get(`eq-${acc.accountCode}`) || []} loading={drillDownLoading === `eq-${acc.accountCode}`} formatIDR={formatIDR} accountFilter={acc.accountCode} startDate={startDate} endDate={endDate} />
                                                                             </motion.div>
                                                                         </TableCell>
                                                                     </TableRow>
@@ -2192,7 +2224,7 @@ export default function FinancialReportsPage() {
                                                                     {expandedAccounts.has(bKey) && (
                                                                         <TableRow><TableCell colSpan={6} className="p-0">
                                                                             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}>
-                                                                                <DrillDownPanel rows={drillDownCache.get(bKey) || []} loading={drillDownLoading === bKey} formatIDR={formatIDR} />
+                                                                                <DrillDownPanel rows={drillDownCache.get(bKey) || []} loading={drillDownLoading === bKey} formatIDR={formatIDR} accountFilter={item.accountCode} startDate={startDate} endDate={endDate} />
                                                                             </motion.div>
                                                                         </TableCell></TableRow>
                                                                     )}
