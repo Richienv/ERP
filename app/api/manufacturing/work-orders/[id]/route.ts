@@ -59,6 +59,7 @@ async function postJournalWithBalanceUpdate(
     data: {
         description: string
         reference: string
+        inventoryTransactionId?: string
         lines: Array<{ accountCode: string; debit: number; credit: number; description?: string }>
     }
 ) {
@@ -86,6 +87,7 @@ async function postJournalWithBalanceUpdate(
             description: data.description,
             reference: data.reference,
             status: 'POSTED',
+            ...(data.inventoryTransactionId && { inventoryTransactionId: data.inventoryTransactionId }),
             lines: {
                 create: data.lines.map((line) => {
                     const account = accountMap.get(line.accountCode)!
@@ -153,6 +155,7 @@ async function executeProductionPosting(
     }
 
     let totalMaterialCost = 0
+    let lastProductionOutTx: { id: string } | null = null
 
     for (const item of bom.items) {
         const perUnit = Number(item.quantity)
@@ -211,7 +214,7 @@ async function executeProductionPosting(
         const unitCost = Number(item.material.costPrice || 0)
         totalMaterialCost += unitCost * requiredQty
 
-        await tx.inventoryTransaction.create({
+        lastProductionOutTx = await tx.inventoryTransaction.create({
             data: {
                 productId: item.materialId,
                 warehouseId: params.warehouseId,
@@ -250,7 +253,7 @@ async function executeProductionPosting(
     }
 
     const fgUnitCost = params.quantityProduced > 0 ? totalMaterialCost / params.quantityProduced : 0
-    await tx.inventoryTransaction.create({
+    const productionInTx = await tx.inventoryTransaction.create({
         data: {
             productId: workOrder.productId,
             warehouseId: params.warehouseId,
@@ -268,6 +271,7 @@ async function executeProductionPosting(
         await postJournalWithBalanceUpdate(tx, {
             description: `WO ${workOrder.number} - Material to WIP`,
             reference: workOrder.number,
+            inventoryTransactionId: lastProductionOutTx?.id,
             lines: [
                 { accountCode: SYS_ACCOUNTS.WIP, debit: totalMaterialCost, credit: 0, description: 'WIP increase' },
                 { accountCode: SYS_ACCOUNTS.RAW_MATERIALS, debit: 0, credit: totalMaterialCost, description: 'Raw material decrease' },
@@ -277,6 +281,7 @@ async function executeProductionPosting(
         await postJournalWithBalanceUpdate(tx, {
             description: `WO ${workOrder.number} - WIP to Finished Goods`,
             reference: workOrder.number,
+            inventoryTransactionId: productionInTx.id,
             lines: [
                 { accountCode: SYS_ACCOUNTS.INVENTORY_ASSET, debit: totalMaterialCost, credit: 0, description: 'Finished goods increase' },
                 { accountCode: SYS_ACCOUNTS.WIP, debit: 0, credit: totalMaterialCost, description: 'WIP release' },

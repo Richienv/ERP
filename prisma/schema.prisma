@@ -225,6 +225,10 @@ model Product {
   barcode      String?
   isActive     Boolean     @default(true)
 
+  // GL expense account for AP bill approval (HPP routing)
+  // e.g. "5000" for HPP/COGS, null → falls back to SYS_ACCOUNTS.EXPENSE_DEFAULT ("6900")
+  expenseAccountCode String?
+
   // Textile-specific fields
   color       String?
   size        String?
@@ -1787,6 +1791,7 @@ model Invoice {
   dcNoteOrigins      DebitCreditNote[]           @relation("DCNoteOriginalInvoice")
   dcNoteSettlements  DebitCreditNoteSettlement[]  @relation("DCNoteSettlements")
   attachments        InvoiceAttachment[]
+  bankStatements     BankStatement[]              @relation("BankStatementInvoice")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1844,10 +1849,13 @@ model Payment {
 
   notes String?
 
+  isReconciled Boolean @default(false)
+
   invoice        Invoice?       @relation(fields: [invoiceId], references: [id])
   customer       Customer?      @relation(fields: [customerId], references: [id])
   supplier       Supplier?      @relation(fields: [supplierId], references: [id])
   journalEntries JournalEntry[]
+  bankStatements BankStatement[] @relation("BankStatementPayment")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2070,6 +2078,7 @@ model GLAccount {
 
   lines               JournalLine[]
   bankReconciliations BankReconciliation[]
+  bankStatements      BankStatement[]         @relation("BankStatements")
   pettyCashBankTxns     PettyCashTransaction[] @relation("PettyCashBank")
   pettyCashExpenseTxns  PettyCashTransaction[] @relation("PettyCashExpense")
   budgetLines           BudgetLine[]
@@ -3643,4 +3652,31 @@ model FixedAssetMovement {
   @@index([assetId])
   @@index([type])
   @@map("fixed_asset_movements")
+}
+
+// ─── Bank Statement (imported bank lines for reconciliation) ─────────
+model BankStatement {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  bankAccountId     String   @db.Uuid
+  date              DateTime @db.Date
+  description       String
+  reference         String?
+  debit             Decimal  @default(0) @db.Decimal(15, 2)
+  credit            Decimal  @default(0) @db.Decimal(15, 2)
+  isReconciled      Boolean  @default(false)
+  matchedPaymentId  String?  @db.Uuid
+  matchedInvoiceId  String?  @db.Uuid
+  reconciledAt      DateTime?
+  importBatchId     String?
+
+  bankAccount    GLAccount @relation("BankStatements", fields: [bankAccountId], references: [id])
+  matchedPayment Payment?  @relation("BankStatementPayment", fields: [matchedPaymentId], references: [id])
+  matchedInvoice Invoice?  @relation("BankStatementInvoice", fields: [matchedInvoiceId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([bankAccountId])
+  @@index([isReconciled])
+  @@index([date])
+  @@map("bank_statements")
 }
