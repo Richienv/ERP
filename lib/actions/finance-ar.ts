@@ -3,6 +3,18 @@
 import { withPrismaAuth } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import {
+    buildTransactionIndex,
+    findMatchesIndexed,
+    type BankLine,
+    type SystemTransaction,
+    type MatchResult,
+} from "@/lib/finance-reconciliation-helpers"
+import {
+    parseBCACSV,
+    parseGenericBankCSV,
+    type ParsedBankLine,
+} from "@/lib/bank-csv-parsers"
 
 // ==========================================
 // CREDIT NOTES & REFUNDS
@@ -368,9 +380,22 @@ export interface BankStatementLine {
     matchedPaymentId?: string
 }
 
-export async function importBankStatement(bankAccountId: string, lines: Omit<BankStatementLine, 'id' | 'isReconciled'>[]) {
+export async function importBankStatement(
+    bankAccountId: string,
+    lines: Omit<BankStatementLine, 'id' | 'isReconciled'>[],
+    importBatchId?: string
+) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            // Verify the bank account exists and is a bank/cash asset
+            const bankAccount = await prisma.gLAccount.findUnique({
+                where: { id: bankAccountId }
+            })
+            if (!bankAccount) throw new Error("Akun bank tidak ditemukan (bank account not found)")
+
+            // Generate batch ID if not provided
+            const batchId = importBatchId || `IMPORT-${Date.now()}`
+
             // Create bank statement lines
             const created = await prisma.bankStatement.createMany({
                 data: lines.map(line => ({
@@ -380,14 +405,63 @@ export async function importBankStatement(bankAccountId: string, lines: Omit<Ban
                     reference: line.reference,
                     debit: line.debit,
                     credit: line.credit,
-                    isReconciled: false
+                    isReconciled: false,
+                    importBatchId: batchId,
                 }))
             })
 
-            return { success: true, count: created.count }
+            return { success: true, count: created.count, importBatchId: batchId }
         })
     } catch (error: any) {
         console.error("Import Bank Statement Error:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+/**
+ * Import a CSV file directly — parses the CSV and creates bank statement records.
+ * Combines CSV parsing + database import in one step.
+ */
+export async function importBankCSV(data: {
+    bankAccountId: string
+    csvContent: string
+    bankName?: string // 'BCA' or leave empty for auto-detect
+}) {
+    try {
+        // Parse the CSV
+        const parseResult = data.bankName?.toUpperCase() === 'BCA'
+            ? parseBCACSV(data.csvContent)
+            : parseGenericBankCSV(data.csvContent, data.bankName)
+
+        if (!parseResult.success || parseResult.lines.length === 0) {
+            return {
+                success: false,
+                error: parseResult.errors.join('; ') || 'Gagal parsing CSV (failed to parse CSV)',
+                parseErrors: parseResult.errors,
+                skippedRows: parseResult.skippedRows,
+            }
+        }
+
+        // Convert parsed lines to import format
+        const importLines = parseResult.lines.map(line => ({
+            date: line.date,
+            description: line.description,
+            reference: line.reference,
+            debit: line.debit,
+            credit: line.credit,
+        }))
+
+        // Import into database
+        const importResult = await importBankStatement(data.bankAccountId, importLines)
+
+        return {
+            ...importResult,
+            parsed: parseResult.lines.length,
+            skippedRows: parseResult.skippedRows,
+            bankName: parseResult.bankName,
+        }
+    } catch (error: any) {
+        console.error("Import Bank CSV Error:", error)
         return { success: false, error: error.message }
     }
 }
@@ -466,6 +540,206 @@ export async function reconcileBankLine(data: {
     } catch (error: any) {
         console.error("Reconcile Bank Line Error:", error)
         return { success: false, error: error.message }
+    }
+}
+
+/**
+ * Auto-suggest matches between unreconciled bank statement lines and system payments.
+ *
+ * Uses the indexed matching algorithm from finance-reconciliation-helpers.ts:
+ *   HIGH   = exact amount + date within 3 days + reference match
+ *   MEDIUM = exact amount + date within 3 days
+ *   LOW    = amount within Rp 100 + date within 5 days
+ */
+export interface BankMatchSuggestion {
+    bankLineId: string
+    bankDate: string
+    bankDescription: string
+    bankAmount: number // positive = credit (money in), negative = debit (money out)
+    matches: Array<{
+        paymentId: string
+        paymentNumber: string
+        paymentAmount: number
+        paymentDate: string
+        customerName?: string
+        supplierName?: string
+        invoiceNumber?: string
+        confidence: 'HIGH' | 'MEDIUM' | 'LOW'
+        score: number
+        reason: string
+    }>
+}
+
+export async function suggestBankMatches(bankAccountId: string): Promise<{
+    success: boolean
+    suggestions: BankMatchSuggestion[]
+    stats: {
+        totalUnreconciled: number
+        withSuggestions: number
+        highConfidence: number
+        mediumConfidence: number
+        lowConfidence: number
+    }
+    error?: string
+}> {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            // 1. Get all unreconciled bank statement lines
+            const bankLines = await prisma.bankStatement.findMany({
+                where: {
+                    bankAccountId,
+                    isReconciled: false,
+                },
+                orderBy: { date: 'asc' },
+            })
+
+            if (bankLines.length === 0) {
+                return {
+                    success: true,
+                    suggestions: [],
+                    stats: { totalUnreconciled: 0, withSuggestions: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0 },
+                }
+            }
+
+            // 2. Get all unreconciled payments (both AR and AP)
+            const payments = await prisma.payment.findMany({
+                where: {
+                    isReconciled: false,
+                },
+                include: {
+                    invoice: { select: { number: true } },
+                    customer: { select: { name: true } },
+                    supplier: { select: { name: true } },
+                },
+            })
+
+            // 3. Build transaction index from payments
+            const systemTransactions: SystemTransaction[] = payments.map(p => ({
+                id: p.id,
+                date: p.date,
+                amount: Number(p.amount),
+                description: `${p.number} ${p.customer?.name || p.supplier?.name || ''}`,
+                reference: p.reference,
+            }))
+
+            const txnIndex = buildTransactionIndex(systemTransactions)
+
+            // 4. For each bank line, find matches
+            const suggestions: BankMatchSuggestion[] = []
+            let highCount = 0, mediumCount = 0, lowCount = 0
+
+            // Build a map for quick payment lookup
+            const paymentMap = new Map(payments.map(p => [p.id, p]))
+
+            for (const bl of bankLines) {
+                const bankAmount = Number(bl.credit) > 0 ? Number(bl.credit) : -Number(bl.debit)
+
+                const bankLineInput: BankLine = {
+                    id: bl.id,
+                    bankDate: bl.date,
+                    bankAmount,
+                    bankDescription: bl.description,
+                    bankRef: bl.reference || '',
+                }
+
+                const matchResults: MatchResult[] = findMatchesIndexed(bankLineInput, txnIndex)
+
+                if (matchResults.length > 0) {
+                    const enrichedMatches = matchResults.map(m => {
+                        const payment = paymentMap.get(m.transactionId)!
+                        if (m.confidence === 'HIGH') highCount++
+                        else if (m.confidence === 'MEDIUM') mediumCount++
+                        else lowCount++
+
+                        return {
+                            paymentId: m.transactionId,
+                            paymentNumber: payment.number,
+                            paymentAmount: Number(payment.amount),
+                            paymentDate: payment.date.toISOString().split('T')[0],
+                            customerName: payment.customer?.name,
+                            supplierName: payment.supplier?.name,
+                            invoiceNumber: payment.invoice?.number ?? undefined,
+                            confidence: m.confidence,
+                            score: m.score,
+                            reason: m.reason,
+                        }
+                    })
+
+                    suggestions.push({
+                        bankLineId: bl.id,
+                        bankDate: bl.date.toISOString().split('T')[0],
+                        bankDescription: bl.description,
+                        bankAmount,
+                        matches: enrichedMatches,
+                    })
+                }
+            }
+
+            return {
+                success: true,
+                suggestions,
+                stats: {
+                    totalUnreconciled: bankLines.length,
+                    withSuggestions: suggestions.length,
+                    highConfidence: highCount,
+                    mediumConfidence: mediumCount,
+                    lowConfidence: lowCount,
+                },
+            }
+        })
+    } catch (error: any) {
+        console.error("Suggest Bank Matches Error:", error)
+        return {
+            success: false,
+            suggestions: [],
+            stats: { totalUnreconciled: 0, withSuggestions: 0, highConfidence: 0, mediumConfidence: 0, lowConfidence: 0 },
+            error: error.message,
+        }
+    }
+}
+
+/**
+ * Auto-reconcile all HIGH confidence matches in one batch.
+ * Only reconciles matches where there is exactly one HIGH confidence suggestion.
+ */
+export async function autoReconcileHighConfidence(bankAccountId: string) {
+    try {
+        const suggestResult = await suggestBankMatches(bankAccountId)
+        if (!suggestResult.success) {
+            return { success: false, error: suggestResult.error, reconciled: 0 }
+        }
+
+        let reconciled = 0
+        const errors: string[] = []
+
+        for (const suggestion of suggestResult.suggestions) {
+            const highMatches = suggestion.matches.filter(m => m.confidence === 'HIGH')
+
+            // Only auto-reconcile if there is exactly one HIGH match (unambiguous)
+            if (highMatches.length === 1) {
+                const match = highMatches[0]
+                const result = await reconcileBankLine({
+                    bankLineId: suggestion.bankLineId,
+                    paymentId: match.paymentId,
+                    isAutoMatched: true,
+                })
+                if (result.success) {
+                    reconciled++
+                } else {
+                    errors.push(`Baris ${suggestion.bankLineId}: ${result.error}`)
+                }
+            }
+        }
+
+        return {
+            success: true,
+            reconciled,
+            total: suggestResult.stats.totalUnreconciled,
+            errors: errors.length > 0 ? errors : undefined,
+        }
+    } catch (error: any) {
+        console.error("Auto-reconcile Error:", error)
+        return { success: false, error: error.message, reconciled: 0 }
     }
 }
 

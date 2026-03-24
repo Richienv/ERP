@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { calculateDueDate } from "@/lib/payment-term-helpers"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -1255,12 +1256,9 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
             })
             const invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
-            // Determine due date based on payment terms (default: NET_30 = 30 days)
-            const paymentTermDays = salesOrder.paymentTerm === 'NET_30' ? 30 :
-                salesOrder.paymentTerm === 'NET_15' ? 15 :
-                    salesOrder.paymentTerm === 'NET_60' ? 60 : 30
-            const dueDate = new Date()
-            dueDate.setDate(dueDate.getDate() + paymentTermDays)
+            // Calculate due date from sales order payment term
+            const issueDate = new Date()
+            const dueDate = calculateDueDate(salesOrder.paymentTerm, issueDate)
 
             // Create Customer Invoice (Invoice Type OUT)
             const invoice = await prisma.invoice.create({
@@ -1270,8 +1268,9 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                     customerId: salesOrder.customerId,
                     salesOrderId: salesOrder.id,
                     status: 'ISSUED',
-                    issueDate: new Date(),
+                    issueDate: issueDate,
                     dueDate: dueDate,
+                    paymentTerm: salesOrder.paymentTerm,
                     subtotal: salesOrder.subtotal,
                     taxAmount: salesOrder.taxAmount,
                     discountAmount: salesOrder.discountAmount || 0,
@@ -3456,6 +3455,12 @@ export async function getRevenueFromInvoices(startDate?: Date | string, endDate?
 // ==========================================
 export async function getARAgingReport() {
     try {
+        // Auto-mark past-due invoices before generating the report
+        const { markOverdueInvoices } = await import("@/lib/actions/finance-invoices")
+        await markOverdueInvoices().catch((err: any) => {
+            console.warn('markOverdueInvoices failed (non-fatal):', err?.message)
+        })
+
         const supabaseClient = await createClient()
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
@@ -3572,6 +3577,12 @@ export async function getARAgingReport() {
 // ==========================================
 export async function getAPAgingReport() {
     try {
+        // Auto-mark past-due bills before generating the report
+        const { markOverdueInvoices } = await import("@/lib/actions/finance-invoices")
+        await markOverdueInvoices().catch((err: any) => {
+            console.warn('markOverdueInvoices failed (non-fatal):', err?.message)
+        })
+
         const supabaseClient = await createClient()
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')

@@ -4,6 +4,7 @@ import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { calculateDueDate } from "@/lib/payment-term-helpers"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -31,8 +32,52 @@ type InvoiceKanbanQueryInput = {
     limit?: number | null
 }
 
+// ==========================================
+// AUTO-MARK OVERDUE INVOICES
+// ==========================================
+
+/**
+ * Batch-update invoices/bills whose dueDate has passed from ISSUED/PARTIAL → OVERDUE.
+ *
+ * This is called lazily at the start of data-fetching functions
+ * (kanban, aging reports) so the status is always accurate when
+ * the user views their data — no cron job required.
+ */
+export async function markOverdueInvoices() {
+    return await withPrismaAuth(async (prisma) => {
+        const now = new Date()
+
+        // Mark AR invoices (INV_OUT) overdue
+        const arResult = await prisma.invoice.updateMany({
+            where: {
+                type: 'INV_OUT',
+                status: { in: ['ISSUED', 'PARTIAL'] },
+                dueDate: { lt: now },
+            },
+            data: { status: 'OVERDUE' },
+        })
+
+        // Mark AP bills (INV_IN) overdue
+        const apResult = await prisma.invoice.updateMany({
+            where: {
+                type: 'INV_IN',
+                status: { in: ['ISSUED', 'PARTIAL'] },
+                dueDate: { lt: now },
+            },
+            data: { status: 'OVERDUE' },
+        })
+
+        return { arCount: arResult.count, apCount: apResult.count }
+    })
+}
+
 export async function getInvoiceKanbanData(input?: InvoiceKanbanQueryInput): Promise<InvoiceKanbanData> {
     return withPrismaAuth(async (prisma) => {
+        // Auto-mark past-due invoices before fetching data
+        await markOverdueInvoices().catch((err) => {
+            console.warn('markOverdueInvoices failed (non-fatal):', err?.message)
+        })
+
         const normalizedQ = (input?.q || "").trim()
         const normalizedType = (input?.type || "ALL") as InvoiceType | 'ALL'
         const normalizedLimitRaw = Number(input?.limit)
@@ -140,6 +185,7 @@ export async function createCustomerInvoice(data: {
     amount: number
     issueDate?: Date
     dueDate?: Date
+    paymentTerm?: string  // PaymentTerm enum value (CASH, NET_15, NET_30, etc.)
     notes?: string
     includeTax?: boolean  // PPN 11%
     // Manual Items
@@ -154,16 +200,46 @@ export async function createCustomerInvoice(data: {
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
-            // Determine Type
+            // Determine Type and resolve party payment term
             let invoiceType: 'INV_OUT' | 'INV_IN' = 'INV_OUT'
+            let partyPaymentTerm: string | null = null
 
-            // Check if ID belongs to customer or supplier if type not explicit
             if (!data.type) {
-                const isCustomer = await prisma.customer.findUnique({ where: { id: data.customerId } })
-                invoiceType = isCustomer ? 'INV_OUT' : 'INV_IN'
+                const customer = await prisma.customer.findUnique({
+                    where: { id: data.customerId },
+                    select: { id: true, paymentTerm: true },
+                })
+                if (customer) {
+                    invoiceType = 'INV_OUT'
+                    partyPaymentTerm = customer.paymentTerm
+                } else {
+                    invoiceType = 'INV_IN'
+                    const supplier = await prisma.supplier.findUnique({
+                        where: { id: data.customerId },
+                        select: { paymentTerm: true },
+                    })
+                    partyPaymentTerm = supplier?.paymentTerm ?? null
+                }
             } else {
                 invoiceType = data.type === 'CUSTOMER' ? 'INV_OUT' : 'INV_IN'
+                // Fetch party payment term for due date calculation
+                if (data.type === 'CUSTOMER') {
+                    const customer = await prisma.customer.findUnique({
+                        where: { id: data.customerId },
+                        select: { paymentTerm: true },
+                    })
+                    partyPaymentTerm = customer?.paymentTerm ?? null
+                } else {
+                    const supplier = await prisma.supplier.findUnique({
+                        where: { id: data.customerId },
+                        select: { paymentTerm: true },
+                    })
+                    partyPaymentTerm = supplier?.paymentTerm ?? null
+                }
             }
+
+            // Resolve payment term: explicit param > party default > NET_30
+            const resolvedTerm = data.paymentTerm || partyPaymentTerm || 'NET_30'
 
             // Generate invoice number prefix
             const prefix = invoiceType === 'INV_OUT' ? 'INV' : 'BILL'
@@ -177,9 +253,9 @@ export async function createCustomerInvoice(data: {
             })
             const invoiceNumber = `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`
 
-            // Calculate due date (default NET 30)
+            // Calculate due date from payment term (explicit dueDate overrides)
             const issueDate = data.issueDate || new Date()
-            const dueDate = data.dueDate || new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+            const dueDate = data.dueDate || calculateDueDate(resolvedTerm, issueDate)
 
             // Prepare Items
             const invoiceItems = data.items && data.items.length > 0 ? data.items.map(item => ({
@@ -208,6 +284,7 @@ export async function createCustomerInvoice(data: {
                     supplierId: invoiceType === 'INV_IN' ? data.customerId : null,
                     issueDate: issueDate,
                     dueDate: dueDate,
+                    paymentTerm: resolvedTerm as any,
                     subtotal: subtotal,
                     taxAmount: taxAmount,
                     totalAmount: totalAmount,
@@ -585,12 +662,9 @@ export async function createInvoiceFromSalesOrder(
             })
             const invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
-            // Determine due date based on payment terms (default: NET_30 = 30 days)
-            const paymentTermDays = salesOrder.paymentTerm === 'NET_30' ? 30 :
-                salesOrder.paymentTerm === 'NET_15' ? 15 :
-                    salesOrder.paymentTerm === 'NET_60' ? 60 : 30
-            const dueDate = new Date()
-            dueDate.setDate(dueDate.getDate() + paymentTermDays)
+            // Calculate due date from sales order payment term
+            const issueDate = new Date()
+            const dueDate = calculateDueDate(salesOrder.paymentTerm, issueDate)
 
             // Create Customer Invoice (Invoice Type OUT)
             const invoice = await prisma.invoice.create({
@@ -600,8 +674,9 @@ export async function createInvoiceFromSalesOrder(
                     customerId: salesOrder.customerId,
                     salesOrderId: salesOrder.id,
                     status: 'DRAFT',
-                    issueDate: new Date(),
+                    issueDate: issueDate,
                     dueDate: dueDate,
+                    paymentTerm: salesOrder.paymentTerm,
                     subtotal: salesOrder.subtotal,
                     taxAmount: salesOrder.taxAmount,
                     discountAmount: salesOrder.discountAmount || 0,

@@ -1770,9 +1770,10 @@ model Invoice {
 
   type InvoiceType // INV_OUT (Customer), INV_IN (Supplier)
 
-  // Dates
-  issueDate DateTime @default(now())
-  dueDate   DateTime
+  // Dates & Terms
+  issueDate   DateTime     @default(now())
+  dueDate     DateTime
+  paymentTerm PaymentTerm? // Stored for reference / auto-calculation
 
   // Amounts
   subtotal       Decimal @db.Decimal(15, 2)
@@ -1797,6 +1798,13 @@ model Invoice {
   attachments        InvoiceAttachment[]
   bankStatements     BankStatement[]              @relation("BankStatementInvoice")
 
+  // e-Faktur Integration
+  kodeTransaksi    String?   @db.VarChar(2)    // 01=domestik, 02=pemerintah, 07=tidak dipungut
+  nsfpNumber       String?   @db.VarChar(17)   // Nomor Seri Faktur Pajak from DJP
+  fakturPajakDate  DateTime? @db.Date          // Tanggal faktur pajak (may differ from issueDate)
+  dppType          String?   @default("STANDARD") // STANDARD, NILAI_LAIN, DEEMED
+  taxRate          Decimal?  @db.Decimal(5, 2)    // Actual PPN rate (11, 12, 0, etc.)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1805,6 +1813,7 @@ model Invoice {
   @@index([dueDate])
   @@index([customerId])
   @@index([supplierId])
+  @@index([nsfpNumber])
   @@map("invoices")
 }
 
@@ -3685,4 +3694,22 @@ model BankStatement {
   @@index([isReconciled])
   @@index([date])
   @@map("bank_statements")
+}
+
+// ================================
+// e-Faktur NSFP Management
+// ================================
+
+model NSFPRange {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  year            Int
+  startNumber     BigInt
+  endNumber       BigInt
+  currentCounter  BigInt
+  status          String   @default("ACTIVE") // ACTIVE, EXHAUSTED
+  createdAt       DateTime @default(now())
+
+  @@unique([year, startNumber])
+  @@index([year, status])
+  @@map("nsfp_ranges")
 }
