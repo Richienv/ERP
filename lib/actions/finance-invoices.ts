@@ -6,6 +6,34 @@ import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 import { calculateDueDate } from "@/lib/payment-term-helpers"
 
+// ==========================================
+// MULTI-RATE PPN HELPER
+// ==========================================
+
+/**
+ * Resolve the effective PPN tax rate based on:
+ * 1. Explicit taxRate param (highest priority — user override)
+ * 2. Customer taxStatus (PKP=11%, NON_PKP=0%, EXEMPT=0%)
+ * 3. Default 11% for PKP customers when includeTax is true
+ *
+ * Returns the rate as a percentage number (e.g. 11 for 11%, 0 for 0%).
+ * Export invoices or EXEMPT/NON_PKP customers get 0%.
+ */
+function resolveEffectiveTaxRate(
+    explicitRate?: number | null,
+    customerTaxStatus?: string | null,
+    includeTax?: boolean
+): number {
+    // 1. Explicit rate always wins (allows 0% for exports, 12% future rate, etc.)
+    if (explicitRate != null) return explicitRate
+
+    // 2. Customer tax status determines rate
+    if (customerTaxStatus === 'EXEMPT' || customerTaxStatus === 'NON_PKP') return 0
+
+    // 3. Default: 11% for PKP (or when no customer info available)
+    return (includeTax !== false) ? 11 : 0
+}
+
 export interface InvoiceKanbanItem {
     id: string
     number: string
@@ -187,7 +215,8 @@ export async function createCustomerInvoice(data: {
     dueDate?: Date
     paymentTerm?: string  // PaymentTerm enum value (CASH, NET_15, NET_30, etc.)
     notes?: string
-    includeTax?: boolean  // PPN 11%
+    includeTax?: boolean  // PPN — rate determined by customer taxStatus or explicit taxRate
+    taxRate?: number      // Explicit PPN rate override (0, 11, 12, etc.)
     // Manual Items
     items?: Array<{
         description: string
@@ -200,18 +229,20 @@ export async function createCustomerInvoice(data: {
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
-            // Determine Type and resolve party payment term
+            // Determine Type and resolve party payment term + tax status
             let invoiceType: 'INV_OUT' | 'INV_IN' = 'INV_OUT'
             let partyPaymentTerm: string | null = null
+            let customerTaxStatus: string | null = null
 
             if (!data.type) {
                 const customer = await prisma.customer.findUnique({
                     where: { id: data.customerId },
-                    select: { id: true, paymentTerm: true },
+                    select: { id: true, paymentTerm: true, taxStatus: true, isTaxable: true },
                 })
                 if (customer) {
                     invoiceType = 'INV_OUT'
                     partyPaymentTerm = customer.paymentTerm
+                    customerTaxStatus = customer.taxStatus
                 } else {
                     invoiceType = 'INV_IN'
                     const supplier = await prisma.supplier.findUnique({
@@ -222,13 +253,14 @@ export async function createCustomerInvoice(data: {
                 }
             } else {
                 invoiceType = data.type === 'CUSTOMER' ? 'INV_OUT' : 'INV_IN'
-                // Fetch party payment term for due date calculation
+                // Fetch party payment term + tax status for due date & PPN calculation
                 if (data.type === 'CUSTOMER') {
                     const customer = await prisma.customer.findUnique({
                         where: { id: data.customerId },
-                        select: { paymentTerm: true },
+                        select: { paymentTerm: true, taxStatus: true, isTaxable: true },
                     })
                     partyPaymentTerm = customer?.paymentTerm ?? null
+                    customerTaxStatus = customer?.taxStatus ?? null
                 } else {
                     const supplier = await prisma.supplier.findUnique({
                         where: { id: data.customerId },
@@ -270,12 +302,13 @@ export async function createCustomerInvoice(data: {
                 amount: data.amount
             }]
 
-            // Calculate subtotal and tax
+            // Calculate subtotal and tax (multi-rate PPN)
             const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
-            const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
+            const effectiveRate = resolveEffectiveTaxRate(data.taxRate, customerTaxStatus, data.includeTax)
+            const taxAmount = data.includeTax ? Math.round(subtotal * (effectiveRate / 100)) : 0
             const totalAmount = subtotal + taxAmount
 
-            // Create invoice
+            // Create invoice — store resolved taxRate for audit trail
             const invoice = await prisma.invoice.create({
                 data: {
                     number: invoiceNumber,
@@ -287,6 +320,7 @@ export async function createCustomerInvoice(data: {
                     paymentTerm: resolvedTerm as any,
                     subtotal: subtotal,
                     taxAmount: taxAmount,
+                    taxRate: effectiveRate,
                     totalAmount: totalAmount,
                     balanceDue: totalAmount,
                     status: 'DRAFT',
@@ -317,6 +351,7 @@ export async function updateDraftInvoice(data: {
     customerId?: string
     items?: Array<{ description: string; quantity: number; unitPrice: number }>
     includeTax?: boolean
+    taxRate?: number      // Explicit PPN rate override (0, 11, 12, etc.)
     discountAmount?: number
     issueDate?: Date
     dueDate?: Date
@@ -325,10 +360,21 @@ export async function updateDraftInvoice(data: {
         return await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({
                 where: { id: data.invoiceId },
-                select: { id: true, status: true, type: true }
+                select: { id: true, status: true, type: true, taxRate: true, customerId: true }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
             if (invoice.status !== 'DRAFT') return { success: false, error: "Hanya invoice DRAFT yang bisa diedit" }
+
+            // Resolve tax rate: explicit param > existing invoice rate > customer taxStatus > 11%
+            let customerTaxStatus: string | null = null
+            if (invoice.type === 'INV_OUT' && invoice.customerId) {
+                const cust = await prisma.customer.findUnique({
+                    where: { id: invoice.customerId },
+                    select: { taxStatus: true },
+                })
+                customerTaxStatus = cust?.taxStatus ?? null
+            }
+            const effectiveRate = data.taxRate ?? (invoice.taxRate != null ? Number(invoice.taxRate) : resolveEffectiveTaxRate(undefined, customerTaxStatus, data.includeTax ?? true))
 
             const discount = data.discountAmount ?? 0
 
@@ -347,10 +393,10 @@ export async function updateDraftInvoice(data: {
 
                 const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
                 const taxableAmount = subtotal - discount
-                const taxAmount = data.includeTax ? Math.round(taxableAmount * 0.11) : 0
+                const taxAmount = data.includeTax ? Math.round(taxableAmount * (effectiveRate / 100)) : 0
                 const totalAmount = taxableAmount + taxAmount
 
-                const updateData: any = { subtotal, taxAmount, discountAmount: discount, totalAmount, balanceDue: totalAmount }
+                const updateData: any = { subtotal, taxAmount, taxRate: effectiveRate, discountAmount: discount, totalAmount, balanceDue: totalAmount }
                 if (data.customerId) {
                     if (invoice.type === 'INV_OUT') updateData.customerId = data.customerId
                     else updateData.supplierId = data.customerId
@@ -368,7 +414,7 @@ export async function updateDraftInvoice(data: {
                 }
                 if (data.issueDate) updateData.issueDate = data.issueDate
                 if (data.dueDate) updateData.dueDate = data.dueDate
-                if (data.includeTax !== undefined || data.discountAmount !== undefined) {
+                if (data.includeTax !== undefined || data.discountAmount !== undefined || data.taxRate !== undefined) {
                     const existing = await prisma.invoice.findUnique({
                         where: { id: data.invoiceId },
                         select: { subtotal: true, discountAmount: true }
@@ -376,8 +422,9 @@ export async function updateDraftInvoice(data: {
                     const subtotal = Number(existing?.subtotal || 0)
                     const disc = data.discountAmount ?? Number(existing?.discountAmount || 0)
                     const taxableAmount = subtotal - disc
-                    const taxAmount = (data.includeTax ?? true) ? Math.round(taxableAmount * 0.11) : 0
+                    const taxAmount = (data.includeTax ?? true) ? Math.round(taxableAmount * (effectiveRate / 100)) : 0
                     updateData.taxAmount = taxAmount
+                    updateData.taxRate = effectiveRate
                     updateData.discountAmount = disc
                     updateData.totalAmount = taxableAmount + taxAmount
                     updateData.balanceDue = taxableAmount + taxAmount
@@ -1054,7 +1101,7 @@ export async function recordInvoicePayment(data: {
  */
 export async function createBillFromPR(
     prId: string,
-    options?: { forceCreate?: boolean; includeTax?: boolean }
+    options?: { forceCreate?: boolean; includeTax?: boolean; taxRate?: number }
 ) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -1157,7 +1204,8 @@ export async function createBillFromPR(
 
             const subtotal = invoiceItems.reduce((sum, item) => sum + item.amount, 0)
             const includeTax = options?.includeTax ?? false
-            const taxAmount = includeTax ? Math.round(subtotal * 0.11) : 0
+            const billTaxRate = options?.taxRate ?? 11 // AP bills default to 11% when tax is included
+            const taxAmount = includeTax ? Math.round(subtotal * (billTaxRate / 100)) : 0
             const totalAmount = subtotal + taxAmount
 
             // Due date: NET 30
@@ -1176,6 +1224,7 @@ export async function createBillFromPR(
                     dueDate,
                     subtotal,
                     taxAmount,
+                    taxRate: includeTax ? billTaxRate : 0,
                     totalAmount,
                     balanceDue: totalAmount,
                     items: {

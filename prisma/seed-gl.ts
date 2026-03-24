@@ -161,6 +161,26 @@ async function main() {
         console.log('Balances initialized.')
     }
 
+    // 4. Seed Cost Centers (textile factory departments)
+    console.log('Seeding Cost Centers...')
+    const costCenters = [
+        { code: 'CC-CUT',  name: 'Potong (Cutting)',      type: 'PRODUCTION' },
+        { code: 'CC-SEW',  name: 'Jahit (Sewing)',        type: 'PRODUCTION' },
+        { code: 'CC-FIN',  name: 'Finishing / QC',        type: 'PRODUCTION' },
+        { code: 'CC-WH',   name: 'Gudang (Warehouse)',    type: 'PRODUCTION' },
+        { code: 'CC-ADM',  name: 'Administrasi (Admin)',  type: 'ADMIN' },
+        { code: 'CC-SAL',  name: 'Penjualan (Sales)',     type: 'SALES' },
+    ]
+
+    for (const cc of costCenters) {
+        await prisma.costCenter.upsert({
+            where: { code: cc.code },
+            create: { code: cc.code, name: cc.name, type: cc.type },
+            update: { name: cc.name, type: cc.type },
+        })
+        console.log(`Created CostCenter: ${cc.code} - ${cc.name}`)
+    }
+
     console.log('Seeding finished.')
 }
 

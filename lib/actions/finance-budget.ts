@@ -16,16 +16,41 @@ export async function getBudgets() {
     return { success: true, budgets }
 }
 
-export async function getBudgetVsActual(budgetId: string, startDate: string, endDate: string) {
+export async function getCostCenters() {
     const supabaseClient = await createClient()
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
     if (authError || !user) throw new Error('Unauthorized')
+
+    const costCenters = await basePrisma.costCenter.findMany({
+        where: { isActive: true },
+        orderBy: { code: 'asc' },
+        select: { id: true, code: true, name: true, type: true },
+    })
+    return { success: true, costCenters }
+}
+
+export async function getBudgetVsActual(
+    budgetId: string,
+    startDate: string,
+    endDate: string,
+    costCenterId?: string
+) {
+    const supabaseClient = await createClient()
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
+    if (authError || !user) throw new Error('Unauthorized')
+
+    // Build cost center filter for budget lines
+    const budgetLineWhere = costCenterId ? { costCenterId } : {}
 
     const budget = await basePrisma.budget.findUnique({
             where: { id: budgetId },
             include: {
                 lines: {
-                    include: { account: { select: { id: true, code: true, name: true, type: true } } },
+                    where: budgetLineWhere,
+                    include: {
+                        account: { select: { id: true, code: true, name: true, type: true } },
+                        costCenter: { select: { id: true, code: true, name: true } },
+                    },
                     orderBy: [{ account: { code: 'asc' } }, { month: 'asc' }],
                 },
             },
@@ -33,17 +58,24 @@ export async function getBudgetVsActual(budgetId: string, startDate: string, end
 
         if (!budget) return { success: false, error: 'Budget not found', data: null }
 
+        // Build cost center filter for actuals
+        const journalLineWhere: Record<string, unknown> = {
+            entry: {
+                status: 'POSTED',
+                date: { gte: new Date(startDate), lte: new Date(endDate) },
+            },
+        }
+        if (costCenterId) {
+            journalLineWhere.costCenterId = costCenterId
+        }
+
         // Get actual journal lines for the period
         const actualLines = await basePrisma.journalLine.findMany({
-            where: {
-                entry: {
-                    status: 'POSTED',
-                    date: { gte: new Date(startDate), lte: new Date(endDate) },
-                },
-            },
+            where: journalLineWhere,
             include: {
                 account: { select: { id: true, code: true, name: true, type: true } },
                 entry: { select: { date: true } },
+                costCenter: { select: { id: true, code: true, name: true } },
             },
         })
 
@@ -105,6 +137,7 @@ export async function getBudgetVsActual(budgetId: string, startDate: string, end
                 budgetName: budget.name,
                 budgetYear: budget.year,
                 period: { startDate, endDate },
+                costCenterId: costCenterId || null,
                 items,
                 summary: {
                     totalBudget,
@@ -129,7 +162,10 @@ export async function createBudget(data: { name: string; year: number; descripti
     })
 }
 
-export async function saveBudgetLines(budgetId: string, lines: { accountId: string; month: number; amount: number }[]) {
+export async function saveBudgetLines(
+    budgetId: string,
+    lines: { accountId: string; month: number; amount: number; costCenterId?: string }[]
+) {
     return await withPrismaAuth(async (prisma) => {
         // Upsert each line
         for (const line of lines) {
@@ -146,8 +182,12 @@ export async function saveBudgetLines(budgetId: string, lines: { accountId: stri
                     accountId: line.accountId,
                     month: line.month,
                     amount: line.amount,
+                    ...(line.costCenterId ? { costCenterId: line.costCenterId } : {}),
                 },
-                update: { amount: line.amount },
+                update: {
+                    amount: line.amount,
+                    ...(line.costCenterId ? { costCenterId: line.costCenterId } : {}),
+                },
             })
         }
         return { success: true }

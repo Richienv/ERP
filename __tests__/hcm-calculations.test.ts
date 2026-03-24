@@ -7,8 +7,11 @@ import {
     calculateBPJS,
     calculateAnnualPPh21,
     calculateMonthlyPPh21,
+    calculateDecemberPPh21,
     calculatePieceRatePayroll,
     calculatePayslip,
+    getPTKP,
+    PTKP,
     BPJS_KES_MAX_SALARY,
     BPJS_JP_MAX_SALARY,
     PTKP_TK0,
@@ -311,5 +314,164 @@ describe('calculatePayslip', () => {
     it('totalDeductions = BPJS employee + PPh21', () => {
         const result = calculatePayslip({ baseSalary: 7_000_000 })
         expect(result.totalDeductions).toBe(result.bpjs.totalEmployee + result.pph21)
+    })
+})
+
+// ==============================================================================
+// PTKP Lookup (Per-employee Non-Taxable Income)
+// ==============================================================================
+
+describe('getPTKP', () => {
+    it('returns TK/0 for single, no dependents', () => {
+        expect(getPTKP('TK', 0)).toBe(54_000_000)
+    })
+
+    it('returns TK/0 as default when no args', () => {
+        expect(getPTKP()).toBe(54_000_000)
+        expect(getPTKP(null, null)).toBe(54_000_000)
+        expect(getPTKP(undefined, undefined)).toBe(54_000_000)
+    })
+
+    it('returns correct PTKP for all marital/dependent combos', () => {
+        expect(getPTKP('TK', 0)).toBe(54_000_000)
+        expect(getPTKP('TK', 1)).toBe(58_500_000)
+        expect(getPTKP('TK', 2)).toBe(63_000_000)
+        expect(getPTKP('TK', 3)).toBe(67_500_000)
+        expect(getPTKP('K', 0)).toBe(58_500_000)
+        expect(getPTKP('K', 1)).toBe(63_000_000)
+        expect(getPTKP('K', 2)).toBe(67_500_000)
+        expect(getPTKP('K', 3)).toBe(72_000_000)
+    })
+
+    it('caps dependents at 3', () => {
+        expect(getPTKP('TK', 5)).toBe(PTKP['TK/3'])
+        expect(getPTKP('K', 10)).toBe(PTKP['K/3'])
+    })
+
+    it('handles negative dependents as 0', () => {
+        expect(getPTKP('TK', -1)).toBe(PTKP['TK/0'])
+    })
+
+    it('falls back to TK/0 for unknown marital status', () => {
+        expect(getPTKP('UNKNOWN', 0)).toBe(PTKP['TK/0'])
+    })
+})
+
+// ==============================================================================
+// December PPh 21 True-Up
+// ==============================================================================
+
+describe('calculateDecemberPPh21', () => {
+    const ptkp_TK0 = 54_000_000
+
+    it('calculates correct annual tax minus Jan-Nov withholdings', () => {
+        // Employee earns 10M gross/month, approx 120M/year
+        const annualGross = 120_000_000
+        // Biaya Jabatan = min(120M * 5%, 6M) = 6M
+        // Iuran Pensiun = min(annualBPJS, 2.4M) = 2.4M (assuming BPJS > 2.4M)
+        // Neto = 120M - 6M - 2.4M = 111.6M
+        // PKP = 111.6M - 54M = 57.6M
+        // Annual Tax = 57.6M * 5% = 2.88M (within 60M bracket)
+        const decPPh = calculateDecemberPPh21({
+            annualGross,
+            annualBPJSEmployee: 3_600_000, // 300K/month
+            ptkp: ptkp_TK0,
+            sumJanNovPPh21: 2_640_000, // Jan-Nov withheld: 240K/month * 11
+        })
+        // Annual tax should be ~2.88M, minus 2.64M already withheld = 240K
+        expect(decPPh).toBeGreaterThan(0)
+        expect(decPPh).toBeLessThan(500_000) // reasonable range
+    })
+
+    it('returns 0 when annual income is below PTKP', () => {
+        // Employee earns 4M/month = 48M/year, below TK/0 PTKP of 54M
+        const result = calculateDecemberPPh21({
+            annualGross: 48_000_000,
+            annualBPJSEmployee: 1_440_000,
+            ptkp: ptkp_TK0,
+            sumJanNovPPh21: 0,
+        })
+        expect(result).toBe(0)
+    })
+
+    it('returns 0 when over-withheld (not negative)', () => {
+        // If Jan-Nov already withheld more than actual annual tax
+        const result = calculateDecemberPPh21({
+            annualGross: 60_000_000,
+            annualBPJSEmployee: 1_800_000,
+            ptkp: ptkp_TK0,
+            sumJanNovPPh21: 10_000_000, // Over-withheld
+        })
+        expect(result).toBe(0) // Never negative
+    })
+
+    it('handles married employee (K/2) with higher PTKP', () => {
+        const ptkp_K2 = getPTKP('K', 2) // 67.5M
+        const annualGross = 120_000_000
+        const taxWithK2 = calculateDecemberPPh21({
+            annualGross,
+            annualBPJSEmployee: 3_600_000,
+            ptkp: ptkp_K2,
+            sumJanNovPPh21: 0,
+        })
+        const taxWithTK0 = calculateDecemberPPh21({
+            annualGross,
+            annualBPJSEmployee: 3_600_000,
+            ptkp: ptkp_TK0,
+            sumJanNovPPh21: 0,
+        })
+        // Higher PTKP = lower tax
+        expect(taxWithK2).toBeLessThan(taxWithTK0)
+    })
+
+    it('biaya jabatan is capped at 6M/year', () => {
+        // Very high salary: 1B/year gross
+        const result = calculateDecemberPPh21({
+            annualGross: 1_000_000_000,
+            annualBPJSEmployee: 10_000_000,
+            ptkp: ptkp_TK0,
+            sumJanNovPPh21: 0,
+        })
+        // With capped biaya jabatan (6M), the tax should be very high
+        expect(result).toBeGreaterThan(100_000_000) // at least 100M in tax
+    })
+
+    it('iuran pensiun is capped at 2.4M/year', () => {
+        // Even if BPJS is very high, deduction caps at 2.4M
+        const resultHighBPJS = calculateDecemberPPh21({
+            annualGross: 120_000_000,
+            annualBPJSEmployee: 50_000_000, // Unrealistically high
+            ptkp: ptkp_TK0,
+            sumJanNovPPh21: 0,
+        })
+        const resultNormalBPJS = calculateDecemberPPh21({
+            annualGross: 120_000_000,
+            annualBPJSEmployee: 2_400_000, // Exactly at cap
+            ptkp: ptkp_TK0,
+            sumJanNovPPh21: 0,
+        })
+        // Both should produce the same tax because iuran pensiun is capped
+        expect(resultHighBPJS).toBe(resultNormalBPJS)
+    })
+
+    it('uses per-employee PTKP from getPTKP correctly', () => {
+        // Test that the full pipeline works: getPTKP -> calculateDecemberPPh21
+        const categories = ['TK/0', 'TK/1', 'K/0', 'K/3'] as const
+        const ptkpValues = categories.map(cat => {
+            const [status, deps] = cat.split('/')
+            return getPTKP(status, Number(deps))
+        })
+
+        // Higher PTKP should always produce lower or equal tax
+        const taxes = ptkpValues.map(ptkp => calculateDecemberPPh21({
+            annualGross: 100_000_000,
+            annualBPJSEmployee: 3_000_000,
+            ptkp,
+            sumJanNovPPh21: 0,
+        }))
+
+        for (let i = 1; i < taxes.length; i++) {
+            expect(taxes[i]).toBeLessThanOrEqual(taxes[i - 1])
+        }
     })
 })

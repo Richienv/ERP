@@ -56,6 +56,35 @@ export const PPH21_BRACKETS = [
 /** PTKP (Non-Taxable Income) - Single, no dependents (TK/0) */
 export const PTKP_TK0 = 54_000_000
 
+/**
+ * Full PTKP lookup table (Per-employee Non-Taxable Income)
+ * Based on PMK 101/PMK.010/2016 (still effective as of 2026)
+ *
+ * TK = Tidak Kawin (single), K = Kawin (married)
+ * /0-3 = number of dependents (max 3)
+ */
+export const PTKP: Record<string, number> = {
+    'TK/0': 54_000_000,
+    'TK/1': 58_500_000,
+    'TK/2': 63_000_000,
+    'TK/3': 67_500_000,
+    'K/0':  58_500_000,
+    'K/1':  63_000_000,
+    'K/2':  67_500_000,
+    'K/3':  72_000_000,
+}
+
+/**
+ * Get PTKP amount for an employee based on marital status & dependents.
+ * Falls back to TK/0 if the combination is unknown.
+ */
+export function getPTKP(maritalStatus?: string | null, dependentCount?: number | null): number {
+    const status = maritalStatus || 'TK'
+    const deps = Math.min(Math.max(dependentCount || 0, 0), 3)
+    const key = `${status}/${deps}`
+    return PTKP[key] ?? PTKP['TK/0']
+}
+
 // ==============================================================================
 // Overtime Calculations (Kepmenaker 102/MEN/VI/2004)
 // ==============================================================================
@@ -243,6 +272,48 @@ export function calculateMonthlyPPh21(
     const annualTaxable = monthlyTaxable * 12
     const annualTax = calculateAnnualPPh21(annualTaxable, ptkp)
     return Math.round(annualTax / 12)
+}
+
+/**
+ * Calculate December PPh 21 true-up.
+ *
+ * Indonesian tax regulation requires that the actual annual tax be calculated
+ * in December using real annual totals (not projections). The December
+ * withholding is: actual annual tax − sum of Jan–Nov withholdings.
+ *
+ * This prevents under- or over-withholding caused by mid-year salary changes,
+ * bonus payments, or overtime fluctuations throughout the year.
+ */
+export function calculateDecemberPPh21(params: {
+    annualGross: number        // sum of Jan-Dec gross income
+    annualBPJSEmployee: number // sum of Jan-Dec employee BPJS deductions
+    ptkp: number               // from getPTKP(maritalStatus, dependentCount)
+    sumJanNovPPh21: number     // PPh 21 already withheld Jan-Nov
+}): number {
+    // Biaya Jabatan: 5% of gross, max Rp 6,000,000/year
+    const biayaJabatan = Math.min(params.annualGross * 0.05, 6_000_000)
+    // Iuran Pensiun: actual BPJS employee deduction, max Rp 2,400,000/year
+    const iuranPensiun = Math.min(params.annualBPJSEmployee, 2_400_000)
+
+    const neto = params.annualGross - biayaJabatan - iuranPensiun
+    const pkp = Math.max(0, neto - params.ptkp)
+
+    // Apply progressive brackets to actual annual PKP
+    let annualTax = 0
+    let remaining = pkp
+    let previousLimit = 0
+    for (const bracket of PPH21_BRACKETS) {
+        const bracketAmount = bracket.limit - previousLimit
+        const taxable = Math.min(remaining, bracketAmount)
+        annualTax += taxable * bracket.rate
+        remaining -= taxable
+        previousLimit = bracket.limit
+        if (remaining <= 0) break
+    }
+
+    // December withholding = annual tax − already withheld Jan-Nov
+    // Cannot be negative (if over-withheld, employer must refund separately)
+    return Math.max(0, Math.round(annualTax - params.sumJanNovPPh21))
 }
 
 // ==============================================================================

@@ -17,7 +17,9 @@ import { SYS_ACCOUNTS, ensureSystemAccounts } from '@/lib/gl-accounts'
 import {
     calculateBPJS,
     calculateMonthlyPPh21,
+    calculateDecemberPPh21,
     calculateWorkdayOvertimePay,
+    getPTKP,
     STANDARD_DAILY_HOURS,
     BPJS_KES_EMPLOYEE_RATE,
     BPJS_KES_EMPLOYER_RATE,
@@ -484,6 +486,12 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
     const { start, end } = createPayrollPeriodWindow(period)
     const periodLabel = start.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
 
+    // Determine if this is a December payroll (triggers annual PPh 21 true-up)
+    const [yearRaw, monthRaw] = period.split('-')
+    const payrollYear = Number(yearRaw)
+    const payrollMonth = Number(monthRaw)
+    const isDecember = payrollMonth === 12
+
     const employees = await prisma.employee.findMany({
         where: {
             status: { in: ['ACTIVE', 'ON_LEAVE'] },
@@ -497,6 +505,9 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
             department: true,
             position: true,
             baseSalary: true,
+            maritalStatus: true,
+            dependentCount: true,
+            ptkpCategory: true,
         },
     })
 
@@ -519,6 +530,41 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         const list = rowsByEmployeeId.get(row.employeeId) || []
         list.push(row)
         rowsByEmployeeId.set(row.employeeId, list)
+    }
+
+    // For December true-up: collect Jan-Nov payroll data per employee
+    // by summing PPh 21 already withheld from prior posted payroll runs
+    let priorPayrollByEmployee = new Map<string, { grossTotal: number; bpjsTotal: number; pph21Total: number }>()
+    if (isDecember) {
+        // Find all posted payroll runs for Jan-Nov of the same year
+        const janStart = new Date(payrollYear, 0, 1)
+        const priorPayrollTasks = await prisma.employeeTask.findMany({
+            where: {
+                relatedId: { startsWith: `PAYROLL-${payrollYear}-` },
+                notes: { startsWith: PAYROLL_RUN_PREFIX },
+                status: { in: ['COMPLETED', 'IN_PROGRESS'] }, // COMPLETED = posted, IN_PROGRESS = approved
+            },
+            select: { relatedId: true, notes: true },
+        })
+
+        for (const task of priorPayrollTasks) {
+            const taskPeriod = task.relatedId?.replace('PAYROLL-', '') || ''
+            // Skip December itself (we're calculating it now)
+            if (taskPeriod === period) continue
+            // Only include same-year periods
+            if (!taskPeriod.startsWith(`${payrollYear}-`)) continue
+
+            const payload = parsePayrollPayload(task.notes)
+            if (!payload?.lines) continue
+
+            for (const line of payload.lines) {
+                const existing = priorPayrollByEmployee.get(line.employeeId) || { grossTotal: 0, bpjsTotal: 0, pph21Total: 0 }
+                existing.grossTotal += line.grossSalary
+                existing.bpjsTotal += line.bpjsKesehatan + line.bpjsKetenagakerjaan
+                existing.pph21Total += line.pph21
+                priorPayrollByEmployee.set(line.employeeId, existing)
+            }
+        }
     }
 
     const lines: PayrollLineData[] = employees.map((employee: any) => {
@@ -552,8 +598,27 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         const bpjsJHT = bpjs.jhtEmployee
         const bpjsJP = bpjs.jpEmployee
 
-        // PPh21: Progressive brackets per UU HPP
-        const pph21 = calculateMonthlyPPh21(grossSalary, bpjs.totalEmployee)
+        // Per-employee PTKP based on marital status & dependents
+        const ptkp = getPTKP(employee.maritalStatus, employee.dependentCount)
+
+        // PPh 21: December true-up vs normal monthly calculation
+        let pph21: number
+        if (isDecember) {
+            // December: calculate actual annual tax, subtract Jan-Nov withholdings
+            const prior = priorPayrollByEmployee.get(employee.id) || { grossTotal: 0, bpjsTotal: 0, pph21Total: 0 }
+            const annualGross = prior.grossTotal + grossSalary
+            const annualBPJS = prior.bpjsTotal + bpjs.totalEmployee
+            pph21 = calculateDecemberPPh21({
+                annualGross,
+                annualBPJSEmployee: annualBPJS,
+                ptkp,
+                sumJanNovPPh21: prior.pph21Total,
+            })
+        } else {
+            // Jan-Nov: normal monthly projection (1/12 of projected annual tax)
+            pph21 = calculateMonthlyPPh21(grossSalary, bpjs.totalEmployee, ptkp)
+        }
+
         const totalDeductions = bpjs.totalEmployee + pph21
         const netSalary = Math.max(0, grossSalary - totalDeductions)
 
@@ -604,7 +669,7 @@ async function buildPayrollDraft(prisma: any, period: string, generatedBy: strin
         periodLabel,
         generatedAt: new Date().toISOString(),
         generatedBy,
-        formulaVersion: '2026.02',
+        formulaVersion: '2026.03', // Updated: per-employee PTKP + December true-up
         status: 'PENDING_APPROVAL',
         summary,
         lines,
