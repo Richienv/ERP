@@ -1713,12 +1713,13 @@ export default function FinancialReportsPage() {
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center w-[60px]">Aksi</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {arAgingData.byCustomer.length === 0 ? (
                                                     <TableRow>
-                                                        <TableCell colSpan={7} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                        <TableCell colSpan={8} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
                                                             Tidak ada piutang terbuka
                                                         </TableCell>
                                                     </TableRow>
@@ -1727,10 +1728,13 @@ export default function FinancialReportsPage() {
                                                         const isExpanded = expandedAR.has(cust.customerId)
                                                         return (
                                                             <React.Fragment key={idx}>
-                                                                <TableRow className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                                <TableRow
+                                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                    onClick={() => router.push(`/finance/transactions?account=1200&search=${encodeURIComponent(cust.customerName)}`)}
+                                                                >
                                                                     <TableCell className="font-bold text-sm">
                                                                         <button
-                                                                            onClick={() => toggleAR(cust.customerId)}
+                                                                            onClick={(e) => { e.stopPropagation(); toggleAR(cust.customerId) }}
                                                                             className="flex items-center gap-1.5 hover:text-orange-600 transition-colors"
                                                                         >
                                                                             {isExpanded
@@ -1746,6 +1750,11 @@ export default function FinancialReportsPage() {
                                                                     <TableCell className="text-right font-mono text-sm">{cust.d61_90 > 0 ? formatIDR(cust.d61_90) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm text-red-600">{cust.d90_plus > 0 ? formatIDR(cust.d90_plus) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm font-black">{formatIDR(cust.total)}</TableCell>
+                                                                    <TableCell className="text-center">
+                                                                        <span className="inline-flex items-center justify-center h-6 w-6 text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors rounded-none" title="Lihat transaksi piutang">
+                                                                            <ArrowRight className="h-3.5 w-3.5" />
+                                                                        </span>
+                                                                    </TableCell>
                                                                 </TableRow>
                                                                 {isExpanded && cust.invoices?.map((inv: any, j: number) => (
                                                                     <TableRow key={`inv-${j}`} className="bg-orange-50/50 dark:bg-orange-900/10">
@@ -1773,6 +1782,7 @@ export default function FinancialReportsPage() {
                                                                                 'bg-blue-100 text-blue-700'
                                                                             }`}>{inv.status}</span>
                                                                         </TableCell>
+                                                                        <TableCell />
                                                                     </TableRow>
                                                                 ))}
                                                             </React.Fragment>
@@ -1830,12 +1840,13 @@ export default function FinancialReportsPage() {
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">61-90</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">90+</TableHead>
                                                     <TableHead className="text-[10px] font-black uppercase tracking-widest text-right">Total</TableHead>
+                                                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-center w-[60px]">Aksi</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
                                                 {apAgingData.bySupplier.length === 0 ? (
                                                     <TableRow>
-                                                        <TableCell colSpan={7} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
+                                                        <TableCell colSpan={8} className="text-center py-8 text-zinc-400 text-xs font-bold uppercase tracking-widest">
                                                             Tidak ada hutang terbuka
                                                         </TableCell>
                                                     </TableRow>
@@ -1844,10 +1855,13 @@ export default function FinancialReportsPage() {
                                                         const isExpanded = expandedAP.has(supp.supplierId)
                                                         return (
                                                             <React.Fragment key={idx}>
-                                                                <TableRow className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                                                                <TableRow
+                                                                    className="cursor-pointer hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-colors"
+                                                                    onClick={() => router.push(`/finance/transactions?account=2000&search=${encodeURIComponent(supp.supplierName)}`)}
+                                                                >
                                                                     <TableCell className="font-bold text-sm">
                                                                         <button
-                                                                            onClick={() => toggleAP(supp.supplierId)}
+                                                                            onClick={(e) => { e.stopPropagation(); toggleAP(supp.supplierId) }}
                                                                             className="flex items-center gap-1.5 hover:text-red-600 transition-colors"
                                                                         >
                                                                             {isExpanded
@@ -1863,6 +1877,11 @@ export default function FinancialReportsPage() {
                                                                     <TableCell className="text-right font-mono text-sm">{supp.d61_90 > 0 ? formatIDR(supp.d61_90) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm text-red-600">{supp.d90_plus > 0 ? formatIDR(supp.d90_plus) : "-"}</TableCell>
                                                                     <TableCell className="text-right font-mono text-sm font-black">{formatIDR(supp.total)}</TableCell>
+                                                                    <TableCell className="text-center">
+                                                                        <span className="inline-flex items-center justify-center h-6 w-6 text-orange-500 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors rounded-none" title="Lihat transaksi hutang">
+                                                                            <ArrowRight className="h-3.5 w-3.5" />
+                                                                        </span>
+                                                                    </TableCell>
                                                                 </TableRow>
                                                                 {isExpanded && supp.bills?.map((bill: any, j: number) => (
                                                                     <TableRow key={`bill-${j}`} className="bg-red-50/50 dark:bg-red-900/10">
@@ -1890,6 +1909,7 @@ export default function FinancialReportsPage() {
                                                                                 'bg-blue-100 text-blue-700'
                                                                             }`}>{bill.status}</span>
                                                                         </TableCell>
+                                                                        <TableCell />
                                                                     </TableRow>
                                                                 ))}
                                                             </React.Fragment>
