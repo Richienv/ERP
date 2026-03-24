@@ -18,7 +18,7 @@ export default function FinanceDashboardPage() {
     const { data, isLoading } = useFinanceDashboard()
 
     if (isLoading || !data) {
-        return <TablePageSkeleton accentColor="bg-indigo-400" />
+        return <TablePageSkeleton accentColor="bg-orange-400" />
     }
 
     const { metrics, dashboardData } = data
@@ -28,9 +28,9 @@ export default function FinanceDashboardPage() {
 
             {/* COMMAND HEADER */}
             <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-indigo-400">
+                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-orange-400">
                     <div className="flex items-center gap-3">
-                        <Wallet className="h-5 w-5 text-indigo-500" />
+                        <Wallet className="h-5 w-5 text-orange-500" />
                         <div>
                             <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
                                 Keuangan & Akuntansi
@@ -75,31 +75,31 @@ export default function FinanceDashboardPage() {
 
                     {/* Receivables (AR) */}
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-orange-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <FileText className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Piutang (AR)</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-orange-600">
                             Rp {formatCompactNumber(metrics.receivables)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-blue-600">Invoice terbuka</span>
+                            <span className="text-[10px] font-bold text-orange-600">Invoice terbuka</span>
                         </div>
                     </div>
 
                     {/* Payables (AP) */}
                     <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-rose-400" />
+                        <div className="absolute top-0 left-0 right-0 h-1 bg-red-400" />
                         <div className="flex items-center gap-2 mb-2">
                             <CreditCard className="h-4 w-4 text-zinc-400" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Utang (AP)</span>
                         </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-rose-600">
+                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-red-600">
                             Rp {formatCompactNumber(metrics.payables)}
                         </div>
                         <div className="flex items-center gap-1 mt-1.5">
-                            <span className="text-[10px] font-bold text-rose-600">Bill belum lunas</span>
+                            <span className="text-[10px] font-bold text-red-600">Bill belum lunas</span>
                         </div>
                     </div>
 
@@ -130,9 +130,9 @@ export default function FinanceDashboardPage() {
                 <div className="lg:col-span-2 space-y-5">
                     {/* Cash Flow Chart — neo-brutalist wrapper */}
                     <div className="border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                        <div className="bg-indigo-50 dark:bg-indigo-950/20 px-4 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-indigo-400">
-                            <TrendingUp className="h-4 w-4 text-indigo-600" />
-                            <span className="text-xs font-black uppercase tracking-widest text-indigo-800">Cash Flow (7 Hari)</span>
+                        <div className="bg-orange-50 dark:bg-orange-950/20 px-4 py-2.5 border-b-2 border-black flex items-center gap-2 border-l-[5px] border-l-orange-400">
+                            <TrendingUp className="h-4 w-4 text-orange-600" />
+                            <span className="text-xs font-black uppercase tracking-widest text-orange-800">Cash Flow (7 Hari)</span>
                         </div>
                         <div className="p-4">
                             <CashFlowChart data={dashboardData.cashFlow} className="border-0 shadow-none p-0 rounded-none" />
@@ -212,7 +212,7 @@ export default function FinanceDashboardPage() {
                                         "h-8 w-8 border-2 border-black flex items-center justify-center shrink-0 shadow-[1px_1px_0px_0px_rgba(0,0,0,1)]",
                                         action.type === 'urgent' && "bg-red-100 text-red-600",
                                         action.type === 'pending' && "bg-amber-100 text-amber-600",
-                                        action.type === 'warning' && "bg-blue-100 text-blue-600",
+                                        action.type === 'warning' && "bg-orange-100 text-orange-600",
                                         action.type === 'info' && "bg-zinc-100 text-zinc-600",
                                     )}>
                                         {action.type === 'urgent' ? <AlertCircle className="h-3.5 w-3.5" /> :
@@ -236,8 +236,8 @@ export default function FinanceDashboardPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-0">
                             {[
-                                { href: "/finance/invoices", icon: FileText, label: "Buat Invoice", color: "text-blue-500 bg-blue-50" },
-                                { href: "/finance/bills", icon: CreditCard, label: "Catat Bill", color: "text-rose-500 bg-rose-50" },
+                                { href: "/finance/invoices", icon: FileText, label: "Buat Invoice", color: "text-orange-500 bg-orange-50" },
+                                { href: "/finance/bills", icon: CreditCard, label: "Catat Bill", color: "text-zinc-600 bg-zinc-50" },
                                 { href: "/finance/reports", icon: Activity, label: "Rekonsiliasi", color: "text-amber-500 bg-amber-50" },
                                 { href: "/finance/vendor-payments", icon: ArrowUpRight, label: "Transfer Kas", color: "text-emerald-500 bg-emerald-50" },
                             ].map((item, idx) => (

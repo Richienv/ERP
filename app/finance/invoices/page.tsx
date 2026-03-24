@@ -391,10 +391,10 @@ export default function InvoicesPage() {
 
     const statusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
         DRAFT: { label: 'Draft', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700', dot: 'bg-zinc-400' },
-        ISSUED: { label: 'Terkirim', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700', dot: 'bg-blue-500' },
-        OVERDUE: { label: 'Jatuh Tempo', bg: 'bg-red-50 border-red-300', text: 'text-red-700', dot: 'bg-red-500' },
-        PARTIAL: { label: 'Sebagian', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700', dot: 'bg-amber-500' },
-        PAID: { label: 'Lunas', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+        ISSUED: { label: 'Terkirim', bg: 'bg-orange-100 border-orange-300', text: 'text-orange-700', dot: 'bg-orange-500' },
+        OVERDUE: { label: 'Jatuh Tempo', bg: 'bg-red-100 border-red-300', text: 'text-red-700', dot: 'bg-red-500' },
+        PARTIAL: { label: 'Sebagian', bg: 'bg-amber-100 border-amber-300', text: 'text-amber-700', dot: 'bg-amber-500' },
+        PAID: { label: 'Lunas', bg: 'bg-emerald-100 border-emerald-300', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     }
 
     const totalAmount = useMemo(() => allInvoices.reduce((s, i) => s + (i.amount || 0), 0), [allInvoices])
@@ -470,7 +470,7 @@ export default function InvoicesPage() {
                     {[
                         { label: 'Semua', count: counts.all, amount: totalAmount, color: 'orange' },
                         { label: 'Draft', count: counts.draft, amount: null, color: 'zinc' },
-                        { label: 'Terkirim', count: counts.sent, amount: null, color: 'blue' },
+                        { label: 'Terkirim', count: counts.sent, amount: null, color: 'orange' },
                         { label: 'Jatuh Tempo', count: counts.overdue, amount: overdueAmount, color: 'red' },
                         { label: 'Lunas', count: counts.paid, amount: null, color: 'emerald' },
                     ].map((kpi) => (
@@ -482,7 +482,7 @@ export default function InvoicesPage() {
                                 <span className={`w-2 h-2 ${
                                     kpi.color === 'orange' ? 'bg-orange-500' :
                                     kpi.color === 'zinc' ? 'bg-zinc-400' :
-                                    kpi.color === 'blue' ? 'bg-blue-500' :
+                                    kpi.color === 'amber' ? 'bg-amber-500' :
                                     kpi.color === 'red' ? 'bg-red-500' : 'bg-emerald-500'
                                 }`} />
                                 <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
@@ -675,8 +675,8 @@ export default function InvoicesPage() {
                                         </div>
                                         <div>
                                             <span className={`text-[9px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${invoice.type === 'INV_OUT'
-                                                ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400'
-                                                : 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-700 text-purple-600 dark:text-purple-400'
+                                                ? 'bg-orange-100 dark:bg-orange-950/30 border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-400'
+                                                : 'bg-zinc-100 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-400'
                                                 }`}>
                                                 {invoice.type === 'INV_OUT' ? 'Invoice' : 'Bill'}
                                             </span>
@@ -757,7 +757,7 @@ export default function InvoicesPage() {
                                                 title="Lampiran"
                                                 className={`h-7 w-7 flex items-center justify-center border transition-colors rounded-none ${
                                                     attachmentInvoiceId === invoice.id
-                                                        ? "border-violet-500 text-violet-700 bg-violet-50 dark:bg-violet-950/30"
+                                                        ? "border-orange-500 text-orange-700 bg-orange-50 dark:bg-orange-950/30"
                                                         : "border-zinc-200 dark:border-zinc-600 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 hover:text-zinc-600"
                                                 }`}
                                             >

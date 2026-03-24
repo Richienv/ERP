@@ -11,6 +11,7 @@ import {
     Loader2,
     CheckCircle2,
     AlertCircle,
+    AlertTriangle,
     Wallet,
     Search,
     FileText,
@@ -24,6 +25,7 @@ import {
     Check,
     Minus,
 } from "lucide-react"
+import { differenceInDays } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import {
@@ -46,6 +48,7 @@ import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { disputeBill, recordMultiBillPayment, type VendorBill } from "@/lib/actions/finance"
+import { approveVendorBill } from "@/lib/actions/finance-ap"
 import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
@@ -321,6 +324,24 @@ export default function APBillsStackPage() {
 
     const openBillDetail = (bill: VendorBill) => { setActiveBill(bill); setStamped(false); setIsDetailOpen(true) }
 
+    const [approvingBillId, setApprovingBillId] = useState<string | null>(null)
+    const handleApproveBill = async (bill: VendorBill) => {
+        setApprovingBillId(bill.id)
+        try {
+            const result = await approveVendorBill(bill.id)
+            if (result.success) {
+                toast.success(`${bill.number} berhasil disetujui — jurnal terposting`)
+                invalidateAfterPayout()
+            } else {
+                toast.error("error" in result ? result.error : "Gagal menyetujui tagihan")
+            }
+        } catch {
+            toast.error("Terjadi kesalahan saat menyetujui")
+        } finally {
+            setApprovingBillId(null)
+        }
+    }
+
     // KPI
     const totalBills = billMeta.total
     const pendingBills = bills.filter((b) => b.status === "ISSUED" || b.status === "DRAFT").length
@@ -328,12 +349,16 @@ export default function APBillsStackPage() {
     const totalAmount = bills.reduce((sum, b) => sum + b.balanceDue, 0)
     const hasActiveFilters = searchText || selectedStatuses.length > 0
 
+    /** DRAFT bills older than 3 days are "stale" — user should approve them */
+    const isStaleDraft = (bill: VendorBill) =>
+        bill.status === "DRAFT" && differenceInDays(new Date(), new Date(bill.date)) > 3
+
     const getStatusColor = (status: string, isOverdue: boolean) => {
-        if (isOverdue) return "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
+        if (isOverdue) return "bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
         switch (status) {
-            case "PAID": return "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
-            case "DISPUTED": return "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
-            case "PARTIAL": return "bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+            case "PAID": return "bg-emerald-100 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
+            case "DISPUTED": return "bg-red-100 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-300 dark:border-red-700"
+            case "PARTIAL": return "bg-amber-100 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700"
             case "DRAFT": return "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700"
             default: return "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
         }
@@ -371,14 +396,14 @@ export default function APBillsStackPage() {
                 {/* Row 2: KPI Strip — big, colorful, attention-grabbing */}
                 <div className="grid grid-cols-3 border-b border-zinc-200 dark:border-zinc-800">
                     {/* Total Tagihan */}
-                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-blue-50/50 dark:bg-blue-950/10">
+                    <div className="px-5 py-4 border-r border-zinc-200 dark:border-zinc-800 bg-orange-50/50 dark:bg-orange-950/10">
                         <div className="flex items-center gap-1.5 mb-1">
-                            <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Total Tagihan</span>
+                            <span className="w-2 h-2 bg-orange-500 rounded-full" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-orange-600 dark:text-orange-400">Total Tagihan</span>
                         </div>
                         <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black text-blue-700 dark:text-blue-300 tabular-nums">{totalBills}</span>
-                            <span className="text-sm font-mono font-bold text-blue-500 dark:text-blue-400">{formatIDR(totalAmount)}</span>
+                            <span className="text-3xl font-black text-orange-700 dark:text-orange-300 tabular-nums">{totalBills}</span>
+                            <span className="text-sm font-mono font-bold text-orange-500 dark:text-orange-400">{formatIDR(totalAmount)}</span>
                         </div>
                     </div>
                     {/* Pending */}
@@ -500,16 +525,23 @@ export default function APBillsStackPage() {
                                             </span>
                                         </div>
                                         {/* Status */}
-                                        <div>
+                                        <div className="flex flex-col gap-1">
                                             <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${getStatusColor(bill.status, isOverdue)}`}>
                                                 <span className={`w-1.5 h-1.5 ${
                                                     isOverdue ? "bg-red-500" :
                                                     bill.status === "PAID" ? "bg-emerald-500" :
-                                                    bill.status === "DISPUTED" ? "bg-amber-500" :
+                                                    bill.status === "DISPUTED" ? "bg-red-500" :
+                                                    bill.status === "PARTIAL" ? "bg-amber-500" :
                                                     "bg-zinc-400"
                                                 }`} />
                                                 {isOverdue ? "Overdue" : bill.status}
                                             </span>
+                                            {isStaleDraft(bill) && (
+                                                <span className="inline-flex items-center gap-1 text-[8px] font-bold text-orange-600 bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400 px-1.5 py-0.5 border border-orange-300 dark:border-orange-700 rounded-none">
+                                                    <AlertTriangle className="h-2.5 w-2.5" />
+                                                    Belum disetujui
+                                                </span>
+                                            )}
                                         </div>
                                         {/* Amount */}
                                         <div>
@@ -535,7 +567,22 @@ export default function APBillsStackPage() {
                                             >
                                                 <Eye className="h-3 w-3" />
                                             </motion.button>
-                                            {bill.status !== "PAID" && bill.balanceDue > 0 && (
+                                            {bill.status === "DRAFT" && (
+                                                <motion.button
+                                                    whileHover={{ y: -1 }}
+                                                    whileTap={{ scale: 0.92 }}
+                                                    onClick={() => handleApproveBill(bill)}
+                                                    disabled={approvingBillId === bill.id}
+                                                    title="Setujui"
+                                                    className="h-7 px-2 flex items-center gap-1 bg-orange-500 text-white border border-orange-600 hover:bg-orange-600 transition-colors rounded-none text-[9px] font-bold uppercase"
+                                                >
+                                                    {approvingBillId === bill.id
+                                                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                                                        : <Check className="h-3 w-3" />}
+                                                    Setujui
+                                                </motion.button>
+                                            )}
+                                            {bill.status !== "PAID" && bill.status !== "DRAFT" && bill.balanceDue > 0 && (
                                                 <motion.button
                                                     whileHover={{ y: -1 }}
                                                     whileTap={{ scale: 0.92 }}
