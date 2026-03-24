@@ -290,7 +290,7 @@ export default function InvoicesPage() {
     }
 
     const handleConfirmSend = async () => {
-        if (!activeInvoice) return
+        if (!activeInvoice || sending) return
         if (sendMethod === 'WHATSAPP' && !recipientContact) {
             toast.error("Masukkan nomor WhatsApp")
             return
@@ -302,8 +302,25 @@ export default function InvoicesPage() {
         try {
             // Update status FIRST, then redirect to WhatsApp
             const result: any = await moveInvoiceToSent(activeInvoice.id, sendMessage, sendMethod)
-            if (!result.success) throw new Error(result.error || "Gagal mengirim invoice")
-            toast.success(result.status === 'OVERDUE' ? "Invoice dipindahkan ke Jatuh Tempo." : "Invoice terkirim!")
+
+            if (!result.success) {
+                // Handle stale cache — invoice was already sent by another tab/user
+                if (result.alreadySent) {
+                    toast.info("Invoice sudah dikirim sebelumnya. Data diperbarui.")
+                    setIsSendDialogOpen(false)
+                    invalidateAfterSend()
+                    return
+                }
+                toast.error(result.error || "Gagal mengirim invoice")
+                return
+            }
+
+            const invNumber = result.number || activeInvoice.number
+            toast.success(
+                result.status === 'OVERDUE'
+                    ? `Invoice ${invNumber} dipindahkan ke Jatuh Tempo.`
+                    : `Invoice ${invNumber} berhasil dikirim`
+            )
             setIsSendDialogOpen(false)
             invalidateAfterSend()
             // Open WhatsApp AFTER status is updated and cache invalidated

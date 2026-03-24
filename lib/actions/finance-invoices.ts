@@ -761,8 +761,11 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 }
             })
 
-            if (!existing) throw new Error("Invoice not found")
-            if (existing.status !== 'DRAFT') throw new Error(`Invoice ${existing.number} sudah berstatus ${existing.status}. Refresh halaman untuk melihat status terbaru.`)
+            if (!existing) throw new Error("Invoice tidak ditemukan")
+            if (existing.status === 'ISSUED' || existing.status === 'OVERDUE') {
+                return { alreadySent: true, number: existing.number, status: existing.status }
+            }
+            if (existing.status !== 'DRAFT') throw new Error(`Invoice ${existing.number} sudah berstatus ${existing.status}. Tidak bisa dikirim.`)
 
             const fallbackDueDate = new Date(now)
             fallbackDueDate.setDate(fallbackDueDate.getDate() + 30)
@@ -791,6 +794,11 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 issueDate: now,
             }
         })
+
+        // If invoice was already sent (stale cache), return early without re-posting GL
+        if ('alreadySent' in txResult && txResult.alreadySent) {
+            return { success: false, alreadySent: true, error: `Invoice ${txResult.number} sudah dikirim sebelumnya` }
+        }
 
         // Post GL entry for AR/AP recognition (outside withPrismaAuth to avoid nested transaction)
         // Idempotency: check if journal entry already exists for this invoice
@@ -859,10 +867,10 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
             }
         }
 
-        return { success: true, dueDate: txResult.dueDate, status: txResult.nextStatus }
+        return { success: true, number: txResult.number, dueDate: txResult.dueDate, status: txResult.nextStatus }
     } catch (error: any) {
         console.error("Failed to move invoice to sent:", error)
-        return { success: false, error: error?.message || "Failed to update invoice status" }
+        return { success: false, error: error?.message || "Gagal mengupdate status invoice" }
     }
 }
 
