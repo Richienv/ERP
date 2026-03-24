@@ -1708,6 +1708,7 @@ export async function createProduct(input: CreateProductInput) {
                     reorderLevel: data.reorderLevel ?? 0,
                     barcode: finalBarcode,
                     isActive: true,
+                    expenseAccountCode: (data as any).expenseAccountCode || null,
                 }
             })
         })
@@ -1843,6 +1844,7 @@ export async function updateProduct(productId: string, data: {
     maxStock?: number
     reorderLevel?: number
     barcode?: string
+    expenseAccountCode?: string
 }) {
     try {
         const supabase = await createClient()
@@ -1860,6 +1862,7 @@ export async function updateProduct(productId: string, data: {
         if (data.maxStock !== undefined) updateData.maxStock = data.maxStock
         if (data.reorderLevel !== undefined) updateData.reorderLevel = data.reorderLevel
         if (data.barcode !== undefined) updateData.barcode = data.barcode || null
+        if (data.expenseAccountCode !== undefined) updateData.expenseAccountCode = data.expenseAccountCode || null
 
         // Fetch old values for audit diff
         const oldProduct = await prisma.product.findUnique({

@@ -20,6 +20,7 @@ export const createProductSchemaBase = z.object({
   reorderLevel: z.number().int().min(0, 'Level reorder tidak boleh negatif').optional().default(0),
   barcode: z.string().optional(),
   costingMethod: z.enum(['AVERAGE', 'FIFO']).optional().default('AVERAGE'),
+  expenseAccountCode: z.string().optional(),
 })
 
 // Product validation schema with refinements

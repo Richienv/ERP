@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -28,7 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Save, X, Package, DollarSign, BarChart3, ArrowRightLeft } from "lucide-react"
+import { Save, X, Package, DollarSign, BarChart3, ArrowRightLeft, BookOpen } from "lucide-react"
+import { getExpenseAccounts as fetchExpenseAccountsAction } from "@/lib/actions/finance-petty-cash"
 
 interface ProductFormProps {
   initialData?: Partial<CreateProductInput>
@@ -75,8 +76,23 @@ export function ProductForm({
       reorderLevel: initialData?.reorderLevel || 0,
       barcode: initialData?.barcode || "",
       costingMethod: initialData?.costingMethod || "AVERAGE",
+      expenseAccountCode: initialData?.expenseAccountCode || "",
     },
   })
+
+  // Fetch EXPENSE-type GL accounts for dropdown
+  const [expenseAccounts, setExpenseAccounts] = useState<{ code: string; name: string }[]>([])
+  const [expenseAccountsLoading, setExpenseAccountsLoading] = useState(false)
+  useEffect(() => {
+    let cancelled = false
+    setExpenseAccountsLoading(true)
+    fetchExpenseAccountsAction().then((result) => {
+      if (!cancelled && Array.isArray(result)) setExpenseAccounts(result)
+    }).finally(() => {
+      if (!cancelled) setExpenseAccountsLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [])
 
   const handleSubmit = async (data: CreateProductInput) => {
     setIsSubmitting(true)
@@ -437,6 +453,43 @@ export function ProductForm({
                     </FormItem>
                   )}
                 />
+
+                <div className="space-y-3 rounded-lg border p-3 bg-muted/30">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <BookOpen className="h-4 w-4" />
+                    Akun Beban (Expense Account)
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="expenseAccountCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <Select
+                          onValueChange={(val) => field.onChange(val === "__none__" ? "" : val)}
+                          value={field.value || "__none__"}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder={expenseAccountsLoading ? "Memuat akun..." : "Default — 6900 Beban Lain-lain"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="__none__">Default — 6900 Beban Lain-lain</SelectItem>
+                            {expenseAccounts.map((acc) => (
+                              <SelectItem key={acc.code} value={acc.code}>
+                                {acc.code} — {acc.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          {"Pilih '5000 — HPP' untuk item Harga Pokok Penjualan"}
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </CardContent>
             </Card>
           </div>

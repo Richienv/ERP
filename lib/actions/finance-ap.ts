@@ -255,9 +255,10 @@ export async function approveVendorBill(billId: string) {
                 const amount = Number(item.amount)
                 totalAmount += amount
 
-                // TODO: enhance with product-specific accounts in future
+                // Use product's expense account if set, otherwise fall back to default
+                const expenseAccount = item.product?.expenseAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT
                 glLines.push({
-                    accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
+                    accountCode: expenseAccount,
                     debit: amount,
                     credit: 0,
                     description: `${item.description} (Qty: ${item.quantity})`
@@ -790,12 +791,13 @@ export async function approveAndPayBill(
                 const glLines: any[] = []
                 let totalAmount = 0
 
-                // Add Expense Lines
+                // Add Expense Lines — use product's expense account if set
                 for (const item of bill.items) {
                     const amount = Number(item.amount)
                     totalAmount += amount
+                    const expenseAccount = item.product?.expenseAccountCode || SYS_ACCOUNTS.EXPENSE_DEFAULT
                     glLines.push({
-                        accountCode: SYS_ACCOUNTS.COGS,
+                        accountCode: expenseAccount,
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
