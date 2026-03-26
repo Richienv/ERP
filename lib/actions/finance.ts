@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/audit-helpers"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
+import { inferSubType } from "@/lib/account-subtype-helpers"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -2610,7 +2611,9 @@ export interface GLAccountNode {
     code: string
     name: string
     type: string
+    subType: string
     balance: number
+    parentId: string | null
     children: GLAccountNode[]
 }
 
@@ -2650,7 +2653,9 @@ export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
                     code: acc.code,
                     name: acc.name,
                     type: acc.type,
+                    subType: acc.subType,
                     balance: balanceMap.get(acc.id) || 0,
+                    parentId: acc.parentId,
                     children: []
                 })
             })
@@ -2715,6 +2720,7 @@ export async function createGLAccount(data: {
                     code: data.code,
                     name: data.name,
                     type: data.type,
+                    subType: inferSubType(data.code) as any,
                     parentId,
                 }
             })

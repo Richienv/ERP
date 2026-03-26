@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { NB } from "@/lib/dialog-styles"
 import { createGLAccount, type GLAccountNode } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
+import { subTypeLabel } from "@/lib/account-subtype-helpers"
 import { toast } from "sonner"
 import { useChartOfAccounts, useInvalidateChartAccounts } from "@/hooks/use-chart-accounts"
 import { useQueryClient } from "@tanstack/react-query"
@@ -84,6 +85,11 @@ const AccountNode = ({ node, level }: { node: GLAccountNode; level: number }) =>
                     <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-200 dark:border-zinc-700 text-zinc-400 bg-zinc-50 dark:bg-zinc-800">
                         {node.type}
                     </span>
+                    {node.subType && node.subType !== 'GENERAL' && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 border border-orange-200 text-orange-500 bg-orange-50">
+                            {subTypeLabel(node.subType)}
+                        </span>
+                    )}
                 </div>
                 <div
                     className={`text-right font-mono font-bold text-sm tracking-tight w-40 ${
