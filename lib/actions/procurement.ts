@@ -8,6 +8,7 @@ import { assertRole, getAuthzUser } from "@/lib/authz"
 import { assertPOTransition } from "@/lib/po-state-machine"
 import { canApproveForDepartment, resolveEmployeeContext } from "@/lib/employee-context"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 const PURCHASING_ROLES = ["ROLE_PURCHASING", "ROLE_ADMIN", "ROLE_CEO", "ROLE_DIRECTOR"]
 const APPROVER_ROLES = ["ROLE_CEO", "ROLE_DIRECTOR", "ROLE_ADMIN", "ROLE_MANAGER"]
@@ -2191,6 +2192,7 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
 
         // ─── 8. Post GL journal entry (outside transaction to avoid nested deadlock) ───
         try {
+            await assertPeriodOpen(new Date())
             const { postJournalEntry } = await import("./finance-gl")
             await postJournalEntry({
                 description: `Pembelian Langsung ${result.poNumber}`,

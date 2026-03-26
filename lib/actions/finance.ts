@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -354,6 +355,9 @@ export async function postJournalEntry(data: {
         if (Math.abs(totalDebit - totalCredit) > 0.01) {
             throw new Error(`Unbalanced Journal: Debit (${totalDebit}) != Credit (${totalCredit})`)
         }
+
+        // Period lock check
+        await assertPeriodOpen(data.date)
 
         return await withPrismaAuth(async (prisma) => {
             // 2. Fetch Account IDs
@@ -1245,6 +1249,9 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                 return { success: true, invoiceId: existingInvoice.id, invoiceNumber: existingInvoice.number }
             }
 
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // Generate Invoice Number
             const year = new Date().getFullYear()
             const count = await prisma.invoice.count({
@@ -1442,6 +1449,9 @@ export async function processRefund(data: {
             if (!invoice) throw new Error("Invoice not found")
             if (invoice.type !== 'INV_OUT') throw new Error("Can only refund customer payments")
 
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // 1. Create Refund Record
             const refund = await prisma.payment.create({
                 data: {
@@ -1528,6 +1538,9 @@ export async function createPaymentVoucher(data: {
             if (bills.length !== data.billIds.length) {
                 throw new Error("Some bills not found or already paid")
             }
+
+            // Period lock check
+            await assertPeriodOpen(new Date())
 
             // 2. Generate PV Number
             const count = await prisma.payment.count({ where: { type: 'VOUCHER' } })
@@ -1654,6 +1667,9 @@ export async function recordInvoicePayment(data: {
 
             if (!invoice) throw new Error("Invoice not found")
 
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // Create Payment Record
             const payment = await prisma.payment.create({
                 data: {
@@ -1752,6 +1768,9 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
             if (!voucher) throw new Error("Voucher not found")
             if (voucher.method !== 'GIRO') throw new Error("Not a GIRO payment")
             if (voucher.status !== 'PENDING') throw new Error("GIRO already processed")
+
+            // Period lock check
+            await assertPeriodOpen(new Date())
 
             if (isCleared) {
                 // GIRO Cleared - apply payments
@@ -2043,6 +2062,9 @@ export async function recordARPayment(data: {
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -2122,6 +2144,9 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
             if (!payment) throw new Error("Payment not found")
             if (!invoice) throw new Error("Invoice not found")
             if (payment.invoiceId) throw new Error("Payment already allocated")
+
+            // Period lock check
+            await assertPeriodOpen(new Date())
 
             const paymentAmount = Number(payment.amount)
             const newBalance = Number(invoice.balanceDue) - paymentAmount
@@ -2315,6 +2340,9 @@ export async function approveVendorBill(billId: string) {
             if (!bill) throw new Error("Bill not found")
             if (bill.status !== 'DRAFT') throw new Error("Bill already processed")
 
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // 2. Update Status to ISSUED (Approved)
             await prisma.invoice.update({
                 where: { id: billId },
@@ -2490,6 +2518,9 @@ export async function recordVendorPayment(data: {
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            // Period lock check
+            await assertPeriodOpen(new Date())
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -2891,6 +2922,9 @@ export async function approveAndPayBill(
                 include: { supplier: true, items: { include: { product: true } } }
             })
             if (!bill) throw new Error("Bill not found")
+
+            // Period lock check
+            await assertPeriodOpen(new Date())
 
             // 2. Update Supplier Bank Details if provided
             if (bill.supplierId && paymentDetails.bankAccountNumber) {
