@@ -2092,8 +2092,9 @@ model GLAccount {
   id       String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   code     String      @unique // e.g. "1010"
   name     String // e.g. "Bank BCA"
-  type     AccountType // ASSET, LIABILITY, etc.
-  balance  Decimal     @default(0) @db.Decimal(15, 2)
+  type     AccountType    // ASSET, LIABILITY, etc.
+  subType  AccountSubType @default(GENERAL)
+  balance  Decimal        @default(0) @db.Decimal(15, 2)
   isSystem Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
 
   // Hierarchy
@@ -2182,6 +2183,26 @@ enum AccountType {
   EQUITY
   REVENUE
   EXPENSE
+}
+
+enum AccountSubType {
+  ASSET_RECEIVABLE
+  ASSET_CASH
+  ASSET_CURRENT
+  ASSET_NON_CURRENT
+  ASSET_PREPAYMENTS
+  ASSET_FIXED
+  LIABILITY_PAYABLE
+  LIABILITY_CURRENT
+  LIABILITY_NON_CURRENT
+  EQUITY
+  EQUITY_UNAFFECTED
+  INCOME
+  INCOME_OTHER
+  EXPENSE
+  EXPENSE_DEPRECIATION
+  EXPENSE_DIRECT_COST
+  GENERAL
 }
 
 enum EntryStatus {
