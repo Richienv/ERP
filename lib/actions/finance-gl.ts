@@ -118,14 +118,31 @@ export async function createGLAccount(data: {
     code: string
     name: string
     type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE'
+    parentId?: string | null
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            let parentId = data.parentId ?? null
+
+            // Auto-suggest parent: find account with same first 2 digits + "00" suffix
+            if (!parentId && data.code.length >= 4) {
+                const prefix = data.code.substring(0, 2)
+                const parentCode = prefix + "00"
+                if (parentCode !== data.code) {
+                    const candidate = await prisma.gLAccount.findUnique({
+                        where: { code: parentCode },
+                        select: { id: true },
+                    })
+                    if (candidate) parentId = candidate.id
+                }
+            }
+
             const account = await prisma.gLAccount.create({
                 data: {
                     code: data.code,
                     name: data.name,
-                    type: data.type
+                    type: data.type,
+                    parentId,
                 }
             })
             return { success: true, accountId: account.id }
