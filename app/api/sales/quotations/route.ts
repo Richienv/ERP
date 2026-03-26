@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PaymentTerm, QuotationStatus } from '@prisma/client'
+import { PaymentTermLegacy, QuotationStatus } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
@@ -283,9 +283,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTerm))
+    const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTermLegacy))
       ? body.paymentTerm
-      : PaymentTerm.NET_30
+      : PaymentTermLegacy.NET_30
 
     const quotationDate = body.quotationDate ? new Date(body.quotationDate) : new Date()
     const validUntil = body.validUntil ? new Date(body.validUntil) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)

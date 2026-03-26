@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { PaymentTerm, QuotationStatus } from '@prisma/client'
+import { PaymentTermLegacy, QuotationStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
@@ -173,7 +173,7 @@ export async function PATCH(
         const taxAmount = normalizedItems.reduce((sum, item) => sum + item.taxAmount, 0)
         const total = normalizedItems.reduce((sum, item) => sum + item.lineTotal, 0)
 
-        const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTerm))
+        const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTermLegacy))
             ? body.paymentTerm
             : undefined
 

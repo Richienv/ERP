@@ -1485,7 +1485,7 @@ export async function createVendor(data: {
                     officePhone: data.officePhone || null,
                     address: data.address || null,
                     address2: data.address2 || null,
-                    paymentTerm: (data.paymentTerm as import("@prisma/client").PaymentTerm) || "CASH",
+                    paymentTerm: (data.paymentTerm as import("@prisma/client").PaymentTermLegacy) || "CASH",
                     bankName: data.bankName || null,
                     bankAccountNumber: data.bankAccountNumber || null,
                     bankAccountName: data.bankAccountName || null,
@@ -1901,7 +1901,7 @@ export async function updateVendor(
                     address: data.address ?? undefined,
                     address2: data.address2 ?? undefined,
                     paymentTerm: data.paymentTerm
-                        ? (data.paymentTerm as import("@prisma/client").PaymentTerm)
+                        ? (data.paymentTerm as import("@prisma/client").PaymentTermLegacy)
                         : undefined,
                     bankName: data.bankName ?? undefined,
                     bankAccountNumber: data.bankAccountNumber ?? undefined,

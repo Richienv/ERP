@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { CreditStatus, CustomerType, PaymentTerm, TaxStatus } from '@prisma/client'
+import { CreditStatus, CustomerType, PaymentTermLegacy, TaxStatus } from '@prisma/client'
 
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
@@ -202,9 +202,9 @@ export async function POST(request: NextRequest) {
       ? body.taxStatus
       : TaxStatus.PKP
 
-    const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTerm))
+    const paymentTerm = isEnumValue(body.paymentTerm, Object.values(PaymentTermLegacy))
       ? body.paymentTerm
-      : PaymentTerm.NET_30
+      : PaymentTermLegacy.NET_30
 
     const customer = await prisma.customer.create({
       data: {

@@ -3,7 +3,7 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { supabase } from "@/lib/supabase"
-import { ProcurementStatus, PaymentTerm } from "@prisma/client"
+import { ProcurementStatus, PaymentTermLegacy } from "@prisma/client"
 
 async function requireAuth() {
     const supabase = await createClient()
@@ -122,7 +122,7 @@ export async function createVendor(data: {
                     officePhone: data.officePhone || null,
                     address: data.address || null,
                     address2: data.address2 || null,
-                    paymentTerm: (data.paymentTerm as PaymentTerm) || "CASH",
+                    paymentTerm: (data.paymentTerm as PaymentTermLegacy) || "CASH",
                     bankName: data.bankName || null,
                     bankAccountNumber: data.bankAccountNumber || null,
                     bankAccountName: data.bankAccountName || null,
@@ -205,7 +205,7 @@ export async function updateVendor(vendorId: string, data: {
                     officePhone: data.officePhone || null,
                     address: data.address || null,
                     address2: data.address2 || null,
-                    paymentTerm: (data.paymentTerm as PaymentTerm) || "CASH",
+                    paymentTerm: (data.paymentTerm as PaymentTermLegacy) || "CASH",
                     bankName: data.bankName || null,
                     bankAccountNumber: data.bankAccountNumber || null,
                     bankAccountName: data.bankAccountName || null,

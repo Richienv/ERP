@@ -512,7 +512,7 @@ model Customer {
   // Credit Management
   creditLimit  Decimal      @default(0) @db.Decimal(15, 2)
   creditTerm   Int          @default(30) // days
-  paymentTerm  PaymentTerm  @default(NET_30)
+  paymentTerm  PaymentTermLegacy  @default(NET_30)
   creditStatus CreditStatus @default(GOOD)
 
   // Business Settings
@@ -655,7 +655,7 @@ model Quotation {
   validUntil    DateTime
 
   // Terms
-  paymentTerm  PaymentTerm @default(NET_30)
+  paymentTerm  PaymentTermLegacy @default(NET_30)
   deliveryTerm String?
 
   // Amounts
@@ -734,7 +734,7 @@ model SalesOrder {
   confirmedDate DateTime?
 
   // Terms
-  paymentTerm  PaymentTerm @default(NET_30)
+  paymentTerm  PaymentTermLegacy @default(NET_30)
   deliveryTerm String?
 
   // Amounts
@@ -867,7 +867,35 @@ enum TaxStatus {
   EXEMPT // Bebas Pajak
 }
 
-enum PaymentTerm {
+model PaymentTerm {
+  id        String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  code      String   @unique
+  name      String
+  days      Int      @default(30)
+  isDefault Boolean  @default(false)
+  isActive  Boolean  @default(true)
+
+  lines     PaymentTermLine[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payment_terms")
+}
+
+model PaymentTermLine {
+  id            String      @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paymentTermId String      @db.Uuid
+  paymentTerm   PaymentTerm @relation(fields: [paymentTermId], references: [id], onDelete: Cascade)
+  sequence      Int
+  percentage    Decimal     @db.Decimal(5, 2)
+  days          Int
+
+  @@index([paymentTermId])
+  @@map("payment_term_lines")
+}
+
+enum PaymentTermLegacy {
   CASH // Tunai
   NET_15 // 15 hari
   NET_30 // 30 hari
@@ -1039,7 +1067,7 @@ model Supplier {
   officePhone   String?    // Office landline
   picPhone      String?    // PIC mobile (separate from office)
   contactTitle  String?    // Mr/Mrs/etc title for contact person
-  paymentTerm   PaymentTerm @default(CASH) // Terms of payment
+  paymentTerm   PaymentTermLegacy @default(CASH) // Terms of payment
 
   // Performance
   rating         Int      @default(0) // 1-5 stars
