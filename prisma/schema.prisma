@@ -2068,6 +2068,11 @@ model GLAccount {
   balance  Decimal     @default(0) @db.Decimal(15, 2)
   isSystem Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
 
+  // Hierarchy
+  parentId  String?     @db.Uuid
+  parent    GLAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children  GLAccount[] @relation("AccountHierarchy")
+
   lines               JournalLine[]
   bankReconciliations BankReconciliation[]
   pettyCashBankTxns     PettyCashTransaction[] @relation("PettyCashBank")
