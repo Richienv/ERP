@@ -5,6 +5,7 @@ import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
+import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -587,11 +588,8 @@ export async function createInvoiceFromSalesOrder(
             const invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
             // Determine due date based on payment terms (default: NET_30 = 30 days)
-            const paymentTermDays = salesOrder.paymentTerm === 'NET_30' ? 30 :
-                salesOrder.paymentTerm === 'NET_15' ? 15 :
-                    salesOrder.paymentTerm === 'NET_60' ? 60 : 30
-            const dueDate = new Date()
-            dueDate.setDate(dueDate.getDate() + paymentTermDays)
+            const paymentTermDays = legacyTermToDays(salesOrder.paymentTerm)
+            const dueDate = calculateDueDate(new Date(), paymentTermDays)
 
             // Create Customer Invoice (Invoice Type OUT)
             const invoice = await prisma.invoice.create({

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
+import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -1081,7 +1082,7 @@ export async function createCustomerInvoice(data: {
 
             // Calculate due date (default NET 30)
             const issueDate = data.issueDate || new Date()
-            const dueDate = data.dueDate || new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+            const dueDate = data.dueDate || calculateDueDate(issueDate, 30)
 
             // Prepare Items
             const invoiceItems = data.items && data.items.length > 0 ? data.items.map(item => ({
@@ -1263,11 +1264,8 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
             const invoiceNumber = `INV-${year}-${String(count + 1).padStart(4, '0')}`
 
             // Determine due date based on payment terms (default: NET_30 = 30 days)
-            const paymentTermDays = salesOrder.paymentTerm === 'NET_30' ? 30 :
-                salesOrder.paymentTerm === 'NET_15' ? 15 :
-                    salesOrder.paymentTerm === 'NET_60' ? 60 : 30
-            const dueDate = new Date()
-            dueDate.setDate(dueDate.getDate() + paymentTermDays)
+            const paymentTermDays = legacyTermToDays(salesOrder.paymentTerm)
+            const dueDate = calculateDueDate(new Date(), paymentTermDays)
 
             // Create Customer Invoice (Invoice Type OUT)
             const invoice = await prisma.invoice.create({
