@@ -2,6 +2,7 @@
 
 import { withPrismaAuth } from "@/lib/db"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 // ==========================================
 // JOURNAL REFERENCE NUMBER GENERATION
@@ -148,18 +149,10 @@ export async function postJournalEntry(data: {
             throw new Error(`Unbalanced Journal: Debit (${totalDebit}) != Credit (${totalCredit})`)
         }
 
-        return await withPrismaAuth(async (prisma) => {
-            // Check if fiscal period is closed for the journal date
-            const entryDate = new Date(data.date)
-            const entryMonth = entryDate.getMonth() + 1
-            const entryYear = entryDate.getFullYear()
-            const fiscalPeriod = await prisma.fiscalPeriod.findUnique({
-                where: { year_month: { year: entryYear, month: entryMonth } }
-            })
-            if (fiscalPeriod?.isClosed) {
-                throw new Error(`Periode fiskal ${fiscalPeriod.name} sudah ditutup. Tidak bisa posting jurnal ke periode ini.`)
-            }
+        // Fail fast: check period lock BEFORE acquiring withPrismaAuth transaction
+        await assertPeriodOpen(data.date)
 
+        return await withPrismaAuth(async (prisma) => {
             const codes = data.lines.map(l => l.accountCode)
             const accounts = await prisma.gLAccount.findMany({
                 where: { code: { in: codes } }
