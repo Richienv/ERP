@@ -421,6 +421,10 @@ export const queryKeys = {
         detail: (id: string) => [...["depreciationRuns"], "detail", id] as const,
         preview: (start: string, end: string) => [...["depreciationRuns"], "preview", start, end] as const,
     },
+    paymentTerms: {
+        all: () => ['paymentTerms'] as const,
+        list: () => ['paymentTerms', 'list'] as const,
+    },
     fixedAssetReports: {
         all: ["fixedAssetReports"] as const,
         register: () => [...["fixedAssetReports"], "register"] as const,
