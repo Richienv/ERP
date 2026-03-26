@@ -19,6 +19,7 @@ import {
     calculateWorkdayOvertimePay,
     STANDARD_DAILY_HOURS,
 } from '@/lib/hcm-calculations'
+import { assertPeriodOpen } from '@/lib/period-helpers'
 
 const LEAVE_APPROVAL_PREFIX = 'LEAVE_APPROVAL::'
 const PAYROLL_RUN_PREFIX = 'PAYROLL_RUN::'
@@ -1574,6 +1575,8 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
 
         const method = options?.method || 'TRANSFER'
 
+        await assertPeriodOpen(new Date())
+
         return await withPrismaAuth(async (prisma) => {
             const runTask = await prisma.employeeTask.findFirst({
                 where: {
@@ -1770,6 +1773,8 @@ export async function approvePayrollRun(period: string) {
         if (!isValidPeriod(period)) {
             return { success: false, error: 'Format periode tidak valid. Gunakan YYYY-MM.' }
         }
+
+        await assertPeriodOpen(new Date())
 
         return await withPrismaAuth(async (prisma) => {
             const runTask = await prisma.employeeTask.findFirst({

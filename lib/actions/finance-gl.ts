@@ -431,6 +431,8 @@ export async function postOpeningBalances(data: {
             }
         }
 
+        await assertPeriodOpen(new Date(`${data.year}-01-01T00:00:00Z`))
+
         return await withPrismaAuth(async (prisma) => {
             // Check for existing opening balance entry
             const existing = await prisma.journalEntry.findFirst({
@@ -640,11 +642,14 @@ export async function processRecurringEntries(): Promise<{
             let count = 0
 
             for (const template of dueEntries) {
+                const entryDate = template.nextRecurringDate || new Date()
+                await assertPeriodOpen(entryDate)
+
                 await prisma.$transaction(async (tx) => {
                     // Create the actual posted entry
                     await tx.journalEntry.create({
                         data: {
-                            date: template.nextRecurringDate || new Date(),
+                            date: entryDate,
                             description: `[Otomatis] ${template.description}`,
                             reference: template.reference,
                             status: 'POSTED',

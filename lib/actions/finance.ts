@@ -3769,6 +3769,8 @@ export async function recordExpense(input: RecordExpenseInput) {
                 return { success: false, error: "Deskripsi dan jumlah wajib diisi" }
             }
 
+            await assertPeriodOpen(date)
+
             const count = await prisma.journalEntry.count({
                 where: { description: { startsWith: '[EXPENSE]' } }
             })
@@ -3976,6 +3978,8 @@ export async function createCreditNote(input: CreateCreditNoteInput) {
                 return { success: false, error: "Customer dan jumlah wajib diisi" }
             }
 
+            await assertPeriodOpen(date)
+
             // Generate number
             const count = await prisma.invoice.count({ where: { number: { startsWith: 'CN-' } } })
             const num = `CN-${String(count + 1).padStart(5, '0')}`
@@ -4058,6 +4062,8 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
             if (!supplierId || amount <= 0) {
                 return { success: false, error: "Supplier dan jumlah wajib diisi" }
             }
+
+            await assertPeriodOpen(date)
 
             const count = await prisma.invoice.count({ where: { number: { startsWith: 'DN-' } } })
             const num = `DN-${String(count + 1).padStart(5, '0')}`
