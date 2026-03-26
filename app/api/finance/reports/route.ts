@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { inferSubType } from '@/lib/account-subtype-helpers'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -20,13 +21,14 @@ async function fetchPnL(start: Date, end: Date) {
                 status: 'POSTED',
             },
         },
-        include: { account: true },
+        include: { account: { select: { id: true, code: true, name: true, type: true, subType: true } } },
     })
 
     let revenue = 0
     let costOfGoodsSold = 0
     let otherIncome = 0
     let otherExpenses = 0
+    let depreciation = 0
     const expenseMap = new Map<string, number>()
 
     for (const line of journalLines) {
@@ -35,19 +37,24 @@ async function fetchPnL(start: Date, end: Date) {
         const normalBalance = ['ASSET', 'EXPENSE'].includes(account.type) ? 'DEBIT' : 'CREDIT'
         const effectiveAmount = normalBalance === 'DEBIT' ? amount : -amount
 
+        // Resolve subType (prefer DB value, fall back to code-based inference)
+        const st = account.subType && account.subType !== 'GENERAL'
+            ? account.subType
+            : inferSubType(account.code)
+
         switch (account.type) {
             case 'REVENUE':
-                if (account.code >= '7000' && account.code < '9000') {
+                if (st === 'INCOME_OTHER') {
                     otherIncome += effectiveAmount
                 } else {
                     revenue += effectiveAmount
                 }
                 break
             case 'EXPENSE':
-                if (account.code === '5000' || account.name.toLowerCase().includes('harga pokok')) {
+                if (st === 'EXPENSE_DIRECT_COST') {
                     costOfGoodsSold += effectiveAmount
-                } else if (account.code >= '8000') {
-                    otherExpenses += effectiveAmount
+                } else if (st === 'EXPENSE_DEPRECIATION') {
+                    depreciation += effectiveAmount
                 } else {
                     const current = expenseMap.get(account.name) || 0
                     expenseMap.set(account.name, current + effectiveAmount)
@@ -60,6 +67,9 @@ async function fetchPnL(start: Date, end: Date) {
     expenseMap.forEach((amount, category) => {
         if (amount > 0) operatingExpenses.push({ category, amount })
     })
+    if (depreciation > 0) {
+        operatingExpenses.push({ category: 'Beban Penyusutan', amount: depreciation })
+    }
     operatingExpenses.sort((a, b) => b.amount - a.amount)
 
     const totalOperatingExpenses = operatingExpenses.reduce((sum, exp) => sum + exp.amount, 0)
@@ -78,6 +88,7 @@ async function fetchPnL(start: Date, end: Date) {
         operatingIncome,
         otherIncome,
         otherExpenses,
+        depreciation,
         netIncomeBeforeTax,
         taxExpense,
         netIncome,
@@ -90,7 +101,8 @@ async function fetchPnL(start: Date, end: Date) {
 async function fetchBalanceSheet(asOfDate: Date) {
     const accounts = await prisma.gLAccount.findMany({
         where: { type: { in: ['ASSET', 'LIABILITY', 'EQUITY'] } },
-        include: {
+        select: {
+            id: true, code: true, name: true, type: true, subType: true, balance: true,
             lines: {
                 where: {
                     entry: { date: { lte: asOfDate }, status: 'POSTED' },
@@ -144,24 +156,33 @@ async function fetchBalanceSheet(asOfDate: Date) {
 
         if (Math.abs(balance) < 0.01) continue
 
+        // Resolve subType (prefer DB value, fall back to code-based inference)
+        const st = account.subType && account.subType !== 'GENERAL'
+            ? account.subType
+            : inferSubType(account.code)
+
         switch (account.type) {
-            case 'ASSET':
-                if (account.code >= '1000' && account.code < '1500') {
+            case 'ASSET': {
+                const CURRENT_ASSET_SUBTYPES = ['ASSET_CASH', 'ASSET_RECEIVABLE', 'ASSET_CURRENT', 'ASSET_PREPAYMENTS']
+                if (CURRENT_ASSET_SUBTYPES.includes(st)) {
                     assets.currentAssets.push({ code: account.code, name: account.name, amount: balance })
                     assets.totalCurrentAssets += balance
-                } else if (account.code >= '1500' && account.code < '2000') {
+                } else if (st === 'ASSET_FIXED') {
                     assets.fixedAssets.push({ code: account.code, name: account.name, amount: balance })
                     assets.totalFixedAssets += balance
                 } else {
+                    // ASSET_NON_CURRENT or any unrecognized asset subType
                     assets.otherAssets.push({ code: account.code, name: account.name, amount: balance })
                     assets.totalOtherAssets += balance
                 }
                 break
+            }
             case 'LIABILITY':
-                if (account.code >= '2000' && account.code < '2500') {
+                if (st === 'LIABILITY_PAYABLE' || st === 'LIABILITY_CURRENT') {
                     liabilities.currentLiabilities.push({ code: account.code, name: account.name, amount: balance })
                     liabilities.totalCurrentLiabilities += balance
                 } else {
+                    // LIABILITY_NON_CURRENT or any unrecognized liability subType
                     liabilities.longTermLiabilities.push({ code: account.code, name: account.name, amount: balance })
                     liabilities.totalLongTermLiabilities += balance
                 }

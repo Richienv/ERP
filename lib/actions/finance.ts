@@ -455,6 +455,8 @@ export interface ProfitLossData {
     operatingIncome: number
     otherIncome: number
     otherExpenses: number
+    /** Depreciation total (subset of operatingExpenses, separated for display) */
+    depreciation?: number
     netIncomeBeforeTax: number
     taxExpense: number
     netIncome: number
@@ -476,7 +478,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
         const { data: { user }, error: authError } = await supabaseClient.auth.getUser()
         if (authError || !user) throw new Error('Unauthorized')
 
-            // Fetch journal lines with accounts
+            // Fetch journal lines with accounts (include subType for P&L grouping)
             const journalLines = await (basePrisma.journalLine.findMany({
                 where: {
                     entry: {
@@ -488,7 +490,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                     }
                 },
                 include: {
-                    account: true,
+                    account: { select: { id: true, code: true, name: true, type: true, subType: true } },
                     entry: true
                 }
             }) as any)
@@ -498,6 +500,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
             const operatingExpenses: { category: string; amount: number; code?: string }[] = []
             let otherIncome = 0
             let otherExpenses = 0
+            let depreciation = 0
 
             // Group expenses by account
             const expenseMap = new Map<string, { amount: number; code: string }>()
@@ -510,25 +513,26 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                 const normalBalance = ['ASSET', 'EXPENSE'].includes(account.type) ? 'DEBIT' : 'CREDIT'
                 const effectiveAmount = normalBalance === 'DEBIT' ? amount : -amount
 
+                // Resolve subType (prefer DB value, fall back to code-based inference)
+                const st = account.subType && account.subType !== 'GENERAL'
+                    ? account.subType
+                    : inferSubType(account.code)
+
                 switch (account.type) {
                     case 'REVENUE':
-                        // Other income: code 7xxx-8xxx (pendapatan lain-lain)
-                        if (account.code >= '7000' && account.code < '9000') {
+                        if (st === 'INCOME_OTHER') {
                             otherIncome += effectiveAmount
                         } else {
                             revenue += effectiveAmount
                         }
                         break
                     case 'EXPENSE':
-                        // COGS: only code 5000 "HPP" or accounts containing "Harga Pokok"
-                        // (5100+ are operating expenses like Beban Transportasi, Makan & Minum, etc.)
-                        if (account.code === '5000' || account.name.toLowerCase().includes('harga pokok')) {
+                        if (st === 'EXPENSE_DIRECT_COST') {
                             costOfGoodsSold += effectiveAmount
-                        // Other expenses: code 8xxx-9xxx (biaya lain-lain)
-                        } else if (account.code >= '8000') {
-                            otherExpenses += effectiveAmount
+                        } else if (st === 'EXPENSE_DEPRECIATION') {
+                            depreciation += effectiveAmount
                         } else {
-                            // Operating expenses — show each account by name (Beban Transportasi, Beban Makan & Minum, etc.)
+                            // Operating expenses — show each account by name
                             const current = expenseMap.get(account.name) || { amount: 0, code: account.code }
                             expenseMap.set(account.name, { amount: current.amount + effectiveAmount, code: current.code })
                         }
@@ -542,6 +546,10 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                     operatingExpenses.push({ category, amount, code })
                 }
             })
+            // Add depreciation as a separate line within operating expenses
+            if (depreciation > 0) {
+                operatingExpenses.push({ category: 'Beban Penyusutan', amount: depreciation, code: 'DEPR' })
+            }
             operatingExpenses.sort((a, b) => b.amount - a.amount)
 
             const totalOperatingExpenses = operatingExpenses.reduce((sum, exp) => sum + exp.amount, 0)
@@ -560,6 +568,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
                 operatingIncome,
                 otherIncome,
                 otherExpenses,
+                depreciation,
                 netIncomeBeforeTax,
                 taxExpense,
                 netIncome,
@@ -579,6 +588,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
             operatingIncome: 0,
             otherIncome: 0,
             otherExpenses: 0,
+            depreciation: 0,
             netIncomeBeforeTax: 0,
             taxExpense: 0,
             netIncome: 0,
@@ -658,8 +668,10 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
         }
 
         // Step 2: Fetch ALL accounts (all 5 types) with journal lines up to asOfDate
+        // Include subType for finer grouping (Aset Lancar vs Tetap, Kewajiban Lancar vs Jk Panjang, etc.)
         const allAccounts = await basePrisma.gLAccount.findMany({
-            include: {
+            select: {
+                id: true, code: true, name: true, type: true, subType: true, balance: true,
                 lines: {
                     where: {
                         entry: { date: { lte: date }, status: 'POSTED' }
@@ -713,13 +725,20 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                     const balance = dr - cr // ASSET normal = DEBIT
                     if (Math.abs(balance) < 0.01) break
 
-                    if (account.code >= '1000' && account.code < '1500') {
+                    // Use subType for classification (falls back to code range via inferSubType)
+                    const st = account.subType && account.subType !== 'GENERAL'
+                        ? account.subType
+                        : inferSubType(account.code)
+
+                    const CURRENT_ASSET_SUBTYPES = ['ASSET_CASH', 'ASSET_RECEIVABLE', 'ASSET_CURRENT', 'ASSET_PREPAYMENTS']
+                    if (CURRENT_ASSET_SUBTYPES.includes(st)) {
                         assets.currentAssets.push({ code: account.code, name: account.name, amount: balance })
                         assets.totalCurrentAssets += balance
-                    } else if (account.code >= '1500' && account.code < '2000') {
+                    } else if (st === 'ASSET_FIXED') {
                         assets.fixedAssets.push({ code: account.code, name: account.name, amount: balance })
                         assets.totalFixedAssets += balance
                     } else {
+                        // ASSET_NON_CURRENT or any unrecognized asset subType
                         assets.otherAssets.push({ code: account.code, name: account.name, amount: balance })
                         assets.totalOtherAssets += balance
                     }
@@ -732,10 +751,15 @@ export async function getBalanceSheet(asOfDate?: Date | string): Promise<Balance
                     const balance = cr - dr // LIABILITY normal = CREDIT
                     if (Math.abs(balance) < 0.01) break
 
-                    if (account.code >= '2000' && account.code < '2500') {
+                    const lst = account.subType && account.subType !== 'GENERAL'
+                        ? account.subType
+                        : inferSubType(account.code)
+
+                    if (lst === 'LIABILITY_PAYABLE' || lst === 'LIABILITY_CURRENT') {
                         liabilities.currentLiabilities.push({ code: account.code, name: account.name, amount: balance })
                         liabilities.totalCurrentLiabilities += balance
                     } else {
+                        // LIABILITY_NON_CURRENT or any unrecognized liability subType
                         liabilities.longTermLiabilities.push({ code: account.code, name: account.name, amount: balance })
                         liabilities.totalLongTermLiabilities += balance
                     }
