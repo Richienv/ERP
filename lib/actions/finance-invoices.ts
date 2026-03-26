@@ -4,6 +4,7 @@ import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -748,6 +749,9 @@ export async function createBillFromPOId(
 
 export async function moveInvoiceToSent(invoiceId: string, message?: string, method?: 'WHATSAPP' | 'EMAIL') {
     try {
+        // Period lock: fail fast before mutation
+        await assertPeriodOpen(new Date())
+
         const txResult = await withPrismaAuth(async (prisma) => {
             const now = new Date()
             const existing = await prisma.invoice.findUnique({
@@ -875,6 +879,9 @@ export async function recordInvoicePayment(data: {
     notes?: string
 }) {
     try {
+        // Period lock: fail fast before mutation
+        await assertPeriodOpen(new Date())
+
         // Step 1: Create payment + update invoice in a single transaction
         const txResult = await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({

@@ -3,6 +3,7 @@
 import { withPrismaAuth } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 // ==========================================
 // CREDIT NOTES & REFUNDS
@@ -27,6 +28,9 @@ export async function createCreditNote(data: {
 
             if (!originalInvoice) throw new Error("Original invoice not found")
             if (originalInvoice.type !== 'INV_OUT') throw new Error("Can only credit customer invoices")
+
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
             // 2. Calculate Credit Amount
             const creditSubtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0)
@@ -123,6 +127,9 @@ export async function processRefund(data: {
             if (!invoice) throw new Error("Invoice not found")
             if (invoice.type !== 'INV_OUT') throw new Error("Can only refund customer payments")
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             // 1. Create Refund Record
             const refund = await prisma.payment.create({
                 data: {
@@ -206,6 +213,9 @@ export async function createPaymentVoucher(data: {
             if (bills.length !== data.billIds.length) {
                 throw new Error("Some bills not found or already paid")
             }
+
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
             // 2. Generate PV Number
             const count = await prisma.payment.count({ where: { type: 'VOUCHER' } })
@@ -296,6 +306,9 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
             if (!voucher) throw new Error("Voucher not found")
             if (voucher.method !== 'GIRO') throw new Error("Not a GIRO payment")
             if (voucher.status !== 'PENDING') throw new Error("GIRO already processed")
+
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
             if (isCleared) {
                 // GIRO Cleared - apply payments
@@ -778,6 +791,9 @@ export async function recordARPayment(data: {
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(data.date || new Date())
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -875,6 +891,9 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
             if (!payment) throw new Error("Payment not found")
             if (!invoice) throw new Error("Invoice not found")
             if (payment.invoiceId) throw new Error("Payment already allocated")
+
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
             const paymentAmount = Number(payment.amount)
             const newBalance = Number(invoice.balanceDue) - paymentAmount

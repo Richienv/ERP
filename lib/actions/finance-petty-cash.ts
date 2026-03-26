@@ -4,6 +4,7 @@ import { prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { postJournalEntry } from "./finance-gl"
 import { ensureSystemAccounts } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 const PETTY_CASH_ACCOUNT = "1050"
 
@@ -74,6 +75,7 @@ export async function topUpPettyCash(data: {
     description: string
 }) {
     await requireAuth()
+    await assertPeriodOpen(new Date())
 
     const bankAccount = await basePrisma.gLAccount.findUnique({ where: { code: data.bankAccountCode } })
     if (!bankAccount) throw new Error("Akun bank tidak ditemukan")
@@ -132,6 +134,7 @@ export async function disbursePettyCash(data: {
     expenseAccountCode: string
 }) {
     await requireAuth()
+    await assertPeriodOpen(new Date())
 
     const expenseAccount = await basePrisma.gLAccount.findUnique({ where: { code: data.expenseAccountCode } })
     if (!expenseAccount) throw new Error("Akun beban tidak ditemukan")

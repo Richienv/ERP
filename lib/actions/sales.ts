@@ -199,6 +199,7 @@ export async function updateQuotationStatus(id: string, newStatus: string) {
 // 4. INVOICE ACTIONS
 import { postJournalEntry } from "@/lib/actions/finance"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 // Create Invoice (Draft)
 export async function createInvoice(data: { customerId: string, items: { description: string, quantity: number, price: number }[], dueDate: Date }) {
@@ -258,6 +259,9 @@ export async function approveInvoice(id: string) {
             if (!inv) throw new Error("Invoice not found")
             if (inv.status !== 'DRAFT') throw new Error("Invoice already processed")
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             await prisma.invoice.update({
                 where: { id },
                 data: { status: 'ISSUED' }
@@ -312,6 +316,9 @@ export async function recordPayment(invoiceId: string, amount: number, method: s
             })
 
             if (!invoice) throw new Error("Invoice not found")
+
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
             // 1. Create Payment Record
             const count = await prisma.payment.count()
@@ -1176,6 +1183,9 @@ export async function createSalesReturn(
     input: CreateSalesReturnInput
 ): Promise<{ success: boolean; creditNoteId?: string; creditNoteNumber?: string; error?: string }> {
     try {
+        // Period lock: fail fast before mutation
+        await assertPeriodOpen(new Date())
+
         const result = await withPrismaAuth(async (prisma) => {
             return await prisma.$transaction(async (tx) => {
                 // 1. Load Sales Order with items

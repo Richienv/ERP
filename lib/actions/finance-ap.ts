@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { assertPeriodOpen } from "@/lib/period-helpers"
 
 // ==========================================
 // VENDOR BILLS (AP - From Purchase Orders)
@@ -219,6 +220,9 @@ export async function approveVendorBill(billId: string) {
             if (!bill) throw new Error("Bill not found")
             if (bill.status !== 'DRAFT') throw new Error("Bill already processed")
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             // 2. Update Status to ISSUED (Approved)
             await prisma.invoice.update({
                 where: { id: billId },
@@ -392,6 +396,9 @@ export async function recordVendorPayment(data: {
                 throw new Error("Check number/reference is required for CHECK payments")
             }
 
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -517,6 +524,9 @@ export async function recordMultiBillPayment(data: {
             if (data.method === 'CHECK' && !data.reference) {
                 throw new Error("Nomor cek/referensi wajib diisi untuk metode CHECK")
             }
+
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
             // Generate payment number
             const year = new Date().getFullYear()
@@ -764,6 +774,9 @@ export async function approveAndPayBill(
                 include: { supplier: true, items: { include: { product: true } } }
             })
             if (!bill) throw new Error("Bill not found")
+
+            // Period lock: fail fast before mutation
+            await assertPeriodOpen(new Date())
 
             await ensureSystemAccounts()
 
