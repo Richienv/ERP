@@ -8,6 +8,7 @@ import { Loader2, Truck, Building2, User, Mail, Phone, MapPin, Tag, X, CreditCar
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { toast } from "sonner"
+import { usePaymentTerms } from "@/hooks/use-payment-terms"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -29,15 +30,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { updateVendor, getSupplierCategories, createSupplierCategory } from "@/app/actions/vendor"
 import { NB } from "@/lib/dialog-styles"
 
-const PAYMENT_TERM_OPTIONS = [
-    { value: "CASH", label: "CASH" },
-    { value: "NET_15", label: "NET 15" },
-    { value: "NET_30", label: "NET 30" },
-    { value: "NET_45", label: "NET 45" },
-    { value: "NET_60", label: "NET 60" },
-    { value: "NET_90", label: "NET 90" },
-    { value: "COD", label: "COD" },
-] as const
 
 const BANK_OPTIONS = [
     { value: "BCA", label: "Bank Central Asia (BCA)" },
@@ -97,6 +89,7 @@ interface EditVendorDialogProps {
 
 export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialogProps) {
     const queryClient = useQueryClient()
+    const { data: paymentTermOptions = [] } = usePaymentTerms()
     const [newCatName, setNewCatName] = useState("")
     const [creatingCat, setCreatingCat] = useState(false)
 
@@ -457,8 +450,8 @@ export function EditVendorDialog({ vendor, open, onOpenChange }: EditVendorDialo
                                                 <label className={NB.label}>Termin Pembayaran</label>
                                                 <FormControl>
                                                     <select {...field} className={NB.select}>
-                                                        {PAYMENT_TERM_OPTIONS.map(opt => (
-                                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                        {paymentTermOptions.map(t => (
+                                                            <option key={t.id} value={t.code}>{t.name}</option>
                                                         ))}
                                                     </select>
                                                 </FormControl>

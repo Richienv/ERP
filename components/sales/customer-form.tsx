@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { usePaymentTerms } from "@/hooks/use-payment-terms"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -67,6 +68,7 @@ export function CustomerForm({
   isEdit = false
 }: CustomerFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { data: paymentTermOptions = [] } = usePaymentTerms()
 
   const form = useForm<CreateCustomerInput>({
     resolver: zodResolver(createCustomerSchema),
@@ -522,13 +524,9 @@ export function CustomerForm({
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="CASH">Tunai</SelectItem>
-                          <SelectItem value="COD">COD (Cash on Delivery)</SelectItem>
-                          <SelectItem value="NET_15">Net 15 Hari</SelectItem>
-                          <SelectItem value="NET_30">Net 30 Hari</SelectItem>
-                          <SelectItem value="NET_45">Net 45 Hari</SelectItem>
-                          <SelectItem value="NET_60">Net 60 Hari</SelectItem>
-                          <SelectItem value="NET_90">Net 90 Hari</SelectItem>
+                          {paymentTermOptions.map(t => (
+                            <SelectItem key={t.id} value={t.code}>{t.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <FormMessage />

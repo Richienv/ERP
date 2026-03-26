@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { usePaymentTerms } from "@/hooks/use-payment-terms"
 import Link from "next/link"
 import { ArrowLeft, Building2, CreditCard, FileText, Phone, Save, Loader2, Users } from "lucide-react"
 import { toast } from "sonner"
@@ -70,6 +71,7 @@ const defaultValues: CustomerFormValues = {
 export default function NewCustomerPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { data: paymentTermOptions = [] } = usePaymentTerms()
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<CustomerFormValues>({
@@ -483,13 +485,9 @@ export default function NewCustomerPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent className="border-2 border-black rounded-none">
-                            <SelectItem value="CASH">Cash</SelectItem>
-                            <SelectItem value="NET_15">NET 15</SelectItem>
-                            <SelectItem value="NET_30">NET 30</SelectItem>
-                            <SelectItem value="NET_45">NET 45</SelectItem>
-                            <SelectItem value="NET_60">NET 60</SelectItem>
-                            <SelectItem value="NET_90">NET 90</SelectItem>
-                            <SelectItem value="COD">COD</SelectItem>
+                            {paymentTermOptions.map(t => (
+                              <SelectItem key={t.id} value={t.code}>{t.name}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </FormItem>
