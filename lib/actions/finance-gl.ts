@@ -50,34 +50,46 @@ export async function getChartOfAccountsTree(): Promise<GLAccountNode[]> {
                 orderBy: { code: 'asc' }
             })
 
+            // Get balances from journal lines
             const balances = await prisma.journalLine.groupBy({
                 by: ['accountId'],
-                _sum: {
-                    debit: true,
-                    credit: true
-                }
+                _sum: { debit: true, credit: true }
             })
-
             const balanceMap = new Map<string, number>()
             balances.forEach(b => {
-                const balance = Number(b._sum.debit || 0) - Number(b._sum.credit || 0)
-                balanceMap.set(b.accountId, balance)
+                balanceMap.set(b.accountId, Number(b._sum.debit || 0) - Number(b._sum.credit || 0))
             })
 
-            const roots: GLAccountNode[] = []
-
-            accounts.forEach(acc => {
-                roots.push({
+            // Build node map keyed by ID
+            const nodeMap = new Map<string, GLAccountNode>()
+            for (const acc of accounts) {
+                nodeMap.set(acc.id, {
                     id: acc.id,
                     code: acc.code,
                     name: acc.name,
                     type: acc.type,
                     balance: balanceMap.get(acc.id) || 0,
-                    children: []
+                    parentId: acc.parentId,
+                    children: [],
                 })
-            })
+            }
 
-            roots.sort((a, b) => a.code.localeCompare(b.code))
+            // Build tree: accounts with parentId go under their parent, rest are roots
+            const roots: GLAccountNode[] = []
+            for (const node of nodeMap.values()) {
+                if (node.parentId && nodeMap.has(node.parentId)) {
+                    nodeMap.get(node.parentId)!.children.push(node)
+                } else {
+                    roots.push(node)
+                }
+            }
+
+            // Sort children recursively by code
+            const sortTree = (nodes: GLAccountNode[]) => {
+                nodes.sort((a, b) => a.code.localeCompare(b.code))
+                nodes.forEach(n => sortTree(n.children))
+            }
+            sortTree(roots)
 
             return roots
         })
