@@ -1828,6 +1828,7 @@ model Invoice {
   dcNoteOrigins      DebitCreditNote[]           @relation("DCNoteOriginalInvoice")
   dcNoteSettlements  DebitCreditNoteSettlement[]  @relation("DCNoteSettlements")
   attachments        InvoiceAttachment[]
+  withholdingTaxes   WithholdingTax[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1885,10 +1886,11 @@ model Payment {
 
   notes String?
 
-  invoice        Invoice?       @relation(fields: [invoiceId], references: [id])
-  customer       Customer?      @relation(fields: [customerId], references: [id])
-  supplier       Supplier?      @relation(fields: [supplierId], references: [id])
-  journalEntries JournalEntry[]
+  invoice          Invoice?       @relation(fields: [invoiceId], references: [id])
+  customer         Customer?      @relation(fields: [customerId], references: [id])
+  supplier         Supplier?      @relation(fields: [supplierId], references: [id])
+  journalEntries   JournalEntry[]
+  withholdingTaxes WithholdingTax[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1920,6 +1922,47 @@ enum PaymentMethod {
   GIRO
   CREDIT_CARD
   OTHER
+}
+
+enum PPhType {
+  PPH_21
+  PPH_23
+  PPH_4_2
+}
+
+enum WithholdingDirection {
+  OUT // We withhold from vendor (AP)
+  IN  // Customer withholds from us (AR)
+}
+
+model WithholdingTax {
+  id              String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  paymentId       String   @db.Uuid
+  invoiceId       String?  @db.Uuid
+
+  type            PPhType
+  direction       WithholdingDirection
+
+  rate            Decimal  @db.Decimal(5, 2)
+  baseAmount      Decimal  @db.Decimal(15, 2)
+  amount          Decimal  @db.Decimal(15, 2)
+
+  buktiPotongNo   String?
+  buktiPotongDate DateTime?
+
+  deposited       Boolean  @default(false)
+  depositDate     DateTime?
+  depositRef      String?
+
+  payment         Payment  @relation(fields: [paymentId], references: [id])
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([type, deposited])
+  @@index([paymentId])
+  @@map("withholding_taxes")
 }
 
 // ================================
