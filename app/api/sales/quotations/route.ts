@@ -331,6 +331,7 @@ export async function POST(request: NextRequest) {
           taxAmount,
           discountAmount,
           total,
+          currencyCode: toText(body.currencyCode) || "IDR",
           status: QuotationStatus.DRAFT,
           notes: toText(body.notes),
           internalNotes: toText(body.internalNotes),

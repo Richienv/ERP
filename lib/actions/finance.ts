@@ -9,6 +9,7 @@ import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 import { inferSubType } from "@/lib/account-subtype-helpers"
+import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -1292,6 +1293,10 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
             const paymentTermDays = legacyTermToDays(salesOrder.paymentTerm)
             const dueDate = calculateDueDate(new Date(), paymentTermDays)
 
+            // Multi-currency: inherit from SO
+            const soCurrencyCode = salesOrder.currencyCode || "IDR"
+            const soExchangeRate = Number(salesOrder.exchangeRate) || 1
+
             // Create Customer Invoice (Invoice Type OUT)
             const invoice = await prisma.invoice.create({
                 data: {
@@ -1307,6 +1312,9 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                     discountAmount: salesOrder.discountAmount || 0,
                     totalAmount: salesOrder.total,
                     balanceDue: salesOrder.total,
+                    currencyCode: soCurrencyCode,
+                    exchangeRate: soExchangeRate,
+                    amountInIDR: 0, // will be computed below
                     items: {
                         create: salesOrder.items.map((item) => ({
                             description: item.product?.name || item.description || 'Unknown Item',
@@ -1321,7 +1329,35 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
 
             console.log("Customer Invoice Created:", invoice.number)
 
+            // Multi-currency: convert to IDR for GL posting
+            const soTotal = Number(salesOrder.total)
+            let glAmount = soTotal
+            if (soCurrencyCode !== "IDR") {
+                try {
+                    const rate = await getExchangeRate(soCurrencyCode, new Date())
+                    glAmount = convertToIDR(soTotal, rate)
+                    // Store computed IDR amount and rate on invoice
+                    await prisma.invoice.update({
+                        where: { id: invoice.id },
+                        data: { exchangeRate: rate, amountInIDR: glAmount }
+                    })
+                } catch {
+                    // Fallback: use SO exchange rate if real-time rate unavailable
+                    glAmount = convertToIDR(soTotal, soExchangeRate)
+                    await prisma.invoice.update({
+                        where: { id: invoice.id },
+                        data: { amountInIDR: glAmount }
+                    }).catch(() => {})
+                }
+            } else {
+                await prisma.invoice.update({
+                    where: { id: invoice.id },
+                    data: { amountInIDR: soTotal }
+                }).catch(() => {})
+            }
+
             // Auto-post to General Ledger (DR Accounts Receivable, CR Revenue)
+            // GL always in IDR
             try {
                 // Get GL account codes from database (or use predefined codes)
                 const arAccount = await prisma.gLAccount.findFirst({
@@ -1332,23 +1368,24 @@ export async function createInvoiceFromSalesOrder(salesOrderId: string) {
                 })
 
                 if (arAccount && revenueAccount) {
-                    // Post journal entry
+                    const glCurrencyNote = soCurrencyCode !== "IDR" ? ` [${soCurrencyCode}→IDR]` : ""
+                    // Post journal entry — always in IDR
                     const glResult = await postJournalEntry({
-                        description: `Customer Invoice ${invoice.number} - ${salesOrder.customer?.name}`,
+                        description: `Customer Invoice ${invoice.number} - ${salesOrder.customer?.name}${glCurrencyNote}`,
                         date: new Date(),
                         reference: invoice.number,
                         lines: [
                             {
                                 accountCode: arAccount.code,
-                                debit: Number(salesOrder.total),
+                                debit: glAmount,
                                 credit: 0,
-                                description: `AR - ${salesOrder.customer?.name}`
+                                description: `AR - ${salesOrder.customer?.name}${glCurrencyNote}`
                             },
                             {
                                 accountCode: revenueAccount.code,
                                 debit: 0,
-                                credit: Number(salesOrder.total),
-                                description: `Sales Revenue - SO ${salesOrder.number}`
+                                credit: glAmount,
+                                description: `Sales Revenue - SO ${salesOrder.number}${glCurrencyNote}`
                             }
                         ]
                     })

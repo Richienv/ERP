@@ -6,6 +6,7 @@ import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
+import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -606,6 +607,9 @@ export async function createInvoiceFromSalesOrder(
                     discountAmount: salesOrder.discountAmount || 0,
                     totalAmount: salesOrder.total,
                     balanceDue: salesOrder.total,
+                    currencyCode: salesOrder.currencyCode || "IDR",
+                    exchangeRate: salesOrder.exchangeRate || 1,
+                    amountInIDR: 0, // computed at posting time (moveInvoiceToSent)
                     items: {
                         create: salesOrder.items.map((item) => ({
                             description: item.product?.name || item.description || 'Unknown Item',
@@ -757,7 +761,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 select: {
                     id: true, number: true, dueDate: true,
                     totalAmount: true, subtotal: true, taxAmount: true,
-                    type: true, status: true,
+                    type: true, status: true, currencyCode: true,
                     customer: { select: { name: true } },
                     supplier: { select: { name: true } },
                 }
@@ -786,6 +790,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 totalAmount: Number(existing.totalAmount || 0),
                 subtotal: Number(existing.subtotal || existing.totalAmount || 0),
                 taxAmount: Number(existing.taxAmount || 0),
+                currencyCode: existing.currencyCode || "IDR",
                 customerName: existing.customer?.name,
                 supplierName: existing.supplier?.name,
                 nextStatus,
@@ -793,6 +798,40 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 issueDate: now,
             }
         })
+
+        // Multi-currency: convert to IDR if foreign currency
+        const currencyCode = txResult.currencyCode || "IDR"
+        let amountInIDR = txResult.totalAmount
+        let taxInIDR = txResult.taxAmount
+        let subtotalInIDR = txResult.subtotal
+
+        if (currencyCode !== "IDR") {
+            try {
+                const rate = await getExchangeRate(currencyCode, txResult.issueDate)
+                amountInIDR = convertToIDR(txResult.totalAmount, rate)
+                taxInIDR = convertToIDR(txResult.taxAmount, rate)
+                subtotalInIDR = convertToIDR(txResult.subtotal, rate)
+
+                // Store the rate and IDR amount on the invoice
+                await prisma.invoice.update({
+                    where: { id: invoiceId },
+                    data: { exchangeRate: rate, amountInIDR }
+                })
+            } catch (error: any) {
+                // Revert invoice to DRAFT if rate not available
+                await prisma.invoice.update({
+                    where: { id: invoiceId },
+                    data: { status: 'DRAFT', issueDate: null }
+                }).catch(() => {})
+                return { success: false, error: error.message }
+            }
+        } else {
+            // IDR: amountInIDR = totalAmount
+            await prisma.invoice.update({
+                where: { id: invoiceId },
+                data: { amountInIDR: txResult.totalAmount }
+            }).catch(() => {})
+        }
 
         // Post GL entry for AR/AP recognition (outside withPrismaAuth to avoid nested transaction)
         // Idempotency: check if journal entry already exists for this invoice
@@ -809,19 +848,22 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
             })
 
             if (!existingJE) {
+                // GL always in IDR — use converted amounts for foreign currency invoices
+                const glCurrencyNote = currencyCode !== "IDR" ? ` [${currencyCode}→IDR]` : ""
+
                 if (txResult.type === 'INV_OUT') {
                     // AR Invoice: DR Piutang Usaha, CR Pendapatan + CR PPN Keluaran
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = [
-                        { accountCode: SYS_ACCOUNTS.AR, debit: txResult.totalAmount, credit: 0, description: `Piutang - ${txResult.customerName || 'Customer'}` },
+                        { accountCode: SYS_ACCOUNTS.AR, debit: amountInIDR, credit: 0, description: `Piutang - ${txResult.customerName || 'Customer'}${glCurrencyNote}` },
                     ]
-                    if (txResult.taxAmount > 0) {
-                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: txResult.subtotal, description: `Pendapatan - ${txResult.number}` })
-                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: 0, credit: txResult.taxAmount, description: `PPN Keluaran - ${txResult.number}` })
+                    if (taxInIDR > 0) {
+                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: subtotalInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_KELUARAN, debit: 0, credit: taxInIDR, description: `PPN Keluaran - ${txResult.number}${glCurrencyNote}` })
                     } else {
-                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: txResult.totalAmount, description: `Pendapatan - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: amountInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
                     }
                     await postJournalEntry({
-                        description: `Faktur Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
+                        description: `Faktur Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}${glCurrencyNote}`,
                         date: txResult.issueDate,
                         reference: txResult.number,
                         invoiceId: invoiceId,
@@ -830,13 +872,13 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 } else {
                     // AP Bill: DR HPP + DR PPN Masukan, CR Hutang Usaha
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
-                    if (txResult.taxAmount > 0) {
-                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: txResult.subtotal, credit: 0, description: `HPP - ${txResult.number}` })
-                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: txResult.taxAmount, credit: 0, description: `PPN Masukan - ${txResult.number}` })
+                    if (taxInIDR > 0) {
+                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: subtotalInIDR, credit: 0, description: `HPP - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: taxInIDR, credit: 0, description: `PPN Masukan - ${txResult.number}${glCurrencyNote}` })
                     } else {
-                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: txResult.totalAmount, credit: 0, description: `HPP - ${txResult.number}` })
+                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: amountInIDR, credit: 0, description: `HPP - ${txResult.number}${glCurrencyNote}` })
                     }
-                    lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: txResult.totalAmount, description: `Hutang - ${txResult.supplierName || 'Supplier'}` })
+                    lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: amountInIDR, description: `Hutang - ${txResult.supplierName || 'Supplier'}${glCurrencyNote}` })
                     await postJournalEntry({
                         description: `Tagihan Pembelian ${txResult.number} - ${txResult.supplierName || 'Supplier'}`,
                         date: txResult.issueDate,

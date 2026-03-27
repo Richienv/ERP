@@ -418,6 +418,8 @@ export async function convertQuotationToSalesOrder(quotationId: string): Promise
                     taxAmount: quotation.taxAmount,
                     discountAmount: quotation.discountAmount,
                     total: quotation.total,
+                    currencyCode: quotation.currencyCode || "IDR",
+                    exchangeRate: quotation.exchangeRate || 1,
                     status: 'CONFIRMED',
                     quotationId: quotation.id,
                     items: {
