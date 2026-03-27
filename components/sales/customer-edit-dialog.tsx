@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/query-keys"
 import { Loader2, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { usePaymentTerms } from "@/hooks/use-payment-terms"
+import { useCurrencies } from "@/hooks/use-currencies"
 
 import {
     Dialog,
@@ -55,6 +56,7 @@ const defaultForm = {
 export function CustomerEditDialog({ customerId, open, onOpenChange }: CustomerEditDialogProps) {
     const queryClient = useQueryClient()
     const { data: paymentTermOptions = [] } = usePaymentTerms()
+    const { data: currencies = [] } = useCurrencies()
     const [saving, setSaving] = useState(false)
     const [loading, setLoading] = useState(false)
     const [form, setForm] = useState(defaultForm)
@@ -197,12 +199,9 @@ export function CustomerEditDialog({ customerId, open, onOpenChange }: CustomerE
                                             <SelectTrigger className={NB.select}><SelectValue /></SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="IDR">IDR — Rupiah Indonesia</SelectItem>
-                                                <SelectItem value="USD">USD — US Dollar</SelectItem>
-                                                <SelectItem value="EUR">EUR — Euro</SelectItem>
-                                                <SelectItem value="SGD">SGD — Singapore Dollar</SelectItem>
-                                                <SelectItem value="MYR">MYR — Malaysian Ringgit</SelectItem>
-                                                <SelectItem value="JPY">JPY — Japanese Yen</SelectItem>
-                                                <SelectItem value="CNY">CNY — Chinese Yuan</SelectItem>
+                                                {currencies.filter(c => c.code !== "IDR").map(c => (
+                                                    <SelectItem key={c.id} value={c.code}>{c.code} — {c.name}</SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>

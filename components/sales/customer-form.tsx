@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { usePaymentTerms } from "@/hooks/use-payment-terms"
+import { useCurrencies } from "@/hooks/use-currencies"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -69,6 +70,7 @@ export function CustomerForm({
 }: CustomerFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { data: paymentTermOptions = [] } = usePaymentTerms()
+  const { data: currencies = [] } = useCurrencies()
 
   const form = useForm<CreateCustomerInput>({
     resolver: zodResolver(createCustomerSchema),
@@ -526,6 +528,30 @@ export function CustomerForm({
                         <SelectContent>
                           {paymentTermOptions.map(t => (
                             <SelectItem key={t.id} value={t.code}>{t.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mata Uang Default</FormLabel>
+                      <Select value={field.value || "IDR"} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="IDR">IDR - Rupiah Indonesia</SelectItem>
+                          {currencies.filter(c => c.code !== "IDR").map(c => (
+                            <SelectItem key={c.id} value={c.code}>{c.code} - {c.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>

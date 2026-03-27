@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { usePaymentTerms } from "@/hooks/use-payment-terms"
+import { useCurrencies } from "@/hooks/use-currencies"
 import Link from "next/link"
 import { ArrowLeft, Building2, CreditCard, FileText, Phone, Save, Loader2, Users } from "lucide-react"
 import { toast } from "sonner"
@@ -72,6 +73,7 @@ export default function NewCustomerPage() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const { data: paymentTermOptions = [] } = usePaymentTerms()
+  const { data: currencies = [] } = useCurrencies()
   const [isLoading, setIsLoading] = useState(false)
 
   const form = useForm<CustomerFormValues>({
@@ -312,12 +314,9 @@ export default function NewCustomerPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="IDR">IDR — Rupiah Indonesia</SelectItem>
-                          <SelectItem value="USD">USD — US Dollar</SelectItem>
-                          <SelectItem value="EUR">EUR — Euro</SelectItem>
-                          <SelectItem value="SGD">SGD — Singapore Dollar</SelectItem>
-                          <SelectItem value="MYR">MYR — Malaysian Ringgit</SelectItem>
-                          <SelectItem value="JPY">JPY — Japanese Yen</SelectItem>
-                          <SelectItem value="CNY">CNY — Chinese Yuan</SelectItem>
+                          {currencies.filter(c => c.code !== "IDR").map(c => (
+                            <SelectItem key={c.id} value={c.code}>{c.code} — {c.name}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </FormItem>
