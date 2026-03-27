@@ -30,12 +30,16 @@ export const SYS_ACCOUNTS = {
 
   // --- Tax Assets ---
   PPN_MASUKAN:    "1330",  // PPN Masukan (Input VAT) — added to seed
+  PPH_PREPAID:    "1340",  // PPh Dibayar Dimuka (when customer withholds from us)
 
   // --- Payables ---
   AP:             "2000",  // Hutang Usaha / Utang Usaha (seed: 2000)
 
   // --- Tax Liabilities ---
   PPN_KELUARAN:   "2110",  // Utang Pajak PPN/PPh (seed: 2110)
+  PPH_21_PAYABLE: "2210",  // Utang PPh 21 (employee payroll withholding)
+  PPH_23_PAYABLE: "2220",  // Utang PPh 23 (vendor service withholding)
+  PPH_4_2_PAYABLE: "2230", // Utang PPh 4(2) (final tax: rent, construction)
 
   // --- Deferred Revenue ---
   DEFERRED_REV:   "2121",  // Pendapatan Diterima Dimuka
@@ -73,9 +77,13 @@ const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABIL
   { code: SYS_ACCOUNTS.RAW_MATERIALS,   name: "Persediaan Bahan Baku",           type: "ASSET" },
   { code: SYS_ACCOUNTS.WIP,             name: "Persediaan Dalam Proses (WIP)",   type: "ASSET" },
   { code: SYS_ACCOUNTS.PPN_MASUKAN,      name: "PPN Masukan (Input VAT)",       type: "ASSET" },
+  { code: SYS_ACCOUNTS.PPH_PREPAID,      name: "PPh Dibayar Dimuka",            type: "ASSET" },
   { code: SYS_ACCOUNTS.ACC_DEPRECIATION, name: "Akumulasi Penyusutan",          type: "ASSET" },
   { code: SYS_ACCOUNTS.AP,               name: "Utang Usaha (AP)",              type: "LIABILITY" },
   { code: SYS_ACCOUNTS.PPN_KELUARAN,     name: "Utang Pajak (PPN/PPh)",         type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PPH_21_PAYABLE,   name: "Utang PPh 21",                 type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PPH_23_PAYABLE,   name: "Utang PPh 23",                 type: "LIABILITY" },
+  { code: SYS_ACCOUNTS.PPH_4_2_PAYABLE,  name: "Utang PPh 4(2)",               type: "LIABILITY" },
   { code: SYS_ACCOUNTS.DEFERRED_REV,     name: "Pendapatan Diterima Dimuka",    type: "LIABILITY" },
   { code: SYS_ACCOUNTS.RETAINED_EARNINGS, name: "Laba Ditahan",                  type: "EQUITY" },
   { code: SYS_ACCOUNTS.OPENING_EQUITY,    name: "Saldo Awal Ekuitas",             type: "EQUITY" },

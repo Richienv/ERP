@@ -31,6 +31,7 @@ async function main() {
         { code: '1310', name: 'Persediaan Bahan Baku', type: 'ASSET', isSystem: true },
         { code: '1320', name: 'Persediaan Dalam Proses (WIP)', type: 'ASSET', isSystem: true },
         { code: '1330', name: 'PPN Masukan (Input VAT)', type: 'ASSET', isSystem: true },
+        { code: '1340', name: 'PPh Dibayar Dimuka', type: 'ASSET', isSystem: true },
 
         // 1200 - Fixed Assets (Harta Tetap)
         { code: '1500', name: 'Tanah & Bangunan', type: 'ASSET', isSystem: false },
@@ -45,6 +46,9 @@ async function main() {
         { code: '2110', name: 'Utang Pajak (PPN/PPh)', type: 'LIABILITY', isSystem: false },
         { code: '2120', name: 'Biaya Yang Masih Harus Dibayar', type: 'LIABILITY', isSystem: false },
         { code: '2121', name: 'Pendapatan Diterima Dimuka', type: 'LIABILITY', isSystem: false },
+        { code: '2210', name: 'Utang PPh 21', type: 'LIABILITY', isSystem: true },
+        { code: '2220', name: 'Utang PPh 23', type: 'LIABILITY', isSystem: true },
+        { code: '2230', name: 'Utang PPh 4(2)', type: 'LIABILITY', isSystem: true },
 
         // 2200 - Long Term Liabilities
         { code: '2500', name: 'Utang Bank Jangka Panjang', type: 'LIABILITY', isSystem: false },
