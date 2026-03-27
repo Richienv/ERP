@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import {
     Banknote,
     Check,
@@ -31,6 +31,8 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { NB } from "@/lib/dialog-styles"
 import { formatIDR } from "@/lib/utils"
+import { getDefaultRate, calculateWithholding } from "@/lib/pph-helpers"
+import type { PPhTypeValue } from "@/lib/pph-helpers"
 import { recordMultiBillPayment } from "@/lib/actions/finance"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
@@ -85,6 +87,10 @@ export function VendorMultiPaymentDialog({
     const [notes, setNotes] = useState("")
     const [submitting, setSubmitting] = useState(false)
     const [allocations, setAllocations] = useState<BillAllocationRow[]>([])
+    const [enablePPh, setEnablePPh] = useState(false)
+    const [pphType, setPPhType] = useState<PPhTypeValue>("PPH_23")
+    const [pphRate, setPPhRate] = useState(2)
+    const [buktiPotongNo, setBuktiPotongNo] = useState("")
 
     // When vendor changes, rebuild allocation rows
     const handleVendorChange = (vendorId: string) => {
@@ -117,6 +123,15 @@ export function VendorMultiPaymentDialog({
     }, [allocations])
 
     const selectedCount = allocations.filter((a) => a.selected).length
+
+    // Auto-update PPh rate when type changes
+    useEffect(() => {
+        setPPhRate(getDefaultRate(pphType))
+    }, [pphType])
+
+    // PPh base amount = total allocated (DPP)
+    const pphBaseAmount = totalAllocated
+    const pphCalc = enablePPh ? calculateWithholding(pphRate, pphBaseAmount) : null
 
     const toggleBill = (billId: string) => {
         setAllocations((prev) =>
@@ -184,6 +199,12 @@ export function VendorMultiPaymentDialog({
                 reference: reference.trim() || undefined,
                 notes: notes.trim() || undefined,
                 bankAccountCode,
+                withholding: enablePPh ? {
+                    type: pphType,
+                    rate: pphRate,
+                    baseAmount: pphBaseAmount,
+                    buktiPotongNo: buktiPotongNo || undefined,
+                } : undefined,
             })
 
             if (result.success) {
@@ -199,6 +220,10 @@ export function VendorMultiPaymentDialog({
                 setNotes("")
                 setPaymentMethod("TRANSFER")
                 setBankAccountCode("1010")
+                setEnablePPh(false)
+                setPPhType("PPH_23")
+                setPPhRate(2)
+                setBuktiPotongNo("")
                 onOpenChange(false)
 
                 // Invalidate all related queries
@@ -225,6 +250,10 @@ export function VendorMultiPaymentDialog({
         setNotes("")
         setPaymentMethod("TRANSFER")
         setBankAccountCode("1010")
+        setEnablePPh(false)
+        setPPhType("PPH_23")
+        setPPhRate(2)
+        setBuktiPotongNo("")
         onOpenChange(false)
     }
 
@@ -481,6 +510,76 @@ export function VendorMultiPaymentDialog({
                             </div>
                         )}
 
+                        {/* Potong PPh Section */}
+                        {selectedCount > 0 && (
+                            <div className="border-2 border-black p-3 space-y-3">
+                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={enablePPh}
+                                        onChange={(e) => setEnablePPh(e.target.checked)}
+                                        className="rounded border-zinc-300"
+                                    />
+                                    Potong PPh
+                                </label>
+
+                                {enablePPh && (
+                                    <div className="space-y-3 pl-6">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold uppercase text-zinc-500">Jenis PPh</label>
+                                                <Select value={pphType} onValueChange={(v: string) => setPPhType(v as PPhTypeValue)}>
+                                                    <SelectTrigger className="h-8 rounded-none text-xs border-2 border-black">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="PPH_23">PPh 23 (Jasa)</SelectItem>
+                                                        <SelectItem value="PPH_4_2">PPh 4(2) (Sewa/Konstruksi)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold uppercase text-zinc-500">Tarif (%)</label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={pphRate}
+                                                    onChange={(e) => setPPhRate(Number(e.target.value))}
+                                                    className="h-8 rounded-none text-xs border-2 border-black font-mono"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div>
+                                                <span className="text-zinc-500">DPP:</span>{" "}
+                                                <span className="font-mono font-bold">{formatIDR(pphBaseAmount)}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-zinc-500">PPh:</span>{" "}
+                                                <span className="font-mono font-bold text-red-600">{formatIDR(pphCalc?.amount || 0)}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase text-zinc-500">No. Bukti Potong</label>
+                                            <Input
+                                                value={buktiPotongNo}
+                                                onChange={(e) => setBuktiPotongNo(e.target.value)}
+                                                placeholder="Opsional..."
+                                                className="h-8 rounded-none text-xs border-2 border-black placeholder:text-zinc-300"
+                                            />
+                                        </div>
+
+                                        <div className="bg-amber-50 border-2 border-amber-300 p-2 text-xs">
+                                            <span className="font-bold">Dibayar ke vendor:</span>{" "}
+                                            <span className="font-mono font-bold text-lg">{formatIDR(pphCalc?.netAmount || pphBaseAmount)}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Payment Summary */}
                         {selectedCount > 0 && (
                             <div className="border-2 border-black bg-emerald-50 dark:bg-emerald-950 p-4">
@@ -519,7 +618,17 @@ export function VendorMultiPaymentDialog({
 
                                         <span>{bankAccountCode} - {bankAccounts?.find(a => a.code === bankAccountCode)?.name || 'Cash/Bank'}</span>
                                         <span className="text-right font-mono">-</span>
-                                        <span className="text-right font-mono">{formatIDR(totalAllocated)}</span>
+                                        <span className="text-right font-mono">{formatIDR(enablePPh && pphCalc ? pphCalc.netAmount : totalAllocated)}</span>
+
+                                        {enablePPh && pphCalc && pphCalc.amount > 0 && (
+                                            <>
+                                                <span className="text-red-600">
+                                                    {pphType === "PPH_23" ? "2131 - Hutang PPh 23" : "2132 - Hutang PPh 4(2)"}
+                                                </span>
+                                                <span className="text-right font-mono">-</span>
+                                                <span className="text-right font-mono text-red-600">{formatIDR(pphCalc.amount)}</span>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -545,7 +654,7 @@ export function VendorMultiPaymentDialog({
                         <Banknote className="h-4 w-4 mr-2" />
                         {submitting
                             ? "Memproses..."
-                            : `Bayar ${selectedCount} Tagihan — ${formatIDR(totalAllocated)}`}
+                            : `Bayar ${selectedCount} Tagihan — ${formatIDR(enablePPh && pphCalc ? pphCalc.netAmount : totalAllocated)}`}
                     </Button>
                 </div>
             </DialogContent>
