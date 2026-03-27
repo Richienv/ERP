@@ -62,6 +62,8 @@ import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { exportToExcel } from "@/lib/table-export"
 import { NB } from "@/lib/dialog-styles"
+import { getDefaultRate, calculateWithholding } from "@/lib/pph-helpers"
+import type { PPhTypeValue } from "@/lib/pph-helpers"
 
 /* ─── Animation variants ─── */
 const stagger = {
@@ -105,6 +107,12 @@ export default function InvoicesPage() {
     const [paying, setPaying] = useState(false)
     const [sending, setSending] = useState(false)
 
+    // PPh withholding (AR — customer withholds)
+    const [enablePPh, setEnablePPh] = useState(false)
+    const [pphType, setPPhType] = useState<PPhTypeValue>("PPH_23")
+    const [pphRate, setPPhRate] = useState(2)
+    const [buktiPotongNo, setBuktiPotongNo] = useState("")
+
     // Edit form (DRAFT only)
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [editLoading, setEditLoading] = useState(false)
@@ -127,6 +135,15 @@ export default function InvoicesPage() {
 
     const q = (searchParams.get("q") || "").trim()
     const { data: invoices = emptyKanban, isLoading: loading } = useInvoiceKanban({ q: q || undefined })
+
+    // Auto-update PPh rate when type changes
+    useEffect(() => {
+        setPPhRate(getDefaultRate(pphType))
+    }, [pphType])
+
+    // PPh calculation — base amount is the pay amount (what's being collected)
+    const pphBaseAmount = parseFloat(payAmount) || 0
+    const pphCalc = enablePPh ? calculateWithholding(pphRate, pphBaseAmount) : null
 
     const pushSearchParams = (mutator: (params: URLSearchParams) => void) => {
         const next = new URLSearchParams(searchParams.toString())
@@ -219,6 +236,10 @@ export default function InvoicesPage() {
         setPayAmount(String(invoice.balanceDue ?? invoice.amount))
         setPayDate(new Date().toISOString().split('T')[0])
         setPayReference("")
+        setEnablePPh(false)
+        setPPhType("PPH_23")
+        setPPhRate(2)
+        setBuktiPotongNo("")
         setIsPayDialogOpen(true)
     }
 
@@ -340,7 +361,13 @@ export default function InvoicesPage() {
                 paymentMethod: payMethod,
                 paymentDate: new Date(payDate),
                 reference: payReference,
-                notes: "Pembayaran dari Invoice Center"
+                notes: "Pembayaran dari Invoice Center",
+                withholding: enablePPh ? {
+                    type: pphType,
+                    rate: pphRate,
+                    baseAmount: pphBaseAmount,
+                    buktiPotongNo: buktiPotongNo || undefined,
+                } : undefined,
             })
             if (!result.success) {
                 toast.error(result.error || "Gagal mencatat pembayaran")
@@ -349,6 +376,10 @@ export default function InvoicesPage() {
             toast.success("Pembayaran berhasil dicatat")
             setIsPayDialogOpen(false)
             setActiveInvoice(null)
+            setEnablePPh(false)
+            setPPhType("PPH_23")
+            setPPhRate(2)
+            setBuktiPotongNo("")
             invalidateAfterPayment()
         } catch (err: any) {
             toast.error(err?.message || "Gagal mencatat pembayaran")
@@ -1196,6 +1227,76 @@ export default function InvoicesPage() {
                             <span className={NB.labelHint}>No. bukti transfer / kwitansi</span>
                             <Input className={NB.input} placeholder="Ref #123456" value={payReference} onChange={(e) => setPayReference(e.target.value)} />
                         </div>
+
+                        {/* PPh Withholding Section — only for AR (INV_OUT) invoices */}
+                        {activeInvoice?.type === "INV_OUT" && (
+                            <div className="border-2 border-black p-3 space-y-3">
+                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={enablePPh}
+                                        onChange={(e) => setEnablePPh(e.target.checked)}
+                                        className="rounded border-zinc-300"
+                                    />
+                                    Dipotong PPh oleh Customer
+                                </label>
+
+                                {enablePPh && (
+                                    <div className="space-y-3 pl-6">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold uppercase text-zinc-500">Jenis PPh</label>
+                                                <Select value={pphType} onValueChange={(v: string) => setPPhType(v as PPhTypeValue)}>
+                                                    <SelectTrigger className="h-8 rounded-none text-xs border-2 border-black">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="PPH_23">PPh 23 (Jasa)</SelectItem>
+                                                        <SelectItem value="PPH_4_2">PPh 4(2) (Sewa/Konstruksi)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold uppercase text-zinc-500">Tarif (%)</label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={pphRate}
+                                                    onChange={(e) => setPPhRate(Number(e.target.value))}
+                                                    className="h-8 rounded-none text-xs border-2 border-black font-mono"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div>
+                                                <span className="text-zinc-500">DPP:</span>{" "}
+                                                <span className="font-mono font-bold">{formatIDR(pphBaseAmount)}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-zinc-500">PPh:</span>{" "}
+                                                <span className="font-mono font-bold text-red-600">{formatIDR(pphCalc?.amount || 0)}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold uppercase text-zinc-500">No. Bukti Potong</label>
+                                            <Input
+                                                value={buktiPotongNo}
+                                                onChange={(e) => setBuktiPotongNo(e.target.value)}
+                                                placeholder="Opsional..."
+                                                className="h-8 rounded-none text-xs border-2 border-black placeholder:text-zinc-300"
+                                            />
+                                        </div>
+
+                                        <div className="bg-blue-50 border-2 border-blue-300 p-2 text-xs">
+                                            <span className="font-bold">Diterima dari customer:</span>{" "}
+                                            <span className="font-mono font-bold text-lg">{formatIDR(pphCalc?.netAmount || pphBaseAmount)}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <DialogFooter className="p-6 pt-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex gap-2">
                         <Button variant="outline" className={NB.cancelBtn} onClick={() => setIsPayDialogOpen(false)} disabled={paying}>Batal</Button>
