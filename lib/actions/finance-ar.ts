@@ -4,6 +4,7 @@ import { withPrismaAuth } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
+import { type PPhTypeValue } from "@/lib/pph-helpers"
 
 // ==========================================
 // CREDIT NOTES & REFUNDS
@@ -788,6 +789,12 @@ export async function recordARPayment(data: {
     reference?: string
     notes?: string
     invoiceId?: string // Optional: directly link to invoice
+    withheldByCustomer?: {
+        type: PPhTypeValue
+        rate: number
+        baseAmount: number
+        buktiPotongNo?: string
+    }
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -822,11 +829,18 @@ export async function recordARPayment(data: {
             if (data.invoiceId) {
                 // Payment linked to invoice — reduce AR balance
                 const invoice = await prisma.invoice.findUnique({
-                    where: { id: data.invoiceId }
+                    where: { id: data.invoiceId },
+                    include: { customer: { select: { name: true } } }
                 })
 
                 if (invoice) {
-                    const newBalance = Number(invoice.balanceDue) - data.amount
+                    const customer = invoice.customer
+                    const pphAmount = data.withheldByCustomer
+                        ? Math.round((data.withheldByCustomer.rate / 100) * data.withheldByCustomer.baseAmount)
+                        : 0
+                    const totalSettled = data.amount + pphAmount
+
+                    const newBalance = Number(invoice.balanceDue) - totalSettled
                     await prisma.invoice.update({
                         where: { id: data.invoiceId },
                         data: {
@@ -835,19 +849,47 @@ export async function recordARPayment(data: {
                         }
                     })
 
-                    // Post GL Entry: DR Cash/Bank, CR Piutang Usaha (AR)
+                    // Post GL Entry: DR Cash/Bank, DR PPh Dibayar Dimuka (if withheld), CR Piutang Usaha (AR)
+                    const arLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+                        { accountCode: cashCode, debit: data.amount, credit: 0, description: `Terima dari ${customer?.name || 'Customer'}` },
+                        { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: totalSettled, description: `Pelunasan ${invoice.number}` },
+                    ]
+
+                    if (data.withheldByCustomer && pphAmount > 0) {
+                        arLines.push({
+                            accountCode: SYS_ACCOUNTS.PPH_PREPAID,
+                            debit: pphAmount,
+                            credit: 0,
+                            description: `PPh Dibayar Dimuka - ${invoice.number}`,
+                        })
+                    }
+
                     const glResult = await postJournalEntry({
                         description: `Penerimaan ${paymentNumber} untuk ${invoice.number}`,
                         date: data.date || new Date(),
                         reference: paymentNumber,
                         invoiceId: data.invoiceId,
-                        lines: [
-                            { accountCode: cashCode, debit: data.amount, credit: 0 },
-                            { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount } // Piutang Usaha
-                        ]
+                        lines: arLines,
                     })
                     if (!glResult?.success) {
                         console.error("GL posting failed (payment recorded):", glResult?.error)
+                    }
+
+                    // Create WithholdingTax record if customer withheld PPh
+                    if (data.withheldByCustomer && pphAmount > 0) {
+                        await prisma.withholdingTax.create({
+                            data: {
+                                paymentId: payment.id,
+                                invoiceId: data.invoiceId || null,
+                                type: data.withheldByCustomer.type,
+                                direction: 'IN',
+                                rate: data.withheldByCustomer.rate,
+                                baseAmount: data.withheldByCustomer.baseAmount,
+                                amount: pphAmount,
+                                buktiPotongNo: data.withheldByCustomer.buktiPotongNo || null,
+                                buktiPotongDate: data.withheldByCustomer.buktiPotongNo ? new Date() : null,
+                            },
+                        })
                     }
                 }
             } else {

@@ -5,6 +5,7 @@ import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
+import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
 
@@ -917,10 +918,21 @@ export async function recordInvoicePayment(data: {
     paymentDate: Date
     reference?: string
     notes?: string
+    withholding?: {
+        type: PPhTypeValue
+        rate: number
+        baseAmount: number
+        buktiPotongNo?: string
+    }
 }) {
     try {
         // Period lock: fail fast before mutation
         await assertPeriodOpen(new Date())
+
+        // Calculate PPh withholding amount (if any)
+        const pphAmount = data.withholding
+            ? Math.round((data.withholding.rate / 100) * data.withholding.baseAmount)
+            : 0
 
         // Step 1: Create payment + update invoice in a single transaction
         const txResult = await withPrismaAuth(async (prisma) => {
@@ -945,7 +957,11 @@ export async function recordInvoicePayment(data: {
                 }
             })
 
-            const newBalance = Number(invoice.balanceDue) - data.amount
+            // For INV_OUT with withholding: total settled = cash received + PPh withheld by customer
+            const settledAmount = invoice.type === 'INV_OUT'
+                ? data.amount + pphAmount
+                : data.amount
+            const newBalance = Number(invoice.balanceDue) - settledAmount
             const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL'
 
             await prisma.invoice.update({
@@ -953,7 +969,25 @@ export async function recordInvoicePayment(data: {
                 data: { status: newStatus, balanceDue: newBalance }
             })
 
+            // Create WithholdingTax record if applicable
+            if (data.withholding && pphAmount > 0) {
+                await prisma.withholdingTax.create({
+                    data: {
+                        paymentId: payment.id,
+                        invoiceId: invoice.id,
+                        type: data.withholding.type,
+                        direction: invoice.type === 'INV_OUT' ? 'IN' : 'OUT',
+                        rate: data.withholding.rate,
+                        baseAmount: data.withholding.baseAmount,
+                        amount: pphAmount,
+                        buktiPotongNo: data.withholding.buktiPotongNo || null,
+                        buktiPotongDate: data.withholding.buktiPotongNo ? new Date() : null,
+                    },
+                })
+            }
+
             return {
+                paymentId: payment.id,
                 paymentNumber: payment.number,
                 invoiceNumber: invoice.number,
                 invoiceType: invoice.type,
@@ -968,28 +1002,53 @@ export async function recordInvoicePayment(data: {
 
         let glResult: any
         if (txResult.invoiceType === 'INV_OUT') {
-            // AR Payment: DR Kas/Bank, CR Piutang Usaha
+            // AR Payment: DR Kas/Bank, DR PPh Dibayar Dimuka (if withheld), CR Piutang Usaha
+            const totalSettled = data.amount + pphAmount
+            const arLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+                { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${txResult.customerName}` },
+                { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: totalSettled, description: `Pelunasan ${txResult.invoiceNumber}` },
+            ]
+
+            if (data.withholding && pphAmount > 0) {
+                arLines.push({
+                    accountCode: SYS_ACCOUNTS.PPH_PREPAID,
+                    debit: pphAmount,
+                    credit: 0,
+                    description: `PPh Dibayar Dimuka - ${txResult.invoiceNumber}`,
+                })
+            }
+
             glResult = await postJournalEntry({
                 description: `Penerimaan Pembayaran ${txResult.invoiceNumber} - ${txResult.customerName || 'Customer'}`,
                 date: data.paymentDate,
                 reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
                 invoiceId: data.invoiceId,
-                lines: [
-                    { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${txResult.customerName}` },
-                    { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount, description: `Pelunasan ${txResult.invoiceNumber}` }
-                ]
+                lines: arLines,
             })
         } else {
-            // AP Payment: DR Hutang Usaha, CR Kas/Bank
+            // AP Payment: DR Hutang Usaha, CR Kas/Bank, CR Utang PPh (if withheld)
+            const apLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+                { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: `Pelunasan ${txResult.supplierName}` },
+            ]
+
+            if (data.withholding && pphAmount > 0) {
+                // Net cash paid = gross AP - PPh withheld
+                apLines.push(
+                    { accountCode: cashAccountCode, debit: 0, credit: data.amount - pphAmount, description: `Bayar ${txResult.invoiceNumber}` },
+                    { accountCode: getPPhLiabilityAccount(data.withholding.type), debit: 0, credit: pphAmount, description: `Utang PPh - ${txResult.invoiceNumber}` },
+                )
+            } else {
+                apLines.push(
+                    { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${txResult.invoiceNumber}` },
+                )
+            }
+
             glResult = await postJournalEntry({
                 description: `Pembayaran Tagihan ${txResult.invoiceNumber} - ${txResult.supplierName || 'Supplier'}`,
                 date: data.paymentDate,
                 reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
                 invoiceId: data.invoiceId,
-                lines: [
-                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: `Pelunasan ${txResult.supplierName}` },
-                    { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${txResult.invoiceNumber}` }
-                ]
+                lines: apLines,
             })
         }
 
