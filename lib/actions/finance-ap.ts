@@ -7,6 +7,7 @@ import { logAudit } from "@/lib/audit-helpers"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
+import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 
 // ==========================================
 // VENDOR BILLS (AP - From Purchase Orders)
@@ -383,6 +384,12 @@ export async function recordVendorPayment(data: {
     reference?: string
     notes?: string
     bankAccountCode?: string
+    withholding?: {
+        type: PPhTypeValue
+        rate: number
+        baseAmount: number
+        buktiPotongNo?: string
+    }
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -451,24 +458,59 @@ export async function recordVendorPayment(data: {
                 }
             }
 
-            // Post GL entry: DR AP, CR Cash/Bank
+            // Post GL entry: DR AP, CR Cash/Bank [, CR Utang PPh if withholding]
             const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
             const bankAccount = await prisma.gLAccount.findFirst({
                 where: { code: bankCode },
                 select: { name: true }
             })
             const bankAccountName = bankAccount?.name || 'Kas Besar'
+
+            const pphAmount = data.withholding
+                ? Math.round((data.withholding.rate / 100) * data.withholding.baseAmount)
+                : 0
+            const netCashAmount = data.amount - pphAmount
+
+            const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = [
+                { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Hutang Usaha' },
+                { accountCode: bankCode, debit: 0, credit: netCashAmount, description: bankAccountName },
+            ]
+
+            if (data.withholding && pphAmount > 0) {
+                const pphAccountCode = getPPhLiabilityAccount(data.withholding.type)
+                glLines.push({
+                    accountCode: pphAccountCode,
+                    debit: 0,
+                    credit: pphAmount,
+                    description: `PPh ${data.withholding.type === 'PPH_23' ? '23' : '4(2)'} - ${paymentNumber}`,
+                })
+            }
+
             const glResult = await postJournalEntry({
                 description: `Vendor Payment ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
-                lines: [
-                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Hutang Usaha' },
-                    { accountCode: bankCode, debit: 0, credit: data.amount, description: bankAccountName }
-                ]
+                lines: glLines,
             })
             if (!glResult?.success) {
                 console.error("GL posting failed for vendor payment:", (glResult as any)?.error)
+            }
+
+            // Create WithholdingTax record if applicable
+            if (data.withholding && pphAmount > 0) {
+                await prisma.withholdingTax.create({
+                    data: {
+                        paymentId: payment.id,
+                        invoiceId: data.billId || null,
+                        type: data.withholding.type,
+                        direction: 'OUT',
+                        rate: data.withholding.rate,
+                        baseAmount: data.withholding.baseAmount,
+                        amount: pphAmount,
+                        buktiPotongNo: data.withholding.buktiPotongNo || null,
+                        buktiPotongDate: data.withholding.buktiPotongNo ? new Date() : null,
+                    },
+                })
             }
 
             return { success: true, paymentId: payment.id, paymentNumber }
@@ -500,6 +542,12 @@ export async function recordMultiBillPayment(data: {
     reference?: string
     notes?: string
     bankAccountCode?: string // GL code for bank/cash account (default 1010)
+    withholding?: {
+        type: PPhTypeValue
+        rate: number
+        baseAmount: number
+        buktiPotongNo?: string
+    }
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -592,19 +640,59 @@ export async function recordMultiBillPayment(data: {
                 })
             }
 
-            // Post single GL entry for total amount: DR AP, CR Bank/Cash
+            // Post single GL entry for total amount: DR AP, CR Bank/Cash [, CR Utang PPh if withholding]
             const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
+            const bankAccount = await prisma.gLAccount.findFirst({
+                where: { code: bankCode },
+                select: { name: true }
+            })
+            const bankAccountName = bankAccount?.name || 'Kas Besar'
+
+            const pphAmount = data.withholding
+                ? Math.round((data.withholding.rate / 100) * data.withholding.baseAmount)
+                : 0
+            const netCashAmount = totalAmount - pphAmount
+
+            const multiGlLines: { accountCode: string; debit: number; credit: number; description: string }[] = [
+                { accountCode: SYS_ACCOUNTS.AP, debit: totalAmount, credit: 0, description: 'Pelunasan Hutang Usaha' },
+                { accountCode: bankCode, debit: 0, credit: netCashAmount, description: bankAccountName },
+            ]
+
+            if (data.withholding && pphAmount > 0) {
+                const pphAccountCode = getPPhLiabilityAccount(data.withholding.type)
+                multiGlLines.push({
+                    accountCode: pphAccountCode,
+                    debit: 0,
+                    credit: pphAmount,
+                    description: `PPh ${data.withholding.type === 'PPH_23' ? '23' : '4(2)'} - ${paymentNumber}`,
+                })
+            }
+
             const multiGlResult = await postJournalEntry({
                 description: `Pembayaran Vendor Multi-Bill ${paymentNumber}`,
                 date: new Date(),
                 reference: paymentNumber,
-                lines: [
-                    { accountCode: SYS_ACCOUNTS.AP, debit: totalAmount, credit: 0, description: 'Pelunasan Hutang Usaha' },
-                    { accountCode: bankCode, debit: 0, credit: totalAmount, description: `Pembayaran via ${data.method || 'TRANSFER'}` }
-                ]
+                lines: multiGlLines,
             })
             if (!multiGlResult?.success) {
                 console.error("GL posting failed for multi-bill payment:", (multiGlResult as any)?.error)
+            }
+
+            // Create WithholdingTax record if applicable
+            if (data.withholding && pphAmount > 0) {
+                await prisma.withholdingTax.create({
+                    data: {
+                        paymentId: paymentIds[0],
+                        invoiceId: null,
+                        type: data.withholding.type,
+                        direction: 'OUT',
+                        rate: data.withholding.rate,
+                        baseAmount: data.withholding.baseAmount,
+                        amount: pphAmount,
+                        buktiPotongNo: data.withholding.buktiPotongNo || null,
+                        buktiPotongDate: data.withholding.buktiPotongNo ? new Date() : null,
+                    },
+                })
             }
 
             return { success: true, paymentNumber, paymentIds, totalAmount }
