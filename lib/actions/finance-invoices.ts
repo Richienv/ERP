@@ -763,6 +763,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                     id: true, number: true, dueDate: true,
                     totalAmount: true, subtotal: true, taxAmount: true,
                     type: true, status: true, currencyCode: true,
+                    purchaseOrderId: true,
                     customer: { select: { name: true } },
                     supplier: { select: { name: true } },
                 }
@@ -785,6 +786,18 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 }
             })
 
+            // For PO-linked bills, check if goods were received via GRN (for GR/IR clearing)
+            let goodsReceivedViaPO = false
+            if (existing.type === 'INV_IN' && existing.purchaseOrderId) {
+                const grnCount = await prisma.goodsReceivedNote.count({
+                    where: {
+                        purchaseOrderId: existing.purchaseOrderId,
+                        status: 'ACCEPTED',
+                    }
+                })
+                goodsReceivedViaPO = grnCount > 0
+            }
+
             return {
                 number: existing.number,
                 type: existing.type,
@@ -794,6 +807,8 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                 currencyCode: existing.currencyCode || "IDR",
                 customerName: existing.customer?.name,
                 supplierName: existing.supplier?.name,
+                purchaseOrderId: existing.purchaseOrderId,
+                goodsReceivedViaPO,
                 nextStatus,
                 dueDate,
                 issueDate: now,
@@ -871,13 +886,24 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                         lines,
                     })
                 } else {
-                    // AP Bill: DR HPP + DR PPN Masukan, CR Hutang Usaha
+                    // AP Bill: DR [expense account] + DR PPN Masukan, CR Hutang Usaha (AP)
+                    // For PO-linked bills with received goods: DR GR/IR Clearing (2150) instead of Expense
+                    //   → This clears the GR/IR suspense created when GRN was accepted (DR Inventory, CR GR/IR)
+                    //   → Net effect: GR/IR Clearing balance returns to zero after both GRN + bill
+                    // For non-PO bills (direct expense purchase): DR Expense (6900) as before
+                    const debitAccount = txResult.goodsReceivedViaPO
+                        ? SYS_ACCOUNTS.GR_IR_CLEARING
+                        : SYS_ACCOUNTS.EXPENSE_DEFAULT
+                    const debitLabel = txResult.goodsReceivedViaPO
+                        ? `GR/IR Clearing - ${txResult.number}`
+                        : `Beban - ${txResult.number}`
+
                     const lines: { accountCode: string; debit: number; credit: number; description: string }[] = []
                     if (taxInIDR > 0) {
-                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: subtotalInIDR, credit: 0, description: `HPP - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: debitAccount, debit: subtotalInIDR, credit: 0, description: `${debitLabel}${glCurrencyNote}` })
                         lines.push({ accountCode: SYS_ACCOUNTS.PPN_MASUKAN, debit: taxInIDR, credit: 0, description: `PPN Masukan - ${txResult.number}${glCurrencyNote}` })
                     } else {
-                        lines.push({ accountCode: SYS_ACCOUNTS.COGS, debit: amountInIDR, credit: 0, description: `HPP - ${txResult.number}${glCurrencyNote}` })
+                        lines.push({ accountCode: debitAccount, debit: amountInIDR, credit: 0, description: `${debitLabel}${glCurrencyNote}` })
                     }
                     lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: amountInIDR, description: `Hutang - ${txResult.supplierName || 'Supplier'}${glCurrencyNote}` })
                     await postJournalEntry({
@@ -887,6 +913,73 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                         invoiceId: invoiceId,
                         lines,
                     })
+                }
+            }
+
+            // --- COGS Recognition for Sales Invoices with Stock Items ---
+            if (txResult.type === 'INV_OUT') {
+                try {
+                    const invoiceItems = await prisma.invoiceItem.findMany({
+                        where: { invoiceId },
+                        select: {
+                            quantity: true,
+                            product: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    costPrice: true,
+                                    productType: true,
+                                    cogsAccountId: true,
+                                    inventoryAccountId: true,
+                                    cogsAccount: { select: { code: true } },
+                                    inventoryAccount: { select: { code: true } },
+                                }
+                            }
+                        }
+                    })
+
+                    const cogsLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
+                    for (const item of invoiceItems) {
+                        if (!item.product) continue // service/text line — skip
+                        const cost = Number(item.product.costPrice || 0)
+                        if (cost <= 0) {
+                            console.warn(`COGS skipped for product ${item.product.name} (id: ${item.product.id}) — costPrice is ${cost}`)
+                            continue
+                        }
+                        const qty = Number(item.quantity || 0)
+                        if (qty <= 0) continue
+                        const cogsAmount = qty * cost
+
+                        const cogsCode = item.product.cogsAccount?.code || SYS_ACCOUNTS.COGS
+                        const invCode = item.product.inventoryAccount?.code || SYS_ACCOUNTS.INVENTORY_ASSET
+
+                        cogsLines.push({
+                            accountCode: cogsCode,
+                            debit: cogsAmount,
+                            credit: 0,
+                            description: `HPP - ${item.product.name} (${qty} x ${cost})`,
+                        })
+                        cogsLines.push({
+                            accountCode: invCode,
+                            debit: 0,
+                            credit: cogsAmount,
+                            description: `Persediaan keluar - ${item.product.name}`,
+                        })
+                    }
+
+                    if (cogsLines.length > 0) {
+                        await postJournalEntry({
+                            description: `HPP Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
+                            date: txResult.issueDate,
+                            reference: `COGS-${txResult.number}`,
+                            invoiceId: invoiceId,
+                            sourceDocumentType: 'COGS_RECOGNITION',
+                            lines: cogsLines,
+                        })
+                    }
+                } catch (cogsError: any) {
+                    // COGS failure should not block invoice — log warning but continue
+                    console.warn(`COGS journal failed for invoice ${txResult.number}:`, cogsError?.message)
                 }
             }
         } catch (glError: any) {
@@ -1053,9 +1146,29 @@ export async function recordInvoicePayment(data: {
         }
 
         if (!glResult?.success) {
+            // Atomic: GL gagal → rollback payment dan invoice status secara manual
+            // (karena GL di luar Prisma transaction untuk menghindari nested tx deadlock)
+            try {
+                const { prisma } = await import("@/lib/prisma")
+                // Revert invoice balance and status
+                const invoice = await prisma.invoice.findUnique({ where: { id: data.invoiceId } })
+                if (invoice) {
+                    await prisma.invoice.update({
+                        where: { id: data.invoiceId },
+                        data: {
+                            balanceDue: { increment: data.amount },
+                            status: invoice.status === 'PAID' ? 'ISSUED' : invoice.status === 'PARTIAL' ? 'ISSUED' : invoice.status,
+                        }
+                    })
+                }
+                // Delete the payment record
+                await prisma.payment.deleteMany({ where: { number: txResult.paymentNumber } })
+            } catch (revertError) {
+                console.error("Failed to revert payment after GL failure:", revertError)
+            }
             return {
-                success: true,
-                glWarning: `Pembayaran berhasil dicatat, tetapi jurnal GL gagal diposting: ${glResult?.error || 'Akun GL tidak ditemukan'}. Hubungi bagian akuntansi.`,
+                success: false,
+                error: `Jurnal gagal — pembayaran dibatalkan: ${glResult?.error || 'Akun GL tidak ditemukan'}`,
             }
         }
 

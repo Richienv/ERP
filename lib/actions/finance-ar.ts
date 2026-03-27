@@ -7,6 +7,143 @@ import { assertPeriodOpen } from "@/lib/period-helpers"
 import { type PPhTypeValue } from "@/lib/pph-helpers"
 
 // ==========================================
+// BAD DEBT WRITE-OFF
+// ==========================================
+
+/**
+ * Provision for bad debt (Allowance method Step 1).
+ * Creates a journal entry that provisions for expected losses:
+ *   DR Bad Debt Expense (6500), CR Allowance for Doubtful Debts (1210)
+ *
+ * This hits P&L immediately but does NOT affect the invoice or AR balance yet.
+ */
+export async function provisionBadDebt(data: {
+    amount: number
+    reason?: string
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            if (data.amount <= 0) throw new Error("Jumlah provisi harus lebih dari 0")
+
+            await ensureSystemAccounts()
+
+            const glResult = await postJournalEntry({
+                description: `Provisi Piutang Tak Tertagih: ${data.reason || 'Cadangan kerugian piutang'}`,
+                date: new Date(),
+                reference: `PROV-BD-${Date.now()}`,
+                sourceDocumentType: 'BAD_DEBT_PROVISION',
+                lines: [
+                    { accountCode: SYS_ACCOUNTS.BAD_DEBT_EXPENSE, debit: data.amount, credit: 0 },
+                    { accountCode: SYS_ACCOUNTS.ALLOWANCE_DOUBTFUL, debit: 0, credit: data.amount },
+                ]
+            })
+
+            if (!glResult?.success) {
+                throw new Error(`Jurnal provisi gagal: ${(glResult as any)?.error || 'Unknown GL error'}`)
+            }
+
+            return { success: true, journalEntryId: (glResult as any)?.journalEntryId }
+        })
+    } catch (error: any) {
+        console.error("Provision Bad Debt Error:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+/**
+ * Write off bad debt for an invoice.
+ *
+ * DIRECT method:
+ *   DR Bad Debt Expense (6500), CR AR (1200)
+ *   — Hits P&L directly. Use when there's no prior provision.
+ *
+ * ALLOWANCE method:
+ *   DR Allowance for Doubtful Debts (1210), CR AR (1200)
+ *   — Uses previously provisioned allowance. Does NOT hit P&L again.
+ *   — Call provisionBadDebt() first to set up the allowance.
+ *
+ * Supports partial write-off: amount can be less than balanceDue.
+ * When amount >= balanceDue, invoice status becomes VOID.
+ */
+export async function writeOffBadDebt(data: {
+    invoiceId: string
+    method: 'DIRECT' | 'ALLOWANCE'
+    amount: number
+    reason?: string
+}) {
+    try {
+        return await withPrismaAuth(async (prisma) => {
+            // 1. Validate invoice
+            const invoice = await prisma.invoice.findUnique({
+                where: { id: data.invoiceId }
+            })
+
+            if (!invoice) throw new Error("Invoice tidak ditemukan")
+            if (invoice.type !== 'INV_OUT') throw new Error("Hanya invoice pelanggan (AR) yang dapat dihapusbukukan")
+            if (!['ISSUED', 'PARTIAL', 'OVERDUE'].includes(invoice.status)) {
+                throw new Error(`Invoice status '${invoice.status}' tidak dapat dihapusbukukan`)
+            }
+
+            const balanceDue = Number(invoice.balanceDue)
+            if (data.amount <= 0) throw new Error("Jumlah write-off harus lebih dari 0")
+            if (data.amount > balanceDue) throw new Error(`Jumlah write-off (${data.amount}) melebihi saldo piutang (${balanceDue})`)
+
+            // 2. Determine debit account based on method
+            const debitAccountCode = data.method === 'DIRECT'
+                ? SYS_ACCOUNTS.BAD_DEBT_EXPENSE   // 6500 — hits P&L
+                : SYS_ACCOUNTS.ALLOWANCE_DOUBTFUL  // 1210 — uses prior provision
+
+            // 3. Post journal entry
+            await ensureSystemAccounts()
+
+            const description = data.method === 'DIRECT'
+                ? `Hapus Buku Piutang (Langsung) - ${invoice.number}: ${data.reason || 'Piutang tak tertagih'}`
+                : `Hapus Buku Piutang (Cadangan) - ${invoice.number}: ${data.reason || 'Piutang tak tertagih'}`
+
+            const glResult = await postJournalEntry({
+                description,
+                date: new Date(),
+                reference: `WO-${invoice.number}`,
+                invoiceId: data.invoiceId,
+                sourceDocumentType: 'BAD_DEBT_WRITEOFF',
+                lines: [
+                    { accountCode: debitAccountCode, debit: data.amount, credit: 0 },
+                    { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount },
+                ]
+            })
+
+            if (!glResult?.success) {
+                throw new Error(`Jurnal hapus buku gagal: ${(glResult as any)?.error || 'Unknown GL error'}`)
+            }
+
+            // 4. Update invoice balance
+            const newBalance = balanceDue - data.amount
+            const newStatus = newBalance <= 0 ? 'VOID' : invoice.status
+
+            await prisma.invoice.update({
+                where: { id: data.invoiceId },
+                data: {
+                    balanceDue: newBalance,
+                    status: newStatus,
+                }
+            })
+
+            return {
+                success: true,
+                invoiceId: data.invoiceId,
+                method: data.method,
+                amountWrittenOff: data.amount,
+                newBalance,
+                newStatus,
+            }
+        })
+    } catch (error: any) {
+        console.error("Write Off Bad Debt Error:", error)
+        return { success: false, error: error.message }
+    }
+}
+
+// ==========================================
 // CREDIT NOTES & REFUNDS
 // ==========================================
 
@@ -795,6 +932,7 @@ export async function recordARPayment(data: {
         baseAmount: number
         buktiPotongNo?: string
     }
+    bankChargeAmount?: number // Optional: bank charges deducted from received amount
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -849,11 +987,19 @@ export async function recordARPayment(data: {
                         }
                     })
 
-                    // Post GL Entry: DR Cash/Bank, DR PPh Dibayar Dimuka (if withheld), CR Piutang Usaha (AR)
+                    // Post GL Entry: DR Cash/Bank, DR PPh Dibayar Dimuka (if withheld), DR Bank Charges (if any), CR Piutang Usaha (AR)
+                    const bankCharge = data.bankChargeAmount && data.bankChargeAmount > 0 ? data.bankChargeAmount : 0
+                    const bankDebitAmount = data.amount - bankCharge
+
                     const arLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
-                        { accountCode: cashCode, debit: data.amount, credit: 0, description: `Terima dari ${customer?.name || 'Customer'}` },
-                        { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: totalSettled, description: `Pelunasan ${invoice.number}` },
+                        { accountCode: cashCode, debit: bankDebitAmount, credit: 0, description: `Terima dari ${customer?.name || 'Customer'}` },
                     ]
+
+                    if (bankCharge > 0) {
+                        arLines.push({
+                            accountCode: SYS_ACCOUNTS.BANK_CHARGES, debit: bankCharge, credit: 0, description: `Biaya bank - ${invoice.number}`
+                        })
+                    }
 
                     if (data.withheldByCustomer && pphAmount > 0) {
                         arLines.push({
@@ -864,15 +1010,20 @@ export async function recordARPayment(data: {
                         })
                     }
 
+                    arLines.push({
+                        accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: totalSettled, description: `Pelunasan ${invoice.number}`
+                    })
+
                     const glResult = await postJournalEntry({
-                        description: `Penerimaan ${paymentNumber} untuk ${invoice.number}`,
+                        description: `Penerimaan ${paymentNumber} untuk ${invoice.number}${bankCharge > 0 ? ` (biaya bank: ${bankCharge})` : ''}`,
                         date: data.date || new Date(),
                         reference: paymentNumber,
                         invoiceId: data.invoiceId,
                         lines: arLines,
                     })
                     if (!glResult?.success) {
-                        console.error("GL posting failed (payment recorded):", glResult?.error)
+                        // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + invoice update
+                        throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
                     }
 
                     // Create WithholdingTax record if customer withheld PPh
@@ -906,7 +1057,8 @@ export async function recordARPayment(data: {
                     ]
                 })
                 if (!advGlResult?.success) {
-                    console.error("GL posting failed (advance payment):", advGlResult?.error)
+                    // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment
+                    throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(advGlResult as any)?.error || 'Unknown GL error'}`)
                 }
             }
 
@@ -967,7 +1119,8 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
                 ]
             })
             if (!matchGlResult?.success) {
-                console.error("GL posting failed (match recorded):", matchGlResult?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback match
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(matchGlResult as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true, message: `Payment matched to invoice ${invoice.number}` }

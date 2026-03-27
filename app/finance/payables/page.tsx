@@ -2,12 +2,14 @@
 
 import { useState } from "react"
 import { useSearchParams } from "next/navigation"
+import { useQuery } from "@tanstack/react-query"
 import dynamic from "next/dynamic"
 import { motion } from "framer-motion"
 import { NotaDebitTab } from "@/components/finance/nota-debit-tab"
 import { TabContentSkeleton } from "@/components/ui/page-skeleton"
 import { NB } from "@/lib/dialog-styles"
 import { Receipt } from "lucide-react"
+import { getAPAgingReport } from "@/lib/actions/finance"
 
 const BillsTab = dynamic(() => import("@/app/finance/bills/page"), {
     ssr: false,
@@ -24,10 +26,20 @@ const tabs = [
     { value: "nota-debit", label: "Nota Debit" },
 ] as const
 
+const fmt = (n: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
+
 export default function PayablesPage() {
     const searchParams = useSearchParams()
     const initialTab = searchParams.get("tab") || "tagihan"
     const [activeTab, setActiveTab] = useState(initialTab)
+
+    const { data: aging } = useQuery({
+        queryKey: ["finance", "ap-aging"],
+        queryFn: () => getAPAgingReport(),
+        staleTime: 30_000,
+    })
+    const b = aging?.summary || { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
+    const total = b.current + b.d1_30 + b.d31_60 + b.d61_90 + b.d90_plus
 
     return (
         <motion.div
@@ -80,6 +92,27 @@ export default function PayablesPage() {
                         ))}
                     </div>
                 </div>
+
+                {/* Row 2: AP Aging KPI Strip */}
+                {aging && (
+                    <div className="border-t border-zinc-200 dark:border-zinc-700">
+                        <div className={NB.kpiStrip}>
+                            {[
+                                { label: "Total", value: total, color: "text-zinc-900 dark:text-white" },
+                                { label: "Belum Jatuh Tempo", value: b.current, color: "text-emerald-600" },
+                                { label: "1-30 Hari", value: b.d1_30, color: "text-amber-600" },
+                                { label: "31-60 Hari", value: b.d31_60, color: "text-orange-600" },
+                                { label: "61-90 Hari", value: b.d61_90, color: "text-red-500" },
+                                { label: ">90 Hari", value: b.d90_plus, color: "text-red-700" },
+                            ].map((cell) => (
+                                <div key={cell.label} className={NB.kpiCell}>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{cell.label}</span>
+                                    <span className={`text-sm font-black font-mono ${cell.color}`}>{fmt(cell.value)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </motion.div>
 
             {/* ─── Tab Content ─── */}

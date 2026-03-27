@@ -1,79 +1,227 @@
 {
-  "branchName": "main",
-  "source": "Cross-module data connection audit — prevent FINANCE_BUGS_20260315.md pattern recurring in other modules",
+  "branchName": "feat/accounting-integration",
+  "source": "OIC ERP Accounting Module V2 — Infrastructure, Transaction Types & Report Integrity (gap analysis against full accounting spec)",
+  "verifyCommand": "npx vitest run && npx tsc --noEmit",
   "features": [
     {
-      "id": "AUDIT-001",
-      "title": "Inventory Module — Hardcoded GL Codes & Data Flow Audit",
+      "id": "ACCT2-001",
+      "title": "COA Expansion — Add All Missing System Accounts to SYS_ACCOUNTS & Seed",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16T17:30:00Z",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in lib/actions/inventory-gl.ts — all replaced with SYS_ACCOUNTS",
-        "Zero hardcoded GL codes in app/actions/inventory.ts that reference account codes",
-        "Stock adjustments (ADJUSTMENT_IN/OUT) create correct GL journal entries via postJournalEntry",
-        "Stock transfers between warehouses create GL entries if they affect asset accounts",
-        "PO receive (PRODUCTION_IN) creates GL entry: DR Inventory Asset, CR AP or GRN clearing",
-        "SO shipment (SO_SHIPMENT) creates GL entry: DR COGS, CR Inventory Asset",
-        "All inventory hooks import from correct action files (not monolithic finance.ts)",
-        "Grep verification: zero matches for hardcoded codes in inventory action files"
-      ]
+        "Add these accounts to SYS_ACCOUNTS in lib/gl-accounts.ts with correct codes: ALLOWANCE_DOUBTFUL='1210', GR_IR_CLEARING='2150', SALARY_PAYABLE='2200', MFG_OVERHEAD_APPLIED='2210', PPH21_PAYABLE='2310', PPH23_PAYABLE='2315', BPJS_TK_PAYABLE='2320', BPJS_KES_PAYABLE='2330', UNEARNED_REVENUE='2400', SERVICE_REVENUE='4200', OTHER_INCOME='4300', INTEREST_INCOME='4400', SALARY_EXPENSE='6100', BAD_DEBT_EXPENSE='6500', BANK_CHARGES='7200'",
+        "Add all new accounts to SYSTEM_ACCOUNT_DEFS[] with correct AccountType (ASSET/LIABILITY/EQUITY/REVENUE/EXPENSE) and Indonesian names",
+        "Add all new accounts to prisma/seed-gl.ts so fresh databases get them",
+        "ALLOWANCE_DOUBTFUL (1210) type=ASSET (contra-asset with CREDIT normal balance — note in name: 'Cadangan Kerugian Piutang')",
+        "GR_IR_CLEARING (2150) type=LIABILITY (name: 'Barang Diterima / Faktur Belum Diterima')",
+        "All payroll liability accounts (2200, 2310, 2315, 2320, 2330) type=LIABILITY",
+        "UNEARNED_REVENUE (2400) type=LIABILITY (name: 'Pendapatan Diterima Dimuka')",
+        "SERVICE_REVENUE (4200) type=REVENUE, OTHER_INCOME (4300) type=REVENUE, INTEREST_INCOME (4400) type=REVENUE",
+        "SALARY_EXPENSE (6100) type=EXPENSE, BAD_DEBT_EXPENSE (6500) type=EXPENSE, BANK_CHARGES (7200) type=EXPENSE",
+        "Do NOT duplicate accounts that already exist (check existing SYS_ACCOUNTS first: 1000, 1050, 1110, 1111, 1200, 1300, 1310, 1320, 1330, 1410, 1590, 2000, 2110, 2121, 3100, 3900, 4000, 5000, 6290, 6900, 8200, 8300)",
+        "npx vitest run passes (no regressions)",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": "plans/spec-accounting-v2.md"
     },
     {
-      "id": "AUDIT-002",
-      "title": "Procurement Module — Hardcoded GL Codes & PO→GRN→Bill Flow Audit",
+      "id": "ACCT2-002",
+      "title": "Product Item Master Accounting Fields — cogsAccountId, inventoryAccountId, incomeAccountId",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16T17:35:00Z",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in lib/actions/procurement.ts — all replaced with SYS_ACCOUNTS",
-        "PO approval creates AP bill via recordPendingBillFromPO (verified working)",
-        "GRN creation updates inventory correctly",
-        "PO return creates proper GL reversal entry (DR AP, CR Inventory)",
-        "All procurement hooks import from correct action files",
-        "Grep verification: zero matches for hardcoded codes in procurement action files"
-      ]
+        "Add to Product model in prisma/schema.prisma: cogsAccountId (String? @db.Uuid, FK to GLAccount), inventoryAccountId (String? @db.Uuid, FK to GLAccount), incomeAccountId (String? @db.Uuid, FK to GLAccount), purchaseAccountId (String? @db.Uuid, FK to GLAccount)",
+        "Add relations: cogsAccount, inventoryAccount, incomeAccount, purchaseAccount — all optional relations to GLAccount",
+        "Add reverse relations on GLAccount model (e.g. productsAsCogs, productsAsInventory, etc.)",
+        "Create Prisma migration with: npx prisma migrate dev --name add_product_accounting_fields",
+        "npx prisma generate succeeds and Prisma client has the new fields",
+        "Default values: NULL for all four fields (existing products keep working without accounting links)",
+        "npx vitest run passes (no regressions)",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": "plans/spec-accounting-v2.md"
     },
     {
-      "id": "AUDIT-003",
-      "title": "HCM/SDM Module — Payroll→GL & Attendance Data Flow Audit",
+      "id": "ACCT2-003",
+      "title": "GLAccount Control Account Flag & Direct Posting Restriction",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16T17:40:00Z",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in app/actions/hcm.ts — uses dynamic account lookup from config",
-        "Payroll posting creates proper journal entries (DR Salary Expense, CR Salary Payable, CR BPJS, CR PPh21)",
-        "Payroll disbursement creates GL entry (DR Salary Payable, CR Bank/Cash)",
-        "HCM imports postJournalEntry from finance-gl.ts (fixed from finance.ts)",
-        "Payroll GL account codes are configurable via getPayrollAccounts(), not hardcoded"
-      ]
+        "Add to GLAccount model in prisma/schema.prisma: isControlAccount (Boolean @default(false)), allowDirectPosting (Boolean @default(true))",
+        "Create Prisma migration with: npx prisma migrate dev --name add_gl_control_account_flags",
+        "In seed-gl.ts or a new migration: set isControlAccount=true and allowDirectPosting=false for accounts 1200 (AR), 2000 (AP), 1300 (Inventory)",
+        "In postJournalEntry() in finance-gl.ts: before creating journal lines, check each account's allowDirectPosting flag. If false AND the source_document_type is 'MANUAL' (manual journal entry), reject with error 'Akun kontrol [code] tidak boleh diposting langsung — gunakan modul AR/AP/Inventory'",
+        "System-generated entries (from invoice, payment, GRN etc.) must STILL be allowed to post to control accounts — only MANUAL journal entries are blocked",
+        "npx vitest run passes (no regressions)",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": "plans/spec-accounting-v2.md"
     },
     {
-      "id": "AUDIT-004",
-      "title": "Sales & CRM Module — SO→Invoice→AR & Hardcoded GL Codes Audit",
+      "id": "ACCT2-004",
+      "title": "Fiscal Period Enforcement — Block Posting to Closed Periods",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16T17:42:00Z",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in lib/actions/sales.ts — all replaced with SYS_ACCOUNTS",
-        "SO delivery auto-creates AR invoice (createInvoiceFromSalesOrder now imports from finance-invoices.ts)",
-        "Sales return creates correct GL reversal using SYS_ACCOUNTS",
-        "All sales hooks import from correct action files",
-        "Grep verification: zero matches for hardcoded GL codes in sales action files"
-      ]
+        "In postJournalEntry() in finance-gl.ts: before creating the journal entry, look up the FiscalPeriod for the journal date's year/month",
+        "If a FiscalPeriod exists AND isClosed=true, reject with error: 'Periode [month/year] sudah ditutup — tidak dapat membuat jurnal'",
+        "If NO FiscalPeriod exists for that month, ALLOW the posting (auto-create period or simply don't block — periods are optional)",
+        "This validation applies to ALL journal entries (manual and system-generated) — you cannot post to a closed period",
+        "Add a Vitest test: mock a closed fiscal period, attempt postJournalEntry(), verify it throws the expected error",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
     },
     {
-      "id": "AUDIT-005",
-      "title": "Manufacturing Module — WO→Inventory→GL & BOM Cost Flow Audit",
+      "id": "ACCT2-005",
+      "title": "GR/IR Clearing Account Flow — Two-Step Inventory Receipt",
       "priority": "high",
       "passes": true,
-      "completed_at": "2026-03-15",
+      "completed_at": "2026-03-16T17:50:00Z",
       "acceptance_criteria": [
-        "Zero hardcoded GL account codes in manufacturing API routes — all use SYS_ACCOUNTS",
-        "Work order completion creates correct GL entries (DR WIP→FG, CR Raw Materials→WIP)",
-        "Production return creates proper GL reversal entries",
-        "Grep verification: zero matches for hardcoded GL codes in manufacturing files"
-      ]
+        "SYS_ACCOUNTS.GR_IR_CLEARING ('2150') exists (from ACCT2-001)",
+        "In GRN receipt GL posting (lib/actions/inventory-gl.ts or wherever PO_RECEIVE is handled): change journal from DR Inventory CR AP → DR Inventory (1300) CR GR/IR Clearing (2150)",
+        "When vendor bill (INV_IN) is posted for a PO-linked invoice in finance-invoices.ts or finance-ap.ts: journal should include DR GR/IR Clearing (2150) instead of DR Inventory when goods were already received via GRN",
+        "Full AP bill journal for PO-received goods: DR GR/IR Clearing (2150) [goods cost], DR PPN Masukan (1330) [tax], CR AP (2000) [total]",
+        "For NON-PO bills (direct expense purchase), existing flow remains: DR Expense/Inventory, DR PPN, CR AP",
+        "Net effect: after both GRN receipt and bill posting, GR/IR Clearing (2150) balance returns to zero for that transaction",
+        "npx vitest run passes (no regressions)",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": "plans/spec-accounting-v2.md"
+    },
+    {
+      "id": "ACCT2-006",
+      "title": "COGS Trigger on Sales Delivery — Auto-Post HPP from Item Master Config",
+      "priority": "high",
+      "passes": true,
+      "completed_at": "2026-03-16T17:52:00Z",
+      "acceptance_criteria": [
+        "When a sales invoice (INV_OUT) with STOCK_ITEM products is posted via moveInvoiceToSent(), automatically generate a COGS journal entry",
+        "COGS journal: DR COGS account (product.cogsAccountId or fallback SYS_ACCOUNTS.COGS '5000'), CR Inventory account (product.inventoryAccountId or fallback SYS_ACCOUNTS.INVENTORY_ASSET '1300')",
+        "COGS amount per item = quantity × product.costPrice (WAC — Weighted Average Cost)",
+        "If product has no costPrice or costPrice=0, log a warning but do NOT block invoice posting (COGS entry skipped for that item with console.warn)",
+        "If product.cogsAccountId is set, use it; otherwise fallback to SYS_ACCOUNTS.COGS",
+        "If product.inventoryAccountId is set, use it; otherwise fallback to SYS_ACCOUNTS.INVENTORY_ASSET",
+        "The COGS journal entry is SEPARATE from the AR/Revenue entry (two journal entries per sales invoice with stock items)",
+        "COGS journal has source_document_type: 'COGS_RECOGNITION' for audit trail",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": "plans/spec-accounting-v2.md"
+    },
+    {
+      "id": "ACCT2-007",
+      "title": "Bad Debt Write-Off — Direct Write-Off & Allowance Method",
+      "priority": "medium",
+      "passes": true,
+      "completed_at": "2026-03-16T17:55:00Z",
+      "acceptance_criteria": [
+        "New function writeOffBadDebt() in lib/actions/finance-ar.ts",
+        "Parameters: invoiceId, method ('DIRECT' | 'ALLOWANCE'), amount (partial write-off supported)",
+        "DIRECT method journal: DR Bad Debt Expense (SYS_ACCOUNTS.BAD_DEBT_EXPENSE '6500'), CR AR (SYS_ACCOUNTS.AR '1200')",
+        "ALLOWANCE method Step 1 — provisionBadDebt(amount): DR Bad Debt Expense (6500), CR Allowance for Doubtful Debts (SYS_ACCOUNTS.ALLOWANCE_DOUBTFUL '1210')",
+        "ALLOWANCE method Step 2 — writeOffBadDebt with method='ALLOWANCE': DR Allowance for Doubtful Debts (1210), CR AR (1200) — does NOT hit P&L again",
+        "Updates invoice status to VOID or reduces balanceDue by write-off amount",
+        "Removes written-off amount from AR Aging report",
+        "Uses ensureSystemAccounts() before posting",
+        "Journal entry has source_document_type: 'BAD_DEBT_WRITEOFF'",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT2-008",
+      "title": "WHT/PPh 23 on Vendor Payments — Withholding Tax Deduction",
+      "priority": "medium",
+      "passes": true,
+      "completed_at": "2026-03-16T17:58:00Z",
+      "acceptance_criteria": [
+        "Extend recordVendorPayment() in finance-ap.ts to accept optional whtAmount (withholding tax amount) and whtRate (e.g. 0.02 for 2% PPh 23)",
+        "When whtAmount > 0, journal changes from: DR AP, CR Bank → DR AP (2000) [gross], CR Bank (1110) [net = gross - wht], CR PPh 23 Payable (SYS_ACCOUNTS.PPH23_PAYABLE '2315') [whtAmount]",
+        "Invoice balanceDue decreases by GROSS amount (wht is applied against the invoice total)",
+        "Payment record stores whtAmount for tax reporting",
+        "When whtAmount is 0 or not provided, existing flow is unchanged (backwards compatible)",
+        "Uses ensureSystemAccounts() before posting",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT2-009",
+      "title": "AR Payment Bank Charges — Deduction Handling on Customer Payments",
+      "priority": "medium",
+      "passes": true,
+      "completed_at": "2026-03-16T18:01:00Z",
+      "acceptance_criteria": [
+        "Extend recordARPayment() in finance-ar.ts to accept optional bankChargeAmount parameter",
+        "When bankChargeAmount > 0, journal: DR Bank (1110) [amountReceived - bankCharge], DR Bank Charges (SYS_ACCOUNTS.BANK_CHARGES '7200') [bankChargeAmount], CR AR (1200) [amountReceived]",
+        "Invoice balanceDue decreases by full amountReceived (bank charge is company's expense, not customer's)",
+        "When bankChargeAmount is 0 or not provided, existing flow unchanged (backwards compatible)",
+        "Bank charge amount flows to P&L as expense (account 7200)",
+        "Uses ensureSystemAccounts() before posting",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT2-010",
+      "title": "Payroll GL Account Configuration — SYS_ACCOUNTS Instead of Keyword Matching",
+      "priority": "medium",
+      "passes": true,
+      "completed_at": "2026-03-16T18:10:00Z",
+      "acceptance_criteria": [
+        "In app/actions/hcm.ts payroll GL posting functions: replace keyword-matching account lookups (searching for 'gaji/salary/payroll') with direct SYS_ACCOUNTS references",
+        "Payroll calculation journal: DR SYS_ACCOUNTS.SALARY_EXPENSE (6100), CR SYS_ACCOUNTS.SALARY_PAYABLE (2200) [net], CR SYS_ACCOUNTS.PPH21_PAYABLE (2310) [tax], CR SYS_ACCOUNTS.BPJS_TK_PAYABLE (2320) [bpjs tk], CR SYS_ACCOUNTS.BPJS_KES_PAYABLE (2330) [bpjs kes]",
+        "Salary disbursement journal: DR SYS_ACCOUNTS.SALARY_PAYABLE (2200), CR Bank account (SYS_ACCOUNTS.BANK_BCA or specified)",
+        "Import SYS_ACCOUNTS from lib/gl-accounts.ts and call ensureSystemAccounts() before posting",
+        "Remove or deprecate the keyword-matching fallback logic (searching for 'gaji', 'salary', etc.)",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT2-011",
+      "title": "Bank Reconciliation Auto GL — Post Charges & Interest During Recon",
+      "priority": "low",
+      "passes": true,
+      "completed_at": "2026-03-16T18:15:00Z",
+      "acceptance_criteria": [
+        "When a BankReconciliationItem is marked as 'bank_charge' (or type=BANK_CHARGE), auto-create journal: DR SYS_ACCOUNTS.BANK_CHARGES (7200), CR Bank GL account [bankAccount from reconciliation]",
+        "When a BankReconciliationItem is marked as 'interest_income' (or type=INTEREST_INCOME), auto-create journal: DR Bank GL account, CR SYS_ACCOUNTS.INTEREST_INCOME (4400)",
+        "Journal entries created during reconciliation finalization (when status moves to completed/posted)",
+        "Each auto-GL entry has source_document_type: 'BANK_RECONCILIATION'",
+        "Uses ensureSystemAccounts() before posting",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
+    },
+    {
+      "id": "ACCT2-012",
+      "title": "Immutable Posted Entries & Journal Reversal Mechanism",
+      "priority": "low",
+      "passes": true,
+      "completed_at": "2026-03-16T18:20:00Z",
+      "acceptance_criteria": [
+        "In finance-gl.ts: add guard to prevent updating or deleting journal entries where status=POSTED — throw error 'Jurnal yang sudah diposting tidak dapat diubah — buat jurnal balik'",
+        "New function reverseJournalEntry(journalEntryId) in finance-gl.ts that: creates a new journal entry with all debit/credit lines swapped (debits become credits, credits become debits), sets source_document_type to 'REVERSAL', sets description to 'Pembalikan: [original description]', stores reference to original entry",
+        "Reversal entry is auto-posted (status=POSTED) immediately",
+        "After reversal, original entry is marked with a flag (e.g. isReversed=true or reversedById pointing to reversal entry) — but NOT deleted or voided",
+        "Net GL impact of original + reversal = zero for all affected accounts",
+        "npx vitest run passes",
+        "npx tsc --noEmit passes"
+      ],
+      "plan_file": null
     }
   ]
 }

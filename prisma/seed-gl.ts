@@ -26,12 +26,14 @@ async function main() {
         { code: '1102', name: 'Petty Cash', type: 'ASSET', isSystem: false },
         { code: '1110', name: 'Bank BCA', type: 'ASSET', isSystem: false },
         { code: '1111', name: 'Bank Mandiri', type: 'ASSET', isSystem: false },
-        { code: '1200', name: 'Piutang Usaha (AR)', type: 'ASSET', isSystem: true },
-        { code: '1300', name: 'Persediaan Barang Jadi', type: 'ASSET', isSystem: true },
+        { code: '1200', name: 'Piutang Usaha (AR)', type: 'ASSET', isSystem: true, isControlAccount: true, allowDirectPosting: false },
+        { code: '1210', name: 'Cadangan Kerugian Piutang', type: 'ASSET', isSystem: true },
+        { code: '1300', name: 'Persediaan Barang Jadi', type: 'ASSET', isSystem: true, isControlAccount: true, allowDirectPosting: false },
         { code: '1310', name: 'Persediaan Bahan Baku', type: 'ASSET', isSystem: true },
         { code: '1320', name: 'Persediaan Dalam Proses (WIP)', type: 'ASSET', isSystem: true },
         { code: '1330', name: 'PPN Masukan (Input VAT)', type: 'ASSET', isSystem: true },
         { code: '1340', name: 'PPh Dibayar Dimuka', type: 'ASSET', isSystem: true },
+        { code: '1410', name: 'PPN Lebih Bayar', type: 'ASSET', isSystem: true },
 
         // 1200 - Fixed Assets (Harta Tetap)
         { code: '1500', name: 'Tanah & Bangunan', type: 'ASSET', isSystem: false },
@@ -41,28 +43,38 @@ async function main() {
 
         // --- LIABILITIES (KEWAJIBAN) ---
         // 2100 - Short Term Liabilities
-        { code: '2000', name: 'Utang Usaha (AP)', type: 'LIABILITY', isSystem: true },
+        { code: '2000', name: 'Utang Usaha (AP)', type: 'LIABILITY', isSystem: true, isControlAccount: true, allowDirectPosting: false },
         { code: '2100', name: 'Utang Gaji', type: 'LIABILITY', isSystem: false },
         { code: '2110', name: 'Utang Pajak (PPN/PPh)', type: 'LIABILITY', isSystem: false },
         { code: '2120', name: 'Biaya Yang Masih Harus Dibayar', type: 'LIABILITY', isSystem: false },
         { code: '2121', name: 'Pendapatan Diterima Dimuka', type: 'LIABILITY', isSystem: false },
-        { code: '2210', name: 'Utang PPh 21', type: 'LIABILITY', isSystem: true },
+        { code: '2150', name: 'Barang Diterima / Faktur Belum Diterima', type: 'LIABILITY', isSystem: true },
+        { code: '2200', name: 'Utang Gaji', type: 'LIABILITY', isSystem: true },
+        { code: '2210', name: 'Overhead Manufaktur Dibebankan', type: 'LIABILITY', isSystem: true },
         { code: '2220', name: 'Utang PPh 23', type: 'LIABILITY', isSystem: true },
         { code: '2230', name: 'Utang PPh 4(2)', type: 'LIABILITY', isSystem: true },
+        { code: '2310', name: 'Utang PPh 21', type: 'LIABILITY', isSystem: true },
+        { code: '2315', name: 'Utang PPh 23', type: 'LIABILITY', isSystem: true },
+        { code: '2320', name: 'Utang BPJS Ketenagakerjaan', type: 'LIABILITY', isSystem: true },
+        { code: '2330', name: 'Utang BPJS Kesehatan', type: 'LIABILITY', isSystem: true },
+        { code: '2400', name: 'Pendapatan Diterima Dimuka', type: 'LIABILITY', isSystem: true },
 
-        // 2200 - Long Term Liabilities
+        // 2500 - Long Term Liabilities
         { code: '2500', name: 'Utang Bank Jangka Panjang', type: 'LIABILITY', isSystem: false },
 
         // --- EQUITY (MODAL) ---
         { code: '3000', name: 'Modal Disetor', type: 'EQUITY', isSystem: true },
         { code: '3100', name: 'Laba Ditahan', type: 'EQUITY', isSystem: true },
         { code: '3200', name: 'Prive Pemilik', type: 'EQUITY', isSystem: false },
+        { code: '3900', name: 'Saldo Awal Ekuitas', type: 'EQUITY', isSystem: true },
 
         // --- REVENUE (PENDAPATAN) ---
         { code: '4000', name: 'Pendapatan Penjualan', type: 'REVENUE', isSystem: true },
         { code: '4100', name: 'Diskon Penjualan', type: 'REVENUE', isSystem: true },
-        { code: '4200', name: 'Retur Penjualan', type: 'REVENUE', isSystem: true },
-        { code: '4800', name: 'Pendapatan Lain-lain', type: 'REVENUE', isSystem: false },
+        { code: '4200', name: 'Pendapatan Jasa', type: 'REVENUE', isSystem: true },
+        { code: '4300', name: 'Pendapatan Lain-lain', type: 'REVENUE', isSystem: true },
+        { code: '4400', name: 'Pendapatan Bunga', type: 'REVENUE', isSystem: true },
+        { code: '4800', name: 'Pendapatan Lain-lain (Operasional)', type: 'REVENUE', isSystem: false },
 
         // --- COGS (HPP) ---
         { code: '5000', name: 'Beban Pokok Penjualan (HPP)', type: 'EXPENSE', isSystem: true },
@@ -70,8 +82,8 @@ async function main() {
         { code: '5200', name: 'Upah Langsung Produksi', type: 'EXPENSE', isSystem: true },
 
         // --- EXPENSES (BEBAN OPERASIONAL) ---
-        // 6100 - Sales & Marketing Expenses
-        { code: '6100', name: 'Beban Iklan & Promosi', type: 'EXPENSE', isSystem: false },
+        // 6100 - Salary & Personnel Expenses
+        { code: '6100', name: 'Beban Gaji', type: 'EXPENSE', isSystem: true },
         { code: '6110', name: 'Komisi Penjualan', type: 'EXPENSE', isSystem: false },
 
         // 6200 - General & Admin Expenses
@@ -82,11 +94,18 @@ async function main() {
         { code: '6240', name: 'Beban Reparasi & Pemeliharaan', type: 'EXPENSE', isSystem: false },
         { code: '6290', name: 'Beban Penyusutan', type: 'EXPENSE', isSystem: true },
 
+        // --- BAD DEBT ---
+        { code: '6500', name: 'Beban Kerugian Piutang', type: 'EXPENSE', isSystem: true },
+
         // --- OTHER EXPENSES ---
         { code: '7100', name: 'Beban Bunga Bank', type: 'EXPENSE', isSystem: false },
-        { code: '7200', name: 'Beban Administrasi Bank', type: 'EXPENSE', isSystem: false },
+        { code: '7200', name: 'Beban Administrasi Bank', type: 'EXPENSE', isSystem: true },
         { code: '7900', name: 'Beban Pajak Penghasilan', type: 'EXPENSE', isSystem: true },
         { code: '6900', name: 'Beban Lain-lain', type: 'EXPENSE', isSystem: false },
+
+        // --- LOSSES & ADJUSTMENTS ---
+        { code: '8200', name: 'Kerugian / Penghapusan', type: 'EXPENSE', isSystem: true },
+        { code: '8300', name: 'Penyesuaian Persediaan', type: 'EXPENSE', isSystem: true },
     ]
 
     const accountMap = new Map<string, string>()
@@ -105,7 +124,9 @@ async function main() {
                 code: acc.code,
                 name: acc.name,
                 type: acc.type,
-                isSystem: acc.isSystem
+                isSystem: acc.isSystem,
+                ...('isControlAccount' in acc ? { isControlAccount: (acc as any).isControlAccount } : {}),
+                ...('allowDirectPosting' in acc ? { allowDirectPosting: (acc as any).allowDirectPosting } : {}),
             },
         })
         accountMap.set(acc.code, created.id)

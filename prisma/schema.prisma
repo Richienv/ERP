@@ -265,6 +265,16 @@ model Product {
   costLayers             CostLayer[]
   stockReservations      StockReservation[]
 
+  // Accounting Fields — link product to GL accounts for automated posting
+  cogsAccountId      String?    @db.Uuid
+  inventoryAccountId String?    @db.Uuid
+  incomeAccountId    String?    @db.Uuid
+  purchaseAccountId  String?    @db.Uuid
+  cogsAccount        GLAccount? @relation("ProductCogs", fields: [cogsAccountId], references: [id])
+  inventoryAccount   GLAccount? @relation("ProductInventory", fields: [inventoryAccountId], references: [id])
+  incomeAccount      GLAccount? @relation("ProductIncome", fields: [incomeAccountId], references: [id])
+  purchaseAccount    GLAccount? @relation("ProductPurchase", fields: [purchaseAccountId], references: [id])
+
   // Alternative / Substitute Products (Self-relation)
   alternativeProductId String?   @db.Uuid
   alternativeProduct   Product?  @relation("ProductAlternatives", fields: [alternativeProductId], references: [id])
@@ -1884,6 +1894,9 @@ model Payment {
   method    PaymentMethod @default(TRANSFER)
   reference String? // Cheque Num, Transfer Ref
 
+  whtAmount Decimal?      @db.Decimal(15, 2) // Withholding tax amount (PPh 23/PPh 21)
+  whtRate   Decimal?      @db.Decimal(5, 4)  // WHT rate (e.g. 0.0200 = 2%)
+
   notes String?
 
   invoice          Invoice?       @relation(fields: [invoiceId], references: [id])
@@ -2152,6 +2165,8 @@ model GLAccount {
   subType  AccountSubType @default(GENERAL)
   balance  Decimal        @default(0) @db.Decimal(15, 2)
   isSystem Boolean     @default(false) // If true, cannot be deleted (e.g. Retained Earnings)
+  isControlAccount  Boolean @default(false) // AR, AP, Inventory — sub-ledger controlled
+  allowDirectPosting Boolean @default(true) // false = block manual journal entries
 
   // Hierarchy
   parentId  String?     @db.Uuid
@@ -2164,6 +2179,12 @@ model GLAccount {
   pettyCashExpenseTxns  PettyCashTransaction[] @relation("PettyCashExpense")
   budgetLines           BudgetLine[]
   cashflowPlanItems     CashflowPlanItem[]
+
+  // Product accounting relations
+  productsAsCogs      Product[] @relation("ProductCogs")
+  productsAsInventory Product[] @relation("ProductInventory")
+  productsAsIncome    Product[] @relation("ProductIncome")
+  productsAsPurchase  Product[] @relation("ProductPurchase")
 
   // Fixed Asset relations
   fixedAssetCategoriesAsset   FixedAssetCategory[] @relation("CategoryAssetAccount")
@@ -2191,6 +2212,12 @@ model JournalEntry {
   isRecurring       Boolean   @default(false)
   recurringPattern  String? // e.g. "MONTHLY", "WEEKLY"
   nextRecurringDate DateTime?
+
+  // Reversal tracking
+  isReversed   Boolean  @default(false)
+  reversedById String?  @unique @db.Uuid
+  reversedBy   JournalEntry? @relation("JournalReversal", fields: [reversedById], references: [id])
+  reversalOf   JournalEntry? @relation("JournalReversal")
 
   invoiceId              String? @db.Uuid
   paymentId              String? @db.Uuid
@@ -2869,6 +2896,7 @@ model BankReconciliationItem {
   systemTransactionId String?     @db.Uuid // JournalEntry or Payment ID
   matchStatus         MatchStatus @default(UNMATCHED)
   excludeReason       String?                         // Alasan jika EXCLUDED
+  itemType            String?                         // BANK_CHARGE, INTEREST_INCOME, or null (regular)
   matchedBy           String?     @db.Uuid
   matchedAt           DateTime?
 

@@ -13,6 +13,7 @@ import {
 import { withPrismaAuth } from '@/lib/db'
 import { assertRole, getAuthzUser } from '@/lib/authz'
 import { postJournalEntry } from '@/lib/actions/finance-gl'
+import { SYS_ACCOUNTS, ensureSystemAccounts } from '@/lib/gl-accounts'
 import {
     calculateBPJS,
     calculateMonthlyPPh21,
@@ -20,7 +21,6 @@ import {
     STANDARD_DAILY_HOURS,
 } from '@/lib/hcm-calculations'
 import { assertPeriodOpen } from '@/lib/period-helpers'
-import { SYS_ACCOUNTS } from '@/lib/gl-accounts'
 
 const LEAVE_APPROVAL_PREFIX = 'LEAVE_APPROVAL::'
 const PAYROLL_RUN_PREFIX = 'PAYROLL_RUN::'
@@ -411,63 +411,33 @@ async function resolvePayrollApproverId(prisma: any) {
     return fallback?.id || null
 }
 
-async function resolvePayrollAccounts(prisma: any) {
-    const accounts = await prisma.gLAccount.findMany({
-        select: { code: true, type: true, name: true },
-    })
-
-    const findByKeyword = (type: string, keywords: string[]) =>
-        accounts.find(
-            (account: any) =>
-                account.type === type &&
-                keywords.some((keyword) =>
-                    `${account.code} ${account.name}`.toLowerCase().includes(keyword.toLowerCase())
-                )
-        )
-
-    const expenseAccount =
-        findByKeyword('EXPENSE', ['gaji', 'salary', 'payroll', 'upah']) ||
-        accounts.find((account: any) => account.type === 'EXPENSE')
-    const cashAccount =
-        findByKeyword('ASSET', ['kas', 'bank', 'cash']) ||
-        accounts.find((account: any) => account.type === 'ASSET')
-    const taxAccount =
-        accounts.find((account: any) => account.code === SYS_ACCOUNTS.PPH_21_PAYABLE) ||
-        findByKeyword('LIABILITY', ['pph', 'tax', 'pajak']) ||
-        accounts.find((account: any) => account.type === 'LIABILITY')
-    const bpjsAccount =
-        findByKeyword('LIABILITY', ['bpjs', 'jaminan', 'benefit']) ||
-        accounts.find(
-            (account: any) =>
-                account.type === 'LIABILITY' && (!taxAccount || account.code !== taxAccount.code)
-        ) ||
-        taxAccount
-    const payrollPayableAccount =
-        findByKeyword('LIABILITY', ['payroll payable', 'utang gaji', 'gaji payable', 'payable gaji']) ||
-        accounts.find(
-            (account: any) =>
-                account.type === 'LIABILITY' &&
-                account.code !== taxAccount?.code &&
-                account.code !== bpjsAccount?.code
-        ) ||
-        taxAccount
-
-    if (!expenseAccount || !cashAccount || !taxAccount || !bpjsAccount || !payrollPayableAccount) {
+/**
+ * Returns payroll GL account codes from SYS_ACCOUNTS constants.
+ * Calls ensureSystemAccounts() to guarantee accounts exist in the database.
+ * No keyword-matching — direct, deterministic account references.
+ */
+async function resolvePayrollAccounts(): Promise<
+    | { success: true; data: { expenseCode: string; cashCode: string; taxCode: string; bpjsTkCode: string; bpjsKesCode: string; payrollPayableCode: string } }
+    | { success: false; error: string }
+> {
+    try {
+        await ensureSystemAccounts()
+    } catch {
         return {
-            success: false as const,
-            error:
-                'Konfigurasi COA payroll belum lengkap. Pastikan akun Expense, Asset (Kas/Bank), dan Liability tersedia.',
+            success: false,
+            error: 'Gagal memastikan akun sistem payroll. Periksa koneksi database.',
         }
     }
 
     return {
-        success: true as const,
+        success: true,
         data: {
-            expenseCode: expenseAccount.code,
-            cashCode: cashAccount.code,
-            taxCode: taxAccount.code,
-            bpjsCode: bpjsAccount.code,
-            payrollPayableCode: payrollPayableAccount.code,
+            expenseCode: SYS_ACCOUNTS.SALARY_EXPENSE,       // 6100 — Beban Gaji
+            cashCode: SYS_ACCOUNTS.BANK_BCA,                // 1110 — Bank BCA (default)
+            taxCode: SYS_ACCOUNTS.PPH21_PAYABLE,            // 2310 — Utang PPh 21
+            bpjsTkCode: SYS_ACCOUNTS.BPJS_TK_PAYABLE,      // 2320 — Utang BPJS Ketenagakerjaan
+            bpjsKesCode: SYS_ACCOUNTS.BPJS_KES_PAYABLE,    // 2330 — Utang BPJS Kesehatan
+            payrollPayableCode: SYS_ACCOUNTS.SALARY_PAYABLE, // 2200 — Utang Gaji
         },
     }
 }
@@ -1605,7 +1575,7 @@ export async function createPayrollDisbursementBatch(period: string, options?: {
                 }
             }
 
-            const accounts = await resolvePayrollAccounts(prisma)
+            const accounts = await resolvePayrollAccounts()
             if (!accounts.success) return { success: false, error: accounts.error }
 
             const year = new Date().getFullYear()
@@ -1799,12 +1769,16 @@ export async function approvePayrollRun(period: string) {
                 }
             }
 
-            const accounts = await resolvePayrollAccounts(prisma)
+            const accounts = await resolvePayrollAccounts()
             if (!accounts.success) return { success: false, error: accounts.error }
 
             const payrollLines = payload.lines || []
-            const bpjsTotal = payrollLines.reduce(
-                (sum, line) => sum + line.bpjsKesehatan + line.bpjsKetenagakerjaan,
+            const bpjsTkTotal = payrollLines.reduce(
+                (sum, line) => sum + line.bpjsKetenagakerjaan,
+                0
+            )
+            const bpjsKesTotal = payrollLines.reduce(
+                (sum, line) => sum + line.bpjsKesehatan,
                 0
             )
             const taxTotal = payrollLines.reduce((sum, line) => sum + line.pph21, 0)
@@ -1819,7 +1793,7 @@ export async function approvePayrollRun(period: string) {
                     accountCode: accounts.data.expenseCode,
                     debit: payload.summary.gross,
                     credit: 0,
-                    description: `Beban payroll ${payload.periodLabel}`,
+                    description: `Beban gaji ${payload.periodLabel}`,
                 },
                 {
                     accountCode: accounts.data.payrollPayableCode,
@@ -1829,12 +1803,21 @@ export async function approvePayrollRun(period: string) {
                 },
             ]
 
-            if (bpjsTotal > 0) {
+            if (bpjsTkTotal > 0) {
                 lines.push({
-                    accountCode: accounts.data.bpjsCode,
+                    accountCode: accounts.data.bpjsTkCode,
                     debit: 0,
-                    credit: bpjsTotal,
-                    description: `Kewajiban BPJS ${payload.periodLabel}`,
+                    credit: bpjsTkTotal,
+                    description: `Utang BPJS Ketenagakerjaan ${payload.periodLabel}`,
+                })
+            }
+
+            if (bpjsKesTotal > 0) {
+                lines.push({
+                    accountCode: accounts.data.bpjsKesCode,
+                    debit: 0,
+                    credit: bpjsKesTotal,
+                    description: `Utang BPJS Kesehatan ${payload.periodLabel}`,
                 })
             }
 
@@ -1843,7 +1826,7 @@ export async function approvePayrollRun(period: string) {
                     accountCode: accounts.data.taxCode,
                     debit: 0,
                     credit: taxTotal,
-                    description: `Kewajiban PPh21 ${payload.periodLabel}`,
+                    description: `Utang PPh 21 ${payload.periodLabel}`,
                 })
             }
 

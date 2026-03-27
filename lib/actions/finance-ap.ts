@@ -390,6 +390,8 @@ export async function recordVendorPayment(data: {
         baseAmount: number
         buktiPotongNo?: string
     }
+    whtAmount?: number  // Withholding tax amount (PPh 23)
+    whtRate?: number    // WHT rate (e.g. 0.02 for 2%)
 }) {
     try {
         return await withPrismaAuth(async (prisma) => {
@@ -406,6 +408,14 @@ export async function recordVendorPayment(data: {
             // Period lock: fail fast before mutation
             await assertPeriodOpen(new Date())
 
+            const whtAmount = data.whtAmount && data.whtAmount > 0 ? data.whtAmount : 0
+            const grossAmount = data.amount  // Total amount applied against invoice
+            const netBankAmount = grossAmount - whtAmount  // Amount actually paid to vendor
+
+            if (whtAmount > 0 && netBankAmount <= 0) {
+                throw new Error("WHT amount cannot exceed or equal payment amount")
+            }
+
             // Generate payment number
             const year = new Date().getFullYear()
             const count = await prisma.payment.count({
@@ -418,11 +428,13 @@ export async function recordVendorPayment(data: {
                     number: paymentNumber,
                     supplierId: data.supplierId,
                     invoiceId: data.billId,
-                    amount: data.amount,
+                    amount: grossAmount,
                     date: new Date(),
                     method: data.method || 'TRANSFER',
                     reference: data.reference,
-                    notes: data.notes
+                    notes: data.notes,
+                    whtAmount: whtAmount > 0 ? whtAmount : null,
+                    whtRate: data.whtRate && data.whtRate > 0 ? data.whtRate : null,
                 }
             })
 
@@ -441,13 +453,13 @@ export async function recordVendorPayment(data: {
                 }
             } catch { /* audit is best-effort */ }
 
-            // If linked to bill, update bill balance
+            // If linked to bill, update bill balance (gross amount reduces invoice)
             if (data.billId) {
                 const bill = await prisma.invoice.findUnique({
                     where: { id: data.billId }
                 })
                 if (bill) {
-                    const newBalance = Number(bill.balanceDue) - data.amount
+                    const newBalance = Number(bill.balanceDue) - grossAmount
                     await prisma.invoice.update({
                         where: { id: data.billId },
                         data: {
@@ -459,6 +471,7 @@ export async function recordVendorPayment(data: {
             }
 
             // Post GL entry: DR AP, CR Cash/Bank [, CR Utang PPh if withholding]
+            await ensureSystemAccounts()
             const bankCode = getCashAccountCode(data.method || 'TRANSFER', data.bankAccountCode)
             const bankAccount = await prisma.gLAccount.findFirst({
                 where: { code: bankCode },
@@ -466,23 +479,44 @@ export async function recordVendorPayment(data: {
             })
             const bankAccountName = bankAccount?.name || 'Kas Besar'
 
+            // Withholding tax: prefer structured `withholding` field, fall back to simple `whtAmount`
             const pphAmount = data.withholding
                 ? Math.round((data.withholding.rate / 100) * data.withholding.baseAmount)
-                : 0
-            const netCashAmount = data.amount - pphAmount
+                : whtAmount
+            const netCashAmount = grossAmount - pphAmount
 
-            const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = [
-                { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: 'Hutang Usaha' },
-                { accountCode: bankCode, debit: 0, credit: netCashAmount, description: bankAccountName },
-            ]
+            // Build journal lines
+            const glLines: Array<{ accountCode: string; debit: number; credit: number; description: string }> = []
 
-            if (data.withholding && pphAmount > 0) {
-                const pphAccountCode = getPPhLiabilityAccount(data.withholding.type)
+            // DR AP (gross — full invoice reduction)
+            glLines.push({
+                accountCode: SYS_ACCOUNTS.AP,
+                debit: grossAmount,
+                credit: 0,
+                description: 'Hutang Usaha'
+            })
+
+            // CR Bank (net — actual cash paid)
+            glLines.push({
+                accountCode: bankCode,
+                debit: 0,
+                credit: netCashAmount,
+                description: bankAccountName
+            })
+
+            // CR PPh Payable (WHT — tax withheld on behalf of vendor)
+            if (pphAmount > 0) {
+                const pphAccountCode = data.withholding
+                    ? getPPhLiabilityAccount(data.withholding.type)
+                    : SYS_ACCOUNTS.PPH23_PAYABLE
+                const pphDesc = data.withholding
+                    ? `PPh ${data.withholding.type === 'PPH_23' ? '23' : '4(2)'} - ${paymentNumber}`
+                    : `PPh 23 dipotong (${data.whtRate ? (data.whtRate * 100).toFixed(1) : '?'}%)`
                 glLines.push({
                     accountCode: pphAccountCode,
                     debit: 0,
                     credit: pphAmount,
-                    description: `PPh ${data.withholding.type === 'PPH_23' ? '23' : '4(2)'} - ${paymentNumber}`,
+                    description: pphDesc
                 })
             }
 
@@ -493,7 +527,8 @@ export async function recordVendorPayment(data: {
                 lines: glLines,
             })
             if (!glResult?.success) {
-                console.error("GL posting failed for vendor payment:", (glResult as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + bill update
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
             }
 
             // Create WithholdingTax record if applicable
@@ -675,7 +710,8 @@ export async function recordMultiBillPayment(data: {
                 lines: multiGlLines,
             })
             if (!multiGlResult?.success) {
-                console.error("GL posting failed for multi-bill payment:", (multiGlResult as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback semua pembayaran + bill updates
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(multiGlResult as any)?.error || 'Unknown GL error'}`)
             }
 
             // Create WithholdingTax record if applicable
@@ -892,11 +928,12 @@ export async function approveAndPayBill(
                 let totalAmount = 0
 
                 // Add Expense Lines
+                // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
                 for (const item of bill.items) {
                     const amount = Number(item.amount)
                     totalAmount += amount
                     glLines.push({
-                        accountCode: SYS_ACCOUNTS.COGS,
+                        accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
                         debit: amount,
                         credit: 0,
                         description: `${item.description}`
@@ -967,7 +1004,8 @@ export async function approveAndPayBill(
                 ]
             })
             if (!payGl?.success) {
-                console.error("GL posting failed for payment:", (payGl as any)?.error)
+                // Atomic: GL gagal → lempar error agar withPrismaAuth rollback approval + payment
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(payGl as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true }
