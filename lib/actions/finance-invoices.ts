@@ -3,7 +3,7 @@
 import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
-import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"

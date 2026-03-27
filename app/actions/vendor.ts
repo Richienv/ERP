@@ -2,8 +2,7 @@
 
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import { supabase } from "@/lib/supabase"
-import { ProcurementStatus, PaymentTermLegacy } from "@prisma/client"
+import { PaymentTermLegacy } from "@prisma/client"
 
 async function requireAuth() {
     const supabase = await createClient()

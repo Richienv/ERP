@@ -3,7 +3,7 @@
 import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import type { DCNoteType, DCNoteStatus } from "@prisma/client"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 
 // ==========================================
 // AUTH HELPER (reads don't need withPrismaAuth)
@@ -412,7 +412,7 @@ export async function createDCNote(input: {
                     reasonCode: input.reasonCode as any,
                     customerId: isSalesType ? input.customerId : null,
                     supplierId: isPurchaseType ? input.supplierId : null,
-                    originalInvoiceId: input.originalInvoiceId || null,
+                    originalInvoiceId: input.originalInvoiceId && input.originalInvoiceId !== "none" ? input.originalInvoiceId : null,
                     originalReference: input.originalReference || null,
                     issueDate: input.issueDate,
                     notes: input.notes || null,
@@ -429,8 +429,9 @@ export async function createDCNote(input: {
             return { success: true as const, id: note.id, number: note.number }
         })
     } catch (error: unknown) {
-        console.error("Failed to create DC Note:", error)
-        return { success: false as const, error: (error as Error).message || "Gagal membuat nota" }
+        const msg = (error as Error).message || "Gagal membuat nota"
+        console.error("Failed to create DC Note:", msg, error)
+        return { success: false as const, error: `Gagal membuat nota: ${msg}` }
     }
 }
 

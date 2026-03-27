@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma"
 import { createClient } from "@/lib/supabase/server"
 import { postJournalEntry } from "@/lib/actions/finance-gl"
-import { ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount } from "@/lib/pph-helpers"
 

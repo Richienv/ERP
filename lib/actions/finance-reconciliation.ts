@@ -3,7 +3,7 @@
 import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { findMatchesIndexed, buildTransactionIndex, type BankLine, type SystemTransaction, type MatchResult } from "@/lib/finance-reconciliation-helpers"
 import { postJournalEntry, getNextJournalRef } from "@/lib/actions/finance-gl"
 async function requireAuth() {

@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
-import { createClient } from '@/lib/supabase/server'
+// NOTE: createClient is imported dynamically inside withPrismaAuth() only.
+// Top-level import would leak "next/headers" into any file that imports prisma.
 
 // Singleton pattern for Prisma Client with optimized settings
 const globalForPrisma = globalThis as unknown as {
@@ -36,6 +37,7 @@ export async function withPrismaAuth<T>(
         // serverless) even when the user has a valid session cookie.
         // Since RLS is bypassed (postgres user has full access), we only need
         // to verify the user is authenticated, not pass JWT claims.
+        const { createClient } = await import('@/lib/supabase/server')
         const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
 

@@ -4,7 +4,7 @@ import { prisma, withPrismaAuth } from "@/lib/db"
 import { PrismaClient, SubcontractOrderStatus, SubcontractShipmentDirection } from "@prisma/client"
 import { createClient } from "@/lib/supabase/server"
 import { assertSubcontractTransition } from "@/lib/subcontract-state-machine"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 async function requireAuth() {
     const supabase = await createClient()
     const { data: { user }, error } = await supabase.auth.getUser()

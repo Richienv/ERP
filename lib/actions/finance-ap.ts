@@ -5,7 +5,7 @@ import { withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { logAudit } from "@/lib/audit-helpers"
 import { postJournalEntry } from "./finance-gl"
-import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 

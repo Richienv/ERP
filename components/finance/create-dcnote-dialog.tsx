@@ -217,7 +217,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                 reasonCode,
                 customerId: isSalesType ? partyId : undefined,
                 supplierId: !isSalesType ? partyId : undefined,
-                originalInvoiceId: originalInvoiceId || undefined,
+                originalInvoiceId: originalInvoiceId && originalInvoiceId !== "none" ? originalInvoiceId : undefined,
                 originalReference: reference || undefined,
                 issueDate: new Date(issueDate + "T12:00:00"),
                 notes: notes || undefined,

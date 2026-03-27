@@ -49,7 +49,7 @@ vi.mock('@/lib/actions/finance-gl', () => ({
 
 const mockEnsureSystemAccounts = vi.fn()
 
-vi.mock('@/lib/gl-accounts', () => ({
+vi.mock('@/lib/gl-accounts-server', () => ({
   SYS_ACCOUNTS: {
     BANK_CHARGES: '7200',
     INTEREST_INCOME: '4400',

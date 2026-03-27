@@ -2,7 +2,7 @@
 
 import { withPrismaAuth } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
-import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { type PPhTypeValue } from "@/lib/pph-helpers"
 

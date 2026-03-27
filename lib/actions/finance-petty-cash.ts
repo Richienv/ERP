@@ -3,7 +3,7 @@
 import { prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { postJournalEntry } from "./finance-gl"
-import { ensureSystemAccounts } from "@/lib/gl-accounts"
+import { ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 
 const PETTY_CASH_ACCOUNT = "1050"

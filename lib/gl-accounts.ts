@@ -5,7 +5,8 @@
 // These codes are ALIGNED with prisma/seed-gl.ts to avoid duplicate accounts.
 // If you change a code here, update seed-gl.ts too.
 
-import { prisma } from "@/lib/prisma"
+// This file is CLIENT-SAFE — no prisma or server imports.
+// Server-only functions (ensureSystemAccounts) live in gl-accounts-server.ts.
 
 /**
  * System account codes used across all finance modules.
@@ -92,74 +93,6 @@ export const SYS_ACCOUNTS = {
   // --- Accumulated Depreciation ---
   ACC_DEPRECIATION: "1590", // Akumulasi Penyusutan (seed: 1590)
 } as const
-
-const SYSTEM_ACCOUNT_DEFS: { code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE" }[] = [
-  { code: SYS_ACCOUNTS.CASH,             name: "Kas & Setara Kas",              type: "ASSET" },
-  { code: SYS_ACCOUNTS.PETTY_CASH,       name: "Kas Kecil (Petty Cash)",        type: "ASSET" },
-  { code: SYS_ACCOUNTS.BANK_BCA,         name: "Bank BCA",                      type: "ASSET" },
-  { code: SYS_ACCOUNTS.BANK_MANDIRI,     name: "Bank Mandiri",                  type: "ASSET" },
-  { code: SYS_ACCOUNTS.AR,               name: "Piutang Usaha",                 type: "ASSET" },
-  { code: SYS_ACCOUNTS.ALLOWANCE_DOUBTFUL, name: "Cadangan Kerugian Piutang",    type: "ASSET" },
-  { code: SYS_ACCOUNTS.INVENTORY_ASSET,  name: "Persediaan Barang Jadi",          type: "ASSET" },
-  { code: SYS_ACCOUNTS.RAW_MATERIALS,   name: "Persediaan Bahan Baku",           type: "ASSET" },
-  { code: SYS_ACCOUNTS.WIP,             name: "Persediaan Dalam Proses (WIP)",   type: "ASSET" },
-  { code: SYS_ACCOUNTS.PPN_MASUKAN,      name: "PPN Masukan (Input VAT)",       type: "ASSET" },
-  { code: SYS_ACCOUNTS.PPH_PREPAID,      name: "PPh Dibayar Dimuka",            type: "ASSET" },
-  { code: SYS_ACCOUNTS.PPN_LEBIH_BAYAR,  name: "PPN Lebih Bayar",              type: "ASSET" },
-  { code: SYS_ACCOUNTS.ACC_DEPRECIATION, name: "Akumulasi Penyusutan",          type: "ASSET" },
-  { code: SYS_ACCOUNTS.AP,               name: "Utang Usaha (AP)",              type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.PPN_KELUARAN,     name: "Utang Pajak (PPN/PPh)",         type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.PPH_21_PAYABLE,   name: "Utang PPh 21",                 type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.PPH_23_PAYABLE,   name: "Utang PPh 23",                 type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.PPH_4_2_PAYABLE,  name: "Utang PPh 4(2)",               type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.DEFERRED_REV,     name: "Pendapatan Diterima Dimuka",    type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.GR_IR_CLEARING,   name: "Barang Diterima / Faktur Belum Diterima", type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.SALARY_PAYABLE,   name: "Utang Gaji",                   type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.MFG_OVERHEAD_APPLIED, name: "Overhead Manufaktur Dibebankan", type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.PPH21_PAYABLE,    name: "Utang PPh 21",                 type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.PPH23_PAYABLE,    name: "Utang PPh 23",                 type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.BPJS_TK_PAYABLE,  name: "Utang BPJS Ketenagakerjaan",   type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.BPJS_KES_PAYABLE, name: "Utang BPJS Kesehatan",         type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.UNEARNED_REVENUE, name: "Pendapatan Diterima Dimuka",    type: "LIABILITY" },
-  { code: SYS_ACCOUNTS.RETAINED_EARNINGS, name: "Laba Ditahan",                  type: "EQUITY" },
-  { code: SYS_ACCOUNTS.OPENING_EQUITY,    name: "Saldo Awal Ekuitas",             type: "EQUITY" },
-  { code: SYS_ACCOUNTS.REVENUE,          name: "Pendapatan Penjualan",          type: "REVENUE" },
-  { code: SYS_ACCOUNTS.SERVICE_REVENUE,  name: "Pendapatan Jasa",               type: "REVENUE" },
-  { code: SYS_ACCOUNTS.OTHER_INCOME,     name: "Pendapatan Lain-lain",          type: "REVENUE" },
-  { code: SYS_ACCOUNTS.INTEREST_INCOME,  name: "Pendapatan Bunga",              type: "REVENUE" },
-  { code: SYS_ACCOUNTS.COGS,             name: "Beban Pokok Penjualan (HPP)",   type: "EXPENSE" },
-  { code: SYS_ACCOUNTS.SALARY_EXPENSE,   name: "Beban Gaji",                    type: "EXPENSE" },
-  { code: SYS_ACCOUNTS.DEPRECIATION,     name: "Beban Penyusutan",              type: "EXPENSE" },
-  { code: SYS_ACCOUNTS.BAD_DEBT_EXPENSE, name: "Beban Kerugian Piutang",        type: "EXPENSE" },
-  { code: SYS_ACCOUNTS.EXPENSE_DEFAULT,  name: "Beban Lain-lain",              type: "EXPENSE" },
-  { code: SYS_ACCOUNTS.BANK_CHARGES,     name: "Beban Administrasi Bank",       type: "EXPENSE" },
-  { code: SYS_ACCOUNTS.LOSS_WRITEOFF,   name: "Kerugian / Penghapusan",          type: "EXPENSE" },
-  { code: SYS_ACCOUNTS.INV_ADJUSTMENT,  name: "Penyesuaian Persediaan",          type: "EXPENSE" },
-]
-
-let _ensured = false
-
-/**
- * Ensures all system GL accounts exist in the database.
- * Uses upsert (create if missing, skip if exists).
- * Cached per process — in serverless (Vercel), resets on cold start (harmless, upserts are idempotent).
- */
-export async function ensureSystemAccounts(): Promise<void> {
-  if (_ensured) return
-  try {
-    for (const def of SYSTEM_ACCOUNT_DEFS) {
-      await prisma.gLAccount.upsert({
-        where: { code: def.code },
-        create: { code: def.code, name: def.name, type: def.type, balance: 0 },
-        update: {}, // Don't overwrite existing name/type — user may have customized
-      })
-    }
-    _ensured = true
-  } catch (error) {
-    console.error("Failed to ensure system accounts:", error)
-    // Don't cache failure — retry next time
-  }
-}
 
 /**
  * Resolves a cash/bank account code based on payment method.

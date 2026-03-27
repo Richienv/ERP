@@ -3,7 +3,7 @@
 import { withPrismaAuth } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
 import { postJournalEntry } from "./finance-gl"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import type { Prisma } from "@prisma/client"
 
 async function getAuthUserId(): Promise<string> {

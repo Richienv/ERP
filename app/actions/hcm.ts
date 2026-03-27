@@ -13,7 +13,7 @@ import {
 import { withPrismaAuth } from '@/lib/db'
 import { assertRole, getAuthzUser } from '@/lib/authz'
 import { postJournalEntry } from '@/lib/actions/finance-gl'
-import { SYS_ACCOUNTS, ensureSystemAccounts } from '@/lib/gl-accounts'
+import { SYS_ACCOUNTS, ensureSystemAccounts } from '@/lib/gl-accounts-server'
 import {
     calculateBPJS,
     calculateMonthlyPPh21,

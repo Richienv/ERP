@@ -1,7 +1,7 @@
 'use server'
 
 import { withPrismaAuth } from "@/lib/db"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { inferSubType } from "@/lib/account-subtype-helpers"
 

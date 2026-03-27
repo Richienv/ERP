@@ -198,7 +198,7 @@ export async function updateQuotationStatus(id: string, newStatus: string) {
 
 // 4. INVOICE ACTIONS
 import { postJournalEntry } from "@/lib/actions/finance"
-import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts"
+import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 
 // Create Invoice (Draft)
