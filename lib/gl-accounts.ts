@@ -169,3 +169,24 @@ export function getCashAccountCode(method: string, bankAccountCode?: string): st
   if (method === "CASH") return SYS_ACCOUNTS.CASH
   return bankAccountCode || SYS_ACCOUNTS.BANK_BCA
 }
+
+/**
+ * Determines if a GL account is a Cost of Goods Sold (COGS / HPP) account.
+ * Uses both code range (5000-5099) and name-based detection for flexibility.
+ *
+ * Used by P&L report to properly classify COGS vs operating expenses.
+ */
+export function isCOGSAccount(account: { code: string; name: string; type: string }): boolean {
+  if (account.type !== "EXPENSE") return false
+  // Code range: 5000-5099 are COGS accounts
+  if (account.code >= "5000" && account.code < "5100") return true
+  // Name-based fallback for accounts outside standard code range
+  const lowerName = account.name.toLowerCase()
+  return (
+    lowerName.includes("harga pokok") ||
+    lowerName.includes("hpp") ||
+    lowerName.includes("cost of goods") ||
+    lowerName.includes("cogs") ||
+    lowerName.includes("beban pokok")
+  )
+}

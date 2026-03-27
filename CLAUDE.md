@@ -522,7 +522,22 @@ Sales Order → Work Order (BOM explosion) → Production → Quality Inspection
 
 ## Finance Module — Double-Entry Bookkeeping Rules
 
+> **MANDATORY SKILL**: Before implementing ANY finance feature, run `/finance-guardrails` to get the full checklist. This prevents recurring bugs like missing journal entries, hardcoded GL codes, broken reports, and unbalanced books.
+
 > **CRITICAL**: This ERP is an accounting system. Every financial transaction MUST create double-entry journal entries. Implementing a feature that creates invoices, bills, payments, credit notes, or any money movement WITHOUT posting to the General Ledger is a **critical bug**. This has caused production issues multiple times — do NOT repeat it.
+
+### Tax Rate Constants
+
+**NEVER hardcode tax rates** (`* 0.11`, `* 0.22`). Use `lib/tax-rates.ts`:
+- `TAX_RATES.PPN` = 0.11 (11% VAT)
+- `TAX_RATES.CORPORATE` = 0.22 (22% corporate tax)
+- `TAX_RATES.PPH23` = 0.02 (2% withholding)
+
+### COGS Classification
+
+**NEVER check only `code === '5000'`**. Use `isCOGSAccount()` from `lib/gl-accounts.ts` which checks:
+- Code range `5000`-`5099`
+- Name contains: harga pokok, hpp, cogs, beban pokok
 
 ### The Rule
 

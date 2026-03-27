@@ -866,6 +866,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
             if (!existingJE) {
                 // GL always in IDR — use converted amounts for foreign currency invoices
                 const glCurrencyNote = currencyCode !== "IDR" ? ` [${currencyCode}→IDR]` : ""
+                let glResult: any
 
                 if (txResult.type === 'INV_OUT') {
                     // AR Invoice: DR Piutang Usaha, CR Pendapatan + CR PPN Keluaran
@@ -878,7 +879,7 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                     } else {
                         lines.push({ accountCode: SYS_ACCOUNTS.REVENUE, debit: 0, credit: amountInIDR, description: `Pendapatan - ${txResult.number}${glCurrencyNote}` })
                     }
-                    await postJournalEntry({
+                    glResult = await postJournalEntry({
                         description: `Faktur Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}${glCurrencyNote}`,
                         date: txResult.issueDate,
                         reference: txResult.number,
@@ -906,13 +907,18 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
                         lines.push({ accountCode: debitAccount, debit: amountInIDR, credit: 0, description: `${debitLabel}${glCurrencyNote}` })
                     }
                     lines.push({ accountCode: SYS_ACCOUNTS.AP, debit: 0, credit: amountInIDR, description: `Hutang - ${txResult.supplierName || 'Supplier'}${glCurrencyNote}` })
-                    await postJournalEntry({
+                    glResult = await postJournalEntry({
                         description: `Tagihan Pembelian ${txResult.number} - ${txResult.supplierName || 'Supplier'}`,
                         date: txResult.issueDate,
                         reference: txResult.number,
                         invoiceId: invoiceId,
                         lines,
                     })
+                }
+
+                // CRITICAL: Check GL result — if posting failed, throw to trigger revert
+                if (!glResult?.success) {
+                    throw new Error(`GL posting failed: ${glResult?.error || 'Unknown error'}`)
                 }
             }
 

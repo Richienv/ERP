@@ -2214,8 +2214,8 @@ model JournalEntry {
   nextRecurringDate DateTime?
 
   // Reversal tracking
-  isReversed   Boolean  @default(false)
-  reversedById String?  @unique @db.Uuid
+  isReversed   Boolean  @default(false) @map("is_reversed")
+  reversedById String?  @unique @db.Uuid @map("reversed_by_id")
   reversedBy   JournalEntry? @relation("JournalReversal", fields: [reversedById], references: [id])
   reversalOf   JournalEntry? @relation("JournalReversal")
 

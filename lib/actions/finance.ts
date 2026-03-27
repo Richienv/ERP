@@ -10,6 +10,7 @@ import { assertPeriodOpen } from "@/lib/period-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 import { inferSubType } from "@/lib/account-subtype-helpers"
 import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
+import { TAX_RATES } from "@/lib/tax-rates"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -570,7 +571,7 @@ export async function getProfitLossStatement(startDate?: Date | string, endDate?
             const grossProfit = revenue - costOfGoodsSold
             const operatingIncome = grossProfit - totalOperatingExpenses
             const netIncomeBeforeTax = operatingIncome + otherIncome - otherExpenses
-            const taxExpense = netIncomeBeforeTax > 0 ? netIncomeBeforeTax * 0.22 : 0 // 22% corporate tax
+            const taxExpense = netIncomeBeforeTax > 0 ? netIncomeBeforeTax * TAX_RATES.CORPORATE : 0
             const netIncome = netIncomeBeforeTax - taxExpense
 
             return {

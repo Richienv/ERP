@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 import { inferSubType } from '@/lib/account-subtype-helpers'
+import { TAX_RATES } from '@/lib/tax-rates'
+
+// Pad account code to 4 digits for reliable string comparison (e.g. '900' → '0900')
+function padCode(code: string): string {
+    return code.padStart(4, '0')
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -76,7 +82,7 @@ async function fetchPnL(start: Date, end: Date) {
     const grossProfit = revenue - costOfGoodsSold
     const operatingIncome = grossProfit - totalOperatingExpenses
     const netIncomeBeforeTax = operatingIncome + otherIncome - otherExpenses
-    const taxExpense = netIncomeBeforeTax > 0 ? netIncomeBeforeTax * 0.22 : 0
+    const taxExpense = netIncomeBeforeTax > 0 ? netIncomeBeforeTax * TAX_RATES.CORPORATE : 0
     const netIncome = netIncomeBeforeTax - taxExpense
 
     return {
@@ -229,6 +235,22 @@ async function fetchBalanceSheet(asOfDate: Date) {
     }
 
     assets.totalAssets = assets.totalCurrentAssets + assets.totalFixedAssets + assets.totalOtherAssets
+
+    // If P&L deducts estimated corporate tax, add matching "Estimated Tax Payable" to liabilities
+    // so the balance sheet stays balanced (A = L + E). This is a virtual provision that
+    // should be replaced by an actual tax JE when the tax return is filed.
+    const currentTaxProvision = currentPnL.taxExpense ?? 0
+    const priorTaxProvision = priorPnL.taxExpense ?? 0
+    if (currentTaxProvision > 0 || priorTaxProvision > 0) {
+        const totalProvision = currentTaxProvision + priorTaxProvision
+        liabilities.currentLiabilities.push({
+            code: 'TAX-EST',
+            name: 'Estimasi Hutang Pajak Penghasilan',
+            amount: totalProvision,
+        })
+        liabilities.totalCurrentLiabilities += totalProvision
+    }
+
     liabilities.totalLiabilities = liabilities.totalCurrentLiabilities + liabilities.totalLongTermLiabilities
     const capitalTotal = equity.capital.reduce((sum, c) => sum + c.amount, 0)
     equity.totalEquity = capitalTotal + priorPnL.netIncome + currentPnL.netIncome
@@ -346,7 +368,7 @@ async function fetchCashFlow(start: Date, end: Date) {
                 // Cash accounts start with 1000/1010/1020, skip those
                 // AR is 1100, Inventory is 1200 — these are operating
                 // Fixed assets typically 1300+, 1400+, 1500+
-                return code >= '1300'
+                return padCode(code) >= '1300'
             })
             if (isFixedAsset) {
                 investingActivities.items.push({ description, amount })
@@ -358,7 +380,7 @@ async function fetchCashFlow(start: Date, end: Date) {
             const liabilityLines = contraLines.filter(l => l.account?.type === 'LIABILITY')
             const isLongTerm = liabilityLines.some(l => {
                 const code = l.account?.code || ''
-                return code >= '2200' // Long-term liabilities
+                return padCode(code) >= '2200' // Long-term liabilities
             })
             if (isLongTerm) {
                 financingActivities.items.push({ description, amount })
@@ -369,27 +391,38 @@ async function fetchCashFlow(start: Date, end: Date) {
         // Revenue/Expense contra → already captured in net income (operating), skip
     }
 
-    // AR and AP for working capital changes
-    const [arInvoices, apInvoices] = await Promise.all([
-        prisma.invoice.findMany({
-            where: { type: 'INV_OUT', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
-            select: { balanceDue: true },
-        }),
-        prisma.invoice.findMany({
-            where: { type: 'INV_IN', status: { in: ['ISSUED', 'PARTIAL', 'OVERDUE'] } },
-            select: { balanceDue: true },
-        }),
+    // AR and AP working capital changes: use GL period deltas (end balance - beginning balance)
+    // This is more accurate than using current invoice totals which don't reflect period changes
+    const arAccount = await prisma.gLAccount.findFirst({ where: { code: '1200', type: 'ASSET' } })
+    const apAccount = await prisma.gLAccount.findFirst({ where: { code: '2000', type: 'LIABILITY' } })
+
+    async function getAccountBalance(accountId: string | undefined, asOf: Date): Promise<number> {
+        if (!accountId) return 0
+        const lines = await prisma.journalLine.findMany({
+            where: { accountId, entry: { date: { lte: asOf }, status: 'POSTED' } },
+            select: { debit: true, credit: true },
+        })
+        return lines.reduce((sum, l) => sum + Number(l.debit) - Number(l.credit), 0)
+    }
+
+    const [arBegin, arEnd, apBegin, apEnd] = await Promise.all([
+        getAccountBalance(arAccount?.id, new Date(start.getTime() - 1)),
+        getAccountBalance(arAccount?.id, end),
+        getAccountBalance(apAccount?.id, new Date(start.getTime() - 1)),
+        getAccountBalance(apAccount?.id, end),
     ])
 
-    const arChange = arInvoices.reduce((sum, inv) => sum + Number(inv.balanceDue), 0)
-    const apChange = apInvoices.reduce((sum, inv) => sum + Number(inv.balanceDue), 0)
+    // AR is asset (debit-normal): increase in AR = cash used (negative for cash flow)
+    const arChange = arEnd - arBegin
+    // AP is liability (credit-normal): balance is debit-credit, so negative = increase in AP = cash source
+    const apChange = apEnd - apBegin
 
     operatingActivities.changesInWorkingCapital.push(
         { description: 'Perubahan Piutang Usaha', amount: -arChange },
-        { description: 'Perubahan Hutang Usaha', amount: apChange },
+        { description: 'Perubahan Hutang Usaha', amount: -apChange },
     )
 
-    const workingCapitalChange = -arChange + apChange
+    const workingCapitalChange = -arChange + (-apChange)
     operatingActivities.netCashFromOperating = pnlData.netIncome + workingCapitalChange
 
     const netIncreaseInCash =

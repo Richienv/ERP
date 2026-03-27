@@ -122,8 +122,11 @@ export function useFinanceReport(reportType: ReportType, startDate: Date, endDat
                     const budgets = budgetsResult?.budgets ?? []
                     let budgetVsActual = null
                     if (budgets.length > 0) {
+                        // Pick the budget matching the selected year, fallback to first
+                        const targetYear = startDate.getFullYear()
+                        const matchingBudget = budgets.find((b: any) => b.year === targetYear) ?? budgets[0]
                         try {
-                            const bva = await getBudgetVsActual(budgets[0].id, startISO, endISO)
+                            const bva = await getBudgetVsActual(matchingBudget.id, startISO, endISO)
                             budgetVsActual = bva?.success ? bva.data : null
                         } catch (e) {
                             console.error("Budget vs actual failed:", e)
