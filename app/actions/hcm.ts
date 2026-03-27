@@ -20,6 +20,7 @@ import {
     STANDARD_DAILY_HOURS,
 } from '@/lib/hcm-calculations'
 import { assertPeriodOpen } from '@/lib/period-helpers'
+import { SYS_ACCOUNTS } from '@/lib/gl-accounts'
 
 const LEAVE_APPROVAL_PREFIX = 'LEAVE_APPROVAL::'
 const PAYROLL_RUN_PREFIX = 'PAYROLL_RUN::'
@@ -431,6 +432,7 @@ async function resolvePayrollAccounts(prisma: any) {
         findByKeyword('ASSET', ['kas', 'bank', 'cash']) ||
         accounts.find((account: any) => account.type === 'ASSET')
     const taxAccount =
+        accounts.find((account: any) => account.code === SYS_ACCOUNTS.PPH_21_PAYABLE) ||
         findByKeyword('LIABILITY', ['pph', 'tax', 'pajak']) ||
         accounts.find((account: any) => account.type === 'LIABILITY')
     const bpjsAccount =
