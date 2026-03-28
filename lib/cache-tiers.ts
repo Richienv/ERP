@@ -148,6 +148,7 @@ export const ROUTE_TIERS: Record<string, CacheTier> = {
     "/finance/planning#accuracy":     "DASHBOARD",
     "/finance/planning#obligations":  "DASHBOARD",
     "/finance/planning/simulasi#scenarios": "DASHBOARD",
+    "/sales/salespersons#commission":     "DASHBOARD",
     "/finance/fixed-assets/depreciation": "TRANSACTIONAL",
 
     // ── Realtime (T6) ──
@@ -180,6 +181,7 @@ export const MASTER_DATA_TIERS: Record<string, CacheTier> = {
     suppliers:        "MASTER_PLUS",
     salesOptions:     "MASTER_PLUS",
     sidebarActions:   "DASHBOARD",
+    paymentTerms:     "MASTER",
 }
 
 /**

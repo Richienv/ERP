@@ -28,6 +28,7 @@ import { getCycleCountSessions } from "@/app/actions/cycle-count"
 import { getInvoiceKanbanData } from "@/lib/actions/finance-invoices"
 import { getPettyCashTransactions } from "@/lib/actions/finance-petty-cash"
 import { getDocumentNumbering, getPermissionMatrix } from "@/lib/actions/settings"
+import { getPaymentTerms } from "@/lib/actions/payment-terms"
 import { getDocumentSystemOverview } from "@/app/actions/documents-system"
 import { getHCMDashboardData } from "@/app/actions/hcm"
 import { getWarehouses } from "@/app/actions/inventory"
@@ -72,6 +73,18 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             salespersons: p.data || [],
             summary: p.summary || {},
         })),
+    },
+    // Companion — salespersons page also shows commission report for current month
+    "/sales/salespersons#commission": {
+        queryKey: queryKeys.salespersons.commissionReport(
+            new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
+            new Date().toISOString().slice(0, 10)
+        ),
+        queryFn: () => {
+            const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+            const end = new Date().toISOString().slice(0, 10)
+            return fetch(`/api/sales/salespersons/commission?startDate=${start}&endDate=${end}`).then(r => r.json())
+        },
     },
     "/inventory/categories": {
         queryKey: queryKeys.categories.list(),
@@ -789,6 +802,10 @@ export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[
             if (!res.ok) return null
             return res.json()
         },
+    },
+    paymentTerms: {
+        queryKey: queryKeys.paymentTerms.list(),
+        queryFn: getPaymentTerms,
     },
 }
 

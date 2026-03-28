@@ -40,6 +40,7 @@ export const P1_MASTER_DATA = [
     "bankAccounts",
     "salesOptions",
     "sidebarActions",
+    "paymentTerms",
 ] as const
 
 // ── Priority 2: Important — still blocks loading screen ────────────────────
@@ -51,6 +52,7 @@ export const P2_ROUTES = [
     "/sales/quotations",
     "/sales/discounts",
     "/sales/salespersons",
+    "/sales/salespersons#commission",
     "/sales/pricelists",
     "/sales/sales",
     // Procurement
@@ -155,8 +157,8 @@ export const P3_ROUTES = [
 
 // ── Counts for progress bar weighting ──────────────────────────────────────
 
-export const P1_TOTAL = P1_ROUTES.length + P1_MASTER_DATA.length  // 12 + 10 = 22
-export const P2_TOTAL = P2_ROUTES.length                           // 37
+export const P1_TOTAL = P1_ROUTES.length + P1_MASTER_DATA.length  // 12 + 11 = 23
+export const P2_TOTAL = P2_ROUTES.length                           // 38
 export const P3_TOTAL = P3_ROUTES.length                           // 44
 
 /**
