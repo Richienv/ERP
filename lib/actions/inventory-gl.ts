@@ -122,9 +122,9 @@ function generateEntryNumber(): string {
 /**
  * Post a GL journal entry for an inventory transaction.
  *
- * This is **fire-and-forget with logging** — if GL posting fails the
- * inventory transaction still succeeds. Pass the same prisma instance /
- * transaction that is already in scope.
+ * BLOCKING: If GL posting fails, the error propagates to the caller.
+ * Since callers pass their transaction client, this means the entire
+ * business transaction (stock + GL) rolls back together.
  *
  * @param prisma  Prisma client or transaction instance
  * @param params  Transaction details
@@ -134,163 +134,153 @@ export async function postInventoryGLEntry(
     prisma: any,
     params: PostInventoryGLParams,
 ): Promise<void> {
-    try {
-        const { transactionId, type, productName, totalValue, reference } = params
+    const { transactionId, type, productName, totalValue, reference } = params
 
-        // Skip if no monetary value
-        if (!totalValue || totalValue <= 0) {
-            return
-        }
-
-        // ---- Resolve required GL accounts based on transaction type ----
-        type AccountPair = { debitAccount: { id: string; type: string } | null; creditAccount: { id: string; type: string } | null }
-
-        let pair: AccountPair
-
-        switch (type) {
-            case 'PO_RECEIVE': {
-                // Two-step receipt: DR Inventory, CR GR/IR Clearing (2150)
-                // AP recognition happens later when vendor bill is posted
-                const [inv, grir] = await Promise.all([
-                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
-                    findGLAccount(prisma, GL_GR_IR_CLEARING, 'Barang Diterima', 'LIABILITY'),
-                ])
-                pair = { debitAccount: inv, creditAccount: grir }
-                break
-            }
-            case 'SO_SHIPMENT': {
-                const [cogs, inv] = await Promise.all([
-                    findGLAccount(prisma, GL_COGS, 'Harga Pokok', 'EXPENSE'),
-                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
-                ])
-                pair = { debitAccount: cogs, creditAccount: inv }
-                break
-            }
-            case 'PRODUCTION_OUT': {
-                const [wip, raw] = await Promise.all([
-                    findGLAccount(prisma, GL_WORK_IN_PROGRESS, 'Barang Dalam Proses', 'ASSET'),
-                    findGLAccount(prisma, GL_RAW_MATERIALS, 'Bahan Baku', 'ASSET'),
-                ])
-                pair = { debitAccount: wip, creditAccount: raw }
-                break
-            }
-            case 'ADJUSTMENT_IN': {
-                const [inv, adj] = await Promise.all([
-                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
-                    findGLAccount(prisma, GL_INVENTORY_ADJUSTMENT, 'Penyesuaian', 'EXPENSE'),
-                ])
-                pair = { debitAccount: inv, creditAccount: adj }
-                break
-            }
-            case 'ADJUSTMENT_OUT': {
-                const [adj, inv] = await Promise.all([
-                    findGLAccount(prisma, GL_INVENTORY_ADJUSTMENT, 'Penyesuaian', 'EXPENSE'),
-                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
-                ])
-                pair = { debitAccount: adj, creditAccount: inv }
-                break
-            }
-            case 'SCRAP': {
-                const [loss, inv] = await Promise.all([
-                    findGLAccount(prisma, GL_LOSS_WRITEOFF, 'Kerugian', 'EXPENSE'),
-                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
-                ])
-                pair = { debitAccount: loss, creditAccount: inv }
-                break
-            }
-            case 'RETURN_IN': {
-                // Reversal of SO_SHIPMENT: DR Inventory Asset, CR COGS
-                const [inv, cogs] = await Promise.all([
-                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
-                    findGLAccount(prisma, GL_COGS, 'Harga Pokok', 'EXPENSE'),
-                ])
-                pair = { debitAccount: inv, creditAccount: cogs }
-                break
-            }
-            case 'RETURN_OUT': {
-                // Reversal of PO_RECEIVE: DR GR/IR Clearing (2150), CR Inventory Asset
-                const [grir, inv] = await Promise.all([
-                    findGLAccount(prisma, GL_GR_IR_CLEARING, 'Barang Diterima', 'LIABILITY'),
-                    findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
-                ])
-                pair = { debitAccount: grir, creditAccount: inv }
-                break
-            }
-            case 'CUT_CONSUME': {
-                // Fabric cutting: DR WIP (fabric enters cutting process), CR Raw Materials
-                const [wip, raw] = await Promise.all([
-                    findGLAccount(prisma, GL_WORK_IN_PROGRESS, 'Barang Dalam Proses', 'ASSET'),
-                    findGLAccount(prisma, GL_RAW_MATERIALS, 'Bahan Baku', 'ASSET'),
-                ])
-                pair = { debitAccount: wip, creditAccount: raw }
-                break
-            }
-        }
-
-        // If either account is missing, skip GL posting (don't crash)
-        if (!pair.debitAccount || !pair.creditAccount) {
-            console.warn(
-                `[inventory-gl] Skipping GL posting for ${type}: missing accounts.`,
-                `Debit account (${pair.debitAccount ? 'found' : 'MISSING'}),`,
-                `Credit account (${pair.creditAccount ? 'found' : 'MISSING'})`,
-            )
-            return
-        }
-
-        const description = glDescription(type, productName, reference)
-        const entryNumber = generateEntryNumber()
-
-        // Create JournalEntry + JournalLines
-        await prisma.journalEntry.create({
-            data: {
-                date: new Date(),
-                description,
-                reference: entryNumber,
-                status: 'POSTED',
-                inventoryTransactionId: transactionId,
-                lines: {
-                    create: [
-                        {
-                            accountId: pair.debitAccount.id,
-                            description,
-                            debit: totalValue,
-                            credit: 0,
-                        },
-                        {
-                            accountId: pair.creditAccount.id,
-                            description,
-                            debit: 0,
-                            credit: totalValue,
-                        },
-                    ],
-                },
-            },
-        })
-
-        // Update GL Account balances using the normal-balance convention:
-        //   ASSET / EXPENSE: balance increases with debit
-        //   LIABILITY / EQUITY / REVENUE: balance increases with credit
-        const debitBalanceChange = ['ASSET', 'EXPENSE'].includes(pair.debitAccount.type)
-            ? totalValue
-            : -totalValue
-
-        const creditBalanceChange = ['ASSET', 'EXPENSE'].includes(pair.creditAccount.type)
-            ? -totalValue
-            : totalValue
-
-        await Promise.all([
-            prisma.gLAccount.update({
-                where: { id: pair.debitAccount.id },
-                data: { balance: { increment: debitBalanceChange } },
-            }),
-            prisma.gLAccount.update({
-                where: { id: pair.creditAccount.id },
-                data: { balance: { increment: creditBalanceChange } },
-            }),
-        ])
-
-    } catch (error) {
-        // Fire-and-forget: log error but don't throw
-        console.error(`[inventory-gl] Failed to post GL entry for transaction ${params.transactionId}:`, error)
+    // Skip if no monetary value
+    if (!totalValue || totalValue <= 0) {
+        return
     }
+
+    // ---- Resolve required GL accounts based on transaction type ----
+    type AccountPair = { debitAccount: { id: string; type: string } | null; creditAccount: { id: string; type: string } | null }
+
+    let pair: AccountPair
+
+    switch (type) {
+        case 'PO_RECEIVE': {
+            const [inv, grir] = await Promise.all([
+                findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+                findGLAccount(prisma, GL_GR_IR_CLEARING, 'Barang Diterima', 'LIABILITY'),
+            ])
+            pair = { debitAccount: inv, creditAccount: grir }
+            break
+        }
+        case 'SO_SHIPMENT': {
+            const [cogs, inv] = await Promise.all([
+                findGLAccount(prisma, GL_COGS, 'Harga Pokok', 'EXPENSE'),
+                findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+            ])
+            pair = { debitAccount: cogs, creditAccount: inv }
+            break
+        }
+        case 'PRODUCTION_OUT': {
+            const [wip, raw] = await Promise.all([
+                findGLAccount(prisma, GL_WORK_IN_PROGRESS, 'Barang Dalam Proses', 'ASSET'),
+                findGLAccount(prisma, GL_RAW_MATERIALS, 'Bahan Baku', 'ASSET'),
+            ])
+            pair = { debitAccount: wip, creditAccount: raw }
+            break
+        }
+        case 'ADJUSTMENT_IN': {
+            const [inv, adj] = await Promise.all([
+                findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+                findGLAccount(prisma, GL_INVENTORY_ADJUSTMENT, 'Penyesuaian', 'EXPENSE'),
+            ])
+            pair = { debitAccount: inv, creditAccount: adj }
+            break
+        }
+        case 'ADJUSTMENT_OUT': {
+            const [adj, inv] = await Promise.all([
+                findGLAccount(prisma, GL_INVENTORY_ADJUSTMENT, 'Penyesuaian', 'EXPENSE'),
+                findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+            ])
+            pair = { debitAccount: adj, creditAccount: inv }
+            break
+        }
+        case 'SCRAP': {
+            const [loss, inv] = await Promise.all([
+                findGLAccount(prisma, GL_LOSS_WRITEOFF, 'Kerugian', 'EXPENSE'),
+                findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+            ])
+            pair = { debitAccount: loss, creditAccount: inv }
+            break
+        }
+        case 'RETURN_IN': {
+            const [inv, cogs] = await Promise.all([
+                findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+                findGLAccount(prisma, GL_COGS, 'Harga Pokok', 'EXPENSE'),
+            ])
+            pair = { debitAccount: inv, creditAccount: cogs }
+            break
+        }
+        case 'RETURN_OUT': {
+            const [grir, inv] = await Promise.all([
+                findGLAccount(prisma, GL_GR_IR_CLEARING, 'Barang Diterima', 'LIABILITY'),
+                findGLAccount(prisma, GL_INVENTORY_ASSET, 'Persediaan', 'ASSET'),
+            ])
+            pair = { debitAccount: grir, creditAccount: inv }
+            break
+        }
+        case 'CUT_CONSUME': {
+            const [wip, raw] = await Promise.all([
+                findGLAccount(prisma, GL_WORK_IN_PROGRESS, 'Barang Dalam Proses', 'ASSET'),
+                findGLAccount(prisma, GL_RAW_MATERIALS, 'Bahan Baku', 'ASSET'),
+            ])
+            pair = { debitAccount: wip, creditAccount: raw }
+            break
+        }
+    }
+
+    // If either account is missing, throw — GL must post for inventory integrity
+    if (!pair.debitAccount || !pair.creditAccount) {
+        const missing = []
+        if (!pair.debitAccount) missing.push('debit')
+        if (!pair.creditAccount) missing.push('credit')
+        throw new Error(
+            `[inventory-gl] Akun GL tidak ditemukan untuk ${type}: ${missing.join(' & ')} account missing. ` +
+            `Pastikan akun GL sistem sudah dibuat (jalankan ensureSystemAccounts).`
+        )
+    }
+
+    const description = glDescription(type, productName, reference)
+    const entryNumber = generateEntryNumber()
+
+    // Create JournalEntry + JournalLines
+    await prisma.journalEntry.create({
+        data: {
+            date: new Date(),
+            description,
+            reference: entryNumber,
+            status: 'POSTED',
+            inventoryTransactionId: transactionId,
+            lines: {
+                create: [
+                    {
+                        accountId: pair.debitAccount.id,
+                        description,
+                        debit: totalValue,
+                        credit: 0,
+                    },
+                    {
+                        accountId: pair.creditAccount.id,
+                        description,
+                        debit: 0,
+                        credit: totalValue,
+                    },
+                ],
+            },
+        },
+    })
+
+    // Update GL Account balances using the normal-balance convention:
+    //   ASSET / EXPENSE: balance increases with debit
+    //   LIABILITY / EQUITY / REVENUE: balance increases with credit
+    const debitBalanceChange = ['ASSET', 'EXPENSE'].includes(pair.debitAccount.type)
+        ? totalValue
+        : -totalValue
+
+    const creditBalanceChange = ['ASSET', 'EXPENSE'].includes(pair.creditAccount.type)
+        ? -totalValue
+        : totalValue
+
+    await Promise.all([
+        prisma.gLAccount.update({
+            where: { id: pair.debitAccount.id },
+            data: { balance: { increment: debitBalanceChange } },
+        }),
+        prisma.gLAccount.update({
+            where: { id: pair.creditAccount.id },
+            data: { balance: { increment: creditBalanceChange } },
+        }),
+    ])
 }

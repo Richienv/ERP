@@ -1899,6 +1899,8 @@ model Payment {
 
   notes String?
 
+  glPostingStatus String @default("POSTED") // PENDING | POSTED | FAILED
+
   invoice          Invoice?       @relation(fields: [invoiceId], references: [id])
   customer         Customer?      @relation(fields: [customerId], references: [id])
   supplier         Supplier?      @relation(fields: [supplierId], references: [id])

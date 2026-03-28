@@ -821,25 +821,55 @@ export async function reverseDepreciationRun(runId: string) {
                 return { success: false, error: `Periode ${lockedPeriod.name} sudah dikunci. Tidak dapat membatalkan penyusutan.` }
             }
 
-            // Reverse each entry
+            // Reverse each entry — create proper reversal journal entries (not just VOID)
             for (const entry of run.entries) {
-                // Void journal entry
-                if (entry.journalEntryId) {
-                    await prisma.journalEntry.update({
-                        where: { id: entry.journalEntryId },
-                        data: { status: "VOID" },
+                if (entry.journalEntryId && entry.journalEntry) {
+                    // Create reversal journal entry with swapped debit/credit
+                    const reversal = await prisma.journalEntry.create({
+                        data: {
+                            date: new Date(),
+                            description: `Pembalikan Penyusutan: ${entry.journalEntry.description}`,
+                            reference: entry.journalEntry.reference
+                                ? `REV-${entry.journalEntry.reference}`
+                                : `REV-DEP-${entry.journalEntryId.slice(0, 8)}`,
+                            status: 'POSTED',
+                            lines: {
+                                create: entry.journalEntry.lines.map((line: any) => ({
+                                    accountId: line.accountId,
+                                    debit: Number(line.credit),   // swap
+                                    credit: Number(line.debit),   // swap
+                                    description: `Pembalikan: ${line.description || entry.journalEntry!.description}`,
+                                })),
+                            },
+                        },
                     })
 
-                    // Reverse GL balances
-                    if (entry.journalEntry) {
-                        for (const line of entry.journalEntry.lines) {
-                            const adjustment = Number(line.debit) - Number(line.credit)
-                            if (adjustment !== 0) {
-                                await prisma.gLAccount.update({
-                                    where: { id: line.accountId },
-                                    data: { balance: { decrement: Math.abs(adjustment) * (adjustment > 0 ? 1 : -1) } },
-                                })
-                            }
+                    // Mark original as reversed, link to reversal entry
+                    await prisma.journalEntry.update({
+                        where: { id: entry.journalEntryId },
+                        data: { isReversed: true, reversedById: reversal.id },
+                    })
+
+                    // Update GL balances using correct account-type convention
+                    for (const line of entry.journalEntry.lines) {
+                        const account = await prisma.gLAccount.findUnique({
+                            where: { id: line.accountId },
+                            select: { type: true },
+                        })
+                        if (!account) continue
+
+                        // Reversal amounts (swapped from original)
+                        const revDebit = Number(line.credit)
+                        const revCredit = Number(line.debit)
+                        const balanceChange = ['ASSET', 'EXPENSE'].includes(account.type)
+                            ? revDebit - revCredit
+                            : revCredit - revDebit
+
+                        if (balanceChange !== 0) {
+                            await prisma.gLAccount.update({
+                                where: { id: line.accountId },
+                                data: { balance: { increment: balanceChange } },
+                            })
                         }
                     }
                 }

@@ -1173,58 +1173,34 @@ export async function createOpeningInvoices(data: {
                 count++
             }
 
-            // Post GL journal entry for opening AP/AR balances
+            // Post GL journal entry for opening AP/AR balances via postJournalEntry()
+            // This ensures: balanced validation, correct balance updates per account type,
+            // and consistent audit trail through the standard GL engine.
             const totalAmount = validRows.reduce((sum, r) => sum + r.amount, 0)
             if (totalAmount > 0) {
-                // AR opening: DR Piutang (1100), CR Opening Balance Equity (3900)
-                // AP opening: DR Opening Balance Equity (3900), CR Hutang (2100)
-                const arCode = SYS_ACCOUNTS.AR
-                const apCode = SYS_ACCOUNTS.AP
-                const openingEquityCode = SYS_ACCOUNTS.OPENING_EQUITY
-                const balanceAccountCode = data.type === "AR" ? arCode : apCode
+                const balanceAccountCode = data.type === "AR" ? SYS_ACCOUNTS.AR : SYS_ACCOUNTS.AP
+                const label = data.type === "AR" ? "Piutang Usaha" : "Hutang Usaha"
 
-                // Ensure accounts exist
-                const accountCodes = [balanceAccountCode, openingEquityCode]
-                const accounts = await prisma.gLAccount.findMany({
-                    where: { code: { in: accountCodes } }
-                })
+                const journalLines = data.type === "AR"
+                    ? [
+                        { accountCode: balanceAccountCode, debit: totalAmount, credit: 0, description: `Saldo Awal Piutang (${count} invoice)` },
+                        { accountCode: SYS_ACCOUNTS.OPENING_EQUITY, debit: 0, credit: totalAmount, description: `Saldo Awal Piutang (${count} invoice)` },
+                    ]
+                    : [
+                        { accountCode: SYS_ACCOUNTS.OPENING_EQUITY, debit: totalAmount, credit: 0, description: `Saldo Awal Hutang (${count} bill)` },
+                        { accountCode: balanceAccountCode, debit: 0, credit: totalAmount, description: `Saldo Awal Hutang (${count} bill)` },
+                    ]
 
-                const allAccounts = await prisma.gLAccount.findMany({
-                    where: { code: { in: accountCodes } }
-                })
-                const accountMap = new Map(allAccounts.map(a => [a.code, a]))
-                const balanceAccount = accountMap.get(balanceAccountCode)
-                const equityAccount = accountMap.get(openingEquityCode)
+                const glResult = await postJournalEntry({
+                    description: `Saldo Awal ${label}`,
+                    date: new Date(),
+                    reference: `OPENING-${data.type}-${new Date().getFullYear()}-${Date.now()}`,
+                    sourceDocumentType: `OPENING_INVOICE_${data.type}`,
+                    lines: journalLines,
+                }, prisma)
 
-                if (balanceAccount && equityAccount) {
-                    const lines = data.type === "AR"
-                        ? [
-                            { accountId: balanceAccount.id, debit: totalAmount, credit: 0, description: `Saldo Awal Piutang (${count} invoice)` },
-                            { accountId: equityAccount.id, debit: 0, credit: totalAmount, description: `Saldo Awal Piutang (${count} invoice)` },
-                        ]
-                        : [
-                            { accountId: equityAccount.id, debit: totalAmount, credit: 0, description: `Saldo Awal Hutang (${count} bill)` },
-                            { accountId: balanceAccount.id, debit: 0, credit: totalAmount, description: `Saldo Awal Hutang (${count} bill)` },
-                        ]
-
-                    await prisma.journalEntry.create({
-                        data: {
-                            date: new Date(),
-                            description: `Saldo Awal ${data.type === "AR" ? "Piutang Usaha" : "Hutang Usaha"}`,
-                            reference: `OPENING-${data.type}-${new Date().getFullYear()}`,
-                            status: 'POSTED',
-                            lines: { create: lines },
-                        }
-                    })
-
-                    // Update GL balances
-                    if (data.type === "AR") {
-                        await prisma.gLAccount.update({ where: { id: balanceAccount.id }, data: { balance: { increment: totalAmount } } })
-                        await prisma.gLAccount.update({ where: { id: equityAccount.id }, data: { balance: { increment: totalAmount } } })
-                    } else {
-                        await prisma.gLAccount.update({ where: { id: equityAccount.id }, data: { balance: { decrement: totalAmount } } })
-                        await prisma.gLAccount.update({ where: { id: balanceAccount.id }, data: { balance: { increment: totalAmount } } })
-                    }
+                if (!glResult.success) {
+                    throw new Error(`GL posting gagal untuk saldo awal ${label}: ${glResult.error}`)
                 }
             }
 
@@ -1398,18 +1374,84 @@ export async function applyBalanceReconciliation(): Promise<{ updated: number }>
   const preview = await previewBalanceReconciliation()
   if (preview.rows.length === 0) return { updated: 0 }
 
-  await prisma.$transaction(async (tx) => {
-    for (const row of preview.rows) {
-      await tx.gLAccount.update({ where: { id: row.accountId }, data: { balance: row.newBalance } })
-    }
-    const { logAudit } = await import('@/lib/audit-helpers')
-    await logAudit({
-      entityType: 'GL_RECONCILIATION', entityId: 'system', action: 'UPDATE',
-      userId: user.id, userName: user.email || 'System',
-      changes: preview.rows.map((r) => ({ field: `${r.accountCode} ${r.accountName}`, from: r.oldBalance, to: r.newBalance })),
-      narrative: `Rekonsiliasi saldo ${preview.rows.length} akun GL. Total selisih: Rp ${preview.totalDifference.toLocaleString('id-ID')}`,
-    })
+  // Look up account types so we can build correct debit/credit lines
+  const accountIds = preview.rows.map(r => r.accountId)
+  const accounts = await prisma.gLAccount.findMany({
+    where: { id: { in: accountIds } },
+    select: { id: true, code: true, name: true, type: true },
   })
+  const accountTypeMap = new Map(accounts.map(a => [a.id, a.type as string]))
+
+  // Build adjusting journal lines — each discrepancy becomes a line pair:
+  //   one line on the account itself, one on Opening Equity (3900) as contra.
+  // This creates a PROPER audit trail instead of silently overwriting balances.
+  const journalLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
+
+  for (const row of preview.rows) {
+    // difference = storedBalance - calculatedBalance
+    // We need to move storedBalance → calculatedBalance, i.e. adjust by -difference
+    // For ASSET/EXPENSE (debit-normal): positive delta means we need to DEBIT the account
+    // For LIABILITY/EQUITY/REVENUE (credit-normal): positive delta means we need to CREDIT the account
+    const delta = row.newBalance - row.oldBalance // amount the balance needs to change
+    if (Math.abs(delta) < 0.01) continue
+
+    const accountType = accountTypeMap.get(row.accountId) || 'ASSET'
+    const isDebitNormal = ['ASSET', 'EXPENSE'].includes(accountType)
+
+    // Determine debit/credit for the target account
+    // For debit-normal accounts: positive delta → debit, negative delta → credit
+    // For credit-normal accounts: positive delta → credit, negative delta → debit
+    let targetDebit = 0
+    let targetCredit = 0
+    if (isDebitNormal) {
+      if (delta > 0) targetDebit = delta
+      else targetCredit = Math.abs(delta)
+    } else {
+      if (delta > 0) targetCredit = delta
+      else targetDebit = Math.abs(delta)
+    }
+
+    // Target account line
+    journalLines.push({
+      accountCode: row.accountCode,
+      debit: targetDebit,
+      credit: targetCredit,
+      description: `Penyesuaian saldo ${row.accountCode} ${row.accountName} (selisih: Rp ${row.difference.toLocaleString('id-ID')})`,
+    })
+
+    // Contra line on Opening Equity (3900) — opposite side
+    journalLines.push({
+      accountCode: SYS_ACCOUNTS.OPENING_EQUITY,
+      debit: targetCredit, // opposite of target
+      credit: targetDebit, // opposite of target
+      description: `Penyesuaian saldo ${row.accountCode} ${row.accountName}`,
+    })
+  }
+
+  if (journalLines.length === 0) return { updated: 0 }
+
+  // Post as a single adjusting journal entry through the standard GL engine
+  const glResult = await postJournalEntry({
+    description: `Penyesuaian Saldo GL — ${preview.rows.length} akun`,
+    date: new Date(),
+    reference: `ADJ-REKON-${new Date().getFullYear()}-${Date.now()}`,
+    sourceDocumentType: 'BALANCE_ADJUSTMENT',
+    lines: journalLines,
+  })
+
+  if (!glResult.success) {
+    throw new Error(`Gagal membuat jurnal penyesuaian: ${glResult.error}`)
+  }
+
+  // Log audit trail
+  const { logAudit } = await import('@/lib/audit-helpers')
+  await logAudit({
+    entityType: 'GL_RECONCILIATION', entityId: glResult.id || 'system', action: 'UPDATE',
+    userId: user.id, userName: user.email || 'System',
+    changes: preview.rows.map((r) => ({ field: `${r.accountCode} ${r.accountName}`, from: r.oldBalance, to: r.newBalance })),
+    narrative: `Rekonsiliasi saldo ${preview.rows.length} akun GL via jurnal penyesuaian. Total selisih: Rp ${preview.totalDifference.toLocaleString('id-ID')}`,
+  })
+
   return { updated: preview.rows.length }
 }
 

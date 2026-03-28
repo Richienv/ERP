@@ -949,69 +949,66 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
             }
 
             // --- COGS Recognition for Sales Invoices with Stock Items ---
+            // BLOCKING: If COGS posting fails, the outer catch reverts invoice to DRAFT.
+            // Revenue and COGS must always be recognized together, or not at all.
             if (txResult.type === 'INV_OUT') {
-                try {
-                    const invoiceItems = await prisma.invoiceItem.findMany({
-                        where: { invoiceId },
-                        select: {
-                            quantity: true,
-                            product: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    costPrice: true,
-                                    productType: true,
-                                    cogsAccountId: true,
-                                    inventoryAccountId: true,
-                                    cogsAccount: { select: { code: true } },
-                                    inventoryAccount: { select: { code: true } },
-                                }
+                const invoiceItems = await prisma.invoiceItem.findMany({
+                    where: { invoiceId },
+                    select: {
+                        quantity: true,
+                        product: {
+                            select: {
+                                id: true,
+                                name: true,
+                                costPrice: true,
+                                productType: true,
+                                cogsAccountId: true,
+                                inventoryAccountId: true,
+                                cogsAccount: { select: { code: true } },
+                                inventoryAccount: { select: { code: true } },
                             }
                         }
+                    }
+                })
+
+                const cogsLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
+                for (const item of invoiceItems) {
+                    if (!item.product) continue // service/text line — skip
+                    const cost = Number(item.product.costPrice || 0)
+                    if (cost <= 0) continue // no cost — skip (services, zero-cost items)
+                    const qty = Number(item.quantity || 0)
+                    if (qty <= 0) continue
+                    const cogsAmount = qty * cost
+
+                    const cogsCode = item.product.cogsAccount?.code || SYS_ACCOUNTS.COGS
+                    const invCode = item.product.inventoryAccount?.code || SYS_ACCOUNTS.INVENTORY_ASSET
+
+                    cogsLines.push({
+                        accountCode: cogsCode,
+                        debit: cogsAmount,
+                        credit: 0,
+                        description: `HPP - ${item.product.name} (${qty} x ${cost})`,
                     })
+                    cogsLines.push({
+                        accountCode: invCode,
+                        debit: 0,
+                        credit: cogsAmount,
+                        description: `Persediaan keluar - ${item.product.name}`,
+                    })
+                }
 
-                    const cogsLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
-                    for (const item of invoiceItems) {
-                        if (!item.product) continue // service/text line — skip
-                        const cost = Number(item.product.costPrice || 0)
-                        if (cost <= 0) {
-                            console.warn(`COGS skipped for product ${item.product.name} (id: ${item.product.id}) — costPrice is ${cost}`)
-                            continue
-                        }
-                        const qty = Number(item.quantity || 0)
-                        if (qty <= 0) continue
-                        const cogsAmount = qty * cost
-
-                        const cogsCode = item.product.cogsAccount?.code || SYS_ACCOUNTS.COGS
-                        const invCode = item.product.inventoryAccount?.code || SYS_ACCOUNTS.INVENTORY_ASSET
-
-                        cogsLines.push({
-                            accountCode: cogsCode,
-                            debit: cogsAmount,
-                            credit: 0,
-                            description: `HPP - ${item.product.name} (${qty} x ${cost})`,
-                        })
-                        cogsLines.push({
-                            accountCode: invCode,
-                            debit: 0,
-                            credit: cogsAmount,
-                            description: `Persediaan keluar - ${item.product.name}`,
-                        })
+                if (cogsLines.length > 0) {
+                    const cogsResult = await postJournalEntry({
+                        description: `HPP Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
+                        date: txResult.issueDate,
+                        reference: `COGS-${txResult.number}`,
+                        invoiceId: invoiceId,
+                        sourceDocumentType: 'COGS_RECOGNITION',
+                        lines: cogsLines,
+                    })
+                    if (!cogsResult?.success) {
+                        throw new Error(`COGS posting gagal: ${cogsResult?.error || 'Unknown error'}`)
                     }
-
-                    if (cogsLines.length > 0) {
-                        await postJournalEntry({
-                            description: `HPP Penjualan ${txResult.number} - ${txResult.customerName || 'Customer'}`,
-                            date: txResult.issueDate,
-                            reference: `COGS-${txResult.number}`,
-                            invoiceId: invoiceId,
-                            sourceDocumentType: 'COGS_RECOGNITION',
-                            lines: cogsLines,
-                        })
-                    }
-                } catch (cogsError: any) {
-                    // COGS failure should not block invoice — log warning but continue
-                    console.warn(`COGS journal failed for invoice ${txResult.number}:`, cogsError?.message)
                 }
             }
         } catch (glError: any) {
@@ -1078,7 +1075,8 @@ export async function recordInvoicePayment(data: {
                     notes: data.notes,
                     invoiceId: invoice.id,
                     customerId: invoice.customerId,
-                    supplierId: invoice.supplierId
+                    supplierId: invoice.supplierId,
+                    glPostingStatus: 'PENDING',
                 }
             })
 
@@ -1178,30 +1176,65 @@ export async function recordInvoicePayment(data: {
         }
 
         if (!glResult?.success) {
-            // Atomic: GL gagal → rollback payment dan invoice status secara manual
-            // (karena GL di luar Prisma transaction untuk menghindari nested tx deadlock)
+            // GL failed → mark payment as FAILED, then rollback invoice + withholding tax
+            // (GL is outside Prisma transaction to avoid nested tx deadlock)
+            const glError = glResult?.error || 'Akun GL tidak ditemukan'
             try {
                 const { prisma } = await import("@/lib/prisma")
+
+                // Mark payment as FAILED (not deleted — preserved for monitoring/retry)
+                await prisma.payment.updateMany({
+                    where: { number: txResult.paymentNumber },
+                    data: { glPostingStatus: 'FAILED', notes: `GL FAILED: ${glError}` },
+                })
+
                 // Revert invoice balance and status
+                const settledAmount = txResult.invoiceType === 'INV_OUT'
+                    ? data.amount + pphAmount
+                    : data.amount
                 const invoice = await prisma.invoice.findUnique({ where: { id: data.invoiceId } })
                 if (invoice) {
+                    const revertedBalance = Number(invoice.balanceDue) + settledAmount
                     await prisma.invoice.update({
                         where: { id: data.invoiceId },
                         data: {
-                            balanceDue: { increment: data.amount },
-                            status: invoice.status === 'PAID' ? 'ISSUED' : invoice.status === 'PARTIAL' ? 'ISSUED' : invoice.status,
+                            balanceDue: revertedBalance,
+                            status: invoice.status === 'PAID' || invoice.status === 'PARTIAL' ? 'ISSUED' : invoice.status,
                         }
                     })
                 }
-                // Delete the payment record
-                await prisma.payment.deleteMany({ where: { number: txResult.paymentNumber } })
-            } catch (revertError) {
-                console.error("Failed to revert payment after GL failure:", revertError)
+
+                // Revert withholding tax records (was missing in original rollback)
+                if (data.withholding && pphAmount > 0) {
+                    await prisma.withholdingTax.deleteMany({
+                        where: { paymentId: txResult.paymentId },
+                    })
+                }
+            } catch (revertError: any) {
+                // Rollback failed — log full context for manual investigation
+                console.error(
+                    `[recordInvoicePayment] CRITICAL: GL failed AND rollback failed. ` +
+                    `Payment ${txResult.paymentNumber} (id: ${txResult.paymentId}) has glPostingStatus=FAILED. ` +
+                    `Invoice ${data.invoiceId} may have incorrect balanceDue. ` +
+                    `Manual intervention required.`,
+                    revertError
+                )
             }
             return {
                 success: false,
-                error: `Jurnal gagal — pembayaran dibatalkan: ${glResult?.error || 'Akun GL tidak ditemukan'}`,
+                error: `Jurnal gagal — pembayaran dibatalkan: ${glError}`,
             }
+        }
+
+        // GL posted successfully — update payment status
+        try {
+            const { prisma } = await import("@/lib/prisma")
+            await prisma.payment.updateMany({
+                where: { number: txResult.paymentNumber },
+                data: { glPostingStatus: 'POSTED' },
+            })
+        } catch {
+            // Non-critical: payment is valid, GL is posted, status field is cosmetic
         }
 
         return { success: true }
