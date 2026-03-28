@@ -2,7 +2,11 @@
 
 import React, { useState, useCallback } from "react";
 import { Upload, FileJson, AlertCircle, CheckCircle2, X } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+} from "@/components/ui/nb-dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { parseExcelWorkflow } from "@/lib/excel-parser";
@@ -159,16 +163,17 @@ export function WorkflowImportDialog({ open, onOpenChange }: WorkflowImportDialo
     }, []);
 
     return (
-        <Dialog open={open} onOpenChange={(val) => {
+        <NBDialog open={open} onOpenChange={(val) => {
             if (!val) resetState();
             onOpenChange(val);
-        }}>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-auto">
-                <DialogHeader>
-                    <DialogTitle>Impor Blueprint Alur Kerja</DialogTitle>
-                    <DialogDescription>Tarik dan lepas file Process Logic Sheet (.xlsx) atau JSON Anda di sini.</DialogDescription>
-                </DialogHeader>
+        }} size="wide">
+            <NBDialogHeader
+                icon={Upload}
+                title="Impor Blueprint Alur Kerja"
+                subtitle="Tarik dan lepas file Process Logic Sheet (.xlsx) atau JSON Anda di sini."
+            />
 
+            <NBDialogBody>
                 <div className="space-y-6 min-h-[300px] relative">
                     {/* Loading Overlay */}
                     {isProcessing && (
@@ -282,7 +287,7 @@ export function WorkflowImportDialog({ open, onOpenChange }: WorkflowImportDialo
                         </div>
                     )}
                 </div>
-            </DialogContent>
-        </Dialog>
+            </NBDialogBody>
+        </NBDialog>
     );
 }

@@ -15,14 +15,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import {
     Select,
     SelectContent,
     SelectItem,
@@ -30,6 +22,16 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 import { toast } from "sonner"
 import { queryKeys } from "@/lib/query-keys"
 import {
@@ -708,102 +710,47 @@ export function MasterView({
             {/* ================================================================= */}
             {/* Category Dialog                                                   */}
             {/* ================================================================= */}
-            <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
-                <DialogContent className="max-w-lg border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
-                    <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
-                        <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
-                            <FolderKanban className="h-5 w-5" />
-                            {catEditId ? "Edit Kategori" : "Tambah Kategori"}
-                        </DialogTitle>
-                        <DialogDescription className="font-medium text-black/60">
-                            {catEditId
-                                ? "Perbarui data kategori produk"
-                                : "Buat kategori produk baru untuk inventori"}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="p-6 space-y-4">
-                        {/* Kode */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Kode Kategori *
-                            </label>
-                            <Input
-                                value={catForm.code}
-                                onChange={(e) =>
-                                    setCatForm((prev) => ({ ...prev, code: e.target.value }))
-                                }
-                                placeholder="Contoh: KAT-001"
-                                className="border-2 border-black rounded-none h-10 font-bold"
-                            />
-                        </div>
-
-                        {/* Nama */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Nama Kategori *
-                            </label>
-                            <Input
-                                value={catForm.name}
-                                onChange={(e) =>
-                                    setCatForm((prev) => ({ ...prev, name: e.target.value }))
-                                }
-                                placeholder="Contoh: Bahan Baku Kain"
-                                className="border-2 border-black rounded-none h-10 font-bold"
-                            />
-                        </div>
-
-                        {/* Deskripsi */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Deskripsi
-                            </label>
-                            <Input
-                                value={catForm.description}
-                                onChange={(e) =>
-                                    setCatForm((prev) => ({
-                                        ...prev,
-                                        description: e.target.value,
-                                    }))
-                                }
-                                placeholder="Deskripsi singkat kategori"
-                                className="border-2 border-black rounded-none h-10 font-bold"
-                            />
-                        </div>
-
-                        {/* Parent Category */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Kategori Induk
-                            </label>
-                            <Select
-                                value={catForm.parentId || "_none"}
-                                onValueChange={(val) =>
-                                    setCatForm((prev) => ({
-                                        ...prev,
-                                        parentId: val === "_none" ? null : val,
-                                    }))
-                                }
-                            >
-                                <SelectTrigger className="border-2 border-black rounded-none h-10 font-bold">
-                                    <SelectValue placeholder="Pilih kategori induk" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="_none">Tidak ada (root)</SelectItem>
-                                    {categories
-                                        .filter((c) => c.id !== catEditId)
-                                        .map((c) => (
-                                            <SelectItem key={c.id} value={c.id}>
-                                                {c.code} - {c.name}
-                                            </SelectItem>
-                                        ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Active Toggle */}
-                        <div className="flex items-center justify-between py-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+            <NBDialog open={catDialogOpen} onOpenChange={setCatDialogOpen} size="narrow">
+                <NBDialogHeader
+                    icon={FolderKanban}
+                    title={catEditId ? "Edit Kategori" : "Tambah Kategori"}
+                    subtitle={catEditId ? "Perbarui data kategori produk" : "Buat kategori produk baru untuk inventori"}
+                />
+                <NBDialogBody>
+                    <NBSection icon={FolderKanban} title="Detail Kategori">
+                        <NBInput
+                            label="Kode Kategori"
+                            required
+                            value={catForm.code}
+                            onChange={(v) => setCatForm((prev) => ({ ...prev, code: v }))}
+                            placeholder="Contoh: KAT-001"
+                        />
+                        <NBInput
+                            label="Nama Kategori"
+                            required
+                            value={catForm.name}
+                            onChange={(v) => setCatForm((prev) => ({ ...prev, name: v }))}
+                            placeholder="Contoh: Bahan Baku Kain"
+                        />
+                        <NBTextarea
+                            label="Deskripsi"
+                            value={catForm.description}
+                            onChange={(v) => setCatForm((prev) => ({ ...prev, description: v }))}
+                            placeholder="Deskripsi singkat kategori"
+                            rows={2}
+                        />
+                        <NBSelect
+                            label="Kategori Induk"
+                            value={catForm.parentId || ""}
+                            onValueChange={(val) => setCatForm((prev) => ({ ...prev, parentId: val || null }))}
+                            placeholder="Pilih kategori induk"
+                            emptyLabel="Tidak ada (root)"
+                            options={categories
+                                .filter((c) => c.id !== catEditId)
+                                .map((c) => ({ value: c.id, label: `${c.code} - ${c.name}` }))}
+                        />
+                        <div className="flex items-center justify-between py-1">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                                 Status Aktif
                             </label>
                             <div className="flex items-center gap-2">
@@ -818,183 +765,81 @@ export function MasterView({
                                 />
                             </div>
                         </div>
-                    </div>
-
-                    <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setCatDialogOpen(false)}
-                            disabled={isPending}
-                            className="border-2 border-zinc-300 font-bold uppercase text-xs"
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleSaveCategory}
-                            disabled={isPending}
-                            className="bg-black hover:bg-zinc-800 border-2 border-black text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)]"
-                        >
-                            {isPending ? (
-                                <>
-                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                    Menyimpan...
-                                </>
-                            ) : (
-                                "Simpan"
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </NBSection>
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setCatDialogOpen(false)}
+                    onSubmit={handleSaveCategory}
+                    submitting={isPending}
+                    submitLabel="Simpan"
+                />
+            </NBDialog>
 
             {/* ================================================================= */}
             {/* Warehouse Dialog                                                  */}
             {/* ================================================================= */}
-            <Dialog open={whDialogOpen} onOpenChange={setWhDialogOpen}>
-                <DialogContent className="max-w-lg border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-0 overflow-hidden bg-white">
-                    <DialogHeader className="p-6 pb-2 border-b border-black/10 bg-zinc-50">
-                        <DialogTitle className="text-lg font-black uppercase flex items-center gap-2">
-                            <Warehouse className="h-5 w-5" />
-                            {whEditId ? "Edit Gudang" : "Tambah Gudang"}
-                        </DialogTitle>
-                        <DialogDescription className="font-medium text-black/60">
-                            {whEditId
-                                ? "Perbarui data gudang operasional"
-                                : "Daftarkan gudang baru ke dalam sistem"}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="p-6 space-y-4">
-                        {/* Kode */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Kode Gudang *
-                            </label>
-                            <Input
-                                value={whForm.code}
-                                onChange={(e) =>
-                                    setWhForm((prev) => ({ ...prev, code: e.target.value }))
-                                }
-                                placeholder="Contoh: GDG-01"
-                                className="border-2 border-black rounded-none h-10 font-bold"
-                            />
-                        </div>
-
-                        {/* Nama */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Nama Gudang *
-                            </label>
-                            <Input
-                                value={whForm.name}
-                                onChange={(e) =>
-                                    setWhForm((prev) => ({ ...prev, name: e.target.value }))
-                                }
-                                placeholder="Contoh: Gudang Utama Bandung"
-                                className="border-2 border-black rounded-none h-10 font-bold"
-                            />
-                        </div>
-
-                        {/* Alamat */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Alamat
-                            </label>
-                            <Input
-                                value={whForm.address}
-                                onChange={(e) =>
-                                    setWhForm((prev) => ({ ...prev, address: e.target.value }))
-                                }
-                                placeholder="Jl. Industri No. 10"
-                                className="border-2 border-black rounded-none h-10 font-bold"
-                            />
-                        </div>
-
-                        {/* Kota & Provinsi */}
+            <NBDialog open={whDialogOpen} onOpenChange={setWhDialogOpen} size="narrow">
+                <NBDialogHeader
+                    icon={Warehouse}
+                    title={whEditId ? "Edit Gudang" : "Tambah Gudang"}
+                    subtitle={whEditId ? "Perbarui data gudang operasional" : "Daftarkan gudang baru ke dalam sistem"}
+                />
+                <NBDialogBody>
+                    <NBSection icon={Warehouse} title="Data Gudang">
+                        <NBInput
+                            label="Kode Gudang"
+                            required
+                            value={whForm.code}
+                            onChange={(v) => setWhForm((prev) => ({ ...prev, code: v }))}
+                            placeholder="Contoh: GDG-01"
+                        />
+                        <NBInput
+                            label="Nama Gudang"
+                            required
+                            value={whForm.name}
+                            onChange={(v) => setWhForm((prev) => ({ ...prev, name: v }))}
+                            placeholder="Contoh: Gudang Utama Bandung"
+                        />
+                        <NBInput
+                            label="Alamat"
+                            value={whForm.address}
+                            onChange={(v) => setWhForm((prev) => ({ ...prev, address: v }))}
+                            placeholder="Jl. Industri No. 10"
+                        />
                         <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                    Kota
-                                </label>
-                                <Input
-                                    value={whForm.city}
-                                    onChange={(e) =>
-                                        setWhForm((prev) => ({ ...prev, city: e.target.value }))
-                                    }
-                                    placeholder="Bandung"
-                                    className="border-2 border-black rounded-none h-10 font-bold"
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                    Provinsi
-                                </label>
-                                <Input
-                                    value={whForm.province}
-                                    onChange={(e) =>
-                                        setWhForm((prev) => ({
-                                            ...prev,
-                                            province: e.target.value,
-                                        }))
-                                    }
-                                    placeholder="Jawa Barat"
-                                    className="border-2 border-black rounded-none h-10 font-bold"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Kapasitas */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Kapasitas (unit)
-                            </label>
-                            <Input
-                                type="number"
-                                min={0}
-                                value={whForm.capacity || ""}
-                                onChange={(e) =>
-                                    setWhForm((prev) => ({
-                                        ...prev,
-                                        capacity: parseInt(e.target.value, 10) || 0,
-                                    }))
-                                }
-                                placeholder="0"
-                                className="border-2 border-black rounded-none h-10 font-bold"
+                            <NBInput
+                                label="Kota"
+                                value={whForm.city}
+                                onChange={(v) => setWhForm((prev) => ({ ...prev, city: v }))}
+                                placeholder="Bandung"
+                            />
+                            <NBInput
+                                label="Provinsi"
+                                value={whForm.province}
+                                onChange={(v) => setWhForm((prev) => ({ ...prev, province: v }))}
+                                placeholder="Jawa Barat"
                             />
                         </div>
-
-                        {/* Manager */}
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                Penanggung Jawab (Manager)
-                            </label>
-                            <Select
-                                value={whForm.managerId || "_none"}
-                                onValueChange={(val) =>
-                                    setWhForm((prev) => ({
-                                        ...prev,
-                                        managerId: val === "_none" ? null : val,
-                                    }))
-                                }
-                            >
-                                <SelectTrigger className="border-2 border-black rounded-none h-10 font-bold">
-                                    <SelectValue placeholder="Pilih manager" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="_none">Tidak ada</SelectItem>
-                                    {managerOptions.map((mgr) => (
-                                        <SelectItem key={mgr.id} value={mgr.id}>
-                                            {mgr.employeeCode} - {mgr.name}{" "}
-                                            ({mgr.department})
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        {/* Active Toggle */}
-                        <div className="flex items-center justify-between py-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                        <NBInput
+                            label="Kapasitas (unit)"
+                            type="number"
+                            value={String(whForm.capacity || "")}
+                            onChange={(v) => setWhForm((prev) => ({ ...prev, capacity: parseInt(v, 10) || 0 }))}
+                            placeholder="0"
+                        />
+                        <NBSelect
+                            label="Penanggung Jawab (Manager)"
+                            value={whForm.managerId || ""}
+                            onValueChange={(val) => setWhForm((prev) => ({ ...prev, managerId: val || null }))}
+                            placeholder="Pilih manager"
+                            emptyLabel="Tidak ada"
+                            options={managerOptions.map((mgr) => ({
+                                value: mgr.id,
+                                label: `${mgr.employeeCode} - ${mgr.name} (${mgr.department})`,
+                            }))}
+                        />
+                        <div className="flex items-center justify-between py-1">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                                 Status Aktif
                             </label>
                             <div className="flex items-center gap-2">
@@ -1009,34 +854,15 @@ export function MasterView({
                                 />
                             </div>
                         </div>
-                    </div>
-
-                    <DialogFooter className="p-6 pt-2 border-t border-black/10 bg-zinc-50 flex gap-2">
-                        <Button
-                            variant="outline"
-                            onClick={() => setWhDialogOpen(false)}
-                            disabled={isPending}
-                            className="border-2 border-zinc-300 font-bold uppercase text-xs"
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleSaveWarehouse}
-                            disabled={isPending}
-                            className="bg-black hover:bg-zinc-800 border-2 border-black text-white font-black uppercase text-xs shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)]"
-                        >
-                            {isPending ? (
-                                <>
-                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                                    Menyimpan...
-                                </>
-                            ) : (
-                                "Simpan"
-                            )}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+                    </NBSection>
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setWhDialogOpen(false)}
+                    onSubmit={handleSaveWarehouse}
+                    submitting={isPending}
+                    submitLabel="Simpan"
+                />
+            </NBDialog>
         </div>
     )
 }

@@ -13,14 +13,15 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+} from "@/components/ui/nb-dialog"
 import { useWorkflowConfig } from "@/components/workflow/workflow-config-context"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -806,200 +807,133 @@ export function DocsView({
             {/* =========================================================== */}
             {/* DIALOG: Role Create / Edit                                   */}
             {/* =========================================================== */}
-            <Dialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen}>
-                <DialogContent className="max-w-3xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                    <DialogHeader className="bg-black text-white px-6 py-4">
-                        <DialogTitle className="text-lg font-black uppercase tracking-wider text-white flex items-center gap-2">
-                            <ShieldCheck className="h-5 w-5" />
-                            {editingRole ? "Edit Role" : "Tambah Role Baru"}
-                        </DialogTitle>
-                        <p className="text-zinc-400 text-[11px] font-bold mt-0.5">
-                            {editingRole
-                                ? `Perbarui data role ${editingRole.code}`
-                                : "Buat role custom baru dengan permissions"}
-                        </p>
-                    </DialogHeader>
+            <NBDialog open={roleDialogOpen} onOpenChange={setRoleDialogOpen} size="wide">
+                <NBDialogHeader
+                    icon={ShieldCheck}
+                    title={editingRole ? "Edit Role" : "Tambah Role Baru"}
+                    subtitle={editingRole ? `Perbarui data role ${editingRole.code}` : "Buat role custom baru dengan permissions"}
+                />
+                <NBDialogBody>
+                    <NBSection icon={ShieldCheck} title="Detail Role">
+                        <NBInput
+                            label="Kode Role"
+                            required
+                            value={roleForm.code}
+                            onChange={(v) => setRoleForm((f) => ({ ...f, code: v }))}
+                            disabled={!!editingRole}
+                            placeholder="Contoh: ROLE_CUSTOM_MANAGER"
+                        />
+                        <NBInput
+                            label="Nama Role"
+                            required
+                            value={roleForm.name}
+                            onChange={(v) => setRoleForm((f) => ({ ...f, name: v }))}
+                            placeholder="Contoh: Manajer Produksi"
+                        />
+                        <NBInput
+                            label="Deskripsi"
+                            value={roleForm.description}
+                            onChange={(v) => setRoleForm((f) => ({ ...f, description: v }))}
+                            placeholder="Opsional: jelaskan fungsi role ini"
+                        />
+                    </NBSection>
 
-                    <ScrollArea className="max-h-[72vh]">
-                        <div className="p-6 space-y-5">
-                            {/* Code */}
-                            <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
-                                    Kode Role <span className="text-red-500">*</span>
-                                </label>
-                                <Input
-                                    value={roleForm.code}
-                                    onChange={(e) => setRoleForm((f) => ({ ...f, code: e.target.value }))}
-                                    disabled={!!editingRole}
-                                    placeholder="Contoh: ROLE_CUSTOM_MANAGER"
-                                    className="border-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50 font-mono font-bold h-10 rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors disabled:opacity-60"
-                                />
-                            </div>
-
-                            {/* Name */}
-                            <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
-                                    Nama Role <span className="text-red-500">*</span>
-                                </label>
-                                <Input
-                                    value={roleForm.name}
-                                    onChange={(e) => setRoleForm((f) => ({ ...f, name: e.target.value }))}
-                                    placeholder="Contoh: Manajer Produksi"
-                                    className="border-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50 font-bold h-10 rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors"
-                                />
-                            </div>
-
-                            {/* Description */}
-                            <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
-                                    Deskripsi
-                                </label>
-                                <Input
-                                    value={roleForm.description}
-                                    onChange={(e) => setRoleForm((f) => ({ ...f, description: e.target.value }))}
-                                    placeholder="Opsional: jelaskan fungsi role ini"
-                                    className="border-2 border-zinc-300 dark:border-zinc-600 bg-zinc-50/50 dark:bg-zinc-800/50 font-medium h-10 rounded-none placeholder:text-zinc-400 placeholder:italic placeholder:font-normal focus:border-black dark:focus:border-white focus:bg-white dark:focus:bg-zinc-900 transition-colors"
-                                />
-                            </div>
-
-                            {/* Permissions (grouped checkboxes) */}
-                            <div>
-                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-2 block">
-                                    Permissions
-                                </label>
-                                <div className="border-2 border-black rounded-none overflow-hidden">
-                                    {permissionGroups.map(([group, options]) => (
-                                        <div key={group}>
-                                            <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                                    {group}
+                    {/* Permissions — complex checkbox grid, keep as-is inside NBSection */}
+                    <NBSection icon={Layers} title="Permissions">
+                        <div className="border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                            {permissionGroups.map(([group, options]) => (
+                                <div key={group}>
+                                    <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                            {group}
+                                        </span>
+                                    </div>
+                                    <div className="px-3 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0">
+                                        {options.map((opt) => (
+                                            <label
+                                                key={opt.key}
+                                                className="flex items-center gap-2 cursor-pointer"
+                                            >
+                                                <Checkbox
+                                                    checked={roleForm.permissions.includes(opt.key)}
+                                                    onCheckedChange={() => togglePermInForm(opt.key)}
+                                                />
+                                                <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                                    {opt.label}
                                                 </span>
-                                            </div>
-                                            <div className="px-3 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0">
-                                                {options.map((opt) => (
-                                                    <label
-                                                        key={opt.key}
-                                                        className="flex items-center gap-2 cursor-pointer"
-                                                    >
-                                                        <Checkbox
-                                                            checked={roleForm.permissions.includes(opt.key)}
-                                                            onCheckedChange={() => togglePermInForm(opt.key)}
-                                                        />
-                                                        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                                                            {opt.label}
-                                                        </span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ))}
+                                            </label>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
+                            ))}
                         </div>
-                    </ScrollArea>
-
-                    {/* Footer */}
-                    <div className="border-t-2 border-black px-6 py-3 flex items-center justify-end gap-3 bg-zinc-50 dark:bg-zinc-800/50">
-                        <Button
-                            variant="outline"
-                            onClick={() => setRoleDialogOpen(false)}
-                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 font-bold uppercase text-xs tracking-wider px-6 h-9 rounded-none bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700"
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleSaveRole}
-                            disabled={savingRole}
-                            className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-8 h-11 rounded-none disabled:opacity-60"
-                        >
-                            {savingRole && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            {editingRole ? "Simpan Perubahan" : "Buat Role"}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    </NBSection>
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setRoleDialogOpen(false)}
+                    onSubmit={handleSaveRole}
+                    submitting={savingRole}
+                    submitLabel={editingRole ? "Simpan Perubahan" : "Buat Role"}
+                />
+            </NBDialog>
 
             {/* =========================================================== */}
             {/* DIALOG: Permission Manager                                   */}
             {/* =========================================================== */}
-            <Dialog open={permDialogOpen} onOpenChange={setPermDialogOpen}>
-                <DialogContent className="max-w-2xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                    <DialogHeader className="bg-black text-white px-6 py-4">
-                        <DialogTitle className="text-lg font-black uppercase tracking-wider text-white flex items-center gap-2">
-                            <Layers className="h-5 w-5" />
-                            Kelola Permissions
-                        </DialogTitle>
-                        <p className="text-zinc-400 text-[11px] font-bold mt-0.5">
-                            {permRole ? `Kelola Permissions -- ${permRole.name}` : ""}
-                        </p>
-                    </DialogHeader>
-
-                    <ScrollArea className="max-h-[72vh]">
-                        <div className="p-6">
-                            {permRole && (
-                                <div className="border-2 border-black rounded-none overflow-hidden">
-                                    {permissionGroups.map(([group, options]) => (
-                                        <div key={group}>
-                                            <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700">
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                                    {group}
-                                                </span>
-                                            </div>
-                                            <div className="px-3 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0">
-                                                {options.map((opt) => (
-                                                    <label
-                                                        key={opt.key}
-                                                        className="flex items-center gap-2 cursor-pointer"
-                                                    >
-                                                        <Checkbox
-                                                            checked={permSelections.includes(opt.key)}
-                                                            onCheckedChange={() => togglePermSelection(opt.key)}
-                                                        />
-                                                        <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                                                            {opt.label}
-                                                        </span>
-                                                    </label>
-                                                ))}
-                                            </div>
+            <NBDialog open={permDialogOpen} onOpenChange={setPermDialogOpen}>
+                <NBDialogHeader
+                    icon={Layers}
+                    title="Kelola Permissions"
+                    subtitle={permRole ? `Kelola Permissions — ${permRole.name}` : ""}
+                />
+                <NBDialogBody>
+                    {permRole && (
+                        <NBSection icon={Layers} title="Pilih Permissions">
+                            <div className="border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                {permissionGroups.map(([group, options]) => (
+                                    <div key={group}>
+                                        <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                                {group}
+                                            </span>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Selection summary */}
-                            {permRole && (
-                                <div className="mt-4 flex items-center gap-2">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                        Terpilih:
-                                    </span>
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
-                                        {permSelections.length} permission{permSelections.length !== 1 ? "s" : ""}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-
-                    {/* Footer */}
-                    <div className="border-t-2 border-black px-6 py-3 flex items-center justify-end gap-3 bg-zinc-50 dark:bg-zinc-800/50">
-                        <Button
-                            variant="outline"
-                            onClick={() => setPermDialogOpen(false)}
-                            className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 font-bold uppercase text-xs tracking-wider px-6 h-9 rounded-none bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700"
-                        >
-                            Batal
-                        </Button>
-                        <Button
-                            onClick={handleSavePerm}
-                            disabled={savingPerm}
-                            className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-y-[4px] active:shadow-none transition-all font-black uppercase text-xs tracking-wider px-8 h-11 rounded-none disabled:opacity-60"
-                        >
-                            {savingPerm && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                            Simpan Permissions
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                                        <div className="px-3 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0">
+                                            {options.map((opt) => (
+                                                <label
+                                                    key={opt.key}
+                                                    className="flex items-center gap-2 cursor-pointer"
+                                                >
+                                                    <Checkbox
+                                                        checked={permSelections.includes(opt.key)}
+                                                        onCheckedChange={() => togglePermSelection(opt.key)}
+                                                    />
+                                                    <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                                        {opt.label}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                    Terpilih:
+                                </span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-700 dark:text-zinc-300">
+                                    {permSelections.length} permission{permSelections.length !== 1 ? "s" : ""}
+                                </span>
+                            </div>
+                        </NBSection>
+                    )}
+                </NBDialogBody>
+                <NBDialogFooter
+                    onCancel={() => setPermDialogOpen(false)}
+                    onSubmit={handleSavePerm}
+                    submitting={savingPerm}
+                    submitLabel="Simpan Permissions"
+                />
+            </NBDialog>
         </div>
     )
 }
