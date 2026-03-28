@@ -21,6 +21,7 @@ import { PerformanceTracker } from "@/components/performance-tracker"
 import { CommandPalette } from "@/components/command-palette"
 import { ShortcutCheatSheet } from "@/components/shortcut-cheat-sheet"
 import { RouteProgress } from "@/components/route-progress"
+import { BackgroundRefresh } from "@/components/background-refresh"
 
 interface GlobalLayoutProps {
   children: React.ReactNode
@@ -61,6 +62,7 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
         <ServiceWorkerRegister />
         <PerformanceTracker />
         <CacheWarmingOverlay />
+        <BackgroundRefresh />
         <CommandPalette />
         <ShortcutCheatSheet />
       </AIProvider>

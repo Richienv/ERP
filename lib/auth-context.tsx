@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let subscription: { unsubscribe: () => void } | null = null
         try {
             const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-                if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED" && !session) {
+                if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
                     setUser(null)
                     setIsLoading(false)
                     return

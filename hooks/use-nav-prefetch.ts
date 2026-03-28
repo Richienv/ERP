@@ -4,6 +4,7 @@ import { useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { getTierForRoute } from "@/lib/cache-tiers"
 import { getAllCategories, getCategories, getStockMovements, getRecentAudits, getProductsForKanban } from "@/app/actions/inventory"
 import { getEmployees, getAttendanceSnapshot, getLeaveRequests, getPayrollRun } from "@/app/actions/hcm"
 import { getQuotations, getAllPriceLists } from "@/lib/actions/sales"
@@ -30,7 +31,8 @@ import { getDocumentNumbering, getPermissionMatrix } from "@/lib/actions/setting
 import { getDocumentSystemOverview } from "@/app/actions/documents-system"
 import { getHCMDashboardData } from "@/app/actions/hcm"
 import { getWarehouses } from "@/app/actions/inventory"
-import { getFixedAssets, getFixedAssetCategories } from "@/lib/actions/finance-fixed-assets"
+import { getFixedAssets, getFixedAssetCategories, getDepreciationRuns, getGLAccountsForFixedAssets, getAssetRegisterReport, getNetBookValueSummary } from "@/lib/actions/finance-fixed-assets"
+import { getGLAccounts } from "@/lib/actions/finance"
 /**
  * Maps sidebar routes to their data prefetch config.
  * Used for both hover-prefetch and warm-cache-on-mount.
@@ -94,7 +96,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.productionBom.list(),
         queryFn: () => fetch("/api/manufacturing/production-bom").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
     },
-    "/manufacturing/process-stations": {
+    "/manufacturing/processes": {
         queryKey: queryKeys.processStations.list(),
         queryFn: () => fetch("/api/manufacturing/process-stations").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
     },
@@ -632,6 +634,55 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             return { balances, stats }
         },
     },
+    // --- Pages previously missing from prefetch (audit 2026-03-27) ---
+    "/finance/payments": {
+        queryKey: queryKeys.arPayments.all,
+        queryFn: async () => {
+            const { getARPaymentRegistry, getARPaymentStats } = await import("@/lib/actions/finance-ar")
+            const [registry, stats] = await Promise.all([
+                getARPaymentRegistry({}),
+                getARPaymentStats(),
+            ])
+            return { registry, stats }
+        },
+    },
+    "/finance/fixed-assets/categories": {
+        queryKey: queryKeys.fixedAssetCategories.list(),
+        queryFn: async () => {
+            const result = await getFixedAssetCategories()
+            return result && "categories" in result ? result : { categories: [] }
+        },
+    },
+    "/finance/fixed-assets/depreciation": {
+        queryKey: queryKeys.depreciationRuns.list(),
+        queryFn: async () => {
+            const result = await getDepreciationRuns()
+            return result && "runs" in result ? result : { runs: [] }
+        },
+    },
+    "/finance/fixed-assets/reports": {
+        queryKey: queryKeys.fixedAssetReports.register(),
+        queryFn: async () => {
+            const result = await getAssetRegisterReport()
+            return result && "assets" in result ? result : { assets: [] }
+        },
+    },
+    "/accountant/coa": {
+        queryKey: queryKeys.glAccounts.list(),
+        queryFn: async () => {
+            const res = await getGLAccounts()
+            return "data" in res && res.data ? res.data : []
+        },
+    },
+    "/settings": {
+        queryKey: ["system-setting", "manufacturing.workingHoursPerMonth"] as const,
+        queryFn: async () => {
+            const res = await fetch("/api/system/settings?key=manufacturing.workingHoursPerMonth")
+            const json = await res.json()
+            const parsed = parseInt(json.value ?? "", 10)
+            return isNaN(parsed) || parsed < 1 ? 172 : parsed
+        },
+    },
 }
 
 /**
@@ -702,9 +753,12 @@ export function useNavPrefetch() {
 
             const config = routePrefetchMap[url]
             if (config) {
+                const tier = getTierForRoute(url)
                 queryClient.prefetchQuery({
                     queryKey: config.queryKey,
                     queryFn: config.queryFn,
+                    staleTime: tier.staleTime,
+                    gcTime: tier.gcTime,
                 })
             }
         },

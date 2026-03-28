@@ -16,13 +16,13 @@ const ReactQueryDevtools =
         : null
 
 // Cache version — bump this to invalidate all persisted caches on deploy
-const CACHE_BUSTER = "v1"
+export const CACHE_BUSTER = "v1"
 
 function makeQueryClient() {
     return new QueryClient({
         defaultOptions: {
             queries: {
-                staleTime: 30 * 60 * 1000,        // 30 min — data is "fresh" for this long
+                staleTime: 5 * 60 * 1000,         // 5 min — safe middle ground; per-query overrides via CACHE_TIERS
                 gcTime: 7 * 24 * 60 * 60 * 1000,  // 7 days — keep unused cache entries for persistence
                 retry: 1,
                 refetchOnWindowFocus: false,
@@ -65,11 +65,15 @@ export async function clearPersistedCache() {
     try {
         // Clear all idb-keyval entries (our cache store)
         await clear()
-    } catch {}
+    } catch (err) {
+        console.error("[Cache] Failed to clear IndexedDB — stale data may persist:", err)
+    }
     // Also clear in-memory query cache
     if (browserQueryClient) {
         browserQueryClient.clear()
     }
+    // Clear the session flag so overlay can re-trigger on next login
+    try { sessionStorage.removeItem("erp_cache_warmed") } catch {}
 }
 
 let browserQueryClient: QueryClient | undefined
