@@ -36,7 +36,7 @@ export async function provisionBadDebt(data: {
                     { accountCode: SYS_ACCOUNTS.BAD_DEBT_EXPENSE, debit: data.amount, credit: 0 },
                     { accountCode: SYS_ACCOUNTS.ALLOWANCE_DOUBTFUL, debit: 0, credit: data.amount },
                 ]
-            })
+            }, prisma)
 
             if (!glResult?.success) {
                 throw new Error(`Jurnal provisi gagal: ${(glResult as any)?.error || 'Unknown GL error'}`)
@@ -110,7 +110,7 @@ export async function writeOffBadDebt(data: {
                     { accountCode: debitAccountCode, debit: data.amount, credit: 0 },
                     { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: data.amount },
                 ]
-            })
+            }, prisma)
 
             if (!glResult?.success) {
                 throw new Error(`Jurnal hapus buku gagal: ${(glResult as any)?.error || 'Unknown GL error'}`)
@@ -239,7 +239,7 @@ export async function createCreditNote(data: {
                         credit: creditTax
                     }
                 ]
-            })
+            }, prisma)
 
             return { success: true, creditNoteId: creditNote.id, number: creditNote.number }
         })
@@ -312,7 +312,7 @@ export async function processRefund(data: {
                         credit: data.amount
                     }
                 ]
-            })
+            }, prisma)
 
             return { success: true, refundId: refund.id }
         })
@@ -419,7 +419,7 @@ export async function createPaymentVoucher(data: {
                         credit: data.amount
                     }
                 ]
-            })
+            }, prisma)
 
             return { success: true, voucherNumber: number }
         })
@@ -484,7 +484,7 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
                             credit: voucher.amount
                         }
                     ]
-                })
+                }, prisma)
 
                 return { success: true, status: 'CLEARED' }
             } else {
@@ -656,10 +656,13 @@ type ARRegistryQueryInput = {
 
 export interface RecentAllocatedPayment {
     id: string
+    number: string
     amount: number
     method: string
     reference: string | null
+    date: Date
     createdAt: Date
+    customerName: string | null
     invoice: { id: string; number: string; status: string } | null
 }
 
@@ -760,7 +763,8 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     orderBy: { createdAt: 'desc' },
                     take: 20,
                     select: {
-                        id: true, amount: true, method: true, reference: true, createdAt: true,
+                        id: true, number: true, amount: true, method: true, reference: true, date: true, createdAt: true,
+                        customer: { select: { id: true, name: true } },
                         invoice: { select: { id: true, number: true, status: true } },
                     },
                 }),
@@ -794,10 +798,13 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                 })),
                 recentPayments: recentPayments.map((p) => ({
                     id: p.id,
+                    number: p.number,
                     amount: Number(p.amount),
                     method: p.method,
                     reference: p.reference,
+                    date: p.date,
                     createdAt: p.createdAt,
+                    customerName: p.customer?.name ?? null,
                     invoice: p.invoice ? { id: p.invoice.id, number: p.invoice.number, status: p.invoice.status } : null,
                 })),
                 allCustomers,
@@ -1020,7 +1027,7 @@ export async function recordARPayment(data: {
                         reference: paymentNumber,
                         invoiceId: data.invoiceId,
                         lines: arLines,
-                    })
+                    }, prisma)
                     if (!glResult?.success) {
                         // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment + invoice update
                         throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
@@ -1055,7 +1062,7 @@ export async function recordARPayment(data: {
                         { accountCode: cashCode, debit: data.amount, credit: 0 },
                         { accountCode: SYS_ACCOUNTS.DEFERRED_REV, debit: 0, credit: data.amount } // Pendapatan Diterima Dimuka
                     ]
-                })
+                }, prisma)
                 if (!advGlResult?.success) {
                     // Atomic: GL gagal → lempar error agar withPrismaAuth rollback payment
                     throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(advGlResult as any)?.error || 'Unknown GL error'}`)
@@ -1117,7 +1124,7 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
                     { accountCode: getCashAccountCode(payment.method), debit: paymentAmount, credit: 0 }, // Kas/Bank
                     { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: paymentAmount }  // Piutang Usaha (AR)
                 ]
-            })
+            }, prisma)
             if (!matchGlResult?.success) {
                 // Atomic: GL gagal → lempar error agar withPrismaAuth rollback match
                 throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(matchGlResult as any)?.error || 'Unknown GL error'}`)

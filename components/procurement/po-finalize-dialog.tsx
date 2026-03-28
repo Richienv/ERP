@@ -150,7 +150,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                                         <SelectValue placeholder="Pilih Vendor" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {vendors.map(v => (
+                                        {(vendors || []).map(v => (
                                             <SelectItem key={v.id} value={v.id} className="font-medium">
                                                 {v.name}
                                             </SelectItem>
@@ -183,7 +183,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                                     <div className="col-span-3 px-4 py-2.5 text-right">Total</div>
                                 </div>
                             </div>
-                            {poData.items.map((item: any, idx: number) => (
+                            {(poData.items || []).map((item: any, idx: number) => (
                                 <div key={idx} className={`grid grid-cols-12 gap-0 ${idx < poData.items.length - 1 ? 'border-b border-zinc-200' : ''}`}>
                                     <div className="col-span-5 px-4 py-3 flex items-center gap-2">
                                         <Package className="h-3.5 w-3.5 text-zinc-400 shrink-0" />

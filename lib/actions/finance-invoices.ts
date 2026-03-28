@@ -338,7 +338,33 @@ export async function getInvoiceDetail(invoiceId: string) {
                 }
             })
             if (!invoice) return { success: false, error: "Invoice tidak ditemukan" }
-            return { success: true, data: invoice }
+            // Convert Prisma Decimal fields to plain numbers for client serialization
+            return {
+                success: true,
+                data: {
+                    ...invoice,
+                    subtotal: Number(invoice.subtotal || 0),
+                    taxAmount: Number(invoice.taxAmount || 0),
+                    discountAmount: Number(invoice.discountAmount || 0),
+                    totalAmount: Number(invoice.totalAmount || 0),
+                    balanceDue: Number(invoice.balanceDue || 0),
+                    exchangeRate: Number(invoice.exchangeRate || 1),
+                    amountInIDR: Number(invoice.amountInIDR || 0),
+                    items: invoice.items.map((item: any) => ({
+                        ...item,
+                        quantity: Number(item.quantity || 0),
+                        unitPrice: Number(item.unitPrice || 0),
+                        discount: Number(item.discount || 0),
+                        taxRate: Number(item.taxRate || 0),
+                        taxAmount: Number(item.taxAmount || 0),
+                        lineTotal: Number(item.lineTotal || 0),
+                    })),
+                    payments: invoice.payments.map((p: any) => ({
+                        ...p,
+                        amount: Number(p.amount || 0),
+                    })),
+                },
+            }
         })
     } catch (error: any) {
         return { success: false, error: error.message }

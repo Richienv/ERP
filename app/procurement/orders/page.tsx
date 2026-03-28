@@ -10,16 +10,16 @@ export default function PurchaseOrdersPage() {
     const searchParams = useSearchParams()
     const highlightId = searchParams.get("highlight")
 
-    if (isLoading || !data) {
+    if (isLoading || !data || !data.orders) {
         return <TablePageSkeleton accentColor="bg-blue-400" />
     }
 
     return (
         <OrdersView
-            initialOrders={data.orders}
-            vendors={data.vendors}
-            products={data.products}
-            warehouses={data.warehouses}
+            initialOrders={data.orders ?? []}
+            vendors={data.vendors ?? []}
+            products={data.products ?? []}
+            warehouses={data.warehouses ?? []}
             highlightId={highlightId}
         />
     )

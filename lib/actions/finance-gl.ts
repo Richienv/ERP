@@ -160,6 +160,90 @@ export async function createGLAccount(data: {
 // JOURNAL ENTRY SYSTEM
 // ==========================================
 
+/**
+ * Core GL journal posting logic. Operates on the provided Prisma client directly.
+ * When called from within an existing transaction, pass the tx client to avoid
+ * nested withPrismaAuth deadlocks (connection pool exhaustion).
+ */
+async function postJournalEntryInner(prisma: any, data: {
+    description: string
+    date: Date
+    reference: string
+    invoiceId?: string
+    paymentId?: string
+    sourceDocumentType?: string
+    lines: { accountCode: string; debit: number; credit: number; description?: string }[]
+}) {
+    const codes = data.lines.map(l => l.accountCode)
+    const accounts = await prisma.gLAccount.findMany({
+        where: { code: { in: codes } }
+    })
+
+    const accountMap = new Map(accounts.map((a: any) => [a.code, a]))
+
+    // Block manual journal entries from posting to control accounts (AR, AP, Inventory)
+    if (data.sourceDocumentType === 'MANUAL') {
+        for (const line of data.lines) {
+            const account = accountMap.get(line.accountCode)
+            if (account && !account.allowDirectPosting) {
+                throw new Error(
+                    `Akun kontrol ${account.code} (${account.name}) tidak boleh diposting langsung — gunakan modul AR/AP/Inventory`
+                )
+            }
+        }
+    }
+
+    const entry = await prisma.journalEntry.create({
+        data: {
+            date: data.date,
+            description: data.description,
+            reference: data.reference,
+            status: 'POSTED',
+            ...(data.invoiceId ? { invoiceId: data.invoiceId } : {}),
+            ...(data.paymentId ? { paymentId: data.paymentId } : {}),
+            lines: {
+                create: data.lines.map((line: any) => {
+                    const account = accountMap.get(line.accountCode)
+                    if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
+
+                    return {
+                        accountId: account.id,
+                        debit: line.debit,
+                        credit: line.credit,
+                        description: line.description || data.description
+                    }
+                })
+            }
+        }
+    })
+
+    for (const line of data.lines) {
+        const account = accountMap.get(line.accountCode)!
+        let balanceChange = 0
+
+        if (['ASSET', 'EXPENSE'].includes((account as any).type)) {
+            balanceChange = line.debit - line.credit
+        } else {
+            balanceChange = line.credit - line.debit
+        }
+
+        await prisma.gLAccount.update({
+            where: { id: (account as any).id },
+            data: { balance: { increment: balanceChange } }
+        })
+    }
+
+    return { success: true, id: entry.id }
+}
+
+/**
+ * Post a journal entry to the GL.
+ *
+ * @param data - Journal entry data (description, date, reference, lines)
+ * @param txClient - Optional: an existing Prisma transaction client. When provided,
+ *   skips withPrismaAuth and assertPeriodOpen (caller is responsible for both).
+ *   This prevents nested-transaction deadlocks when called from within withPrismaAuth.
+ */
 export async function postJournalEntry(data: {
     description: string
     date: Date
@@ -173,7 +257,7 @@ export async function postJournalEntry(data: {
         credit: number
         description?: string
     }[]
-}) {
+}, txClient?: any) {
     try {
         const totalDebit = data.lines.reduce((sum, line) => sum + line.debit, 0)
         const totalCredit = data.lines.reduce((sum, line) => sum + line.credit, 0)
@@ -182,76 +266,16 @@ export async function postJournalEntry(data: {
             throw new Error(`Unbalanced Journal: Debit (${totalDebit}) != Credit (${totalCredit})`)
         }
 
-        // Fail fast: check period lock BEFORE acquiring withPrismaAuth transaction
+        // If caller provides a transaction client, use it directly — no nested withPrismaAuth
+        if (txClient) {
+            return await postJournalEntryInner(txClient, data)
+        }
+
+        // Standalone call: check period + start own transaction
         await assertPeriodOpen(data.date)
 
         return await withPrismaAuth(async (prisma) => {
-            const codes = data.lines.map(l => l.accountCode)
-            const accounts = await prisma.gLAccount.findMany({
-                where: { code: { in: codes } }
-            })
-
-            const accountMap = new Map(accounts.map(a => [a.code, a]))
-
-            // Block manual journal entries from posting to control accounts (AR, AP, Inventory)
-            if (data.sourceDocumentType === 'MANUAL') {
-                for (const line of data.lines) {
-                    const account = accountMap.get(line.accountCode)
-                    if (account && !account.allowDirectPosting) {
-                        throw new Error(
-                            `Akun kontrol ${account.code} (${account.name}) tidak boleh diposting langsung — gunakan modul AR/AP/Inventory`
-                        )
-                    }
-                }
-            }
-
-            let entryId: string | undefined
-
-            await prisma.$transaction(async (tx) => {
-                const entry = await tx.journalEntry.create({
-                    data: {
-                        date: data.date,
-                        description: data.description,
-                        reference: data.reference,
-                        status: 'POSTED',
-                        ...(data.invoiceId ? { invoiceId: data.invoiceId } : {}),
-                        ...(data.paymentId ? { paymentId: data.paymentId } : {}),
-                        lines: {
-                            create: data.lines.map(line => {
-                                const account = accountMap.get(line.accountCode)
-                                if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
-
-                                return {
-                                    accountId: account.id,
-                                    debit: line.debit,
-                                    credit: line.credit,
-                                    description: line.description || data.description
-                                }
-                            })
-                        }
-                    }
-                })
-
-                entryId = entry.id
-
-                for (const line of data.lines) {
-                    const account = accountMap.get(line.accountCode)!
-                    let balanceChange = 0
-
-                    if (['ASSET', 'EXPENSE'].includes(account.type)) {
-                        balanceChange = line.debit - line.credit
-                    } else {
-                        balanceChange = line.credit - line.debit
-                    }
-
-                    await tx.gLAccount.update({
-                        where: { id: account.id },
-                        data: { balance: { increment: balanceChange } }
-                    })
-                }
-            })
-
-            return { success: true, id: entryId }
+            return await postJournalEntryInner(prisma, data)
         })
     } catch (error: any) {
         console.error("Journal Posting Error:", error)

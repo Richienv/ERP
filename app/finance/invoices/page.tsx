@@ -326,6 +326,7 @@ export default function InvoicesPage() {
             if (!result.success) throw new Error(result.error || "Gagal mengirim invoice")
             toast.success(result.status === 'OVERDUE' ? "Invoice dipindahkan ke Jatuh Tempo." : "Invoice terkirim!")
             setIsSendDialogOpen(false)
+            setActiveInvoice(null)
             invalidateAfterSend()
             // Open WhatsApp AFTER status is updated and cache invalidated
             if (sendMethod === 'WHATSAPP' && recipientContact) {
@@ -334,10 +335,10 @@ export default function InvoicesPage() {
                 window.open(`https://wa.me/${phone}?text=${text}`, '_blank')
             }
         } catch (err: any) {
-            toast.error(err?.message || "Gagal mengirim invoice")
+            console.error("Kirim invoice error:", err)
+            toast.error(err?.message || "Gagal mengirim invoice", { duration: 8000 })
         } finally {
             setSending(false)
-            setActiveInvoice(null)
         }
     }
 
@@ -917,13 +918,13 @@ export default function InvoicesPage() {
                         </div>
                     </div>
                     <DialogFooter className="p-6 pt-2 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex gap-2">
-                        <Button variant="outline" className={NB.cancelBtn} onClick={() => setIsSendDialogOpen(false)}>Batal</Button>
+                        <Button type="button" variant="outline" className={NB.cancelBtn} onClick={() => setIsSendDialogOpen(false)}>Batal</Button>
                         {sendMethod === 'WHATSAPP' ? (
-                            <Button onClick={handleConfirmSend} disabled={sending} className={NB.submitBtnGreen}>
+                            <Button type="button" onClick={handleConfirmSend} disabled={sending} className={NB.submitBtnGreen}>
                                 {sending ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Mengirim...</> : "Kirim via WhatsApp"}
                             </Button>
                         ) : (
-                            <Button onClick={handleConfirmSend} disabled={sending} className={NB.submitBtnBlue}>
+                            <Button type="button" onClick={handleConfirmSend} disabled={sending} className={NB.submitBtnBlue}>
                                 {sending ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Mengirim...</> : "Kirim via Email"}
                             </Button>
                         )}

@@ -16,8 +16,8 @@ export function usePurchaseOrders() {
                 getProductsForPO(),
                 getWarehousesForGRN(),
             ])
-            const vendors = vendorsRaw.map((v: any) => ({ id: v.id, name: v.name, email: v.email, phone: v.phone }))
-            return { orders, vendors, products, warehouses }
+            const vendors = (vendorsRaw || []).map((v: any) => ({ id: v.id, name: v.name, email: v.email, phone: v.phone }))
+            return { orders: orders || [], vendors, products: products || [], warehouses: warehouses || [] }
         },
     })
 }

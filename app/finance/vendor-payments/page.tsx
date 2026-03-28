@@ -430,42 +430,52 @@ export default function APCheckbookPage() {
 
             {/* ═══ PAYMENT FORM (Collapsible) ═══ */}
             {showForm && (
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <div className="px-4 py-3 border-b-2 border-black bg-zinc-50 dark:bg-zinc-800">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-2">
-                            <PenLine className="h-3.5 w-3.5" /> Form Pembayaran Baru
-                        </p>
+                <div className={NB.section}>
+                    <div className={NB.sectionHead}>
+                        <PenLine className="h-3.5 w-3.5 text-orange-500" />
+                        <span className={NB.sectionTitle}>Form Pembayaran Baru</span>
                     </div>
-                    <div className="p-4 space-y-4">
+                    <div className={NB.sectionBody}>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor</Label>
+                            <div className="space-y-1.5">
+                                <Label className={NB.label}>Vendor <span className={NB.labelRequired}>*</span></Label>
                                 <Select value={selectedVendorId} onValueChange={(v) => { setSelectedVendorId(v); setSelectedBillId(""); resetSignatureState() }}>
-                                    <SelectTrigger className="border-2 border-black h-10 font-bold rounded-none">
-                                        <SelectValue placeholder="Pilih vendor..." />
+                                    <SelectTrigger className={`${NB.select} ${selectedVendorId ? NB.inputActive : NB.inputEmpty}`}>
+                                        <SelectValue placeholder={loading ? "Memuat vendor..." : "Pilih vendor..."} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {vendors.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)}
+                                        {loading && vendors.length === 0 ? (
+                                            <div className="flex items-center justify-center gap-2 py-4 px-3">
+                                                <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                                                <span className="text-xs font-bold text-zinc-400">Memuat data vendor...</span>
+                                            </div>
+                                        ) : vendors.length === 0 ? (
+                                            <div className="py-4 px-3 text-center">
+                                                <span className="text-xs font-bold text-zinc-400">Tidak ada vendor ditemukan</span>
+                                            </div>
+                                        ) : (
+                                            vendors.map((v) => <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>)
+                                        )}
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Jumlah (Rp)</Label>
+                            <div className="space-y-1.5">
+                                <Label className={NB.label}>Jumlah (Rp) <span className={NB.labelRequired}>*</span></Label>
                                 <Input
                                     value={amount}
                                     onChange={(e) => { setAmount(e.target.value); resetSignatureState() }}
                                     placeholder="0"
-                                    className="border-2 border-black font-mono font-black h-10 text-right rounded-none"
+                                    className={`${NB.inputMono} text-right ${amount ? NB.inputActive : NB.inputEmpty}`}
                                 />
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Metode</Label>
+                            <div className="space-y-1.5">
+                                <Label className={NB.label}>Metode</Label>
                                 <Select value={paymentMethod} onValueChange={(v: PaymentMethod) => {
                                     setPaymentMethod(v)
                                     setBankAccountCode(v === "CASH" ? "1000" : "1010")
                                     resetSignatureState()
                                 }}>
-                                    <SelectTrigger className="border-2 border-black h-10 font-bold rounded-none">
+                                    <SelectTrigger className={`${NB.select} ${NB.inputActive}`}>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -476,10 +486,10 @@ export default function APCheckbookPage() {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Akun Pembayaran <span className="text-red-500">*</span></Label>
+                            <div className="space-y-1.5">
+                                <Label className={NB.label}>Akun Pembayaran <span className={NB.labelRequired}>*</span></Label>
                                 <Select value={bankAccountCode} onValueChange={(v) => { setBankAccountCode(v); resetSignatureState() }}>
-                                    <SelectTrigger className="border-2 border-black h-10 font-bold rounded-none">
+                                    <SelectTrigger className={`${NB.select} ${bankAccountCode ? NB.inputActive : NB.inputEmpty}`}>
                                         <SelectValue placeholder="Pilih akun..." />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -495,47 +505,67 @@ export default function APCheckbookPage() {
 
                         {(paymentMethod === "CHECK" || paymentMethod === "GIRO") && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-3 border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800">
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{paymentMethod === "GIRO" ? "No. Giro" : "No. Cek"}</Label>
-                                    <Input value={checkNumber} onChange={(e) => { setCheckNumber(e.target.value); resetSignatureState() }} placeholder={paymentMethod === "GIRO" ? "GR-000123" : "CHK-000123"} className="border-2 border-black h-9 rounded-none" />
+                                <div className="space-y-1.5">
+                                    <Label className={NB.label}>{paymentMethod === "GIRO" ? "No. Giro" : "No. Cek"} <span className={NB.labelRequired}>*</span></Label>
+                                    <Input value={checkNumber} onChange={(e) => { setCheckNumber(e.target.value); resetSignatureState() }} placeholder={paymentMethod === "GIRO" ? "GR-000123" : "CHK-000123"} className={`${NB.input} h-9 ${checkNumber ? NB.inputActive : NB.inputEmpty}`} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Bank</Label>
-                                    <Input value={checkBank} onChange={(e) => { setCheckBank(e.target.value); resetSignatureState() }} placeholder="BCA / CIMB" className="border-2 border-black h-9 rounded-none" />
+                                <div className="space-y-1.5">
+                                    <Label className={NB.label}>Bank</Label>
+                                    <Input value={checkBank} onChange={(e) => { setCheckBank(e.target.value); resetSignatureState() }} placeholder="BCA / CIMB" className={`${NB.input} h-9 ${checkBank ? NB.inputActive : NB.inputEmpty}`} />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{paymentMethod === "GIRO" ? "Tanggal Jatuh Tempo" : "Tanggal Cek"}</Label>
-                                    <Input type="date" value={checkDate} onChange={(e) => { setCheckDate(e.target.value); resetSignatureState() }} className="border-2 border-black h-9 rounded-none" />
+                                <div className="space-y-1.5">
+                                    <Label className={NB.label}>{paymentMethod === "GIRO" ? "Tanggal Jatuh Tempo" : "Tanggal Cek"}</Label>
+                                    <Input type="date" value={checkDate} onChange={(e) => { setCheckDate(e.target.value); resetSignatureState() }} className={`${NB.input} h-9 ${checkDate ? NB.inputActive : NB.inputEmpty}`} />
                                 </div>
                             </div>
                         )}
 
                         {/* Bill Allocation */}
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tagihan Vendor <span className="text-red-500">*</span></Label>
+                        <div className="space-y-1.5">
+                            <Label className={NB.label}>Tagihan Vendor <span className={NB.labelRequired}>*</span></Label>
                             <Select value={selectedBillId} onValueChange={(v) => { setSelectedBillId(v); resetSignatureState() }}>
-                                <SelectTrigger className="border-2 border-black h-10 font-bold rounded-none">
-                                    <SelectValue placeholder="Pilih tagihan vendor..." />
+                                <SelectTrigger className={`${NB.select} ${selectedBillId ? NB.inputActive : NB.inputEmpty}`}>
+                                    <SelectValue placeholder={loading ? "Memuat tagihan..." : selectedVendorId ? "Pilih tagihan vendor..." : "Pilih vendor terlebih dahulu..."} />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {openBills
-                                        .filter((b: any) => !selectedVendorId || b.vendor?.id === selectedVendorId)
-                                        .map((b: any) => (
+                                    {loading && openBills.length === 0 ? (
+                                        <div className="flex items-center justify-center gap-2 py-4 px-3">
+                                            <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                                            <span className="text-xs font-bold text-zinc-400">Memuat tagihan...</span>
+                                        </div>
+                                    ) : (() => {
+                                        const filtered = openBills.filter((b: any) => !selectedVendorId || b.vendor?.id === selectedVendorId)
+                                        if (filtered.length === 0) return (
+                                            <div className="py-4 px-3 text-center">
+                                                <span className="text-xs font-bold text-zinc-400">
+                                                    {selectedVendorId ? "Tidak ada tagihan terbuka untuk vendor ini" : "Pilih vendor terlebih dahulu"}
+                                                </span>
+                                            </div>
+                                        )
+                                        return filtered.map((b: any) => (
                                             <SelectItem key={b.id} value={b.id}>
-                                                {b.number} — {b.vendor?.name ?? "?"} — Sisa: {formatIDR(b.balanceDue)} {b.isOverdue ? "⚠️" : ""}
+                                                <span className="flex items-center gap-2">
+                                                    <span className="font-mono">{b.number}</span>
+                                                    <span className="text-zinc-400">—</span>
+                                                    <span>{b.vendor?.name ?? "?"}</span>
+                                                    <span className="text-zinc-400">—</span>
+                                                    <span className="font-mono font-bold">Sisa: {formatIDR(b.balanceDue)}</span>
+                                                    {b.isOverdue && <span className="text-[9px] font-black text-red-600 bg-red-50 px-1.5 py-0.5 border border-red-200">JATUH TEMPO</span>}
+                                                </span>
                                             </SelectItem>
-                                        ))}
+                                        ))
+                                    })()}
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Referensi / Memo</Label>
-                                <Input value={reference} onChange={(e) => { setReference(e.target.value); resetSignatureState() }} placeholder="Invoice # / transfer ref..." className="border-2 border-black h-10 rounded-none" />
+                            <div className="space-y-1.5">
+                                <Label className={NB.label}>Referensi / Memo</Label>
+                                <Input value={reference} onChange={(e) => { setReference(e.target.value); resetSignatureState() }} placeholder="Invoice # / transfer ref..." className={`${NB.input} ${reference ? NB.inputActive : NB.inputEmpty}`} />
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Otorisasi</Label>
+                            <div className="space-y-1.5">
+                                <Label className={NB.label}>Otorisasi</Label>
                                 <div className="flex items-center gap-2">
                                     {isSigned ? (
                                         <div className="flex items-center gap-3 border-2 border-black px-3 py-1.5 bg-emerald-50 flex-1">

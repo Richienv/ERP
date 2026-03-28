@@ -108,8 +108,8 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                     getProductsForPO(),
                 ])
                 if (!active) return
-                setFetchedVendors(vendorData.map((v: any) => ({ id: v.id, name: v.name })))
-                setFetchedProducts(productData.map((p: any) => ({ id: p.id, name: p.name, code: p.code, unit: p.unit || 'PCS', defaultPrice: p.defaultPrice || 0 })))
+                setFetchedVendors((vendorData || []).map((v: any) => ({ id: v.id, name: v.name })))
+                setFetchedProducts((productData || []).map((p: any) => ({ id: p.id, name: p.name, code: p.code, unit: p.unit || 'PCS', defaultPrice: p.defaultPrice || 0 })))
             } catch (e) {
                 console.error("Failed to fetch PO dialog data:", e)
             } finally {

@@ -206,6 +206,8 @@ export async function getFinancialMetrics(): Promise<FinancialMetrics> {
             discountAmount: toNum(inv.discountAmount),
             totalAmount: toNum(inv.totalAmount),
             balanceDue: toNum(inv.balanceDue),
+            exchangeRate: toNum(inv.exchangeRate),
+            amountInIDR: toNum(inv.amountInIDR),
             customer: inv.customer?.name ?? inv.customer ?? null,
             supplier: typeof inv.supplier === 'object' ? inv.supplier?.name ?? null : inv.supplier ?? null,
         })
@@ -4121,10 +4123,10 @@ export async function createCreditNote(input: CreateCreditNoteInput) {
                     customerId,
                     issueDate: date,
                     dueDate: date,
+                    subtotal: -amount,
+                    taxAmount: 0,
                     totalAmount: -amount,
                     balanceDue: 0,
-                    taxAmount: 0,
-                    subtotalAmount: -amount,
                 }
             })
 
@@ -4175,23 +4177,41 @@ export async function createCreditNote(input: CreateCreditNoteInput) {
 interface CreateDebitNoteInput {
     supplierId: string
     originalBillId?: string
-    amount: number
+    subtotal: number
+    ppnAmount: number
     reason: string
     date: Date
-    apAccountId: string
-    expenseAccountId: string
 }
 
 export async function createDebitNote(input: CreateDebitNoteInput) {
     try {
         return await withPrismaAuth(async (prisma) => {
-            const { supplierId, originalBillId, amount, reason, date, apAccountId, expenseAccountId } = input
+            const { supplierId, originalBillId, subtotal, ppnAmount, reason, date } = input
+            const total = subtotal + ppnAmount
 
-            if (!supplierId || amount <= 0) {
+            if (!supplierId || subtotal <= 0) {
                 return { success: false, error: "Supplier dan jumlah wajib diisi" }
             }
 
             await assertPeriodOpen(date)
+
+            // Resolve GL accounts by code — never rely on client-passed IDs
+            const { ensureSystemAccounts } = await import("@/lib/gl-accounts-server")
+            const { SYS_ACCOUNTS } = await import("@/lib/gl-accounts")
+            await ensureSystemAccounts()
+
+            const apAccount = await prisma.gLAccount.findUnique({ where: { code: SYS_ACCOUNTS.AP } })
+            const expenseAccount = await prisma.gLAccount.findUnique({ where: { code: SYS_ACCOUNTS.COGS } })
+            const ppnAccount = ppnAmount > 0
+                ? await prisma.gLAccount.findUnique({ where: { code: SYS_ACCOUNTS.PPN_MASUKAN } })
+                : null
+
+            if (!apAccount || !expenseAccount) {
+                return { success: false, error: "Akun GL AP atau HPP tidak ditemukan. Jalankan setup Chart of Accounts." }
+            }
+            if (ppnAmount > 0 && !ppnAccount) {
+                return { success: false, error: "Akun PPN Masukan tidak ditemukan. Jalankan setup Chart of Accounts." }
+            }
 
             const count = await prisma.invoice.count({ where: { number: { startsWith: 'DN-' } } })
             const num = `DN-${String(count + 1).padStart(5, '0')}`
@@ -4204,14 +4224,25 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
                     supplierId,
                     issueDate: date,
                     dueDate: date,
-                    totalAmount: -amount,
+                    subtotal: -subtotal,
+                    taxAmount: -ppnAmount,
+                    totalAmount: -total,
                     balanceDue: 0,
-                    taxAmount: 0,
-                    subtotalAmount: -amount,
                 }
             })
 
-            // Journal: Debit AP, Credit Expense
+            // Journal: DR Hutang Usaha, CR HPP (+ CR PPN Masukan if applicable)
+            const journalLines: { accountId: string; debit: number; credit: number; description: string }[] = [
+                { accountId: apAccount.id, debit: total, credit: 0, description: `Nota Debit ${num} — pengurangan hutang usaha` },
+                { accountId: expenseAccount.id, debit: 0, credit: subtotal, description: `Nota Debit ${num} — koreksi HPP: ${reason}` },
+            ]
+            if (ppnAmount > 0 && ppnAccount) {
+                journalLines.push({
+                    accountId: ppnAccount.id, debit: 0, credit: ppnAmount,
+                    description: `Nota Debit ${num} — reversal PPN Masukan`,
+                })
+            }
+
             await prisma.journalEntry.create({
                 data: {
                     date,
@@ -4219,22 +4250,21 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
                     reference: num,
                     status: 'POSTED',
                     invoiceId: dn.id,
-                    lines: {
-                        create: [
-                            { accountId: apAccountId, debit: amount, credit: 0, description: `Nota Debit ${num} — pengurangan hutang usaha` },
-                            { accountId: expenseAccountId, credit: amount, debit: 0, description: `Nota Debit ${num} — koreksi beban/HPP: ${reason}` },
-                        ]
-                    }
+                    lines: { create: journalLines },
                 }
             })
 
-            await prisma.gLAccount.update({ where: { id: apAccountId }, data: { balance: { increment: amount } } })
-            await prisma.gLAccount.update({ where: { id: expenseAccountId }, data: { balance: { decrement: amount } } })
+            // Update GL balances — AP is liability (debit increases = reduces balance)
+            await prisma.gLAccount.update({ where: { id: apAccount.id }, data: { balance: { increment: total } } })
+            await prisma.gLAccount.update({ where: { id: expenseAccount.id }, data: { balance: { decrement: subtotal } } })
+            if (ppnAmount > 0 && ppnAccount) {
+                await prisma.gLAccount.update({ where: { id: ppnAccount.id }, data: { balance: { decrement: ppnAmount } } })
+            }
 
             if (originalBillId) {
                 const bill = await prisma.invoice.findUnique({ where: { id: originalBillId } })
                 if (bill) {
-                    const newBalance = Math.max(0, Number(bill.balanceDue) - amount)
+                    const newBalance = Math.max(0, Number(bill.balanceDue) - total)
                     await prisma.invoice.update({
                         where: { id: originalBillId },
                         data: {
@@ -4249,7 +4279,8 @@ export async function createDebitNote(input: CreateDebitNoteInput) {
         })
     } catch (error) {
         console.error("Failed to create debit note:", error)
-        return { success: false, error: "Gagal membuat debit note" }
+        const msg = error instanceof Error ? error.message : "Gagal membuat debit note"
+        return { success: false, error: msg }
     }
 }
 

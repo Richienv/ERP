@@ -23,6 +23,8 @@ import { useCreditDebitNotes } from "@/hooks/use-credit-debit-notes"
 import { createDebitNote } from "@/lib/actions/finance"
 import { useQueryClient } from "@tanstack/react-query"
 import { NB } from "@/lib/dialog-styles"
+import { TAX_RATES } from "@/lib/tax-rates"
+import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
 
 const REASON_CODES = [
     { code: "RET-DEFECT", label: "Barang Cacat/Rusak" },
@@ -49,11 +51,9 @@ export function NotaDebitTab() {
 
     const debitNotes = (data?.notes ?? []).filter((n: any) => n.type === "DEBIT_NOTE")
     const suppliers = data?.suppliers ?? []
-    const apAccounts = data?.apAccounts ?? []
-    const expenseAccounts = data?.expenseAccounts ?? []
 
     const subtotal = Number(form.amount) || 0
-    const ppnAmount = includePPN ? Math.round(subtotal * 0.11) : 0
+    const ppnAmount = includePPN ? Math.round(subtotal * TAX_RATES.PPN) : 0
     const total = subtotal + ppnAmount
 
     const totalDN = debitNotes.reduce((sum: number, n: any) => sum + Number(n.amount || 0), 0)
@@ -71,23 +71,15 @@ export function NotaDebitTab() {
             return
         }
 
-        const defaultAP = apAccounts[0]
-        const defaultExpense = expenseAccounts[0]
-        if (!defaultAP || !defaultExpense) {
-            toast.error("Akun AP atau Beban tidak ditemukan. Pastikan Chart of Accounts sudah diatur.")
-            return
-        }
-
         setSubmitting(true)
         try {
             const reasonLabel = REASON_CODES.find(r => r.code === form.reason)?.label ?? form.reason
             const result = await createDebitNote({
                 supplierId: form.supplierId,
-                amount: total,
+                subtotal,
+                ppnAmount,
                 reason: `[${form.reason}] ${reasonLabel}${form.notes ? ` — ${form.notes}` : ""}`,
                 date: new Date(form.date + "T12:00:00"),
-                apAccountId: defaultAP.id,
-                expenseAccountId: defaultExpense.id,
             })
 
             if (result.success) {
@@ -307,10 +299,10 @@ export function NotaDebitTab() {
                                         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Preview Jurnal</span>
                                     </div>
                                     <div className="p-3 space-y-1 text-[11px] font-mono">
-                                        <div className="flex justify-between"><span className="text-zinc-600">DR 2100 Hutang Usaha</span><span className="font-bold text-emerald-700">{formatIDR(total)}</span></div>
-                                        <div className="flex justify-between text-zinc-400"><span>CR 5000 HPP</span><span>{formatIDR(subtotal)}</span></div>
+                                        <div className="flex justify-between"><span className="text-zinc-600">DR {SYS_ACCOUNTS.AP} Hutang Usaha</span><span className="font-bold text-emerald-700">{formatIDR(total)}</span></div>
+                                        <div className="flex justify-between text-zinc-400"><span>CR {SYS_ACCOUNTS.COGS} HPP</span><span>{formatIDR(subtotal)}</span></div>
                                         {ppnAmount > 0 && (
-                                            <div className="flex justify-between text-zinc-400"><span>CR 1330 PPN Masukan</span><span>{formatIDR(ppnAmount)}</span></div>
+                                            <div className="flex justify-between text-zinc-400"><span>CR {SYS_ACCOUNTS.PPN_MASUKAN} PPN Masukan</span><span>{formatIDR(ppnAmount)}</span></div>
                                         )}
                                         <div className="border-t border-zinc-200 pt-1 flex justify-between font-bold text-zinc-900"><span>Total</span><span>{formatIDR(total)}</span></div>
                                     </div>

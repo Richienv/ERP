@@ -160,7 +160,7 @@ export default function PayrollPage() {
   }
 
   const handleExportCSV = async () => {
-    if (!run || run.lines.length === 0) {
+    if (!run || !run.lines?.length) {
       toast.error("Belum ada data payroll untuk diekspor")
       return
     }
@@ -192,7 +192,7 @@ export default function PayrollPage() {
   }
 
   const handleExportXLS = async () => {
-    if (!run || run.lines.length === 0) {
+    if (!run || !run.lines?.length) {
       toast.error("Belum ada data payroll untuk diekspor")
       return
     }
@@ -671,7 +671,7 @@ export default function PayrollPage() {
                       </div>
                     ))}
                   </div>
-                ) : !run || run.lines.length === 0 ? (
+                ) : !run || !run.lines?.length ? (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -686,7 +686,7 @@ export default function PayrollPage() {
                   </motion.div>
                 ) : (
                   <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                    {run.lines.map((line, idx) => (
+                    {(run.lines ?? []).map((line, idx) => (
                       <motion.div
                         key={line.employeeId}
                         custom={idx}
@@ -729,7 +729,7 @@ export default function PayrollPage() {
               </div>
 
               {/* Table Footer with Totals */}
-              {run && run.lines.length > 0 && (
+              {run && (run.lines?.length ?? 0) > 0 && (
                 <div className="px-5 py-3 border-t border-zinc-200 dark:border-zinc-700 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50">
                   <span className={NB.label + " !mb-0 !text-[10px]"}>
                     {employeeCount} karyawan

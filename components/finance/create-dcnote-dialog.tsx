@@ -26,12 +26,13 @@ import {
     Trash2,
     FileText,
     Send,
+    Loader2,
 } from "lucide-react"
 import { NB } from "@/lib/dialog-styles"
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 import { useDCNoteFormData } from "@/hooks/use-credit-debit-notes"
-import { createDCNote, postDCNote } from "@/lib/actions/finance-dcnotes"
+import { createDCNote, createAndPostDCNote } from "@/lib/actions/finance-dcnotes"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 
@@ -126,7 +127,7 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split("T")[0])
     const [notes, setNotes] = useState("")
     const [items, setItems] = useState<LineItem[]>([newItem()])
-    const [submitting, setSubmitting] = useState(false)
+    const [submitting, setSubmitting] = useState<false | "draft" | "post">(false)
 
     // Derive the full DCNoteType from kind + partyType
     const selectedType: DCNoteType | null = selectedKind
@@ -210,9 +211,9 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
             return
         }
 
-        setSubmitting(true)
+        setSubmitting(andPost ? "post" : "draft")
         try {
-            const result = await createDCNote({
+            const payload = {
                 type: selectedType as any,
                 reasonCode,
                 customerId: isSalesType ? partyId : undefined,
@@ -227,21 +228,20 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                     unitPrice: item.unitPrice,
                     includePPN: item.includePPN,
                 })),
-            })
+            }
+
+            // Use combined action for post to avoid double server round-trip
+            const result = andPost
+                ? await createAndPostDCNote(payload)
+                : await createDCNote(payload)
 
             if (!result.success) {
                 toast.error(result.error || "Gagal membuat nota")
                 return
             }
 
-            // Post immediately if requested
-            if (andPost && result.id) {
-                const postResult = await postDCNote(result.id)
-                if (!postResult.success) {
-                    toast.warning(`Nota ${result.number} tersimpan, tapi gagal diposting: ${postResult.error}`)
-                } else {
-                    toast.success(`Nota ${result.number} berhasil dibuat & diposting`)
-                }
+            if (andPost) {
+                toast.success(`Nota ${result.number} berhasil dibuat & diposting`)
             } else {
                 toast.success(`Nota ${result.number} berhasil disimpan sebagai draft`)
             }
@@ -553,25 +553,33 @@ export function CreateDCNoteDialog({ open, onOpenChange }: CreateDCNoteDialogPro
                                         variant="outline"
                                         onClick={() => handleOpenChange(false)}
                                         className={NB.cancelBtn}
-                                        disabled={submitting}
+                                        disabled={!!submitting}
                                     >
                                         Batal
                                     </Button>
                                     <Button
                                         onClick={() => handleSubmit(false)}
-                                        disabled={submitting}
+                                        disabled={!!submitting}
                                         className={NB.submitBtn}
                                     >
-                                        <FileText className="h-3.5 w-3.5 mr-1.5" />
-                                        {submitting ? "Menyimpan..." : "Simpan Draft"}
+                                        {submitting === "draft" ? (
+                                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                        ) : (
+                                            <FileText className="h-3.5 w-3.5 mr-1.5" />
+                                        )}
+                                        {submitting === "draft" ? "Menyimpan..." : "Simpan Draft"}
                                     </Button>
                                     <Button
                                         onClick={() => handleSubmit(true)}
-                                        disabled={submitting}
-                                        className="bg-emerald-700 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9 rounded-none"
+                                        disabled={!!submitting}
+                                        className="bg-emerald-700 text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 h-9 rounded-none disabled:opacity-50"
                                     >
-                                        <Send className="h-3.5 w-3.5 mr-1.5" />
-                                        {submitting ? "Menyimpan..." : "Simpan & Posting"}
+                                        {submitting === "post" ? (
+                                            <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                        ) : (
+                                            <Send className="h-3.5 w-3.5 mr-1.5" />
+                                        )}
+                                        {submitting === "post" ? "Menyimpan..." : "Simpan & Posting"}
                                     </Button>
                                 </div>
                             </>

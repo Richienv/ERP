@@ -436,6 +436,21 @@ export async function createDCNote(input: {
 }
 
 /**
+ * Combined create + post in a single server call (avoids double round-trip)
+ */
+export async function createAndPostDCNote(input: Parameters<typeof createDCNote>[0]) {
+    const createResult = await createDCNote(input)
+    if (!createResult.success) return createResult
+
+    const postResult = await postDCNote(createResult.id!)
+    if (!postResult.success) {
+        return { success: false as const, error: `Nota ${createResult.number} tersimpan, tapi gagal diposting: ${postResult.error}`, id: createResult.id, number: createResult.number }
+    }
+
+    return { success: true as const, id: createResult.id, number: createResult.number, posted: true }
+}
+
+/**
  * Post a DC Note — creates journal entry and updates GL balances
  */
 export async function postDCNote(id: string) {
@@ -589,29 +604,27 @@ export async function postDCNote(id: string) {
                 },
             })
 
-            // Update GL account balances
-            for (const line of journalLines) {
-                // Get account type to determine balance direction
-                const account = await prisma.gLAccount.findUnique({
-                    where: { id: line.accountId },
-                    select: { type: true },
-                })
-                if (!account) continue
+            // Update GL account balances — batch fetch account types then update in parallel
+            const uniqueAccountIds = [...new Set(journalLines.map(l => l.accountId))]
+            const accounts = await prisma.gLAccount.findMany({
+                where: { id: { in: uniqueAccountIds } },
+                select: { id: true, type: true },
+            })
+            const accountTypeMap = new Map(accounts.map(a => [a.id, a.type]))
 
-                let balanceChange = 0
-                if (account.type === 'ASSET' || account.type === 'EXPENSE') {
-                    // Normal debit balance: debit increases, credit decreases
-                    balanceChange = line.debit - line.credit
-                } else {
-                    // Normal credit balance (LIABILITY, REVENUE, EQUITY): credit increases, debit decreases
-                    balanceChange = line.credit - line.debit
-                }
+            await Promise.all(journalLines.map(line => {
+                const accountType = accountTypeMap.get(line.accountId)
+                if (!accountType) return Promise.resolve()
 
-                await prisma.gLAccount.update({
+                const balanceChange = (accountType === 'ASSET' || accountType === 'EXPENSE')
+                    ? line.debit - line.credit
+                    : line.credit - line.debit
+
+                return prisma.gLAccount.update({
                     where: { id: line.accountId },
                     data: { balance: { increment: balanceChange } },
                 })
-            }
+            }))
 
             // Update note status
             await prisma.debitCreditNote.update({
