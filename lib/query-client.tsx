@@ -1,7 +1,7 @@
 "use client"
 
 import { QueryClient, QueryClientProvider, keepPreviousData } from "@tanstack/react-query"
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client"
+import { persistQueryClient } from "@tanstack/react-query-persist-client"
 import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister"
 import { get, set, del, clear } from "idb-keyval"
 import { useState, type ReactNode, lazy, Suspense, useEffect } from "react"
@@ -86,6 +86,15 @@ function getQueryClient() {
     return browserQueryClient
 }
 
+/**
+ * QueryProvider — wraps the app in TanStack Query with IndexedDB persistence.
+ *
+ * IMPORTANT: Uses a single <QueryClientProvider> always — no provider switch.
+ * Persistence is set up via useEffect (client-only) using the imperative
+ * persistQueryClient() API. This avoids unmounting/remounting children when
+ * switching from server to client render, which was causing the prefetch
+ * overlay to abort mid-flight and skip prematurely.
+ */
 export function QueryProvider({ children }: { children: ReactNode }) {
     const [queryClient] = useState(getQueryClient)
     const [isClient, setIsClient] = useState(false)
@@ -94,37 +103,34 @@ export function QueryProvider({ children }: { children: ReactNode }) {
         setIsClient(true)
     }, [])
 
-    // Server-side or first render — use plain provider (no persistence on server)
-    if (!isClient) {
-        return (
-            <QueryClientProvider client={queryClient}>
-                {children}
-            </QueryClientProvider>
-        )
-    }
+    // Set up IndexedDB persistence as a side effect (client-only).
+    // persistQueryClient: restores from IndexedDB, then subscribes to cache
+    // changes to auto-persist. Returns [unsubscribe, restorePromise].
+    useEffect(() => {
+        const [unsubscribe, restorePromise] = persistQueryClient({
+            queryClient,
+            persister: idbPersister,
+            maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days max cache age
+            buster: CACHE_BUSTER,
+        })
+
+        restorePromise.then(() => {
+            // Resume any paused mutations (e.g. offline writes), but do NOT
+            // invalidate all queries — let staleTime decide when to refetch.
+            queryClient.resumePausedMutations()
+        })
+
+        return unsubscribe
+    }, [queryClient])
 
     return (
-        <PersistQueryClientProvider
-            client={queryClient}
-            persistOptions={{
-                persister: idbPersister,
-                maxAge: 7 * 24 * 60 * 60 * 1000,  // 7 days max cache age
-                buster: CACHE_BUSTER,
-            }}
-            onSuccess={() => {
-                // Resume any paused mutations (e.g. offline writes), but do NOT
-                // invalidate all queries — let staleTime decide when to refetch.
-                // Calling invalidateQueries() here would wipe the cache benefit
-                // and force a full re-download on every login/lockout.
-                queryClient.resumePausedMutations()
-            }}
-        >
+        <QueryClientProvider client={queryClient}>
             {children}
-            {ReactQueryDevtools && (
+            {isClient && ReactQueryDevtools && (
                 <Suspense fallback={null}>
                     <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" />
                 </Suspense>
             )}
-        </PersistQueryClientProvider>
+        </QueryClientProvider>
     )
 }

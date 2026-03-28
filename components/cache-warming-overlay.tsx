@@ -33,19 +33,41 @@ const FAILURE_THRESHOLD = 0.5   // >50% failures → show retry
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-/** Check if IndexedDB has persisted TanStack Query cache (not expired). */
+/**
+ * Check if IndexedDB has persisted TanStack Query cache with SUFFICIENT data.
+ *
+ * A partial cache (e.g., 2-3 items from an aborted prefetch) must NOT bypass
+ * the overlay. We require at least P1_TOTAL (22) queries to consider the cache
+ * "warm enough" to skip the loading screen.
+ */
 async function hasPersistedCache(): Promise<boolean> {
     try {
         // The persister stores the entire cache under this key
         const cached = await get(`${CACHE_BUSTER}:REACT_QUERY_OFFLINE_CACHE`)
-        if (!cached) return false
+        if (!cached || typeof cached !== "object") return false
 
-        // Check if the cache has actual query data (not just an empty shell)
-        // The persisted format is { timestamp, buster, clientState }
-        if (typeof cached === "object" && "timestamp" in cached) {
+        // Check expiry — the persisted format is { timestamp, buster, clientState }
+        if ("timestamp" in cached) {
             const age = Date.now() - (cached.timestamp as number)
             const maxAge = 7 * 24 * 60 * 60 * 1000 // 7 days
             if (age > maxAge) return false
+        }
+
+        // Check that the cache has meaningful data — not just an empty shell or
+        // a partial cache from a previous aborted prefetch run.
+        // Require at least P1_TOTAL queries to consider the cache "warm".
+        if ("clientState" in cached) {
+            const state = (cached as Record<string, unknown>).clientState as Record<string, unknown> | undefined
+            const queries = state?.queries
+            const queryCount = Array.isArray(queries) ? queries.length : 0
+            if (queryCount < P1_TOTAL) {
+                if (process.env.NODE_ENV === "development") {
+                    console.log(`[Prefetch] IndexedDB has ${queryCount} queries, need ${P1_TOTAL} — running full prefetch`)
+                }
+                return false
+            }
+        } else {
+            return false
         }
 
         return true
@@ -184,12 +206,18 @@ export function CacheWarmingOverlay() {
         setItemsDone(0)
         setPhase("p1")
 
+        const isDev = process.env.NODE_ENV === "development"
+        if (isDev) console.log(`[Prefetch] Starting — P1=${P1_ROUTES.length}+${P1_MASTER_DATA.length}md, P2=${P2_ROUTES.length}, P3=${P3_ROUTES.length}`)
+        const t0 = performance.now()
+
         let failures = 0
 
         // ── P1: Critical routes + master data (progress 0–60%) ──
+        if (isDev) console.log("[Prefetch] Phase P1: critical routes...")
         failures += await batchPrefetchRoutes(queryClient, P1_ROUTES, 6, tick)
 
         // Master data (all in parallel)
+        if (isDev) console.log("[Prefetch] Phase P1: master data...")
         await Promise.allSettled(
             P1_MASTER_DATA.map((key) => {
                 const config = masterDataPrefetchMap[key]
@@ -203,6 +231,8 @@ export function CacheWarmingOverlay() {
             })
         )
 
+        if (isDev) console.log(`[Prefetch] P1 done — ${failures} failures in ${Math.round(performance.now() - t0)}ms`)
+
         // Check for catastrophic failure after P1
         const p1Attempted = P1_TOTAL
         if (failures / p1Attempted > FAILURE_THRESHOLD) {
@@ -212,8 +242,11 @@ export function CacheWarmingOverlay() {
         }
 
         // ── P2: Important routes (progress 60–90%) ──
+        if (isDev) console.log("[Prefetch] Phase P2: important routes...")
         setPhase("p2")
         failures += await batchPrefetchRoutes(queryClient, P2_ROUTES, 6, tick)
+
+        if (isDev) console.log(`[Prefetch] P2 done — ${failures} total failures in ${Math.round(performance.now() - t0)}ms`)
 
         // Check for catastrophic failure after P1+P2
         const totalAttempted = P1_TOTAL + P2_TOTAL
@@ -224,6 +257,7 @@ export function CacheWarmingOverlay() {
         }
 
         // ── Dismiss overlay — app is interactive at 90% ──
+        if (isDev) console.log("[Prefetch] P1+P2 complete — dismissing overlay, starting P3 in background")
         setPhase("p3")
         dismiss()
 
@@ -231,14 +265,22 @@ export function CacheWarmingOverlay() {
         await batchPrefetchRoutes(queryClient, P3_ROUTES, 4, () => {}, 150)
         sessionStorage.setItem(SESSION_KEY, "true")
         setPhase("done")
+
+        if (isDev) console.log(`[Prefetch] All done — total ${Math.round(performance.now() - t0)}ms`)
     }, [queryClient, tick, dismiss])
 
     useEffect(() => {
-        if (authLoading || !isAuthenticated || hasStarted.current) return
+        const isDev = process.env.NODE_ENV === "development"
+
+        if (authLoading || !isAuthenticated || hasStarted.current) {
+            if (isDev && hasStarted.current) console.log("[Prefetch] Skipping — already started")
+            return
+        }
         hasStarted.current = true
 
         // Fast path: already warmed this session (tab refresh)
         if (sessionStorage.getItem(SESSION_KEY) === "true") {
+            if (isDev) console.log("[Prefetch] Skipping — sessionStorage flag set")
             return
         }
 
@@ -246,13 +288,15 @@ export function CacheWarmingOverlay() {
         ;(async () => {
             const hasCached = await hasPersistedCache()
             if (hasCached) {
-                // Cache exists in IndexedDB → PersistQueryClientProvider will hydrate it.
-                // Mark session as warmed and skip the overlay.
+                // Cache exists in IndexedDB with sufficient data.
+                // persistQueryClient() will hydrate it in the background.
+                if (isDev) console.log("[Prefetch] Skipping overlay — IndexedDB has sufficient cached data")
                 sessionStorage.setItem(SESSION_KEY, "true")
                 return
             }
 
-            // No cache → first login experience: full prefetch with progress bar
+            // No cache (or insufficient) → first login experience: full prefetch
+            if (isDev) console.log("[Prefetch] No sufficient cache found — showing overlay")
             setShow(true)
             await runPrefetch()
         })()
