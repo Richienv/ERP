@@ -220,6 +220,15 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             return { payments, vendors }
         },
     },
+    // Companion — vendor-payments page also needs bank accounts dropdown
+    "/finance/vendor-payments#banks": {
+        queryKey: queryKeys.glAccounts.bankAccounts(),
+        queryFn: async () => {
+            const { getBankAccounts } = await import("@/lib/actions/finance-petty-cash")
+            const accounts = await getBankAccounts()
+            return accounts.filter((a: any) => /^10\d{2}$/.test(a.code))
+        },
+    },
     "/manufacturing": {
         queryKey: queryKeys.mfgDashboard.list(),
         queryFn: () => fetch("/api/manufacturing/dashboard").then((r) => r.json()).then((p) => (p.success ? p.data : {})),
@@ -270,6 +279,18 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const { getARAgingReport } = await import("@/lib/actions/finance")
             return await getARAgingReport()
+        },
+    },
+    // Companion query for receivables default tab (payments)
+    "/finance/receivables#payments": {
+        queryKey: queryKeys.arPayments.all,
+        queryFn: async () => {
+            const { getARPaymentRegistry, getARPaymentStats } = await import("@/lib/actions/finance-ar")
+            const [registry, stats] = await Promise.all([
+                getARPaymentRegistry({}),
+                getARPaymentStats(),
+            ])
+            return { registry, stats }
         },
     },
     "/manufacturing/schedule": {
@@ -489,6 +510,21 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             return res.json()
         },
     },
+    // Companion queries for /finance/planning page
+    "/finance/planning#accuracy": {
+        queryKey: queryKeys.cashflowAccuracy.trend(3),
+        queryFn: async () => {
+            const { getAccuracyTrend } = await import("@/lib/actions/finance-cashflow")
+            return await getAccuracyTrend(3)
+        },
+    },
+    "/finance/planning#obligations": {
+        queryKey: [...queryKeys.cashflowPlan.all, "upcoming", 90] as const,
+        queryFn: async () => {
+            const { getUpcomingObligations } = await import("@/lib/actions/finance-cashflow")
+            return await getUpcomingObligations(90)
+        },
+    },
     "/finance/planning/simulasi": {
         queryKey: [...queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()), true],
         queryFn: async () => {
@@ -496,6 +532,14 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             const y = new Date().getFullYear()
             const res = await fetch(`/api/finance/cashflow-plan?month=${m}&year=${y}&allStatuses=true`)
             return res.json()
+        },
+    },
+    // Companion — simulasi page also needs scenarios list
+    "/finance/planning/simulasi#scenarios": {
+        queryKey: queryKeys.cashflowScenarios.list(new Date().getMonth() + 1, new Date().getFullYear()),
+        queryFn: async () => {
+            const { getCashflowScenarios } = await import("@/lib/actions/finance-cashflow")
+            return await getCashflowScenarios(new Date().getMonth() + 1, new Date().getFullYear())
         },
     },
     "/finance/planning/aktual": {
@@ -624,6 +668,19 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const { getAPAgingReport } = await import("@/lib/actions/finance")
             return await getAPAgingReport()
+        },
+    },
+    // Companion queries for payables default tab (bills)
+    "/finance/payables#bills": {
+        queryKey: [...queryKeys.bills.list(), { q: null, status: null, page: 1, pageSize: 20 }],
+        queryFn: async () => await getVendorBillsRegistry(),
+    },
+    "/finance/payables#banks": {
+        queryKey: ["banks", "list"] as const,
+        queryFn: async () => {
+            const { getAvailableBanks } = await import("@/lib/actions/xendit")
+            const data = await getAvailableBanks()
+            return { banks: data.banks, ewallets: data.ewallets }
         },
     },
     // --- Pages previously missing from prefetch (audit 2026-03-27) ---

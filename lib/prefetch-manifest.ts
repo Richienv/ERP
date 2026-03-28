@@ -61,9 +61,13 @@ export const P2_ROUTES = [
     "/finance/journal",
     "/finance/chart-accounts",
     "/finance/vendor-payments",
+    "/finance/vendor-payments#banks",
     "/finance/bills",
     "/finance/receivables",
+    "/finance/receivables#payments",
     "/finance/payables",
+    "/finance/payables#bills",
+    "/finance/payables#banks",
     "/finance/expenses",
     "/finance/petty-cash",
     "/finance/credit-notes",
@@ -106,7 +110,10 @@ export const P3_ROUTES = [
     "/finance/opening-balances",
     "/finance/cashflow-forecast",
     "/finance/planning",
+    "/finance/planning#accuracy",
+    "/finance/planning#obligations",
     "/finance/planning/simulasi",
+    "/finance/planning/simulasi#scenarios",
     "/finance/planning/aktual",
     "/finance/fixed-assets",
     "/finance/fixed-assets/categories",
@@ -149,8 +156,8 @@ export const P3_ROUTES = [
 // ── Counts for progress bar weighting ──────────────────────────────────────
 
 export const P1_TOTAL = P1_ROUTES.length + P1_MASTER_DATA.length  // 12 + 10 = 22
-export const P2_TOTAL = P2_ROUTES.length                           // 33
-export const P3_TOTAL = P3_ROUTES.length                           // 42
+export const P2_TOTAL = P2_ROUTES.length                           // 37
+export const P3_TOTAL = P3_ROUTES.length                           // 44
 
 /**
  * Progress bar weight mapping:

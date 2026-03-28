@@ -141,6 +141,13 @@ export const ROUTE_TIERS: Record<string, CacheTier> = {
     "/hcm/attendance":                "REALTIME",
 
     "/finance/payments":              "TRANSACTIONAL",
+    "/finance/receivables#payments":  "TRANSACTIONAL",
+    "/finance/payables#bills":        "TRANSACTIONAL",
+    "/finance/payables#banks":        "MASTER",
+    "/finance/vendor-payments#banks": "MASTER",
+    "/finance/planning#accuracy":     "DASHBOARD",
+    "/finance/planning#obligations":  "DASHBOARD",
+    "/finance/planning/simulasi#scenarios": "DASHBOARD",
     "/finance/fixed-assets/depreciation": "TRANSACTIONAL",
 
     // ── Realtime (T6) ──
