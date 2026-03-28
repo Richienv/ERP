@@ -217,21 +217,18 @@ async function postJournalEntryInner(prisma: any, data: {
         }
     })
 
-    for (const line of data.lines) {
+    // Update GL balances in parallel
+    await Promise.all(data.lines.map(line => {
         const account = accountMap.get(line.accountCode)!
-        let balanceChange = 0
+        const balanceChange = ['ASSET', 'EXPENSE'].includes((account as any).type)
+            ? line.debit - line.credit
+            : line.credit - line.debit
 
-        if (['ASSET', 'EXPENSE'].includes((account as any).type)) {
-            balanceChange = line.debit - line.credit
-        } else {
-            balanceChange = line.credit - line.debit
-        }
-
-        await prisma.gLAccount.update({
+        return prisma.gLAccount.update({
             where: { id: (account as any).id },
             data: { balance: { increment: balanceChange } }
         })
-    }
+    }))
 
     return { success: true, id: entry.id }
 }
