@@ -97,8 +97,8 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: () => fetch("/api/manufacturing/production-bom").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
     },
     "/manufacturing/processes": {
-        queryKey: queryKeys.processStations.list(),
-        queryFn: () => fetch("/api/manufacturing/process-stations").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
+        queryKey: [...queryKeys.processStations.list(), { includeInactive: true }],
+        queryFn: () => fetch("/api/manufacturing/process-stations?activeOnly=false").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
     },
     "/manufacturing/orders": {
         queryKey: queryKeys.workOrders.list(),
@@ -255,7 +255,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: () => fetch("/api/manufacturing/work-orders?orderType=SPK").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
     },
     "/finance/bills": {
-        queryKey: queryKeys.bills.list(),
+        queryKey: [...queryKeys.bills.list(), { q: null, status: null, page: 1, pageSize: 20 }],
         queryFn: async () => await getVendorBillsRegistry(),
     },
     "/finance/credit-notes": {
@@ -266,14 +266,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         },
     },
     "/finance/receivables": {
-        queryKey: queryKeys.arPayments.list(),
+        queryKey: ["finance", "ar-aging"] as const,
         queryFn: async () => {
-            const { getARPaymentRegistry, getARPaymentStats } = await import("@/lib/actions/finance-ar")
-            const [registry, stats] = await Promise.all([
-                getARPaymentRegistry({}),
-                getARPaymentStats(),
-            ])
-            return { registry, stats }
+            const { getARAgingReport } = await import("@/lib/actions/finance")
+            return await getARAgingReport()
         },
     },
     "/manufacturing/schedule": {
@@ -485,7 +481,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: () => fetch("/api/finance/cashflow-forecast?months=6").then((r) => r.json()),
     },
     "/finance/planning": {
-        queryKey: queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()),
+        queryKey: [...queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()), false],
         queryFn: async () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
@@ -573,7 +569,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         },
     },
     "/finance/transactions": {
-        queryKey: queryKeys.accountTransactions.list(),
+        queryKey: [...queryKeys.accountTransactions.list(), {}],
         queryFn: () => fetch("/api/finance/transactions?limit=500").then((r) => r.json()).then((p) => ({
             entries: p.entries ?? [],
             accounts: p.accounts ?? [],
@@ -624,14 +620,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         },
     },
     "/finance/payables": {
-        queryKey: [...queryKeys.bills.all, "payables"],
+        queryKey: ["finance", "ap-aging"] as const,
         queryFn: async () => {
-            const { getVendorAPBalances, getAPStats } = await import("@/lib/actions/finance-ap")
-            const [balances, stats] = await Promise.all([
-                getVendorAPBalances().catch(() => []),
-                getAPStats().catch(() => ({})),
-            ])
-            return { balances, stats }
+            const { getAPAgingReport } = await import("@/lib/actions/finance")
+            return await getAPAgingReport()
         },
     },
     // --- Pages previously missing from prefetch (audit 2026-03-27) ---
