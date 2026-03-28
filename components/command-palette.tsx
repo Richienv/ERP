@@ -1,51 +1,79 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useEffect, useState, useCallback, useRef, useMemo } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { Command as CommandPrimitive } from "cmdk"
 import {
-  IconPlus,
-  IconFileInvoice,
-  IconShoppingCart,
-  IconPackage,
-  IconUsers,
-  IconFileText,
+  IconBolt,
   IconClock,
   IconStar,
   IconSearch,
   IconCommand,
   IconArrowRight,
+  IconArrowUpRight,
+  IconMoodEmpty,
 } from "@tabler/icons-react"
 import { usePageHistory } from "@/hooks/use-page-history"
-import { navMain, navSecondary } from "@/lib/sidebar-nav-data"
+import {
+  CMDK_ACTIONS,
+  CMDK_BY_ID,
+  PINNED_ACTIONS,
+  MODULE_META,
+  buildActionUrl,
+  type CmdKAction,
+} from "@/lib/cmdk-registry"
+import { createCmdKFilter, recordActionUsage, getRecentActionIds } from "@/lib/cmdk-search"
+import { resolveIcon } from "@/lib/cmdk-icons"
 import { cn } from "@/lib/utils"
 
-// ─── Quick Actions ───────────────────────────────────────────────────────────
+// ─── Derived collections (computed once at module level) ─────────────────────
 
-const quickActions = [
-  { title: "Buat Produk Baru", url: "/inventory/products/new", icon: IconPackage, color: "bg-blue-100 text-blue-600" },
-  { title: "Buat Penawaran Baru", url: "/sales/quotations/new", icon: IconFileText, color: "bg-green-100 text-green-600" },
-  { title: "Buat Pesanan Penjualan", url: "/sales/orders/new", icon: IconFileText, color: "bg-emerald-100 text-emerald-600" },
-  { title: "Buat PO Baru", url: "/procurement/orders?new=true", icon: IconShoppingCart, color: "bg-orange-100 text-orange-600" },
-  { title: "Buat Invoice Baru", url: "/finance/invoices?new=true", icon: IconFileInvoice, color: "bg-purple-100 text-purple-600" },
-  { title: "Buat Jurnal Baru", url: "/finance/journal/new", icon: IconFileText, color: "bg-violet-100 text-violet-600" },
-  { title: "Tambah Pelanggan", url: "/sales/customers?new=true", icon: IconUsers, color: "bg-teal-100 text-teal-600" },
-  { title: "Tambah Vendor", url: "/procurement/vendors?new=true", icon: IconUsers, color: "bg-amber-100 text-amber-600" },
-]
+const NAV_ACTIONS = CMDK_ACTIONS.filter((a) => a.type === "navigate")
+const CREATE_ACTIONS = CMDK_ACTIONS.filter((a) => a.type !== "navigate")
 
-// ─── Module color mapping ────────────────────────────────────────────────────
+// ─── Module Badge ────────────────────────────────────────────────────────────
 
-const moduleColors: Record<string, string> = {
-  Dasbor: "bg-gray-100 text-gray-600",
-  Inventori: "bg-blue-100 text-blue-600",
-  "Penjualan & CRM": "bg-green-100 text-green-600",
-  Pengadaan: "bg-orange-100 text-orange-600",
-  Keuangan: "bg-purple-100 text-purple-600",
-  Manufaktur: "bg-slate-100 text-slate-600",
-  SDM: "bg-amber-100 text-amber-700",
-  "Dokumen & Sistem": "bg-zinc-100 text-zinc-600",
-  Pengaturan: "bg-gray-100 text-gray-500",
+function ModuleBadge({ module }: { module: CmdKAction["module"] }) {
+  const meta = MODULE_META[module]
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider",
+        meta.color
+      )}
+    >
+      {meta.label}
+    </span>
+  )
+}
+
+// ─── Shortcut Hint ───────────────────────────────────────────────────────────
+
+function ShortcutHint({ shortcut }: { shortcut: string }) {
+  const parts = shortcut.split("+")
+  return (
+    <span className="ml-auto flex shrink-0 items-center gap-0.5">
+      {parts.map((part, i) => (
+        <kbd
+          key={i}
+          className="rounded border border-border/50 bg-muted/40 px-1 py-0.5 font-mono text-[10px] leading-none text-muted-foreground/50"
+        >
+          {part}
+        </kbd>
+      ))}
+    </span>
+  )
+}
+
+// ─── Type Indicator ──────────────────────────────────────────────────────────
+
+function TypeIndicator({ type }: { type: CmdKAction["type"] }) {
+  if (type === "navigate") {
+    return <IconArrowUpRight className="size-3 shrink-0 text-muted-foreground/40" />
+  }
+  // open-dialog, open-page-form, trigger-fn → action indicator
+  return <IconBolt className="size-3 shrink-0 text-amber-400" />
 }
 
 // ─── Spotlight Item ──────────────────────────────────────────────────────────
@@ -54,7 +82,10 @@ function SpotlightItem({
   onSelect,
   icon: Icon,
   iconColor,
-  children,
+  label,
+  badge,
+  typeIndicator,
+  shortcut,
   suffix,
   className,
   ...props
@@ -62,30 +93,49 @@ function SpotlightItem({
   onSelect: () => void
   icon?: React.ComponentType<{ className?: string }>
   iconColor?: string
-  children: React.ReactNode
+  label: React.ReactNode
+  badge?: React.ReactNode
+  typeIndicator?: React.ReactNode
+  shortcut?: string
   suffix?: React.ReactNode
   className?: string
   value?: string
+  keywords?: string[]
 }) {
   return (
     <CommandPrimitive.Item
       onSelect={onSelect}
       className={cn(
-        "group relative flex cursor-default items-center gap-3 rounded-xl px-3 py-2.5 text-sm outline-none select-none",
+        "group relative flex cursor-default items-center gap-3 rounded-lg px-3 py-2 text-sm outline-none select-none",
         "data-[selected=true]:bg-accent/60",
         "transition-colors duration-100",
         className
       )}
       {...props}
     >
+      {/* Icon */}
       {Icon && (
-        <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", iconColor || "bg-muted")}>
-          <Icon className="size-4" />
+        <span
+          className={cn(
+            "flex size-7 shrink-0 items-center justify-center rounded-md",
+            iconColor || "bg-muted"
+          )}
+        >
+          <Icon className="size-3.5" />
         </span>
       )}
-      <span className="flex-1 truncate">{children}</span>
-      {suffix}
-      <IconArrowRight className="size-3.5 text-muted-foreground/0 group-data-[selected=true]:text-muted-foreground transition-colors" />
+
+      {/* Label */}
+      <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
+
+      {/* Right side: badge → type → shortcut → suffix → arrow */}
+      <div className="flex shrink-0 items-center gap-2">
+        {badge}
+        {typeIndicator}
+        {shortcut && <ShortcutHint shortcut={shortcut} />}
+        {suffix}
+        <IconArrowRight className="size-3 text-muted-foreground/0 group-data-[selected=true]:text-muted-foreground/50 transition-colors" />
+      </div>
     </CommandPrimitive.Item>
   )
 }
@@ -103,9 +153,9 @@ function SpotlightGroup({
     <CommandPrimitive.Group
       heading={heading}
       className={cn(
-        "px-2 py-1.5",
-        "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1.5 [&_[cmdk-group-heading]]:pt-3",
-        "[&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-muted-foreground/70"
+        "px-2 py-1",
+        "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-3",
+        "[&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-muted-foreground/50"
       )}
     >
       {children}
@@ -113,12 +163,47 @@ function SpotlightGroup({
   )
 }
 
+// ─── Action Item renderer ────────────────────────────────────────────────────
+
+function ActionItem({
+  action,
+  onSelect,
+  suffixOverride,
+}: {
+  action: CmdKAction
+  onSelect: () => void
+  suffixOverride?: React.ReactNode
+}) {
+  const IconComponent = resolveIcon(action.icon)
+  const meta = MODULE_META[action.module]
+
+  return (
+    <SpotlightItem
+      value={action.id}
+      keywords={action.keywords}
+      onSelect={onSelect}
+      icon={IconComponent}
+      iconColor={meta.color}
+      label={action.label}
+      badge={<ModuleBadge module={action.module} />}
+      typeIndicator={<TypeIndicator type={action.type} />}
+      shortcut={action.shortcut}
+      suffix={suffixOverride}
+    />
+  )
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState("")
   const router = useRouter()
+  const pathname = usePathname()
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Custom filter using our scoring engine
+  const cmdkFilter = useMemo(() => createCmdKFilter(CMDK_BY_ID), [])
 
   // Cmd+K listener
   useEffect(() => {
@@ -132,22 +217,46 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", down)
   }, [])
 
+  // Reset search when closing
+  useEffect(() => {
+    if (!open) setSearch("")
+  }, [open])
+
+  // Page history (existing behavior preserved)
   const { getFrequentPages, getRecentPages } = usePageHistory()
   const recentPages = open ? getRecentPages(5) : []
   const frequentPages = open ? getFrequentPages(5) : []
 
+  // Recently used actions from our usage tracker
+  const recentActions = useMemo(() => {
+    if (!open) return []
+    const ids = getRecentActionIds(5)
+    return ids
+      .map((id) => CMDK_BY_ID.get(id))
+      .filter((a): a is CmdKAction => a !== undefined)
+  }, [open])
+
   const navigate = useCallback(
-    (url: string) => {
+    (url: string, actionId?: string) => {
+      if (actionId) recordActionUsage(actionId)
+
       setOpen(false)
-      router.push(url)
+      const [targetPath, targetQuery] = url.split("?")
+      if (targetPath === pathname && targetQuery) {
+        router.push(`${pathname}?${targetQuery}`)
+      } else {
+        router.push(url)
+      }
     },
-    [router]
+    [router, pathname]
   )
+
+  const isSearching = search.trim().length > 0
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
       <DialogPrimitive.Portal>
-        {/* Overlay — subtle dark with blur */}
+        {/* Overlay */}
         <DialogPrimitive.Overlay
           className={cn(
             "fixed inset-0 z-50 bg-black/25 backdrop-blur-sm",
@@ -190,13 +299,16 @@ export function CommandPalette() {
             <CommandPrimitive
               className="flex h-full w-full flex-col"
               loop
+              filter={cmdkFilter}
             >
-              {/* Search input */}
+              {/* ─── Search input ─── */}
               <div className="flex items-center gap-3 border-b border-border/40 px-4">
                 <IconSearch className="size-5 shrink-0 text-muted-foreground/60" />
                 <CommandPrimitive.Input
                   ref={inputRef}
                   placeholder="Cari halaman, aksi, menu..."
+                  value={search}
+                  onValueChange={setSearch}
                   className={cn(
                     "flex h-14 w-full bg-transparent text-base outline-none",
                     "placeholder:text-muted-foreground/40"
@@ -207,116 +319,120 @@ export function CommandPalette() {
                 </kbd>
               </div>
 
-              {/* Results list */}
+              {/* ─── Results ─── */}
               <CommandPrimitive.List className="max-h-[min(420px,50vh)] scroll-py-2 overflow-y-auto overflow-x-hidden overscroll-contain p-1">
-                <CommandPrimitive.Empty className="flex flex-col items-center justify-center py-12 text-sm text-muted-foreground/60">
-                  <IconSearch className="mb-2 size-8 text-muted-foreground/30" />
-                  Tidak ada hasil ditemukan
+
+                {/* Empty state */}
+                <CommandPrimitive.Empty className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+                  <div className="flex size-12 items-center justify-center rounded-xl bg-muted/50">
+                    <IconMoodEmpty className="size-6 text-muted-foreground/30" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground/60">
+                      Tidak ada hasil
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground/40">
+                      Coba kata kunci lain, dalam Bahasa Indonesia atau English
+                    </p>
+                  </div>
                 </CommandPrimitive.Empty>
 
-                {/* Recent pages */}
-                {recentPages.length > 0 && (
-                  <SpotlightGroup heading="Terakhir Dikunjungi">
-                    {recentPages.map((page) => (
-                      <SpotlightItem
-                        key={`recent-${page.url}`}
-                        onSelect={() => navigate(page.url)}
-                        icon={IconClock}
-                        iconColor="bg-muted text-muted-foreground"
-                      >
-                        {page.label}
-                      </SpotlightItem>
-                    ))}
-                  </SpotlightGroup>
-                )}
-
-                {/* Frequent pages */}
-                {frequentPages.length > 0 && (
-                  <SpotlightGroup heading="Sering Digunakan">
-                    {frequentPages.map((page) => (
-                      <SpotlightItem
-                        key={`frequent-${page.url}`}
-                        onSelect={() => navigate(page.url)}
-                        icon={IconStar}
-                        iconColor="bg-amber-50 text-amber-500"
-                        suffix={
-                          <span className="tabular-nums text-[10px] font-medium text-muted-foreground/50">
-                            {page.count}x
-                          </span>
-                        }
-                      >
-                        {page.label}
-                      </SpotlightItem>
-                    ))}
-                  </SpotlightGroup>
-                )}
-
-                {/* Quick actions */}
-                <SpotlightGroup heading="Aksi Cepat">
-                  {quickActions.map((action) => (
-                    <SpotlightItem
-                      key={action.url}
-                      onSelect={() => navigate(action.url)}
-                      icon={action.icon}
-                      iconColor={action.color}
-                      suffix={
-                        <IconPlus className="size-3 text-muted-foreground/30 group-data-[selected=true]:text-muted-foreground/60" />
-                      }
-                    >
-                      {action.title}
-                    </SpotlightItem>
-                  ))}
-                </SpotlightGroup>
-
-                {/* Navigation sections */}
-                {navMain.map((section) => {
-                  if (!section.items || section.items.length === 0) {
-                    return (
-                      <SpotlightGroup key={section.title} heading={section.title}>
-                        <SpotlightItem
-                          onSelect={() => navigate(section.url)}
-                          icon={section.icon as React.ComponentType<{ className?: string }>}
-                          iconColor={moduleColors[section.title]}
-                        >
-                          {section.title}
-                        </SpotlightItem>
+                {/* ═══════ Idle state (no search) ═══════ */}
+                {!isSearching && (
+                  <>
+                    {/* Terbaru — recent pages */}
+                    {recentPages.length > 0 && (
+                      <SpotlightGroup heading="Terbaru">
+                        {recentPages.map((page) => (
+                          <SpotlightItem
+                            key={`recent-${page.url}`}
+                            onSelect={() => navigate(page.url)}
+                            icon={IconClock}
+                            iconColor="bg-muted text-muted-foreground"
+                            label={page.label}
+                          />
+                        ))}
                       </SpotlightGroup>
-                    )
-                  }
-                  return (
-                    <SpotlightGroup key={section.title} heading={section.title}>
-                      {section.items.map((item) => (
-                        <SpotlightItem
-                          key={item.url}
-                          onSelect={() => navigate(item.url)}
-                          icon={item.icon as React.ComponentType<{ className?: string }>}
-                          iconColor={moduleColors[section.title]}
-                        >
-                          {item.title}
-                        </SpotlightItem>
+                    )}
+
+                    {/* Terbaru — recent actions */}
+                    {recentActions.length > 0 && (
+                      <SpotlightGroup heading="Aksi Terakhir">
+                        {recentActions.map((action) => (
+                          <ActionItem
+                            key={`recent-act-${action.id}`}
+                            action={action}
+                            onSelect={() => navigate(buildActionUrl(action), action.id)}
+                            suffixOverride={
+                              <IconClock className="size-3 text-muted-foreground/30" />
+                            }
+                          />
+                        ))}
+                      </SpotlightGroup>
+                    )}
+
+                    {/* Sering Digunakan — frequent pages */}
+                    {frequentPages.length > 0 && (
+                      <SpotlightGroup heading="Sering Digunakan">
+                        {frequentPages.map((page) => (
+                          <SpotlightItem
+                            key={`frequent-${page.url}`}
+                            onSelect={() => navigate(page.url)}
+                            icon={IconStar}
+                            iconColor="bg-amber-50 text-amber-500"
+                            label={page.label}
+                            suffix={
+                              <span className="tabular-nums text-[10px] font-medium text-muted-foreground/40">
+                                {page.count}x
+                              </span>
+                            }
+                          />
+                        ))}
+                      </SpotlightGroup>
+                    )}
+
+                    {/* Aksi Cepat — pinned */}
+                    <SpotlightGroup heading="Aksi Cepat">
+                      {PINNED_ACTIONS.map((action) => (
+                        <ActionItem
+                          key={action.id}
+                          action={action}
+                          onSelect={() => navigate(buildActionUrl(action), action.id)}
+                        />
                       ))}
                     </SpotlightGroup>
-                  )
-                })}
+                  </>
+                )}
 
-                {/* Settings / secondary nav */}
-                <SpotlightGroup heading="Pengaturan">
-                  {navSecondary.map((item) => (
-                    <SpotlightItem
-                      key={item.url}
-                      onSelect={() => navigate(item.url)}
-                      icon={item.icon as React.ComponentType<{ className?: string }>}
-                      iconColor={moduleColors.Pengaturan}
-                    >
-                      {item.title}
-                    </SpotlightItem>
+                {/* ═══════ Search results (always rendered so cmdk can filter) ═══════ */}
+
+                {/* Aksi group — create actions */}
+                <SpotlightGroup heading="Aksi">
+                  {CREATE_ACTIONS.map((action) => (
+                    <ActionItem
+                      key={action.id}
+                      action={action}
+                      onSelect={() => navigate(buildActionUrl(action), action.id)}
+                    />
                   ))}
                 </SpotlightGroup>
+
+                {/* Halaman group — navigation */}
+                <SpotlightGroup heading="Halaman">
+                  {NAV_ACTIONS.map((action) => (
+                    <ActionItem
+                      key={action.id}
+                      action={action}
+                      onSelect={() => navigate(buildActionUrl(action), action.id)}
+                    />
+                  ))}
+                </SpotlightGroup>
+
               </CommandPrimitive.List>
 
-              {/* Footer hint */}
-              <div className="flex items-center justify-between border-t border-border/40 px-4 py-2 text-[11px] text-muted-foreground/50">
-                <div className="flex items-center gap-3">
+              {/* ─── Footer ─── */}
+              <div className="flex items-center justify-between border-t border-border/40 px-4 py-2">
+                <div className="flex items-center gap-3 text-[11px] text-muted-foreground/50">
                   <span className="flex items-center gap-1">
                     <kbd className="rounded border border-border/50 bg-muted/30 px-1 py-0.5 font-mono text-[10px]">↑↓</kbd>
                     navigasi
@@ -328,6 +444,16 @@ export function CommandPalette() {
                   <span className="flex items-center gap-1">
                     <kbd className="rounded border border-border/50 bg-muted/30 px-1 py-0.5 font-mono text-[10px]">esc</kbd>
                     tutup
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/40">
+                  <span className="flex items-center gap-1">
+                    <IconBolt className="size-3 text-amber-400/60" />
+                    aksi
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <IconArrowUpRight className="size-3 text-muted-foreground/30" />
+                    halaman
                   </span>
                 </div>
               </div>

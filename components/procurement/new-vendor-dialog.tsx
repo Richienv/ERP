@@ -65,8 +65,16 @@ const formSchema = z.object({
     bankAccountName: z.string().optional(),
 })
 
-export function NewVendorDialog() {
+export function NewVendorDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen?: boolean; onAutoOpenConsumed?: () => void } = {}) {
     const [open, setOpen] = useState(false)
+
+    // Auto-open when triggered by command palette action signal
+    useEffect(() => {
+        if (autoOpen && !open) {
+            setOpen(true)
+            onAutoOpenConsumed?.()
+        }
+    }, [autoOpen]) // eslint-disable-line react-hooks/exhaustive-deps
     const queryClient = useQueryClient()
     const { data: paymentTermOptions = [] } = usePaymentTerms()
     const [newCatName, setNewCatName] = useState("")

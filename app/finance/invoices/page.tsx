@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useActionSignal } from "@/hooks/use-action-signal"
 import {
     ChevronLeft,
     ChevronRight,
@@ -88,6 +89,7 @@ export default function InvoicesPage() {
     const [page, setPage] = useState(1)
     const [showAmounts, setShowAmounts] = useState(false)
 
+    const { triggered: autoOpenCreate, clear: clearAutoOpen } = useActionSignal("new")
     const [isCreatorOpen, setIsCreatorOpen] = useState(false)
     const [activeInvoice, setActiveInvoice] = useState<InvoiceKanbanItem | null>(null)
     const [isSendDialogOpen, setIsSendDialogOpen] = useState(false)
@@ -135,6 +137,14 @@ export default function InvoicesPage() {
 
     const q = (searchParams.get("q") || "").trim()
     const { data: invoices = emptyKanban, isLoading: loading } = useInvoiceKanban({ q: q || undefined })
+
+    // Auto-open create dialog from Cmd+K signal (?new=true)
+    useEffect(() => {
+        if (autoOpenCreate) {
+            setIsCreatorOpen(true)
+            clearAutoOpen()
+        }
+    }, [autoOpenCreate, clearAutoOpen])
 
     // Auto-update PPh rate when type changes
     useEffect(() => {

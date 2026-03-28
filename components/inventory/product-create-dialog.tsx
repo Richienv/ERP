@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -52,8 +52,15 @@ const WORKFLOW_HINTS: Record<string, { borderColor: string; bgColor: string; tex
     WIP: { borderColor: 'border-l-violet-400', bgColor: 'bg-violet-50', textColor: 'text-violet-700', text: 'Intermediate — dibuat oleh proses produksi, dikonsumsi oleh proses berikutnya.' },
 }
 
-export function ProductCreateDialog() {
+export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen?: boolean; onAutoOpenConsumed?: () => void } = {}) {
     const [open, setOpen] = useState(false)
+
+    useEffect(() => {
+        if (autoOpen && !open) {
+            setOpen(true)
+            onAutoOpenConsumed?.()
+        }
+    }, [autoOpen]) // eslint-disable-line react-hooks/exhaustive-deps
     const [isSubmitting, setIsSubmitting] = useState(false)
     const queryClient = useQueryClient()
 
