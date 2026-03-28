@@ -2,24 +2,17 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import { NB } from "@/lib/dialog-styles"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBSelect,
+} from "@/components/ui/nb-dialog"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { Plus } from "lucide-react"
+import { Info, Package, Plus, Ruler } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -103,119 +96,128 @@ export function FabricRollReceiveDialog({ products, warehouses, trigger }: Fabri
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger ?? (
-                    <Button className={NB.triggerBtn}>
-                        <Plus className="mr-2 h-4 w-4" /> Terima Roll Baru
-                    </Button>
-                )}
-            </DialogTrigger>
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <Plus className="h-5 w-5" /> Terima Fabric Roll
-                    </DialogTitle>
-                    <p className={NB.subtitle}>Daftarkan roll kain baru ke inventory</p>
-                </DialogHeader>
+        <>
+            {trigger ? (
+                <span onClick={() => setOpen(true)}>{trigger}</span>
+            ) : (
+                <Button
+                    onClick={() => setOpen(true)}
+                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                >
+                    <Plus className="mr-2 h-4 w-4" /> Terima Roll Baru
+                </Button>
+            )}
 
-                <div className="p-6 space-y-4 max-h-[72vh] overflow-y-auto">
+            <NBDialog open={open} onOpenChange={setOpen} size="wide">
+                <NBDialogHeader
+                    icon={Package}
+                    title="Terima Fabric Roll"
+                    subtitle="Daftarkan roll kain baru ke inventory"
+                />
+
+                <NBDialogBody>
                     {/* Basic */}
-                    <div className={NB.section}>
-                        <div className={NB.sectionHead}>
-                            <span className={NB.sectionTitle}>Data Roll</span>
-                        </div>
-                        <div className={NB.sectionBody}>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={NB.label}>Nomor Roll <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.inputMono} value={rollNumber} onChange={(e) => setRollNumber(e.target.value)} placeholder="ROLL-001" />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Panjang (meter) <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.inputMono} type="number" step="0.1" value={lengthMeters} onChange={(e) => setLengthMeters(e.target.value)} placeholder="100.0" />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Produk Kain <span className={NB.labelRequired}>*</span></label>
-                                    <ComboboxWithCreate
-                                        options={productOptions}
-                                        value={productId}
-                                        onChange={setProductId}
-                                        placeholder="Pilih kain..."
-                                        searchPlaceholder="Cari produk kain..."
-                                        emptyMessage="Produk tidak ditemukan."
-                                    />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Gudang <span className={NB.labelRequired}>*</span></label>
-                                    <Select value={warehouseId} onValueChange={setWarehouseId}>
-                                        <SelectTrigger className={NB.select}>
-                                            <SelectValue placeholder="Pilih gudang..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {warehouses.map((w) => (
-                                                <SelectItem key={w.id} value={w.id}>{w.code} — {w.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                    <NBSection icon={Ruler} title="Data Roll">
+                        <div className="grid grid-cols-2 gap-3">
+                            <NBInput
+                                label="Nomor Roll"
+                                required
+                                value={rollNumber}
+                                onChange={setRollNumber}
+                                placeholder="ROLL-001"
+                            />
+                            <NBInput
+                                label="Panjang (meter)"
+                                required
+                                type="number"
+                                value={lengthMeters}
+                                onChange={setLengthMeters}
+                                placeholder="100.0"
+                            />
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                    Produk Kain <span className="text-red-500">*</span>
+                                </label>
+                                <ComboboxWithCreate
+                                    options={productOptions}
+                                    value={productId}
+                                    onChange={setProductId}
+                                    placeholder="Pilih kain..."
+                                    searchPlaceholder="Cari produk kain..."
+                                    emptyMessage="Produk tidak ditemukan."
+                                />
                             </div>
+                            <NBSelect
+                                label="Gudang"
+                                required
+                                value={warehouseId}
+                                onValueChange={setWarehouseId}
+                                placeholder="Pilih gudang..."
+                                options={warehouses.map((w) => ({
+                                    value: w.id,
+                                    label: `${w.code} — ${w.name}`,
+                                }))}
+                            />
                         </div>
-                    </div>
+                    </NBSection>
 
                     {/* Details */}
-                    <div className={NB.section}>
-                        <div className={NB.sectionHead}>
-                            <span className={NB.sectionTitle}>Detail Tambahan</span>
+                    <NBSection icon={Info} title="Detail Tambahan" optional>
+                        <div className="grid grid-cols-3 gap-3">
+                            <NBInput
+                                label="Lebar (cm)"
+                                type="number"
+                                value={widthCm}
+                                onChange={setWidthCm}
+                                placeholder="150.0"
+                            />
+                            <NBInput
+                                label="Berat (kg)"
+                                type="number"
+                                value={weight}
+                                onChange={setWeight}
+                                placeholder="25.0"
+                            />
+                            <NBInput
+                                label="Dye Lot"
+                                value={dyeLot}
+                                onChange={setDyeLot}
+                                placeholder="LOT-2024-01"
+                            />
+                            <NBSelect
+                                label="Grade"
+                                value={grade}
+                                onValueChange={setGrade}
+                                placeholder="—"
+                                options={[
+                                    { value: "A", label: "A — Premium" },
+                                    { value: "B", label: "B — Standar" },
+                                    { value: "C", label: "C — Inferior" },
+                                ]}
+                            />
+                            <NBInput
+                                label="Lokasi Bin"
+                                value={locationBin}
+                                onChange={setLocationBin}
+                                placeholder="R1-S2-B3"
+                            />
+                            <NBInput
+                                label="Referensi"
+                                value={reference}
+                                onChange={setReference}
+                                placeholder="PO-001"
+                            />
                         </div>
-                        <div className={NB.sectionBody}>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label className={NB.label}>Lebar (cm)</label>
-                                    <Input className={NB.inputMono} type="number" step="0.1" value={widthCm} onChange={(e) => setWidthCm(e.target.value)} placeholder="150.0" />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Berat (kg)</label>
-                                    <Input className={NB.inputMono} type="number" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="25.0" />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Dye Lot</label>
-                                    <Input className={NB.input} value={dyeLot} onChange={(e) => setDyeLot(e.target.value)} placeholder="LOT-2024-01" />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Grade</label>
-                                    <Select value={grade} onValueChange={setGrade}>
-                                        <SelectTrigger className={NB.select}>
-                                            <SelectValue placeholder="—" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="A">A — Premium</SelectItem>
-                                            <SelectItem value="B">B — Standar</SelectItem>
-                                            <SelectItem value="C">C — Inferior</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Lokasi Bin</label>
-                                    <Input className={NB.input} value={locationBin} onChange={(e) => setLocationBin(e.target.value)} placeholder="R1-S2-B3" />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Referensi</label>
-                                    <Input className={NB.input} value={reference} onChange={(e) => setReference(e.target.value)} placeholder="PO-001" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    </NBSection>
+                </NBDialogBody>
 
-                    {/* Footer */}
-                    <div className={NB.footer}>
-                        <Button variant="outline" onClick={() => setOpen(false)} className={NB.cancelBtn}>Batal</Button>
-                        <Button onClick={handleSubmit} disabled={loading} className={NB.submitBtn}>
-                            {loading ? "Menyimpan..." : "Terima Roll"}
-                        </Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setOpen(false)}
+                    onSubmit={handleSubmit}
+                    submitting={loading}
+                    submitLabel="Terima Roll"
+                />
+            </NBDialog>
+        </>
     )
 }

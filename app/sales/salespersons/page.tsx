@@ -21,12 +21,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBDialogFooter,
+  NBSection,
+  NBInput,
+} from "@/components/ui/nb-dialog"
 import {
   Table,
   TableBody,
@@ -355,78 +356,65 @@ export default function SalespersonsPage() {
       </Tabs>
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]">
-          <DialogHeader>
-            <DialogTitle className="font-black text-lg">
-              {form.id ? "Edit Salesperson" : "Tambah Salesperson"}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kode</Label>
-                <Input
+      <NBDialog open={dialogOpen} onOpenChange={setDialogOpen} size="narrow">
+        <NBDialogHeader
+          icon={form.id ? IconEdit : IconPlus}
+          title={form.id ? "Edit Salesperson" : "Tambah Salesperson"}
+          subtitle="Kelola data dan tarif komisi salesperson"
+        />
+        <NBDialogBody>
+          <NBSection icon={IconUsers} title="Identitas">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <NBInput
+                  label="Kode"
                   value={form.code}
-                  onChange={(e) => setForm({ ...form, code: e.target.value })}
+                  onChange={(v) => setForm({ ...form, code: v })}
                   placeholder="SP-001"
-                  className="border-2 border-black h-10 font-mono font-bold placeholder:text-zinc-300"
                   disabled={!!form.id}
                 />
                 {!form.id && (
-                  <p className="text-[10px] text-zinc-400">Kosongkan untuk auto-generate</p>
+                  <p className="text-[10px] text-zinc-400 mt-1">Kosongkan untuk auto-generate</p>
                 )}
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Nama *</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="Nama..."
-                  className="border-2 border-black h-10 font-medium placeholder:text-zinc-300"
-                />
-              </div>
+              <NBInput
+                label="Nama"
+                required
+                value={form.name}
+                onChange={(v) => setForm({ ...form, name: v })}
+                placeholder="Nama..."
+              />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Telepon</Label>
-                <Input
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  placeholder="081..."
-                  className="border-2 border-black h-10 font-medium placeholder:text-zinc-300"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Email</Label>
-                <Input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="email@..."
-                  className="border-2 border-black h-10 font-medium placeholder:text-zinc-300"
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <NBInput
+                label="Telepon"
+                value={form.phone}
+                onChange={(v) => setForm({ ...form, phone: v })}
+                placeholder="081..."
+              />
+              <NBInput
+                label="Email"
+                value={form.email}
+                onChange={(v) => setForm({ ...form, email: v })}
+                placeholder="email@..."
+              />
             </div>
+          </NBSection>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Tarif Komisi (%)</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  value={form.commissionRate}
-                  onChange={(e) => setForm({ ...form, commissionRate: e.target.value })}
-                  placeholder="2.5"
-                  className="border-2 border-black h-10 font-mono font-bold text-center placeholder:text-zinc-300"
-                />
-              </div>
-              <div className="space-y-1.5 flex flex-col justify-end">
-                <div className="flex items-center gap-2 h-10">
+          <NBSection icon={IconCurrencyDollar} title="Komisi & Status">
+            <div className="grid grid-cols-2 gap-3">
+              <NBInput
+                label="Tarif Komisi (%)"
+                type="number"
+                value={form.commissionRate}
+                onChange={(v) => setForm({ ...form, commissionRate: v })}
+                placeholder="2.5"
+              />
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                  Status
+                </label>
+                <div className="flex items-center gap-2 h-8">
                   <Switch
                     checked={form.isActive}
                     onCheckedChange={(checked) => setForm({ ...form, isActive: checked })}
@@ -437,23 +425,15 @@ export default function SalespersonsPage() {
                 </div>
               </div>
             </div>
-          </div>
-
-          <DialogFooter className="mt-4">
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="border-2 border-zinc-300 font-bold">
-              Batal
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="bg-amber-500 text-white hover:bg-amber-600 border-2 border-amber-600 font-black shadow-[3px_3px_0px_0px_rgba(0,0,0,0.2)]"
-            >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-              {form.id ? "Simpan" : "Buat"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </NBSection>
+        </NBDialogBody>
+        <NBDialogFooter
+          onCancel={() => setDialogOpen(false)}
+          onSubmit={handleSubmit}
+          submitting={submitting}
+          submitLabel={form.id ? "Simpan" : "Buat"}
+        />
+      </NBDialog>
     </div>
   )
 }

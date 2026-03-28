@@ -3,15 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Cog, Activity, Settings2 } from "lucide-react";
-import { NB } from "@/lib/dialog-styles";
+import { Cog, Activity, Settings2 } from "lucide-react";
+import {
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBDialogFooter,
+  NBSection,
+  NBInput,
+  NBSelect,
+  NBTextarea,
+} from "@/components/ui/nb-dialog";
 
 interface GroupOption {
   id: string;
@@ -175,170 +179,135 @@ export function MachineFormDialog({ open, onOpenChange, initialData, onSaved }: 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={NB.content}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <Cog className="h-5 w-5" />
-            {isEdit ? "Edit Machine" : "Create Machine"}
-          </DialogTitle>
-          <p className={NB.subtitle}>Data operasional mesin. Detail lanjutan via Document & System.</p>
-        </DialogHeader>
+    <NBDialog open={open} onOpenChange={onOpenChange}>
+      <NBDialogHeader
+        icon={Cog}
+        title={isEdit ? "Edit Machine" : "Create Machine"}
+        subtitle="Data operasional mesin. Detail lanjutan via Document & System."
+      />
 
-        <ScrollArea className={NB.scroll}>
-          <div className="p-5 space-y-4">
-            {/* Identity */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
-                <Cog className="h-4 w-4" />
-                <span className={NB.sectionTitle}>Identity</span>
-              </div>
-              <div className={NB.sectionBody}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={NB.label}>Machine Code {!isEdit && <span className={NB.labelRequired}>*</span>}</label>
-                    <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="MC-001" disabled={isEdit} className={NB.inputMono} />
-                  </div>
-                  <div>
-                    <label className={NB.label}>Machine Name <span className={NB.labelRequired}>*</span></label>
-                    <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Cutting Machine A" className={NB.input} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className={NB.label}>Group</label>
-                    <Select value={groupId} onValueChange={setGroupId} disabled={loadingOptions}>
-                      <SelectTrigger className={NB.select}>
-                        <SelectValue placeholder="Select group" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Group</SelectItem>
-                        {groups.map((group) => (
-                          <SelectItem key={group.id} value={group.id}>
-                            {group.code} - {group.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className={NB.label}>Status</label>
-                    <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger className={NB.select}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="IDLE">IDLE</SelectItem>
-                        <SelectItem value="RUNNING">RUNNING</SelectItem>
-                        <SelectItem value="MAINTENANCE">MAINTENANCE</SelectItem>
-                        <SelectItem value="BREAKDOWN">BREAKDOWN</SelectItem>
-                        <SelectItem value="OFFLINE">OFFLINE</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className={NB.label}>Activation</label>
-                    <Select value={isActive} onValueChange={setIsActive}>
-                      <SelectTrigger className={NB.select}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="true">Active</SelectItem>
-                        <SelectItem value="false">Inactive</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Operational */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
-                <Activity className="h-4 w-4" />
-                <span className={NB.sectionTitle}>Operational</span>
-              </div>
-              <div className={NB.sectionBody}>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className={NB.label}>Capacity / Hour</label>
-                    <Input type="number" min={0} value={capacityPerHour} onChange={(e) => setCapacityPerHour(e.target.value)} className={NB.inputMono} />
-                  </div>
-                  <div>
-                    <label className={NB.label}>Std Hours / Day</label>
-                    <Input type="number" min={1} value={standardHoursPerDay} onChange={(e) => setStandardHoursPerDay(e.target.value)} className={NB.inputMono} />
-                  </div>
-                  <div>
-                    <label className={NB.label}>Health Score</label>
-                    <Input type="number" min={0} max={100} value={healthScore} onChange={(e) => setHealthScore(e.target.value)} className={NB.inputMono} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={NB.label}>Next Maintenance</label>
-                    <Input type="date" value={nextMaintenance} onChange={(e) => setNextMaintenance(e.target.value)} className={NB.input} />
-                  </div>
-                  <div>
-                    <label className={NB.label}>Quick Note</label>
-                    <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={NB.textarea + " min-h-[40px]"} placeholder="Optional note" />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Advanced */}
-            <div className={NB.section}>
-              <details>
-                <summary className={`${NB.sectionHead} border-l-4 border-l-zinc-300 cursor-pointer`}>
-                  <Settings2 className="h-4 w-4" />
-                  <span className={NB.sectionTitle}>Advanced (Document & System)</span>
-                </summary>
-                <div className={NB.sectionBody}>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <label className={NB.label}>Brand</label>
-                      <Input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Juki" className={NB.input} />
-                    </div>
-                    <div>
-                      <label className={NB.label}>Model</label>
-                      <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="DDL-8700" className={NB.input} />
-                    </div>
-                    <div>
-                      <label className={NB.label}>Serial Number</label>
-                      <Input value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} placeholder="SN-12345" className={NB.inputMono} />
-                    </div>
-                    <div>
-                      <label className={NB.label}>OH Time / Hour</label>
-                      <Input type="number" min={0} step="0.01" value={overheadTimePerHour} onChange={(e) => setOverheadTimePerHour(e.target.value)} className={NB.inputMono} />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className={NB.label}>OH Material Cost / Hour</label>
-                      <Input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={overheadMaterialCostPerHour}
-                        onChange={(e) => setOverheadMaterialCostPerHour(e.target.value)}
-                        className={NB.inputMono}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </details>
-            </div>
-
-            {/* Footer */}
-            <div className={NB.footer}>
-              <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button className={NB.submitBtn} disabled={submitting} onClick={handleSubmit}>
-                {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</> : isEdit ? "Save Changes" : "Create Machine"}
-              </Button>
-            </div>
+      <NBDialogBody>
+        {/* Identity */}
+        <NBSection icon={Cog} title="Identity">
+          <div className="grid grid-cols-2 gap-3">
+            <NBInput
+              label="Machine Code"
+              required={!isEdit}
+              value={code}
+              onChange={setCode}
+              placeholder="MC-001"
+              disabled={isEdit}
+            />
+            <NBInput
+              label="Machine Name"
+              required
+              value={name}
+              onChange={setName}
+              placeholder="Cutting Machine A"
+            />
           </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+          <div className="grid grid-cols-3 gap-3">
+            <NBSelect
+              label="Group"
+              value={groupId}
+              onValueChange={setGroupId}
+              placeholder="Select group"
+              disabled={loadingOptions}
+            >
+              <SelectItem value="none">No Group</SelectItem>
+              {groups.map((group) => (
+                <SelectItem key={group.id} value={group.id}>
+                  {group.code} - {group.name}
+                </SelectItem>
+              ))}
+            </NBSelect>
+            <NBSelect
+              label="Status"
+              value={status}
+              onValueChange={setStatus}
+              options={[
+                { value: "IDLE", label: "IDLE" },
+                { value: "RUNNING", label: "RUNNING" },
+                { value: "MAINTENANCE", label: "MAINTENANCE" },
+                { value: "BREAKDOWN", label: "BREAKDOWN" },
+                { value: "OFFLINE", label: "OFFLINE" },
+              ]}
+            />
+            <NBSelect
+              label="Activation"
+              value={isActive}
+              onValueChange={setIsActive}
+              options={[
+                { value: "true", label: "Active" },
+                { value: "false", label: "Inactive" },
+              ]}
+            />
+          </div>
+        </NBSection>
+
+        {/* Operational */}
+        <NBSection icon={Activity} title="Operational">
+          <div className="grid grid-cols-3 gap-3">
+            <NBInput
+              label="Capacity / Hour"
+              type="number"
+              value={capacityPerHour}
+              onChange={setCapacityPerHour}
+            />
+            <NBInput
+              label="Std Hours / Day"
+              type="number"
+              value={standardHoursPerDay}
+              onChange={setStandardHoursPerDay}
+            />
+            <NBInput
+              label="Health Score"
+              type="number"
+              value={healthScore}
+              onChange={setHealthScore}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <NBInput
+              label="Next Maintenance"
+              type="date"
+              value={nextMaintenance}
+              onChange={setNextMaintenance}
+            />
+            <NBTextarea
+              label="Quick Note"
+              value={notes}
+              onChange={setNotes}
+              placeholder="Optional note"
+              rows={2}
+            />
+          </div>
+        </NBSection>
+
+        {/* Advanced */}
+        <NBSection icon={Settings2} title="Advanced (Document & System)" optional>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <NBInput label="Brand" value={brand} onChange={setBrand} placeholder="Juki" />
+            <NBInput label="Model" value={model} onChange={setModel} placeholder="DDL-8700" />
+            <NBInput label="Serial Number" value={serialNumber} onChange={setSerialNumber} placeholder="SN-12345" />
+            <NBInput label="OH Time / Hour" type="number" value={overheadTimePerHour} onChange={setOverheadTimePerHour} />
+            <NBInput
+              label="OH Material Cost / Hour"
+              type="number"
+              value={overheadMaterialCostPerHour}
+              onChange={setOverheadMaterialCostPerHour}
+              className="md:col-span-2"
+            />
+          </div>
+        </NBSection>
+      </NBDialogBody>
+
+      <NBDialogFooter
+        onCancel={() => onOpenChange(false)}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+        submitLabel={isEdit ? "Save Changes" : "Create Machine"}
+      />
+    </NBDialog>
   );
 }

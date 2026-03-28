@@ -3,15 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Trash2, Loader2, ClipboardCheck, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, ClipboardCheck, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { NB } from "@/lib/dialog-styles";
+import {
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBDialogFooter,
+  NBSection,
+  NBInput,
+  NBSelect,
+  NBTextarea,
+} from "@/components/ui/nb-dialog";
 
 interface InspectorOption {
   id: string;
@@ -104,12 +110,6 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
     loadOptions();
   }, [open]);
 
-  const selectedStatusTone = useMemo(() => {
-    if (status === "PASS") return "border-l-emerald-400 bg-emerald-50";
-    if (status === "CONDITIONAL") return "border-l-amber-400 bg-amber-50";
-    return "border-l-red-400 bg-red-50";
-  }, [status]);
-
   const updateDefect = (index: number, patch: Partial<DefectLine>) => {
     setDefects((prev) => prev.map((defect, i) => (i === index ? { ...defect, ...patch } : defect)));
   };
@@ -179,178 +179,160 @@ export function CreateInspectionDialog({ open, onOpenChange, onCreated }: Props)
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={NB.contentWide}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <ClipboardCheck className="h-5 w-5" /> Create Quality Inspection
-          </DialogTitle>
-          <p className={NB.subtitle}>Core quality form with option-based selection</p>
-        </DialogHeader>
+    <NBDialog open={open} onOpenChange={onOpenChange} size="wide">
+      <NBDialogHeader
+        icon={ClipboardCheck}
+        title="Create Quality Inspection"
+        subtitle="Core quality form with option-based selection"
+      />
 
-        <ScrollArea className={NB.scroll}>
-          <div className="p-5 space-y-4">
-            {/* Inspection Details */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 ${selectedStatusTone}`}>
-                <ClipboardCheck className="h-4 w-4" />
-                <span className={NB.sectionTitle}>Detail Inspeksi</span>
+      <NBDialogBody>
+        <NBSection icon={ClipboardCheck} title="Detail Inspeksi">
+          <div className="grid grid-cols-2 gap-3">
+            <NBInput
+              label="Batch Number"
+              required
+              value={batchNumber}
+              onChange={setBatchNumber}
+            />
+            <NBSelect
+              label="Result Status"
+              required
+              value={status}
+              onValueChange={setStatus}
+              options={[
+                { value: "PASS", label: "PASS" },
+                { value: "CONDITIONAL", label: "CONDITIONAL" },
+                { value: "FAIL", label: "FAIL" },
+              ]}
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <NBSelect
+              label="Material/Product"
+              required
+              value={materialId}
+              onValueChange={setMaterialId}
+              placeholder="Select product"
+              disabled={loadingOptions}
+            >
+              {materials.map((material) => (
+                <SelectItem key={material.id} value={material.id}>
+                  {material.code} - {material.name}
+                </SelectItem>
+              ))}
+            </NBSelect>
+            <NBSelect
+              label="Inspector"
+              required
+              value={inspectorId}
+              onValueChange={setInspectorId}
+              placeholder="Select inspector"
+              disabled={loadingOptions}
+            >
+              {inspectors.map((inspector) => (
+                <SelectItem key={inspector.id} value={inspector.id}>
+                  {inspector.firstName} {inspector.lastName || ""}
+                </SelectItem>
+              ))}
+            </NBSelect>
+            <NBSelect
+              label="Related Work Order"
+              value={workOrderId}
+              onValueChange={setWorkOrderId}
+              placeholder="Optional"
+            >
+              <SelectItem value="none">No Work Order</SelectItem>
+              {workOrders.map((workOrder) => (
+                <SelectItem key={workOrder.id} value={workOrder.id}>
+                  {workOrder.number}
+                </SelectItem>
+              ))}
+            </NBSelect>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <NBInput
+              label="Score (%)"
+              type="number"
+              value={score}
+              onChange={setScore}
+            />
+            <NBTextarea
+              label="Notes"
+              value={notes}
+              onChange={setNotes}
+              placeholder="Optional inspector notes"
+              rows={2}
+            />
+          </div>
+        </NBSection>
+
+        {/* Defects - complex table stays as-is */}
+        <NBSection icon={AlertTriangle} title="Defects" optional>
+          <div className="flex items-center justify-end -mt-1 mb-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7 text-[10px] font-black uppercase tracking-wider border border-zinc-300 rounded-none"
+              onClick={addDefect}
+            >
+              <Plus className="h-3 w-3 mr-1" /> Add Defect
+            </Button>
+          </div>
+
+          {defects.length === 0 && <p className="text-xs text-zinc-400 font-bold">No defect lines added.</p>}
+
+          {defects.map((defect, index) => (
+            <div key={index} className="grid grid-cols-12 gap-2 items-end">
+              <div className="col-span-2">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Type</label>
+                <Select value={defect.type} onValueChange={(value) => updateDefect(index, { type: value })}>
+                  <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CRITICAL">CRITICAL</SelectItem>
+                    <SelectItem value="MAJOR">MAJOR</SelectItem>
+                    <SelectItem value="MINOR">MINOR</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className={NB.sectionBody}>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={NB.label}>Batch Number <span className={NB.labelRequired}>*</span></label>
-                    <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} className={NB.inputMono} />
-                  </div>
-                  <div>
-                    <label className={NB.label}>Result Status <span className={NB.labelRequired}>*</span></label>
-                    <Select value={status} onValueChange={setStatus}>
-                      <SelectTrigger className={NB.select}>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PASS">PASS</SelectItem>
-                        <SelectItem value="CONDITIONAL">CONDITIONAL</SelectItem>
-                        <SelectItem value="FAIL">FAIL</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className={NB.label}>Material/Product <span className={NB.labelRequired}>*</span></label>
-                    <Select value={materialId} onValueChange={setMaterialId} disabled={loadingOptions}>
-                      <SelectTrigger className={NB.select}>
-                        <SelectValue placeholder="Select product" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {materials.map((material) => (
-                          <SelectItem key={material.id} value={material.id}>
-                            {material.code} - {material.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className={NB.label}>Inspector <span className={NB.labelRequired}>*</span></label>
-                    <Select value={inspectorId} onValueChange={setInspectorId} disabled={loadingOptions}>
-                      <SelectTrigger className={NB.select}>
-                        <SelectValue placeholder="Select inspector" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {inspectors.map((inspector) => (
-                          <SelectItem key={inspector.id} value={inspector.id}>
-                            {inspector.firstName} {inspector.lastName || ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className={NB.label}>Related Work Order</label>
-                    <Select value={workOrderId} onValueChange={setWorkOrderId}>
-                      <SelectTrigger className={NB.select}>
-                        <SelectValue placeholder="Optional" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">No Work Order</SelectItem>
-                        {workOrders.map((workOrder) => (
-                          <SelectItem key={workOrder.id} value={workOrder.id}>
-                            {workOrder.number}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={NB.label}>Score (%)</label>
-                    <Input type="number" min={0} max={100} value={score} onChange={(e) => setScore(e.target.value)} className={NB.inputMono} />
-                  </div>
-                  <div>
-                    <label className={NB.label}>Notes</label>
-                    <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={NB.textarea + " min-h-[40px]"} placeholder="Optional inspector notes" />
-                  </div>
-                </div>
+              <div className="col-span-6">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Description</label>
+                <Input value={defect.description} onChange={(e) => updateDefect(index, { description: e.target.value })} placeholder="Describe defect" className="h-8 text-sm rounded-none border border-zinc-300" />
               </div>
-            </div>
-
-            {/* Defects */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
-                <AlertTriangle className="h-4 w-4" />
-                <span className={NB.sectionTitle}>Defects (Optional)</span>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="ml-auto h-7 text-[10px] font-black uppercase tracking-wider border-2 border-black"
-                  onClick={addDefect}
-                >
-                  <Plus className="h-3 w-3 mr-1" /> Add Defect
+              <div className="col-span-3">
+                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Action</label>
+                <Select value={defect.actionTaken} onValueChange={(value) => updateDefect(index, { actionTaken: value })}>
+                  <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="REWORK">REWORK</SelectItem>
+                    <SelectItem value="SCRAP">SCRAP</SelectItem>
+                    <SelectItem value="ACCEPT_CONCESSION">ACCEPT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="col-span-1">
+                <Button type="button" variant="outline" size="icon" className="border border-red-300 text-red-600 h-8 w-8 rounded-none" onClick={() => removeDefect(index)}>
+                  <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
-              <div className={NB.sectionBody}>
-                {defects.length === 0 && <p className="text-xs text-zinc-400 font-bold">No defect lines added.</p>}
-
-                {defects.map((defect, index) => (
-                  <div key={index} className="grid grid-cols-12 gap-2 items-end">
-                    <div className="col-span-2">
-                      <label className={NB.label}>Type</label>
-                      <Select value={defect.type} onValueChange={(value) => updateDefect(index, { type: value })}>
-                        <SelectTrigger className={NB.select}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CRITICAL">CRITICAL</SelectItem>
-                          <SelectItem value="MAJOR">MAJOR</SelectItem>
-                          <SelectItem value="MINOR">MINOR</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-6">
-                      <label className={NB.label}>Description</label>
-                      <Input value={defect.description} onChange={(e) => updateDefect(index, { description: e.target.value })} placeholder="Describe defect" className={NB.input} />
-                    </div>
-                    <div className="col-span-3">
-                      <label className={NB.label}>Action</label>
-                      <Select value={defect.actionTaken} onValueChange={(value) => updateDefect(index, { actionTaken: value })}>
-                        <SelectTrigger className={NB.select}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="REWORK">REWORK</SelectItem>
-                          <SelectItem value="SCRAP">SCRAP</SelectItem>
-                          <SelectItem value="ACCEPT_CONCESSION">ACCEPT</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-1">
-                      <Button type="button" variant="outline" size="icon" className="border-2 border-red-300 text-red-600 h-10 w-10" onClick={() => removeDefect(index)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
             </div>
+          ))}
+        </NBSection>
+      </NBDialogBody>
 
-            {/* Footer */}
-            <div className={NB.footer}>
-              <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button className={NB.submitBtn} disabled={submitting} onClick={handleSubmit}>
-                {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</> : "Create Inspection"}
-              </Button>
-            </div>
-          </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+      <NBDialogFooter
+        onCancel={() => onOpenChange(false)}
+        onSubmit={handleSubmit}
+        submitting={submitting}
+        submitLabel="Create Inspection"
+      />
+    </NBDialog>
   );
 }

@@ -7,12 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+    NBDialog,
+    NBDialogHeader,
+} from "@/components/ui/nb-dialog"
 import {
     Select,
     SelectContent,
@@ -197,25 +194,22 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
     }
 
     return (
-        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) form.reset() }}>
-            <DialogTrigger asChild>
-                <Button className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider">
-                    <Plus className="mr-2 h-4 w-4" /> Produk Baru
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-3xl p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                {/* Header */}
-                <DialogHeader className="bg-black text-white px-6 py-4">
-                    <DialogTitle className="text-lg font-black uppercase tracking-wider text-white flex items-center gap-2">
-                        <Plus className="h-5 w-5" />
-                        Tambah Produk Baru
-                    </DialogTitle>
-                    <p className="text-zinc-400 text-[11px] font-bold mt-0.5">
-                        Kode otomatis: [Kategori]-[Tipe]-[Brand]-[Warna]-[Seq]
-                    </p>
-                </DialogHeader>
+        <>
+            <Button
+                onClick={() => setOpen(true)}
+                className="bg-black text-white border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider rounded-none"
+            >
+                <Plus className="mr-2 h-4 w-4" /> Produk Baru
+            </Button>
 
-                <ScrollArea className="max-h-[72vh]">
+            <NBDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) form.reset() }}>
+                <NBDialogHeader
+                    icon={Plus}
+                    title="Tambah Produk Baru"
+                    subtitle="Kode otomatis: [Kategori]-[Tipe]-[Brand]-[Warna]-[Seq]"
+                />
+
+                <div className="overflow-y-auto max-h-[72vh]">
                     <form onSubmit={form.handleSubmit(handleSubmit)} className="p-5 space-y-5">
 
                         {/* ====== CODE BUILDER ====== */}
@@ -502,8 +496,8 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                             </div>
                         </div>
                     </form>
-                </ScrollArea>
-            </DialogContent>
-        </Dialog>
+                </div>
+            </NBDialog>
+        </>
     )
 }

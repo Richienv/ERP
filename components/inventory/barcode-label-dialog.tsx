@@ -2,18 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBDialogFooter,
+  NBSection,
+} from "@/components/ui/nb-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { NB } from "@/lib/dialog-styles"
 import { formatCurrency } from "@/lib/utils"
-import { Minus, Plus, Printer } from "lucide-react"
+import { Barcode, Eye, Hash, Minus, Plus, Printer } from "lucide-react"
 import JsBarcode from "jsbarcode"
 
 interface BarcodeLabelDialogProps {
@@ -184,121 +182,96 @@ export function BarcodeLabelDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={NB.contentNarrow}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <Printer className="h-5 w-5" />
-            Cetak Label Barcode
-          </DialogTitle>
-          <DialogDescription className={NB.subtitle}>
-            {product.name}
-          </DialogDescription>
-        </DialogHeader>
+    <NBDialog open={open} onOpenChange={onOpenChange} size="narrow">
+      <NBDialogHeader
+        icon={Printer}
+        title="Cetak Label Barcode"
+        subtitle={product.name}
+      />
 
-        <div className="p-6 space-y-6">
-          {/* Preview */}
-          <div className="space-y-2">
-            <Label className={NB.label}>Pratinjau Label</Label>
-            <div className="border-2 border-black p-4 flex flex-col items-center gap-2 bg-white">
-              <div className="text-sm font-bold text-center leading-tight">
-                {product.name}
-              </div>
-              <svg ref={previewRef} />
-              <div className="flex justify-between w-full text-xs px-2">
-                <span className="text-zinc-500 font-mono">
-                  SKU: {product.code}
-                </span>
-                {sellingPrice > 0 && (
-                  <span className="font-bold">
-                    {formatCurrency(sellingPrice)}
-                  </span>
-                )}
-              </div>
+      <NBDialogBody>
+        {/* Preview */}
+        <NBSection icon={Eye} title="Pratinjau Label">
+          <div className="border-2 border-black p-4 flex flex-col items-center gap-2 bg-white">
+            <div className="text-sm font-bold text-center leading-tight">
+              {product.name}
             </div>
-          </div>
-
-          {/* Barcode value info */}
-          <div className="space-y-1">
-            <Label className={NB.label}>Nilai Barcode</Label>
-            <div className="text-sm font-mono font-bold bg-zinc-50 border-2 border-black px-3 py-2">
-              {barcodeValue}
-              {product.barcode ? (
-                <span className="text-zinc-400 font-sans font-normal text-xs ml-2">
-                  (barcode)
-                </span>
-              ) : (
-                <span className="text-zinc-400 font-sans font-normal text-xs ml-2">
-                  (kode produk)
+            <svg ref={previewRef} />
+            <div className="flex justify-between w-full text-xs px-2">
+              <span className="text-zinc-500 font-mono">
+                SKU: {product.code}
+              </span>
+              {sellingPrice > 0 && (
+                <span className="font-bold">
+                  {formatCurrency(sellingPrice)}
                 </span>
               )}
             </div>
           </div>
+        </NBSection>
 
-          {/* Quantity selector */}
-          <div className="space-y-1">
-            <Label className={NB.label}>
-              Jumlah Label <span className={NB.labelRequired}>*</span>
-            </Label>
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="border-2 border-black rounded-none h-10 w-10"
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                disabled={quantity <= 1}
-              >
-                <Minus className="h-4 w-4" />
-              </Button>
-              <Input
-                type="number"
-                min={1}
-                max={500}
-                value={quantity}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10)
-                  if (!isNaN(val) && val >= 1 && val <= 500) {
-                    setQuantity(val)
-                  }
-                }}
-                className={`${NB.inputMono} w-24 text-center`}
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                className="border-2 border-black rounded-none h-10 w-10"
-                onClick={() => setQuantity((q) => Math.min(500, q + 1))}
-                disabled={quantity >= 500}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              <span className="text-xs text-zinc-500">lembar</span>
-            </div>
+        {/* Barcode value info */}
+        <NBSection icon={Barcode} title="Nilai Barcode">
+          <div className="text-sm font-mono font-bold bg-zinc-50 border border-zinc-200 px-3 py-2">
+            {barcodeValue}
+            {product.barcode ? (
+              <span className="text-zinc-400 font-sans font-normal text-xs ml-2">
+                (barcode)
+              </span>
+            ) : (
+              <span className="text-zinc-400 font-sans font-normal text-xs ml-2">
+                (kode produk)
+              </span>
+            )}
           </div>
+        </NBSection>
 
-          {/* Footer actions */}
-          <div className={NB.footer}>
+        {/* Quantity selector */}
+        <NBSection icon={Hash} title="Jumlah Label">
+          <div className="flex items-center gap-3">
             <Button
               type="button"
               variant="outline"
-              className={NB.cancelBtn}
-              onClick={() => onOpenChange(false)}
+              size="icon"
+              className="border border-zinc-300 rounded-none h-8 w-8"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
             >
-              Batal
+              <Minus className="h-4 w-4" />
             </Button>
+            <Input
+              type="number"
+              min={1}
+              max={500}
+              value={quantity}
+              onChange={(e) => {
+                const val = parseInt(e.target.value, 10)
+                if (!isNaN(val) && val >= 1 && val <= 500) {
+                  setQuantity(val)
+                }
+              }}
+              className="border border-zinc-300 rounded-none h-8 w-24 text-center font-mono font-bold text-sm"
+            />
             <Button
               type="button"
-              className={NB.submitBtn}
-              onClick={handlePrint}
+              variant="outline"
+              size="icon"
+              className="border border-zinc-300 rounded-none h-8 w-8"
+              onClick={() => setQuantity((q) => Math.min(500, q + 1))}
+              disabled={quantity >= 500}
             >
-              <Printer className="h-4 w-4 mr-2" />
-              Cetak {quantity} Label
+              <Plus className="h-4 w-4" />
             </Button>
+            <span className="text-xs text-zinc-500">lembar</span>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </NBSection>
+      </NBDialogBody>
+
+      <NBDialogFooter
+        onCancel={() => onOpenChange(false)}
+        onSubmit={handlePrint}
+        submitLabel={`Cetak ${quantity} Label`}
+      />
+    </NBDialog>
   )
 }

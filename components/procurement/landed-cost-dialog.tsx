@@ -2,22 +2,15 @@
 
 import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBCurrencyInput,
+    NBSelect,
+} from "@/components/ui/nb-dialog"
 import { Ship, Package } from "lucide-react"
 import { toast } from "sonner"
 import { NB } from "@/lib/dialog-styles"
@@ -156,13 +149,18 @@ export function LandedCostDialog({
 }: LandedCostDialogProps) {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
-    const [freight, setFreight] = useState(0)
-    const [customs, setCustoms] = useState(0)
-    const [insurance, setInsurance] = useState(0)
-    const [otherCost, setOtherCost] = useState(0)
+    const [freight, setFreight] = useState("0")
+    const [customs, setCustoms] = useState("0")
+    const [insurance, setInsurance] = useState("0")
+    const [otherCost, setOtherCost] = useState("0")
     const [method, setMethod] = useState<AllocationMethod>('BY_VALUE')
 
-    const totalLandedCost = freight + customs + insurance + otherCost
+    const freightNum = Number(freight) || 0
+    const customsNum = Number(customs) || 0
+    const insuranceNum = Number(insurance) || 0
+    const otherCostNum = Number(otherCost) || 0
+
+    const totalLandedCost = freightNum + customsNum + insuranceNum + otherCostNum
     const itemSubtotal = items.reduce((s, i) => s + i.totalPrice, 0)
 
     const allocation = useMemo(
@@ -191,192 +189,142 @@ export function LandedCostDialog({
     const landedPct = itemSubtotal > 0 ? ((totalLandedCost / itemSubtotal) * 100).toFixed(1) : '0'
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button
-                    variant="outline"
-                    className="h-8 px-3 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1"
-                >
-                    <Ship className="h-3.5 w-3.5" />
-                    Landed Cost
-                    {currentLandedCost > 0 && (
-                        <span className="bg-black text-white text-[8px] px-1 py-0.5 ml-1">
-                            Rp {formatIDR(currentLandedCost)}
-                        </span>
-                    )}
-                </Button>
-            </DialogTrigger>
+        <>
+            <Button
+                variant="outline"
+                className="h-8 px-3 text-[9px] font-black uppercase border-2 border-black rounded-none gap-1"
+                onClick={() => setOpen(true)}
+            >
+                <Ship className="h-3.5 w-3.5" />
+                Landed Cost
+                {currentLandedCost > 0 && (
+                    <span className="bg-black text-white text-[8px] px-1 py-0.5 ml-1">
+                        Rp {formatIDR(currentLandedCost)}
+                    </span>
+                )}
+            </Button>
 
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <Ship className="h-5 w-5" /> Alokasi Landed Cost
-                    </DialogTitle>
-                    <p className={NB.subtitle}>{poNumber} — Biaya pengiriman, bea cukai, dan asuransi</p>
-                </DialogHeader>
+            <NBDialog open={open} onOpenChange={setOpen} size="wide">
+                <NBDialogHeader
+                    icon={Ship}
+                    title="Alokasi Landed Cost"
+                    subtitle={`${poNumber} — Biaya pengiriman, bea cukai, dan asuransi`}
+                />
 
-                <ScrollArea className={NB.scroll}>
-                    <div className="p-6 space-y-6">
-                        {/* Cost inputs */}
-                        <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <Ship className="h-3.5 w-3.5 text-zinc-500" />
-                                <span className={NB.sectionTitle}>Komponen Biaya</span>
+                <NBDialogBody>
+                    {/* Cost inputs */}
+                    <NBSection icon={Ship} title="Komponen Biaya">
+                        <div className="grid grid-cols-2 gap-4">
+                            <NBCurrencyInput
+                                label="Freight / Ongkir"
+                                value={freight}
+                                onChange={setFreight}
+                            />
+                            <NBCurrencyInput
+                                label="Bea Cukai / Customs"
+                                value={customs}
+                                onChange={setCustoms}
+                            />
+                            <NBCurrencyInput
+                                label="Asuransi / Insurance"
+                                value={insurance}
+                                onChange={setInsurance}
+                            />
+                            <NBCurrencyInput
+                                label="Biaya Lain-lain"
+                                value={otherCost}
+                                onChange={setOtherCost}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between pt-2 border-t-2 border-black">
+                            <span className="text-xs font-black uppercase">Total Landed Cost</span>
+                            <div className="text-right">
+                                <span className="text-lg font-black font-mono">
+                                    Rp {formatIDR(totalLandedCost)}
+                                </span>
+                                <span className="text-[10px] text-zinc-400 font-bold ml-2">
+                                    ({landedPct}% dari subtotal)
+                                </span>
                             </div>
-                            <div className={NB.sectionBody}>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={NB.label}>Freight / Ongkir</label>
-                                        <Input
-                                            className={NB.inputMono}
-                                            type="number"
-                                            min={0}
-                                            value={freight || ''}
-                                            onChange={(e) => setFreight(parseFloat(e.target.value) || 0)}
-                                            placeholder="0"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Bea Cukai / Customs</label>
-                                        <Input
-                                            className={NB.inputMono}
-                                            type="number"
-                                            min={0}
-                                            value={customs || ''}
-                                            onChange={(e) => setCustoms(parseFloat(e.target.value) || 0)}
-                                            placeholder="0"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Asuransi / Insurance</label>
-                                        <Input
-                                            className={NB.inputMono}
-                                            type="number"
-                                            min={0}
-                                            value={insurance || ''}
-                                            onChange={(e) => setInsurance(parseFloat(e.target.value) || 0)}
-                                            placeholder="0"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Biaya Lain-lain</label>
-                                        <Input
-                                            className={NB.inputMono}
-                                            type="number"
-                                            min={0}
-                                            value={otherCost || ''}
-                                            onChange={(e) => setOtherCost(parseFloat(e.target.value) || 0)}
-                                            placeholder="0"
-                                        />
-                                    </div>
-                                </div>
+                        </div>
+                    </NBSection>
 
-                                <div className="flex items-center justify-between pt-2 border-t-2 border-black">
-                                    <span className="text-xs font-black uppercase">Total Landed Cost</span>
-                                    <div className="text-right">
-                                        <span className="text-lg font-black font-mono">
+                    {/* Allocation method */}
+                    <NBSection icon={Package} title="Metode Alokasi">
+                        <NBSelect
+                            label="Metode"
+                            value={method}
+                            onValueChange={(v) => setMethod(v as AllocationMethod)}
+                            options={[
+                                { value: "BY_VALUE", label: "Proporsi Nilai (Rp)" },
+                                { value: "BY_QUANTITY", label: "Proporsi Jumlah (Qty)" },
+                                { value: "BY_WEIGHT", label: "Proporsi Berat (Kg)" },
+                                { value: "EQUAL", label: "Rata-rata (Equal Split)" },
+                            ]}
+                        />
+                    </NBSection>
+
+                    {/* Allocation preview table */}
+                    {totalLandedCost > 0 && (
+                        <div className={NB.tableWrap}>
+                            <table className="w-full text-xs">
+                                <thead>
+                                    <tr className={NB.tableHead}>
+                                        <th className={`${NB.tableHeadCell} text-left`}>Produk</th>
+                                        <th className={`${NB.tableHeadCell} text-right`}>Qty</th>
+                                        <th className={`${NB.tableHeadCell} text-right`}>Harga Asli</th>
+                                        <th className={`${NB.tableHeadCell} text-right`}>Alokasi</th>
+                                        <th className={`${NB.tableHeadCell} text-right`}>Landed /unit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {items.map((item, idx) => {
+                                        const alloc = allocation[idx]
+                                        return (
+                                            <tr key={item.id} className={NB.tableRow}>
+                                                <td className={NB.tableCell}>
+                                                    <div className="font-bold">{item.productName}</div>
+                                                    <div className="text-[9px] text-zinc-400 font-mono">{item.productCode}</div>
+                                                </td>
+                                                <td className={`${NB.tableCell} text-right font-mono`}>{item.quantity}</td>
+                                                <td className={`${NB.tableCell} text-right font-mono`}>
+                                                    Rp {formatIDR(item.unitPrice)}
+                                                </td>
+                                                <td className={`${NB.tableCell} text-right font-mono font-bold text-blue-600`}>
+                                                    +Rp {formatIDR(alloc.allocated)}
+                                                </td>
+                                                <td className={`${NB.tableCell} text-right font-mono font-black`}>
+                                                    Rp {formatIDR(alloc.landedUnitCost)}
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                                <tfoot>
+                                    <tr className="bg-zinc-100 border-t-2 border-black">
+                                        <td className={`${NB.tableCell} font-black`} colSpan={3}>
+                                            Total
+                                        </td>
+                                        <td className={`${NB.tableCell} text-right font-mono font-black text-blue-600`}>
                                             Rp {formatIDR(totalLandedCost)}
-                                        </span>
-                                        <span className="text-[10px] text-zinc-400 font-bold ml-2">
-                                            ({landedPct}% dari subtotal)
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                                        </td>
+                                        <td />
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
+                    )}
+                </NBDialogBody>
 
-                        {/* Allocation method */}
-                        <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <Package className="h-3.5 w-3.5 text-zinc-500" />
-                                <span className={NB.sectionTitle}>Metode Alokasi</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <Select value={method} onValueChange={(v) => setMethod(v as AllocationMethod)}>
-                                    <SelectTrigger className={NB.select}>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="BY_VALUE">Proporsi Nilai (Rp)</SelectItem>
-                                        <SelectItem value="BY_QUANTITY">Proporsi Jumlah (Qty)</SelectItem>
-                                        <SelectItem value="BY_WEIGHT">Proporsi Berat (Kg)</SelectItem>
-                                        <SelectItem value="EQUAL">Rata-rata (Equal Split)</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-
-                        {/* Allocation preview table */}
-                        {totalLandedCost > 0 && (
-                            <div className={NB.tableWrap}>
-                                <table className="w-full text-xs">
-                                    <thead>
-                                        <tr className={NB.tableHead}>
-                                            <th className={`${NB.tableHeadCell} text-left`}>Produk</th>
-                                            <th className={`${NB.tableHeadCell} text-right`}>Qty</th>
-                                            <th className={`${NB.tableHeadCell} text-right`}>Harga Asli</th>
-                                            <th className={`${NB.tableHeadCell} text-right`}>Alokasi</th>
-                                            <th className={`${NB.tableHeadCell} text-right`}>Landed /unit</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {items.map((item, idx) => {
-                                            const alloc = allocation[idx]
-                                            return (
-                                                <tr key={item.id} className={NB.tableRow}>
-                                                    <td className={NB.tableCell}>
-                                                        <div className="font-bold">{item.productName}</div>
-                                                        <div className="text-[9px] text-zinc-400 font-mono">{item.productCode}</div>
-                                                    </td>
-                                                    <td className={`${NB.tableCell} text-right font-mono`}>{item.quantity}</td>
-                                                    <td className={`${NB.tableCell} text-right font-mono`}>
-                                                        Rp {formatIDR(item.unitPrice)}
-                                                    </td>
-                                                    <td className={`${NB.tableCell} text-right font-mono font-bold text-blue-600`}>
-                                                        +Rp {formatIDR(alloc.allocated)}
-                                                    </td>
-                                                    <td className={`${NB.tableCell} text-right font-mono font-black`}>
-                                                        Rp {formatIDR(alloc.landedUnitCost)}
-                                                    </td>
-                                                </tr>
-                                            )
-                                        })}
-                                    </tbody>
-                                    <tfoot>
-                                        <tr className="bg-zinc-100 border-t-2 border-black">
-                                            <td className={`${NB.tableCell} font-black`} colSpan={3}>
-                                                Total
-                                            </td>
-                                            <td className={`${NB.tableCell} text-right font-mono font-black text-blue-600`}>
-                                                Rp {formatIDR(totalLandedCost)}
-                                            </td>
-                                            <td />
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                        )}
-
-                        {/* Actions */}
-                        <div className={NB.footer}>
-                            <Button
-                                variant="outline"
-                                className={NB.cancelBtn}
-                                onClick={() => setOpen(false)}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                className={NB.submitBtn}
-                                disabled={totalLandedCost <= 0 || loading}
-                                onClick={handleSave}
-                            >
-                                {loading ? 'Menyimpan...' : 'Simpan Landed Cost'}
-                            </Button>
-                        </div>
-                    </div>
-                </ScrollArea>
-            </DialogContent>
-        </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setOpen(false)}
+                    onSubmit={handleSave}
+                    submitting={loading}
+                    submitLabel="Simpan Landed Cost"
+                    disabled={totalLandedCost <= 0}
+                />
+            </NBDialog>
+        </>
     )
 }

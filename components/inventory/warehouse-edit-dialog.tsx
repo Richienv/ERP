@@ -3,19 +3,19 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBDialogFooter,
+  NBSection,
+  NBInput,
+  NBSelect,
+} from "@/components/ui/nb-dialog";
 import { updateWarehouse } from "@/app/actions/inventory";
 import { toast } from "sonner";
-import { Edit, Loader2, Save, Warehouse } from "lucide-react";
+import { Edit, Warehouse } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { NB } from "@/lib/dialog-styles";
 
 const WAREHOUSE_TYPE_OPTIONS = [
   { value: "RAW_MATERIAL", label: "Bahan Baku" },
@@ -86,93 +86,65 @@ export function WarehouseEditDialog({ warehouse }: WarehouseEditDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" className={NB.cancelBtn}>
-          <Edit className="mr-2 h-4 w-4" /> Edit Configuration
-        </Button>
-      </DialogTrigger>
-      <DialogContent className={NB.contentNarrow}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <Warehouse className="h-5 w-5" /> Edit Warehouse
-          </DialogTitle>
-          <p className={NB.subtitle}>Update konfigurasi dan lokasi gudang.</p>
-        </DialogHeader>
+    <>
+      <Button
+        variant="outline"
+        onClick={() => setOpen(true)}
+        className="border border-zinc-300 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+      >
+        <Edit className="mr-2 h-4 w-4" /> Edit Configuration
+      </Button>
 
-        <div className="p-5 space-y-4">
-          <div className={NB.section}>
-            <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
-              <Warehouse className="h-4 w-4" />
-              <span className={NB.sectionTitle}>Detail Gudang</span>
-            </div>
-            <div className={NB.sectionBody}>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={NB.label}>Code</label>
-                  <Input
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className={NB.inputMono}
-                  />
-                </div>
-                <div>
-                  <label className={NB.label}>Name</label>
-                  <Input
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className={NB.input}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className={NB.label}>Full Address</label>
-                <Input
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className={NB.input}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className={NB.label}>Max Capacity</label>
-                  <Input
-                    type="number"
-                    value={formData.capacity}
-                    onChange={(e) => setFormData({ ...formData, capacity: Number(e.target.value) })}
-                    className={NB.inputMono}
-                  />
-                </div>
-                <div>
-                  <label className={NB.label}>Tipe Gudang</label>
-                  <select
-                    value={formData.warehouseType}
-                    onChange={(e) => setFormData({ ...formData, warehouseType: e.target.value })}
-                    className="flex h-9 w-full border-2 border-black bg-white px-3 py-1 text-sm font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-none"
-                  >
-                    {WAREHOUSE_TYPE_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          </div>
+      <NBDialog open={open} onOpenChange={setOpen} size="narrow">
+        <NBDialogHeader
+          icon={Warehouse}
+          title="Edit Warehouse"
+          subtitle="Update konfigurasi dan lokasi gudang."
+        />
 
-          <div className={NB.footer}>
-            <Button variant="outline" className={NB.cancelBtn} onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button className={NB.submitBtn} disabled={loading} onClick={handleSave}>
-              {loading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-              ) : (
-                <><Save className="mr-2 h-4 w-4" /> Save Changes</>
-              )}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        <NBDialogBody>
+          <NBSection icon={Warehouse} title="Detail Gudang">
+            <div className="grid grid-cols-2 gap-3">
+              <NBInput
+                label="Code"
+                value={formData.code}
+                onChange={(v) => setFormData({ ...formData, code: v })}
+              />
+              <NBInput
+                label="Name"
+                value={formData.name}
+                onChange={(v) => setFormData({ ...formData, name: v })}
+              />
+            </div>
+            <NBInput
+              label="Full Address"
+              value={formData.address}
+              onChange={(v) => setFormData({ ...formData, address: v })}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <NBInput
+                label="Max Capacity"
+                type="number"
+                value={String(formData.capacity)}
+                onChange={(v) => setFormData({ ...formData, capacity: Number(v) })}
+              />
+              <NBSelect
+                label="Tipe Gudang"
+                value={formData.warehouseType}
+                onValueChange={(v) => setFormData({ ...formData, warehouseType: v })}
+                options={WAREHOUSE_TYPE_OPTIONS.map(opt => ({ value: opt.value, label: opt.label }))}
+              />
+            </div>
+          </NBSection>
+        </NBDialogBody>
+
+        <NBDialogFooter
+          onCancel={() => setOpen(false)}
+          onSubmit={handleSave}
+          submitting={loading}
+          submitLabel="Save Changes"
+        />
+      </NBDialog>
+    </>
   );
 }

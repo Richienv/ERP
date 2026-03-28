@@ -1,31 +1,25 @@
 "use client"
 
 import { useState } from "react"
-import { Package, Plus, Minus, Loader2, Warehouse, ClipboardList } from "lucide-react"
+import { Package, Plus, Minus, Warehouse, ClipboardList } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { toast } from "sonner"
 import { createGRN } from "@/lib/actions/grn"
 import { useAuth } from "@/lib/auth-context"
 import { NB } from "@/lib/dialog-styles"
 import { queryKeys } from "@/lib/query-keys"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 
 interface POItem {
     id: string
@@ -177,189 +171,149 @@ export function CreateGRNDialog({ purchaseOrder, warehouses, employees: _employe
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button className={NB.triggerBtn + " text-xs px-3 py-1 h-8"}>
-                    <Package className="h-3.5 w-3.5 mr-1" /> Terima
-                </Button>
-            </DialogTrigger>
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <Package className="h-5 w-5" /> Surat Jalan Masuk — {purchaseOrder.number}
-                    </DialogTitle>
-                    <p className={NB.subtitle}>Vendor: {purchaseOrder.vendorName}</p>
-                </DialogHeader>
+        <>
+            <Button className={NB.triggerBtn + " text-xs px-3 py-1 h-8"} onClick={() => setOpen(true)}>
+                <Package className="h-3.5 w-3.5 mr-1" /> Terima
+            </Button>
+            <NBDialog open={open} onOpenChange={setOpen} size="wide">
+                <NBDialogHeader
+                    icon={Package}
+                    title={`Surat Jalan Masuk — ${purchaseOrder.number}`}
+                    subtitle={`Vendor: ${purchaseOrder.vendorName}`}
+                />
 
-                <ScrollArea className={NB.scroll}>
-                    <div className="p-5 space-y-4">
-                        {/* Receiving Info */}
-                        <div className={NB.section}>
-                            <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50`}>
-                                <Warehouse className="h-4 w-4" />
-                                <span className={NB.sectionTitle}>Info Penerimaan</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className={NB.label}>Penerima</label>
-                                        <Input
-                                            value={user?.name || user?.email || "Current User"}
-                                            disabled
-                                            className={`${NB.input} bg-zinc-100 text-zinc-500`}
-                                        />
-                                        <p className="text-[9px] text-zinc-400 font-bold mt-0.5">Otomatis dari user yang login</p>
-                                    </div>
-                                    <div>
-                                        <label className={NB.label}>Gudang Tujuan <span className={NB.labelRequired}>*</span></label>
-                                        <Select value={warehouseId} onValueChange={setWarehouseId}>
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue placeholder="Pilih gudang..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {warehouses.map(wh => (
-                                                    <SelectItem key={wh.id} value={wh.id}>
-                                                        {wh.name} ({wh.code})
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
+                <NBDialogBody>
+                    {/* Receiving Info */}
+                    <NBSection icon={Warehouse} title="Info Penerimaan">
+                        <div className="grid grid-cols-2 gap-4">
+                            <NBInput
+                                label="Penerima"
+                                value={user?.name || user?.email || "Current User"}
+                                onChange={() => {}}
+                                disabled
+                            />
+                            <NBSelect
+                                label="Gudang Tujuan"
+                                required
+                                value={warehouseId}
+                                onValueChange={setWarehouseId}
+                                placeholder="Pilih gudang..."
+                                options={warehouses.map(wh => ({
+                                    value: wh.id,
+                                    label: `${wh.name} (${wh.code})`,
+                                }))}
+                            />
                         </div>
+                    </NBSection>
 
-                        {/* Items Table */}
-                        <div className={NB.section}>
-                            <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50`}>
-                                <ClipboardList className="h-4 w-4" />
-                                <span className={NB.sectionTitle}>Item Penerimaan</span>
-                            </div>
-                            <div className={NB.tableWrap}>
-                                <table className="w-full text-sm">
-                                    <thead className={NB.tableHead}>
-                                        <tr>
-                                            <th className={NB.tableHeadCell + " text-left"}>Produk</th>
-                                            <th className={NB.tableHeadCell + " text-center w-20"}>Sisa</th>
-                                            <th className={NB.tableHeadCell + " text-center w-28"}>Diterima</th>
-                                            <th className={NB.tableHeadCell + " text-center w-28"}>Acc/Reject</th>
-                                            <th className={NB.tableHeadCell + " text-left w-40"}>Catatan</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {items.map((item, index) => (
-                                            <tr key={item.poItemId} className={NB.tableRow}>
-                                                <td className={NB.tableCell}>
-                                                    <div className="font-bold">{item.productName}</div>
-                                                    <div className="text-[10px] text-zinc-400 font-mono">
-                                                        {item.productCode} &bull; {item.unit}
-                                                    </div>
-                                                </td>
-                                                <td className={NB.tableCell + " text-center"}>
-                                                    <span className="font-mono font-black">{item.remainingQty}</span>
-                                                </td>
-                                                <td className={NB.tableCell}>
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="icon"
-                                                            className="h-7 w-7 border-2 border-black"
-                                                            onClick={() => updateItem(index, 'receivingQty', Math.max(0, item.receivingQty - 1))}
-                                                        >
-                                                            <Minus className="h-3 w-3" />
-                                                        </Button>
+                    {/* Items Table — complex, kept as-is */}
+                    <NBSection icon={ClipboardList} title="Item Penerimaan">
+                        <div className={NB.tableWrap}>
+                            <table className="w-full text-sm">
+                                <thead className={NB.tableHead}>
+                                    <tr>
+                                        <th className={NB.tableHeadCell + " text-left"}>Produk</th>
+                                        <th className={NB.tableHeadCell + " text-center w-20"}>Sisa</th>
+                                        <th className={NB.tableHeadCell + " text-center w-28"}>Diterima</th>
+                                        <th className={NB.tableHeadCell + " text-center w-28"}>Acc/Reject</th>
+                                        <th className={NB.tableHeadCell + " text-left w-40"}>Catatan</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {items.map((item, index) => (
+                                        <tr key={item.poItemId} className={NB.tableRow}>
+                                            <td className={NB.tableCell}>
+                                                <div className="font-bold">{item.productName}</div>
+                                                <div className="text-[10px] text-zinc-400 font-mono">
+                                                    {item.productCode} &bull; {item.unit}
+                                                </div>
+                                            </td>
+                                            <td className={NB.tableCell + " text-center"}>
+                                                <span className="font-mono font-black">{item.remainingQty}</span>
+                                            </td>
+                                            <td className={NB.tableCell}>
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="h-7 w-7 border-2 border-black"
+                                                        onClick={() => updateItem(index, 'receivingQty', Math.max(0, item.receivingQty - 1))}
+                                                    >
+                                                        <Minus className="h-3 w-3" />
+                                                    </Button>
+                                                    <Input
+                                                        type="number"
+                                                        min={0}
+                                                        max={item.remainingQty}
+                                                        value={item.receivingQty}
+                                                        onChange={(e) => updateItem(index, 'receivingQty', Math.min(item.remainingQty, parseInt(e.target.value) || 0))}
+                                                        className="w-16 text-center font-mono font-bold h-8 border-2 border-black"
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="icon"
+                                                        className="h-7 w-7 border-2 border-black"
+                                                        onClick={() => updateItem(index, 'receivingQty', Math.min(item.remainingQty, item.receivingQty + 1))}
+                                                    >
+                                                        <Plus className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            </td>
+                                            <td className={NB.tableCell}>
+                                                <div className="flex items-center justify-center gap-2">
+                                                    <div className="text-center">
                                                         <Input
                                                             type="number"
                                                             min={0}
-                                                            max={item.remainingQty}
-                                                            value={item.receivingQty}
-                                                            onChange={(e) => updateItem(index, 'receivingQty', Math.min(item.remainingQty, parseInt(e.target.value) || 0))}
-                                                            className="w-16 text-center font-mono font-bold h-8 border-2 border-black"
+                                                            max={item.receivingQty}
+                                                            value={item.acceptedQty}
+                                                            onChange={(e) => updateItem(index, 'acceptedQty', Math.min(item.receivingQty, parseInt(e.target.value) || 0))}
+                                                            className="w-14 text-center font-mono h-7 text-xs border-2 border-emerald-400"
                                                         />
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="icon"
-                                                            className="h-7 w-7 border-2 border-black"
-                                                            onClick={() => updateItem(index, 'receivingQty', Math.min(item.remainingQty, item.receivingQty + 1))}
-                                                        >
-                                                            <Plus className="h-3 w-3" />
-                                                        </Button>
+                                                        <div className="text-[9px] text-emerald-600 font-black uppercase">Acc</div>
                                                     </div>
-                                                </td>
-                                                <td className={NB.tableCell}>
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <div className="text-center">
-                                                            <Input
-                                                                type="number"
-                                                                min={0}
-                                                                max={item.receivingQty}
-                                                                value={item.acceptedQty}
-                                                                onChange={(e) => updateItem(index, 'acceptedQty', Math.min(item.receivingQty, parseInt(e.target.value) || 0))}
-                                                                className="w-14 text-center font-mono h-7 text-xs border-2 border-emerald-400"
-                                                            />
-                                                            <div className="text-[9px] text-emerald-600 font-black uppercase">Acc</div>
+                                                    <div className="text-center">
+                                                        <div className="w-14 h-7 flex items-center justify-center bg-red-50 border-2 border-red-300 font-mono text-xs text-red-600 font-bold">
+                                                            {item.rejectedQty}
                                                         </div>
-                                                        <div className="text-center">
-                                                            <div className="w-14 h-7 flex items-center justify-center bg-red-50 border-2 border-red-300 font-mono text-xs text-red-600 font-bold">
-                                                                {item.rejectedQty}
-                                                            </div>
-                                                            <div className="text-[9px] text-red-600 font-black uppercase">Rej</div>
-                                                        </div>
+                                                        <div className="text-[9px] text-red-600 font-black uppercase">Rej</div>
                                                     </div>
-                                                </td>
-                                                <td className={NB.tableCell}>
-                                                    <Input
-                                                        placeholder="Catatan..."
-                                                        value={item.notes}
-                                                        onChange={(e) => updateItem(index, 'notes', e.target.value)}
-                                                        className="h-8 text-xs border-2 border-black"
-                                                    />
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
+                                                </div>
+                                            </td>
+                                            <td className={NB.tableCell}>
+                                                <Input
+                                                    placeholder="Catatan..."
+                                                    value={item.notes}
+                                                    onChange={(e) => updateItem(index, 'notes', e.target.value)}
+                                                    className="h-8 text-xs border-2 border-black"
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
+                    </NBSection>
 
-                        {/* Notes */}
-                        <div className={NB.section}>
-                            <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50`}>
-                                <span className={NB.sectionTitle}>Catatan Umum</span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <Textarea
-                                    placeholder="Catatan penerimaan..."
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                    rows={2}
-                                    className={NB.textarea}
-                                />
-                            </div>
-                        </div>
+                    {/* Notes */}
+                    <NBTextarea
+                        label="Catatan Umum"
+                        value={notes}
+                        onChange={setNotes}
+                        placeholder="Catatan penerimaan..."
+                        rows={2}
+                    />
+                </NBDialogBody>
 
-                        {/* Footer */}
-                        <div className={NB.footer}>
-                            <Button variant="outline" onClick={() => setOpen(false)} disabled={loading} className={NB.cancelBtn}>
-                                Batal
-                            </Button>
-                            <Button
-                                onClick={handleSubmit}
-                                disabled={loading}
-                                className={NB.submitBtn}
-                            >
-                                {loading ? (
-                                    <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Memproses...</>
-                                ) : (
-                                    <><Package className="h-4 w-4 mr-2" /> Buat Surat Jalan</>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                </ScrollArea>
-            </DialogContent>
-        </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setOpen(false)}
+                    onSubmit={handleSubmit}
+                    submitting={loading}
+                    submitLabel="Buat Surat Jalan"
+                />
+            </NBDialog>
+        </>
     )
 }

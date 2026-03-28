@@ -1,12 +1,17 @@
 "use client"
 
 import { useState } from "react"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
+import { Loader2, FileSearch, Truck, CheckCircle, XCircle, Send, ShieldCheck, Package } from "lucide-react"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBSection,
+    NBTextarea,
+    NBInput,
+} from "@/components/ui/nb-dialog"
 import { formatIDR } from "@/lib/utils"
 import { RevisionHistoryTimeline, type RevisionEntry } from "@/components/shared/revision-history-timeline"
 import { rejectPurchaseOrder, submitPOForApproval, approvePurchaseOrder, markAsOrdered, markAsVendorConfirmed, markAsShipped } from "@/lib/actions/procurement"
@@ -69,7 +74,7 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
             } else {
                 toast.error("Action failed")
             }
-        } catch (e) {
+        } catch {
             toast.error("Error performing action")
         } finally {
             setProcessing(false)
@@ -79,27 +84,26 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
         }
     }
 
+    const revisions = (Array.isArray(order.revisionHistory) ? order.revisionHistory : []) as RevisionEntry[]
+
     return (
-        <Sheet open={isOpen} onOpenChange={onClose}>
-            <SheetContent className="overflow-y-auto sm:max-w-md">
-                <SheetHeader>
-                    <SheetTitle>PO Details: {order.id}</SheetTitle>
-                    <SheetDescription>
-                        Vendor: <span className="font-bold text-black">{order.vendor}</span>
-                    </SheetDescription>
-                </SheetHeader>
+        <NBDialog open={isOpen} onOpenChange={onClose} size="wide">
+            <NBDialogHeader
+                icon={FileSearch}
+                title={`Detail PO: ${order.id}`}
+                subtitle={`Vendor: ${order.vendor}`}
+            />
 
-                <div className="py-6 space-y-6">
-                    {/* Status Badge */}
+            <NBDialogBody>
+                {/* Status + Summary */}
+                <NBSection icon={Package} title="Ringkasan">
                     <div className="flex justify-between items-center">
-                        <span className="text-sm text-zinc-500 font-bold uppercase">Status</span>
-                        <Badge variant="outline" className="text-sm font-bold">{order.status}</Badge>
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500">Status</span>
+                        <Badge variant="outline" className="text-sm font-bold rounded-none border-black">
+                            {order.status}
+                        </Badge>
                     </div>
-
-                    <Separator />
-
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-4 pt-1">
                         <div>
                             <div className="text-[10px] uppercase font-bold text-zinc-500">Total Amount</div>
                             <div className="text-xl font-black">{formatIDR(order.total)}</div>
@@ -109,110 +113,186 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                             <div className="text-xl font-mono">{order.items} Items</div>
                         </div>
                     </div>
+                </NBSection>
 
-                    <Separator />
+                {/* Revision History */}
+                {revisions.length > 0 && (
+                    <NBSection icon={FileSearch} title="Riwayat Revisi">
+                        <RevisionHistoryTimeline revisions={revisions} />
+                    </NBSection>
+                )}
 
-                    {/* Revision History */}
-                    {(() => {
-                        const revisions = (Array.isArray(order.revisionHistory) ? order.revisionHistory : []) as RevisionEntry[]
-                        return revisions.length > 0 ? (
-                            <>
-                                <RevisionHistoryTimeline revisions={revisions} />
-                                <Separator />
-                            </>
-                        ) : null
-                    })()}
-
-                    {/* Reject UI */}
-                    {rejectMode && (
-                        <div className="bg-red-50 p-4 rounded-lg border border-red-200 animate-in fade-in slide-in-from-bottom-2">
-                            <label className="text-xs font-bold text-red-700 uppercase mb-1 block">Reason for Rejection</label>
-                            <Textarea
-                                placeholder="Why is this order being rejected?"
-                                className="bg-white"
-                                value={rejectReason}
-                                onChange={(e) => setRejectReason(e.target.value)}
-                            />
-                            <div className="flex gap-2 mt-2 justify-end">
-                                <Button size="sm" variant="ghost" onClick={() => setRejectMode(false)}>Cancel</Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleAction('reject')} disabled={processing}>Confirm Rejection</Button>
-                            </div>
+                {/* Reject UI */}
+                {rejectMode && (
+                    <NBSection icon={XCircle} title="Alasan Penolakan">
+                        <NBTextarea
+                            label="Alasan"
+                            required
+                            value={rejectReason}
+                            onChange={setRejectReason}
+                            placeholder="Mengapa pesanan ini ditolak?"
+                            rows={3}
+                        />
+                        <div className="flex gap-2 justify-end pt-1">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setRejectMode(false)}
+                                className="rounded-none text-[10px] font-bold uppercase tracking-wider"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleAction('reject')}
+                                disabled={processing}
+                                className="rounded-none text-[10px] font-bold uppercase tracking-wider gap-1.5"
+                            >
+                                {processing && <Loader2 className="h-3 w-3 animate-spin" />}
+                                Konfirmasi Tolak
+                            </Button>
                         </div>
-                    )}
+                    </NBSection>
+                )}
 
-                    {vendorConfirmMode && (
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 animate-in fade-in slide-in-from-bottom-2">
-                            <label className="text-xs font-bold text-blue-700 uppercase mb-1 block">Vendor Confirmation Notes</label>
-                            <Textarea
-                                placeholder="Record the outcome of vendor confirmation (email/phone)"
-                                className="bg-white"
-                                value={vendorConfirmNotes}
-                                onChange={(e) => setVendorConfirmNotes(e.target.value)}
-                            />
-                            <div className="flex gap-2 mt-2 justify-end">
-                                <Button size="sm" variant="ghost" onClick={() => setVendorConfirmMode(false)}>Cancel</Button>
-                                <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => handleAction('vendor_confirm')} disabled={processing}>Confirm Vendor</Button>
-                            </div>
+                {vendorConfirmMode && (
+                    <NBSection icon={CheckCircle} title="Konfirmasi Vendor">
+                        <NBTextarea
+                            label="Catatan Konfirmasi"
+                            value={vendorConfirmNotes}
+                            onChange={setVendorConfirmNotes}
+                            placeholder="Catat hasil konfirmasi vendor (email/telepon)"
+                            rows={3}
+                        />
+                        <div className="flex gap-2 justify-end pt-1">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setVendorConfirmMode(false)}
+                                className="rounded-none text-[10px] font-bold uppercase tracking-wider"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => handleAction('vendor_confirm')}
+                                disabled={processing}
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-bold uppercase tracking-wider gap-1.5"
+                            >
+                                {processing && <Loader2 className="h-3 w-3 animate-spin" />}
+                                Konfirmasi Vendor
+                            </Button>
                         </div>
-                    )}
+                    </NBSection>
+                )}
 
-                    {shipMode && (
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 animate-in fade-in slide-in-from-bottom-2">
-                            <label className="text-xs font-bold text-blue-700 uppercase mb-1 block">Tracking Number (optional)</label>
-                            <Input
-                                placeholder="e.g. JNE/SiCepat tracking number"
-                                className="bg-white"
-                                value={trackingNumber}
-                                onChange={(e) => setTrackingNumber(e.target.value)}
-                            />
-                            <div className="flex gap-2 mt-2 justify-end">
-                                <Button size="sm" variant="ghost" onClick={() => setShipMode(false)}>Cancel</Button>
-                                <Button size="sm" className="bg-blue-600 text-white hover:bg-blue-700" onClick={() => handleAction('ship')} disabled={processing}>Mark as Shipped</Button>
-                            </div>
+                {shipMode && (
+                    <NBSection icon={Truck} title="Pengiriman">
+                        <NBInput
+                            label="Nomor Resi (opsional)"
+                            value={trackingNumber}
+                            onChange={setTrackingNumber}
+                            placeholder="mis. JNE/SiCepat tracking number"
+                        />
+                        <div className="flex gap-2 justify-end pt-1">
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShipMode(false)}
+                                className="rounded-none text-[10px] font-bold uppercase tracking-wider"
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => handleAction('ship')}
+                                disabled={processing}
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-bold uppercase tracking-wider gap-1.5"
+                            >
+                                {processing && <Loader2 className="h-3 w-3 animate-spin" />}
+                                Tandai Dikirim
+                            </Button>
                         </div>
-                    )}
+                    </NBSection>
+                )}
+            </NBDialogBody>
+
+            {/* Custom footer with lifecycle action buttons */}
+            <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex flex-col gap-2">
+                {!rejectMode && !vendorConfirmMode && !shipMode && (
+                    <div className="flex flex-wrap gap-2 justify-end">
+                        {canSubmit && (
+                            <Button
+                                onClick={() => handleAction('submit')}
+                                disabled={processing}
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                            >
+                                {processing && <Loader2 className="h-3 w-3 animate-spin" />}
+                                <Send className="h-3.5 w-3.5" /> Submit for Approval
+                            </Button>
+                        )}
+                        {canApprove && (
+                            <Button
+                                onClick={() => handleAction('approve')}
+                                disabled={processing}
+                                className="bg-black text-white hover:bg-zinc-800 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                            >
+                                {processing && <Loader2 className="h-3 w-3 animate-spin" />}
+                                <ShieldCheck className="h-3.5 w-3.5" /> Approve Order
+                            </Button>
+                        )}
+                        {canOrder && (
+                            <Button
+                                onClick={() => handleAction('order')}
+                                disabled={processing}
+                                className="bg-emerald-600 text-white hover:bg-emerald-700 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                            >
+                                {processing && <Loader2 className="h-3 w-3 animate-spin" />}
+                                <Package className="h-3.5 w-3.5" /> Mark as Ordered
+                            </Button>
+                        )}
+                        {canVendorConfirm && (
+                            <Button
+                                onClick={() => { setVendorConfirmNotes(''); setVendorConfirmMode(true) }}
+                                disabled={processing}
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                            >
+                                <CheckCircle className="h-3.5 w-3.5" /> Vendor Confirmed
+                            </Button>
+                        )}
+                        {canShip && (
+                            <Button
+                                onClick={() => { setTrackingNumber(''); setShipMode(true) }}
+                                disabled={processing}
+                                className="bg-blue-600 text-white hover:bg-blue-700 rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                            >
+                                <Truck className="h-3.5 w-3.5" /> Mark as Shipped
+                            </Button>
+                        )}
+                        {canReject && (
+                            <Button
+                                variant="destructive"
+                                onClick={() => setRejectMode(true)}
+                                disabled={processing}
+                                className="rounded-none text-[10px] font-black uppercase tracking-wider h-8 px-4 gap-1.5"
+                            >
+                                <XCircle className="h-3.5 w-3.5" /> Reject Order
+                            </Button>
+                        )}
+                    </div>
+                )}
+                <div className="flex justify-end">
+                    <Button
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={processing}
+                        className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                    >
+                        Tutup
+                    </Button>
                 </div>
-
-                <SheetFooter className="flex-col gap-2">
-                    {/* Action Buttons */}
-                    {!rejectMode && !vendorConfirmMode && !shipMode && (
-                        <>
-                            {canSubmit && (
-                                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={() => handleAction('submit')} disabled={processing}>
-                                    Submit for Approval
-                                </Button>
-                            )}
-                            {canApprove && (
-                                <Button className="w-full bg-black text-white hover:bg-zinc-800 font-bold" onClick={() => handleAction('approve')} disabled={processing}>
-                                    Approve Order
-                                </Button>
-                            )}
-                            {canOrder && (
-                                <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onClick={() => handleAction('order')} disabled={processing}>
-                                    Mark as Ordered (Send to Vendor)
-                                </Button>
-                            )}
-                            {canVendorConfirm && (
-                                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={() => { setVendorConfirmNotes(''); setVendorConfirmMode(true) }} disabled={processing}>
-                                    Mark as Vendor Confirmed
-                                </Button>
-                            )}
-                            {canShip && (
-                                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={() => { setTrackingNumber(''); setShipMode(true) }} disabled={processing}>
-                                    Mark as Shipped
-                                </Button>
-                            )}
-                            {canReject && (
-                                <Button variant="destructive" className="w-full" onClick={() => setRejectMode(true)} disabled={processing}>
-                                    Reject Order
-                                </Button>
-                            )}
-                        </>
-                    )}
-
-                    <Button variant="secondary" className="w-full mt-2" onClick={onClose} disabled={processing}>Close</Button>
-                </SheetFooter>
-            </SheetContent>
-        </Sheet>
+            </div>
+        </NBDialog>
     )
 }

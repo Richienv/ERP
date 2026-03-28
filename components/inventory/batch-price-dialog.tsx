@@ -4,15 +4,13 @@ import { useState, useMemo, useCallback } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { formatIDR } from "@/lib/utils"
-import { NB } from "@/lib/dialog-styles"
 import { toast } from "sonner"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBSection,
+} from "@/components/ui/nb-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -25,6 +23,7 @@ import {
     Search,
     Check,
     ArrowRight,
+    Table2,
 } from "lucide-react"
 
 interface Product {
@@ -240,176 +239,166 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
         onOpenChange(v)
     }
 
+    const LABEL = "text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block"
+    const BTN_CANCEL = "border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+    const BTN_SUBMIT = "bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent className={NB.contentWide}>
-                {/* Header */}
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <DollarSign className="h-5 w-5" />
-                        Update Harga Massal
-                    </DialogTitle>
-                    <DialogDescription className={NB.subtitle}>
-                        {step === "edit"
-                            ? "Pilih produk dan ubah harga beli/jual secara massal"
-                            : `Preview perubahan — ${changedProducts.length} produk akan diupdate`}
-                    </DialogDescription>
-                </DialogHeader>
+        <NBDialog open={open} onOpenChange={handleOpenChange} size="wide">
+            <NBDialogHeader
+                icon={DollarSign}
+                title="Update Harga Massal"
+                subtitle={step === "edit"
+                    ? "Pilih produk dan ubah harga beli/jual secara massal"
+                    : `Preview perubahan — ${changedProducts.length} produk akan diupdate`}
+            />
 
-                {step === "edit" ? (
-                    <div className="p-6 space-y-4">
-                        {/* Bulk Action Panel */}
-                        <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <Percent className="h-4 w-4" />
-                                <span className={NB.sectionTitle}>Ubah Massal</span>
-                                <span className="text-[10px] text-zinc-400 ml-auto font-bold">
-                                    {selected.size} produk dipilih
-                                </span>
-                            </div>
-                            <div className={NB.sectionBody}>
-                                <div className="flex flex-wrap items-end gap-3">
-                                    {/* Direction */}
-                                    <div>
-                                        <label className={NB.label}>Arah</label>
-                                        <div className="flex border-2 border-black">
-                                            <button
-                                                type="button"
-                                                onClick={() => setBulkDirection("increase")}
-                                                className={`px-3 py-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest border-r-2 border-black ${
-                                                    bulkDirection === "increase"
-                                                        ? "bg-emerald-500 text-white"
-                                                        : "bg-white hover:bg-zinc-50"
-                                                }`}
-                                            >
-                                                <ArrowUp className="h-3 w-3" />
-                                                Naik
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setBulkDirection("decrease")}
-                                                className={`px-3 py-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${
-                                                    bulkDirection === "decrease"
-                                                        ? "bg-red-500 text-white"
-                                                        : "bg-white hover:bg-zinc-50"
-                                                }`}
-                                            >
-                                                <ArrowDown className="h-3 w-3" />
-                                                Turun
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Mode */}
-                                    <div>
-                                        <label className={NB.label}>Mode</label>
-                                        <div className="flex border-2 border-black">
-                                            <button
-                                                type="button"
-                                                onClick={() => setBulkMode("percent")}
-                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r-2 border-black ${
-                                                    bulkMode === "percent"
-                                                        ? "bg-black text-white"
-                                                        : "bg-white hover:bg-zinc-50"
-                                                }`}
-                                            >
-                                                Persen (%)
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setBulkMode("fixed")}
-                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
-                                                    bulkMode === "fixed"
-                                                        ? "bg-black text-white"
-                                                        : "bg-white hover:bg-zinc-50"
-                                                }`}
-                                            >
-                                                Nominal (Rp)
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Target */}
-                                    <div>
-                                        <label className={NB.label}>Target</label>
-                                        <div className="flex border-2 border-black">
-                                            <button
-                                                type="button"
-                                                onClick={() => setBulkTarget("both")}
-                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r-2 border-black ${
-                                                    bulkTarget === "both"
-                                                        ? "bg-black text-white"
-                                                        : "bg-white hover:bg-zinc-50"
-                                                }`}
-                                            >
-                                                Keduanya
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setBulkTarget("costPrice")}
-                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r-2 border-black ${
-                                                    bulkTarget === "costPrice"
-                                                        ? "bg-black text-white"
-                                                        : "bg-white hover:bg-zinc-50"
-                                                }`}
-                                            >
-                                                Harga Beli
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => setBulkTarget("sellingPrice")}
-                                                className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
-                                                    bulkTarget === "sellingPrice"
-                                                        ? "bg-black text-white"
-                                                        : "bg-white hover:bg-zinc-50"
-                                                }`}
-                                            >
-                                                Harga Jual
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Value */}
-                                    <div className="flex-1 min-w-[120px]">
-                                        <label className={NB.label}>
-                                            Nilai {bulkMode === "percent" ? "(%)" : "(Rp)"}
-                                        </label>
-                                        <Input
-                                            type="number"
-                                            value={bulkValue}
-                                            onChange={(e) => setBulkValue(e.target.value)}
-                                            placeholder={bulkMode === "percent" ? "10" : "5000"}
-                                            className={NB.input}
-                                            min={0}
-                                        />
-                                    </div>
-
-                                    {/* Apply */}
-                                    <Button
+            {step === "edit" ? (
+                <NBDialogBody>
+                    {/* Bulk Action Panel */}
+                    <NBSection icon={Percent} title="Ubah Massal">
+                        <div className="flex flex-wrap items-end gap-3">
+                            {/* Direction */}
+                            <div>
+                                <label className={LABEL}>Arah</label>
+                                <div className="flex border border-black">
+                                    <button
                                         type="button"
-                                        onClick={applyBulk}
-                                        className={NB.submitBtn}
+                                        onClick={() => setBulkDirection("increase")}
+                                        className={`px-3 py-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest border-r border-black ${
+                                            bulkDirection === "increase"
+                                                ? "bg-emerald-500 text-white"
+                                                : "bg-white hover:bg-zinc-50"
+                                        }`}
                                     >
-                                        Terapkan
-                                    </Button>
+                                        <ArrowUp className="h-3 w-3" />
+                                        Naik
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBulkDirection("decrease")}
+                                        className={`px-3 py-1.5 flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${
+                                            bulkDirection === "decrease"
+                                                ? "bg-red-500 text-white"
+                                                : "bg-white hover:bg-zinc-50"
+                                        }`}
+                                    >
+                                        <ArrowDown className="h-3 w-3" />
+                                        Turun
+                                    </button>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Search */}
-                        <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                            <Input
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Cari produk..."
-                                className={`${NB.input} pl-9`}
-                            />
-                        </div>
+                            {/* Mode */}
+                            <div>
+                                <label className={LABEL}>Mode</label>
+                                <div className="flex border border-black">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBulkMode("percent")}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r border-black ${
+                                            bulkMode === "percent"
+                                                ? "bg-black text-white"
+                                                : "bg-white hover:bg-zinc-50"
+                                        }`}
+                                    >
+                                        Persen (%)
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBulkMode("fixed")}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
+                                            bulkMode === "fixed"
+                                                ? "bg-black text-white"
+                                                : "bg-white hover:bg-zinc-50"
+                                        }`}
+                                    >
+                                        Nominal (Rp)
+                                    </button>
+                                </div>
+                            </div>
 
-                        {/* Product Table */}
-                        <div className={NB.tableWrap}>
-                            <div className={NB.tableHead}>
+                            {/* Target */}
+                            <div>
+                                <label className={LABEL}>Target</label>
+                                <div className="flex border border-black">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBulkTarget("both")}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r border-black ${
+                                            bulkTarget === "both"
+                                                ? "bg-black text-white"
+                                                : "bg-white hover:bg-zinc-50"
+                                        }`}
+                                    >
+                                        Keduanya
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBulkTarget("costPrice")}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-r border-black ${
+                                            bulkTarget === "costPrice"
+                                                ? "bg-black text-white"
+                                                : "bg-white hover:bg-zinc-50"
+                                        }`}
+                                    >
+                                        Harga Beli
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setBulkTarget("sellingPrice")}
+                                        className={`px-3 py-1.5 text-[10px] font-black uppercase tracking-widest ${
+                                            bulkTarget === "sellingPrice"
+                                                ? "bg-black text-white"
+                                                : "bg-white hover:bg-zinc-50"
+                                        }`}
+                                    >
+                                        Harga Jual
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Value */}
+                            <div className="flex-1 min-w-[120px]">
+                                <label className={LABEL}>
+                                    Nilai {bulkMode === "percent" ? "(%)" : "(Rp)"}
+                                </label>
+                                <Input
+                                    type="number"
+                                    value={bulkValue}
+                                    onChange={(e) => setBulkValue(e.target.value)}
+                                    placeholder={bulkMode === "percent" ? "10" : "5000"}
+                                    className="border border-zinc-300 rounded-none h-8 text-sm"
+                                    min={0}
+                                />
+                            </div>
+
+                            {/* Apply */}
+                            <Button
+                                type="button"
+                                onClick={applyBulk}
+                                className={BTN_SUBMIT}
+                            >
+                                Terapkan
+                            </Button>
+                        </div>
+                    </NBSection>
+
+                    {/* Search */}
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                        <Input
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Cari produk..."
+                            className="border border-zinc-300 rounded-none h-8 text-sm pl-9"
+                        />
+                    </div>
+
+                    {/* Product Table */}
+                    <NBSection icon={Table2} title="Daftar Produk">
+                        <div className="-mx-3 -mb-3">
+                            <div className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200">
                                 <div className="grid grid-cols-[40px_1fr_1fr_140px_140px] items-center">
                                     <div className="px-3 py-2 flex items-center justify-center">
                                         <Checkbox
@@ -417,10 +406,10 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                             onCheckedChange={toggleAll}
                                         />
                                     </div>
-                                    <div className={NB.tableHeadCell}>Produk</div>
-                                    <div className={NB.tableHeadCell}>Kategori</div>
-                                    <div className={`${NB.tableHeadCell} text-right`}>Harga Beli</div>
-                                    <div className={`${NB.tableHeadCell} text-right`}>Harga Jual</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Produk</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Kategori</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Beli</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Jual</div>
                                 </div>
                             </div>
                             <ScrollArea className="max-h-[40vh]">
@@ -443,7 +432,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                         return (
                                             <div
                                                 key={product.id}
-                                                className={`grid grid-cols-[40px_1fr_1fr_140px_140px] items-center ${NB.tableRow} ${
+                                                className={`grid grid-cols-[40px_1fr_1fr_140px_140px] items-center border-b border-zinc-100 ${
                                                     selected.has(product.id) ? "bg-emerald-50 dark:bg-emerald-950/20" : ""
                                                 }`}
                                             >
@@ -453,14 +442,14 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                         onCheckedChange={() => toggleSelect(product.id)}
                                                     />
                                                 </div>
-                                                <div className={NB.tableCell}>
+                                                <div className="px-3 py-2">
                                                     <div className="font-bold text-sm">{product.name}</div>
                                                     <div className="text-[10px] text-zinc-400 font-mono">{product.code}</div>
                                                 </div>
-                                                <div className={`${NB.tableCell} text-zinc-500 text-xs`}>
+                                                <div className="px-3 py-2 text-zinc-500 text-xs">
                                                     {product.category?.name ?? "-"}
                                                 </div>
-                                                <div className={NB.tableCell}>
+                                                <div className="px-3 py-2">
                                                     <Input
                                                         type="number"
                                                         value={edit?.newCostPrice ?? ""}
@@ -468,12 +457,12 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                             setProductPrice(product.id, "newCostPrice", e.target.value)
                                                         }
                                                         placeholder={String(getNum(product.costPrice))}
-                                                        className={`${NB.input} h-8 text-right text-xs ${
+                                                        className={`border border-zinc-300 rounded-none h-8 text-right text-xs ${
                                                             costChanged ? "border-amber-500 bg-amber-50" : ""
                                                         }`}
                                                     />
                                                 </div>
-                                                <div className={NB.tableCell}>
+                                                <div className="px-3 py-2">
                                                     <Input
                                                         type="number"
                                                         value={edit?.newSellingPrice ?? ""}
@@ -481,7 +470,7 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                             setProductPrice(product.id, "newSellingPrice", e.target.value)
                                                         }
                                                         placeholder={String(getNum(product.sellingPrice))}
-                                                        className={`${NB.input} h-8 text-right text-xs ${
+                                                        className={`border border-zinc-300 rounded-none h-8 text-right text-xs ${
                                                             sellChanged ? "border-amber-500 bg-amber-50" : ""
                                                         }`}
                                                     />
@@ -492,41 +481,44 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                 )}
                             </ScrollArea>
                         </div>
+                    </NBSection>
 
-                        {/* Footer */}
-                        <div className={NB.footer}>
-                            <span className="text-xs text-zinc-500 font-bold mr-auto">
-                                {changedProducts.length} produk berubah
-                            </span>
-                            <Button
-                                type="button"
-                                onClick={() => handleOpenChange(false)}
-                                className={NB.cancelBtn}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={handlePreview}
-                                className={NB.submitBtn}
-                                disabled={changedProducts.length === 0}
-                            >
-                                Preview
-                                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-                            </Button>
-                        </div>
+                    {/* Footer */}
+                    <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-end gap-2 -mx-4 -mb-4 mt-1">
+                        <span className="text-xs text-zinc-500 font-bold mr-auto">
+                            {changedProducts.length} produk berubah
+                        </span>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleOpenChange(false)}
+                            className={BTN_CANCEL}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handlePreview}
+                            className={BTN_SUBMIT}
+                            disabled={changedProducts.length === 0}
+                        >
+                            Preview
+                            <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                        </Button>
                     </div>
-                ) : (
-                    /* Preview Step */
-                    <div className="p-6 space-y-4">
-                        <div className={NB.tableWrap}>
-                            <div className={NB.tableHead}>
+                </NBDialogBody>
+            ) : (
+                /* Preview Step */
+                <NBDialogBody>
+                    <NBSection icon={Table2} title="Preview Perubahan">
+                        <div className="-mx-3 -mb-3">
+                            <div className="bg-zinc-100 dark:bg-zinc-800 border-b border-zinc-200">
                                 <div className="grid grid-cols-[1fr_140px_140px_140px_140px] items-center">
-                                    <div className={NB.tableHeadCell}>Produk</div>
-                                    <div className={`${NB.tableHeadCell} text-right`}>Harga Beli Lama</div>
-                                    <div className={`${NB.tableHeadCell} text-right`}>Harga Beli Baru</div>
-                                    <div className={`${NB.tableHeadCell} text-right`}>Harga Jual Lama</div>
-                                    <div className={`${NB.tableHeadCell} text-right`}>Harga Jual Baru</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500">Produk</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Beli Lama</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Beli Baru</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Jual Lama</div>
+                                    <div className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga Jual Baru</div>
                                 </div>
                             </div>
                             <ScrollArea className="max-h-[50vh]">
@@ -542,16 +534,16 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                     return (
                                         <div
                                             key={product.id}
-                                            className={`grid grid-cols-[1fr_140px_140px_140px_140px] items-center ${NB.tableRow}`}
+                                            className="grid grid-cols-[1fr_140px_140px_140px_140px] items-center border-b border-zinc-100"
                                         >
-                                            <div className={NB.tableCell}>
+                                            <div className="px-3 py-2">
                                                 <div className="font-bold text-sm">{product.name}</div>
                                                 <div className="text-[10px] text-zinc-400 font-mono">{product.code}</div>
                                             </div>
-                                            <div className={`${NB.tableCell} text-right text-xs text-zinc-500`}>
+                                            <div className="px-3 py-2 text-right text-xs text-zinc-500">
                                                 {formatIDR(oldCost)}
                                             </div>
-                                            <div className={`${NB.tableCell} text-right text-xs font-bold`}>
+                                            <div className="px-3 py-2 text-right text-xs font-bold">
                                                 <div>{formatIDR(newCost)}</div>
                                                 {costDiff !== 0 && (
                                                     <div
@@ -564,10 +556,10 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className={`${NB.tableCell} text-right text-xs text-zinc-500`}>
+                                            <div className="px-3 py-2 text-right text-xs text-zinc-500">
                                                 {formatIDR(oldSell)}
                                             </div>
-                                            <div className={`${NB.tableCell} text-right text-xs font-bold`}>
+                                            <div className="px-3 py-2 text-right text-xs font-bold">
                                                 <div>{formatIDR(newSell)}</div>
                                                 {sellDiff !== 0 && (
                                                     <div
@@ -585,39 +577,40 @@ export function BatchPriceDialog({ products, open, onOpenChange }: BatchPriceDia
                                 })}
                             </ScrollArea>
                         </div>
+                    </NBSection>
 
-                        {/* Footer */}
-                        <div className={NB.footer}>
-                            <span className="text-xs text-zinc-500 font-bold mr-auto">
-                                {changedProducts.length} produk akan diupdate
-                            </span>
-                            <Button
-                                type="button"
-                                onClick={() => setStep("edit")}
-                                className={NB.cancelBtn}
-                                disabled={submitting}
-                            >
-                                Kembali
-                            </Button>
-                            <Button
-                                type="button"
-                                onClick={handleSubmit}
-                                className={NB.submitBtn}
-                                disabled={submitting}
-                            >
-                                {submitting ? (
-                                    "Menyimpan..."
-                                ) : (
-                                    <>
-                                        <Check className="h-3.5 w-3.5 mr-1.5" />
-                                        Konfirmasi Update
-                                    </>
-                                )}
-                            </Button>
-                        </div>
+                    {/* Footer */}
+                    <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-end gap-2 -mx-4 -mb-4 mt-1">
+                        <span className="text-xs text-zinc-500 font-bold mr-auto">
+                            {changedProducts.length} produk akan diupdate
+                        </span>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setStep("edit")}
+                            className={BTN_CANCEL}
+                            disabled={submitting}
+                        >
+                            Kembali
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleSubmit}
+                            className={BTN_SUBMIT}
+                            disabled={submitting}
+                        >
+                            {submitting ? (
+                                "Menyimpan..."
+                            ) : (
+                                <>
+                                    <Check className="h-3.5 w-3.5 mr-1.5" />
+                                    Konfirmasi Update
+                                </>
+                            )}
+                        </Button>
                     </div>
-                )}
-            </DialogContent>
-        </Dialog>
+                </NBDialogBody>
+            )}
+        </NBDialog>
     )
 }

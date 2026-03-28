@@ -3,22 +3,7 @@
 import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { NB } from "@/lib/dialog-styles"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { Plus, Trash2, Search, CheckCircle2, XCircle } from "lucide-react"
 import { createFabricInspection } from "@/lib/actions/fabric-inspection"
@@ -26,6 +11,15 @@ import { calculate4PointScore, type FabricDefectEntry, type FabricInspectionResu
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 
 interface FabricInspectionDialogProps {
     products: { id: string; name: string; code: string }[]
@@ -69,7 +63,6 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
         setDefType("")
         setDefPoints(1)
 
-        // Update preview
         const meters = parseFloat(metersInspected) || 0
         if (meters > 0) setPreview(calculate4PointScore(meters, newDefects))
     }
@@ -127,139 +120,143 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger ?? (
-                    <Button className={NB.triggerBtn}>
-                        <Search className="mr-2 h-4 w-4" /> Inspeksi 4-Point
-                    </Button>
-                )}
-            </DialogTrigger>
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <Search className="h-5 w-5" /> Inspeksi Kain 4-Point
-                    </DialogTitle>
-                    <p className={NB.subtitle}>Catat defect dan hitung skor per 100 yard</p>
-                </DialogHeader>
+        <>
+            {trigger ? (
+                <span onClick={() => setOpen(true)}>{trigger}</span>
+            ) : (
+                <Button
+                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    onClick={() => setOpen(true)}
+                >
+                    <Search className="mr-2 h-4 w-4" /> Inspeksi 4-Point
+                </Button>
+            )}
 
-                <div className="p-6 space-y-4 max-h-[72vh] overflow-y-auto">
+            <NBDialog open={open} onOpenChange={setOpen} size="wide">
+                <NBDialogHeader
+                    icon={Search}
+                    title="Inspeksi Kain 4-Point"
+                    subtitle="Catat defect dan hitung skor per 100 yard"
+                />
+
+                <NBDialogBody>
                     {/* Basic Info */}
-                    <div className={NB.section}>
-                        <div className={NB.sectionHead}>
-                            <span className={NB.sectionTitle}>Info Dasar</span>
-                        </div>
-                        <div className={NB.sectionBody}>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={NB.label}>Nomor Batch <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.input} value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} placeholder="BTH-001" />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Meter Inspeksi <span className={NB.labelRequired}>*</span></label>
-                                    <Input className={NB.input} type="number" value={metersInspected} onChange={(e) => updatePreview(e.target.value)} placeholder="100" />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Produk Kain <span className={NB.labelRequired}>*</span></label>
-                                    <ComboboxWithCreate
-                                        options={productOptions}
-                                        value={productId}
-                                        onChange={setProductId}
-                                        placeholder="Pilih kain..."
-                                        searchPlaceholder="Cari produk kain..."
-                                        emptyMessage="Produk kain tidak ditemukan."
-                                    />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Inspektor <span className={NB.labelRequired}>*</span></label>
-                                    <ComboboxWithCreate
-                                        options={inspectorOptions}
-                                        value={inspectorId}
-                                        onChange={setInspectorId}
-                                        placeholder="Pilih inspektor..."
-                                        searchPlaceholder="Cari inspektor..."
-                                        emptyMessage="Inspektor tidak ditemukan."
-                                    />
-                                </div>
+                    <NBSection icon={Search} title="Info Dasar">
+                        <div className="grid grid-cols-2 gap-3">
+                            <NBInput
+                                label="Nomor Batch"
+                                required
+                                value={batchNumber}
+                                onChange={setBatchNumber}
+                                placeholder="BTH-001"
+                            />
+                            <NBInput
+                                label="Meter Inspeksi"
+                                required
+                                type="number"
+                                value={metersInspected}
+                                onChange={updatePreview}
+                                placeholder="100"
+                            />
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                    Produk Kain <span className="text-red-500">*</span>
+                                </label>
+                                <ComboboxWithCreate
+                                    options={productOptions}
+                                    value={productId}
+                                    onChange={setProductId}
+                                    placeholder="Pilih kain..."
+                                    searchPlaceholder="Cari produk kain..."
+                                    emptyMessage="Produk kain tidak ditemukan."
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                    Inspektor <span className="text-red-500">*</span>
+                                </label>
+                                <ComboboxWithCreate
+                                    options={inspectorOptions}
+                                    value={inspectorId}
+                                    onChange={setInspectorId}
+                                    placeholder="Pilih inspektor..."
+                                    searchPlaceholder="Cari inspektor..."
+                                    emptyMessage="Inspektor tidak ditemukan."
+                                />
                             </div>
                         </div>
-                    </div>
+                    </NBSection>
 
-                    {/* Defect Entry */}
-                    <div className={NB.section}>
-                        <div className={NB.sectionHead}>
-                            <span className={NB.sectionTitle}>Catat Defect</span>
-                        </div>
-                        <div className={NB.sectionBody}>
-                            <div className="flex gap-2 items-end">
-                                <div className="flex-1">
-                                    <label className={NB.label}>Lokasi</label>
-                                    <Input className={NB.input} value={defLocation} onChange={(e) => setDefLocation(e.target.value)} placeholder="3.5m dari tepi" />
-                                </div>
-                                <div className="flex-1">
-                                    <label className={NB.label}>Jenis Defect</label>
-                                    <Input className={NB.input} value={defType} onChange={(e) => setDefType(e.target.value)} placeholder="Lubang, Noda, dll" />
-                                </div>
-                                <div className="w-28">
-                                    <label className={NB.label}>Poin</label>
-                                    <Select value={String(defPoints)} onValueChange={(v) => setDefPoints(Number(v) as 1 | 2 | 3 | 4)}>
-                                        <SelectTrigger className={NB.select}>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="1">1 - Minor</SelectItem>
-                                            <SelectItem value="2">2 - Sedang</SelectItem>
-                                            <SelectItem value="3">3 - Major</SelectItem>
-                                            <SelectItem value="4">4 - Kritis</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <Button onClick={addDefect} className={NB.submitBtn + " h-10"}>
-                                    <Plus className="h-4 w-4" />
-                                </Button>
+                    {/* Defect Entry - complex, stays as-is */}
+                    <NBSection icon={Search} title="Catat Defect" optional>
+                        <div className="flex gap-2 items-end">
+                            <div className="flex-1">
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Lokasi</label>
+                                <Input className="h-8 text-sm rounded-none border border-zinc-300" value={defLocation} onChange={(e) => setDefLocation(e.target.value)} placeholder="3.5m dari tepi" />
                             </div>
+                            <div className="flex-1">
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Jenis Defect</label>
+                                <Input className="h-8 text-sm rounded-none border border-zinc-300" value={defType} onChange={(e) => setDefType(e.target.value)} placeholder="Lubang, Noda, dll" />
+                            </div>
+                            <div className="w-28">
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Poin</label>
+                                <Select value={String(defPoints)} onValueChange={(v) => setDefPoints(Number(v) as 1 | 2 | 3 | 4)}>
+                                    <SelectTrigger className="h-8 text-sm rounded-none border border-zinc-300">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="1">1 - Minor</SelectItem>
+                                        <SelectItem value="2">2 - Sedang</SelectItem>
+                                        <SelectItem value="3">3 - Major</SelectItem>
+                                        <SelectItem value="4">4 - Kritis</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button onClick={addDefect} className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider h-8 px-3 rounded-none">
+                                <Plus className="h-4 w-4" />
+                            </Button>
+                        </div>
 
-                            {/* Defect Table */}
-                            {defects.length > 0 && (
-                                <div className={NB.tableWrap + " mt-3"}>
-                                    <table className="w-full">
-                                        <thead className={NB.tableHead}>
-                                            <tr>
-                                                <th className={NB.tableHeadCell}>Lokasi</th>
-                                                <th className={NB.tableHeadCell}>Jenis</th>
-                                                <th className={NB.tableHeadCell + " text-center"}>Poin</th>
-                                                <th className={NB.tableHeadCell + " w-10"}></th>
+                        {/* Defect Table */}
+                        {defects.length > 0 && (
+                            <div className="border border-zinc-200 mt-3 overflow-hidden">
+                                <table className="w-full">
+                                    <thead className="bg-zinc-800 text-white">
+                                        <tr>
+                                            <th className="text-[10px] font-black uppercase tracking-widest p-2 text-left">Lokasi</th>
+                                            <th className="text-[10px] font-black uppercase tracking-widest p-2 text-left">Jenis</th>
+                                            <th className="text-[10px] font-black uppercase tracking-widest p-2 text-center">Poin</th>
+                                            <th className="text-[10px] font-black uppercase tracking-widest p-2 w-10"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {defects.map((d, idx) => (
+                                            <tr key={idx} className="border-b border-zinc-200 last:border-b-0">
+                                                <td className="p-2 text-xs">{d.location}</td>
+                                                <td className="p-2 text-xs">{d.type}</td>
+                                                <td className="p-2 text-center">
+                                                    <span className={`inline-block px-2 py-0.5 text-[10px] font-black border border-zinc-300 ${
+                                                        d.points >= 3 ? 'bg-red-100 text-red-700' : d.points >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                                                    }`}>
+                                                        {d.points}
+                                                    </span>
+                                                </td>
+                                                <td className="p-2">
+                                                    <button onClick={() => removeDefect(idx)} className="text-red-400 hover:text-red-600">
+                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {defects.map((d, idx) => (
-                                                <tr key={idx} className={NB.tableRow}>
-                                                    <td className={NB.tableCell}>{d.location}</td>
-                                                    <td className={NB.tableCell}>{d.type}</td>
-                                                    <td className={NB.tableCell + " text-center"}>
-                                                        <span className={`inline-block px-2 py-0.5 text-[10px] font-black border-2 border-black ${
-                                                            d.points >= 3 ? 'bg-red-100 text-red-700' : d.points >= 2 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
-                                                        }`}>
-                                                            {d.points}
-                                                        </span>
-                                                    </td>
-                                                    <td className={NB.tableCell}>
-                                                        <button onClick={() => removeDefect(idx)} className="text-red-400 hover:text-red-600">
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </NBSection>
 
                     {/* Live Preview */}
                     {preview && (
-                        <div className={`border-2 border-black p-4 ${preview.passed ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                        <div className={`border border-zinc-200 p-4 ${preview.passed ? 'bg-emerald-50' : 'bg-red-50'}`}>
                             <div className="flex items-center justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                     {preview.passed ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <XCircle className="h-5 w-5 text-red-600" />}
@@ -267,7 +264,7 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                                         {preview.passed ? 'LULUS' : 'TIDAK LULUS'}
                                     </span>
                                 </div>
-                                <span className={`text-lg font-black px-3 py-1 border-2 border-black ${
+                                <span className={`text-lg font-black px-3 py-1 border border-zinc-300 ${
                                     preview.grade === 'A' ? 'bg-emerald-200 text-emerald-800' :
                                     preview.grade === 'B' ? 'bg-blue-200 text-blue-800' :
                                     preview.grade === 'C' ? 'bg-amber-200 text-amber-800' :
@@ -293,21 +290,21 @@ export function FabricInspectionDialog({ products, inspectors, trigger }: Fabric
                         </div>
                     )}
 
-                    {/* Notes */}
-                    <div>
-                        <label className={NB.label}>Catatan</label>
-                        <Textarea className={NB.textarea} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Catatan tambahan..." />
-                    </div>
+                    <NBTextarea
+                        label="Catatan"
+                        value={notes}
+                        onChange={setNotes}
+                        placeholder="Catatan tambahan..."
+                    />
+                </NBDialogBody>
 
-                    {/* Footer */}
-                    <div className={NB.footer}>
-                        <Button variant="outline" onClick={() => setOpen(false)} className={NB.cancelBtn}>Batal</Button>
-                        <Button onClick={handleSubmit} disabled={loading} className={NB.submitBtn}>
-                            {loading ? "Menyimpan..." : "Simpan Inspeksi"}
-                        </Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setOpen(false)}
+                    onSubmit={handleSubmit}
+                    submitting={loading}
+                    submitLabel="Simpan Inspeksi"
+                />
+            </NBDialog>
+        </>
     )
 }

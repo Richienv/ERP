@@ -3,11 +3,15 @@
 import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
-import { Loader2, FileText, User, Building2, Package, Hash, Calendar, ShieldCheck, Receipt, AlertTriangle } from "lucide-react"
+import { Loader2, FileText, Building2, Package, Hash, Calendar, User, ShieldCheck, AlertTriangle } from "lucide-react"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBSection,
+    NBSelect,
+} from "@/components/ui/nb-dialog"
 import { getPODetails } from "@/app/actions/purchase-order"
 import { updatePurchaseOrderVendor, submitPOForApproval } from "@/lib/actions/procurement"
 import { formatIDR } from "@/lib/utils"
@@ -44,7 +48,7 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                 setPoData(data)
                 setSelectedVendor(data.supplierId || "")
             }
-        } catch (error) {
+        } catch {
             toast.error("Gagal memuat detail PO")
             onClose()
         } finally {
@@ -88,49 +92,44 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
     const total = poData?.netAmount ?? (subtotal + tax)
 
     return (
-        <Dialog open={isOpen} onOpenChange={onClose}>
-            <DialogContent className="max-w-4xl p-0 border-2 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0 bg-white">
-                {/* Header */}
-                <DialogHeader className="border-b-2 border-black px-6 py-4">
-                    <DialogTitle className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        Finalisasi Pesanan Pembelian
-                    </DialogTitle>
-                    <p className="text-xs text-zinc-500 font-medium mt-0.5">
-                        Tinjau detail, tetapkan vendor, dan buat dokumen PDF resmi.
-                    </p>
-                </DialogHeader>
+        <NBDialog open={isOpen} onOpenChange={onClose} size="wide">
+            <NBDialogHeader
+                icon={FileText}
+                title="Finalisasi Pesanan Pembelian"
+                subtitle="Tinjau detail, tetapkan vendor, dan buat dokumen PDF resmi."
+            />
 
-                {loading ? (
-                    <div className="flex items-center justify-center py-16">
-                        <Loader2 className="h-8 w-8 animate-spin text-zinc-300" />
-                    </div>
-                ) : poData ? (
-                    <div className="p-6 space-y-5">
-                        {/* Row 1: PO Info Strip — horizontal cards */}
+            {loading ? (
+                <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-8 w-8 animate-spin text-zinc-300" />
+                </div>
+            ) : poData ? (
+                <NBDialogBody>
+                    {/* Row 1: PO Info Strip */}
+                    <NBSection icon={Hash} title="Informasi PO">
                         <div className="grid grid-cols-4 gap-3">
-                            <div className="border-2 border-black p-3">
+                            <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <Hash className="h-3 w-3 text-zinc-400" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">No. PO</span>
                                 </div>
                                 <span className="text-sm font-black font-mono">{poData.number}</span>
                             </div>
-                            <div className="border-2 border-black p-3">
+                            <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <Calendar className="h-3 w-3 text-zinc-400" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Tanggal</span>
                                 </div>
                                 <span className="text-sm font-bold">{new Date(poData.orderDate).toLocaleDateString('id-ID')}</span>
                             </div>
-                            <div className="border-2 border-black p-3">
+                            <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <User className="h-3 w-3 text-zinc-400" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Pemohon</span>
                                 </div>
                                 <span className="text-sm font-bold">{poData.requester || 'System'}</span>
                             </div>
-                            <div className="border-2 border-black p-3">
+                            <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <ShieldCheck className="h-3 w-3 text-zinc-400" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Disetujui</span>
@@ -138,53 +137,54 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                                 <span className="text-sm font-bold">{poData.approver || '-'}</span>
                             </div>
                         </div>
+                    </NBSection>
 
-                        {/* Row 2: Vendor + Tax side by side */}
+                    {/* Row 2: Vendor + Tax */}
+                    <NBSection icon={Building2} title="Vendor & Pajak">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="border-2 border-black p-4">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5 mb-2">
-                                    <Building2 className="h-3.5 w-3.5" /> Vendor
-                                </label>
-                                <Select value={selectedVendor} onValueChange={setSelectedVendor} disabled={processing}>
-                                    <SelectTrigger className="w-full font-bold h-10 border-2 border-black">
-                                        <SelectValue placeholder="Pilih Vendor" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {(vendors || []).map(v => (
-                                            <SelectItem key={v.id} value={v.id} className="font-medium">
-                                                {v.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            <div>
+                                <NBSelect
+                                    label="Vendor"
+                                    required
+                                    value={selectedVendor}
+                                    onValueChange={setSelectedVendor}
+                                    placeholder="Pilih Vendor"
+                                    options={(vendors || []).map(v => ({
+                                        value: v.id,
+                                        label: v.name,
+                                    }))}
+                                    disabled={processing}
+                                />
                                 {!selectedVendor && (
                                     <p className="text-[10px] text-red-500 font-bold mt-1.5 flex items-center gap-1">
                                         <AlertTriangle className="h-3 w-3" /> Wajib memilih vendor
                                     </p>
                                 )}
                             </div>
-                            <div className="border-2 border-black p-4">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 flex items-center gap-1.5 mb-2">
-                                    <Receipt className="h-3.5 w-3.5" /> Pajak
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                    Pajak
                                 </label>
-                                <div className="border-2 border-black bg-zinc-50 px-3 py-2 font-bold text-sm">
+                                <div className="border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-3 py-2 font-bold text-sm h-8 flex items-center">
                                     PPN 11%
                                 </div>
                             </div>
                         </div>
+                    </NBSection>
 
-                        {/* Row 3: Items Table + Totals */}
-                        <div className="border-2 border-black">
-                            <div className="bg-zinc-100 border-b-2 border-black">
+                    {/* Row 3: Items Table + Totals — kept as-is (complex table) */}
+                    <NBSection icon={Package} title="Item Pesanan">
+                        <div className="border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                            <div className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
                                 <div className="grid grid-cols-12 gap-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                    <div className="col-span-5 px-4 py-2.5 border-r border-zinc-300">Item</div>
-                                    <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-300">Qty</div>
-                                    <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-300">Harga Satuan</div>
+                                    <div className="col-span-5 px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-700">Item</div>
+                                    <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Qty</div>
+                                    <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Harga Satuan</div>
                                     <div className="col-span-3 px-4 py-2.5 text-right">Total</div>
                                 </div>
                             </div>
                             {(poData.items || []).map((item: any, idx: number) => (
-                                <div key={idx} className={`grid grid-cols-12 gap-0 ${idx < poData.items.length - 1 ? 'border-b border-zinc-200' : ''}`}>
+                                <div key={idx} className={`grid grid-cols-12 gap-0 ${idx < poData.items.length - 1 ? 'border-b border-zinc-200 dark:border-zinc-700' : ''}`}>
                                     <div className="col-span-5 px-4 py-3 flex items-center gap-2">
                                         <Package className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
                                         <div>
@@ -203,50 +203,50 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                                     </div>
                                 </div>
                             ))}
-                            {/* Totals row inside table */}
-                            <div className="border-t-2 border-black bg-zinc-50">
+                            {/* Totals */}
+                            <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
                                 <div className="grid grid-cols-12 gap-0">
                                     <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">Subtotal</div>
                                     <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(subtotal)}</div>
                                 </div>
-                                <div className="grid grid-cols-12 gap-0 border-t border-zinc-200">
+                                <div className="grid grid-cols-12 gap-0 border-t border-zinc-200 dark:border-zinc-700">
                                     <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">PPN 11%</div>
                                     <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(tax)}</div>
                                 </div>
-                                <div className="grid grid-cols-12 gap-0 border-t-2 border-black">
+                                <div className="grid grid-cols-12 gap-0 border-t-2 border-black dark:border-white">
                                     <div className="col-span-9 px-4 py-3 text-right text-sm font-black uppercase">Grand Total</div>
                                     <div className="col-span-3 px-4 py-3 text-right font-black text-base">{formatIDR(total)}</div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="py-16 text-center text-red-500 font-bold">Gagal memuat data</div>
-                )}
+                    </NBSection>
+                </NBDialogBody>
+            ) : (
+                <div className="py-16 text-center text-red-500 font-bold">Gagal memuat data</div>
+            )}
 
-                {/* Footer */}
-                <div className="border-t-2 border-black px-6 py-4 flex items-center justify-end gap-3 bg-white">
-                    <Button
-                        variant="outline"
-                        onClick={onClose}
-                        disabled={processing}
-                        className="border-2 border-black font-black uppercase text-xs tracking-wider px-6 hover:bg-zinc-100"
-                    >
-                        Batal
-                    </Button>
-                    <Button
-                        onClick={handleConfirm}
-                        disabled={!poData || processing || !selectedVendor}
-                        className="bg-white text-black border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-6 disabled:opacity-40"
-                    >
-                        {processing ? (
-                            <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Memproses...</>
-                        ) : (
-                            <><FileText className="h-4 w-4 mr-2" /> Konfirmasi & Buat PDF</>
-                        )}
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
+            {/* Custom footer with Konfirmasi & Buat PDF button */}
+            <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-end gap-2">
+                <Button
+                    variant="outline"
+                    onClick={onClose}
+                    disabled={processing}
+                    className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                >
+                    Batal
+                </Button>
+                <Button
+                    onClick={handleConfirm}
+                    disabled={!poData || processing || !selectedVendor}
+                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                >
+                    {processing ? (
+                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Memproses...</>
+                    ) : (
+                        <><FileText className="h-3.5 w-3.5" /> Konfirmasi & Buat PDF</>
+                    )}
+                </Button>
+            </div>
+        </NBDialog>
     )
 }

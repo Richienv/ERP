@@ -12,12 +12,14 @@ import { format } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
 import {
     Form,
     FormControl,
@@ -38,17 +40,8 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
+import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { cn, formatIDR } from "@/lib/utils"
 import { createPurchaseOrder, getProductsForPO } from "@/app/actions/purchase-order"
 import { getVendors } from "@/lib/actions/procurement"
@@ -276,44 +269,33 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
     )
 
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => {
+        <>
+        {!isControlled && (
+            <Button className={NB.triggerBtn} onClick={() => setOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> Buat PO
+            </Button>
+        )}
+        <NBDialog open={open} onOpenChange={(isOpen) => {
             if (!isOpen) handleClose()
             else setOpen(true)
-        }}>
-            {!isControlled && (
-                <DialogTrigger asChild>
-                    <Button className={NB.triggerBtn}>
-                        <Plus className="mr-2 h-4 w-4" /> Buat PO
-                    </Button>
-                </DialogTrigger>
-            )}
-            <DialogContent className={NB.contentWide}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <FileText className="h-5 w-5" />
-                        {step === 'form' ? 'Buat Purchase Order' : 'Purchase Order Dibuat'}
-                    </DialogTitle>
-                    <p className={NB.subtitle}>
-                        {step === 'form'
-                            ? 'Lengkapi form untuk membuat PO baru'
-                            : 'Review dan bagikan dokumen PO'}
-                    </p>
-                </DialogHeader>
+        }} size="wide">
+            <NBDialogHeader
+                icon={FileText}
+                title={step === 'form' ? 'Buat Purchase Order' : 'Purchase Order Dibuat'}
+                subtitle={step === 'form'
+                    ? 'Lengkapi form untuk membuat PO baru'
+                    : 'Review dan bagikan dokumen PO'}
+            />
 
-                <ScrollArea className={NB.scroll}>
+                <NBDialogBody>
                     {step === 'preview' ? (
                         <PreviewStep />
                     ) : (
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="p-5 space-y-4">
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
 
                             {/* Vendor & Date */}
-                            <div className={NB.section}>
-                                <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50`}>
-                                    <Truck className="h-4 w-4" />
-                                    <span className={NB.sectionTitle}>Vendor & Jadwal</span>
-                                </div>
-                                <div className={NB.sectionBody}>
+                            <NBSection icon={Truck} title="Vendor & Jadwal">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <FormField
                                             control={form.control}
@@ -378,95 +360,52 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                             )}
                                         />
                                     </div>
-                                </div>
-                            </div>
+                            </NBSection>
 
                             {/* Payment & Notes */}
-                            <div className={NB.section}>
-                                <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50`}>
-                                    <Receipt className="h-4 w-4" />
-                                    <span className={NB.sectionTitle}>Pembayaran & Catatan</span>
-                                </div>
-                                <div className={NB.sectionBody}>
+                            <NBSection icon={Receipt} title="Pembayaran & Catatan">
                                     <div className="grid grid-cols-3 gap-4">
-                                        <FormField
-                                            control={form.control}
-                                            name="paymentTerms"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <label className={NB.label}>Termin Pembayaran</label>
-                                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                        <FormControl>
-                                                            <SelectTrigger className={NB.select}>
-                                                                <SelectValue placeholder="Pilih termin" />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="COD">COD</SelectItem>
-                                                            <SelectItem value="CBD">CBD</SelectItem>
-                                                            <SelectItem value="NET7">Net 7</SelectItem>
-                                                            <SelectItem value="NET14">Net 14</SelectItem>
-                                                            <SelectItem value="NET30">Net 30</SelectItem>
-                                                            <SelectItem value="NET45">Net 45</SelectItem>
-                                                            <SelectItem value="NET60">Net 60</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage className={NB.error} />
-                                                </FormItem>
-                                            )}
+                                        <NBSelect
+                                            label="Termin Pembayaran"
+                                            value={form.watch("paymentTerms") || ""}
+                                            onValueChange={(val) => form.setValue("paymentTerms", val)}
+                                            placeholder="Pilih termin"
+                                            options={[
+                                                { value: "COD", label: "COD" },
+                                                { value: "CBD", label: "CBD" },
+                                                { value: "NET7", label: "Net 7" },
+                                                { value: "NET14", label: "Net 14" },
+                                                { value: "NET30", label: "Net 30" },
+                                                { value: "NET45", label: "Net 45" },
+                                                { value: "NET60", label: "Net 60" },
+                                            ]}
                                         />
 
-                                        <FormField
-                                            control={form.control}
-                                            name="includeTax"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <label className={NB.label}>Pajak</label>
-                                                    <Select
-                                                        value={field.value ? "PPN" : "NON_PPN"}
-                                                        onValueChange={(value) => field.onChange(value === "PPN")}
-                                                    >
-                                                        <FormControl>
-                                                            <SelectTrigger className={NB.select}>
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                        </FormControl>
-                                                        <SelectContent>
-                                                            <SelectItem value="PPN">PPN 11%</SelectItem>
-                                                            <SelectItem value="NON_PPN">Non-PPN</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <FormMessage className={NB.error} />
-                                                </FormItem>
-                                            )}
+                                        <NBSelect
+                                            label="Pajak"
+                                            value={form.watch("includeTax") ? "PPN" : "NON_PPN"}
+                                            onValueChange={(val) => form.setValue("includeTax", val === "PPN")}
+                                            options={[
+                                                { value: "PPN", label: "PPN 11%" },
+                                                { value: "NON_PPN", label: "Non-PPN" },
+                                            ]}
                                         />
 
-                                        <FormField
-                                            control={form.control}
-                                            name="notes"
-                                            render={({ field }) => (
-                                                <FormItem>
-                                                    <label className={NB.label}>Catatan</label>
-                                                    <FormControl>
-                                                        <Textarea
-                                                            placeholder="Catatan untuk vendor..."
-                                                            className={NB.textarea + " min-h-[40px]"}
-                                                            {...field}
-                                                        />
-                                                    </FormControl>
-                                                    <FormMessage className={NB.error} />
-                                                </FormItem>
-                                            )}
+                                        <NBTextarea
+                                            label="Catatan"
+                                            value={form.watch("notes") || ""}
+                                            onChange={(val) => form.setValue("notes", val)}
+                                            placeholder="Catatan untuk vendor..."
+                                            rows={2}
                                         />
                                     </div>
-                                </div>
-                            </div>
+                            </NBSection>
 
-                            {/* Items Section */}
-                            <div className={NB.section}>
-                                <div className={`${NB.sectionHead} border-l-4 border-l-violet-400 bg-violet-50`}>
-                                    <ShoppingCart className="h-4 w-4" />
-                                    <span className={NB.sectionTitle}>Item Pesanan</span>
+                            {/* Items Section — complex, keep inner table as-is */}
+                            <div className="border border-zinc-200 dark:border-zinc-700">
+                                <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center gap-2">
+                                    <ShoppingCart className="h-3.5 w-3.5 text-zinc-400" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Item Pesanan</span>
                                     <Button
                                         type="button"
                                         variant="outline"
@@ -604,26 +543,21 @@ export function NewPurchaseOrderDialog({ vendors: vendorsProp, products: product
                                 </div>
                             </div>
 
-                            {/* Footer */}
-                            <div className={NB.footer}>
-                                <Button type="button" variant="outline" onClick={() => setOpen(false)} className={NB.cancelBtn}>
-                                    Batal
-                                </Button>
-                                <Button type="submit" disabled={isSubmitting} className={NB.submitBtn}>
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Membuat...
-                                        </>
-                                    ) : (
-                                        "Konfirmasi & Buat PO"
-                                    )}
-                                </Button>
-                            </div>
                         </form>
                     </Form>
                     )}
-                </ScrollArea>
-            </DialogContent>
-        </Dialog>
+                </NBDialogBody>
+
+                {/* Sticky footer — outside scroll body, only on form step */}
+                {step === 'form' && (
+                    <NBDialogFooter
+                        onCancel={() => setOpen(false)}
+                        onSubmit={form.handleSubmit(onSubmit)}
+                        submitting={isSubmitting}
+                        submitLabel="Konfirmasi & Buat PO"
+                    />
+                )}
+        </NBDialog>
+        </>
     )
 }

@@ -1,15 +1,14 @@
 "use client";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+} from "@/components/ui/nb-dialog";
 import { Button } from "@/components/ui/button";
 import { Mail, Phone, ExternalLink, UserCircle } from "lucide-react";
 import { NB } from "@/lib/dialog-styles";
+import { useState } from "react";
 
 interface VendorContactDialogProps {
   vendorName: string;
@@ -19,24 +18,22 @@ interface VendorContactDialogProps {
 }
 
 export function VendorContactDialog({ vendorName, email, phone, trigger }: VendorContactDialogProps) {
+  const [open, setOpen] = useState(false);
+
   return (
-    <Dialog>
-      <DialogTrigger asChild>
+    <>
+      <span onClick={() => setOpen(true)}>
         {trigger || (
           <Button variant="outline" className={NB.cancelBtn}>
             Contact
           </Button>
         )}
-      </DialogTrigger>
-      <DialogContent className={NB.contentNarrow}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <UserCircle className="h-5 w-5" /> Hubungi Vendor
-          </DialogTitle>
-          <p className={NB.subtitle}>{vendorName}</p>
-        </DialogHeader>
+      </span>
 
-        <div className="p-5 space-y-3">
+      <NBDialog open={open} onOpenChange={setOpen} size="narrow">
+        <NBDialogHeader icon={UserCircle} title="Hubungi Vendor" subtitle={vendorName} />
+
+        <NBDialogBody>
           <Button
             variant="outline"
             size="lg"
@@ -74,8 +71,8 @@ export function VendorContactDialog({ vendorName, email, phone, trigger }: Vendo
             </div>
             <ExternalLink className="h-4 w-4 text-zinc-400" />
           </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </NBDialogBody>
+      </NBDialog>
+    </>
   );
 }

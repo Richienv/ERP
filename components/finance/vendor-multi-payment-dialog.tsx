@@ -8,19 +8,10 @@ import {
     Building2,
     FileText,
     Minus,
-    Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-} from "@/components/ui/dialog"
 import {
     Select,
     SelectContent,
@@ -28,7 +19,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBSection,
+    NBSelect,
+    NBInput,
+} from "@/components/ui/nb-dialog"
 import { NB } from "@/lib/dialog-styles"
 import { formatIDR } from "@/lib/utils"
 import { getDefaultRate, calculateWithholding } from "@/lib/pph-helpers"
@@ -258,406 +256,363 @@ export function VendorMultiPaymentDialog({
     }
 
     return (
-        <Dialog open={open} onOpenChange={resetAndClose}>
-            <DialogContent className={NB.contentWide}>
-                {/* Header */}
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <CircleDollarSign className="h-5 w-5" />
-                        Pembayaran Multi-Tagihan
-                    </DialogTitle>
-                    <DialogDescription className={NB.subtitle}>
-                        Bayar beberapa tagihan vendor sekaligus — bisa penuh atau sebagian
-                    </DialogDescription>
-                </DialogHeader>
+        <NBDialog open={open} onOpenChange={resetAndClose} size="wide">
+            <NBDialogHeader
+                icon={CircleDollarSign}
+                title="Pembayaran Multi-Tagihan"
+                subtitle="Bayar beberapa tagihan vendor sekaligus — bisa penuh atau sebagian"
+            />
 
-                <ScrollArea className={NB.scroll}>
-                    <div className="p-6 space-y-5">
-                        {/* Vendor & Method Selection */}
-                        <div className={NB.section}>
-                            <div className={NB.sectionHead}>
-                                <Building2 className="h-4 w-4" />
-                                <span className={NB.sectionTitle}>Vendor & Metode</span>
+            <NBDialogBody>
+                {/* Vendor & Method Selection */}
+                <NBSection icon={Building2} title="Vendor & Metode">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <NBSelect
+                            label="Vendor"
+                            required
+                            value={selectedVendorId}
+                            onValueChange={handleVendorChange}
+                            placeholder="Pilih vendor..."
+                        >
+                            {vendors.map((v) => (
+                                <SelectItem key={v.id} value={v.id}>
+                                    {v.name}
+                                </SelectItem>
+                            ))}
+                        </NBSelect>
+
+                        <NBSelect
+                            label="Metode Pembayaran"
+                            required
+                            value={paymentMethod}
+                            onValueChange={(v) => {
+                                const m = v as PaymentMethod
+                                setPaymentMethod(m)
+                                setBankAccountCode(m === "CASH" ? "1000" : "1010")
+                            }}
+                            options={[
+                                { value: "TRANSFER", label: "Transfer Bank" },
+                                { value: "CHECK", label: "Cek" },
+                                { value: "GIRO", label: "Giro" },
+                                { value: "CASH", label: "Tunai" },
+                            ]}
+                        />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <NBSelect
+                            label="Akun Pembayaran"
+                            required
+                            value={bankAccountCode}
+                            onValueChange={setBankAccountCode}
+                            placeholder="Pilih akun..."
+                        >
+                            {bankAccounts?.map((a) => (
+                                <SelectItem key={a.code} value={a.code}>
+                                    {a.code} — {a.name}
+                                </SelectItem>
+                            ))}
+                        </NBSelect>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <NBInput
+                            label={paymentMethod === "GIRO" ? "Referensi / No. Giro" : "Referensi / No. Cek"}
+                            required={paymentMethod === "CHECK" || paymentMethod === "GIRO"}
+                            value={reference}
+                            onChange={setReference}
+                            placeholder={paymentMethod === "CHECK" ? "CHK-000123" : paymentMethod === "GIRO" ? "GR-000123" : "Ref..."}
+                        />
+
+                        <NBInput
+                            label="Catatan"
+                            value={notes}
+                            onChange={setNotes}
+                            placeholder="Opsional..."
+                        />
+                    </div>
+
+                    {/* Vendor AP Balance KPI — keep as-is */}
+                    {vendorBalance && (
+                        <div className="border-2 border-black bg-amber-50 dark:bg-amber-950 p-3 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Banknote className="h-4 w-4 text-amber-600" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
+                                    Saldo AP {vendorBalance.vendorName}
+                                </span>
                             </div>
-                            <div className={NB.sectionBody}>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <Label className={NB.label}>
-                                            Vendor <span className={NB.labelRequired}>*</span>
-                                        </Label>
-                                        <Select
-                                            value={selectedVendorId}
-                                            onValueChange={handleVendorChange}
-                                        >
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue placeholder="Pilih vendor..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {vendors.map((v) => (
-                                                    <SelectItem key={v.id} value={v.id}>
-                                                        {v.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className={NB.label}>
-                                            Metode Pembayaran <span className={NB.labelRequired}>*</span>
-                                        </Label>
-                                        <Select
-                                            value={paymentMethod}
-                                            onValueChange={(v) => {
-                                                const m = v as PaymentMethod
-                                                setPaymentMethod(m)
-                                                setBankAccountCode(m === "CASH" ? "1000" : "1010")
-                                            }}
-                                        >
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="TRANSFER">Transfer Bank</SelectItem>
-                                                <SelectItem value="CHECK">Cek</SelectItem>
-                                                <SelectItem value="GIRO">Giro</SelectItem>
-                                                <SelectItem value="CASH">Tunai</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <Label className={NB.label}>
-                                            Akun Pembayaran <span className={NB.labelRequired}>*</span>
-                                        </Label>
-                                        <Select
-                                            value={bankAccountCode}
-                                            onValueChange={setBankAccountCode}
-                                        >
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue placeholder="Pilih akun..." />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {bankAccounts?.map((a) => (
-                                                    <SelectItem key={a.code} value={a.code}>
-                                                        {a.code} — {a.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div className="space-y-1.5">
-                                        <Label className={NB.label}>
-                                            {paymentMethod === "GIRO" ? "Referensi / No. Giro" : "Referensi / No. Cek"}
-                                            {(paymentMethod === "CHECK" || paymentMethod === "GIRO") && (
-                                                <span className={NB.labelRequired}> *</span>
-                                            )}
-                                        </Label>
-                                        <Input
-                                            value={reference}
-                                            onChange={(e) => setReference(e.target.value)}
-                                            placeholder={paymentMethod === "CHECK" ? "CHK-000123" : paymentMethod === "GIRO" ? "GR-000123" : "Ref..."}
-                                            className={NB.input}
-                                        />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <Label className={NB.label}>Catatan</Label>
-                                        <Input
-                                            value={notes}
-                                            onChange={(e) => setNotes(e.target.value)}
-                                            placeholder="Opsional..."
-                                            className={NB.input}
-                                        />
-                                    </div>
-                                </div>
+                            <div className="text-right">
+                                <span className="font-mono font-black text-lg text-amber-800">
+                                    {formatIDR(vendorBalance.totalOutstanding)}
+                                </span>
+                                <span className="text-[10px] text-amber-600 ml-2">
+                                    ({vendorBalance.billCount} tagihan)
+                                </span>
+                            </div>
+                        </div>
+                    )}
+                </NBSection>
 
-                                {/* Vendor AP Balance KPI */}
-                                {vendorBalance && (
-                                    <div className="border-2 border-black bg-amber-50 dark:bg-amber-950 p-3 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Banknote className="h-4 w-4 text-amber-600" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700">
-                                                Saldo AP {vendorBalance.vendorName}
-                                            </span>
-                                        </div>
-                                        <div className="text-right">
-                                            <span className="font-mono font-black text-lg text-amber-800">
-                                                {formatIDR(vendorBalance.totalOutstanding)}
-                                            </span>
-                                            <span className="text-[10px] text-amber-600 ml-2">
-                                                ({vendorBalance.billCount} tagihan)
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
+                {/* Bill Allocation Table — complex table with checkboxes, keep as-is within NB section shell */}
+                {selectedVendorId && (
+                    <div className="border border-zinc-200 dark:border-zinc-700">
+                        <div className="bg-zinc-50 dark:bg-zinc-800/50 px-3 py-1.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <FileText className="h-3.5 w-3.5 text-zinc-400" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                    Alokasi Tagihan ({allocations.length})
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={selectAll}
+                                    className="text-[9px] font-black uppercase tracking-widest h-7 px-2"
+                                >
+                                    <Check className="h-3 w-3 mr-1" /> Pilih Semua
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={deselectAll}
+                                    className="text-[9px] font-black uppercase tracking-widest h-7 px-2"
+                                >
+                                    <Minus className="h-3 w-3 mr-1" /> Batal Semua
+                                </Button>
                             </div>
                         </div>
 
-                        {/* Bill Allocation Table */}
-                        {selectedVendorId && (
-                            <div className={NB.section}>
-                                <div className={NB.sectionHead + " justify-between"}>
-                                    <div className="flex items-center gap-2">
-                                        <FileText className="h-4 w-4" />
-                                        <span className={NB.sectionTitle}>
-                                            Alokasi Tagihan ({allocations.length})
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            onClick={selectAll}
-                                            className="text-[9px] font-black uppercase tracking-widest h-7 px-2"
-                                        >
-                                            <Check className="h-3 w-3 mr-1" /> Pilih Semua
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            onClick={deselectAll}
-                                            className="text-[9px] font-black uppercase tracking-widest h-7 px-2"
-                                        >
-                                            <Minus className="h-3 w-3 mr-1" /> Batal Semua
-                                        </Button>
+                        {allocations.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <FileText className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
+                                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                                    Vendor ini tidak memiliki tagihan terbuka
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Table Header */}
+                                <div className={NB.tableHead}>
+                                    <div className="grid grid-cols-12 gap-2 px-3 py-2">
+                                        <div className={NB.tableHeadCell + " col-span-1"}></div>
+                                        <div className={NB.tableHeadCell + " col-span-3"}>No. Tagihan</div>
+                                        <div className={NB.tableHeadCell + " col-span-2"}>Jatuh Tempo</div>
+                                        <div className={NB.tableHeadCell + " col-span-2 text-right"}>Total</div>
+                                        <div className={NB.tableHeadCell + " col-span-2 text-right"}>Sisa</div>
+                                        <div className={NB.tableHeadCell + " col-span-2 text-right"}>Bayar</div>
                                     </div>
                                 </div>
 
-                                {allocations.length === 0 ? (
-                                    <div className="p-8 text-center">
-                                        <FileText className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
-                                            Vendor ini tidak memiliki tagihan terbuka
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* Table Header */}
-                                        <div className={NB.tableHead}>
-                                            <div className="grid grid-cols-12 gap-2 px-3 py-2">
-                                                <div className={NB.tableHeadCell + " col-span-1"}></div>
-                                                <div className={NB.tableHeadCell + " col-span-3"}>No. Tagihan</div>
-                                                <div className={NB.tableHeadCell + " col-span-2"}>Jatuh Tempo</div>
-                                                <div className={NB.tableHeadCell + " col-span-2 text-right"}>Total</div>
-                                                <div className={NB.tableHeadCell + " col-span-2 text-right"}>Sisa</div>
-                                                <div className={NB.tableHeadCell + " col-span-2 text-right"}>Bayar</div>
-                                            </div>
-                                        </div>
-
-                                        {/* Rows */}
-                                        {allocations.map((row) => (
-                                            <div
-                                                key={row.billId}
-                                                className={
-                                                    NB.tableRow +
-                                                    " grid grid-cols-12 gap-2 items-center px-3 py-2" +
-                                                    (row.selected ? " bg-emerald-50 dark:bg-emerald-950/30" : "") +
-                                                    (row.isOverdue ? " border-l-4 border-l-red-400" : "")
-                                                }
-                                            >
-                                                <div className="col-span-1 flex items-center justify-center">
-                                                    <Checkbox
-                                                        checked={row.selected}
-                                                        onCheckedChange={() => toggleBill(row.billId)}
-                                                    />
-                                                </div>
-                                                <div className="col-span-3">
-                                                    <span className="font-mono text-xs font-bold">
-                                                        {row.billNumber}
-                                                    </span>
-                                                    {row.isOverdue && (
-                                                        <span className="ml-2 text-[9px] font-black uppercase text-red-600 bg-red-100 px-1.5 py-0.5">
-                                                            Jatuh Tempo
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="col-span-2 text-xs text-zinc-500">
-                                                    {row.dueDate.toLocaleDateString("id-ID")}
-                                                </div>
-                                                <div className="col-span-2 text-right font-mono text-xs text-zinc-500">
-                                                    {formatIDR(row.totalAmount)}
-                                                </div>
-                                                <div className="col-span-2 text-right font-mono text-xs font-bold text-red-600">
-                                                    {formatIDR(row.balanceDue)}
-                                                </div>
-                                                <div className="col-span-2">
-                                                    {row.selected ? (
-                                                        <Input
-                                                            type="number"
-                                                            value={row.allocatedAmount || ""}
-                                                            onChange={(e) =>
-                                                                updateAllocation(
-                                                                    row.billId,
-                                                                    Number(e.target.value)
-                                                                )
-                                                            }
-                                                            max={row.balanceDue}
-                                                            min={0}
-                                                            className="border-2 border-black font-mono font-bold h-8 text-right rounded-none text-xs w-full"
-                                                        />
-                                                    ) : (
-                                                        <div className="text-right text-xs text-zinc-300 font-mono">
-                                                            -
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Potong PPh Section */}
-                        {selectedCount > 0 && (
-                            <div className="border-2 border-black p-3 space-y-3">
-                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        checked={enablePPh}
-                                        onChange={(e) => setEnablePPh(e.target.checked)}
-                                        className="rounded border-zinc-300"
-                                    />
-                                    Potong PPh
-                                </label>
-
-                                {enablePPh && (
-                                    <div className="space-y-3 pl-6">
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold uppercase text-zinc-500">Jenis PPh</label>
-                                                <Select value={pphType} onValueChange={(v: string) => setPPhType(v as PPhTypeValue)}>
-                                                    <SelectTrigger className="h-8 rounded-none text-xs border-2 border-black">
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="PPH_23">PPh 23 (Jasa)</SelectItem>
-                                                        <SelectItem value="PPH_4_2">PPh 4(2) (Sewa/Konstruksi)</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold uppercase text-zinc-500">Tarif (%)</label>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    value={pphRate}
-                                                    onChange={(e) => setPPhRate(Number(e.target.value))}
-                                                    className="h-8 rounded-none text-xs border-2 border-black font-mono"
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                            <div>
-                                                <span className="text-zinc-500">DPP:</span>{" "}
-                                                <span className="font-mono font-bold">{formatIDR(pphBaseAmount)}</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-zinc-500">PPh:</span>{" "}
-                                                <span className="font-mono font-bold text-red-600">{formatIDR(pphCalc?.amount || 0)}</span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-bold uppercase text-zinc-500">No. Bukti Potong</label>
-                                            <Input
-                                                value={buktiPotongNo}
-                                                onChange={(e) => setBuktiPotongNo(e.target.value)}
-                                                placeholder="Opsional..."
-                                                className="h-8 rounded-none text-xs border-2 border-black placeholder:text-zinc-300"
+                                {/* Rows */}
+                                {allocations.map((row) => (
+                                    <div
+                                        key={row.billId}
+                                        className={
+                                            NB.tableRow +
+                                            " grid grid-cols-12 gap-2 items-center px-3 py-2" +
+                                            (row.selected ? " bg-emerald-50 dark:bg-emerald-950/30" : "") +
+                                            (row.isOverdue ? " border-l-4 border-l-red-400" : "")
+                                        }
+                                    >
+                                        <div className="col-span-1 flex items-center justify-center">
+                                            <Checkbox
+                                                checked={row.selected}
+                                                onCheckedChange={() => toggleBill(row.billId)}
                                             />
                                         </div>
-
-                                        <div className="bg-amber-50 border-2 border-amber-300 p-2 text-xs">
-                                            <span className="font-bold">Dibayar ke vendor:</span>{" "}
-                                            <span className="font-mono font-bold text-lg">{formatIDR(pphCalc?.netAmount || pphBaseAmount)}</span>
+                                        <div className="col-span-3">
+                                            <span className="font-mono text-xs font-bold">
+                                                {row.billNumber}
+                                            </span>
+                                            {row.isOverdue && (
+                                                <span className="ml-2 text-[9px] font-black uppercase text-red-600 bg-red-100 px-1.5 py-0.5">
+                                                    Jatuh Tempo
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="col-span-2 text-xs text-zinc-500">
+                                            {row.dueDate.toLocaleDateString("id-ID")}
+                                        </div>
+                                        <div className="col-span-2 text-right font-mono text-xs text-zinc-500">
+                                            {formatIDR(row.totalAmount)}
+                                        </div>
+                                        <div className="col-span-2 text-right font-mono text-xs font-bold text-red-600">
+                                            {formatIDR(row.balanceDue)}
+                                        </div>
+                                        <div className="col-span-2">
+                                            {row.selected ? (
+                                                <Input
+                                                    type="number"
+                                                    value={row.allocatedAmount || ""}
+                                                    onChange={(e) =>
+                                                        updateAllocation(
+                                                            row.billId,
+                                                            Number(e.target.value)
+                                                        )
+                                                    }
+                                                    max={row.balanceDue}
+                                                    min={0}
+                                                    className="border-2 border-black font-mono font-bold h-8 text-right rounded-none text-xs w-full"
+                                                />
+                                            ) : (
+                                                <div className="text-right text-xs text-zinc-300 font-mono">
+                                                    -
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                )}
-                            </div>
+                                ))}
+                            </>
                         )}
+                    </div>
+                )}
 
-                        {/* Payment Summary */}
-                        {selectedCount > 0 && (
-                            <div className="border-2 border-black bg-emerald-50 dark:bg-emerald-950 p-4">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                                            Ringkasan Pembayaran
-                                        </span>
-                                        <p className="text-xs text-emerald-600 mt-0.5">
-                                            {selectedCount} tagihan dipilih
-                                        </p>
+                {/* Potong PPh Section — keep as-is */}
+                {selectedCount > 0 && (
+                    <div className="border-2 border-black p-3 space-y-3">
+                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={enablePPh}
+                                onChange={(e) => setEnablePPh(e.target.checked)}
+                                className="rounded border-zinc-300"
+                            />
+                            Potong PPh
+                        </label>
+
+                        {enablePPh && (
+                            <div className="space-y-3 pl-6">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase text-zinc-500">Jenis PPh</label>
+                                        <Select value={pphType} onValueChange={(v: string) => setPPhType(v as PPhTypeValue)}>
+                                            <SelectTrigger className="h-8 rounded-none text-xs border-2 border-black">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="PPH_23">PPh 23 (Jasa)</SelectItem>
+                                                <SelectItem value="PPH_4_2">PPh 4(2) (Sewa/Konstruksi)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
                                     </div>
-                                    <div className="text-right">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 block">
-                                            Total Bayar
-                                        </span>
-                                        <span className="font-mono font-black text-2xl text-emerald-800">
-                                            {formatIDR(totalAllocated)}
-                                        </span>
+                                    <div className="space-y-1">
+                                        <label className="text-[10px] font-bold uppercase text-zinc-500">Tarif (%)</label>
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            value={pphRate}
+                                            onChange={(e) => setPPhRate(Number(e.target.value))}
+                                            className="h-8 rounded-none text-xs border-2 border-black font-mono"
+                                        />
                                     </div>
                                 </div>
 
-                                {/* GL Entry Preview */}
-                                <div className="mt-3 pt-3 border-t border-emerald-200 dark:border-emerald-800">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 block mb-1">
-                                        Jurnal Otomatis
-                                    </span>
-                                    <div className="grid grid-cols-3 gap-1 text-[10px] font-bold">
-                                        <span className="text-emerald-700">Akun</span>
-                                        <span className="text-emerald-700 text-right">Debit</span>
-                                        <span className="text-emerald-700 text-right">Kredit</span>
-
-                                        <span>2100 - Hutang Usaha</span>
-                                        <span className="text-right font-mono">{formatIDR(totalAllocated)}</span>
-                                        <span className="text-right font-mono">-</span>
-
-                                        <span>{bankAccountCode} - {bankAccounts?.find(a => a.code === bankAccountCode)?.name || 'Cash/Bank'}</span>
-                                        <span className="text-right font-mono">-</span>
-                                        <span className="text-right font-mono">{formatIDR(enablePPh && pphCalc ? pphCalc.netAmount : totalAllocated)}</span>
-
-                                        {enablePPh && pphCalc && pphCalc.amount > 0 && (
-                                            <>
-                                                <span className="text-red-600">
-                                                    {pphType === "PPH_23" ? "2131 - Hutang PPh 23" : "2132 - Hutang PPh 4(2)"}
-                                                </span>
-                                                <span className="text-right font-mono">-</span>
-                                                <span className="text-right font-mono text-red-600">{formatIDR(pphCalc.amount)}</span>
-                                            </>
-                                        )}
+                                <div className="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <span className="text-zinc-500">DPP:</span>{" "}
+                                        <span className="font-mono font-bold">{formatIDR(pphBaseAmount)}</span>
                                     </div>
+                                    <div>
+                                        <span className="text-zinc-500">PPh:</span>{" "}
+                                        <span className="font-mono font-bold text-red-600">{formatIDR(pphCalc?.amount || 0)}</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold uppercase text-zinc-500">No. Bukti Potong</label>
+                                    <Input
+                                        value={buktiPotongNo}
+                                        onChange={(e) => setBuktiPotongNo(e.target.value)}
+                                        placeholder="Opsional..."
+                                        className="h-8 rounded-none text-xs border-2 border-black placeholder:text-zinc-300"
+                                    />
+                                </div>
+
+                                <div className="bg-amber-50 border-2 border-amber-300 p-2 text-xs">
+                                    <span className="font-bold">Dibayar ke vendor:</span>{" "}
+                                    <span className="font-mono font-bold text-lg">{formatIDR(pphCalc?.netAmount || pphBaseAmount)}</span>
                                 </div>
                             </div>
                         )}
                     </div>
-                </ScrollArea>
+                )}
 
-                {/* Footer */}
-                <div className="px-6 py-4 border-t-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        onClick={resetAndClose}
-                        className={NB.cancelBtn}
-                    >
-                        Batal
-                    </Button>
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={submitting || selectedCount === 0 || totalAllocated <= 0}
-                        className={NB.submitBtn + " bg-emerald-700 hover:bg-emerald-800 disabled:opacity-40"}
-                    >
-                        <Banknote className="h-4 w-4 mr-2" />
-                        {submitting
-                            ? "Memproses..."
-                            : `Bayar ${selectedCount} Tagihan — ${formatIDR(enablePPh && pphCalc ? pphCalc.netAmount : totalAllocated)}`}
-                    </Button>
-                </div>
-            </DialogContent>
-        </Dialog>
+                {/* Payment Summary — keep as-is */}
+                {selectedCount > 0 && (
+                    <div className="border-2 border-black bg-emerald-50 dark:bg-emerald-950 p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                                    Ringkasan Pembayaran
+                                </span>
+                                <p className="text-xs text-emerald-600 mt-0.5">
+                                    {selectedCount} tagihan dipilih
+                                </p>
+                            </div>
+                            <div className="text-right">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 block">
+                                    Total Bayar
+                                </span>
+                                <span className="font-mono font-black text-2xl text-emerald-800">
+                                    {formatIDR(totalAllocated)}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* GL Entry Preview */}
+                        <div className="mt-3 pt-3 border-t border-emerald-200 dark:border-emerald-800">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-600 block mb-1">
+                                Jurnal Otomatis
+                            </span>
+                            <div className="grid grid-cols-3 gap-1 text-[10px] font-bold">
+                                <span className="text-emerald-700">Akun</span>
+                                <span className="text-emerald-700 text-right">Debit</span>
+                                <span className="text-emerald-700 text-right">Kredit</span>
+
+                                <span>2100 - Hutang Usaha</span>
+                                <span className="text-right font-mono">{formatIDR(totalAllocated)}</span>
+                                <span className="text-right font-mono">-</span>
+
+                                <span>{bankAccountCode} - {bankAccounts?.find(a => a.code === bankAccountCode)?.name || 'Cash/Bank'}</span>
+                                <span className="text-right font-mono">-</span>
+                                <span className="text-right font-mono">{formatIDR(enablePPh && pphCalc ? pphCalc.netAmount : totalAllocated)}</span>
+
+                                {enablePPh && pphCalc && pphCalc.amount > 0 && (
+                                    <>
+                                        <span className="text-red-600">
+                                            {pphType === "PPH_23" ? "2131 - Hutang PPh 23" : "2132 - Hutang PPh 4(2)"}
+                                        </span>
+                                        <span className="text-right font-mono">-</span>
+                                        <span className="text-right font-mono text-red-600">{formatIDR(pphCalc.amount)}</span>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </NBDialogBody>
+
+            {/* Custom footer — amount in submit button */}
+            <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 px-4 py-2.5 flex items-center justify-between">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={resetAndClose}
+                    disabled={submitting}
+                    className="border border-zinc-300 dark:border-zinc-600 text-zinc-500 font-bold uppercase text-[10px] tracking-wider px-4 h-8 rounded-none disabled:opacity-50"
+                >
+                    Batal
+                </Button>
+                <Button
+                    onClick={handleSubmit}
+                    disabled={submitting || selectedCount === 0 || totalAllocated <= 0}
+                    className="bg-emerald-700 text-white border border-emerald-800 hover:bg-emerald-800 font-black uppercase text-[10px] tracking-wider px-5 h-8 rounded-none gap-1.5 disabled:opacity-50 transition-colors"
+                >
+                    <Banknote className="h-4 w-4" />
+                    {submitting
+                        ? "Memproses..."
+                        : `Bayar ${selectedCount} Tagihan — ${formatIDR(enablePPh && pphCalc ? pphCalc.netAmount : totalAllocated)}`}
+                </Button>
+            </div>
+        </NBDialog>
     )
 }

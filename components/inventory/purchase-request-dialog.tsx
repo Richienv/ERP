@@ -7,12 +7,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBDialogFooter,
+  NBSection,
+} from "@/components/ui/nb-dialog";
 import {
   Form,
   FormControl,
@@ -22,12 +22,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { requestPurchase } from "@/app/actions/inventory";
 import { queryKeys } from "@/lib/query-keys";
-import { Loader2, ShoppingBag, Box, Tag, CreditCard } from "lucide-react";
-import { NB } from "@/lib/dialog-styles";
+import { ShoppingBag, Box, Tag, CreditCard, FileText } from "lucide-react";
 
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(val);
@@ -103,156 +101,135 @@ export function PurchaseRequestDialog({ item, onSuccess }: PurchaseRequestDialog
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          size="sm"
-          className="bg-white text-black hover:bg-amber-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none font-bold uppercase text-xs h-8 gap-2"
-        >
-          <ShoppingBag className="h-3.5 w-3.5" />
-          Request Purchase
-        </Button>
-      </DialogTrigger>
+    <>
+      <Button
+        size="sm"
+        onClick={() => setOpen(true)}
+        className="bg-white text-black hover:bg-amber-50 border border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all active:translate-x-[1px] active:translate-y-[1px] active:shadow-none font-bold uppercase text-xs h-8 gap-2 rounded-none"
+      >
+        <ShoppingBag className="h-3.5 w-3.5" />
+        Request Purchase
+      </Button>
 
-      <DialogContent className={NB.contentNarrow}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <ShoppingBag className="h-5 w-5" /> Submit Purchase Request
-          </DialogTitle>
-          <p className={NB.subtitle}>Buat permintaan pembelian ke departemen purchasing.</p>
-        </DialogHeader>
+      <NBDialog open={open} onOpenChange={setOpen} size="narrow">
+        <NBDialogHeader
+          icon={ShoppingBag}
+          title="Submit Purchase Request"
+          subtitle="Buat permintaan pembelian ke departemen purchasing."
+        />
 
-        <ScrollArea className={NB.scroll}>
-          <div className="p-5 space-y-4">
-            {/* Product Info */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
-                <Box className="h-4 w-4" />
-                <span className={NB.sectionTitle}>Info Produk</span>
+        <NBDialogBody>
+          {/* Product Info */}
+          <NBSection icon={Box} title="Info Produk">
+            <div className="flex items-start gap-4">
+              <div className="h-12 w-12 bg-black text-white flex items-center justify-center shrink-0">
+                <Box className="h-6 w-6" />
               </div>
-              <div className={NB.sectionBody}>
-                <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 bg-black text-white flex items-center justify-center shrink-0">
-                    <Box className="h-6 w-6" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-black text-base leading-tight">{item.name}</p>
-                    <p className="text-xs font-bold text-zinc-400 font-mono">{item.sku}</p>
-                  </div>
+              <div className="min-w-0">
+                <p className="font-black text-base leading-tight">{item.name}</p>
+                <p className="text-xs font-bold text-zinc-400 font-mono">{item.sku}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-zinc-50 border border-zinc-200 p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Tag className="h-3 w-3 text-zinc-400" />
+                  <p className="text-[10px] font-black uppercase text-zinc-500">Category</p>
                 </div>
+                <p className="font-bold text-sm">{item.category || "Uncategorized"}</p>
+              </div>
+              <div className="bg-zinc-50 border border-zinc-200 p-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <CreditCard className="h-3 w-3 text-zinc-400" />
+                  <p className="text-[10px] font-black uppercase text-zinc-500">Est. Unit Price</p>
+                </div>
+                <p className="font-bold text-sm">{formatCurrency(item.cost)}</p>
+              </div>
+            </div>
+          </NBSection>
+
+          {/* Recommendation Banner */}
+          {(item.pendingRestockQty != null && item.pendingRestockQty > 0) && (
+            <div className="border border-amber-400 bg-amber-50 p-3 space-y-1">
+              <div className="text-[10px] font-black uppercase tracking-widest text-amber-700 flex items-center gap-1.5">
+                <ShoppingBag className="h-3.5 w-3.5" /> Rekomendasi dari Kelola Gudang
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-xl font-black text-amber-800">{item.pendingRestockQty}</span>
+                <span className="text-sm font-bold text-amber-600">{item.unit}</span>
+              </div>
+              <p className="text-[10px] text-amber-600">
+                Jumlah yang diminta dari permintaan restock kritis. Stok saat ini: <span className="font-black">{item.currentStock ?? 0} {item.unit}</span>
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-6 text-[10px] font-black uppercase border-amber-400 text-amber-700 hover:bg-amber-100 mt-1 rounded-none"
+                onClick={() => form.setValue("quantity", item.pendingRestockQty!)}
+              >
+                Gunakan Rekomendasi
+              </Button>
+            </div>
+          )}
+
+          {/* Request Form */}
+          <NBSection icon={FileText} title="Detail Permintaan">
+            <Form {...form}>
+              <form id="purchase-request-form" onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-zinc-50 border border-zinc-200 p-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <Tag className="h-3 w-3 text-zinc-400" />
-                      <p className={NB.label + " !mb-0"}>Category</p>
-                    </div>
-                    <p className="font-bold text-sm">{item.category || "Uncategorized"}</p>
+                  <FormField
+                    control={form.control as any}
+                    name="quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                          Quantity ({item.unit}) <span className="text-red-500">*</span>
+                        </label>
+                        <FormControl>
+                          <Input type="number" {...field} className="border font-mono font-bold h-8 text-sm rounded-none border-zinc-300" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex flex-col justify-end pb-2">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase">Est. Total</p>
+                    <p className="font-black text-sm font-mono">
+                      {formatCurrency(form.getValues("quantity") * item.cost)}
+                    </p>
                   </div>
-                  <div className="bg-zinc-50 border border-zinc-200 p-3">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <CreditCard className="h-3 w-3 text-zinc-400" />
-                      <p className={NB.label + " !mb-0"}>Est. Unit Price</p>
-                    </div>
-                    <p className="font-bold text-sm">{formatCurrency(item.cost)}</p>
-                  </div>
                 </div>
-              </div>
-            </div>
 
-            {/* Recommendation Banner */}
-            {(item.pendingRestockQty != null && item.pendingRestockQty > 0) && (
-              <div className="border-2 border-amber-400 bg-amber-50 p-3 space-y-1">
-                <div className="text-[10px] font-black uppercase tracking-widest text-amber-700 flex items-center gap-1.5">
-                  <ShoppingBag className="h-3.5 w-3.5" /> Rekomendasi dari Kelola Gudang
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-xl font-black text-amber-800">{item.pendingRestockQty}</span>
-                  <span className="text-sm font-bold text-amber-600">{item.unit}</span>
-                </div>
-                <p className="text-[10px] text-amber-600">
-                  Jumlah yang diminta dari permintaan restock kritis. Stok saat ini: <span className="font-black">{item.currentStock ?? 0} {item.unit}</span>
-                </p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-6 text-[10px] font-black uppercase border-amber-400 text-amber-700 hover:bg-amber-100 mt-1"
-                  onClick={() => form.setValue("quantity", item.pendingRestockQty!)}
-                >
-                  Gunakan Rekomendasi
-                </Button>
-              </div>
-            )}
+                <FormField
+                  control={form.control as any}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">Notes for Purchasing</label>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="E.g., Urgent for next week production..."
+                          className="border border-zinc-300 rounded-none text-sm min-h-[60px] resize-none"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </form>
+            </Form>
+          </NBSection>
+        </NBDialogBody>
 
-            {/* Request Form */}
-            <div className={NB.section}>
-              <div className={`${NB.sectionHead} border-l-4 border-l-emerald-400 bg-emerald-50`}>
-                <span className={NB.sectionTitle}>Detail Permintaan</span>
-              </div>
-              <div className={NB.sectionBody}>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit as any)} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <FormField
-                        control={form.control as any}
-                        name="quantity"
-                        render={({ field }) => (
-                          <FormItem>
-                            <label className={NB.label}>
-                              Quantity ({item.unit}) <span className={NB.labelRequired}>*</span>
-                            </label>
-                            <FormControl>
-                              <Input type="number" {...field} className={NB.inputMono} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <div className="flex flex-col justify-end pb-2">
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase">Est. Total</p>
-                        <p className="font-black text-sm font-mono">
-                          {formatCurrency(form.getValues("quantity") * item.cost)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <FormField
-                      control={form.control as any}
-                      name="notes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <label className={NB.label}>Notes for Purchasing</label>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              placeholder="E.g., Urgent for next week production..."
-                              className={NB.textarea + " min-h-[60px]"}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className={NB.footer}>
-                      <Button type="button" variant="outline" className={NB.cancelBtn} onClick={() => setOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={loading} className={NB.submitBtn}>
-                        {loading ? (
-                          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
-                        ) : (
-                          "Confirm Request"
-                        )}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </div>
-            </div>
-          </div>
-        </ScrollArea>
-      </DialogContent>
-    </Dialog>
+        <NBDialogFooter
+          onCancel={() => setOpen(false)}
+          onSubmit={() => form.handleSubmit(onSubmit as any)()}
+          submitting={loading}
+          submitLabel="Confirm Request"
+        />
+      </NBDialog>
+    </>
   );
 }

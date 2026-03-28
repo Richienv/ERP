@@ -3,12 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Cog } from "lucide-react";
-import { NB } from "@/lib/dialog-styles";
+import { Cog } from "lucide-react";
+import {
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBDialogFooter,
+  NBSection,
+  NBSelect,
+} from "@/components/ui/nb-dialog";
 
 interface MachineOption {
   id: string;
@@ -100,50 +105,39 @@ export function AssignMachineGroupDialog({ open, onOpenChange, groupId, groupNam
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={NB.contentNarrow}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            <Cog className="h-5 w-5" /> Assign Machine
-          </DialogTitle>
-          <p className={NB.subtitle}>Link machine to {groupName}</p>
-        </DialogHeader>
+    <NBDialog open={open} onOpenChange={onOpenChange} size="narrow">
+      <NBDialogHeader
+        icon={Cog}
+        title="Assign Machine"
+        subtitle={`Link machine to ${groupName}`}
+      />
 
-        <div className="p-5 space-y-4">
-          <div className={NB.section}>
-            <div className={`${NB.sectionHead} border-l-4 border-l-blue-400 bg-blue-50`}>
-              <span className={NB.sectionTitle}>Pilih Mesin</span>
-            </div>
-            <div className={NB.sectionBody}>
-              <div>
-                <label className={NB.label}>Machine <span className={NB.labelRequired}>*</span></label>
-                <Select value={machineId} onValueChange={setMachineId} disabled={loadingOptions}>
-                  <SelectTrigger className={NB.select}>
-                    <SelectValue placeholder="Select machine" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableMachines.map((machine) => (
-                      <SelectItem key={machine.id} value={machine.id}>
-                        {machine.code} - {machine.name} ({machine.status})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[9px] text-zinc-400 font-bold mt-1">Only unassigned or same-group machines shown</p>
-              </div>
-            </div>
-          </div>
+      <NBDialogBody>
+        <NBSection icon={Cog} title="Pilih Mesin">
+          <NBSelect
+            label="Machine"
+            required
+            value={machineId}
+            onValueChange={setMachineId}
+            placeholder="Select machine"
+            disabled={loadingOptions}
+          >
+            {availableMachines.map((machine) => (
+              <SelectItem key={machine.id} value={machine.id}>
+                {machine.code} - {machine.name} ({machine.status})
+              </SelectItem>
+            ))}
+          </NBSelect>
+          <p className="text-[9px] text-zinc-400 font-bold">Only unassigned or same-group machines shown</p>
+        </NBSection>
+      </NBDialogBody>
 
-          <div className={NB.footer}>
-            <Button variant="outline" className={NB.cancelBtn} onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button className={NB.submitBtn} disabled={submitting} onClick={handleAssign}>
-              {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Assigning...</> : "Assign"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+      <NBDialogFooter
+        onCancel={() => onOpenChange(false)}
+        onSubmit={handleAssign}
+        submitting={submitting}
+        submitLabel="Assign"
+      />
+    </NBDialog>
   );
 }

@@ -1,22 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import {
   IconAlertTriangle,
   IconCheck,
   IconLoader2,
+  IconScale,
 } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { NB } from "@/lib/dialog-styles"
+import { TableProperties } from "lucide-react"
+import {
+  NBDialog,
+  NBDialogHeader,
+  NBDialogBody,
+  NBDialogFooter,
+  NBSection,
+} from "@/components/ui/nb-dialog"
 import {
   previewBalanceReconciliation,
   applyBalanceReconciliation,
@@ -83,51 +84,48 @@ export function ReconciliationPreviewDialog({
   const hasChanges = preview && preview.rows.length > 0
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className={NB.content}>
-        <DialogHeader className={NB.header}>
-          <DialogTitle className={NB.title}>
-            Rekonsiliasi Saldo GL
-          </DialogTitle>
-          <DialogDescription className={NB.subtitle}>
-            Preview dan terapkan koreksi saldo berdasarkan jurnal aktual
-          </DialogDescription>
-        </DialogHeader>
+    <NBDialog open={open} onOpenChange={handleClose} size="wide">
+      <NBDialogHeader
+        icon={IconScale}
+        title="Rekonsiliasi Saldo GL"
+        subtitle="Preview dan terapkan koreksi saldo berdasarkan jurnal aktual"
+      />
 
-        <div className="p-6 space-y-4">
-          {/* Initial state: show load button */}
-          {!preview && !loadingPreview && (
-            <div className="flex justify-center py-8">
-              <Button onClick={handleLoadPreview} className={NB.submitBtn}>
-                Muat Preview Perubahan
-              </Button>
+      <NBDialogBody>
+        {/* Initial state: show load button */}
+        {!preview && !loadingPreview && (
+          <div className="flex justify-center py-8">
+            <Button onClick={handleLoadPreview} className={NB.submitBtn}>
+              Muat Preview Perubahan
+            </Button>
+          </div>
+        )}
+
+        {/* Loading state */}
+        {loadingPreview && (
+          <div className="flex items-center justify-center py-8 gap-3 text-zinc-500">
+            <IconLoader2 className="h-5 w-5 animate-spin" />
+            <span className="text-sm font-bold">Memuat preview...</span>
+          </div>
+        )}
+
+        {/* No mismatches — success */}
+        {preview && preview.rows.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center">
+              <IconCheck className="h-6 w-6 text-emerald-600" />
             </div>
-          )}
+            <p className="text-sm font-bold text-emerald-700">
+              Semua saldo akun sudah sesuai dengan jurnal aktual
+            </p>
+          </div>
+        )}
 
-          {/* Loading state */}
-          {loadingPreview && (
-            <div className="flex items-center justify-center py-8 gap-3 text-zinc-500">
-              <IconLoader2 className="h-5 w-5 animate-spin" />
-              <span className="text-sm font-bold">Memuat preview...</span>
-            </div>
-          )}
-
-          {/* No mismatches — success */}
-          {preview && preview.rows.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-8 gap-3">
-              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center">
-                <IconCheck className="h-6 w-6 text-emerald-600" />
-              </div>
-              <p className="text-sm font-bold text-emerald-700">
-                Semua saldo akun sudah sesuai dengan jurnal aktual
-              </p>
-            </div>
-          )}
-
-          {/* Has changes — show table */}
-          {hasChanges && (
-            <>
-              <div className="overflow-x-auto">
+        {/* Has changes — show table */}
+        {hasChanges && (
+          <>
+            <NBSection icon={TableProperties} title="Koreksi Saldo">
+              <div className="overflow-x-auto -mx-3">
                 <div className={NB.tableWrap}>
                   <table className="w-full text-sm">
                     <thead>
@@ -167,49 +165,29 @@ export function ReconciliationPreviewDialog({
                   </table>
                 </div>
               </div>
+            </NBSection>
 
-              {/* Warning */}
-              <div className="flex items-start gap-3 border-2 border-amber-400 bg-amber-50 p-3">
-                <IconAlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs font-medium text-amber-800">
-                  Tindakan ini akan memperbarui saldo{" "}
-                  <span className="font-black">{preview.totalAccounts} akun</span>{" "}
-                  berdasarkan jurnal aktual. Perubahan ini akan dicatat di audit log.
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-
-        {hasChanges && (
-          <DialogFooter className="px-6 pb-6">
-            <div className={NB.footer}>
-              <Button
-                variant="outline"
-                onClick={() => handleClose(false)}
-                className={NB.cancelBtn}
-                disabled={applying}
-              >
-                Batal
-              </Button>
-              <Button
-                onClick={handleApply}
-                disabled={applying}
-                className={NB.submitBtn}
-              >
-                {applying ? (
-                  <>
-                    <IconLoader2 className="h-4 w-4 animate-spin mr-2" />
-                    Memproses...
-                  </>
-                ) : (
-                  "Terapkan Koreksi"
-                )}
-              </Button>
+            {/* Warning */}
+            <div className="flex items-start gap-3 border-2 border-amber-400 bg-amber-50 p-3">
+              <IconAlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <p className="text-xs font-medium text-amber-800">
+                Tindakan ini akan memperbarui saldo{" "}
+                <span className="font-black">{preview.totalAccounts} akun</span>{" "}
+                berdasarkan jurnal aktual. Perubahan ini akan dicatat di audit log.
+              </p>
             </div>
-          </DialogFooter>
+          </>
         )}
-      </DialogContent>
-    </Dialog>
+      </NBDialogBody>
+
+      {hasChanges && (
+        <NBDialogFooter
+          onCancel={() => handleClose(false)}
+          onSubmit={handleApply}
+          submitting={applying}
+          submitLabel="Terapkan Koreksi"
+        />
+      )}
+    </NBDialog>
   )
 }

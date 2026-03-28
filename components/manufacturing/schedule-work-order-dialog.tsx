@@ -4,19 +4,18 @@ import { useState, useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import { NB } from "@/lib/dialog-styles"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { CalendarClock } from "lucide-react"
 import { toast } from "sonner"
 import type { WorkOrderWithStage } from "@/lib/actions/manufacturing-garment"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+} from "@/components/ui/nb-dialog"
 
 interface ScheduleWorkOrderDialogProps {
     workOrder: WorkOrderWithStage
@@ -85,123 +84,115 @@ export function ScheduleWorkOrderDialog({ workOrder, machines, routings, onSched
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                {trigger ?? (
-                    <Button className={NB.triggerBtn} size="sm">
-                        <CalendarClock className="mr-2 h-4 w-4" /> Jadwalkan
-                    </Button>
-                )}
-            </DialogTrigger>
-            <DialogContent className={NB.content}>
-                <DialogHeader className={NB.header}>
-                    <DialogTitle className={NB.title}>
-                        <CalendarClock className="h-5 w-5" /> Jadwalkan Work Order
-                    </DialogTitle>
-                    <p className={NB.subtitle}>{workOrder.number} — {workOrder.productName}</p>
-                </DialogHeader>
+        <>
+            {trigger ? (
+                <span onClick={() => setOpen(true)}>{trigger}</span>
+            ) : (
+                <Button
+                    className="bg-black text-white border border-black hover:bg-zinc-800 font-black uppercase text-[10px] tracking-wider px-4 h-8 rounded-none"
+                    size="sm"
+                    onClick={() => setOpen(true)}
+                >
+                    <CalendarClock className="mr-2 h-4 w-4" /> Jadwalkan
+                </Button>
+            )}
 
-                <div className="p-6 space-y-4">
+            <NBDialog open={open} onOpenChange={setOpen}>
+                <NBDialogHeader
+                    icon={CalendarClock}
+                    title="Jadwalkan Work Order"
+                    subtitle={`${workOrder.number} — ${workOrder.productName}`}
+                />
+
+                <NBDialogBody>
                     {/* Work Order Info */}
-                    <div className={NB.section}>
-                        <div className={NB.sectionHead}>
-                            <span className={NB.sectionTitle}>Info Work Order</span>
-                        </div>
-                        <div className={NB.sectionBody}>
-                            <div className="grid grid-cols-3 gap-4 text-sm">
-                                <div>
-                                    <span className={NB.label}>Nomor</span>
-                                    <span className="font-mono font-bold block">{workOrder.number}</span>
-                                </div>
-                                <div>
-                                    <span className={NB.label}>Qty</span>
-                                    <span className="font-bold block">{workOrder.plannedQty}</span>
-                                </div>
-                                <div>
-                                    <span className={NB.label}>Prioritas</span>
-                                    <span className={`inline-block px-2 py-0.5 text-[10px] font-black border-2 border-black ${
-                                        workOrder.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
-                                        workOrder.priority === 'HIGH' ? 'bg-amber-100 text-amber-700' :
-                                        'bg-zinc-100 text-zinc-700'
-                                    }`}>
-                                        {workOrder.priority}
-                                    </span>
-                                </div>
+                    <NBSection icon={CalendarClock} title="Info Work Order">
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Nomor</span>
+                                <span className="font-mono font-bold block">{workOrder.number}</span>
+                            </div>
+                            <div>
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Qty</span>
+                                <span className="font-bold block">{workOrder.plannedQty}</span>
+                            </div>
+                            <div>
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Prioritas</span>
+                                <span className={`inline-block px-2 py-0.5 text-[10px] font-black border border-zinc-300 ${
+                                    workOrder.priority === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                                    workOrder.priority === 'HIGH' ? 'bg-amber-100 text-amber-700' :
+                                    'bg-zinc-100 text-zinc-700'
+                                }`}>
+                                    {workOrder.priority}
+                                </span>
                             </div>
                         </div>
-                    </div>
+                    </NBSection>
 
                     {/* Schedule */}
-                    <div className={NB.section}>
-                        <div className={NB.sectionHead}>
-                            <span className={NB.sectionTitle}>Jadwal</span>
-                        </div>
-                        <div className={NB.sectionBody}>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={NB.label}>Mulai <span className={NB.labelRequired}>*</span></label>
-                                    <Input
-                                        className={NB.input}
-                                        type="datetime-local"
-                                        value={scheduledStart}
-                                        onChange={(e) => setScheduledStart(e.target.value)}
-                                    />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Selesai <span className={NB.labelRequired}>*</span></label>
-                                    <Input
-                                        className={NB.input}
-                                        type="datetime-local"
-                                        value={scheduledEnd}
-                                        onChange={(e) => setScheduledEnd(e.target.value)}
-                                    />
-                                </div>
+                    <NBSection icon={CalendarClock} title="Jadwal">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                    Mulai <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={scheduledStart}
+                                    onChange={(e) => setScheduledStart(e.target.value)}
+                                    className="w-full border border-zinc-300 h-8 text-sm rounded-none px-2 font-medium transition-colors focus:border-orange-400 focus:bg-orange-50/50 focus:outline-none"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">
+                                    Selesai <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    value={scheduledEnd}
+                                    onChange={(e) => setScheduledEnd(e.target.value)}
+                                    className="w-full border border-zinc-300 h-8 text-sm rounded-none px-2 font-medium transition-colors focus:border-orange-400 focus:bg-orange-50/50 focus:outline-none"
+                                />
                             </div>
                         </div>
-                    </div>
+                    </NBSection>
 
                     {/* Machine & Routing */}
-                    <div className={NB.section}>
-                        <div className={NB.sectionHead}>
-                            <span className={NB.sectionTitle}>Mesin & Routing</span>
-                        </div>
-                        <div className={NB.sectionBody}>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className={NB.label}>Mesin</label>
-                                    <ComboboxWithCreate
-                                        options={machineOptions}
-                                        value={machineId}
-                                        onChange={setMachineId}
-                                        placeholder="— Tidak ditentukan —"
-                                        searchPlaceholder="Cari mesin..."
-                                        emptyMessage="Mesin tidak ditemukan."
-                                    />
-                                </div>
-                                <div>
-                                    <label className={NB.label}>Routing</label>
-                                    <ComboboxWithCreate
-                                        options={routingOptions}
-                                        value={routingId}
-                                        onChange={setRoutingId}
-                                        placeholder="— Tidak ditentukan —"
-                                        searchPlaceholder="Cari routing..."
-                                        emptyMessage="Routing tidak ditemukan."
-                                    />
-                                </div>
+                    <NBSection icon={CalendarClock} title="Mesin & Routing" optional>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Mesin</label>
+                                <ComboboxWithCreate
+                                    options={machineOptions}
+                                    value={machineId}
+                                    onChange={setMachineId}
+                                    placeholder="— Tidak ditentukan —"
+                                    searchPlaceholder="Cari mesin..."
+                                    emptyMessage="Mesin tidak ditemukan."
+                                />
+                            </div>
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 mb-1 block">Routing</label>
+                                <ComboboxWithCreate
+                                    options={routingOptions}
+                                    value={routingId}
+                                    onChange={setRoutingId}
+                                    placeholder="— Tidak ditentukan —"
+                                    searchPlaceholder="Cari routing..."
+                                    emptyMessage="Routing tidak ditemukan."
+                                />
                             </div>
                         </div>
-                    </div>
+                    </NBSection>
+                </NBDialogBody>
 
-                    {/* Footer */}
-                    <div className={NB.footer}>
-                        <Button variant="outline" onClick={() => setOpen(false)} className={NB.cancelBtn}>Batal</Button>
-                        <Button onClick={handleSubmit} disabled={loading} className={NB.submitBtn}>
-                            {loading ? "Menjadwalkan..." : "Simpan Jadwal"}
-                        </Button>
-                    </div>
-                </div>
-            </DialogContent>
-        </Dialog>
+                <NBDialogFooter
+                    onCancel={() => setOpen(false)}
+                    onSubmit={handleSubmit}
+                    submitting={loading}
+                    submitLabel="Simpan Jadwal"
+                />
+            </NBDialog>
+        </>
     )
 }
