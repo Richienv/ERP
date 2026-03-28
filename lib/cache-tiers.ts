@@ -149,6 +149,8 @@ export const ROUTE_TIERS: Record<string, CacheTier> = {
     "/finance/planning#obligations":  "DASHBOARD",
     "/finance/planning/simulasi#scenarios": "DASHBOARD",
     "/sales/salespersons#commission":     "DASHBOARD",
+    "/hcm#snapshot":                      "REALTIME",
+    "/hcm/payroll#compliance":            "TRANSACTIONAL",
     "/finance/fixed-assets/depreciation": "TRANSACTIONAL",
 
     // ── Realtime (T6) ──

@@ -90,6 +90,7 @@ export const P2_ROUTES = [
     // HCM
     "/hcm/employee-master",
     "/hcm",
+    "/hcm#snapshot",
     // Approvals
     "/dashboard/approvals",
 ] as const
@@ -132,6 +133,7 @@ export const P3_ROUTES = [
     "/hcm/shifts",
     "/hcm/onboarding",
     "/hcm/payroll",
+    "/hcm/payroll#compliance",
     // Subcontract
     "/subcontract",
     "/subcontract/orders",
@@ -158,8 +160,8 @@ export const P3_ROUTES = [
 // ── Counts for progress bar weighting ──────────────────────────────────────
 
 export const P1_TOTAL = P1_ROUTES.length + P1_MASTER_DATA.length  // 12 + 11 = 23
-export const P2_TOTAL = P2_ROUTES.length                           // 38
-export const P3_TOTAL = P3_ROUTES.length                           // 44
+export const P2_TOTAL = P2_ROUTES.length                           // 39
+export const P3_TOTAL = P3_ROUTES.length                           // 45
 
 /**
  * Progress bar weight mapping:

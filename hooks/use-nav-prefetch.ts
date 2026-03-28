@@ -247,11 +247,8 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: () => fetch("/api/manufacturing/dashboard").then((r) => r.json()).then((p) => (p.success ? p.data : {})),
     },
     "/manufacturing/work-centers": {
-        queryKey: queryKeys.machines.list(),
-        queryFn: () => fetch("/api/manufacturing/machines").then((r) => r.json()).then((p) => ({
-            machines: p.success ? p.data : [],
-            summary: p.success ? p.summary : { total: 0, active: 0, down: 0, avgEfficiency: 0 },
-        })),
+        queryKey: [...queryKeys.processStations.list(), { includeInactive: true }],
+        queryFn: () => fetch("/api/manufacturing/process-stations?activeOnly=false").then((r) => r.json()).then((p) => (p.success ? p.data : [])),
     },
     "/manufacturing/groups": {
         queryKey: queryKeys.mfgGroups.list(),
@@ -502,6 +499,13 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
             return await getHCMDashboardData()
         },
     },
+    // Companion — HCM dashboard also loads attendance snapshot for staff tables
+    "/hcm#snapshot": {
+        queryKey: [...queryKeys.hcmAttendance.all, "snapshot"] as const,
+        queryFn: async () => {
+            return await getAttendanceSnapshot()
+        },
+    },
     "/finance/opening-balances": {
         queryKey: queryKeys.openingBalances.list(),
         queryFn: () => fetch("/api/finance/opening-balances").then((r) => r.json()).then((p) => p.success ? p.data : {}),
@@ -648,6 +652,16 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const period = new Date().toISOString().slice(0, 7)
             return await getPayrollRun(period)
+        },
+    },
+    // Companion — payroll page also shows compliance report
+    "/hcm/payroll#compliance": {
+        queryKey: queryKeys.payroll.compliance(new Date().toISOString().slice(0, 7)),
+        queryFn: async () => {
+            const { getPayrollComplianceReport } = await import("@/app/actions/hcm")
+            const period = new Date().toISOString().slice(0, 7)
+            const result = await getPayrollComplianceReport(period)
+            return result.success && "report" in result ? result.report : null
         },
     },
     // --- Settings routes ---
