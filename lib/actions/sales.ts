@@ -1568,3 +1568,28 @@ export async function cancelSalesOrder(
         return { success: false, error: error.message || "Gagal membatalkan pesanan" }
     }
 }
+
+// ─── Auto-generate next customer code ───
+
+export async function getNextCustomerCode(): Promise<string> {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error("Unauthorized")
+
+    const year = new Date().getFullYear()
+    const prefix = `CUST-${year}-`
+
+    const latest = await basePrisma.customer.findFirst({
+        where: { code: { startsWith: prefix } },
+        orderBy: { code: "desc" },
+        select: { code: true },
+    })
+
+    let nextNum = 1
+    if (latest?.code) {
+        const numPart = latest.code.replace(prefix, "")
+        nextNum = (parseInt(numPart, 10) || 0) + 1
+    }
+
+    return `${prefix}${String(nextNum).padStart(4, "0")}`
+}

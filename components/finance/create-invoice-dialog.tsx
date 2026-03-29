@@ -1,16 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { FileText, Receipt, CreditCard, CalendarDays } from "lucide-react"
+import { FileText, Receipt, CreditCard, CalendarDays, Loader2 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
-import { Input } from "@/components/ui/input"
+import { SelectItem } from "@/components/ui/select"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -34,6 +27,7 @@ import {
     NBDialogFooter,
     NBSection,
     NBInput,
+    NBCurrencyInput,
     NBSelect,
 } from "@/components/ui/nb-dialog"
 
@@ -166,12 +160,16 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
         }
     }
 
+    const subtotal = (parseFloat(manualPrice) || 0) * manualQty
+    const tax = includeTax ? Math.round(subtotal * 0.11) : 0
+    const total = subtotal + tax
+
     return (
         <NBDialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v) }} size="narrow">
             <NBDialogHeader icon={FileText} title="Buat Invoice" subtitle="Buat invoice/bill baru dari order atau manual" />
 
             <NBDialogBody>
-                {/* Source Type Toggle */}
+                {/* ── Section 1: Sumber Invoice ── */}
                 <NBSection icon={Receipt} title="Sumber Invoice">
                     <div className="grid grid-cols-3 gap-2">
                         {([
@@ -179,19 +177,17 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                             { key: 'PO' as const, title: 'Purchase Order', desc: 'Dari pesanan pembelian' },
                             { key: 'MANUAL' as const, title: 'Manual', desc: 'Input data sendiri' },
                         ]).map((opt) => (
-                            <motion.button
+                            <button
                                 key={opt.key}
-                                whileHover={{ y: -2 }}
-                                whileTap={{ scale: 0.97 }}
                                 onClick={() => { setSourceType(opt.key); setSelectedOrderId("") }}
-                                className={`p-3 border-2 text-left transition-all ${sourceType === opt.key
-                                    ? 'border-black bg-black text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
-                                    : 'border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-500'
+                                className={`p-2.5 border text-left transition-all ${sourceType === opt.key
+                                    ? 'border-orange-400 bg-orange-50/50 dark:border-orange-500 dark:bg-orange-950/20'
+                                    : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600'
                                 }`}
                             >
-                                <span className="text-[10px] font-black uppercase tracking-wider block">{opt.title}</span>
-                                <span className={`text-[9px] mt-0.5 block ${sourceType === opt.key ? 'text-zinc-300' : 'text-zinc-400'}`}>{opt.desc}</span>
-                            </motion.button>
+                                <span className={`text-[10px] font-black uppercase tracking-wider block ${sourceType === opt.key ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-500'}`}>{opt.title}</span>
+                                <span className={`text-[9px] mt-0.5 block ${sourceType === opt.key ? 'text-orange-500/70 dark:text-orange-400/60' : 'text-zinc-400'}`}>{opt.desc}</span>
+                            </button>
                         ))}
                     </div>
 
@@ -204,41 +200,32 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                 animate="show"
                                 exit="exit"
                             >
-                                <label className={NB.label}>Pilih {sourceType === 'SO' ? 'Sales Order' : 'Purchase Order'} <span className={NB.labelRequired}>*</span></label>
-                                <span className={NB.labelHint}>Hanya order yang belum di-invoice yang ditampilkan</span>
-                                {!dataReady ? (
-                                    <div className="space-y-2 mt-1">
-                                        <div className="h-10 border-2 border-zinc-200 bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
-                                        <div className="flex gap-2">
-                                            <div className="h-3 w-24 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded-sm" />
-                                            <div className="h-3 w-16 bg-zinc-200 dark:bg-zinc-700 animate-pulse rounded-sm" />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
-                                        <SelectTrigger className={NB.select}>
-                                            <SelectValue placeholder={`Pilih ${sourceType === 'SO' ? 'Order' : 'PO'}`} />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {pendingOrders.length === 0 ? (
-                                                <div className="p-3 text-xs text-center text-muted-foreground">
-                                                    <div className="font-bold">Tidak ada {sourceType === 'SO' ? 'order' : 'PO'} pending</div>
-                                                    <div className="text-[10px] mt-0.5 text-zinc-400">Semua sudah dibuatkan invoice</div>
-                                                </div>
-                                            ) : pendingOrders.map((order: any) => (
-                                                <SelectItem key={order.id} value={order.id}>
-                                                    {order.number} - {order.customerName || order.vendorName} ({formatIDR(order.amount)})
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                )}
+                                <NBSelect
+                                    label={`Pilih ${sourceType === 'SO' ? 'Sales Order' : 'Purchase Order'}`}
+                                    required
+                                    value={selectedOrderId}
+                                    onValueChange={setSelectedOrderId}
+                                    placeholder={`Pilih ${sourceType === 'SO' ? 'Order' : 'PO'}`}
+                                >
+                                    {!dataReady ? (
+                                        <SelectItem value="__loading__" disabled>Memuat data...</SelectItem>
+                                    ) : pendingOrders.length === 0 ? (
+                                        <SelectItem value="__empty__" disabled>
+                                            Tidak ada {sourceType === 'SO' ? 'order' : 'PO'} pending
+                                        </SelectItem>
+                                    ) : pendingOrders.map((order: any) => (
+                                        <SelectItem key={order.id} value={order.id}>
+                                            {order.number} - {order.customerName || order.vendorName} ({formatIDR(order.amount)})
+                                        </SelectItem>
+                                    ))}
+                                </NBSelect>
+                                <p className={NB.labelHint}>Hanya order yang belum di-invoice yang ditampilkan</p>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </NBSection>
 
-                {/* Manual Invoice Form */}
+                {/* ── Section 2+3: Manual Invoice Form ── */}
                 <AnimatePresence mode="wait">
                     {sourceType === 'MANUAL' && (
                         <motion.div
@@ -250,65 +237,60 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                             className="space-y-3"
                         >
                             <NBSection icon={CreditCard} title="Detail Invoice">
-                                {/* Invoice Type */}
+                                {/* Document Type Selector */}
                                 <div>
                                     <label className={NB.label}>Jenis Dokumen</label>
                                     <div className="grid grid-cols-2 gap-2">
                                         {([
-                                            { key: 'CUSTOMER' as const, label: 'Customer Invoice', desc: 'Tagihan ke pelanggan (Piutang)', color: 'blue' },
-                                            { key: 'SUPPLIER' as const, label: 'Vendor Bill', desc: 'Tagihan dari supplier (Hutang)', color: 'purple' },
+                                            { key: 'CUSTOMER' as const, label: 'Customer Invoice', desc: 'Tagihan ke pelanggan (Piutang)' },
+                                            { key: 'SUPPLIER' as const, label: 'Vendor Bill', desc: 'Tagihan dari supplier (Hutang)' },
                                         ]).map((opt) => (
-                                            <motion.button
+                                            <button
                                                 key={opt.key}
-                                                whileHover={{ y: -2 }}
-                                                whileTap={{ scale: 0.97 }}
                                                 onClick={() => setManualType(opt.key)}
-                                                className={`p-3 border-2 text-left transition-all ${manualType === opt.key
-                                                    ? `border-${opt.color}-500 bg-${opt.color}-50 dark:bg-${opt.color}-950/30`
-                                                    : 'border-zinc-200 dark:border-zinc-600 hover:border-zinc-400'
+                                                className={`p-2.5 border text-left transition-all ${manualType === opt.key
+                                                    ? 'border-orange-400 bg-orange-50/50 dark:border-orange-500 dark:bg-orange-950/20'
+                                                    : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-600'
                                                 }`}
                                             >
-                                                <span className={`text-[11px] font-black uppercase tracking-wider block ${manualType === opt.key ? `text-${opt.color}-700 dark:text-${opt.color}-400` : 'text-zinc-600'}`}>{opt.label}</span>
+                                                <span className={`text-[10px] font-black uppercase tracking-wider block ${manualType === opt.key ? 'text-orange-700 dark:text-orange-400' : 'text-zinc-500'}`}>{opt.label}</span>
                                                 <span className="text-[9px] text-zinc-400 mt-0.5 block">{opt.desc}</span>
-                                            </motion.button>
+                                            </button>
                                         ))}
                                     </div>
                                 </div>
 
                                 {/* Customer/Vendor */}
-                                <div>
-                                    <label className={NB.label}>{manualType === 'CUSTOMER' ? 'Customer' : 'Vendor'} <span className={NB.labelRequired}>*</span></label>
+                                <NBSelect
+                                    label={manualType === 'CUSTOMER' ? 'Customer' : 'Vendor'}
+                                    required
+                                    value={selectedCustomer}
+                                    onValueChange={setSelectedCustomer}
+                                    placeholder="Pilih pihak"
+                                >
                                     {!dataReady ? (
-                                        <div className="h-10 border-2 border-zinc-200 bg-zinc-100 dark:bg-zinc-800 animate-pulse" />
-                                    ) : (
-                                        <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                                            <SelectTrigger className={NB.select}>
-                                                <SelectValue placeholder="Pilih pihak" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {customers.filter(c => (c as any).type === manualType).length === 0 ? (
-                                                    <div className="p-3 text-xs text-center text-muted-foreground">
-                                                        <div className="font-bold">Tidak ada {manualType.toLowerCase()} aktif</div>
-                                                        <div className="text-[10px] mt-0.5 text-zinc-400">Tambahkan di menu Sales/Procurement</div>
-                                                    </div>
-                                                ) : customers.filter(c => (c as any).type === manualType).map((customer) => (
-                                                    <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    )}
-                                </div>
+                                        <SelectItem value="__loading__" disabled>Memuat data...</SelectItem>
+                                    ) : customers.filter(c => (c as any).type === manualType).length === 0 ? (
+                                        <SelectItem value="__empty__" disabled>
+                                            Tidak ada {manualType.toLowerCase()} aktif
+                                        </SelectItem>
+                                    ) : customers.filter(c => (c as any).type === manualType).map((customer) => (
+                                        <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                                    ))}
+                                </NBSelect>
 
-                                {/* Product */}
+                                {/* Product/Description */}
                                 <NBInput
                                     label="Deskripsi / Produk"
                                     value={manualProduct}
                                     onChange={setManualProduct}
-                                    placeholder="e.g. Jasa Konsultasi"
+                                    placeholder="Jasa Konsultasi"
                                 />
+                            </NBSection>
 
-                                {/* Qty + Price */}
-                                <div className="grid grid-cols-2 gap-4">
+                            <NBSection icon={CreditCard} title="Harga & Pajak">
+                                {/* Qty + Price — grid layout */}
+                                <div className="grid grid-cols-2 gap-3">
                                     <NBInput
                                         label="Jumlah"
                                         required
@@ -317,20 +299,19 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                         onChange={(v) => setManualQty(Math.max(1, Number(v) || 1))}
                                         placeholder="1"
                                     />
-                                    <div>
-                                        <label className={NB.label}>Harga Satuan <span className={NB.labelRequired}>*</span></label>
-                                        <div className="relative">
-                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-[10px] text-zinc-400">Rp</span>
-                                            <Input className={`${NB.inputMono} pl-9`} placeholder="0" type="number" value={manualPrice} onChange={(e) => setManualPrice(e.target.value)} />
-                                        </div>
-                                    </div>
+                                    <NBCurrencyInput
+                                        label="Harga Satuan"
+                                        required
+                                        value={manualPrice}
+                                        onChange={setManualPrice}
+                                    />
                                 </div>
 
                                 {/* PPN Toggle */}
-                                <div className="flex items-center justify-between border-2 border-zinc-200 dark:border-zinc-700 px-4 py-2.5">
+                                <div className="flex items-center justify-between border border-zinc-200 dark:border-zinc-700 px-3 py-2">
                                     <div>
-                                        <span className={NB.label + " !mb-0"}>PPN 11%</span>
-                                        <span className={NB.labelHint}>Pajak Pertambahan Nilai</span>
+                                        <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">PPN 11%</span>
+                                        <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 mt-0.5 block">Pajak Pertambahan Nilai</span>
                                     </div>
                                     <button
                                         type="button"
@@ -359,42 +340,35 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                 </NBSelect>
 
                                 {/* Total Preview */}
-                                {(() => {
-                                    const subtotal = (parseFloat(manualPrice) || 0) * manualQty
-                                    const tax = includeTax ? Math.round(subtotal * 0.11) : 0
-                                    const total = subtotal + tax
-                                    return (
-                                        <div className="border-2 border-black dark:border-white bg-zinc-900 dark:bg-zinc-100 px-4 py-3 space-y-1">
-                                            <div className="flex justify-between items-center text-xs text-zinc-400 dark:text-zinc-500">
-                                                <span>Subtotal</span>
-                                                <span className="font-mono font-bold">{formatIDR(subtotal)}</span>
-                                            </div>
-                                            {includeTax && (
-                                                <div className="flex justify-between items-center text-xs text-zinc-400 dark:text-zinc-500">
-                                                    <span>PPN 11%</span>
-                                                    <span className="font-mono font-bold">{formatIDR(tax)}</span>
-                                                </div>
-                                            )}
-                                            <div className="flex justify-between items-center border-t border-zinc-700 dark:border-zinc-300 pt-1.5 mt-1">
-                                                <span className="text-[11px] font-black uppercase tracking-wider text-white dark:text-zinc-900">Total</span>
-                                                <motion.span
-                                                    key={total}
-                                                    initial={{ scale: 1.1 }}
-                                                    animate={{ scale: 1 }}
-                                                    transition={{ type: "spring" as const, stiffness: 300 }}
-                                                    className="font-mono font-black text-xl text-white dark:text-zinc-900"
-                                                >
-                                                    {formatIDR(total)}
-                                                </motion.span>
-                                            </div>
+                                <div className="border border-zinc-200 dark:border-zinc-700 px-3 py-2.5 space-y-1.5">
+                                    <div className="flex justify-between items-center text-sm text-zinc-500 dark:text-zinc-400">
+                                        <span>Subtotal</span>
+                                        <span className="font-mono font-bold">{formatIDR(subtotal)}</span>
+                                    </div>
+                                    {includeTax && (
+                                        <div className="flex justify-between items-center text-sm text-zinc-500 dark:text-zinc-400">
+                                            <span>PPN 11%</span>
+                                            <span className="font-mono font-bold">{formatIDR(tax)}</span>
                                         </div>
-                                    )
-                                })()}
+                                    )}
+                                    <div className="flex justify-between items-center border-t border-zinc-200 dark:border-zinc-700 pt-2 mt-1">
+                                        <span className="text-[11px] font-black uppercase tracking-wider text-zinc-700 dark:text-zinc-300">Total</span>
+                                        <motion.span
+                                            key={total}
+                                            initial={{ scale: 1.05 }}
+                                            animate={{ scale: 1 }}
+                                            transition={{ type: "spring" as const, stiffness: 300 }}
+                                            className={`font-mono font-black text-lg ${total > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400'}`}
+                                        >
+                                            {formatIDR(total)}
+                                        </motion.span>
+                                    </div>
+                                </div>
                             </NBSection>
 
                             {/* Dates */}
                             <NBSection icon={CalendarDays} title="Tanggal">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-3">
                                     <NBInput
                                         label="Tanggal Terbit"
                                         type="date"
