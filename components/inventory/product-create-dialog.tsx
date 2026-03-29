@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
@@ -20,7 +20,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
-import { Plus, Package, DollarSign, BarChart3, Save, Loader2, Tag, Barcode, Factory, ShoppingCart, Boxes, Layers } from "lucide-react"
+import { Plus, Package, DollarSign, BarChart3, Save, Loader2, Tag, Barcode, Factory, ShoppingCart, Boxes, Layers, Copy, Check, AlertTriangle, Info } from "lucide-react"
 import { createProduct } from "@/app/actions/inventory"
 import { createProductSchema, type CreateProductInput } from "@/lib/validations"
 import {
@@ -36,6 +36,9 @@ import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { NB } from "@/lib/dialog-styles"
+import { cn } from "@/lib/utils"
+
+// ─── Constants ───
 
 const CATEGORY_STYLE: Record<string, { icon: typeof Factory; bg: string; border: string; text: string }> = {
     MFG: { icon: Factory, bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700' },
@@ -51,6 +54,33 @@ const WORKFLOW_HINTS: Record<string, { borderColor: string; bgColor: string; tex
     WIP: { borderColor: 'border-l-violet-400', bgColor: 'bg-violet-50', textColor: 'text-violet-700', text: 'Intermediate — dibuat oleh proses produksi, dikonsumsi oleh proses berikutnya.' },
 }
 
+const MARGIN_PRESETS = [20, 30, 50, 100]
+
+// Category name pattern → unit code (verified against INDONESIAN_UNITS)
+const CATEGORY_UNIT_MAP: Record<string, string> = {
+    kain: "m", fabric: "m",
+    aksesoris: "pcs", accessories: "pcs",
+    benang: "roll", thread: "roll",
+    packaging: "pcs",
+    garmen: "pcs", garment: "pcs",
+}
+
+// Category name pattern → description template
+const CATEGORY_DESC_TEMPLATES: Record<string, string> = {
+    kain: "Jenis kain: ___. Komposisi: ___. Lebar: ___ cm. Gramasi: ___ gsm.",
+    fabric: "Jenis kain: ___. Komposisi: ___. Lebar: ___ cm. Gramasi: ___ gsm.",
+    aksesoris: "Ukuran: ___. Material: ___. Warna: ___.",
+    accessories: "Ukuran: ___. Material: ___. Warna: ___.",
+    benang: "Jenis benang: ___. Nomor: ___. Komposisi: ___.",
+    thread: "Jenis benang: ___. Nomor: ___. Komposisi: ___.",
+    packaging: "Jenis: ___. Ukuran: ___. Material: ___.",
+    garmen: "Jenis: ___. Bahan: ___. Ukuran: ___.",
+    garment: "Jenis: ___. Bahan: ___. Ukuran: ___.",
+}
+
+const INITIAL_AUTO_TAGS = { unit: false, desc: false, reorder: false, maxStock: false, sellPrice: false }
+const INITIAL_MANUALLY_SET = { unit: false, desc: false, reorder: false, maxStock: false, sellPrice: false }
+
 export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen?: boolean; onAutoOpenConsumed?: () => void } = {}) {
     const [open, setOpen] = useState(false)
 
@@ -62,6 +92,12 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
     }, [autoOpen]) // eslint-disable-line react-hooks/exhaustive-deps
     const [isSubmitting, setIsSubmitting] = useState(false)
     const queryClient = useQueryClient()
+
+    // Smart defaults state
+    const [marginPreset, setMarginPreset] = useState<number | null>(null)
+    const [autoTags, setAutoTags] = useState(INITIAL_AUTO_TAGS)
+    const [copiedBarcode, setCopiedBarcode] = useState(false)
+    const manuallySet = useRef({ ...INITIAL_MANUALLY_SET })
 
     // DB-backed master data
     const { data: dbBrands = [], isLoading: brandsLoading } = useBrands()
@@ -94,18 +130,25 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
         },
     })
 
+    // ─── Watch values ───
     const watchCat = form.watch("codeCategory") || "TRD"
     const watchType = form.watch("codeType") || "OTR"
     const watchBrand = form.watch("codeBrand") || "XX"
     const watchColor = form.watch("codeColor") || "NAT"
+    const watchCost = form.watch("costPrice") ?? 0
+    const watchSell = form.watch("sellingPrice") ?? 0
+    const watchMinStock = form.watch("minStock") ?? 0
+    const watchMaxStock = form.watch("maxStock") ?? 0
+    const watchReorder = form.watch("reorderLevel") ?? 0
+    const watchName = form.watch("name") || ""
+    const watchCategoryId = form.watch("categoryId")
 
+    // ─── Code builder logic ───
     const availableTypes = useMemo(() => CODE_PRODUCT_TYPES[watchCat] || [], [watchCat])
-
     const currentTypeValid = availableTypes.some(t => t.code === watchType)
     if (!currentTypeValid && availableTypes.length > 0) {
         queueMicrotask(() => form.setValue("codeType", availableTypes[0].code))
     }
-
     const effectiveType = currentTypeValid ? watchType : (availableTypes[0]?.code || "OTR")
     const previewCode = buildStructuredCode(watchCat, effectiveType, watchBrand, watchColor, 1)
     const previewBarcode = generateBarcode(previewCode.replace(/-001$/, '-XXX'))
@@ -113,6 +156,88 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
     const catStyle = CATEGORY_STYLE[watchCat] || CATEGORY_STYLE.TRD
     const hint = WORKFLOW_HINTS[watchCat] || WORKFLOW_HINTS.TRD
     const CatIcon = catStyle.icon
+
+    // ─── Computed values ───
+    const margin = watchCost > 0 ? ((watchSell - watchCost) / watchCost) * 100 : 0
+
+    // Duplicate name check (best-effort from cache)
+    const duplicateWarning = useMemo(() => {
+        if (watchName.length < 3) return null
+        const cached = queryClient.getQueryData<{ products: Array<{ name: string }> }>(queryKeys.products.list())
+        if (!cached?.products) return null
+        const nameLower = watchName.toLowerCase()
+        const match = cached.products.find((p: any) => {
+            const pLower = (p.name || "").toLowerCase()
+            return pLower === nameLower || (nameLower.length >= 5 && (pLower.includes(nameLower) || nameLower.includes(pLower)))
+        })
+        return match?.name ?? null
+    }, [watchName]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ─── Reset helper ───
+    const resetAutoFill = () => {
+        setMarginPreset(null)
+        setAutoTags({ ...INITIAL_AUTO_TAGS })
+        setCopiedBarcode(false)
+        manuallySet.current = { ...INITIAL_MANUALLY_SET }
+    }
+
+    // ─── Effect: Category → unit + description auto-fill ───
+    useEffect(() => {
+        if (!watchCategoryId) return
+        const cat = dbCategories.find((c: { id: string; name: string }) => c.id === watchCategoryId)
+        if (!cat) return
+        const catNameLower = cat.name.toLowerCase()
+
+        // Auto-fill unit
+        if (!manuallySet.current.unit) {
+            for (const [pattern, unitCode] of Object.entries(CATEGORY_UNIT_MAP)) {
+                if (catNameLower.includes(pattern)) {
+                    const unitExists = dbUnits.some((u: { code: string }) => u.code === unitCode)
+                    if (unitExists) {
+                        form.setValue("unit", unitCode)
+                        setAutoTags(prev => ({ ...prev, unit: true }))
+                    }
+                    break
+                }
+            }
+        }
+
+        // Auto-fill description template
+        if (!manuallySet.current.desc) {
+            for (const [pattern, template] of Object.entries(CATEGORY_DESC_TEMPLATES)) {
+                if (catNameLower.includes(pattern)) {
+                    form.setValue("description", template)
+                    setAutoTags(prev => ({ ...prev, desc: true }))
+                    break
+                }
+            }
+        }
+    }, [watchCategoryId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ─── Effect: Margin preset + HPP → selling price ───
+    useEffect(() => {
+        if (marginPreset !== null && watchCost > 0) {
+            const suggested = Math.ceil(watchCost * (1 + marginPreset / 100))
+            form.setValue("sellingPrice", suggested)
+            setAutoTags(prev => ({ ...prev, sellPrice: true }))
+        }
+    }, [watchCost, marginPreset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ─── Effect: MinStock → reorder + maxStock auto-suggest ───
+    useEffect(() => {
+        if (watchMinStock > 0) {
+            if (!manuallySet.current.reorder) {
+                form.setValue("reorderLevel", Math.ceil(watchMinStock * 1.5))
+                setAutoTags(prev => ({ ...prev, reorder: true }))
+            }
+            if (!manuallySet.current.maxStock) {
+                form.setValue("maxStock", watchMinStock * 3)
+                setAutoTags(prev => ({ ...prev, maxStock: true }))
+            }
+        }
+    }, [watchMinStock]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ─── Handlers ───
 
     const handleSubmit = async (data: CreateProductInput) => {
         setIsSubmitting(true)
@@ -123,6 +248,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                     description: `Kode: ${result.data?.code || previewCode}`,
                 })
                 form.reset()
+                resetAutoFill()
                 setOpen(false)
                 queryClient.invalidateQueries({ queryKey: queryKeys.products.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.inventoryDashboard.all })
@@ -138,12 +264,25 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
         }
     }
 
-    const watchCost = form.watch("costPrice") ?? 0
-    const watchSell = form.watch("sellingPrice") ?? 0
-    const margin = watchCost > 0 ? ((watchSell - watchCost) / watchCost) * 100 : 0
-    const watchMinStock = form.watch("minStock") ?? 0
-    const watchMaxStock = form.watch("maxStock") ?? 0
-    const watchReorder = form.watch("reorderLevel") ?? 0
+    const handleMarginClick = (pct: number) => {
+        if (marginPreset === pct) {
+            setMarginPreset(null)
+            setAutoTags(prev => ({ ...prev, sellPrice: false }))
+        } else {
+            setMarginPreset(pct)
+            manuallySet.current.sellPrice = false
+        }
+    }
+
+    const handleCopyBarcode = async () => {
+        try {
+            await navigator.clipboard.writeText(previewBarcode)
+            setCopiedBarcode(true)
+            setTimeout(() => setCopiedBarcode(false), 2000)
+        } catch {
+            toast.error("Gagal menyalin barcode")
+        }
+    }
 
     // Create handlers for inline creation
     const handleCreateBrand = async (name: string) => {
@@ -207,7 +346,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                 <Plus className="mr-2 h-4 w-4" /> Produk Baru
             </Button>
 
-            <NBDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) form.reset() }}>
+            <NBDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { form.reset(); resetAutoFill() } }}>
                 <NBDialogHeader
                     icon={Plus}
                     title="Tambah Produk Baru"
@@ -226,7 +365,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
 
                             <div className="p-3 space-y-3">
                                 <div className="grid grid-cols-4 gap-3">
-                                    {/* Segment 1: Category (fixed list — code builder categories) */}
+                                    {/* Segment 1: Category */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Kategori</label>
                                         <Select
@@ -250,7 +389,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                         </Select>
                                     </div>
 
-                                    {/* Segment 2: Product Type (depends on category) */}
+                                    {/* Segment 2: Product Type */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Tipe Produk</label>
                                         <Select
@@ -271,7 +410,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                         </Select>
                                     </div>
 
-                                    {/* Segment 3: Brand — DB-backed with create */}
+                                    {/* Segment 3: Brand */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Brand</label>
                                         <ComboboxWithCreate
@@ -287,7 +426,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                         />
                                     </div>
 
-                                    {/* Segment 4: Color — DB-backed with create */}
+                                    {/* Segment 4: Color */}
                                     <div>
                                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-1 block">Warna</label>
                                         <ComboboxWithCreate
@@ -304,10 +443,13 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                     </div>
                                 </div>
 
-                                {/* Live Code Preview */}
+                                {/* Live Code Preview + Barcode */}
                                 <div className="bg-zinc-50 border border-zinc-200 p-3 flex items-center justify-between">
                                     <div>
-                                        <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 block mb-0.5">Preview Kode</span>
+                                        <div className="flex items-center gap-1.5 mb-0.5">
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400">Preview Kode</span>
+                                            <span className="text-[8px] font-bold text-orange-400 uppercase tracking-widest border border-orange-200 bg-orange-50 px-1 py-px">otomatis</span>
+                                        </div>
                                         <span className="font-mono font-black text-base tracking-wider">{previewCode}</span>
                                     </div>
                                     <div className="text-right">
@@ -315,6 +457,17 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                         <div className="flex items-center gap-1.5">
                                             <Barcode className="h-3.5 w-3.5 text-zinc-400" />
                                             <span className="font-mono font-bold text-[11px] text-zinc-600">{previewBarcode}</span>
+                                            <button
+                                                type="button"
+                                                onClick={handleCopyBarcode}
+                                                className="p-0.5 hover:bg-zinc-200 transition-colors"
+                                                title="Salin barcode"
+                                            >
+                                                {copiedBarcode
+                                                    ? <Check className="h-3 w-3 text-emerald-500" />
+                                                    : <Copy className="h-3 w-3 text-zinc-400" />
+                                                }
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -334,21 +487,39 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                             <NBInput
                                 label="Nama Produk"
                                 required
-                                value={form.watch("name") || ""}
+                                value={watchName}
                                 onChange={v => form.setValue("name", v)}
                                 placeholder="Kaos Polos Cotton Combed 30s"
                             />
                             {form.formState.errors.name && (
                                 <p className={NB.error}>{form.formState.errors.name.message}</p>
                             )}
+                            {duplicateWarning && (
+                                <p className="flex items-center gap-1 text-[10px] font-bold text-amber-600 mt-0.5">
+                                    <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                                    Produk serupa sudah ada: {duplicateWarning}
+                                </p>
+                            )}
 
-                            <NBTextarea
-                                label="Deskripsi"
-                                value={form.watch("description") || ""}
-                                onChange={v => form.setValue("description", v)}
-                                placeholder="Deskripsi produk (opsional)"
-                                rows={2}
-                            />
+                            <div>
+                                <NBTextarea
+                                    label="Deskripsi"
+                                    value={form.watch("description") || ""}
+                                    onChange={v => {
+                                        form.setValue("description", v)
+                                        manuallySet.current.desc = true
+                                        setAutoTags(prev => ({ ...prev, desc: false }))
+                                    }}
+                                    placeholder="Deskripsi produk (opsional)"
+                                    rows={2}
+                                />
+                                {autoTags.desc && (
+                                    <p className="flex items-center gap-1 text-[9px] text-orange-400 font-bold mt-0.5">
+                                        <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] uppercase tracking-widest">otomatis</span>
+                                        template berdasarkan kategori — isi bagian ___ sesuai produk
+                                    </p>
+                                )}
+                            </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
@@ -368,11 +539,18 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                 <div>
                                     <label className={NB.label}>
                                         Satuan <span className={NB.labelRequired}>*</span>
+                                        {autoTags.unit && (
+                                            <span className="ml-1.5 text-[8px] font-bold text-orange-400 uppercase tracking-widest border border-orange-200 bg-orange-50 px-1 py-px inline-block">otomatis</span>
+                                        )}
                                     </label>
                                     <ComboboxWithCreate
                                         options={unitOptions}
                                         value={form.watch("unit") || "pcs"}
-                                        onChange={v => form.setValue("unit", v)}
+                                        onChange={v => {
+                                            form.setValue("unit", v)
+                                            manuallySet.current.unit = true
+                                            setAutoTags(prev => ({ ...prev, unit: false }))
+                                        }}
                                         placeholder="Pilih satuan..."
                                         searchPlaceholder="Cari satuan..."
                                         emptyMessage="Satuan tidak ditemukan."
@@ -387,52 +565,162 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                         {/* ====== INFORMASI HARGA ====== */}
                         <NBSection icon={DollarSign} title="Informasi Harga">
                             <div className="grid grid-cols-2 gap-3">
-                                <NBCurrencyInput
-                                    label="HPP (Harga Pokok)"
-                                    value={String(watchCost || "")}
-                                    onChange={v => form.setValue("costPrice", Number(v) || 0)}
-                                />
-                                <NBCurrencyInput
-                                    label="Harga Jual"
-                                    value={String(watchSell || "")}
-                                    onChange={v => form.setValue("sellingPrice", Number(v) || 0)}
-                                />
-                            </div>
-                            {watchCost > 0 && watchSell > 0 && (
-                                <div className="bg-emerald-50 border border-emerald-200 p-2.5 flex items-center justify-between">
-                                    <span className="text-xs font-bold text-emerald-700">Margin Keuntungan</span>
-                                    <span className={`font-black text-sm ${margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                                        {margin.toFixed(1)}% &middot; Rp {(watchSell - watchCost).toLocaleString('id-ID')}/unit
-                                    </span>
+                                <div>
+                                    <NBCurrencyInput
+                                        label="HPP (Harga Pokok)"
+                                        value={String(watchCost || "")}
+                                        onChange={v => form.setValue("costPrice", Number(v) || 0)}
+                                    />
                                 </div>
+                                <div>
+                                    <NBCurrencyInput
+                                        label="Harga Jual"
+                                        value={String(watchSell || "")}
+                                        onChange={v => {
+                                            form.setValue("sellingPrice", Number(v) || 0)
+                                            manuallySet.current.sellPrice = true
+                                            setMarginPreset(null)
+                                            setAutoTags(prev => ({ ...prev, sellPrice: false }))
+                                        }}
+                                    />
+                                    {autoTags.sellPrice && marginPreset !== null && (
+                                        <p className="flex items-center gap-1 text-[9px] text-orange-400 font-bold mt-0.5">
+                                            <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] uppercase tracking-widest">otomatis</span>
+                                            margin {marginPreset}% dari HPP
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Margin preset selector — visible when HPP > 0 */}
+                            {watchCost > 0 && (
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mr-0.5">Margin:</span>
+                                    {MARGIN_PRESETS.map(pct => (
+                                        <button
+                                            key={pct}
+                                            type="button"
+                                            onClick={() => handleMarginClick(pct)}
+                                            className={cn(
+                                                "px-2 py-0.5 text-[10px] font-bold border transition-colors",
+                                                marginPreset === pct
+                                                    ? "bg-emerald-50 border-emerald-400 text-emerald-700"
+                                                    : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-400"
+                                            )}
+                                        >
+                                            {pct}%
+                                        </button>
+                                    ))}
+                                    {marginPreset !== null && (
+                                        <span className="text-[10px] font-mono font-bold text-emerald-600 ml-1">
+                                            = Rp {Math.ceil(watchCost * (1 + marginPreset / 100)).toLocaleString('id-ID')}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Margin result banner */}
+                            {watchCost > 0 && watchSell > 0 && (
+                                <div className={cn(
+                                    "p-2.5 flex items-center justify-between border",
+                                    watchSell >= watchCost
+                                        ? "bg-emerald-50 border-emerald-200"
+                                        : "bg-red-50 border-red-200"
+                                )}>
+                                    {watchSell >= watchCost ? (
+                                        <>
+                                            <span className="text-xs font-bold text-emerald-700">Margin Keuntungan</span>
+                                            <span className="font-black text-sm text-emerald-700">
+                                                {margin.toFixed(1)}% &middot; Rp {(watchSell - watchCost).toLocaleString('id-ID')}/unit
+                                            </span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="flex items-center gap-1 text-xs font-bold text-red-700">
+                                                <AlertTriangle className="h-3 w-3" />
+                                                Harga jual di bawah HPP (rugi)
+                                            </span>
+                                            <span className="font-black text-sm text-red-600">
+                                                {margin.toFixed(1)}% &middot; Rp {(watchSell - watchCost).toLocaleString('id-ID')}/unit
+                                            </span>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Smart hints */}
+                            {watchCost === 0 && (
+                                <p className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
+                                    <Info className="h-3 w-3 flex-shrink-0" />
+                                    HPP belum diisi — akan diupdate dari Purchase Order
+                                </p>
+                            )}
+                            {watchCost > 0 && watchSell === 0 && (
+                                <p className="flex items-center gap-1 text-[10px] text-amber-500 font-bold">
+                                    <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                                    Harga jual belum diisi
+                                </p>
                             )}
                         </NBSection>
 
                         {/* ====== MANAJEMEN STOK ====== */}
                         <NBSection icon={BarChart3} title="Manajemen Stok">
                             <div className="grid grid-cols-3 gap-3">
-                                <NBInput
-                                    label="Stok Minimum"
-                                    type="number"
-                                    value={watchMinStock > 0 ? String(watchMinStock) : ""}
-                                    onChange={v => form.setValue("minStock", Number(v) || 0)}
-                                    placeholder="0"
-                                />
-                                <NBInput
-                                    label="Stok Maksimum"
-                                    type="number"
-                                    value={watchMaxStock > 0 ? String(watchMaxStock) : ""}
-                                    onChange={v => form.setValue("maxStock", Number(v) || 0)}
-                                    placeholder="0"
-                                />
-                                <NBInput
-                                    label="Reorder Point"
-                                    type="number"
-                                    value={watchReorder > 0 ? String(watchReorder) : ""}
-                                    onChange={v => form.setValue("reorderLevel", Number(v) || 0)}
-                                    placeholder="0"
-                                />
+                                <div>
+                                    <NBInput
+                                        label="Stok Minimum"
+                                        type="number"
+                                        value={watchMinStock > 0 ? String(watchMinStock) : ""}
+                                        onChange={v => form.setValue("minStock", Number(v) || 0)}
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div>
+                                    <NBInput
+                                        label="Stok Maksimum"
+                                        type="number"
+                                        value={watchMaxStock > 0 ? String(watchMaxStock) : ""}
+                                        onChange={v => {
+                                            form.setValue("maxStock", Number(v) || 0)
+                                            manuallySet.current.maxStock = true
+                                            setAutoTags(prev => ({ ...prev, maxStock: false }))
+                                        }}
+                                        placeholder="0"
+                                    />
+                                    {autoTags.maxStock && (
+                                        <p className="flex items-center justify-between text-[9px] mt-0.5">
+                                            <span className="text-zinc-400 font-medium">3x stok minimum</span>
+                                            <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] font-bold text-orange-400 uppercase tracking-widest">otomatis</span>
+                                        </p>
+                                    )}
+                                </div>
+                                <div>
+                                    <NBInput
+                                        label="Reorder Point"
+                                        type="number"
+                                        value={watchReorder > 0 ? String(watchReorder) : ""}
+                                        onChange={v => {
+                                            form.setValue("reorderLevel", Number(v) || 0)
+                                            manuallySet.current.reorder = true
+                                            setAutoTags(prev => ({ ...prev, reorder: false }))
+                                        }}
+                                        placeholder="0"
+                                    />
+                                    {autoTags.reorder && (
+                                        <p className="flex items-center justify-between text-[9px] mt-0.5">
+                                            <span className="text-zinc-400 font-medium">1.5x stok minimum</span>
+                                            <span className="border border-orange-200 bg-orange-50 px-1 py-px text-[8px] font-bold text-orange-400 uppercase tracking-widest">otomatis</span>
+                                        </p>
+                                    )}
+                                </div>
                             </div>
+
+                            {watchMinStock === 0 && watchReorder === 0 && (
+                                <p className="flex items-center gap-1 text-[10px] text-zinc-400 font-medium">
+                                    <Info className="h-3 w-3 flex-shrink-0" />
+                                    Tidak ada peringatan stok rendah
+                                </p>
+                            )}
                         </NBSection>
 
                         {/* ====== FOOTER ====== */}

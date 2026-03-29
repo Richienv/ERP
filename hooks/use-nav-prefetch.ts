@@ -83,7 +83,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: () => {
             const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
             const end = new Date().toISOString().slice(0, 10)
-            return fetch(`/api/sales/salespersons/commission?startDate=${start}&endDate=${end}`).then(r => r.json())
+            return fetch(`/api/sales/salespersons/commission-report?startDate=${start}&endDate=${end}`).then(r => r.json())
         },
     },
     "/inventory/categories": {
@@ -482,17 +482,11 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // Companion queries for /finance/planning page
     "/finance/planning#accuracy": {
         queryKey: queryKeys.cashflowAccuracy.trend(3),
-        queryFn: async () => {
-            const { getAccuracyTrend } = await import("@/lib/actions/finance-cashflow")
-            return await getAccuracyTrend(3)
-        },
+        queryFn: () => fetchJson("/api/finance/cashflow-accuracy?months=3", {}),
     },
     "/finance/planning#obligations": {
         queryKey: [...queryKeys.cashflowPlan.all, "upcoming", 90] as const,
-        queryFn: async () => {
-            const { getUpcomingObligations } = await import("@/lib/actions/finance-cashflow")
-            return await getUpcomingObligations(90)
-        },
+        queryFn: () => fetchJson("/api/finance/cashflow-upcoming?days=90", []),
     },
     "/finance/planning/simulasi": {
         queryKey: [...queryKeys.cashflowPlan.list(new Date().getMonth() + 1, new Date().getFullYear()), true],
@@ -506,9 +500,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // Companion — simulasi page also needs scenarios list
     "/finance/planning/simulasi#scenarios": {
         queryKey: queryKeys.cashflowScenarios.list(new Date().getMonth() + 1, new Date().getFullYear()),
-        queryFn: async () => {
-            const { getCashflowScenarios } = await import("@/lib/actions/finance-cashflow")
-            return await getCashflowScenarios(new Date().getMonth() + 1, new Date().getFullYear())
+        queryFn: () => {
+            const m = new Date().getMonth() + 1
+            const y = new Date().getFullYear()
+            return fetchJson(`/api/finance/cashflow-scenarios?month=${m}&year=${y}`, [])
         },
     },
     "/finance/planning/aktual": {

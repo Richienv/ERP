@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import {
     Search,
     Plus,
@@ -17,20 +17,207 @@ import {
     Eye,
     EyeOff,
     Download,
+    AlertTriangle,
+    Settings,
+    Layers,
+    Tag,
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { NB } from "@/lib/dialog-styles"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBSelect,
+    NBTextarea,
+} from "@/components/ui/nb-dialog"
+import { SelectItem } from "@/components/ui/select"
 import { createGLAccount, type GLAccountNode } from "@/lib/actions/finance"
 import { formatIDR } from "@/lib/utils"
-import { subTypeLabel } from "@/lib/account-subtype-helpers"
+import { subTypeLabel, inferSubType } from "@/lib/account-subtype-helpers"
 import { toast } from "sonner"
 import { useChartOfAccounts, useInvalidateChartAccounts } from "@/hooks/use-chart-accounts"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { exportToExcel } from "@/lib/table-export"
+
+// ─── Account type metadata ───
+type AccType = "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"
+
+const ACCOUNT_TYPES = [
+    { value: "ASSET" as const, label: "Asset", icon: Landmark, range: "1000–1999" },
+    { value: "LIABILITY" as const, label: "Liability", icon: CreditCard, range: "2000–2999" },
+    { value: "EQUITY" as const, label: "Equity", icon: PiggyBank, range: "3000–3999" },
+    { value: "REVENUE" as const, label: "Revenue", icon: Wallet, range: "4000–4999" },
+    { value: "EXPENSE" as const, label: "Expense", icon: Receipt, range: "5000–6999" },
+] as const
+
+const TYPE_RANGES: Record<AccType, [number, number]> = {
+    ASSET: [1000, 1999],
+    LIABILITY: [2000, 2999],
+    EQUITY: [3000, 3999],
+    REVENUE: [4000, 4999],
+    EXPENSE: [5000, 6999],
+}
+
+const SALDO_NORMAL: Record<AccType, string> = {
+    ASSET: "Debit",
+    LIABILITY: "Kredit",
+    EQUITY: "Kredit",
+    REVENUE: "Kredit",
+    EXPENSE: "Debit",
+}
+
+// ─── Sub-type options per type ───
+const SUB_TYPE_OPTIONS: Record<AccType, { value: string; label: string }[]> = {
+    ASSET: [
+        { value: "ASSET_CASH", label: "Kas & Bank" },
+        { value: "ASSET_RECEIVABLE", label: "Piutang" },
+        { value: "ASSET_CURRENT", label: "Aset Lancar" },
+        { value: "ASSET_PREPAYMENTS", label: "Biaya Dibayar Dimuka" },
+        { value: "ASSET_FIXED", label: "Aset Tetap" },
+        { value: "ASSET_NON_CURRENT", label: "Aset Tidak Berwujud" },
+    ],
+    LIABILITY: [
+        { value: "LIABILITY_PAYABLE", label: "Hutang Usaha" },
+        { value: "LIABILITY_CURRENT", label: "Kewajiban Lancar" },
+        { value: "LIABILITY_NON_CURRENT", label: "Kewajiban Jangka Panjang" },
+    ],
+    EQUITY: [
+        { value: "EQUITY", label: "Modal Disetor" },
+        { value: "EQUITY_UNAFFECTED", label: "Laba Ditahan" },
+    ],
+    REVENUE: [
+        { value: "INCOME", label: "Pendapatan Usaha" },
+        { value: "INCOME_OTHER", label: "Pendapatan Lain-lain" },
+    ],
+    EXPENSE: [
+        { value: "EXPENSE_DIRECT_COST", label: "Beban Pokok Penjualan" },
+        { value: "EXPENSE", label: "Beban Operasional" },
+        { value: "EXPENSE_DEPRECIATION", label: "Penyusutan" },
+    ],
+}
+
+// ─── Name suggestions per sub-type ───
+const NAME_SUGGESTIONS: Record<string, string[]> = {
+    ASSET_CASH: ["Kas", "Bank BCA", "Bank Mandiri", "Bank BNI", "Bank BRI", "Kas Kecil (Petty Cash)"],
+    ASSET_RECEIVABLE: ["Piutang Usaha", "Piutang Lainnya", "Cadangan Kerugian Piutang"],
+    ASSET_CURRENT: ["Persediaan Barang Jadi", "Persediaan Bahan Baku", "Persediaan Dalam Proses (WIP)", "Uang Muka", "PPN Masukan"],
+    ASSET_PREPAYMENTS: ["Asuransi Dibayar Dimuka", "Sewa Dibayar Dimuka", "PPh Dibayar Dimuka"],
+    ASSET_FIXED: ["Tanah", "Bangunan", "Kendaraan", "Mesin & Peralatan", "Peralatan Kantor", "Akumulasi Penyusutan"],
+    ASSET_NON_CURRENT: ["Investasi Jangka Panjang", "Goodwill", "Hak Paten"],
+    LIABILITY_PAYABLE: ["Hutang Usaha", "Hutang Gaji", "Barang Diterima / Faktur Belum Diterima"],
+    LIABILITY_CURRENT: ["Hutang Pajak (PPN/PPh)", "Hutang PPh 21", "Hutang PPh 23", "Hutang BPJS", "Pendapatan Diterima Dimuka", "Biaya Yang Masih Harus Dibayar"],
+    LIABILITY_NON_CURRENT: ["Hutang Bank Jangka Panjang", "Hutang Obligasi"],
+    EQUITY: ["Modal Disetor", "Prive Pemilik", "Saldo Awal Ekuitas"],
+    EQUITY_UNAFFECTED: ["Laba Ditahan", "Laba Tahun Berjalan"],
+    INCOME: ["Pendapatan Penjualan", "Pendapatan Jasa", "Diskon Penjualan", "Retur Penjualan"],
+    INCOME_OTHER: ["Pendapatan Bunga", "Pendapatan Lain-lain", "Pendapatan Sewa"],
+    EXPENSE_DIRECT_COST: ["Beban Pokok Penjualan (HPP)", "Pembelian Bahan Baku", "Upah Langsung Produksi"],
+    EXPENSE: [
+        "Beban Gaji", "Beban Gaji Kantor", "Komisi Penjualan",
+        "Beban Listrik", "Beban Air", "Beban Telepon", "Beban Internet",
+        "Beban Sewa", "Beban Asuransi", "Beban Pemeliharaan",
+        "Beban THR", "Beban BPJS",
+        "Beban Perjalanan Dinas", "Beban Transportasi",
+        "Beban ATK", "Beban Perlengkapan Kantor",
+        "Beban Reparasi & Pemeliharaan", "Beban Lain-lain",
+    ],
+    EXPENSE_DEPRECIATION: ["Beban Penyusutan", "Beban Amortisasi"],
+}
+
+// ─── Auto-description from name ───
+const NAME_DESCRIPTIONS: Record<string, string> = {
+    "Kas": "Pencatatan kas tunai perusahaan",
+    "Kas Kecil (Petty Cash)": "Dana kas kecil untuk pengeluaran operasional harian",
+    "Bank BCA": "Rekening giro Bank BCA untuk operasional",
+    "Bank Mandiri": "Rekening giro Bank Mandiri",
+    "Bank BNI": "Rekening giro Bank BNI",
+    "Bank BRI": "Rekening giro Bank BRI",
+    "Piutang Usaha": "Tagihan kepada pelanggan atas penjualan barang/jasa",
+    "Piutang Lainnya": "Piutang di luar kegiatan usaha utama",
+    "Persediaan Barang Jadi": "Stok barang siap jual",
+    "Persediaan Bahan Baku": "Stok bahan baku untuk produksi",
+    "Persediaan Dalam Proses (WIP)": "Barang dalam proses produksi",
+    "PPN Masukan": "Pajak pertambahan nilai atas pembelian",
+    "Tanah": "Tanah milik perusahaan",
+    "Bangunan": "Gedung dan bangunan milik perusahaan",
+    "Kendaraan": "Kendaraan operasional perusahaan",
+    "Mesin & Peralatan": "Mesin dan peralatan produksi",
+    "Peralatan Kantor": "Peralatan untuk kegiatan kantor",
+    "Akumulasi Penyusutan": "Akumulasi penyusutan atas aset tetap",
+    "Hutang Usaha": "Kewajiban kepada supplier atas pembelian barang/jasa",
+    "Hutang Gaji": "Kewajiban gaji karyawan yang belum dibayar",
+    "Hutang Pajak (PPN/PPh)": "Kewajiban pajak yang belum disetor",
+    "Pendapatan Diterima Dimuka": "Penerimaan atas jasa/barang yang belum diserahkan",
+    "Modal Disetor": "Modal yang disetorkan oleh pemilik",
+    "Laba Ditahan": "Akumulasi laba bersih yang belum dibagikan",
+    "Pendapatan Penjualan": "Pendapatan dari penjualan barang/jasa utama",
+    "Pendapatan Jasa": "Pendapatan dari jasa yang diberikan",
+    "Pendapatan Bunga": "Pendapatan bunga dari simpanan bank",
+    "Beban Pokok Penjualan (HPP)": "Harga pokok barang/jasa yang terjual",
+    "Beban Gaji": "Beban gaji dan upah karyawan produksi",
+    "Beban Gaji Kantor": "Beban gaji karyawan administrasi/kantor",
+    "Beban Listrik": "Pencatatan biaya listrik bulanan untuk operasional",
+    "Beban Air": "Pencatatan biaya air (PDAM) bulanan",
+    "Beban Telepon": "Pencatatan biaya telepon/komunikasi",
+    "Beban Internet": "Pencatatan biaya internet bulanan",
+    "Beban Sewa": "Beban sewa gedung/kantor/gudang",
+    "Beban Asuransi": "Beban premi asuransi",
+    "Beban Pemeliharaan": "Biaya pemeliharaan aset dan fasilitas",
+    "Beban ATK": "Beban alat tulis kantor",
+    "Beban Perlengkapan Kantor": "Beban perlengkapan kantor habis pakai",
+    "Beban Perjalanan Dinas": "Biaya perjalanan dinas karyawan",
+    "Beban Transportasi": "Biaya transportasi operasional",
+    "Beban Penyusutan": "Beban penyusutan atas aset tetap periode berjalan",
+    "Beban Lain-lain": "Beban operasional yang tidak terklasifikasi",
+    "Beban Reparasi & Pemeliharaan": "Biaya perbaikan dan pemeliharaan aset",
+}
+
+/** Find the next available code in a range, given existing codes */
+function suggestNextCode(existingCodes: string[], type: AccType): string {
+    const [min, max] = TYPE_RANGES[type]
+    const usedNums = existingCodes
+        .map(c => parseInt(c, 10))
+        .filter(n => n >= min && n <= max)
+        .sort((a, b) => a - b)
+
+    if (usedNums.length === 0) return String(min)
+
+    // Try to find next round number (increment by 10 or 100)
+    const last = usedNums[usedNums.length - 1]
+    // Try next 10-increment
+    const next10 = Math.ceil((last + 1) / 10) * 10
+    if (next10 <= max && !usedNums.includes(next10)) return String(next10)
+    // Try next 100-increment
+    const next100 = Math.ceil((last + 1) / 100) * 100
+    if (next100 <= max && !usedNums.includes(next100)) return String(next100)
+    // Fallback: just last + 10
+    const fallback = last + 10
+    if (fallback <= max && !usedNums.includes(fallback)) return String(fallback)
+
+    return String(last + 1 <= max ? last + 1 : min)
+}
+
+/** Find likely parent account from code */
+function findParentCode(code: string, existingCodes: string[]): string | null {
+    const num = parseInt(code, 10)
+    if (isNaN(num) || code.length < 4) return null
+
+    // Try stripping last 2 digits → e.g. 6210 → 6200
+    const parent2 = code.substring(0, 2) + "00"
+    if (parent2 !== code && existingCodes.includes(parent2)) return parent2
+
+    // Try stripping last 1 digit → e.g. 6200 → 6000 (using first digit + "000")
+    const parent1 = code.substring(0, 1) + "000"
+    if (parent1 !== code && existingCodes.includes(parent1)) return parent1
+
+    return null
+}
 
 /* ─── Animation variants ─── */
 const stagger = {
@@ -120,8 +307,132 @@ export default function CoALedgerPage() {
     const [submitting, setSubmitting] = useState(false)
     const [newCode, setNewCode] = useState("")
     const [newName, setNewName] = useState("")
-    const [newType, setNewType] = useState<"ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE">("ASSET")
+    const [newType, setNewType] = useState<AccType>("ASSET")
+    const [newSubType, setNewSubType] = useState("")
+    const [newDescription, setNewDescription] = useState("")
+    const [newPpnRelated, setNewPpnRelated] = useState(false)
+    const [showSuggestions, setShowSuggestions] = useState(false)
+    const suggestionsRef = useRef<HTMLDivElement>(null)
     const [showAmounts, setShowAmounts] = useState(false)
+
+    // Collect all existing codes for suggestions & duplicate detection
+    const allExistingCodes = useMemo(() => {
+        const codes: string[] = []
+        function walk(nodes: GLAccountNode[]) {
+            for (const n of nodes) {
+                codes.push(n.code)
+                if (n.children) walk(n.children)
+            }
+        }
+        walk(accounts)
+        return codes
+    }, [accounts])
+
+    // Collect all existing names (lowercase) for duplicate detection
+    const allExistingNames = useMemo(() => {
+        const names: { code: string; name: string }[] = []
+        function walk(nodes: GLAccountNode[]) {
+            for (const n of nodes) {
+                names.push({ code: n.code, name: n.name })
+                if (n.children) walk(n.children)
+            }
+        }
+        walk(accounts)
+        return names
+    }, [accounts])
+
+    // Auto-suggest code when type changes
+    const handleTypeChange = (type: AccType) => {
+        setNewType(type)
+        // Auto-suggest next code
+        const suggested = suggestNextCode(allExistingCodes, type)
+        setNewCode(suggested)
+        // Auto-suggest sub-type from code
+        const autoSub = inferSubType(suggested)
+        const options = SUB_TYPE_OPTIONS[type]
+        if (options.some(o => o.value === autoSub)) {
+            setNewSubType(autoSub)
+        } else {
+            setNewSubType(options[0]?.value || "")
+        }
+        // Auto-set PPN default
+        setNewPpnRelated(type === "REVENUE" || type === "EXPENSE")
+        // Clear name/description for fresh start
+        setNewName("")
+        setNewDescription("")
+    }
+
+    // Auto-detect parent from code
+    const detectedParentCode = useMemo(() => {
+        if (!newCode.trim()) return null
+        return findParentCode(newCode.trim(), allExistingCodes)
+    }, [newCode, allExistingCodes])
+
+    const detectedParentName = useMemo(() => {
+        if (!detectedParentCode) return null
+        const found = allExistingNames.find(n => n.code === detectedParentCode)
+        return found ? found.name : null
+    }, [detectedParentCode, allExistingNames])
+
+    // Code range validation
+    const codeRangeWarning = useMemo(() => {
+        const num = parseInt(newCode, 10)
+        if (isNaN(num) || !newCode.trim()) return null
+        const [min, max] = TYPE_RANGES[newType]
+        if (num < min || num > max) {
+            return `Kode ${newCode} tidak sesuai dengan tipe ${newType} (${min}–${max})`
+        }
+        return null
+    }, [newCode, newType])
+
+    // Duplicate code detection
+    const duplicateCodeWarning = useMemo(() => {
+        if (!newCode.trim()) return null
+        const match = allExistingNames.find(n => n.code === newCode.trim())
+        if (match) return `Kode ${newCode} sudah digunakan oleh: ${match.name}`
+        return null
+    }, [newCode, allExistingNames])
+
+    // Similar name detection
+    const similarNameWarning = useMemo(() => {
+        if (!newName.trim() || newName.trim().length < 3) return null
+        const lower = newName.trim().toLowerCase()
+        const match = allExistingNames.find(n => {
+            const nl = n.name.toLowerCase()
+            return nl === lower || nl.includes(lower) || lower.includes(nl)
+        })
+        if (match) return `Akun serupa: ${match.code} ${match.name}`
+        return null
+    }, [newName, allExistingNames])
+
+    // Auto-update sub-type when code changes
+    useEffect(() => {
+        if (!newCode.trim()) return
+        const autoSub = inferSubType(newCode.trim())
+        const options = SUB_TYPE_OPTIONS[newType]
+        if (options.some(o => o.value === autoSub)) {
+            setNewSubType(autoSub)
+        }
+    }, [newCode, newType])
+
+    // Name suggestions filtered by what user has typed
+    const currentSuggestions = useMemo(() => {
+        const pool = NAME_SUGGESTIONS[newSubType] || NAME_SUGGESTIONS[SUB_TYPE_OPTIONS[newType]?.[0]?.value || ""] || []
+        if (!newName.trim()) return pool
+        const lower = newName.trim().toLowerCase()
+        return pool.filter(s => s.toLowerCase().includes(lower))
+    }, [newName, newSubType, newType])
+
+    // Close suggestions on outside click
+    useEffect(() => {
+        function handleClick(e: MouseEvent) {
+            if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+                setShowSuggestions(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClick)
+        return () => document.removeEventListener("mousedown", handleClick)
+    }, [])
 
     const filteredAccounts = accounts.filter((acc) => {
         const matchesSearch = acc.name.toLowerCase().includes(search.toLowerCase()) || acc.code.includes(search)
@@ -141,9 +452,23 @@ export default function CoALedgerPage() {
     const rightSide = totalLiabilities + totalEquity + retainedEarnings
     const isBalanced = Math.abs(totalAssets - rightSide) < 1
 
+    function resetCreateForm() {
+        setNewCode("")
+        setNewName("")
+        setNewType("ASSET")
+        setNewSubType("")
+        setNewDescription("")
+        setNewPpnRelated(false)
+        setShowSuggestions(false)
+    }
+
     async function handleCreateAccount() {
         if (!newCode.trim() || !newName.trim()) {
-            toast.error("Code dan name akun wajib diisi")
+            toast.error("Kode dan nama akun wajib diisi")
+            return
+        }
+        if (duplicateCodeWarning) {
+            toast.error(duplicateCodeWarning)
             return
         }
         setSubmitting(true)
@@ -153,10 +478,8 @@ export default function CoALedgerPage() {
                 toast.error(("error" in result ? result.error : null) || "Gagal membuat account")
                 return
             }
-            toast.success("Account berhasil dibuat")
-            setNewCode("")
-            setNewName("")
-            setNewType("ASSET")
+            toast.success(`Akun ${newCode} — ${newName} berhasil dibuat`)
+            resetCreateForm()
             setCreateOpen(false)
             invalidateChartAccounts()
             queryClient.invalidateQueries({ queryKey: queryKeys.glAccounts.all })
@@ -412,98 +735,213 @@ export default function CoALedgerPage() {
             </motion.div>
 
             {/* ─── Create Account Dialog ─── */}
-            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                <DialogContent className={NB.contentNarrow}>
-                    <DialogHeader className={NB.header}>
-                        <DialogTitle className={NB.title}>
-                            <BookOpen className="h-5 w-5" /> Tambah Akun COA
-                        </DialogTitle>
-                        <p className="text-zinc-400 text-[11px] font-bold mt-0.5">
-                            Buat akun baru langsung masuk ke chart of accounts
-                        </p>
-                    </DialogHeader>
+            <NBDialog open={createOpen} onOpenChange={(open) => { if (!open) resetCreateForm(); setCreateOpen(open) }} size="default">
+                <NBDialogHeader
+                    icon={BookOpen}
+                    title="Tambah Akun COA"
+                    subtitle="Buat akun baru langsung masuk ke chart of accounts"
+                />
 
-                    <div className="p-6 space-y-5">
-                        {/* Account Type Selector — visual tile picker */}
+                <NBDialogBody>
+                    {/* ── Section 1: Tipe & Klasifikasi ── */}
+                    <NBSection icon={Tag} title="Tipe & Klasifikasi">
+                        {/* Account Type Selector — visual tile picker with orange active glow */}
                         <div>
-                            <label className={NB.label}>
-                                Tipe Akun <span className={NB.labelRequired}>*</span>
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1.5 block">
+                                Tipe Akun <span className="text-red-500">*</span>
                             </label>
-                            <div className="grid grid-cols-5 gap-1.5 mt-1">
-                                {([
-                                    { value: "ASSET" as const, label: "Asset", icon: Landmark, activeBg: "bg-emerald-50", activeIcon: "text-emerald-600" },
-                                    { value: "LIABILITY" as const, label: "Liability", icon: CreditCard, activeBg: "bg-red-50", activeIcon: "text-red-600" },
-                                    { value: "EQUITY" as const, label: "Equity", icon: PiggyBank, activeBg: "bg-blue-50", activeIcon: "text-blue-600" },
-                                    { value: "REVENUE" as const, label: "Revenue", icon: Wallet, activeBg: "bg-purple-50", activeIcon: "text-purple-600" },
-                                    { value: "EXPENSE" as const, label: "Expense", icon: Receipt, activeBg: "bg-orange-50", activeIcon: "text-orange-600" },
-                                ]).map(({ value, label, icon: Icon, activeBg, activeIcon }) => (
+                            <div className="grid grid-cols-5 gap-2">
+                                {ACCOUNT_TYPES.map(({ value, label, icon: Icon, range }) => (
                                     <button
                                         key={value}
                                         type="button"
-                                        onClick={() => setNewType(value)}
-                                        className={`flex flex-col items-center gap-1.5 p-2.5 border-2 transition-all ${
+                                        onClick={() => handleTypeChange(value)}
+                                        className={`flex flex-col items-center gap-1.5 p-3 border transition-all ${
                                             newType === value
-                                                ? `border-black ${activeBg} shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]`
+                                                ? "border-orange-400 bg-orange-50/50 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
                                                 : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50"
                                         }`}
                                     >
-                                        <Icon className={`h-4 w-4 ${newType === value ? activeIcon : "text-zinc-400"}`} />
-                                        <span className={`text-[8px] font-black uppercase tracking-widest ${newType === value ? "text-black" : "text-zinc-400"}`}>
+                                        <Icon className={`h-4 w-4 ${newType === value ? "text-orange-500" : "text-zinc-400"}`} />
+                                        <span className={`text-[9px] font-black uppercase tracking-widest ${newType === value ? "text-orange-600" : "text-zinc-400"}`}>
                                             {label}
+                                        </span>
+                                        <span className={`text-[8px] font-mono ${newType === value ? "text-orange-400" : "text-zinc-300"}`}>
+                                            {range}
                                         </span>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Code + Name fields */}
-                        <div className="grid grid-cols-3 gap-3">
+                        {/* Sub-type dropdown */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <NBSelect
+                                label="Sub-Tipe / Klasifikasi"
+                                value={newSubType}
+                                onValueChange={setNewSubType}
+                                options={SUB_TYPE_OPTIONS[newType]}
+                                placeholder="Pilih..."
+                            />
+                            {/* Saldo normal — read-only info */}
                             <div>
-                                <label className={NB.label}>
-                                    Kode <span className={NB.labelRequired}>*</span>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                    Saldo Normal
                                 </label>
-                                <Input value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="6100" className={NB.inputMono} />
+                                <div className="h-8 flex items-center px-3 border border-zinc-200 bg-zinc-50 text-sm font-bold text-zinc-600">
+                                    {SALDO_NORMAL[newType]}
+                                    <span className="ml-auto text-[9px] font-medium text-zinc-400 uppercase">otomatis</span>
+                                </div>
                             </div>
-                            <div className="col-span-2">
-                                <label className={NB.label}>
-                                    Nama Akun <span className={NB.labelRequired}>*</span>
+                        </div>
+                    </NBSection>
+
+                    {/* ── Section 2: Detail Akun ── */}
+                    <NBSection icon={Layers} title="Detail Akun">
+                        <div className="grid grid-cols-3 gap-3">
+                            {/* Kode with range hint */}
+                            <div>
+                                <NBInput
+                                    label="Kode"
+                                    required
+                                    value={newCode}
+                                    onChange={setNewCode}
+                                    placeholder={String(TYPE_RANGES[newType][0])}
+                                />
+                                <p className="text-[9px] text-zinc-400 mt-0.5">Range: {TYPE_RANGES[newType][0]}–{TYPE_RANGES[newType][1]}</p>
+                            </div>
+
+                            {/* Nama Akun with autocomplete */}
+                            <div className="col-span-2 relative" ref={suggestionsRef}>
+                                <NBInput
+                                    label="Nama Akun"
+                                    required
+                                    value={newName}
+                                    onChange={(v) => {
+                                        setNewName(v)
+                                        setShowSuggestions(true)
+                                        // Auto-generate description
+                                        if (NAME_DESCRIPTIONS[v]) setNewDescription(NAME_DESCRIPTIONS[v])
+                                    }}
+                                    placeholder="Biaya Listrik"
+                                />
+                                {/* Autocomplete dropdown */}
+                                {showSuggestions && currentSuggestions.length > 0 && (
+                                    <div className="absolute z-50 top-full left-0 right-0 mt-1 border border-zinc-300 bg-white shadow-lg max-h-40 overflow-y-auto">
+                                        {currentSuggestions.map((s) => (
+                                            <button
+                                                key={s}
+                                                type="button"
+                                                onClick={() => {
+                                                    setNewName(s)
+                                                    setShowSuggestions(false)
+                                                    if (NAME_DESCRIPTIONS[s]) setNewDescription(NAME_DESCRIPTIONS[s])
+                                                }}
+                                                className="w-full text-left px-3 py-1.5 text-sm hover:bg-orange-50 transition-colors border-b border-zinc-100 last:border-b-0"
+                                            >
+                                                {s}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Parent account auto-detect */}
+                        <div>
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 mb-1 block">
+                                Akun Induk
+                            </label>
+                            <div className={`h-8 flex items-center px-3 border text-sm font-medium ${
+                                detectedParentCode
+                                    ? "border-orange-400 bg-orange-50/50 text-zinc-700"
+                                    : "border-zinc-200 bg-zinc-50 text-zinc-400"
+                            }`}>
+                                {detectedParentCode ? (
+                                    <>
+                                        <span className="font-mono font-bold text-xs mr-2">{detectedParentCode}</span>
+                                        {detectedParentName}
+                                    </>
+                                ) : (
+                                    "Akun utama (tanpa induk)"
+                                )}
+                                <span className="ml-auto text-[9px] font-medium text-zinc-400 uppercase">otomatis</span>
+                            </div>
+                        </div>
+
+                        {/* Warnings */}
+                        {codeRangeWarning && (
+                            <div className="flex items-center gap-2 px-3 py-2 border border-amber-300 bg-amber-50 text-amber-700 text-xs font-bold">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {codeRangeWarning}
+                            </div>
+                        )}
+                        {duplicateCodeWarning && (
+                            <div className="flex items-center gap-2 px-3 py-2 border border-red-300 bg-red-50 text-red-700 text-xs font-bold">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {duplicateCodeWarning}
+                            </div>
+                        )}
+                        {similarNameWarning && !duplicateCodeWarning && (
+                            <div className="flex items-center gap-2 px-3 py-2 border border-amber-300 bg-amber-50 text-amber-700 text-xs font-bold">
+                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {similarNameWarning} — yakin buat baru?
+                            </div>
+                        )}
+                    </NBSection>
+
+                    {/* ── Section 3: Pengaturan ── */}
+                    <NBSection icon={Settings} title="Pengaturan" optional>
+                        <NBTextarea
+                            label="Deskripsi"
+                            value={newDescription}
+                            onChange={setNewDescription}
+                            placeholder="Deskripsi akun..."
+                            rows={2}
+                        />
+
+                        {/* PPN toggle */}
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 block">
+                                    Terkait PPN
                                 </label>
-                                <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Biaya Listrik" className={NB.input} />
+                                <p className="text-[9px] text-zinc-400">Akun ini melibatkan transaksi PPN</p>
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setNewPpnRelated(!newPpnRelated)}
+                                className={`relative w-11 h-6 rounded-none border-2 transition-colors cursor-pointer ${
+                                    newPpnRelated
+                                        ? "bg-emerald-500 border-emerald-600"
+                                        : "bg-zinc-200 dark:bg-zinc-700 border-zinc-300 dark:border-zinc-600"
+                                }`}
+                            >
+                                <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-none shadow transition-transform ${
+                                    newPpnRelated ? "translate-x-[22px]" : "translate-x-0.5"
+                                }`} />
+                            </button>
                         </div>
 
                         {/* Preview strip */}
                         {(newCode.trim() || newName.trim()) && (
-                            <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-2.5 flex items-center gap-3">
+                            <div className="border border-dashed border-zinc-300 bg-zinc-50 px-4 py-2.5 flex items-center gap-3">
                                 <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Preview</span>
                                 <span className="font-mono font-bold text-sm text-zinc-900">{newCode || "\u2014"}</span>
                                 <span className="text-sm font-bold text-zinc-700">{newName || "\u2014"}</span>
-                                <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-zinc-300 text-zinc-500 ml-auto">
-                                    {newType}
+                                <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 border border-orange-200 text-orange-500 bg-orange-50 ml-auto">
+                                    {newSubType ? subTypeLabel(newSubType) : newType}
                                 </span>
                             </div>
                         )}
+                    </NBSection>
+                </NBDialogBody>
 
-                        {/* Actions */}
-                        <div className={NB.footer}>
-                            <Button variant="outline" className={NB.cancelBtn} onClick={() => setCreateOpen(false)}>
-                                Batal
-                            </Button>
-                            <Button className={NB.submitBtn} onClick={handleCreateAccount} disabled={submitting || !newCode.trim() || !newName.trim()}>
-                                {submitting ? (
-                                    <>
-                                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Menyimpan...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Simpan Akun
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                <NBDialogFooter
+                    onCancel={() => { resetCreateForm(); setCreateOpen(false) }}
+                    onSubmit={handleCreateAccount}
+                    submitting={submitting}
+                    submitLabel="Simpan Akun"
+                    disabled={!newCode.trim() || !newName.trim() || !!duplicateCodeWarning}
+                />
+            </NBDialog>
         </motion.div>
     )
 }
