@@ -12,8 +12,12 @@ export async function GET() {
 
         const invoices = await prisma.invoice.findMany({
             where: { type: "INV_OUT", status: { in: ["ISSUED", "PARTIAL", "OVERDUE"] } },
-            include: { customer: { select: { id: true, name: true, code: true } } },
+            select: {
+                id: true, number: true, balanceDue: true, dueDate: true, customerId: true,
+                customer: { select: { id: true, name: true, code: true } },
+            },
             orderBy: { dueDate: "asc" },
+            take: 500,
         })
 
         const now = new Date()
