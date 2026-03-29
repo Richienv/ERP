@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useState, useEffect } from "react"
+import React, { createContext, useContext, useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { clearPersistedCache } from "@/lib/query-client"
@@ -82,6 +82,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true)
     const router = useRouter()
     const supabase = createClient()
+    // Track explicit logout vs session expiry — only clear cache on explicit logout
+    const isExplicitLogoutRef = useRef(false)
 
     useEffect(() => {
         // Check active session
@@ -119,7 +121,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         let subscription: { unsubscribe: () => void } | null = null
         try {
             const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-                if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+                if (event === "SIGNED_OUT") {
+                    if (!isExplicitLogoutRef.current) {
+                        // Session expired — NOT explicit logout. IndexedDB cache is preserved.
+                        console.warn("[Auth] Session expired (not explicit logout) — cache preserved")
+                    }
+                    isExplicitLogoutRef.current = false
+                    setUser(null)
+                    setIsLoading(false)
+                    return
+                }
+
+                if (event === "TOKEN_REFRESHED" && !session) {
+                    // Token refresh returned null session — retry once before treating as expired
+                    try {
+                        const { data: retryData } = await supabase.auth.refreshSession()
+                        if (retryData.session?.user) {
+                            console.log("[Auth] Token refresh retry succeeded")
+                            await fetchUserProfile(retryData.session.user)
+                            return // Successfully recovered
+                        }
+                    } catch { /* retry failed — fall through to expired */ }
+                    console.warn("[Auth] Token refresh failed after retry — session expired")
                     setUser(null)
                     setIsLoading(false)
                     return
@@ -178,6 +201,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const logout = async () => {
+        // Mark as explicit logout so onAuthStateChange knows to expect SIGNED_OUT
+        isExplicitLogoutRef.current = true
         try {
             await supabase.auth.signOut()
         } catch (err) {
@@ -185,7 +210,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             console.warn("Sign out API call failed, clearing local session:", err)
             clearSupabaseSession()
         }
-        // Clear persisted query cache from IndexedDB to prevent data leak between users
+        // Clear persisted query cache from IndexedDB to prevent data leak between users.
+        // This is ONLY called on explicit logout — session expiry preserves the cache
+        // so the user gets instant load on re-login.
         await clearPersistedCache()
         setUser(null)
         router.push("/login")

@@ -14,6 +14,7 @@ import {
 } from "@/lib/prefetch-manifest"
 import { IconCheck, IconLoader2, IconRefresh, IconWifiOff } from "@tabler/icons-react"
 import { get } from "idb-keyval"
+import { createClient } from "@/lib/supabase/client"
 
 const SESSION_KEY = "erp_cache_warmed"
 const FAILURE_THRESHOLD = 0.7   // >70% failures → show retry (was 0.5 — too aggressive)
@@ -258,16 +259,32 @@ export function CacheWarmingOverlay() {
 
     const tick = useCallback(() => setItemsDone((prev) => prev + 1), [])
 
-    /** Preload a Next.js route's JS chunk (code splitting) */
-    const preloadRoute = useCallback((url: string) => {
-        try { router.prefetch(url) } catch {}
-    }, [router])
-
     const runPrefetch = useCallback(async () => {
         setShowRetry(false)
         setTotalFailures(0)
         setItemsDone(0)
         setPhase("p1")
+
+        // ── Proactive token refresh — ensures a fresh JWT that won't expire during prefetch ──
+        const supabase = createClient()
+        try {
+            const { error: refreshError } = await supabase.auth.refreshSession()
+            if (refreshError) {
+                console.warn('[Prefetch] Token pre-refresh failed:', refreshError.message)
+            } else if (isDev) {
+                console.log('[Prefetch] Token refreshed before starting')
+            }
+        } catch (err) {
+            console.warn('[Prefetch] Token pre-refresh threw:', err)
+        }
+
+        // Periodic token refresh during prefetch (every 45s) to prevent expiry mid-flight
+        const refreshInterval = setInterval(async () => {
+            try {
+                await supabase.auth.refreshSession()
+                if (isDev) console.log('[Prefetch] Periodic token refresh OK')
+            } catch { /* silent — non-critical */ }
+        }, 45_000)
 
         if (isDev) console.log(`[Prefetch] Starting — P1=${P1_ROUTES.length}+${P1_MASTER_DATA.length}md, P2=${P2_ROUTES.length}, P3=${P3_ROUTES.length}, concurrency=${MAX_CONCURRENCY}`)
         const t0 = performance.now()
@@ -275,8 +292,11 @@ export function CacheWarmingOverlay() {
         let failures = 0
 
         // ── P1: Critical routes + master data (progress 0–60%) ──
+        // NOTE: No router.prefetch() here — only data fetches via /api/ routes.
+        // router.prefetch() goes through middleware which can cause auth race conditions
+        // during concurrent prefetching. Route chunks are preloaded AFTER all data phases.
         if (isDev) console.log("[Prefetch] Phase P1: critical routes...")
-        const p1Result = await batchPrefetchRoutes(queryClient, P1_ROUTES, tick, TIMEOUT_MS.P1, preloadRoute)
+        const p1Result = await batchPrefetchRoutes(queryClient, P1_ROUTES, tick, TIMEOUT_MS.P1)
         failures += p1Result.failures
 
         // Master data — also concurrency-limited (not all-at-once)
@@ -316,7 +336,7 @@ export function CacheWarmingOverlay() {
         // ── P2: Important routes (progress 60–90%) ──
         if (isDev) console.log("[Prefetch] Phase P2: important routes...")
         setPhase("p2")
-        const p2Result = await batchPrefetchRoutes(queryClient, P2_ROUTES, tick, TIMEOUT_MS.P2, preloadRoute)
+        const p2Result = await batchPrefetchRoutes(queryClient, P2_ROUTES, tick, TIMEOUT_MS.P2)
         failures += p2Result.failures
 
         const p2Ms = Math.round(performance.now() - t0)
@@ -337,12 +357,28 @@ export function CacheWarmingOverlay() {
         dismiss()
 
         // ── P3: Background (invisible) — use longer timeout, no UI ──
-        await batchPrefetchRoutes(queryClient, P3_ROUTES, () => {}, TIMEOUT_MS.P3, preloadRoute)
+        await batchPrefetchRoutes(queryClient, P3_ROUTES, () => {}, TIMEOUT_MS.P3)
         sessionStorage.setItem(SESSION_KEY, "true")
         setPhase("done")
 
+        // Stop periodic token refresh
+        clearInterval(refreshInterval)
+
         if (isDev) console.log(`[Prefetch] All done — total ${Math.round(performance.now() - t0)}ms`)
-    }, [queryClient, tick, dismiss, preloadRoute])
+
+        // ── Deferred route code-chunk preloading ──
+        // Done AFTER all data phases to avoid middleware auth race conditions.
+        // router.prefetch() hits middleware (unlike /api/ fetches), so we run these
+        // sequentially after the session is stable and all data is cached.
+        setTimeout(() => {
+            const allRoutes = [...P1_ROUTES, ...P2_ROUTES, ...P3_ROUTES]
+            const uniqueRoutes = [...new Set(allRoutes.map(r => r.split("#")[0]))]
+            for (const route of uniqueRoutes) {
+                try { router.prefetch(route) } catch {}
+            }
+            if (isDev) console.log(`[Prefetch] Deferred route chunk preload: ${uniqueRoutes.length} routes`)
+        }, 500)
+    }, [queryClient, tick, dismiss, router])
 
     useEffect(() => {
         if (authLoading || !isAuthenticated || hasStarted.current) {

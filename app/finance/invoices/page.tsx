@@ -1019,17 +1019,17 @@ export default function InvoicesPage() {
                                                     className={`grid grid-cols-[1fr_80px_120px_100px_36px] gap-0 ${NB.tableRow} items-center`}
                                                 >
                                                     <div className="px-1.5 py-1">
-                                                        <Input className={NB.inputSm} placeholder="Deskripsi item..." value={item.description}
+                                                        <Input className={NB.input} placeholder="Deskripsi item..." value={item.description}
                                                             onChange={(e) => { const next = [...editItems]; next[idx] = { ...next[idx], description: e.target.value }; setEditItems(next) }}
                                                         />
                                                     </div>
                                                     <div className="px-1.5 py-1">
-                                                        <Input type="number" className={`${NB.inputSm} text-center font-mono`} placeholder="1" value={item.quantity}
+                                                        <Input type="number" className={`${NB.input} text-center font-mono`} placeholder="1" value={item.quantity}
                                                             onChange={(e) => { const next = [...editItems]; next[idx] = { ...next[idx], quantity: Math.max(1, Number(e.target.value) || 1) }; setEditItems(next) }}
                                                         />
                                                     </div>
                                                     <div className="px-1.5 py-1">
-                                                        <Input type="number" className={`${NB.inputSm} font-mono`} placeholder="0" value={item.unitPrice}
+                                                        <Input type="number" className={`${NB.input} font-mono`} placeholder="0" value={item.unitPrice}
                                                             onChange={(e) => { const next = [...editItems]; next[idx] = { ...next[idx], unitPrice: Number(e.target.value) || 0 }; setEditItems(next) }}
                                                         />
                                                     </div>

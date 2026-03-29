@@ -5,6 +5,7 @@ import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { type PPhTypeValue } from "@/lib/pph-helpers"
+import { toNum } from "@/lib/utils"
 
 // ==========================================
 // BAD DEBT WRITE-OFF
@@ -84,7 +85,7 @@ export async function writeOffBadDebt(data: {
                 throw new Error(`Invoice status '${invoice.status}' tidak dapat dihapusbukukan`)
             }
 
-            const balanceDue = Number(invoice.balanceDue)
+            const balanceDue = toNum(invoice.balanceDue)
             if (data.amount <= 0) throw new Error("Jumlah write-off harus lebih dari 0")
             if (data.amount > balanceDue) throw new Error(`Jumlah write-off (${data.amount}) melebihi saldo piutang (${balanceDue})`)
 
@@ -207,7 +208,7 @@ export async function createCreditNote(data: {
             })
 
             // 5. Apply Credit to Original Invoice
-            const newBalance = Number(originalInvoice.balanceDue) - creditTotal
+            const newBalance = toNum(originalInvoice.balanceDue) - creditTotal
             await prisma.invoice.update({
                 where: { id: originalInvoice.id },
                 data: {
@@ -283,7 +284,7 @@ export async function processRefund(data: {
             })
 
             // 2. Update Invoice Balance
-            const newBalance = Number(invoice.balanceDue) + data.amount
+            const newBalance = toNum(invoice.balanceDue) + data.amount
             await prisma.invoice.update({
                 where: { id: data.invoiceId },
                 data: {
@@ -377,7 +378,7 @@ export async function createPaymentVoucher(data: {
                     voucherItems: {
                         create: bills.map(bill => ({
                             invoiceId: bill.id,
-                            amount: Math.min(data.amount / bills.length, Number(bill.balanceDue))
+                            amount: Math.min(data.amount / bills.length, toNum(bill.balanceDue))
                         }))
                     }
                 }
@@ -386,8 +387,8 @@ export async function createPaymentVoucher(data: {
             // 4. If not GIRO, immediately apply payment
             if (data.method !== 'GIRO') {
                 for (const bill of bills) {
-                    const paymentAmount = Math.min(data.amount / bills.length, Number(bill.balanceDue))
-                    const newBalance = Number(bill.balanceDue) - paymentAmount
+                    const paymentAmount = Math.min(data.amount / bills.length, toNum(bill.balanceDue))
+                    const newBalance = toNum(bill.balanceDue) - paymentAmount
 
                     await prisma.invoice.update({
                         where: { id: bill.id },
@@ -451,7 +452,7 @@ export async function processGIROClearing(voucherId: string, isCleared: boolean,
             if (isCleared) {
                 // GIRO Cleared - apply payments
                 for (const item of voucher.voucherItems) {
-                    const newBalance = Number(item.invoice.balanceDue) - Number(item.amount)
+                    const newBalance = toNum(item.invoice.balanceDue) - toNum(item.amount)
                     await prisma.invoice.update({
                         where: { id: item.invoiceId },
                         data: {
@@ -782,7 +783,7 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     number: p.number,
                     from: p.customer?.name || 'Unknown Customer',
                     customerId: p.customerId,
-                    amount: Number(p.amount),
+                    amount: toNum(p.amount),
                     date: p.date,
                     method: p.method,
                     reference: p.reference
@@ -791,15 +792,15 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     id: inv.id,
                     number: inv.number,
                     customer: inv.customer ? { id: inv.customer.id, name: inv.customer.name } : null,
-                    amount: Number(inv.totalAmount),
-                    balanceDue: Number(inv.balanceDue),
+                    amount: toNum(inv.totalAmount),
+                    balanceDue: toNum(inv.balanceDue),
                     dueDate: inv.dueDate,
                     isOverdue: inv.dueDate < now
                 })),
                 recentPayments: recentPayments.map((p) => ({
                     id: p.id,
                     number: p.number,
-                    amount: Number(p.amount),
+                    amount: toNum(p.amount),
                     method: p.method,
                     reference: p.reference,
                     date: p.date,
@@ -873,7 +874,7 @@ export async function getUnallocatedPayments(): Promise<UnallocatedPayment[]> {
                 number: p.number,
                 from: p.customer?.name || 'Unknown Customer',
                 customerId: p.customerId,
-                amount: Number(p.amount),
+                amount: toNum(p.amount),
                 date: p.date,
                 method: p.method,
                 reference: p.reference
@@ -909,8 +910,8 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
                 id: inv.id,
                 number: inv.number,
                 customer: inv.customer ? { id: inv.customer.id, name: inv.customer.name } : null,
-                amount: Number(inv.totalAmount),
-                balanceDue: Number(inv.balanceDue),
+                amount: toNum(inv.totalAmount),
+                balanceDue: toNum(inv.balanceDue),
                 dueDate: inv.dueDate,
                 isOverdue: inv.dueDate < now
             }))
@@ -985,7 +986,7 @@ export async function recordARPayment(data: {
                         : 0
                     const totalSettled = data.amount + pphAmount
 
-                    const newBalance = Number(invoice.balanceDue) - totalSettled
+                    const newBalance = toNum(invoice.balanceDue) - totalSettled
                     await prisma.invoice.update({
                         where: { id: data.invoiceId },
                         data: {
@@ -1096,8 +1097,8 @@ export async function matchPaymentToInvoice(paymentId: string, invoiceId: string
             // Period lock: fail fast before mutation
             await assertPeriodOpen(new Date())
 
-            const paymentAmount = Number(payment.amount)
-            const newBalance = Number(invoice.balanceDue) - paymentAmount
+            const paymentAmount = toNum(payment.amount)
+            const newBalance = toNum(invoice.balanceDue) - paymentAmount
 
             // Update payment
             await prisma.payment.update({
@@ -1162,7 +1163,7 @@ export async function getARPaymentStats() {
                     },
                     select: { amount: true }
                 })
-                return payments.reduce((sum, p) => sum + Number(p.amount), 0)
+                return payments.reduce((sum, p) => sum + toNum(p.amount), 0)
             })
             todayTotal = result
         } catch (e) {

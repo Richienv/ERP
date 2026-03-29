@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Mail, Phone, Calendar, ArrowRight, AlertCircle, MessageSquare } from "lucide-react"
+import { Mail, Calendar, MessageSquare } from "lucide-react"
 import { toast } from "sonner"
 
 export function InvoiceAging() {

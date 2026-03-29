@@ -4,6 +4,7 @@ import { withPrismaAuth } from "@/lib/db"
 import { SYS_ACCOUNTS, ensureSystemAccounts } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { inferSubType } from "@/lib/account-subtype-helpers"
+import { toNum } from "@/lib/utils"
 
 // ==========================================
 // JOURNAL REFERENCE NUMBER GENERATION
@@ -306,12 +307,12 @@ export async function getJournalEntries(limit = 50): Promise<JournalEntryItem[]>
                 status: entry.status,
                 lines: entry.lines.map(line => ({
                     account: { code: line.account.code, name: line.account.name },
-                    debit: Number(line.debit),
-                    credit: Number(line.credit),
+                    debit: toNum(line.debit),
+                    credit: toNum(line.credit),
                     description: line.description || undefined
                 })),
-                totalDebit: entry.lines.reduce((sum, l) => sum + Number(l.debit), 0),
-                totalCredit: entry.lines.reduce((sum, l) => sum + Number(l.credit), 0)
+                totalDebit: entry.lines.reduce((sum, l) => sum + toNum(l.debit), 0),
+                totalCredit: entry.lines.reduce((sum, l) => sum + toNum(l.credit), 0)
             }))
         })
     } catch (error) {
@@ -344,12 +345,12 @@ export async function getJournalEntryById(entryId: string): Promise<JournalEntry
                 status: entry.status,
                 lines: entry.lines.map(line => ({
                     account: { code: line.account.code, name: line.account.name },
-                    debit: Number(line.debit),
-                    credit: Number(line.credit),
+                    debit: toNum(line.debit),
+                    credit: toNum(line.credit),
                     description: line.description || undefined
                 })),
-                totalDebit: entry.lines.reduce((sum, l) => sum + Number(l.debit), 0),
-                totalCredit: entry.lines.reduce((sum, l) => sum + Number(l.credit), 0)
+                totalDebit: entry.lines.reduce((sum, l) => sum + toNum(l.debit), 0),
+                totalCredit: entry.lines.reduce((sum, l) => sum + toNum(l.credit), 0)
             }
         })
     } catch (error) {
@@ -475,8 +476,8 @@ export async function reverseJournalEntry(journalEntryId: string) {
                         lines: {
                             create: original.lines.map(line => ({
                                 accountId: line.accountId,
-                                debit: Number(line.credit),   // swap: original credit → reversal debit
-                                credit: Number(line.debit),   // swap: original debit → reversal credit
+                                debit: toNum(line.credit),   // swap: original credit → reversal debit
+                                credit: toNum(line.debit),   // swap: original debit → reversal credit
                                 description: `Pembalikan: ${line.description || original.description}`
                             }))
                         }
@@ -497,8 +498,8 @@ export async function reverseJournalEntry(journalEntryId: string) {
                 // Update GL account balances (reverse the original impact)
                 for (const line of original.lines) {
                     let balanceChange = 0
-                    const debit = Number(line.credit)   // swapped
-                    const credit = Number(line.debit)    // swapped
+                    const debit = toNum(line.credit)   // swapped
+                    const credit = toNum(line.debit)    // swapped
 
                     if (['ASSET', 'EXPENSE'].includes(line.account.type)) {
                         balanceChange = debit - credit
@@ -756,10 +757,10 @@ export async function getRecurringTemplates(): Promise<RecurringTemplate[]> {
                 lines: e.lines.map((l) => ({
                     accountCode: l.account.code,
                     accountName: l.account.name,
-                    debit: Number(l.debit),
-                    credit: Number(l.credit),
+                    debit: toNum(l.debit),
+                    credit: toNum(l.credit),
                 })),
-                totalAmount: e.lines.reduce((s, l) => s + Number(l.debit), 0),
+                totalAmount: e.lines.reduce((s, l) => s + toNum(l.debit), 0),
             }))
         })
     } catch (error) {
@@ -826,9 +827,9 @@ export async function processRecurringEntries(): Promise<{
                     for (const line of template.lines) {
                         let balanceChange = 0
                         if (['ASSET', 'EXPENSE'].includes(line.account.type)) {
-                            balanceChange = Number(line.debit) - Number(line.credit)
+                            balanceChange = toNum(line.debit) - toNum(line.credit)
                         } else {
-                            balanceChange = Number(line.credit) - Number(line.debit)
+                            balanceChange = toNum(line.credit) - toNum(line.debit)
                         }
 
                         await tx.gLAccount.update({
@@ -1324,12 +1325,12 @@ export async function getTrialBalance(asOfDate?: Date): Promise<TrialBalanceData
   let mismatchCount = 0
 
   const rows: TrialBalanceRow[] = accounts.map((acc) => {
-    const totalDebit = acc.lines.reduce((s, l) => s + Number(l.debit), 0)
-    const totalCredit = acc.lines.reduce((s, l) => s + Number(l.credit), 0)
+    const totalDebit = acc.lines.reduce((s, l) => s + toNum(l.debit), 0)
+    const totalCredit = acc.lines.reduce((s, l) => s + toNum(l.credit), 0)
     const calculatedBalance = acc.type === 'ASSET' || acc.type === 'EXPENSE'
       ? totalDebit - totalCredit
       : totalCredit - totalDebit
-    const storedBalance = Number(acc.balance)
+    const storedBalance = toNum(acc.balance)
     const difference = Math.round((storedBalance - calculatedBalance) * 100) / 100
 
     grandDebit += totalDebit
@@ -1674,8 +1675,8 @@ export async function getAccountDrillDown(
                 journalNumber: entry.reference || entry.id.slice(0, 8),
                 accountCode: line.account.code,
                 accountName: line.account.name,
-                debit: Number(line.debit),
-                credit: Number(line.credit),
+                debit: toNum(line.debit),
+                credit: toNum(line.credit),
                 sourceType,
                 sourceUrl,
             }

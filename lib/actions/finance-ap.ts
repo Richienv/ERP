@@ -8,6 +8,7 @@ import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
+import { toNum } from "@/lib/utils"
 
 // ==========================================
 // VENDOR BILLS (AP - From Purchase Orders)
@@ -106,8 +107,8 @@ export async function getVendorBills(): Promise<VendorBill[]> {
                 purchaseOrderNumber: (bill as any).purchaseOrderId || undefined,
                 date: bill.issueDate,
                 dueDate: bill.dueDate,
-                amount: Number(bill.totalAmount),
-                balanceDue: Number(bill.balanceDue),
+                amount: toNum(bill.totalAmount),
+                balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
                 isOverdue: bill.dueDate < now && bill.status !== 'PAID'
             }))
@@ -171,8 +172,8 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 purchaseOrderNumber: (bill as any).purchaseOrderId || undefined,
                 date: bill.issueDate,
                 dueDate: bill.dueDate,
-                amount: Number(bill.totalAmount),
-                balanceDue: Number(bill.balanceDue),
+                amount: toNum(bill.totalAmount),
+                balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
                 isOverdue: bill.dueDate < now && bill.status !== 'PAID'
             }))
@@ -257,7 +258,7 @@ export async function approveVendorBill(billId: string) {
 
             // Determine Debit Accounts (Expenses/Assets)
             for (const item of bill.items) {
-                const amount = Number(item.amount)
+                const amount = toNum(item.amount)
                 totalAmount += amount
 
                 // TODO: enhance with product-specific accounts in future
@@ -270,14 +271,14 @@ export async function approveVendorBill(billId: string) {
             }
 
             // Add Tax if applicable (Input VAT - Asset)
-            if (Number(bill.taxAmount) > 0) {
+            if (toNum(bill.taxAmount) > 0) {
                 glLines.push({
                     accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
-                    debit: Number(bill.taxAmount),
+                    debit: toNum(bill.taxAmount),
                     credit: 0,
                     description: `PPN Masukan - Bill ${bill.number}`
                 })
-                totalAmount += Number(bill.taxAmount)
+                totalAmount += toNum(bill.taxAmount)
             }
 
             // Add AP Credit Line
@@ -360,7 +361,7 @@ export async function getVendorPayments(): Promise<VendorPayment[]> {
                         ? { id: "PAYROLL", name: "Payroll Disbursement Batch" }
                         : null),
                 date: p.date,
-                amount: Number(p.amount),
+                amount: toNum(p.amount),
                 method: p.method,
                 reference: p.reference || undefined,
                 billNumber: p.invoice?.number,
@@ -459,7 +460,7 @@ export async function recordVendorPayment(data: {
                     where: { id: data.billId }
                 })
                 if (bill) {
-                    const newBalance = Number(bill.balanceDue) - grossAmount
+                    const newBalance = toNum(bill.balanceDue) - grossAmount
                     await prisma.invoice.update({
                         where: { id: data.billId },
                         data: {
@@ -632,7 +633,7 @@ export async function recordMultiBillPayment(data: {
                     throw new Error(`Tagihan ${bill.number} bukan milik vendor yang dipilih`)
                 }
 
-                const currentBalance = Number(bill.balanceDue)
+                const currentBalance = toNum(bill.balanceDue)
                 if (alloc.amount > currentBalance + 0.01) {
                     throw new Error(`Alokasi untuk ${bill.number} (${alloc.amount}) melebihi sisa tagihan (${currentBalance})`)
                 }
@@ -930,7 +931,7 @@ export async function approveAndPayBill(
                 // Add Expense Lines
                 // Vendor bills debit EXPENSE_DEFAULT (6900). COGS (5000) is only debited when inventory items are SOLD, not when purchased.
                 for (const item of bill.items) {
-                    const amount = Number(item.amount)
+                    const amount = toNum(item.amount)
                     totalAmount += amount
                     glLines.push({
                         accountCode: SYS_ACCOUNTS.EXPENSE_DEFAULT,
@@ -941,14 +942,14 @@ export async function approveAndPayBill(
                 }
 
                 // Add Tax
-                if (Number(bill.taxAmount) > 0) {
+                if (toNum(bill.taxAmount) > 0) {
                     glLines.push({
                         accountCode: SYS_ACCOUNTS.PPN_MASUKAN,
-                        debit: Number(bill.taxAmount),
+                        debit: toNum(bill.taxAmount),
                         credit: 0,
                         description: `PPN Masukan - Bill ${bill.number}`
                     })
-                    totalAmount += Number(bill.taxAmount)
+                    totalAmount += toNum(bill.taxAmount)
                 }
 
                 // Add AP Credit

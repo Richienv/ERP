@@ -129,7 +129,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
             } else {
                 result = await createCustomerInvoice({
                     customerId: selectedCustomer,
-                    amount: parseFloat(manualPrice) * manualQty,
+                    amount: (parseFloat(manualPrice) || 0) * manualQty,
                     issueDate: parseDateInput(issueDate),
                     dueDate: parseDateInput(dueDate),
                     includeTax,

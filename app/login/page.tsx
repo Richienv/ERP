@@ -32,6 +32,16 @@ export default function LoginPage() {
             .catch(() => {})
     }, [])
 
+    // Detect session expiry redirect (from middleware ?expired=true)
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search)
+        if (params.get("expired") === "true") {
+            toast.info("Sesi Anda telah berakhir. Silakan masuk kembali.", { duration: 5000 })
+            // Clean up URL without reload
+            window.history.replaceState({}, "", "/login")
+        }
+    }, [])
+
     // Load saved email on component mount
     useEffect(() => {
         const savedEmail = localStorage.getItem('rememberedEmail')

@@ -6,6 +6,7 @@ import { postJournalEntry } from "@/lib/actions/finance-gl"
 import { ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount } from "@/lib/pph-helpers"
+import { toNum } from "@/lib/utils"
 
 async function requireAuth() {
   const supabase = await createClient()
@@ -81,11 +82,11 @@ export async function markWithholdingDeposited(data: {
     const byType = new Map<string, number>()
     for (const r of records) {
       const current = byType.get(r.type) || 0
-      byType.set(r.type, current + Number(r.amount))
+      byType.set(r.type, current + toNum(r.amount))
     }
 
     const bankCode = getCashAccountCode(data.method || "TRANSFER", data.bankAccountCode)
-    const totalAmount = records.reduce((sum, r) => sum + Number(r.amount), 0)
+    const totalAmount = records.reduce((sum, r) => sum + toNum(r.amount), 0)
 
     const glLines: { accountCode: string; debit: number; credit: number; description: string }[] = []
 
@@ -154,7 +155,7 @@ export async function getPPhSummary(period?: { startDate: string; endDate: strin
     }
 
     for (const r of records) {
-      const amount = Number(r.amount)
+      const amount = toNum(r.amount)
       const key = r.type === "PPH_21" ? "pph21" : r.type === "PPH_23" ? "pph23" : "pph4_2"
       summary[key].total += amount
       summary[key].count++

@@ -17,6 +17,7 @@ import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
+import { toNum } from "@/lib/utils"
 
 export interface InvoiceKanbanItem {
     id: string
@@ -150,11 +151,11 @@ export async function getInvoiceKanbanData(input?: InvoiceKanbanQueryInput): Pro
 
         for (const inv of invoices) {
             const partyName = inv.customer?.name || inv.supplier?.name || 'Unknown'
-            const amount = Number(inv.totalAmount || 0)
+            const amount = toNum(inv.totalAmount)
             const dueDate = inv.dueDate
             const issueDate = inv.issueDate
 
-            const balanceDue = Number(inv.balanceDue ?? amount)
+            const balanceDue = toNum(inv.balanceDue) || amount
 
             const base: InvoiceKanbanItem = {
                 id: inv.id,
@@ -282,7 +283,7 @@ export async function createCustomerInvoice(data: {
             }]
 
             // Calculate subtotal and tax
-            const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
+            const subtotal = invoiceItems.reduce((sum, item) => sum + toNum(item.amount), 0)
             const taxAmount = data.includeTax ? Math.round(subtotal * 0.11) : 0
             const totalAmount = subtotal + taxAmount
 
@@ -355,7 +356,7 @@ export async function updateDraftInvoice(data: {
                 }))
                 await prisma.invoiceItem.createMany({ data: invoiceItems })
 
-                const subtotal = invoiceItems.reduce((sum, item) => sum + Number(item.amount), 0)
+                const subtotal = invoiceItems.reduce((sum, item) => sum + toNum(item.amount), 0)
                 const taxableAmount = subtotal - discount
                 const taxAmount = data.includeTax ? Math.round(taxableAmount * 0.11) : 0
                 const totalAmount = taxableAmount + taxAmount
@@ -426,25 +427,25 @@ export async function getInvoiceDetail(invoiceId: string) {
                 success: true,
                 data: {
                     ...invoice,
-                    subtotal: Number(invoice.subtotal || 0),
-                    taxAmount: Number(invoice.taxAmount || 0),
-                    discountAmount: Number(invoice.discountAmount || 0),
-                    totalAmount: Number(invoice.totalAmount || 0),
-                    balanceDue: Number(invoice.balanceDue || 0),
-                    exchangeRate: Number(invoice.exchangeRate || 1),
-                    amountInIDR: Number(invoice.amountInIDR || 0),
+                    subtotal: toNum(invoice.subtotal),
+                    taxAmount: toNum(invoice.taxAmount),
+                    discountAmount: toNum(invoice.discountAmount),
+                    totalAmount: toNum(invoice.totalAmount),
+                    balanceDue: toNum(invoice.balanceDue),
+                    exchangeRate: toNum(invoice.exchangeRate) || 1,
+                    amountInIDR: toNum(invoice.amountInIDR),
                     items: invoice.items.map((item: any) => ({
                         ...item,
-                        quantity: Number(item.quantity || 0),
-                        unitPrice: Number(item.unitPrice || 0),
-                        discount: Number(item.discount || 0),
-                        taxRate: Number(item.taxRate || 0),
-                        taxAmount: Number(item.taxAmount || 0),
-                        lineTotal: Number(item.lineTotal || 0),
+                        quantity: toNum(item.quantity),
+                        unitPrice: toNum(item.unitPrice),
+                        discount: toNum(item.discount),
+                        taxRate: toNum(item.taxRate),
+                        taxAmount: toNum(item.taxAmount),
+                        lineTotal: toNum(item.lineTotal),
                     })),
                     payments: invoice.payments.map((p: any) => ({
                         ...p,
-                        amount: Number(p.amount || 0),
+                        amount: toNum(p.amount),
                     })),
                 },
             }
@@ -519,8 +520,8 @@ export async function getAccountTransactions(params?: {
                         accountName: l.account.name,
                         accountType: l.account.type,
                         description: l.description,
-                        debit: Number(l.debit),
-                        credit: Number(l.credit),
+                        debit: toNum(l.debit),
+                        credit: toNum(l.credit),
                     }))
                 })),
                 accounts: accounts.map(a => ({
@@ -607,10 +608,10 @@ export async function recordPendingBillFromPO(
                     status: 'DRAFT',
                     issueDate: new Date(),
                     dueDate: new Date(new Date().setDate(new Date().getDate() + 30)),
-                    subtotal: po.totalAmount || 0,     // pre-tax subtotal
-                    taxAmount: po.taxAmount || 0,
-                    totalAmount: po.netAmount || 0,    // grand total (subtotal + tax)
-                    balanceDue: po.netAmount || 0,     // what's actually owed
+                    subtotal: toNum(po.totalAmount),     // pre-tax subtotal
+                    taxAmount: toNum(po.taxAmount),
+                    totalAmount: toNum(po.netAmount),    // grand total (subtotal + tax)
+                    balanceDue: toNum(po.netAmount),     // what's actually owed
                     items: {
                         create: po.items.map((item: any) => ({
                             description: item.product?.name || 'Unknown Item',
@@ -777,7 +778,7 @@ export async function getPendingSalesOrders() {
             id: o.id,
             number: o.number,
             customerName: (o as any).customer?.name || 'Unknown',
-            amount: Number(o.total),
+            amount: toNum(o.total),
             date: o.orderDate
         }))
     })
@@ -821,7 +822,7 @@ export async function getPendingPurchaseOrders() {
             id: o.id,
             number: o.number,
             vendorName: (o as any).supplier?.name || 'Unknown',
-            amount: Number(o.totalAmount),
+            amount: toNum(o.totalAmount),
             date: o.orderDate
         }))
     })
@@ -910,9 +911,9 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
             return {
                 number: existing.number,
                 type: existing.type,
-                totalAmount: Number(existing.totalAmount || 0),
-                subtotal: Number(existing.subtotal || existing.totalAmount || 0),
-                taxAmount: Number(existing.taxAmount || 0),
+                totalAmount: toNum(existing.totalAmount),
+                subtotal: toNum(existing.subtotal) || toNum(existing.totalAmount),
+                taxAmount: toNum(existing.taxAmount),
                 currencyCode: existing.currencyCode || "IDR",
                 customerName: existing.customer?.name,
                 supplierName: existing.supplier?.name,
@@ -1170,7 +1171,7 @@ export async function recordInvoicePayment(data: {
                 throw new Error("Invoice draft belum bisa dicatat pembayarannya")
             }
 
-            const currentBalance = Number(invoice.balanceDue)
+            const currentBalance = toNum(invoice.balanceDue)
             if (data.amount > currentBalance + 0.01) {
                 throw new Error("Jumlah pembayaran tidak boleh melebihi sisa tagihan")
             }

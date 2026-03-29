@@ -27,7 +27,7 @@ const tabs = [
     { value: "nota-debit", label: "Nota Debit" },
 ] as const
 
-const fmt = (n: number) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
+const fmt = (n: number) => { const v = Number(n); return Number.isFinite(v) ? new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v) : "Rp 0" }
 
 export default function PayablesPage() {
     const searchParams = useSearchParams()

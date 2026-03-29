@@ -11,6 +11,7 @@ import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
 import { inferSubType } from "@/lib/account-subtype-helpers"
 import { getExchangeRate, convertToIDR } from "@/lib/currency-helpers"
 import { TAX_RATES } from "@/lib/tax-rates"
+import { toNum } from "@/lib/utils"
 
 export interface FinancialMetrics {
     cashBalance: number
@@ -2685,7 +2686,7 @@ export async function recordVendorPayment(data: {
                 ]
             })
             if (!glResult?.success) {
-                console.error("GL posting failed:", glResult?.error)
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${(glResult as any)?.error || 'Unknown GL error'}`)
             }
 
             return { success: true, paymentId: payment.id, paymentNumber }
@@ -3663,7 +3664,7 @@ export async function getARAgingReport() {
                 const due = new Date(inv.dueDate)
                 const diffMs = today.getTime() - due.getTime()
                 const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
-                const balance = Number(inv.balanceDue)
+                const balance = toNum(inv.balanceDue)
                 const custId = inv.customer?.id || 'unknown'
                 const custName = inv.customer?.name || 'Tanpa Pelanggan'
                 const custCode = inv.customer?.code ?? null
@@ -3779,7 +3780,7 @@ export async function getAPAgingReport() {
                 const due = new Date(bill.dueDate)
                 const diffMs = today.getTime() - due.getTime()
                 const daysOverdue = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
-                const balance = Number(bill.balanceDue)
+                const balance = toNum(bill.balanceDue)
                 const suppId = bill.supplier?.id || 'unknown'
                 const suppName = bill.supplier?.name || 'Tanpa Supplier'
                 const suppCode = bill.supplier?.code ?? null
