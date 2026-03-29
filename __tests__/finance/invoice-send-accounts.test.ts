@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import { InvoiceType } from "@prisma/client"
 
-import { getRequiredInvoicePostingSystemAccountCodes } from "@/lib/actions/finance-invoices"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { getRequiredInvoicePostingSystemAccountCodes } from "@/lib/invoice-posting-accounts"
 
 describe("getRequiredInvoicePostingSystemAccountCodes", () => {
     it("returns only the outbound invoice accounts needed for AR recognition and fallback COGS", () => {

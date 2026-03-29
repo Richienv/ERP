@@ -8,6 +8,7 @@ import { motion } from "framer-motion"
 import { NotaDebitTab } from "@/components/finance/nota-debit-tab"
 import { TabContentSkeleton } from "@/components/ui/page-skeleton"
 import { NB } from "@/lib/dialog-styles"
+import { normalizeAPAgingSummary } from "@/lib/ap-aging"
 import { Receipt } from "lucide-react"
 import { getAPAgingReport } from "@/lib/actions/finance"
 
@@ -38,8 +39,8 @@ export default function PayablesPage() {
         queryFn: () => getAPAgingReport(),
         staleTime: 30_000,
     })
-    const b = aging?.summary || { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
-    const total = b.current + b.d1_30 + b.d31_60 + b.d61_90 + b.d90_plus
+    const b = normalizeAPAgingSummary(aging?.summary)
+    const total = b.totalOutstanding
 
     return (
         <motion.div

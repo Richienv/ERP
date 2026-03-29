@@ -4,6 +4,10 @@ import { InvoiceStatus, InvoiceType } from "@prisma/client"
 import { withPrismaAuth, prisma } from "@/lib/db"
 import { postJournalEntry } from "./finance-gl"
 import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl-accounts-server"
+import {
+    getRequiredInvoicePostingSystemAccountCodes,
+    INVOICE_POSTING_ACCOUNT_DEFS,
+} from "@/lib/invoice-posting-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
 import { legacyTermToDays, calculateDueDate } from "@/lib/payment-term-helpers"
@@ -27,48 +31,6 @@ export interface InvoiceKanbanData {
     sent: InvoiceKanbanItem[]
     overdue: InvoiceKanbanItem[]
     paid: InvoiceKanbanItem[]
-}
-
-type RequiredSystemAccountDef = {
-    code: string
-    name: string
-    type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"
-}
-
-const INVOICE_POSTING_ACCOUNT_DEFS: Record<string, RequiredSystemAccountDef> = {
-    [SYS_ACCOUNTS.AR]: { code: SYS_ACCOUNTS.AR, name: "Piutang Usaha", type: "ASSET" },
-    [SYS_ACCOUNTS.AP]: { code: SYS_ACCOUNTS.AP, name: "Utang Usaha (AP)", type: "LIABILITY" },
-    [SYS_ACCOUNTS.REVENUE]: { code: SYS_ACCOUNTS.REVENUE, name: "Pendapatan Penjualan", type: "REVENUE" },
-    [SYS_ACCOUNTS.PPN_KELUARAN]: { code: SYS_ACCOUNTS.PPN_KELUARAN, name: "Utang Pajak (PPN/PPh)", type: "LIABILITY" },
-    [SYS_ACCOUNTS.EXPENSE_DEFAULT]: { code: SYS_ACCOUNTS.EXPENSE_DEFAULT, name: "Beban Lain-lain", type: "EXPENSE" },
-    [SYS_ACCOUNTS.PPN_MASUKAN]: { code: SYS_ACCOUNTS.PPN_MASUKAN, name: "PPN Masukan (Input VAT)", type: "ASSET" },
-    [SYS_ACCOUNTS.GR_IR_CLEARING]: { code: SYS_ACCOUNTS.GR_IR_CLEARING, name: "Barang Diterima / Faktur Belum Diterima", type: "LIABILITY" },
-    [SYS_ACCOUNTS.COGS]: { code: SYS_ACCOUNTS.COGS, name: "Beban Pokok Penjualan (HPP)", type: "EXPENSE" },
-    [SYS_ACCOUNTS.INVENTORY_ASSET]: { code: SYS_ACCOUNTS.INVENTORY_ASSET, name: "Persediaan Barang Jadi", type: "ASSET" },
-}
-
-export function getRequiredInvoicePostingSystemAccountCodes(input: {
-    type: InvoiceType
-    taxAmount: number
-    goodsReceivedViaPO: boolean
-}): string[] {
-    if (input.type === "INV_OUT") {
-        const codes = [
-            SYS_ACCOUNTS.AR,
-            SYS_ACCOUNTS.REVENUE,
-            SYS_ACCOUNTS.COGS,
-            SYS_ACCOUNTS.INVENTORY_ASSET,
-        ]
-        if (input.taxAmount > 0) codes.push(SYS_ACCOUNTS.PPN_KELUARAN)
-        return codes
-    }
-
-    const codes = [
-        SYS_ACCOUNTS.AP,
-        input.goodsReceivedViaPO ? SYS_ACCOUNTS.GR_IR_CLEARING : SYS_ACCOUNTS.EXPENSE_DEFAULT,
-    ]
-    if (input.taxAmount > 0) codes.push(SYS_ACCOUNTS.PPN_MASUKAN)
-    return codes
 }
 
 async function ensureInvoicePostingAccounts(input: {

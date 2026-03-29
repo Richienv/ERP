@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
+import { normalizeAPAgingSummary } from "@/lib/ap-aging"
 import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
@@ -17,11 +18,11 @@ export async function GET() {
         })
 
         const now = new Date()
-        const summary = { current: 0, days1to30: 0, days31to60: 0, days61to90: 0, days90plus: 0, total: 0 }
+        const summary = { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0 }
         const bySupplier: Record<string, {
             supplierId: string; supplierName: string;
-            current: number; days1to30: number; days31to60: number;
-            days61to90: number; days90plus: number; total: number; billCount: number;
+            current: number; d1_30: number; d31_60: number;
+            d61_90: number; d90_plus: number; total: number; billCount: number;
         }> = {}
 
         for (const inv of invoices) {
@@ -30,19 +31,19 @@ export async function GET() {
                 ? Math.floor((now.getTime() - inv.dueDate.getTime()) / 86400000)
                 : 0
 
-            let bucket: "current" | "days1to30" | "days31to60" | "days61to90" | "days90plus"
+            let bucket: "current" | "d1_30" | "d31_60" | "d61_90" | "d90_plus"
             if (daysOverdue <= 0) { bucket = "current"; summary.current += due }
-            else if (daysOverdue <= 30) { bucket = "days1to30"; summary.days1to30 += due }
-            else if (daysOverdue <= 60) { bucket = "days31to60"; summary.days31to60 += due }
-            else if (daysOverdue <= 90) { bucket = "days61to90"; summary.days61to90 += due }
-            else { bucket = "days90plus"; summary.days90plus += due }
-            summary.total += due
+            else if (daysOverdue <= 30) { bucket = "d1_30"; summary.d1_30 += due }
+            else if (daysOverdue <= 60) { bucket = "d31_60"; summary.d31_60 += due }
+            else if (daysOverdue <= 90) { bucket = "d61_90"; summary.d61_90 += due }
+            else { bucket = "d90_plus"; summary.d90_plus += due }
+            summary.totalOutstanding += due
 
             const suppId = inv.supplierId || "unknown"
             if (!bySupplier[suppId]) {
                 bySupplier[suppId] = {
                     supplierId: suppId, supplierName: inv.supplier?.name || "Unknown",
-                    current: 0, days1to30: 0, days31to60: 0, days61to90: 0, days90plus: 0, total: 0, billCount: 0,
+                    current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, total: 0, billCount: 0,
                 }
             }
             bySupplier[suppId][bucket] += due
@@ -51,7 +52,7 @@ export async function GET() {
         }
 
         return NextResponse.json({
-            summary,
+            summary: normalizeAPAgingSummary(summary),
             bySupplier: Object.values(bySupplier),
             details: invoices.map(i => ({
                 id: i.id, number: i.number, supplierId: i.supplierId,
