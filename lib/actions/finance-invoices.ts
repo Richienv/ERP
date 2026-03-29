@@ -29,6 +29,78 @@ export interface InvoiceKanbanData {
     paid: InvoiceKanbanItem[]
 }
 
+type RequiredSystemAccountDef = {
+    code: string
+    name: string
+    type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"
+}
+
+const INVOICE_POSTING_ACCOUNT_DEFS: Record<string, RequiredSystemAccountDef> = {
+    [SYS_ACCOUNTS.AR]: { code: SYS_ACCOUNTS.AR, name: "Piutang Usaha", type: "ASSET" },
+    [SYS_ACCOUNTS.AP]: { code: SYS_ACCOUNTS.AP, name: "Utang Usaha (AP)", type: "LIABILITY" },
+    [SYS_ACCOUNTS.REVENUE]: { code: SYS_ACCOUNTS.REVENUE, name: "Pendapatan Penjualan", type: "REVENUE" },
+    [SYS_ACCOUNTS.PPN_KELUARAN]: { code: SYS_ACCOUNTS.PPN_KELUARAN, name: "Utang Pajak (PPN/PPh)", type: "LIABILITY" },
+    [SYS_ACCOUNTS.EXPENSE_DEFAULT]: { code: SYS_ACCOUNTS.EXPENSE_DEFAULT, name: "Beban Lain-lain", type: "EXPENSE" },
+    [SYS_ACCOUNTS.PPN_MASUKAN]: { code: SYS_ACCOUNTS.PPN_MASUKAN, name: "PPN Masukan (Input VAT)", type: "ASSET" },
+    [SYS_ACCOUNTS.GR_IR_CLEARING]: { code: SYS_ACCOUNTS.GR_IR_CLEARING, name: "Barang Diterima / Faktur Belum Diterima", type: "LIABILITY" },
+    [SYS_ACCOUNTS.COGS]: { code: SYS_ACCOUNTS.COGS, name: "Beban Pokok Penjualan (HPP)", type: "EXPENSE" },
+    [SYS_ACCOUNTS.INVENTORY_ASSET]: { code: SYS_ACCOUNTS.INVENTORY_ASSET, name: "Persediaan Barang Jadi", type: "ASSET" },
+}
+
+export function getRequiredInvoicePostingSystemAccountCodes(input: {
+    type: InvoiceType
+    taxAmount: number
+    goodsReceivedViaPO: boolean
+}): string[] {
+    if (input.type === "INV_OUT") {
+        const codes = [
+            SYS_ACCOUNTS.AR,
+            SYS_ACCOUNTS.REVENUE,
+            SYS_ACCOUNTS.COGS,
+            SYS_ACCOUNTS.INVENTORY_ASSET,
+        ]
+        if (input.taxAmount > 0) codes.push(SYS_ACCOUNTS.PPN_KELUARAN)
+        return codes
+    }
+
+    const codes = [
+        SYS_ACCOUNTS.AP,
+        input.goodsReceivedViaPO ? SYS_ACCOUNTS.GR_IR_CLEARING : SYS_ACCOUNTS.EXPENSE_DEFAULT,
+    ]
+    if (input.taxAmount > 0) codes.push(SYS_ACCOUNTS.PPN_MASUKAN)
+    return codes
+}
+
+async function ensureInvoicePostingAccounts(input: {
+    type: InvoiceType
+    taxAmount: number
+    goodsReceivedViaPO: boolean
+}) {
+    const requiredCodes = getRequiredInvoicePostingSystemAccountCodes(input)
+    const existingAccounts = await prisma.gLAccount.findMany({
+        where: { code: { in: requiredCodes } },
+        select: { code: true },
+    })
+
+    const existingCodes = new Set(existingAccounts.map((account) => account.code))
+    const missingDefs = requiredCodes
+        .filter((code) => !existingCodes.has(code))
+        .map((code) => INVOICE_POSTING_ACCOUNT_DEFS[code])
+        .filter((def): def is RequiredSystemAccountDef => Boolean(def))
+
+    if (missingDefs.length === 0) return
+
+    await prisma.gLAccount.createMany({
+        data: missingDefs.map((def) => ({
+            code: def.code,
+            name: def.name,
+            type: def.type,
+            balance: 0,
+        })),
+        skipDuplicates: true,
+    })
+}
+
 type InvoiceKanbanQueryInput = {
     q?: string | null
     type?: InvoiceType | 'ALL' | null
@@ -776,7 +848,7 @@ export async function createBillFromPOId(
     }
 }
 
-export async function moveInvoiceToSent(invoiceId: string, message?: string, method?: 'WHATSAPP' | 'EMAIL') {
+export async function moveInvoiceToSent(invoiceId: string, _message?: string, _method?: 'WHATSAPP' | 'EMAIL') {
     try {
         // Period lock: fail fast before mutation
         await assertPeriodOpen(new Date())
@@ -878,7 +950,16 @@ export async function moveInvoiceToSent(invoiceId: string, message?: string, met
         // Post GL entry for AR/AP recognition (outside withPrismaAuth to avoid nested transaction)
         // Idempotency: check if journal entry already exists for this invoice
         try {
-            await ensureSystemAccounts()
+            try {
+                await ensureInvoicePostingAccounts({
+                    type: txResult.type,
+                    taxAmount: txResult.taxAmount,
+                    goodsReceivedViaPO: txResult.goodsReceivedViaPO,
+                })
+            } catch (accountEnsureError) {
+                console.warn("[moveInvoiceToSent] Fast invoice account ensure failed, falling back to full ensureSystemAccounts()", accountEnsureError)
+                await ensureSystemAccounts()
+            }
             const existingJE = await prisma.journalEntry.findFirst({
                 where: {
                     OR: [
