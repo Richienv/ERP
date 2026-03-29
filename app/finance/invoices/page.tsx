@@ -102,7 +102,7 @@ export default function InvoicesPage() {
     const [recipientContact, setRecipientContact] = useState("")
 
     // Pay form
-    const [payMethod, setPayMethod] = useState<'TRANSFER' | 'CASH' | 'CHECK'>('TRANSFER')
+    const [payMethod, setPayMethod] = useState<'TRANSFER' | 'CASH' | 'CHECK' | 'GIRO' | 'CREDIT_CARD'>('TRANSFER')
     const [payDate, setPayDate] = useState(new Date().toISOString().split('T')[0])
     const [payReference, setPayReference] = useState("")
     const [payAmount, setPayAmount] = useState("")
@@ -223,7 +223,7 @@ export default function InvoicesPage() {
             const qs = next.toString()
             router.replace(qs ? `${pathname}?${qs}` : pathname)
         }
-    }, [highlightId, loading, allInvoices]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [highlightId, loading, allInvoices])
 
     const counts = useMemo(() => ({
         all: allInvoices.length,

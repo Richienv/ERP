@@ -7,6 +7,7 @@ import { SYS_ACCOUNTS, ensureSystemAccounts, getCashAccountCode } from "@/lib/gl
 import {
     getRequiredInvoicePostingSystemAccountCodes,
     INVOICE_POSTING_ACCOUNT_DEFS,
+    type RequiredSystemAccountDef,
 } from "@/lib/invoice-posting-accounts"
 import { assertPeriodOpen } from "@/lib/period-helpers"
 import { getPPhLiabilityAccount, type PPhTypeValue } from "@/lib/pph-helpers"
@@ -33,6 +34,16 @@ export interface InvoiceKanbanData {
     paid: InvoiceKanbanItem[]
 }
 
+const INVOICE_PAYMENT_ACCOUNT_DEFS: Record<string, RequiredSystemAccountDef> = {
+    [SYS_ACCOUNTS.CASH]: { code: SYS_ACCOUNTS.CASH, name: "Kas & Setara Kas", type: "ASSET" },
+    [SYS_ACCOUNTS.BANK_BCA]: { code: SYS_ACCOUNTS.BANK_BCA, name: "Bank BCA", type: "ASSET" },
+    [SYS_ACCOUNTS.AR]: { code: SYS_ACCOUNTS.AR, name: "Piutang Usaha", type: "ASSET" },
+    [SYS_ACCOUNTS.PPH_PREPAID]: { code: SYS_ACCOUNTS.PPH_PREPAID, name: "PPh Dibayar Dimuka", type: "ASSET" },
+    [SYS_ACCOUNTS.AP]: { code: SYS_ACCOUNTS.AP, name: "Utang Usaha (AP)", type: "LIABILITY" },
+    [SYS_ACCOUNTS.PPH_21_PAYABLE]: { code: SYS_ACCOUNTS.PPH_21_PAYABLE, name: "Utang PPh 21", type: "LIABILITY" },
+    [SYS_ACCOUNTS.PPH_23_PAYABLE]: { code: SYS_ACCOUNTS.PPH_23_PAYABLE, name: "Utang PPh 23", type: "LIABILITY" },
+    [SYS_ACCOUNTS.PPH_4_2_PAYABLE]: { code: SYS_ACCOUNTS.PPH_4_2_PAYABLE, name: "Utang PPh 4(2)", type: "LIABILITY" },
+}
 async function ensureInvoicePostingAccounts(input: {
     type: InvoiceType
     taxAmount: number
@@ -53,6 +64,73 @@ async function ensureInvoicePostingAccounts(input: {
     if (missingDefs.length === 0) return
 
     await prisma.gLAccount.createMany({
+        data: missingDefs.map((def) => ({
+            code: def.code,
+            name: def.name,
+            type: def.type,
+            balance: 0,
+        })),
+        skipDuplicates: true,
+    })
+}
+
+export function getRequiredInvoicePaymentPostingSystemAccountCodes(input: {
+    type: InvoiceType
+    paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CREDIT_CARD' | 'OTHER'
+    withholdingType?: PPhTypeValue
+    withholdingAmount?: number
+}): string[] {
+    const codes = [
+        getCashAccountCode(input.paymentMethod),
+        input.type === "INV_OUT" ? SYS_ACCOUNTS.AR : SYS_ACCOUNTS.AP,
+    ]
+
+    if ((input.withholdingAmount || 0) > 0) {
+        if (input.type === "INV_OUT") {
+            codes.push(SYS_ACCOUNTS.PPH_PREPAID)
+        } else if (input.withholdingType) {
+            codes.push(getPPhLiabilityAccount(input.withholdingType))
+        }
+    }
+
+    return Array.from(new Set(codes))
+}
+
+async function ensureInvoicePaymentPostingAccounts(
+    prismaClient: {
+        gLAccount: {
+            findMany: (args: {
+                where: { code: { in: string[] } }
+                select: { code: true }
+            }) => Promise<Array<{ code: string }>>
+            createMany: (args: {
+                data: Array<{ code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"; balance: number }>
+                skipDuplicates: boolean
+            }) => Promise<unknown>
+        }
+    },
+    input: {
+        type: InvoiceType
+        paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CREDIT_CARD' | 'OTHER'
+        withholdingType?: PPhTypeValue
+        withholdingAmount?: number
+    }
+) {
+    const requiredCodes = getRequiredInvoicePaymentPostingSystemAccountCodes(input)
+    const existingAccounts = await prismaClient.gLAccount.findMany({
+        where: { code: { in: requiredCodes } },
+        select: { code: true },
+    })
+
+    const existingCodes = new Set(existingAccounts.map((account) => account.code))
+    const missingDefs = requiredCodes
+        .filter((code) => !existingCodes.has(code))
+        .map((code) => INVOICE_PAYMENT_ACCOUNT_DEFS[code])
+        .filter((def): def is RequiredSystemAccountDef => Boolean(def))
+
+    if (missingDefs.length === 0) return
+
+    await prismaClient.gLAccount.createMany({
         data: missingDefs.map((def) => ({
             code: def.code,
             name: def.name,
@@ -1078,7 +1156,7 @@ export async function moveInvoiceToSent(invoiceId: string, _message?: string, _m
 
 export async function recordInvoicePayment(data: {
     invoiceId: string
-    paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'CREDIT_CARD' | 'OTHER'
+    paymentMethod: 'CASH' | 'TRANSFER' | 'CHECK' | 'GIRO' | 'CREDIT_CARD' | 'OTHER'
     amount: number
     paymentDate: Date
     reference?: string
@@ -1091,27 +1169,59 @@ export async function recordInvoicePayment(data: {
     }
 }) {
     try {
+        const paymentDate = new Date(data.paymentDate)
+        if (Number.isNaN(paymentDate.getTime())) {
+            throw new Error("Tanggal pembayaran tidak valid")
+        }
+        if (!data.amount || Number(data.amount) <= 0) {
+            throw new Error("Jumlah pembayaran harus lebih dari 0")
+        }
+        if (data.paymentMethod === 'CHECK' && !data.reference?.trim()) {
+            throw new Error("Nomor cek / referensi wajib diisi untuk metode CHECK")
+        }
+
         // Period lock: fail fast before mutation
-        await assertPeriodOpen(new Date())
+        await assertPeriodOpen(paymentDate)
 
         // Calculate PPh withholding amount (if any)
         const pphAmount = data.withholding
             ? Math.round((data.withholding.rate / 100) * data.withholding.baseAmount)
             : 0
 
-        // Step 1: Create payment + update invoice in a single transaction
-        const txResult = await withPrismaAuth(async (prisma) => {
+        return await withPrismaAuth(async (prisma) => {
             const invoice = await prisma.invoice.findUnique({
                 where: { id: data.invoiceId },
                 include: { customer: true, supplier: true }
             })
 
             if (!invoice) throw new Error("Invoice not found")
+            if (invoice.status === 'DRAFT') {
+                throw new Error("Invoice draft belum bisa dicatat pembayarannya")
+            }
+
+            const currentBalance = Number(invoice.balanceDue)
+            if (data.amount > currentBalance + 0.01) {
+                throw new Error("Jumlah pembayaran tidak boleh melebihi sisa tagihan")
+            }
+
+            await ensureInvoicePaymentPostingAccounts(prisma, {
+                type: invoice.type,
+                paymentMethod: data.paymentMethod,
+                withholdingType: data.withholding?.type,
+                withholdingAmount: pphAmount,
+            })
+
+            const year = paymentDate.getFullYear()
+            const prefix = invoice.type === 'INV_OUT' ? 'PAY' : 'VPAY'
+            const count = await prisma.payment.count({
+                where: { number: { startsWith: `${prefix}-${year}` } }
+            })
+            const paymentNumber = `${prefix}-${year}-${String(count + 1).padStart(4, '0')}`
 
             const payment = await prisma.payment.create({
                 data: {
-                    number: `PAY-${Date.now()}`,
-                    date: data.paymentDate,
+                    number: paymentNumber,
+                    date: paymentDate,
                     amount: data.amount,
                     method: data.paymentMethod === 'CREDIT_CARD' || data.paymentMethod === 'OTHER' ? 'TRANSFER' : data.paymentMethod,
                     reference: data.reference,
@@ -1120,6 +1230,8 @@ export async function recordInvoicePayment(data: {
                     customerId: invoice.customerId,
                     supplierId: invoice.supplierId,
                     glPostingStatus: 'PENDING',
+                    whtAmount: pphAmount > 0 ? pphAmount : null,
+                    whtRate: data.withholding ? data.withholding.rate / 100 : null,
                 }
             })
 
@@ -1127,13 +1239,73 @@ export async function recordInvoicePayment(data: {
             const settledAmount = invoice.type === 'INV_OUT'
                 ? data.amount + pphAmount
                 : data.amount
-            const newBalance = Number(invoice.balanceDue) - settledAmount
-            const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL'
+            const rawNewBalance = currentBalance - settledAmount
+            const newBalance = Math.max(0, rawNewBalance)
+            const newStatus = rawNewBalance <= 0.01 ? 'PAID' : 'PARTIAL'
 
             await prisma.invoice.update({
                 where: { id: invoice.id },
                 data: { status: newStatus, balanceDue: newBalance }
             })
+
+            const cashAccountCode = getCashAccountCode(data.paymentMethod)
+            let glResult: any
+
+            if (invoice.type === 'INV_OUT') {
+                // AR Payment: DR Kas/Bank, DR PPh Dibayar Dimuka (if withheld), CR Piutang Usaha
+                const totalSettled = data.amount + pphAmount
+                const arLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+                    { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${invoice.customer?.name || 'Customer'}` },
+                    { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: totalSettled, description: `Pelunasan ${invoice.number}` },
+                ]
+
+                if (data.withholding && pphAmount > 0) {
+                    arLines.push({
+                        accountCode: SYS_ACCOUNTS.PPH_PREPAID,
+                        debit: pphAmount,
+                        credit: 0,
+                        description: `PPh Dibayar Dimuka - ${invoice.number}`,
+                    })
+                }
+
+                glResult = await postJournalEntry({
+                    description: `Penerimaan Pembayaran ${invoice.number} - ${invoice.customer?.name || 'Customer'}`,
+                    date: paymentDate,
+                    reference: `${payment.number} — ${invoice.number}`,
+                    invoiceId: data.invoiceId,
+                    paymentId: payment.id,
+                    lines: arLines,
+                }, prisma)
+            } else {
+                // AP Payment: DR Hutang Usaha, CR Kas/Bank, CR Utang PPh (if withheld)
+                const apLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
+                    { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: `Pelunasan ${invoice.supplier?.name || 'Supplier'}` },
+                ]
+
+                if (data.withholding && pphAmount > 0) {
+                    apLines.push(
+                        { accountCode: cashAccountCode, debit: 0, credit: data.amount - pphAmount, description: `Bayar ${invoice.number}` },
+                        { accountCode: getPPhLiabilityAccount(data.withholding.type), debit: 0, credit: pphAmount, description: `Utang PPh - ${invoice.number}` },
+                    )
+                } else {
+                    apLines.push(
+                        { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${invoice.number}` },
+                    )
+                }
+
+                glResult = await postJournalEntry({
+                    description: `Pembayaran Tagihan ${invoice.number} - ${invoice.supplier?.name || 'Supplier'}`,
+                    date: paymentDate,
+                    reference: `${payment.number} — ${invoice.number}`,
+                    invoiceId: data.invoiceId,
+                    paymentId: payment.id,
+                    lines: apLines,
+                }, prisma)
+            }
+
+            if (!glResult?.success) {
+                throw new Error(`Jurnal gagal — pembayaran dibatalkan: ${glResult?.error || 'Unknown GL error'}`)
+            }
 
             // Create WithholdingTax record if applicable
             if (data.withholding && pphAmount > 0) {
@@ -1152,138 +1324,16 @@ export async function recordInvoicePayment(data: {
                 })
             }
 
-            return {
-                paymentId: payment.id,
-                paymentNumber: payment.number,
-                invoiceNumber: invoice.number,
-                invoiceType: invoice.type,
-                customerName: invoice.customer?.name,
-                supplierName: invoice.supplier?.name,
-            }
-        })
-
-        // Step 2: Post journal entry OUTSIDE the main transaction to avoid nested tx deadlock
-        await ensureSystemAccounts()
-        const cashAccountCode = getCashAccountCode(data.paymentMethod)
-
-        let glResult: any
-        if (txResult.invoiceType === 'INV_OUT') {
-            // AR Payment: DR Kas/Bank, DR PPh Dibayar Dimuka (if withheld), CR Piutang Usaha
-            const totalSettled = data.amount + pphAmount
-            const arLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
-                { accountCode: cashAccountCode, debit: data.amount, credit: 0, description: `Terima dari ${txResult.customerName}` },
-                { accountCode: SYS_ACCOUNTS.AR, debit: 0, credit: totalSettled, description: `Pelunasan ${txResult.invoiceNumber}` },
-            ]
-
-            if (data.withholding && pphAmount > 0) {
-                arLines.push({
-                    accountCode: SYS_ACCOUNTS.PPH_PREPAID,
-                    debit: pphAmount,
-                    credit: 0,
-                    description: `PPh Dibayar Dimuka - ${txResult.invoiceNumber}`,
-                })
-            }
-
-            glResult = await postJournalEntry({
-                description: `Penerimaan Pembayaran ${txResult.invoiceNumber} - ${txResult.customerName || 'Customer'}`,
-                date: data.paymentDate,
-                reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
-                invoiceId: data.invoiceId,
-                lines: arLines,
-            })
-        } else {
-            // AP Payment: DR Hutang Usaha, CR Kas/Bank, CR Utang PPh (if withheld)
-            const apLines: { accountCode: string; debit: number; credit: number; description?: string }[] = [
-                { accountCode: SYS_ACCOUNTS.AP, debit: data.amount, credit: 0, description: `Pelunasan ${txResult.supplierName}` },
-            ]
-
-            if (data.withholding && pphAmount > 0) {
-                // Net cash paid = gross AP - PPh withheld
-                apLines.push(
-                    { accountCode: cashAccountCode, debit: 0, credit: data.amount - pphAmount, description: `Bayar ${txResult.invoiceNumber}` },
-                    { accountCode: getPPhLiabilityAccount(data.withholding.type), debit: 0, credit: pphAmount, description: `Utang PPh - ${txResult.invoiceNumber}` },
-                )
-            } else {
-                apLines.push(
-                    { accountCode: cashAccountCode, debit: 0, credit: data.amount, description: `Bayar ${txResult.invoiceNumber}` },
-                )
-            }
-
-            glResult = await postJournalEntry({
-                description: `Pembayaran Tagihan ${txResult.invoiceNumber} - ${txResult.supplierName || 'Supplier'}`,
-                date: data.paymentDate,
-                reference: `${txResult.paymentNumber} — ${txResult.invoiceNumber}`,
-                invoiceId: data.invoiceId,
-                lines: apLines,
-            })
-        }
-
-        if (!glResult?.success) {
-            // GL failed → mark payment as FAILED, then rollback invoice + withholding tax
-            // (GL is outside Prisma transaction to avoid nested tx deadlock)
-            const glError = glResult?.error || 'Akun GL tidak ditemukan'
-            try {
-                const { prisma } = await import("@/lib/prisma")
-
-                // Mark payment as FAILED (not deleted — preserved for monitoring/retry)
-                await prisma.payment.updateMany({
-                    where: { number: txResult.paymentNumber },
-                    data: { glPostingStatus: 'FAILED', notes: `GL FAILED: ${glError}` },
-                })
-
-                // Revert invoice balance and status
-                const settledAmount = txResult.invoiceType === 'INV_OUT'
-                    ? data.amount + pphAmount
-                    : data.amount
-                const invoice = await prisma.invoice.findUnique({ where: { id: data.invoiceId } })
-                if (invoice) {
-                    const revertedBalance = Number(invoice.balanceDue) + settledAmount
-                    await prisma.invoice.update({
-                        where: { id: data.invoiceId },
-                        data: {
-                            balanceDue: revertedBalance,
-                            status: invoice.status === 'PAID' || invoice.status === 'PARTIAL' ? 'ISSUED' : invoice.status,
-                        }
-                    })
-                }
-
-                // Revert withholding tax records (was missing in original rollback)
-                if (data.withholding && pphAmount > 0) {
-                    await prisma.withholdingTax.deleteMany({
-                        where: { paymentId: txResult.paymentId },
-                    })
-                }
-            } catch (revertError: any) {
-                // Rollback failed — log full context for manual investigation
-                console.error(
-                    `[recordInvoicePayment] CRITICAL: GL failed AND rollback failed. ` +
-                    `Payment ${txResult.paymentNumber} (id: ${txResult.paymentId}) has glPostingStatus=FAILED. ` +
-                    `Invoice ${data.invoiceId} may have incorrect balanceDue. ` +
-                    `Manual intervention required.`,
-                    revertError
-                )
-            }
-            return {
-                success: false,
-                error: `Jurnal gagal — pembayaran dibatalkan: ${glError}`,
-            }
-        }
-
-        // GL posted successfully — update payment status
-        try {
-            const { prisma } = await import("@/lib/prisma")
-            await prisma.payment.updateMany({
-                where: { number: txResult.paymentNumber },
+            await prisma.payment.update({
+                where: { id: payment.id },
                 data: { glPostingStatus: 'POSTED' },
             })
-        } catch {
-            // Non-critical: payment is valid, GL is posted, status field is cosmetic
-        }
 
-        return { success: true }
-    } catch (error) {
+            return { success: true, paymentId: payment.id, paymentNumber: payment.number }
+        })
+    } catch (error: any) {
         console.error("Failed to record payment:", error)
-        return { success: false, error: "Failed to record payment" }
+        return { success: false, error: error?.message || "Failed to record payment" }
     }
 }
 
