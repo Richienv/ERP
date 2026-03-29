@@ -78,6 +78,13 @@ export async function clearPersistedCache() {
 
 let browserQueryClient: QueryClient | undefined
 
+/**
+ * Global flag set to true after prefetch overlay dismisses.
+ * Used in dev mode to detect cache misses (queries that fetch AFTER prefetch).
+ */
+export let prefetchComplete = false
+export function markPrefetchComplete() { prefetchComplete = true }
+
 function getQueryClient() {
     if (typeof window === "undefined") {
         return makeQueryClient()

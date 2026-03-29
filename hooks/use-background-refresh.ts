@@ -6,6 +6,7 @@ import { routePrefetchMap, masterDataPrefetchMap } from "@/hooks/use-nav-prefetc
 import { useAuth } from "@/lib/auth-context"
 import { ROUTE_TIERS, MASTER_DATA_TIERS, CACHE_TIERS, type CacheTier } from "@/lib/cache-tiers"
 import { P1_ROUTES, P1_MASTER_DATA } from "@/lib/prefetch-manifest"
+import { prefetchComplete } from "@/lib/query-client"
 
 /**
  * Background data freshness — runs AFTER the app is interactive.
@@ -54,6 +55,23 @@ export function useBackgroundRefresh() {
         }, 3000) // 3s after mount — app is settled, don't compete with initial render
 
         return () => clearTimeout(timer)
+    }, [isAuthenticated, queryClient])
+
+    // ── Dev: post-prefetch fetch detector ──
+    // Logs a warning whenever a query fetches AFTER prefetch has completed.
+    // This reveals cache misses — queries that SHOULD have been prefetched but weren't.
+    useEffect(() => {
+        if (process.env.NODE_ENV !== "development" || !isAuthenticated) return
+
+        const cache = queryClient.getQueryCache()
+        const unsubscribe = cache.subscribe((event) => {
+            if (!prefetchComplete) return
+            if (event.type !== "updated" || event.action.type !== "fetch") return
+            const key = event.query.queryKey
+            console.warn("[POST-PREFETCH FETCH]", JSON.stringify(key), "— this should have been cached!")
+        })
+
+        return unsubscribe
     }, [isAuthenticated, queryClient])
 
     // ── Window focus: refetch T4/T5/T6 queries ──

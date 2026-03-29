@@ -4,11 +4,13 @@ import { useState, useMemo, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
     NBDialog,
     NBDialogHeader,
+    NBSection,
+    NBInput,
+    NBCurrencyInput,
+    NBTextarea,
 } from "@/components/ui/nb-dialog"
 import {
     Select,
@@ -17,7 +19,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
 import { Plus, Package, DollarSign, BarChart3, Save, Loader2, Tag, Barcode, Factory, ShoppingCart, Boxes, Layers } from "lucide-react"
 import { createProduct } from "@/app/actions/inventory"
@@ -34,6 +35,7 @@ import { useBrands, useColors, useUnits, useMasterCategories, useInvalidateMaste
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { NB } from "@/lib/dialog-styles"
 
 const CATEGORY_STYLE: Record<string, { icon: typeof Factory; bg: string; border: string; text: string }> = {
     MFG: { icon: Factory, bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-700' },
@@ -139,6 +141,9 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
     const watchCost = form.watch("costPrice") ?? 0
     const watchSell = form.watch("sellingPrice") ?? 0
     const margin = watchCost > 0 ? ((watchSell - watchCost) / watchCost) * 100 : 0
+    const watchMinStock = form.watch("minStock") ?? 0
+    const watchMaxStock = form.watch("maxStock") ?? 0
+    const watchReorder = form.watch("reorderLevel") ?? 0
 
     // Create handlers for inline creation
     const handleCreateBrand = async (name: string) => {
@@ -197,7 +202,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
         <>
             <Button
                 onClick={() => setOpen(true)}
-                className="bg-black text-white border border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider rounded-none"
+                className={NB.triggerBtn}
             >
                 <Plus className="mr-2 h-4 w-4" /> Produk Baru
             </Button>
@@ -210,16 +215,16 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                 />
 
                 <div className="overflow-y-auto max-h-[72vh]">
-                    <form onSubmit={form.handleSubmit(handleSubmit)} className="p-5 space-y-5">
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="p-4 space-y-4">
 
-                        {/* ====== CODE BUILDER ====== */}
-                        <div className="border-2 border-black">
-                            <div className="bg-zinc-900 text-white px-4 py-2 border-b-2 border-black flex items-center gap-2">
-                                <Tag className="h-4 w-4" />
-                                <span className="text-xs font-black uppercase tracking-widest">Kode Produk Terstruktur</span>
+                        {/* ====== CODE BUILDER (special card, not a section) ====== */}
+                        <div className="border border-zinc-200">
+                            <div className="bg-zinc-100 px-3 py-1.5 border-b border-zinc-200 flex items-center gap-2">
+                                <Tag className="h-3.5 w-3.5 text-zinc-400" />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Kode Produk Terstruktur</span>
                             </div>
 
-                            <div className="p-4 space-y-3">
+                            <div className="p-3 space-y-3">
                                 <div className="grid grid-cols-4 gap-3">
                                     {/* Segment 1: Category (fixed list — code builder categories) */}
                                     <div>
@@ -231,7 +236,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                                 form.setValue("productType", CATEGORY_TO_PRODUCT_TYPE[v] as any)
                                             }}
                                         >
-                                            <SelectTrigger className="border-2 border-black font-mono font-black text-xs h-9 w-full">
+                                            <SelectTrigger className="border border-zinc-300 font-mono font-black text-xs h-8 w-full rounded-none">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -252,7 +257,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                             value={currentTypeValid ? watchType : (availableTypes[0]?.code || "")}
                                             onValueChange={v => form.setValue("codeType", v)}
                                         >
-                                            <SelectTrigger className="border-2 border-black font-mono font-black text-xs h-9 w-full">
+                                            <SelectTrigger className="border border-zinc-300 font-mono font-black text-xs h-8 w-full rounded-none">
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -300,7 +305,7 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                 </div>
 
                                 {/* Live Code Preview */}
-                                <div className="bg-zinc-50 border-2 border-black p-3 flex items-center justify-between">
+                                <div className="bg-zinc-50 border border-zinc-200 p-3 flex items-center justify-between">
                                     <div>
                                         <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-400 block mb-0.5">Preview Kode</span>
                                         <span className="font-mono font-black text-base tracking-wider">{previewCode}</span>
@@ -324,150 +329,116 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                             </div>
                         </div>
 
-                        {/* ====== BASIC INFO ====== */}
-                        <div className="border-2 border-black">
-                            <div className="bg-zinc-100 px-4 py-2 border-b-2 border-black flex items-center gap-2">
-                                <Package className="h-4 w-4" />
-                                <span className="text-xs font-black uppercase tracking-widest">Informasi Dasar</span>
-                            </div>
-                            <div className="p-4 space-y-4">
+                        {/* ====== INFORMASI DASAR ====== */}
+                        <NBSection icon={Package} title="Informasi Dasar">
+                            <NBInput
+                                label="Nama Produk"
+                                required
+                                value={form.watch("name") || ""}
+                                onChange={v => form.setValue("name", v)}
+                                placeholder="Kaos Polos Cotton Combed 30s"
+                            />
+                            {form.formState.errors.name && (
+                                <p className={NB.error}>{form.formState.errors.name.message}</p>
+                            )}
+
+                            <NBTextarea
+                                label="Deskripsi"
+                                value={form.watch("description") || ""}
+                                onChange={v => form.setValue("description", v)}
+                                placeholder="Deskripsi produk (opsional)"
+                                rows={2}
+                            />
+
+                            <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
-                                        Nama Produk <span className="text-red-500">*</span>
+                                    <label className={NB.label}>Kategori Inventori</label>
+                                    <ComboboxWithCreate
+                                        options={categoryOptions}
+                                        value={form.watch("categoryId") || ""}
+                                        onChange={v => form.setValue("categoryId", v)}
+                                        placeholder="Pilih kategori..."
+                                        searchPlaceholder="Cari kategori..."
+                                        emptyMessage="Kategori tidak ditemukan."
+                                        createLabel="+ Buat Kategori Baru"
+                                        onCreate={handleCreateCategory}
+                                        isLoading={categoriesLoading}
+                                    />
+                                </div>
+                                <div>
+                                    <label className={NB.label}>
+                                        Satuan <span className={NB.labelRequired}>*</span>
                                     </label>
-                                    <Input
-                                        placeholder="Contoh: Kaos Polos Cotton Combed 30s"
-                                        {...form.register("name")}
-                                        className="border-2 border-black font-bold h-10"
-                                    />
-                                    {form.formState.errors.name && (
-                                        <p className="text-[10px] text-red-500 font-bold mt-0.5">{form.formState.errors.name.message}</p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Deskripsi</label>
-                                    <Textarea
-                                        placeholder="Deskripsi produk (opsional)"
-                                        {...form.register("description")}
-                                        className="border-2 border-black font-medium min-h-[60px]"
+                                    <ComboboxWithCreate
+                                        options={unitOptions}
+                                        value={form.watch("unit") || "pcs"}
+                                        onChange={v => form.setValue("unit", v)}
+                                        placeholder="Pilih satuan..."
+                                        searchPlaceholder="Cari satuan..."
+                                        emptyMessage="Satuan tidak ditemukan."
+                                        createLabel="+ Buat Satuan Baru"
+                                        onCreate={handleCreateUnit}
+                                        isLoading={unitsLoading}
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Kategori Inventori</label>
-                                        <ComboboxWithCreate
-                                            options={categoryOptions}
-                                            value={form.watch("categoryId") || ""}
-                                            onChange={v => form.setValue("categoryId", v)}
-                                            placeholder="Pilih kategori..."
-                                            searchPlaceholder="Cari kategori..."
-                                            emptyMessage="Kategori tidak ditemukan."
-                                            createLabel="+ Buat Kategori Baru"
-                                            onCreate={handleCreateCategory}
-                                            isLoading={categoriesLoading}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">
-                                            Satuan <span className="text-red-500">*</span>
-                                        </label>
-                                        <ComboboxWithCreate
-                                            options={unitOptions}
-                                            value={form.watch("unit") || "pcs"}
-                                            onChange={v => form.setValue("unit", v)}
-                                            placeholder="Pilih satuan..."
-                                            searchPlaceholder="Cari satuan..."
-                                            emptyMessage="Satuan tidak ditemukan."
-                                            createLabel="+ Buat Satuan Baru"
-                                            onCreate={handleCreateUnit}
-                                            isLoading={unitsLoading}
-                                        />
-                                    </div>
-                                </div>
                             </div>
-                        </div>
+                        </NBSection>
 
-                        {/* ====== PRICING ====== */}
-                        <div className="border-2 border-black">
-                            <div className="bg-zinc-100 px-4 py-2 border-b-2 border-black flex items-center gap-2">
-                                <DollarSign className="h-4 w-4" />
-                                <span className="text-xs font-black uppercase tracking-widest">Informasi Harga</span>
+                        {/* ====== INFORMASI HARGA ====== */}
+                        <NBSection icon={DollarSign} title="Informasi Harga">
+                            <div className="grid grid-cols-2 gap-3">
+                                <NBCurrencyInput
+                                    label="HPP (Harga Pokok)"
+                                    value={String(watchCost || "")}
+                                    onChange={v => form.setValue("costPrice", Number(v) || 0)}
+                                />
+                                <NBCurrencyInput
+                                    label="Harga Jual"
+                                    value={String(watchSell || "")}
+                                    onChange={v => form.setValue("sellingPrice", Number(v) || 0)}
+                                />
                             </div>
-                            <div className="p-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">HPP (Harga Pokok) (Rp)</label>
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            {...form.register("costPrice", { valueAsNumber: true })}
-                                            className="border-2 border-black font-mono font-bold h-10"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Harga Jual (Rp)</label>
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            {...form.register("sellingPrice", { valueAsNumber: true })}
-                                            className="border-2 border-black font-mono font-bold h-10"
-                                        />
-                                    </div>
+                            {watchCost > 0 && watchSell > 0 && (
+                                <div className="bg-emerald-50 border border-emerald-200 p-2.5 flex items-center justify-between">
+                                    <span className="text-xs font-bold text-emerald-700">Margin Keuntungan</span>
+                                    <span className={`font-black text-sm ${margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                                        {margin.toFixed(1)}% &middot; Rp {(watchSell - watchCost).toLocaleString('id-ID')}/unit
+                                    </span>
                                 </div>
-                                {watchCost > 0 && watchSell > 0 && (
-                                    <div className="mt-3 bg-emerald-50 border-2 border-emerald-200 p-3 flex items-center justify-between">
-                                        <span className="text-xs font-bold text-emerald-700">Margin Keuntungan</span>
-                                        <span className={`font-black text-sm ${margin >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
-                                            {margin.toFixed(1)}% &middot; Rp {(watchSell - watchCost).toLocaleString('id-ID')}/unit
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                            )}
+                        </NBSection>
 
-                        {/* ====== STOCK MANAGEMENT ====== */}
-                        <div className="border-2 border-black">
-                            <div className="bg-zinc-100 px-4 py-2 border-b-2 border-black flex items-center gap-2">
-                                <BarChart3 className="h-4 w-4" />
-                                <span className="text-xs font-black uppercase tracking-widest">Manajemen Stok</span>
+                        {/* ====== MANAJEMEN STOK ====== */}
+                        <NBSection icon={BarChart3} title="Manajemen Stok">
+                            <div className="grid grid-cols-3 gap-3">
+                                <NBInput
+                                    label="Stok Minimum"
+                                    type="number"
+                                    value={watchMinStock > 0 ? String(watchMinStock) : ""}
+                                    onChange={v => form.setValue("minStock", Number(v) || 0)}
+                                    placeholder="0"
+                                />
+                                <NBInput
+                                    label="Stok Maksimum"
+                                    type="number"
+                                    value={watchMaxStock > 0 ? String(watchMaxStock) : ""}
+                                    onChange={v => form.setValue("maxStock", Number(v) || 0)}
+                                    placeholder="0"
+                                />
+                                <NBInput
+                                    label="Reorder Point"
+                                    type="number"
+                                    value={watchReorder > 0 ? String(watchReorder) : ""}
+                                    onChange={v => form.setValue("reorderLevel", Number(v) || 0)}
+                                    placeholder="0"
+                                />
                             </div>
-                            <div className="p-4">
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Stok Minimum</label>
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            {...form.register("minStock", { valueAsNumber: true })}
-                                            className="border-2 border-black font-mono font-bold h-10"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Stok Maksimum</label>
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            {...form.register("maxStock", { valueAsNumber: true })}
-                                            className="border-2 border-black font-mono font-bold h-10"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-[10px] font-black uppercase tracking-wider text-zinc-500 mb-1 block">Reorder Point</label>
-                                        <Input
-                                            type="number"
-                                            placeholder="0"
-                                            {...form.register("reorderLevel", { valueAsNumber: true })}
-                                            className="border-2 border-black font-mono font-bold h-10"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        </NBSection>
 
-                        {/* ====== ACTIONS ====== */}
+                        {/* ====== FOOTER ====== */}
                         <div className="flex items-center justify-between pt-1">
                             <div className="flex items-center gap-2">
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 border-2 text-[10px] font-black uppercase tracking-wider ${catStyle.bg} ${catStyle.border} ${catStyle.text}`}>
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 border text-[10px] font-black uppercase tracking-wider ${catStyle.bg} ${catStyle.border} ${catStyle.text}`}>
                                     <CatIcon className="h-3 w-3" />
                                     {CODE_CATEGORIES.find(c => c.code === watchCat)?.label}
                                 </span>
@@ -478,14 +449,14 @@ export function ProductCreateDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen
                                     type="button"
                                     variant="outline"
                                     onClick={() => setOpen(false)}
-                                    className="border-2 border-black font-black uppercase text-xs tracking-wider px-6 h-9"
+                                    className={NB.cancelBtn}
                                 >
                                     Batal
                                 </Button>
                                 <Button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="bg-black text-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all font-black uppercase text-xs tracking-wider px-8 h-9"
+                                    className={NB.submitBtn}
                                 >
                                     {isSubmitting ? (
                                         <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Menyimpan...</>

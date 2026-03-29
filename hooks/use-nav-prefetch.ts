@@ -5,16 +5,13 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { getTierForRoute } from "@/lib/cache-tiers"
+// Server actions still used where no API route replacement exists yet
 import { getAllCategories, getCategories, getStockMovements, getRecentAudits, getProductsForKanban } from "@/app/actions/inventory"
 import { getEmployees, getAttendanceSnapshot, getLeaveRequests, getPayrollRun } from "@/app/actions/hcm"
-import { getQuotations, getAllPriceLists } from "@/lib/actions/sales"
-import { getAllPurchaseOrders, getVendors, getPurchaseRequests, getPendingApprovalPOs } from "@/lib/actions/procurement"
-import { getProductsForPO } from "@/app/actions/purchase-order"
+import { getAllPriceLists } from "@/lib/actions/sales"
 import { getFabricRolls, getWarehousesForRolls, getFabricProducts } from "@/lib/actions/fabric-rolls"
 import { getStockTransfers, getTransferFormData } from "@/lib/actions/stock-transfers"
-import { getFinancialMetrics, getFinanceDashboardData, getJournalEntries, getGLAccountsList, getChartOfAccountsTree, getVendorPayments, getVendorBillsRegistry, getExpenses, getExpenseAccounts } from "@/lib/actions/finance"
-import { getVendors as getVendorsList } from "@/app/actions/vendor"
-import { getPendingPOsForReceiving, getAllGRNs, getWarehousesForGRN, getEmployeesForGRN } from "@/lib/actions/grn"
+import { getGLAccountsList } from "@/lib/actions/finance"
 import { getSchedulableWorkOrders, getMachinesForScheduling, getRoutingsForScheduling } from "@/lib/actions/manufacturing-garment"
 import { getStaffTasks, getManagerTasks, getDepartmentEmployees, getAssignableOrders, getManagerDashboardStats } from "@/lib/actions/tasks"
 import { getSubcontractOrders, getSubcontractors, getProductsForSubcontract, getSubcontractDashboard } from "@/lib/actions/subcontract"
@@ -22,18 +19,21 @@ import { getCostingDashboard, getProductsForCostSheet, getCostSheets } from "@/l
 import { getCuttingDashboard, getCutPlans, getFabricProducts as getCuttingFabricProducts } from "@/lib/actions/cutting"
 import { getWeeklyShiftSchedule, getEmployeeShifts } from "@/lib/actions/hcm-shifts"
 import { getOnboardingTemplates } from "@/lib/actions/hcm-onboarding"
-import { getUnits, getBrands, getColors, getCategories as getMasterCategories, getSuppliers, getUomConversions } from "@/lib/actions/master-data"
-import { getBankAccounts as getPettyCashBankAccounts } from "@/lib/actions/finance-petty-cash"
 import { getCycleCountSessions } from "@/app/actions/cycle-count"
-import { getInvoiceKanbanData } from "@/lib/actions/finance-invoices"
-import { getPettyCashTransactions } from "@/lib/actions/finance-petty-cash"
 import { getDocumentNumbering, getPermissionMatrix } from "@/lib/actions/settings"
-import { getPaymentTerms } from "@/lib/actions/payment-terms"
 import { getDocumentSystemOverview } from "@/app/actions/documents-system"
-import { getHCMDashboardData } from "@/app/actions/hcm"
 import { getWarehouses } from "@/app/actions/inventory"
 import { getFixedAssets, getFixedAssetCategories, getDepreciationRuns, getGLAccountsForFixedAssets, getAssetRegisterReport, getNetBookValueSummary } from "@/lib/actions/finance-fixed-assets"
 import { getGLAccounts } from "@/lib/actions/finance"
+
+/** Helper: fetch JSON from an API route, return parsed data or fallback */
+const fetchJson = async (url: string, fallback: unknown = []) => {
+    try {
+        const res = await fetch(url)
+        if (!res.ok) return fallback
+        return await res.json()
+    } catch { return fallback }
+}
 /**
  * Maps sidebar routes to their data prefetch config.
  * Used for both hover-prefetch and warm-cache-on-mount.
@@ -129,22 +129,11 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/sales/quotations": {
         queryKey: queryKeys.quotations.list(),
-        queryFn: async () => {
-            const quotations = await getQuotations()
-            return quotations
-        },
+        queryFn: () => fetchJson("/api/sales/quotations-data", []),
     },
     "/procurement/orders": {
         queryKey: queryKeys.purchaseOrders.list(),
-        queryFn: async () => {
-            const [orders, vendorsRaw, products] = await Promise.all([
-                getAllPurchaseOrders(),
-                getVendors(),
-                getProductsForPO(),
-            ])
-            const vendors = vendorsRaw.map((v: any) => ({ id: v.id, name: v.name, email: v.email, phone: v.phone }))
-            return { orders, vendors, products }
-        },
+        queryFn: () => fetchJson("/api/procurement/orders-data", { orders: [], vendors: [], products: [] }),
     },
     "/inventory/fabric-rolls": {
         queryKey: queryKeys.fabricRolls.list(),
@@ -178,41 +167,29 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.financeDashboard.list(),
         queryFn: async () => {
             const [metrics, dashboardData] = await Promise.all([
-                getFinancialMetrics(),
-                getFinanceDashboardData(),
+                fetchJson("/api/finance/metrics", {}),
+                fetchJson("/api/finance/dashboard-data", {}),
             ])
             return { metrics, dashboardData }
         },
     },
     "/procurement/requests": {
         queryKey: queryKeys.purchaseRequests.list(),
-        queryFn: async () => {
-            return await getPurchaseRequests()
-        },
+        queryFn: () => fetchJson("/api/procurement/requests-data", []),
     },
     "/procurement/vendors": {
         queryKey: queryKeys.vendors.list(),
-        queryFn: async () => {
-            return await getVendorsList()
-        },
+        queryFn: () => fetch("/api/procurement/vendors").then(r => r.json()).then(p => p.data || []),
     },
     "/procurement/receiving": {
         queryKey: queryKeys.receiving.list(),
-        queryFn: async () => {
-            const [pendingPOs, grns, warehouses, employees] = await Promise.all([
-                getPendingPOsForReceiving(),
-                getAllGRNs(),
-                getWarehousesForGRN(),
-                getEmployeesForGRN(),
-            ])
-            return { pendingPOs, grns, warehouses, employees }
-        },
+        queryFn: () => fetchJson("/api/procurement/receiving-data", { pendingPOs: [], grns: [], warehouses: [], employees: [] }),
     },
     "/finance/journal": {
         queryKey: queryKeys.journal.list(),
         queryFn: async () => {
             const [entries, accounts] = await Promise.all([
-                getJournalEntries(50),
+                fetchJson("/api/finance/journal-data", []),
                 getGLAccountsList(),
             ])
             return { entries, accounts }
@@ -220,27 +197,22 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/chart-accounts": {
         queryKey: queryKeys.chartAccounts.list(),
-        queryFn: async () => getChartOfAccountsTree(),
+        queryFn: () => fetchJson("/api/finance/chart-accounts-tree", []),
     },
     "/finance/vendor-payments": {
         queryKey: queryKeys.vendorPayments.list(),
         queryFn: async () => {
-            const [payments, vendorsRaw] = await Promise.all([
-                getVendorPayments(),
-                getVendorsList(),
+            const [payments, vendors] = await Promise.all([
+                fetchJson("/api/finance/vendor-payments-data", []),
+                fetch("/api/procurement/vendors").then(r => r.json()).then(p => (p.data || []).map((v: any) => ({ id: v.id, name: v.name }))),
             ])
-            const vendors = vendorsRaw.map((v: any) => ({ id: v.id, name: v.name }))
             return { payments, vendors }
         },
     },
     // Companion — vendor-payments page also needs bank accounts dropdown
     "/finance/vendor-payments#banks": {
         queryKey: queryKeys.glAccounts.bankAccounts(),
-        queryFn: async () => {
-            const { getBankAccounts } = await import("@/lib/actions/finance-petty-cash")
-            const accounts = await getBankAccounts()
-            return accounts.filter((a: any) => /^10\d{2}$/.test(a.code))
-        },
+        queryFn: () => fetchJson("/api/master/bank-accounts", []),
     },
     "/manufacturing": {
         queryKey: queryKeys.mfgDashboard.list(),
@@ -275,33 +247,20 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/bills": {
         queryKey: [...queryKeys.bills.list(), { q: null, status: null, page: 1, pageSize: 20 }],
-        queryFn: async () => await getVendorBillsRegistry(),
+        queryFn: () => fetchJson("/api/finance/bills-data", { bills: [], total: 0 }),
     },
     "/finance/credit-notes": {
         queryKey: queryKeys.dcNotes.list(),
-        queryFn: async () => {
-            const { getDCNotes } = await import("@/lib/actions/finance-dcnotes")
-            return await getDCNotes()
-        },
+        queryFn: () => fetchJson("/api/finance/credit-notes-data", []),
     },
     "/finance/receivables": {
         queryKey: ["finance", "ar-aging"] as const,
-        queryFn: async () => {
-            const { getARAgingReport } = await import("@/lib/actions/finance")
-            return await getARAgingReport()
-        },
+        queryFn: () => fetchJson("/api/finance/receivables-data", { summary: {}, byCustomer: [], details: [] }),
     },
     // Companion query for receivables default tab (payments)
     "/finance/receivables#payments": {
         queryKey: queryKeys.arPayments.all,
-        queryFn: async () => {
-            const { getARPaymentRegistry, getARPaymentStats } = await import("@/lib/actions/finance-ar")
-            const [registry, stats] = await Promise.all([
-                getARPaymentRegistry({}),
-                getARPaymentStats(),
-            ])
-            return { registry, stats }
-        },
+        queryFn: () => fetchJson("/api/finance/ar-payments", { registry: {}, stats: {} }),
     },
     "/manufacturing/schedule": {
         queryKey: queryKeys.mfgSchedule.list(),
@@ -430,10 +389,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/dashboard/approvals": {
         queryKey: queryKeys.approvals.list(),
-        queryFn: async () => {
-            const pendingPOs = await getPendingApprovalPOs()
-            return { pendingPOs }
-        },
+        queryFn: () => fetchJson("/api/dashboard/approvals", { pendingPOs: [] }),
     },
     "/sales/pricelists": {
         queryKey: queryKeys.priceLists.list(),
@@ -495,16 +451,12 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/hcm": {
         queryKey: queryKeys.hcmDashboard.list(),
-        queryFn: async () => {
-            return await getHCMDashboardData()
-        },
+        queryFn: () => fetchJson("/api/hcm/dashboard-data", { attendance: {}, payroll: {}, leaves: { pendingCount: 0, requests: [] }, headcount: {} }),
     },
     // Companion — HCM dashboard also loads attendance snapshot for staff tables
     "/hcm#snapshot": {
         queryKey: [...queryKeys.hcmAttendance.all, "snapshot"] as const,
-        queryFn: async () => {
-            return await getAttendanceSnapshot()
-        },
+        queryFn: () => fetchJson("/api/hcm/attendance-snapshot", { date: "", rows: [], departments: [], stats: {} }),
     },
     "/finance/opening-balances": {
         queryKey: queryKeys.openingBalances.list(),
@@ -619,15 +571,11 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // --- Finance routes ---
     "/finance/invoices": {
         queryKey: queryKeys.invoices.kanban(),
-        queryFn: async () => {
-            return await getInvoiceKanbanData({ q: null, type: "ALL" }).catch(() => ({ draft: [], sent: [], overdue: [], paid: [] }))
-        },
+        queryFn: () => fetchJson("/api/finance/invoices/kanban", { draft: [], sent: [], overdue: [], paid: [] }),
     },
     "/finance/petty-cash": {
         queryKey: queryKeys.pettyCash.list(),
-        queryFn: async () => {
-            return await getPettyCashTransactions().catch(() => ({ transactions: [], currentBalance: 0, totalTopup: 0, totalDisbursement: 0 }))
-        },
+        queryFn: () => fetchJson("/api/finance/petty-cash-data", { transactions: [], currentBalance: 0, totalTopup: 0, totalDisbursement: 0 }),
     },
     "/finance/transactions": {
         queryKey: [...queryKeys.accountTransactions.list(), {}],
@@ -638,13 +586,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/expenses": {
         queryKey: queryKeys.expenses.list(),
-        queryFn: async () => {
-            const [expenses, accounts] = await Promise.all([
-                getExpenses(),
-                getExpenseAccounts(),
-            ])
-            return { expenses, ...accounts }
-        },
+        queryFn: () => fetchJson("/api/finance/expenses-data", { expenses: [], expenseAccounts: [], revenueAccounts: [], cashAccounts: [] }),
     },
     // --- HCM route ---
     "/hcm/payroll": {
@@ -692,15 +634,12 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/payables": {
         queryKey: ["finance", "ap-aging"] as const,
-        queryFn: async () => {
-            const { getAPAgingReport } = await import("@/lib/actions/finance")
-            return await getAPAgingReport()
-        },
+        queryFn: () => fetchJson("/api/finance/payables-data", { summary: {}, bySupplier: [], details: [] }),
     },
     // Companion queries for payables default tab (bills)
     "/finance/payables#bills": {
         queryKey: [...queryKeys.bills.list(), { q: null, status: null, page: 1, pageSize: 20 }],
-        queryFn: async () => await getVendorBillsRegistry(),
+        queryFn: () => fetchJson("/api/finance/bills-data", { bills: [], total: 0 }),
     },
     "/finance/payables#banks": {
         queryKey: ["banks", "list"] as const,
@@ -713,14 +652,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // --- Pages previously missing from prefetch (audit 2026-03-27) ---
     "/finance/payments": {
         queryKey: queryKeys.arPayments.all,
-        queryFn: async () => {
-            const { getARPaymentRegistry, getARPaymentStats } = await import("@/lib/actions/finance-ar")
-            const [registry, stats] = await Promise.all([
-                getARPaymentRegistry({}),
-                getARPaymentStats(),
-            ])
-            return { registry, stats }
-        },
+        queryFn: () => fetchJson("/api/finance/ar-payments", { registry: {}, stats: {} }),
     },
     "/finance/fixed-assets/categories": {
         queryKey: queryKeys.fixedAssetCategories.list(),
@@ -768,38 +700,35 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
 export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[]; queryFn: () => Promise<unknown> }> = {
     units: {
         queryKey: queryKeys.units.list(),
-        queryFn: getUnits,
+        queryFn: () => fetchJson("/api/master/units"),
     },
     brands: {
         queryKey: queryKeys.brands.list(),
-        queryFn: getBrands,
+        queryFn: () => fetchJson("/api/master/brands"),
     },
     colors: {
         queryKey: queryKeys.colors.list(),
-        queryFn: getColors,
+        queryFn: () => fetchJson("/api/master/colors"),
     },
     masterCategories: {
         queryKey: queryKeys.categories.master(),
-        queryFn: getMasterCategories,
+        queryFn: () => fetchJson("/api/master/categories"),
     },
     suppliers: {
         queryKey: queryKeys.suppliers.list(),
-        queryFn: getSuppliers,
+        queryFn: () => fetchJson("/api/master/suppliers"),
     },
     uomConversions: {
         queryKey: queryKeys.uomConversions.list(),
-        queryFn: getUomConversions,
+        queryFn: () => fetchJson("/api/master/uom-conversions"),
     },
     glAccounts: {
         queryKey: queryKeys.glAccounts.list(),
-        queryFn: getGLAccountsList,
+        queryFn: () => getGLAccountsList(),
     },
     bankAccounts: {
         queryKey: queryKeys.glAccounts.bankAccounts(),
-        queryFn: async () => {
-            const accounts = await getPettyCashBankAccounts()
-            return accounts.filter((a: { code: string }) => /^10\d{2}$/.test(a.code))
-        },
+        queryFn: () => fetchJson("/api/master/bank-accounts"),
     },
     salesOptions: {
         queryKey: queryKeys.salesOptions.list(),
@@ -819,7 +748,7 @@ export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[
     },
     paymentTerms: {
         queryKey: queryKeys.paymentTerms.list(),
-        queryFn: getPaymentTerms,
+        queryFn: () => fetchJson("/api/master/payment-terms"),
     },
 }
 

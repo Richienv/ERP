@@ -52,6 +52,15 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { NB } from "@/lib/dialog-styles"
+import {
+    NBDialog,
+    NBDialogHeader,
+    NBDialogBody,
+    NBDialogFooter,
+    NBSection,
+    NBInput,
+    NBCurrencyInput,
+} from "@/components/ui/nb-dialog"
 import type {
     ReconciliationSummary,
     ReconciliationDetail,
@@ -836,166 +845,134 @@ export function BankReconciliationView({
                         </DialogContent>
                     </Dialog>
 
-                    {/* Rekonsiliasi Baru Dialog */}
-                    <Dialog open={createOpen} onOpenChange={(open) => {
-                        setCreateOpen(open)
-                        if (open) {
-                            const now = new Date()
-                            const y = now.getFullYear()
-                            const m = String(now.getMonth() + 1).padStart(2, "0")
-                            const lastDay = new Date(y, now.getMonth() + 1, 0).getDate()
-                            if (!newPeriodStart) setNewPeriodStart(`${y}-${m}-01`)
-                            if (!newPeriodEnd) setNewPeriodEnd(`${y}-${m}-${String(lastDay).padStart(2, "0")}`)
-                            if (!newStatementDate) setNewStatementDate(`${y}-${m}-${String(lastDay).padStart(2, "0")}`)
+                    {/* Rekonsiliasi Baru Trigger + Dialog */}
+                    <Button className={NB.toolbarBtnPrimary} onClick={() => {
+                        const now = new Date()
+                        const y = now.getFullYear()
+                        const m = String(now.getMonth() + 1).padStart(2, "0")
+                        const d = String(now.getDate()).padStart(2, "0")
+                        // Auto-suggest: start of month → today
+                        if (!newPeriodStart) setNewPeriodStart(`${y}-${m}-01`)
+                        if (!newPeriodEnd) setNewPeriodEnd(`${y}-${m}-${d}`)
+                        if (!newStatementDate) setNewStatementDate(`${y}-${m}-${d}`)
+                        // Auto-select if only 1 bank account
+                        if ((bankAccounts || []).length === 1 && !newAccountId) {
+                            setNewAccountId(bankAccounts[0].id)
                         }
+                        setCreateOpen(true)
                     }}>
-                        <DialogTrigger asChild>
-                            <Button className={NB.toolbarBtnPrimary}>
-                                <Plus className="h-3.5 w-3.5 mr-1.5" /> Rekonsiliasi Baru
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-lg p-0 border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] rounded-none overflow-hidden gap-0">
-                            <DialogHeader className={NB.header}>
-                                <DialogTitle className={NB.title}>
-                                    <Landmark className="h-5 w-5" /> Rekonsiliasi Baru
-                                </DialogTitle>
-                                <p className="text-zinc-400 text-[11px] font-bold mt-0.5">Cocokkan mutasi bank dengan jurnal sistem</p>
-                            </DialogHeader>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> Rekonsiliasi Baru
+                    </Button>
+                    <NBDialog open={createOpen} onOpenChange={setCreateOpen} size="default">
+                        <NBDialogHeader
+                            icon={Landmark}
+                            title="Rekonsiliasi Baru"
+                            subtitle="Cocokkan mutasi bank dengan jurnal sistem"
+                        />
 
-                            <div className="divide-y-2 divide-black">
-                                {/* ── Section 1: Bank Account ─── */}
-                                <div>
-                                    <div className="bg-zinc-100 px-5 py-2 flex items-center gap-2 border-b border-zinc-200">
-                                        <div className="h-5 w-5 bg-black text-white flex items-center justify-center text-[9px] font-black">1</div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Pilih Akun Bank</span>
+                        <NBDialogBody>
+                            {/* ── Section 1: Bank Account ─── */}
+                            <NBSection icon={Landmark} title="Akun Bank">
+                                {(bankAccounts || []).length > 0 ? (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {(bankAccounts || []).map((a) => (
+                                            <button
+                                                key={a.id}
+                                                type="button"
+                                                onClick={() => setNewAccountId(a.id)}
+                                                className={`flex items-center gap-3 px-3.5 py-3 border text-left transition-all ${
+                                                    newAccountId === a.id
+                                                        ? "border-orange-400 bg-orange-50/50 shadow-[2px_2px_0px_0px_rgba(0,0,0,0.1)]"
+                                                        : "border-zinc-200 bg-white hover:border-zinc-400"
+                                                }`}
+                                            >
+                                                <Landmark className={`h-4 w-4 shrink-0 ${newAccountId === a.id ? "text-orange-500" : "text-zinc-400"}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="font-mono text-[11px] text-zinc-500 font-bold">{a.code}</span>
+                                                        <span className="text-sm font-bold truncate">{a.name}</span>
+                                                    </div>
+                                                </div>
+                                                <span className="font-mono text-[11px] font-bold text-emerald-600 shrink-0">
+                                                    Rp {a.balance.toLocaleString("id-ID")}
+                                                </span>
+                                            </button>
+                                        ))}
                                     </div>
-                                    <div className="px-5 py-4">
-                                        {(bankAccounts || []).length > 0 ? (
-                                            <div className="grid grid-cols-1 gap-1.5">
-                                                {(bankAccounts || []).map((a) => (
-                                                    <button
-                                                        key={a.id}
-                                                        type="button"
-                                                        onClick={() => setNewAccountId(a.id)}
-                                                        className={`flex items-center gap-3 px-3.5 py-2.5 border-2 text-left transition-all ${
-                                                            newAccountId === a.id
-                                                                ? "border-black bg-emerald-50 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
-                                                                : "border-zinc-200 bg-white hover:border-zinc-400"
-                                                        }`}
-                                                    >
-                                                        <div className={`h-8 w-8 flex items-center justify-center border-2 shrink-0 ${
-                                                            newAccountId === a.id ? "border-black bg-black" : "border-zinc-300 bg-zinc-100"
-                                                        }`}>
-                                                            <Landmark className={`h-3.5 w-3.5 ${newAccountId === a.id ? "text-white" : "text-zinc-400"}`} />
-                                                        </div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="font-mono text-[11px] text-zinc-500 font-bold">{a.code}</span>
-                                                                <span className="text-sm font-bold truncate">{a.name}</span>
-                                                            </div>
-                                                        </div>
-                                                        <span className="font-mono text-[11px] font-bold text-emerald-600 shrink-0">
-                                                            Rp {a.balance.toLocaleString("id-ID")}
-                                                        </span>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="border-2 border-dashed border-zinc-300 bg-zinc-50 p-5 text-center space-y-2">
-                                                <Landmark className="h-5 w-5 text-zinc-300 mx-auto" />
-                                                <p className="text-[11px] text-zinc-400 font-bold">Belum ada akun bank</p>
-                                                <Button
-                                                    variant="outline"
-                                                    className="border-2 border-black text-[10px] font-black uppercase h-7 px-3 rounded-none"
-                                                    onClick={() => { setCreateOpen(false); setAddBankOpen(true) }}
-                                                >
-                                                    <Plus className="h-3 w-3 mr-1" /> Tambah Akun Bank
-                                                </Button>
-                                            </div>
-                                        )}
+                                ) : (
+                                    <div className="border border-dashed border-zinc-300 bg-zinc-50 p-5 text-center space-y-2">
+                                        <Landmark className="h-5 w-5 text-zinc-300 mx-auto" />
+                                        <p className="text-[11px] text-zinc-400 font-bold">Belum ada akun bank</p>
+                                        <Button
+                                            variant="outline"
+                                            className="border-2 border-black text-[10px] font-black uppercase h-7 px-3 rounded-none"
+                                            onClick={() => { setCreateOpen(false); setAddBankOpen(true) }}
+                                        >
+                                            <Plus className="h-3 w-3 mr-1" /> Tambah Akun Bank
+                                        </Button>
+                                    </div>
+                                )}
+                            </NBSection>
+
+                            {/* ── Section 2: Period ─── */}
+                            <NBSection icon={ArrowRightLeft} title="Periode Rekonsiliasi">
+                                <div className="grid grid-cols-3 gap-3">
+                                    <NBInput
+                                        label="Dari"
+                                        required
+                                        type="date"
+                                        value={newPeriodStart}
+                                        onChange={setNewPeriodStart}
+                                    />
+                                    <NBInput
+                                        label="Sampai"
+                                        required
+                                        type="date"
+                                        value={newPeriodEnd}
+                                        onChange={setNewPeriodEnd}
+                                    />
+                                    <div>
+                                        <NBInput
+                                            label="Tanggal Statement"
+                                            type="date"
+                                            value={newStatementDate}
+                                            onChange={setNewStatementDate}
+                                        />
+                                        <p className="text-[9px] text-zinc-400 mt-0.5">Tanggal cetak mutasi bank</p>
                                     </div>
                                 </div>
+                            </NBSection>
 
-                                {/* ── Section 2: Period ─── */}
-                                <div>
-                                    <div className="bg-zinc-100 px-5 py-2 flex items-center gap-2 border-b border-zinc-200">
-                                        <div className="h-5 w-5 bg-black text-white flex items-center justify-center text-[9px] font-black">2</div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Periode Rekonsiliasi</span>
-                                    </div>
-                                    <div className="px-5 py-4 space-y-3">
-                                        <div className="flex items-end gap-2">
-                                            <div className="flex-1">
-                                                <label className={NB.label}>Dari</label>
-                                                <Input className={NB.inputMono} type="date" value={newPeriodStart} onChange={(e) => setNewPeriodStart(e.target.value)} />
-                                            </div>
-                                            <div className="pb-2.5 text-zinc-300 font-black text-lg">→</div>
-                                            <div className="flex-1">
-                                                <label className={NB.label}>Sampai</label>
-                                                <Input className={NB.inputMono} type="date" value={newPeriodEnd} onChange={(e) => setNewPeriodEnd(e.target.value)} />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className={NB.label}>Tanggal Statement</label>
-                                            <Input className={NB.inputMono} type="date" value={newStatementDate} onChange={(e) => setNewStatementDate(e.target.value)} />
-                                            <p className="text-[9px] text-zinc-400 mt-0.5">Tanggal cetak/download mutasi bank</p>
-                                        </div>
-                                    </div>
-                                </div>
+                            {/* ── Section 3: Balance ─── */}
+                            <NBSection icon={Landmark} title="Saldo Bank" optional>
+                                {/* Show book balance for reference when bank is selected */}
+                                {newAccountId && (() => {
+                                    const selectedBank = (bankAccounts || []).find(a => a.id === newAccountId)
+                                    return selectedBank ? (
+                                        <p className="text-[11px] font-bold text-zinc-500">
+                                            Saldo buku: <span className="font-mono text-emerald-600">Rp {selectedBank.balance.toLocaleString("id-ID")}</span>
+                                            <span className="text-zinc-400 font-medium ml-1">(referensi)</span>
+                                        </p>
+                                    ) : null
+                                })()}
+                                <NBCurrencyInput
+                                    label="Saldo Statement"
+                                    value={newBankStatementBalance}
+                                    onChange={setNewBankStatementBalance}
+                                />
+                                <p className="text-[9px] text-zinc-400 -mt-1">Ketik angka saja — format otomatis</p>
+                            </NBSection>
+                        </NBDialogBody>
 
-                                {/* ── Section 3: Balance ─── */}
-                                <div>
-                                    <div className="bg-zinc-100 px-5 py-2 flex items-center gap-2 border-b border-zinc-200">
-                                        <div className="h-5 w-5 bg-zinc-400 text-white flex items-center justify-center text-[9px] font-black">3</div>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Saldo (Opsional)</span>
-                                    </div>
-                                    <div className="px-5 py-4">
-                                        <div className="relative">
-                                            <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold pointer-events-none transition-colors ${
-                                                newBankStatementBalance ? "text-orange-500" : "text-zinc-400"
-                                            }`}>Rp</span>
-                                            <input
-                                                inputMode="numeric"
-                                                placeholder="0"
-                                                value={newBankStatementBalance ? Number(newBankStatementBalance).toLocaleString("id-ID") : ""}
-                                                onChange={(e) => {
-                                                    const raw = e.target.value.replace(/[^\d]/g, "")
-                                                    setNewBankStatementBalance(raw)
-                                                }}
-                                                onKeyDown={(e) => {
-                                                    const allowed = ["Backspace", "Delete", "Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "Home", "End"]
-                                                    if (allowed.includes(e.key)) return
-                                                    if ((e.ctrlKey || e.metaKey) && ["a", "c", "v", "x"].includes(e.key.toLowerCase())) return
-                                                    if (!/^\d$/.test(e.key)) e.preventDefault()
-                                                }}
-                                                className={`w-full pl-10 pr-3 h-10 font-mono font-bold text-sm rounded-none outline-none transition-colors ${
-                                                    newBankStatementBalance
-                                                        ? "border-2 border-orange-400 bg-orange-50/50 text-zinc-900"
-                                                        : "border-2 border-zinc-300 bg-zinc-50/50 text-zinc-900"
-                                                } placeholder:text-zinc-300 placeholder:font-normal focus:border-orange-400 focus:ring-2 focus:ring-orange-100`}
-                                            />
-                                        </div>
-                                        <p className="text-[9px] text-zinc-400 mt-1">Ketik angka saja — format otomatis</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* ── Footer ─── */}
-                            <div className="px-5 py-4 bg-zinc-50 border-t-2 border-black flex items-center justify-between">
-                                <Button variant="outline" className={NB.cancelBtn} onClick={() => setCreateOpen(false)}>Batal</Button>
-                                <Button
-                                    className={NB.submitBtn}
-                                    disabled={loading || !newAccountId || (bankAccounts || []).length === 0}
-                                    onClick={handleCreate}
-                                >
-                                    {loading ? (
-                                        <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Membuat...</>
-                                    ) : (
-                                        <><Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Rekonsiliasi</>
-                                    )}
-                                </Button>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
+                        {/* ── Footer ─── */}
+                        <NBDialogFooter
+                            onCancel={() => setCreateOpen(false)}
+                            onSubmit={handleCreate}
+                            submitting={loading}
+                            submitLabel="Buat Rekonsiliasi"
+                            disabled={!newAccountId || (bankAccounts || []).length === 0}
+                        />
+                    </NBDialog>
                     </div>
                 </div>
 

@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { routePrefetchMap, masterDataPrefetchMap } from "@/hooks/use-nav-prefetch"
 import { useAuth } from "@/lib/auth-context"
 import { getTierForRoute, getTierForMasterData } from "@/lib/cache-tiers"
-import { CACHE_BUSTER } from "@/lib/query-client"
+import { CACHE_BUSTER, markPrefetchComplete } from "@/lib/query-client"
 import {
     P1_ROUTES, P1_MASTER_DATA, P2_ROUTES, P3_ROUTES,
     P1_TOTAL, P2_TOTAL,
@@ -15,8 +16,18 @@ import { IconCheck, IconLoader2, IconRefresh, IconWifiOff } from "@tabler/icons-
 import { get } from "idb-keyval"
 
 const SESSION_KEY = "erp_cache_warmed"
-const ITEM_TIMEOUT_MS = 10_000  // 10s max per item
-const FAILURE_THRESHOLD = 0.5   // >50% failures → show retry
+const FAILURE_THRESHOLD = 0.7   // >70% failures → show retry (was 0.5 — too aggressive)
+
+// Phase-aware timeouts — heavier phases get more time
+const TIMEOUT_MS = {
+    P1: 12_000,  // 12s — critical routes, must succeed
+    P2: 15_000,  // 15s — important routes, some are heavy (finance, procurement)
+    P3: 20_000,  // 20s — background, can afford to wait
+    MASTER: 12_000,  // 12s — master data (small payloads, fast)
+} as const
+
+// Max concurrent prefetch queries to prevent connection pool exhaustion
+const MAX_CONCURRENCY = 6
 
 /**
  * Three-phase cache warmer modeled after native app install:
@@ -32,6 +43,8 @@ const FAILURE_THRESHOLD = 0.5   // >50% failures → show retry
  */
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+const isDev = typeof window !== "undefined" && process.env.NODE_ENV === "development"
 
 /**
  * Check if IndexedDB has persisted TanStack Query cache with SUFFICIENT data.
@@ -61,7 +74,7 @@ async function hasPersistedCache(): Promise<boolean> {
             const queries = state?.queries
             const queryCount = Array.isArray(queries) ? queries.length : 0
             if (queryCount < P1_TOTAL) {
-                if (process.env.NODE_ENV === "development") {
+                if (isDev) {
                     console.log(`[Prefetch] IndexedDB has ${queryCount} queries, need ${P1_TOTAL} — running full prefetch`)
                 }
                 return false
@@ -87,11 +100,40 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     })
 }
 
-/** Prefetch a single route with tier-aware staleTime + 10s timeout. */
+/**
+ * Semaphore-based concurrency limiter.
+ * Runs up to `limit` tasks concurrently, queuing the rest.
+ */
+async function runWithConcurrency<T>(
+    tasks: Array<() => Promise<T>>,
+    limit: number,
+): Promise<PromiseSettledResult<T>[]> {
+    const results: PromiseSettledResult<T>[] = new Array(tasks.length)
+    let nextIndex = 0
+
+    async function worker() {
+        while (nextIndex < tasks.length) {
+            const idx = nextIndex++
+            try {
+                const value = await tasks[idx]()
+                results[idx] = { status: "fulfilled", value }
+            } catch (reason) {
+                results[idx] = { status: "rejected", reason }
+            }
+        }
+    }
+
+    const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker())
+    await Promise.all(workers)
+    return results
+}
+
+/** Prefetch a single route with tier-aware staleTime + phase timeout. */
 async function prefetchRoute(
     queryClient: ReturnType<typeof useQueryClient>,
     route: string,
     config: { queryKey: readonly unknown[]; queryFn: () => Promise<unknown> },
+    timeoutMs: number,
 ) {
     const tier = getTierForRoute(route)
     await withTimeout(
@@ -101,11 +143,11 @@ async function prefetchRoute(
             staleTime: tier.staleTime,
             gcTime: tier.gcTime,
         }),
-        ITEM_TIMEOUT_MS,
+        timeoutMs,
     )
 }
 
-/** Prefetch a master data key with tier-aware staleTime + 10s timeout. */
+/** Prefetch a master data key with tier-aware staleTime + timeout. */
 async function prefetchMasterData(
     queryClient: ReturnType<typeof useQueryClient>,
     key: string,
@@ -119,56 +161,71 @@ async function prefetchMasterData(
             staleTime: tier.staleTime,
             gcTime: tier.gcTime,
         }),
-        ITEM_TIMEOUT_MS,
+        TIMEOUT_MS.MASTER,
     )
 }
 
 /**
- * Batch-prefetch a list of routes.
+ * Batch-prefetch a list of routes using a concurrency-limited pool.
  * Returns count of failed items. Individual failures are logged and skipped.
  */
 async function batchPrefetchRoutes(
     queryClient: ReturnType<typeof useQueryClient>,
     routes: readonly string[],
-    batchSize: number,
     onProgress: () => void,
-    delayMs?: number,
-): Promise<number> {
+    timeoutMs: number,
+    preloadRoute?: (url: string) => void,
+): Promise<{ failures: number; details: Array<{ route: string; status: "ok" | "fail" | "timeout" | "skip"; ms: number; error?: string }> }> {
     let failures = 0
+    const details: Array<{ route: string; status: "ok" | "fail" | "timeout" | "skip"; ms: number; error?: string }> = []
 
     // Separate routes with prefetch config from those without
-    const entries: Array<readonly [string, { queryKey: readonly unknown[]; queryFn: () => Promise<unknown> }]> = []
+    const withConfig: Array<readonly [string, { queryKey: readonly unknown[]; queryFn: () => Promise<unknown> }]> = []
     for (const r of routes) {
         const config = routePrefetchMap[r]
         if (config) {
-            entries.push([r, config])
+            withConfig.push([r, config])
         } else {
             // Route in manifest but not in prefetchMap — tick progress but log warning
-            if (process.env.NODE_ENV === "development") {
-                console.warn(`[Prefetch] Route "${r}" in manifest but missing from routePrefetchMap`)
+            if (isDev) {
+                console.warn(`[Prefetch] SKIP: "${r}" in manifest but missing from routePrefetchMap`)
             }
+            details.push({ route: r, status: "skip", ms: 0 })
             onProgress()
         }
     }
 
-    for (let i = 0; i < entries.length; i += batchSize) {
-        const batch = entries.slice(i, i + batchSize)
-        await Promise.allSettled(
-            batch.map(async ([route, config]) => {
-                try {
-                    await prefetchRoute(queryClient, route, config)
-                } catch (err) {
-                    console.warn(`[Prefetch] Failed: ${route}`, err instanceof Error ? err.message : err)
-                    failures++
-                }
-                onProgress()
-            })
-        )
-        if (delayMs && i + batchSize < entries.length) {
-            await new Promise((r) => setTimeout(r, delayMs))
+    // Build task list for concurrency limiter
+    const tasks = withConfig.map(([route, config]) => async () => {
+        const t0 = performance.now()
+        if (isDev) console.log(`[Prefetch] START: ${route}`)
+
+        // Preload Next.js JS chunk in parallel with data fetch
+        if (preloadRoute) {
+            const cleanRoute = route.split("#")[0]
+            preloadRoute(cleanRoute)
         }
-    }
-    return failures
+
+        try {
+            await prefetchRoute(queryClient, route, config, timeoutMs)
+            const ms = Math.round(performance.now() - t0)
+            if (isDev) console.log(`[Prefetch] OK: ${route} (${ms}ms)`)
+            details.push({ route, status: "ok", ms })
+        } catch (err) {
+            const ms = Math.round(performance.now() - t0)
+            const errMsg = err instanceof Error ? err.message : String(err)
+            const status = errMsg.includes("Timeout") ? "timeout" : "fail"
+            if (isDev) console.warn(`[Prefetch] ${status.toUpperCase()}: ${route} — ${errMsg} (${ms}ms)`)
+            details.push({ route, status, ms, error: errMsg })
+            failures++
+        }
+        onProgress()
+    })
+
+    // Run with concurrency limiter instead of fixed batches
+    await runWithConcurrency(tasks, MAX_CONCURRENCY)
+
+    return { failures, details }
 }
 
 // ── Component ──────────────────────────────────────────────────────────────
@@ -176,6 +233,7 @@ async function batchPrefetchRoutes(
 export function CacheWarmingOverlay() {
     const { isAuthenticated, isLoading: authLoading } = useAuth()
     const queryClient = useQueryClient()
+    const router = useRouter()
     const hasStarted = useRef(false)
 
     const [show, setShow] = useState(false)
@@ -200,42 +258,56 @@ export function CacheWarmingOverlay() {
 
     const tick = useCallback(() => setItemsDone((prev) => prev + 1), [])
 
+    /** Preload a Next.js route's JS chunk (code splitting) */
+    const preloadRoute = useCallback((url: string) => {
+        try { router.prefetch(url) } catch {}
+    }, [router])
+
     const runPrefetch = useCallback(async () => {
         setShowRetry(false)
         setTotalFailures(0)
         setItemsDone(0)
         setPhase("p1")
 
-        const isDev = process.env.NODE_ENV === "development"
-        if (isDev) console.log(`[Prefetch] Starting — P1=${P1_ROUTES.length}+${P1_MASTER_DATA.length}md, P2=${P2_ROUTES.length}, P3=${P3_ROUTES.length}`)
+        if (isDev) console.log(`[Prefetch] Starting — P1=${P1_ROUTES.length}+${P1_MASTER_DATA.length}md, P2=${P2_ROUTES.length}, P3=${P3_ROUTES.length}, concurrency=${MAX_CONCURRENCY}`)
         const t0 = performance.now()
 
         let failures = 0
 
         // ── P1: Critical routes + master data (progress 0–60%) ──
         if (isDev) console.log("[Prefetch] Phase P1: critical routes...")
-        failures += await batchPrefetchRoutes(queryClient, P1_ROUTES, 6, tick)
+        const p1Result = await batchPrefetchRoutes(queryClient, P1_ROUTES, tick, TIMEOUT_MS.P1, preloadRoute)
+        failures += p1Result.failures
 
-        // Master data (all in parallel)
+        // Master data — also concurrency-limited (not all-at-once)
         if (isDev) console.log("[Prefetch] Phase P1: master data...")
-        await Promise.allSettled(
-            P1_MASTER_DATA.map((key) => {
-                const config = masterDataPrefetchMap[key]
-                if (!config) { tick(); return Promise.resolve() }
-                return prefetchMasterData(queryClient, key, config)
-                    .catch((err) => {
-                        console.warn(`[Prefetch] Master data failed: ${key}`, err instanceof Error ? err.message : err)
-                        failures++
-                    })
-                    .finally(tick)
-            })
-        )
+        const mdTasks = P1_MASTER_DATA.map((key) => async () => {
+            const t1 = performance.now()
+            const config = masterDataPrefetchMap[key]
+            if (!config) {
+                if (isDev) console.warn(`[Prefetch] SKIP: master data "${key}" missing from masterDataPrefetchMap`)
+                tick()
+                return
+            }
+            if (isDev) console.log(`[Prefetch] START: md:${key}`)
+            try {
+                await prefetchMasterData(queryClient, key, config)
+                if (isDev) console.log(`[Prefetch] OK: md:${key} (${Math.round(performance.now() - t1)}ms)`)
+            } catch (err) {
+                const errMsg = err instanceof Error ? err.message : String(err)
+                if (isDev) console.warn(`[Prefetch] FAIL: md:${key} — ${errMsg} (${Math.round(performance.now() - t1)}ms)`)
+                failures++
+            }
+            tick()
+        })
+        await runWithConcurrency(mdTasks, MAX_CONCURRENCY)
 
-        if (isDev) console.log(`[Prefetch] P1 done — ${failures} failures in ${Math.round(performance.now() - t0)}ms`)
+        const p1Ms = Math.round(performance.now() - t0)
+        const p1Ok = P1_TOTAL - failures
+        if (isDev) console.log(`[Prefetch] P1 Summary: ${p1Ok}/${P1_TOTAL} OK, ${failures} FAIL (total ${p1Ms}ms)`)
 
-        // Check for catastrophic failure after P1
-        const p1Attempted = P1_TOTAL
-        if (failures / p1Attempted > FAILURE_THRESHOLD) {
+        // Check for catastrophic failure after P1 — only if CRITICAL routes fail massively
+        if (failures / P1_TOTAL > FAILURE_THRESHOLD) {
             setTotalFailures(failures)
             setShowRetry(true)
             return
@@ -244,13 +316,15 @@ export function CacheWarmingOverlay() {
         // ── P2: Important routes (progress 60–90%) ──
         if (isDev) console.log("[Prefetch] Phase P2: important routes...")
         setPhase("p2")
-        failures += await batchPrefetchRoutes(queryClient, P2_ROUTES, 6, tick)
+        const p2Result = await batchPrefetchRoutes(queryClient, P2_ROUTES, tick, TIMEOUT_MS.P2, preloadRoute)
+        failures += p2Result.failures
 
-        if (isDev) console.log(`[Prefetch] P2 done — ${failures} total failures in ${Math.round(performance.now() - t0)}ms`)
+        const p2Ms = Math.round(performance.now() - t0)
+        const p2Ok = (P1_TOTAL + P2_TOTAL) - failures
+        if (isDev) console.log(`[Prefetch] P2 Summary: ${p2Ok}/${P1_TOTAL + P2_TOTAL} OK, ${failures} total FAIL (total ${p2Ms}ms)`)
 
         // Check for catastrophic failure after P1+P2
-        const totalAttempted = P1_TOTAL + P2_TOTAL
-        if (failures / totalAttempted > FAILURE_THRESHOLD) {
+        if (failures / (P1_TOTAL + P2_TOTAL) > FAILURE_THRESHOLD) {
             setTotalFailures(failures)
             setShowRetry(true)
             return
@@ -259,19 +333,18 @@ export function CacheWarmingOverlay() {
         // ── Dismiss overlay — app is interactive at 90% ──
         if (isDev) console.log("[Prefetch] P1+P2 complete — dismissing overlay, starting P3 in background")
         setPhase("p3")
+        markPrefetchComplete()
         dismiss()
 
-        // ── P3: Background (invisible) ──
-        await batchPrefetchRoutes(queryClient, P3_ROUTES, 4, () => {}, 150)
+        // ── P3: Background (invisible) — use longer timeout, no UI ──
+        await batchPrefetchRoutes(queryClient, P3_ROUTES, () => {}, TIMEOUT_MS.P3, preloadRoute)
         sessionStorage.setItem(SESSION_KEY, "true")
         setPhase("done")
 
         if (isDev) console.log(`[Prefetch] All done — total ${Math.round(performance.now() - t0)}ms`)
-    }, [queryClient, tick, dismiss])
+    }, [queryClient, tick, dismiss, preloadRoute])
 
     useEffect(() => {
-        const isDev = process.env.NODE_ENV === "development"
-
         if (authLoading || !isAuthenticated || hasStarted.current) {
             if (isDev && hasStarted.current) console.log("[Prefetch] Skipping — already started")
             return
@@ -285,6 +358,7 @@ export function CacheWarmingOverlay() {
         }
 
         // Check IndexedDB for existing cache — if found, skip overlay entirely
+        // but still preload route code chunks in the background
         ;(async () => {
             const hasCached = await hasPersistedCache()
             if (hasCached) {
@@ -292,6 +366,13 @@ export function CacheWarmingOverlay() {
                 // persistQueryClient() will hydrate it in the background.
                 if (isDev) console.log("[Prefetch] Skipping overlay — IndexedDB has sufficient cached data")
                 sessionStorage.setItem(SESSION_KEY, "true")
+
+                // Still preload JS code chunks for all routes (silent, no UI)
+                const allRoutes = [...P1_ROUTES, ...P2_ROUTES, ...P3_ROUTES]
+                const uniqueRoutes = [...new Set(allRoutes.map(r => r.split("#")[0]))]
+                for (const route of uniqueRoutes) {
+                    try { router.prefetch(route) } catch {}
+                }
                 return
             }
 
@@ -300,7 +381,7 @@ export function CacheWarmingOverlay() {
             setShow(true)
             await runPrefetch()
         })()
-    }, [authLoading, isAuthenticated, runPrefetch])
+    }, [authLoading, isAuthenticated, runPrefetch, router])
 
     if (!show) return null
 
