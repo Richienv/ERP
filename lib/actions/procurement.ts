@@ -499,38 +499,38 @@ export async function createPurchaseRequest(data: {
                 }
             }
 
-            // Use $transaction to prevent PR number race condition
-            const pr = await prisma.$transaction(async (tx) => {
-                const now = new Date()
-                const year = now.getFullYear()
-                const month = String(now.getMonth() + 1).padStart(2, "0")
-                const prefix = `PR-${year}${month}`
-                const count = await tx.purchaseRequest.count({
-                    where: { number: { startsWith: prefix } }
-                })
-                const number = `${prefix}-${String(count + 1).padStart(4, "0")}`
+            // withPrismaAuth already provides a transaction-scoped Prisma client.
+            // Calling prisma.$transaction() here crashes because the callback client
+            // is an active transaction, not the root PrismaClient instance.
+            const now = new Date()
+            const year = now.getFullYear()
+            const month = String(now.getMonth() + 1).padStart(2, "0")
+            const prefix = `PR-${year}${month}`
+            const count = await prisma.purchaseRequest.count({
+                where: { number: { startsWith: prefix } }
+            })
+            const number = `${prefix}-${String(count + 1).padStart(4, "0")}`
 
-                return await tx.purchaseRequest.create({
-                    data: {
-                        number,
-                        requesterId,
-                        department: data.department?.trim() || actor.department || "General",
-                        priority: data.priority || "NORMAL",
-                        notes: data.notes || null,
-                        status: "PENDING",
-                        requestDate: new Date(),
-                        items: {
-                            create: data.items.map((item) => ({
-                                productId: item.productId,
-                                quantity: Number(item.quantity || 0),
-                                targetDate: item.targetDate || null,
-                                notes: item.notes || null,
-                                status: "PENDING",
-                            })),
-                        },
+            const pr = await prisma.purchaseRequest.create({
+                data: {
+                    number,
+                    requesterId,
+                    department: data.department?.trim() || actor.department || "General",
+                    priority: data.priority || "NORMAL",
+                    notes: data.notes || null,
+                    status: "PENDING",
+                    requestDate: new Date(),
+                    items: {
+                        create: data.items.map((item) => ({
+                            productId: item.productId,
+                            quantity: Number(item.quantity || 0),
+                            targetDate: item.targetDate || null,
+                            notes: item.notes || null,
+                            status: "PENDING",
+                        })),
                     },
-                    select: { id: true },
-                })
+                },
+                select: { id: true },
             })
 
             return pr

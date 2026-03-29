@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/nb-dialog"
 import { createVendor, getSupplierCategories, createSupplierCategory, checkDuplicateVendor } from "@/app/actions/vendor"
 import { NB } from "@/lib/dialog-styles"
+import { LEGACY_PAYMENT_TERM_VALUES } from "@/lib/payment-term-options"
 
 
 const BANK_OPTIONS = [
@@ -56,7 +57,7 @@ const formSchema = z.object({
     address: z.string().optional(),
     address2: z.string().optional(),
     officePhone: z.string().optional(),
-    paymentTerm: z.string().optional(),
+    paymentTerm: z.enum(LEGACY_PAYMENT_TERM_VALUES).optional().default("CASH"),
     categoryIds: z.array(z.string()).optional(),
     bankName: z.string().optional(),
     bankAccountNumber: z.string().optional(),

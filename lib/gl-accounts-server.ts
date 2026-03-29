@@ -58,17 +58,27 @@ let _ensured = false
  * Uses upsert (create if missing, skip if exists).
  * Cached per process — in serverless (Vercel), resets on cold start (harmless, upserts are idempotent).
  */
-export async function ensureSystemAccounts(): Promise<void> {
+export async function ensureSystemAccounts(
+  prismaClient?: {
+    gLAccount: {
+      upsert: (args: {
+        where: { code: string }
+        create: { code: string; name: string; type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE"; balance: number }
+        update: Record<string, never>
+      }) => Promise<unknown>
+    }
+  }
+): Promise<void> {
   if (_ensured) return
-  const { prisma } = await import("@/lib/prisma")
+  const db = prismaClient ?? (await import("@/lib/prisma")).prisma
   try {
-    for (const def of SYSTEM_ACCOUNT_DEFS) {
-      await prisma.gLAccount.upsert({
+    await Promise.all(SYSTEM_ACCOUNT_DEFS.map((def) =>
+      db.gLAccount.upsert({
         where: { code: def.code },
         create: { code: def.code, name: def.name, type: def.type, balance: 0 },
         update: {}, // Don't overwrite existing name/type — user may have customized
       })
-    }
+    ))
     _ensured = true
   } catch (error) {
     console.error("Failed to ensure system accounts:", error)

@@ -5,10 +5,16 @@ import { prisma } from "@/lib/db"
  * Returns 1 for IDR. Throws if no rate found for foreign currency.
  * Uses the most recent rate on or before the given date.
  */
-export async function getExchangeRate(currencyCode: string, date: Date): Promise<number> {
+export async function getExchangeRate(
+    currencyCode: string,
+    date: Date,
+    prismaClient?: Pick<typeof prisma, "exchangeRate">
+): Promise<number> {
     if (currencyCode === "IDR") return 1
 
-    const rate = await prisma.exchangeRate.findFirst({
+    const db = prismaClient ?? prisma
+
+    const rate = await db.exchangeRate.findFirst({
         where: {
             currency: { code: currencyCode },
             date: { lte: date },

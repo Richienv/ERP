@@ -193,12 +193,11 @@ export const columns: ColumnDef<ProductWithStock>[] = [
       if (row.status) {
         switch (row.status) {
           case 'CRITICAL':
-            return row.currentStock === 0 ? 'out' : 'critical'
+            return 'critical'
           case 'LOW_STOCK':
             return 'low'
           case 'NEW':
-            // NEW with stock 0 = out of stock, not normal
-            return row.currentStock === 0 ? 'out' : 'normal'
+            return 'normal'
           case 'HEALTHY':
           default:
             return 'normal'

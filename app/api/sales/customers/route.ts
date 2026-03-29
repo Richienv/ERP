@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CreditStatus, CustomerType, PaymentTermLegacy, TaxStatus } from '@prisma/client'
 
+import { isValidNpwp } from '@/lib/npwp'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
@@ -211,6 +212,19 @@ export async function POST(request: NextRequest) {
       ? body.paymentTerm
       : PaymentTermLegacy.NET_30
 
+    const npwp = toText(body.npwp)
+    if (npwp && !isValidNpwp(npwp)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'NPWP harus terdiri dari 15 atau 16 digit angka',
+        },
+        {
+          status: 400,
+        }
+      )
+    }
+
     const customer = await prisma.customer.create({
       data: {
         code,
@@ -218,7 +232,7 @@ export async function POST(request: NextRequest) {
         legalName: toText(body.legalName),
         customerType,
         categoryId: toText(body.categoryId),
-        npwp: toText(body.npwp),
+        npwp,
         nik: toText(body.nik),
         taxAddress: toText(body.taxAddress),
         isTaxable: typeof body.isTaxable === 'boolean' ? body.isTaxable : true,

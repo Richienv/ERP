@@ -21,6 +21,6 @@ export function legacyTermToDays(term: string): number {
  */
 export function calculateDueDate(issueDate: Date, days: number): Date {
     const due = new Date(issueDate)
-    due.setDate(due.getDate() + days)
+    due.setUTCDate(due.getUTCDate() + days)
     return due
 }

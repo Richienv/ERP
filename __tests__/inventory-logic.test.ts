@@ -2,6 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { calculateProductStatus } from '../lib/inventory-logic';
 
 describe('Inventory Kanban Logic', () => {
+    it('should return CRITICAL for newly created products with zero stock', () => {
+        expect(calculateProductStatus({
+            totalStock: 0,
+            minStock: 10,
+            manualAlert: false,
+            createdAt: new Date(),
+        })).toBe('CRITICAL');
+    });
+
+    it('should return NEW for newly created products that already have stock', () => {
+        expect(calculateProductStatus({
+            totalStock: 5,
+            minStock: 1,
+            manualAlert: false,
+            createdAt: new Date(),
+        })).toBe('NEW');
+    });
 
     it('should return HEALTHY when stock is sufficient even if manualAlert is true', () => {
         // manualAlert should NOT override healthy stock levels

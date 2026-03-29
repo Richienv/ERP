@@ -17,6 +17,7 @@ import { createCustomerSchema, type CreateCustomerInput } from "@/lib/validation
 import { Loader2, User, Building2, CreditCard, Phone, Settings2, Check } from "lucide-react"
 import { motion } from "framer-motion"
 import { NB } from "@/lib/dialog-styles"
+import { formatNpwp, getNpwpDigits, isValidNpwp } from "@/lib/npwp"
 import {
   NBSection,
   NBInput,
@@ -29,19 +30,6 @@ import { getNextCustomerCode, getCustomerCategories } from "@/lib/actions/sales"
 /* ═══════════════════════════════════════════ */
 /* HELPER FUNCTIONS                            */
 /* ═══════════════════════════════════════════ */
-
-/** Format raw digits into NPWP mask: XX.XXX.XXX.X-XXX.XXX */
-function formatNPWP(digits: string): string {
-  const d = digits.replace(/\D/g, "").slice(0, 15)
-  let r = ""
-  if (d.length > 0) r += d.slice(0, 2)
-  if (d.length > 2) r += "." + d.slice(2, 5)
-  if (d.length > 5) r += "." + d.slice(5, 8)
-  if (d.length > 8) r += "." + d.slice(8, 9)
-  if (d.length > 9) r += "-" + d.slice(9, 12)
-  if (d.length > 12) r += "." + d.slice(12, 15)
-  return r
-}
 
 /** Detect customer type from company name */
 function detectCustomerType(name: string): "COMPANY" | "INDIVIDUAL" | null {
@@ -222,7 +210,7 @@ export function CustomerForm({
   }, [creditTerm, paymentTermOptions])
 
   // ── Derived values ──
-  const npwpDigits = (npwpValue || "").replace(/\D/g, "")
+  const npwpDigits = getNpwpDigits(npwpValue)
   const emailValid = emailValue ? isValidEmail(emailValue) : null
 
   const handleSubmit = async (data: CreateCustomerInput) => {
@@ -411,22 +399,22 @@ export function CustomerForm({
                         <FormItem>
                           <NBInput
                             label="NPWP"
-                            value={formatNPWP(field.value || "")}
+                            value={formatNpwp(field.value || "")}
                             onChange={(v) => {
-                              const digits = v.replace(/\D/g, "").slice(0, 15)
-                              field.onChange(formatNPWP(digits))
+                              const digits = getNpwpDigits(v).slice(0, 16)
+                              field.onChange(formatNpwp(digits))
                               // 4. Auto-check isTaxable when NPWP is valid
-                              if (digits.length === 15) setValue("isTaxable", true)
+                              if (isValidNpwp(digits)) setValue("isTaxable", true)
                               else if (digits.length === 0) setValue("isTaxable", false)
                             }}
-                            placeholder="01.234.567.8-901.000"
+                            placeholder="01.234.567.8-901.0000"
                           />
-                          {npwpDigits.length > 0 && npwpDigits.length < 15 && (
+                          {npwpDigits.length > 0 && !isValidNpwp(npwpValue) && (
                             <p className="text-[10px] text-red-500 font-bold mt-0.5">
-                              NPWP harus 15 digit ({npwpDigits.length}/15)
+                              NPWP harus 15 atau 16 digit ({npwpDigits.length}/16)
                             </p>
                           )}
-                          {npwpDigits.length === 15 && (
+                          {isValidNpwp(npwpValue) && (
                             <p className="text-[10px] text-emerald-500 font-bold mt-0.5 flex items-center gap-1">
                               <Check className="h-3 w-3" /> NPWP valid
                             </p>

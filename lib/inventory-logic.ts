@@ -11,20 +11,22 @@ export interface ProductStockInfo {
 export function calculateProductStatus(product: ProductStockInfo): KanbanStatus {
     const { totalStock, minStock, reorderLevel = 0, manualAlert, createdAt } = product;
 
-    // Priority 1: New Product (Created within last 24 hours with zero stock)
+    // Priority 1: Out of Stock
+    // Zero stock must always be critical so summary cards, table badges,
+    // kanban columns, and procurement gap logic stay aligned.
+    if (totalStock === 0) {
+        return 'CRITICAL';
+    }
+
+    // Priority 2: New Product (Created within last 24 hours and already stocked)
     if (createdAt) {
         const createdDate = new Date(createdAt);
         const now = new Date();
         const diffInHours = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60);
 
-        if (diffInHours < 24 && totalStock === 0) {
+        if (diffInHours < 24) {
             return 'NEW';
         }
-    }
-
-    // Priority 2: Out of Stock
-    if (totalStock === 0) {
-        return 'CRITICAL';
     }
 
     const reorderPoint = reorderLevel || minStock || 0;
