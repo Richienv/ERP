@@ -1,15 +1,14 @@
 "use client"
 
-import { useMemo, useRef, useState, useEffect, useCallback } from "react"
+import { useMemo, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import {
     Scissors, Shirt, Droplets, Printer, Sparkles,
     ShieldCheck, Package, Wrench, Cog, Clock, Building2,
-    Layers, ChevronRight, ChevronDown, Loader2,
+    Layers, Loader2,
     ArrowRight, Factory,
 } from "lucide-react"
-import { formatIDR } from "@/lib/utils"
 
 /* ── Station visuals (shared with timeline-view) ── */
 const STATION_ICONS: Record<string, typeof Scissors> = {
@@ -224,7 +223,8 @@ export function StationWorkloadTimeline() {
     const toggleBom = (bomId: string) => {
         setSelectedBomIds(prev => {
             const next = new Set(prev)
-            next.has(bomId) ? next.delete(bomId) : next.add(bomId)
+            if (next.has(bomId)) next.delete(bomId)
+            else next.add(bomId)
             return next
         })
         setSelectedBar(null)
@@ -238,7 +238,7 @@ export function StationWorkloadTimeline() {
         return allSteps.filter(s => selectedBomIds.has(s.bomId))
     }, [allSteps, selectedBomIds])
 
-    const { bars, totalMinutes, totalRows, rowLabels, productNames } = useMemo(
+    const { bars, totalMinutes, totalRows, rowLabels } = useMemo(
         () => scheduleAllByStation(steps), [steps]
     )
 
@@ -247,16 +247,6 @@ export function StationWorkloadTimeline() {
 
     // Detail popup
     const [selectedBar, setSelectedBar] = useState<BarLayout | null>(null)
-
-    // Collapsed rows
-    const [collapsedRows, setCollapsedRows] = useState<Set<number>>(new Set())
-    const toggleRow = (row: number) => {
-        setCollapsedRows(prev => {
-            const next = new Set(prev)
-            next.has(row) ? next.delete(row) : next.add(row)
-            return next
-        })
-    }
 
     const chartWidth = Math.max((totalMinutes + 30) * PIXELS_PER_MINUTE, 600)
     const chartHeight = totalRows * (ROW_HEIGHT + ROW_GAP) + HEADER_HEIGHT + ROW_HEIGHT
@@ -399,11 +389,10 @@ export function StationWorkloadTimeline() {
                             const stationBars = bars.filter(b => b.row === i)
                             return (
                                 <div
-                                    key={i}
-                                    className="flex items-center gap-2 px-3 border-b border-zinc-100 cursor-pointer hover:bg-zinc-50 transition-colors"
-                                    style={{ height: ROW_HEIGHT + ROW_GAP }}
-                                    onClick={() => toggleRow(i)}
-                                >
+                                key={i}
+                                className="flex items-center gap-2 px-3 border-b border-zinc-100 hover:bg-zinc-50 transition-colors"
+                                style={{ height: ROW_HEIGHT + ROW_GAP }}
+                            >
                                     <div className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ background: sc.bg }}>
                                         <Icon className="h-3.5 w-3.5" style={{ color: sc.text }} />
                                     </div>

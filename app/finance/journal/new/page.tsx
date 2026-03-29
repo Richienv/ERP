@@ -29,7 +29,6 @@ import { postJournalEntry } from "@/lib/actions/finance";
 import { useGLAccounts } from "@/hooks/use-gl-accounts";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { TablePageSkeleton } from "@/components/ui/page-skeleton";
 
 type JournalLine = {
     id: number;

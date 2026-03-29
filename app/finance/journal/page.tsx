@@ -12,8 +12,6 @@ import {
     X,
     Eye,
     EyeOff,
-    Hash,
-    Calendar,
     Pencil,
     ChevronDown,
 } from "lucide-react"
