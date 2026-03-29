@@ -125,6 +125,15 @@ export function CustomerForm({
   // ── DB-backed categories ──
   const [customerCategories, setCustomerCategories] = useState<CustomerCategoryOption[]>([])
 
+  // ── Load categories from DB ──
+  useEffect(() => {
+    let cancelled = false
+    getCustomerCategories()
+      .then((cats) => { if (!cancelled) setCustomerCategories(cats) })
+      .catch(() => { /* silently fail — dropdown stays empty */ })
+    return () => { cancelled = true }
+  }, [])
+
   // ── Manual override tracking ──
   const typeManuallySetRef = useRef(isEdit)
   const termManuallySetRef = useRef(isEdit)
@@ -344,7 +353,7 @@ export function CustomerForm({
               <FormField control={form.control} name="categoryId" render={({ field }) => (
                 <FormItem>
                   <NBSelect label="Kategori Pelanggan" value={field.value || ""} onValueChange={field.onChange} placeholder="Pilih kategori">
-                    {mockCustomerCategories.map((category) => (
+                    {customerCategories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>{category.name}</SelectItem>
                     ))}
                   </NBSelect>

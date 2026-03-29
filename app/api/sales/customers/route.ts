@@ -28,16 +28,21 @@ const isEnumValue = <T extends string>(value: unknown, enumValues: readonly T[])
 
 async function generateCustomerCode() {
   const year = new Date().getFullYear()
-  const prefix = `CUST-${year}`
-  const count = await prisma.customer.count({
-    where: {
-      code: {
-        startsWith: prefix,
-      },
-    },
+  const prefix = `CUST-${year}-`
+
+  const latest = await prisma.customer.findFirst({
+    where: { code: { startsWith: prefix } },
+    orderBy: { code: 'desc' },
+    select: { code: true },
   })
 
-  return `${prefix}-${String(count + 1).padStart(4, '0')}`
+  let nextNum = 1
+  if (latest?.code) {
+    const numPart = latest.code.replace(prefix, '')
+    nextNum = (parseInt(numPart, 10) || 0) + 1
+  }
+
+  return `${prefix}${String(nextNum).padStart(4, '0')}`
 }
 
 export async function GET(request: NextRequest) {
@@ -266,10 +271,25 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (error?.code === 'P2003') {
+      const field = error?.meta?.field_name || 'unknown'
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Referensi tidak valid untuk field: ${field}`,
+        },
+        {
+          status: 400,
+        }
+      )
+    }
+
+    const isDev = process.env.NODE_ENV === 'development'
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to create customer',
+        ...(isDev && { detail: error?.message || String(error) }),
       },
       {
         status: 500,

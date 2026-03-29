@@ -184,6 +184,7 @@ export const MASTER_DATA_TIERS: Record<string, CacheTier> = {
     salesOptions:     "MASTER_PLUS",
     sidebarActions:   "DASHBOARD",
     paymentTerms:     "MASTER",
+    ceoFlags:         "DASHBOARD",
 }
 
 /**

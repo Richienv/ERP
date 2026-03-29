@@ -160,14 +160,14 @@ export const P3_ROUTES = [
 
 // ── Counts for progress bar weighting ──────────────────────────────────────
 
-export const P1_TOTAL = P1_ROUTES.length + P1_MASTER_DATA.length  // 12 + 11 = 23
+export const P1_TOTAL = P1_ROUTES.length + P1_MASTER_DATA.length  // 12 + 12 = 24
 export const P2_TOTAL = P2_ROUTES.length                           // 39
 export const P3_TOTAL = P3_ROUTES.length                           // 45
 
 /**
  * Progress bar weight mapping:
- *   P1 → 0–60%  (each P1 item = 60/22 ≈ 2.7%)
- *   P2 → 60–90% (each P2 item = 30/33 ≈ 0.9%)
+ *   P1 → 0–60%  (each P1 item = 60/24 = 2.5%)
+ *   P2 → 60–90% (each P2 item = 30/39 ≈ 0.8%)
  *   P3 → invisible (app already interactive at 90%)
  */
 export const PROGRESS_WEIGHTS = {

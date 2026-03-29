@@ -67,6 +67,9 @@ export function useBackgroundRefresh() {
         const unsubscribe = cache.subscribe((event) => {
             if (!prefetchComplete) return
             if (event.type !== "updated" || event.action.type !== "fetch") return
+            // Skip queries that were previously cached — these are intentional refreshes
+            // (e.g. background refresh, window focus), not true cache misses
+            if (event.query.state.dataUpdateCount > 1) return
             const key = event.query.queryKey
             console.warn("[POST-PREFETCH FETCH]", JSON.stringify(key), "— this should have been cached!")
         })

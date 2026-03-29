@@ -18,16 +18,16 @@ import { get } from "idb-keyval"
 const SESSION_KEY = "erp_cache_warmed"
 const FAILURE_THRESHOLD = 0.7   // >70% failures → show retry (was 0.5 — too aggressive)
 
-// Phase-aware timeouts — heavier phases get more time
+// Phase-aware timeouts — reduced after migration from server actions to API routes
 const TIMEOUT_MS = {
-    P1: 12_000,  // 12s — critical routes, must succeed
-    P2: 15_000,  // 15s — important routes, some are heavy (finance, procurement)
-    P3: 20_000,  // 20s — background, can afford to wait
-    MASTER: 12_000,  // 12s — master data (small payloads, fast)
+    P1: 10_000,  // 10s — critical routes (API routes respond in <3s typically)
+    P2: 12_000,  // 12s — important routes
+    P3: 15_000,  // 15s — background, lenient
+    MASTER: 10_000,  // 10s — master data (small payloads, fast)
 } as const
 
-// Max concurrent prefetch queries to prevent connection pool exhaustion
-const MAX_CONCURRENCY = 6
+// Max concurrent prefetch queries — API routes handle parallelism well
+const MAX_CONCURRENCY = 8
 
 /**
  * Three-phase cache warmer modeled after native app install:
