@@ -1593,3 +1593,17 @@ export async function getNextCustomerCode(): Promise<string> {
 
     return `${prefix}${String(nextNum).padStart(4, "0")}`
 }
+
+// ─── Fetch customer categories from DB ───
+
+export async function getCustomerCategories() {
+    const supabase = await createClient()
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error("Unauthorized")
+
+    return basePrisma.customerCategory.findMany({
+        where: { isActive: true },
+        select: { id: true, code: true, name: true },
+        orderBy: { name: "asc" },
+    })
+}

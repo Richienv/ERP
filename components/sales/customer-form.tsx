@@ -24,7 +24,7 @@ import {
   NBSelect,
   NBTextarea,
 } from "@/components/ui/nb-dialog"
-import { getNextCustomerCode } from "@/lib/actions/sales"
+import { getNextCustomerCode, getCustomerCategories } from "@/lib/actions/sales"
 
 /* ═══════════════════════════════════════════ */
 /* HELPER FUNCTIONS                            */
@@ -93,14 +93,7 @@ const INDONESIAN_PROVINCES = [
   "Papua Tengah", "Papua Pegunungan", "Papua Selatan", "Papua Barat Daya"
 ]
 
-// Mock customer categories
-const mockCustomerCategories = [
-  { id: "1", code: "CORP", name: "Korporat" },
-  { id: "2", code: "SME", name: "UMKM" },
-  { id: "3", code: "IND", name: "Individual" },
-  { id: "4", code: "GOV", name: "Pemerintah" },
-  { id: "5", code: "RET", name: "Retail" }
-]
+type CustomerCategoryOption = { id: string; code: string; name: string }
 
 /* ═══════════════════════════════════════════ */
 /* COMPONENT                                   */
@@ -128,6 +121,9 @@ export function CustomerForm({
   // ── Auto-code state ──
   const [autoCodeLoading, setAutoCodeLoading] = useState(!isEdit)
   const [autoCodeError, setAutoCodeError] = useState(false)
+
+  // ── DB-backed categories ──
+  const [customerCategories, setCustomerCategories] = useState<CustomerCategoryOption[]>([])
 
   // ── Manual override tracking ──
   const typeManuallySetRef = useRef(isEdit)

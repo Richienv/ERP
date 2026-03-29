@@ -41,6 +41,7 @@ export const P1_MASTER_DATA = [
     "salesOptions",
     "sidebarActions",
     "paymentTerms",
+    "ceoFlags",
 ] as const
 
 // ── Priority 2: Important — still blocks loading screen ────────────────────

@@ -5,26 +5,7 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { getTierForRoute } from "@/lib/cache-tiers"
-// Server actions still used where no API route replacement exists yet
-import { getAllCategories, getCategories, getStockMovements, getRecentAudits, getProductsForKanban } from "@/app/actions/inventory"
-import { getEmployees, getAttendanceSnapshot, getLeaveRequests, getPayrollRun } from "@/app/actions/hcm"
-import { getAllPriceLists } from "@/lib/actions/sales"
-import { getFabricRolls, getWarehousesForRolls, getFabricProducts } from "@/lib/actions/fabric-rolls"
-import { getStockTransfers, getTransferFormData } from "@/lib/actions/stock-transfers"
-import { getGLAccountsList } from "@/lib/actions/finance"
-import { getSchedulableWorkOrders, getMachinesForScheduling, getRoutingsForScheduling } from "@/lib/actions/manufacturing-garment"
-import { getStaffTasks, getManagerTasks, getDepartmentEmployees, getAssignableOrders, getManagerDashboardStats } from "@/lib/actions/tasks"
-import { getSubcontractOrders, getSubcontractors, getProductsForSubcontract, getSubcontractDashboard } from "@/lib/actions/subcontract"
-import { getCostingDashboard, getProductsForCostSheet, getCostSheets } from "@/lib/actions/costing"
-import { getCuttingDashboard, getCutPlans, getFabricProducts as getCuttingFabricProducts } from "@/lib/actions/cutting"
-import { getWeeklyShiftSchedule, getEmployeeShifts } from "@/lib/actions/hcm-shifts"
-import { getOnboardingTemplates } from "@/lib/actions/hcm-onboarding"
-import { getCycleCountSessions } from "@/app/actions/cycle-count"
-import { getDocumentNumbering, getPermissionMatrix } from "@/lib/actions/settings"
-import { getDocumentSystemOverview } from "@/app/actions/documents-system"
-import { getWarehouses } from "@/app/actions/inventory"
-import { getFixedAssets, getFixedAssetCategories, getDepreciationRuns, getGLAccountsForFixedAssets, getAssetRegisterReport, getNetBookValueSummary } from "@/lib/actions/finance-fixed-assets"
-import { getGLAccounts } from "@/lib/actions/finance"
+// All prefetch queries now use fetch() to API routes — no server action imports needed
 
 /** Helper: fetch JSON from an API route, return parsed data or fallback */
 const fetchJson = async (url: string, fallback: unknown = []) => {
@@ -88,13 +69,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/inventory/categories": {
         queryKey: queryKeys.categories.list(),
-        queryFn: async () => {
-            const [categories, allCategories] = await Promise.all([
-                getAllCategories(),
-                getCategories(),
-            ])
-            return { categories, allCategories }
-        },
+        queryFn: () => fetchJson("/api/inventory/categories-data", { categories: [], allCategories: [] }),
     },
     "/inventory/products": {
         queryKey: queryKeys.products.list(),
@@ -122,10 +97,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/hcm/employee-master": {
         queryKey: queryKeys.employees.list(),
-        queryFn: async () => {
-            const employees = await getEmployees({ includeInactive: true })
-            return employees
-        },
+        queryFn: () => fetchJson("/api/hcm/employees-data?includeInactive=true", []),
     },
     "/sales/quotations": {
         queryKey: queryKeys.quotations.list(),
@@ -137,24 +109,11 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/inventory/fabric-rolls": {
         queryKey: queryKeys.fabricRolls.list(),
-        queryFn: async () => {
-            const [rolls, warehouses, products] = await Promise.all([
-                getFabricRolls(),
-                getWarehousesForRolls(),
-                getFabricProducts(),
-            ])
-            return { rolls, warehouses, products }
-        },
+        queryFn: () => fetchJson("/api/inventory/fabric-rolls-data", { rolls: [], warehouses: [], products: [] }),
     },
     "/inventory/transfers": {
         queryKey: queryKeys.stockTransfers.list(),
-        queryFn: async () => {
-            const [transfers, formData] = await Promise.all([
-                getStockTransfers(),
-                getTransferFormData(),
-            ])
-            return { transfers, warehouses: formData.warehouses, products: formData.products }
-        },
+        queryFn: () => fetchJson("/api/inventory/transfers-data", { transfers: [], warehouses: [], products: [] }),
     },
     "/sales/sales": {
         queryKey: queryKeys.salesDashboard.list(),
@@ -190,7 +149,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: async () => {
             const [entries, accounts] = await Promise.all([
                 fetchJson("/api/finance/journal-data", []),
-                getGLAccountsList(),
+                fetchJson("/api/master/gl-accounts", []),
             ])
             return { entries, accounts }
         },
@@ -202,11 +161,11 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     "/finance/vendor-payments": {
         queryKey: queryKeys.vendorPayments.list(),
         queryFn: async () => {
-            const [payments, vendors] = await Promise.all([
+            const [payments, vendorsRaw] = await Promise.all([
                 fetchJson("/api/finance/vendor-payments-data", []),
-                fetch("/api/procurement/vendors").then(r => r.json()).then(p => (p.data || []).map((v: any) => ({ id: v.id, name: v.name }))),
+                fetchJson("/api/master/suppliers", []),
             ])
-            return { payments, vendors }
+            return { payments, vendors: vendorsRaw.map((v: any) => ({ id: v.id, name: v.name })) }
         },
     },
     // Companion — vendor-payments page also needs bank accounts dropdown
@@ -264,14 +223,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/manufacturing/schedule": {
         queryKey: queryKeys.mfgSchedule.list(),
-        queryFn: async () => {
-            const [workOrders, machines, routings] = await Promise.all([
-                getSchedulableWorkOrders(),
-                getMachinesForScheduling(),
-                getRoutingsForScheduling(),
-            ])
-            return { workOrders, machines, routings }
-        },
+        queryFn: () => fetchJson("/api/manufacturing/schedule-data", { workOrders: [], machines: [], routings: [] }),
     },
     "/manufacturing/quality": {
         queryKey: queryKeys.mfgQuality.list(),
@@ -299,93 +251,43 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/staff": {
         queryKey: queryKeys.staffTasks.list(),
-        queryFn: async () => await getStaffTasks(),
+        queryFn: () => fetchJson("/api/tasks/staff", []),
     },
     "/manager": {
         queryKey: queryKeys.managerDashboard.list(),
-        queryFn: async () => {
-            const [tasks, employees, orders, dashboard] = await Promise.all([
-                getManagerTasks(),
-                getDepartmentEmployees(),
-                getAssignableOrders(),
-                getManagerDashboardStats(),
-            ])
-            return { tasks, employees, orders, dashboard }
-        },
+        queryFn: () => fetchJson("/api/tasks/manager", { tasks: [], employees: [], orders: [], dashboard: {} }),
     },
     "/subcontract": {
         queryKey: queryKeys.subcontractDashboard.list(),
-        queryFn: async () => await getSubcontractDashboard(),
+        queryFn: () => fetchJson("/api/subcontract/dashboard-data", {}),
     },
     "/subcontract/orders": {
         queryKey: queryKeys.subcontractOrders.list(),
-        queryFn: async () => {
-            const [orders, subcontractors, products] = await Promise.all([
-                getSubcontractOrders(),
-                getSubcontractors(),
-                getProductsForSubcontract(),
-            ])
-            return { orders, subcontractors, products }
-        },
+        queryFn: () => fetchJson("/api/subcontract/orders-data", { orders: [], subcontractors: [], products: [] }),
     },
     "/subcontract/registry": {
         queryKey: queryKeys.subcontractRegistry.list(),
-        queryFn: async () => {
-            const subcontractors = await getSubcontractors()
-            return { subcontractors }
-        },
+        queryFn: () => fetchJson("/api/subcontract/registry-data", { subcontractors: [] }),
     },
     "/hcm/attendance": {
         queryKey: queryKeys.hcmAttendance.list(),
-        queryFn: async () => {
-            const today = new Date().toISOString().slice(0, 10)
-            const snapshot = await getAttendanceSnapshot({ date: today })
-            const employees = await getEmployees({ includeInactive: false })
-            const leaveRequests = await getLeaveRequests({ status: "ALL", limit: 30 })
-            return { initialSnapshot: snapshot, initialEmployees: employees, initialLeaveRequests: leaveRequests }
-        },
+        queryFn: () => fetchJson("/api/hcm/attendance-full", { initialSnapshot: {}, initialEmployees: [], initialLeaveRequests: [] }),
     },
     "/hcm/shifts": {
         queryKey: queryKeys.hcmShifts.list(),
-        queryFn: async () => {
-            const today = new Date()
-            const dayOfWeek = today.getDay()
-            const monday = new Date(today)
-            monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7))
-            const weekStart = monday.toISOString().split("T")[0]
-            const [schedule, employees] = await Promise.all([
-                getWeeklyShiftSchedule(weekStart),
-                getEmployeeShifts(),
-            ])
-            return { schedule, employees, currentWeekStart: weekStart }
-        },
+        queryFn: () => fetchJson("/api/hcm/shifts-data", { schedule: [], employees: [], currentWeekStart: "" }),
     },
     "/hcm/onboarding": {
         queryKey: queryKeys.hcmOnboarding.list(),
-        queryFn: async () => {
-            const templates = await getOnboardingTemplates()
-            return { templates }
-        },
+        queryFn: () => fetchJson("/api/hcm/onboarding-data", { templates: [] }),
     },
     "/costing": {
         queryKey: queryKeys.costingDashboard.list(),
-        queryFn: async () => {
-            const [data, products] = await Promise.all([
-                getCostingDashboard(),
-                getProductsForCostSheet(),
-            ])
-            return { data, products }
-        },
+        queryFn: () => fetchJson("/api/costing/dashboard-data", { data: {}, products: [] }),
     },
     "/costing/sheets": {
         queryKey: queryKeys.costSheets.list(),
-        queryFn: async () => {
-            const [sheets, products] = await Promise.all([
-                getCostSheets(),
-                getProductsForCostSheet(),
-            ])
-            return { initialSheets: sheets, products }
-        },
+        queryFn: () => fetchJson("/api/costing/sheets-data", { initialSheets: [], products: [] }),
     },
     "/dashboard/approvals": {
         queryKey: queryKeys.approvals.list(),
@@ -393,30 +295,15 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/sales/pricelists": {
         queryKey: queryKeys.priceLists.list(),
-        queryFn: async () => {
-            const priceLists = await getAllPriceLists()
-            return { initialPriceLists: priceLists }
-        },
+        queryFn: () => fetchJson("/api/sales/pricelists-data", { initialPriceLists: [] }),
     },
     "/cutting": {
         queryKey: queryKeys.cuttingDashboard.list(),
-        queryFn: async () => {
-            const [data, fabricProducts] = await Promise.all([
-                getCuttingDashboard(),
-                getCuttingFabricProducts(),
-            ])
-            return { data, fabricProducts }
-        },
+        queryFn: () => fetchJson("/api/cutting/dashboard-data", { data: {}, fabricProducts: [] }),
     },
     "/cutting/plans": {
         queryKey: queryKeys.cutPlans.list(),
-        queryFn: async () => {
-            const [plans, fabricProducts] = await Promise.all([
-                getCutPlans(),
-                getCuttingFabricProducts(),
-            ])
-            return { plans, fabricProducts }
-        },
+        queryFn: () => fetchJson("/api/cutting/plans-data", { plans: [], fabricProducts: [] }),
     },
     "/finance/reports": {
         queryKey: queryKeys.financeReports.list(
@@ -443,11 +330,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/documents": {
         queryKey: queryKeys.documents.list(),
-        queryFn: async () => {
-            const result = await getDocumentSystemOverview({ registryQuery: {} })
-            if (!result.success || !("data" in result) || !result.data) throw new Error(("error" in result ? result.error : undefined) || "Failed")
-            return result.data
-        },
+        queryFn: () => fetchJson("/api/documents/overview", {}),
     },
     "/hcm": {
         queryKey: queryKeys.hcmDashboard.list(),
@@ -464,7 +347,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/inventory/warehouses": {
         queryKey: queryKeys.warehouses.list(),
-        queryFn: async () => await getWarehouses(),
+        queryFn: () => fetchJson("/api/inventory/warehouses-data", []),
     },
     "/finance/cashflow-forecast": {
         queryKey: queryKeys.cashflowForecast.list(6),
@@ -503,7 +386,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryFn: () => {
             const m = new Date().getMonth() + 1
             const y = new Date().getFullYear()
-            return fetchJson(`/api/finance/cashflow-scenarios?month=${m}&year=${y}`, [])
+            return fetch(`/api/finance/cashflow-scenarios?month=${m}&year=${y}`).then(r => r.json()).then(p => p.scenarios ?? [])
         },
     },
     "/finance/planning/aktual": {
@@ -520,8 +403,8 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.stockMovements.list(),
         queryFn: async () => {
             const [pageData, movements] = await Promise.all([
-                fetch("/api/inventory/page-data").then((r) => r.json()),
-                getStockMovements(100),
+                fetchJson("/api/inventory/page-data", {}),
+                fetchJson("/api/inventory/movements-data?limit=100", []),
             ])
             return { ...pageData, movements }
         },
@@ -530,26 +413,19 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.adjustments.list(),
         queryFn: async () => {
             const [pageData, movements] = await Promise.all([
-                fetch("/api/inventory/page-data").then((r) => r.json()),
-                getStockMovements(50),
+                fetchJson("/api/inventory/page-data", {}),
+                fetchJson("/api/inventory/movements-data?limit=50", []),
             ])
             return { ...pageData, movements }
         },
     },
     "/inventory/audit": {
         queryKey: queryKeys.inventoryAudit.list(),
-        queryFn: async () => {
-            const [audits, products, warehouses] = await Promise.all([
-                getRecentAudits().catch(() => []),
-                getProductsForKanban().catch(() => []),
-                getWarehouses().catch(() => []),
-            ])
-            return { audits, products, warehouses }
-        },
+        queryFn: () => fetchJson("/api/inventory/audit-data", { audits: [], products: [], warehouses: [] }),
     },
     "/inventory/cycle-counts": {
         queryKey: queryKeys.cycleCounts.list(),
-        queryFn: async () => await getCycleCountSessions(),
+        queryFn: () => fetchJson("/api/inventory/cycle-counts-data", []),
     },
     "/inventory/opening-stock": {
         queryKey: queryKeys.openingStock.list(),
@@ -586,46 +462,32 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // --- HCM route ---
     "/hcm/payroll": {
         queryKey: queryKeys.payroll.run(new Date().toISOString().slice(0, 7)),
-        queryFn: async () => {
+        queryFn: () => {
             const period = new Date().toISOString().slice(0, 7)
-            return await getPayrollRun(period)
+            return fetchJson(`/api/hcm/payroll-data?period=${period}`, {})
         },
     },
     // Companion — payroll page also shows compliance report
     "/hcm/payroll#compliance": {
         queryKey: queryKeys.payroll.compliance(new Date().toISOString().slice(0, 7)),
-        queryFn: async () => {
-            const { getPayrollComplianceReport } = await import("@/app/actions/hcm")
+        queryFn: () => {
             const period = new Date().toISOString().slice(0, 7)
-            const result = await getPayrollComplianceReport(period)
-            return result.success && "report" in result ? result.report : null
+            return fetchJson(`/api/hcm/payroll-compliance?period=${period}`, null)
         },
     },
     // --- Settings routes ---
     "/settings/numbering": {
         queryKey: queryKeys.documentNumbering.list(),
-        queryFn: async () => {
-            const result = await getDocumentNumbering()
-            return result && "data" in result ? result.data : []
-        },
+        queryFn: () => fetchJson("/api/settings/numbering-data", []),
     },
     "/settings/permissions": {
         queryKey: queryKeys.permissionMatrix.list(),
-        queryFn: async () => {
-            const result = await getPermissionMatrix()
-            return result && "data" in result ? result.data : []
-        },
+        queryFn: () => fetchJson("/api/settings/permissions-data", []),
     },
     // --- Fixed Assets ---
     "/finance/fixed-assets": {
         queryKey: queryKeys.fixedAssets.list(),
-        queryFn: async () => {
-            const [assets, categories] = await Promise.all([
-                getFixedAssets(),
-                getFixedAssetCategories(),
-            ])
-            return { ...assets, categories: categories.categories ?? [] }
-        },
+        queryFn: () => fetchJson("/api/finance/fixed-assets-data", { assets: [], summary: {}, categories: [] }),
     },
     "/finance/payables": {
         queryKey: ["finance", "ap-aging"] as const,
@@ -638,11 +500,10 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/payables#banks": {
         queryKey: ["banks", "list"] as const,
-        queryFn: async () => {
-            const { getAvailableBanks } = await import("@/lib/actions/xendit")
-            const data = await getAvailableBanks()
-            return { banks: data.banks, ewallets: data.ewallets }
-        },
+        queryFn: () => fetch("/api/xendit/banks").then(r => r.json()).then(p => ({
+            banks: p.data?.banks ?? [],
+            ewallets: p.data?.ewallets ?? [],
+        })),
     },
     // --- Pages previously missing from prefetch (audit 2026-03-27) ---
     "/finance/payments": {
@@ -651,31 +512,19 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/fixed-assets/categories": {
         queryKey: queryKeys.fixedAssetCategories.list(),
-        queryFn: async () => {
-            const result = await getFixedAssetCategories()
-            return result && "categories" in result ? result : { categories: [] }
-        },
+        queryFn: () => fetchJson("/api/finance/fixed-assets/categories-data", { categories: [] }),
     },
     "/finance/fixed-assets/depreciation": {
         queryKey: queryKeys.depreciationRuns.list(),
-        queryFn: async () => {
-            const result = await getDepreciationRuns()
-            return result && "runs" in result ? result : { runs: [] }
-        },
+        queryFn: () => fetchJson("/api/finance/fixed-assets/depreciation-data", { runs: [] }),
     },
     "/finance/fixed-assets/reports": {
         queryKey: queryKeys.fixedAssetReports.register(),
-        queryFn: async () => {
-            const result = await getAssetRegisterReport()
-            return result && "assets" in result ? result : { assets: [] }
-        },
+        queryFn: () => fetchJson("/api/finance/fixed-assets/reports-data", { assets: [] }),
     },
     "/accountant/coa": {
         queryKey: queryKeys.glAccounts.list(),
-        queryFn: async () => {
-            const res = await getGLAccounts()
-            return "data" in res && res.data ? res.data : []
-        },
+        queryFn: () => fetchJson("/api/accountant/coa-data", []),
     },
     "/settings": {
         queryKey: ["system-setting", "manufacturing.workingHoursPerMonth"] as const,
@@ -719,7 +568,7 @@ export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[
     },
     glAccounts: {
         queryKey: queryKeys.glAccounts.list(),
-        queryFn: () => getGLAccountsList(),
+        queryFn: () => fetchJson("/api/master/gl-accounts", []),
     },
     bankAccounts: {
         queryKey: queryKeys.glAccounts.bankAccounts(),
@@ -744,6 +593,10 @@ export const masterDataPrefetchMap: Record<string, { queryKey: readonly unknown[
     paymentTerms: {
         queryKey: queryKeys.paymentTerms.list(),
         queryFn: () => fetchJson("/api/master/payment-terms"),
+    },
+    ceoFlags: {
+        queryKey: ["ceo-flags", "count"] as const,
+        queryFn: () => fetchJson("/api/dashboard/ceo-flags", { count: 0 }),
     },
 }
 
