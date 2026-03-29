@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
+import { ensureCustomerCategories } from '@/lib/customer-category-defaults'
 
 async function requireAuth() {
   const supabase = await createClient()
@@ -105,19 +106,7 @@ export async function GET(request: NextRequest) {
           { lastName: 'asc' },
         ],
       }),
-      prisma.customerCategory.findMany({
-        where: {
-          isActive: true,
-        },
-        select: {
-          id: true,
-          code: true,
-          name: true,
-        },
-        orderBy: {
-          name: 'asc',
-        },
-      }),
+      ensureCustomerCategories(prisma),
       prisma.salesperson.findMany({
         where: {
           isActive: true,

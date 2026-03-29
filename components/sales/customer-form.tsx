@@ -69,18 +69,6 @@ function formatPhoneOnBlur(raw: string): string {
   return raw
 }
 
-// Indonesian provinces for dropdown
-const INDONESIAN_PROVINCES = [
-  "DKI Jakarta", "Jawa Barat", "Jawa Tengah", "Jawa Timur", "D.I. Yogyakarta",
-  "Banten", "Bali", "Nusa Tenggara Barat", "Nusa Tenggara Timur", "Kalimantan Barat",
-  "Kalimantan Tengah", "Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara",
-  "Sulawesi Utara", "Sulawesi Tengah", "Sulawesi Selatan", "Sulawesi Tenggara",
-  "Gorontalo", "Sulawesi Barat", "Sumatera Utara", "Sumatera Barat", "Riau",
-  "Kepulauan Riau", "Jambi", "Sumatera Selatan", "Bengkulu", "Lampung",
-  "Bangka Belitung", "Maluku", "Maluku Utara", "Papua", "Papua Barat",
-  "Papua Tengah", "Papua Pegunungan", "Papua Selatan", "Papua Barat Daya"
-]
-
 type CustomerCategoryOption = { id: string; code: string; name: string }
 
 /* ═══════════════════════════════════════════ */
@@ -153,7 +141,7 @@ export function CustomerForm({
     },
   })
 
-  const { watch, setValue, getValues } = form
+  const { watch, setValue } = form
   const customerType = watch("customerType")
   const isTaxable = watch("isTaxable")
   const nameValue = watch("name")
@@ -179,22 +167,19 @@ export function CustomerForm({
         }
       })
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEdit])
+  }, [isEdit, setValue])
 
   // ── 2. Name → customerType auto-detect ──
   const detectedType = detectCustomerType(nameValue)
   useEffect(() => {
     if (typeManuallySetRef.current || isEdit || !detectedType) return
     setValue("customerType", detectedType)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detectedType])
+  }, [detectedType, isEdit, setValue])
 
   // ── 5. isTaxable → taxStatus auto-set ──
   useEffect(() => {
     setValue("taxStatus", isTaxable ? "PKP" : "NON_PKP")
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTaxable])
+  }, [isTaxable, setValue])
 
   // ── 9. creditTerm → paymentTerm auto-suggest ──
   useEffect(() => {
@@ -206,8 +191,7 @@ export function CustomerForm({
     }
     const matched = paymentTermOptions.find((t: any) => t.days === creditTerm)
     if (matched) setValue("paymentTerm", matched.code as CreateCustomerInput["paymentTerm"])
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [creditTerm, paymentTermOptions])
+  }, [creditTerm, paymentTermOptions, setValue])
 
   // ── Derived values ──
   const npwpDigits = getNpwpDigits(npwpValue)

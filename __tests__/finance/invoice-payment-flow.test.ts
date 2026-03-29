@@ -60,10 +60,10 @@ vi.mock("@/lib/currency-helpers", () => ({
 }))
 
 import {
-    getRequiredInvoicePaymentPostingSystemAccountCodes,
     recordInvoicePayment,
 } from "@/lib/actions/finance-invoices"
 import { SYS_ACCOUNTS } from "@/lib/gl-accounts"
+import { getRequiredInvoicePaymentPostingSystemAccountCodes } from "@/lib/invoice-payment-posting-accounts"
 
 describe("getRequiredInvoicePaymentPostingSystemAccountCodes", () => {
     it("returns only the AP payment accounts needed for a normal bill payment", () => {

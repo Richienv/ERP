@@ -2,9 +2,9 @@
 
 import { withPrismaAuth, prisma as basePrisma } from "@/lib/db"
 import { createClient } from "@/lib/supabase/server"
-import { formatIDR } from "@/lib/utils"
 import { postInventoryGLEntry } from "@/lib/actions/inventory-gl"
 import { revalidatePath } from "next/cache"
+import { ensureCustomerCategories } from "@/lib/customer-category-defaults"
 
 import { InvoiceStatus, SalesOrderStatus } from "@prisma/client"
 
@@ -82,7 +82,7 @@ export async function getAllCustomers() {
                 orderBy: { name: 'asc' }
             })
         })
-    } catch (error) {
+    } catch {
         return []
     }
 }
@@ -150,7 +150,7 @@ export async function createQuotation(data: any) {
 
         const result = await withPrismaAuth(async (prisma) => {
             // Customer Logic
-            let customer = await prisma.customer.findFirst()
+            const customer = await prisma.customer.findFirst()
             if (!customer) throw new Error("No customers found. Please seed.")
 
             // Generate Number
@@ -191,7 +191,7 @@ export async function updateQuotationStatus(id: string, newStatus: string) {
             })
         })
         return { success: true }
-    } catch (error) {
+    } catch {
         return { success: false, error: "Failed to update status" }
     }
 }
@@ -1601,9 +1601,5 @@ export async function getCustomerCategories() {
     const { data: { user }, error } = await supabase.auth.getUser()
     if (error || !user) throw new Error("Unauthorized")
 
-    return basePrisma.customerCategory.findMany({
-        where: { isActive: true },
-        select: { id: true, code: true, name: true },
-        orderBy: { name: "asc" },
-    })
+    return ensureCustomerCategories(basePrisma)
 }
