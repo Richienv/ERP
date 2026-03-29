@@ -25,15 +25,19 @@ export default function ARPaymentsPage() {
         return <TablePageSkeleton accentColor="bg-green-400" />
     }
 
+    const registry = data.registry ?? {} as Record<string, unknown>
+    const defaultMeta = { payments: { page: 1, pageSize: 20, total: 0, totalPages: 1 }, invoices: { page: 1, pageSize: 20, total: 0, totalPages: 1 } }
+    const defaultQuery = { paymentsQ: null, invoicesQ: null, customerId: null }
+
     return (
         <ARPaymentsView
-            unallocated={data.registry.unallocated}
-            openInvoices={data.registry.openInvoices}
-            recentPayments={data.registry.recentPayments ?? []}
-            allCustomers={data.registry.allCustomers ?? []}
-            stats={data.stats}
-            registryMeta={data.registry.meta}
-            registryQuery={data.registry.query}
+            unallocated={registry.unallocated ?? []}
+            openInvoices={registry.openInvoices ?? []}
+            recentPayments={registry.recentPayments ?? []}
+            allCustomers={registry.allCustomers ?? []}
+            stats={data.stats ?? { unallocatedCount: 0, unallocatedAmount: 0, openInvoicesCount: 0, outstandingAmount: 0, todayPayments: 0 }}
+            registryMeta={registry.meta ?? defaultMeta}
+            registryQuery={registry.query ?? defaultQuery}
             highlightPaymentId={searchParams.get("highlight") ?? undefined}
         />
     )

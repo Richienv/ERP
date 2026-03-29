@@ -5,7 +5,15 @@ import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 import { getTierForRoute } from "@/lib/cache-tiers"
-// All prefetch queries now use fetch() to API routes — no server action imports needed
+// Most prefetch queries use fetch() to API routes.
+// Finance pages with server-action-based hooks must use the same server actions
+// in prefetch to guarantee matching data shapes (prevents cache hydration crashes).
+import { getARPaymentRegistry, getARPaymentStats } from "@/lib/actions/finance-ar"
+import { getVendorBillsRegistry, getVendorPayments, getVendorBills, getVendorAPBalances } from "@/lib/actions/finance-ap"
+import { getVendors } from "@/lib/actions/procurement"
+import { getJournalEntries, getGLAccountsList } from "@/lib/actions/finance-gl"
+import { getARAgingReport, getAPAgingReport } from "@/lib/actions/finance"
+import { getPayrollRun, getPayrollComplianceReport } from "@/app/actions/hcm"
 
 /** Helper: fetch JSON from an API route, return parsed data or fallback */
 const fetchJson = async (url: string, fallback: unknown = []) => {
@@ -148,8 +156,8 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
         queryKey: queryKeys.journal.list(),
         queryFn: async () => {
             const [entries, accounts] = await Promise.all([
-                fetchJson("/api/finance/journal-data", []),
-                fetchJson("/api/master/gl-accounts", []),
+                getJournalEntries(50),
+                getGLAccountsList(),
             ])
             return { entries, accounts }
         },
@@ -161,11 +169,17 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     "/finance/vendor-payments": {
         queryKey: queryKeys.vendorPayments.list(),
         queryFn: async () => {
-            const [payments, vendorsRaw] = await Promise.all([
-                fetchJson("/api/finance/vendor-payments-data", []),
-                fetchJson("/api/master/suppliers", []),
+            const [payments, vendorsRaw, allBills, apBalances] = await Promise.all([
+                getVendorPayments(),
+                getVendors(),
+                getVendorBills(),
+                getVendorAPBalances(),
             ])
-            return { payments, vendors: vendorsRaw.map((v: any) => ({ id: v.id, name: v.name })) }
+            const vendors = vendorsRaw.map((v: any) => ({ id: v.id, name: v.name }))
+            const openBills = allBills.filter((b: any) =>
+                ['ISSUED', 'PARTIAL', 'OVERDUE'].includes(b.status)
+            )
+            return { payments, vendors, openBills, apBalances }
         },
     },
     // Companion — vendor-payments page also needs bank accounts dropdown
@@ -206,7 +220,7 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/bills": {
         queryKey: [...queryKeys.bills.list(), { q: null, status: null, page: 1, pageSize: 20 }],
-        queryFn: () => fetchJson("/api/finance/bills-data", { bills: [], total: 0 }),
+        queryFn: () => getVendorBillsRegistry({ q: undefined, status: undefined, page: 1, pageSize: 20 }),
     },
     "/finance/credit-notes": {
         queryKey: queryKeys.dcNotes.list(),
@@ -214,12 +228,19 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/receivables": {
         queryKey: ["finance", "ar-aging"] as const,
-        queryFn: () => fetchJson("/api/finance/receivables-data", { summary: {}, byCustomer: [], details: [] }),
+        queryFn: () => getARAgingReport(),
     },
     // Companion query for receivables default tab (payments)
+    // Must use server actions (not API route) to match useARPayments hook shape
     "/finance/receivables#payments": {
         queryKey: queryKeys.arPayments.all,
-        queryFn: () => fetchJson("/api/finance/ar-payments", { registry: {}, stats: {} }),
+        queryFn: async () => {
+            const [registry, stats] = await Promise.all([
+                getARPaymentRegistry(),
+                getARPaymentStats(),
+            ])
+            return { registry, stats }
+        },
     },
     "/manufacturing/schedule": {
         queryKey: queryKeys.mfgSchedule.list(),
@@ -462,17 +483,23 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // --- HCM route ---
     "/hcm/payroll": {
         queryKey: queryKeys.payroll.run(new Date().toISOString().slice(0, 7)),
-        queryFn: () => {
+        queryFn: async () => {
             const period = new Date().toISOString().slice(0, 7)
-            return fetchJson(`/api/hcm/payroll-data?period=${period}`, {})
+            const result = await getPayrollRun(period)
+            if (!result.success) return null
+            if ("exists" in result && !result.exists) return null
+            if ("run" in result) return result.run
+            return null
         },
     },
     // Companion — payroll page also shows compliance report
     "/hcm/payroll#compliance": {
         queryKey: queryKeys.payroll.compliance(new Date().toISOString().slice(0, 7)),
-        queryFn: () => {
+        queryFn: async () => {
             const period = new Date().toISOString().slice(0, 7)
-            return fetchJson(`/api/hcm/payroll-compliance?period=${period}`, null)
+            const result = await getPayrollComplianceReport(period)
+            if (!result.success || !("report" in result) || !result.report) return null
+            return result.report
         },
     },
     // --- Settings routes ---
@@ -491,12 +518,12 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     },
     "/finance/payables": {
         queryKey: ["finance", "ap-aging"] as const,
-        queryFn: () => fetchJson("/api/finance/payables-data", { summary: {}, bySupplier: [], details: [] }),
+        queryFn: () => getAPAgingReport(),
     },
     // Companion queries for payables default tab (bills)
     "/finance/payables#bills": {
         queryKey: [...queryKeys.bills.list(), { q: null, status: null, page: 1, pageSize: 20 }],
-        queryFn: () => fetchJson("/api/finance/bills-data", { bills: [], total: 0 }),
+        queryFn: () => getVendorBillsRegistry({ q: undefined, status: undefined, page: 1, pageSize: 20 }),
     },
     "/finance/payables#banks": {
         queryKey: ["banks", "list"] as const,
@@ -508,7 +535,13 @@ export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; qu
     // --- Pages previously missing from prefetch (audit 2026-03-27) ---
     "/finance/payments": {
         queryKey: queryKeys.arPayments.all,
-        queryFn: () => fetchJson("/api/finance/ar-payments", { registry: {}, stats: {} }),
+        queryFn: async () => {
+            const [registry, stats] = await Promise.all([
+                getARPaymentRegistry(),
+                getARPaymentStats(),
+            ])
+            return { registry, stats }
+        },
     },
     "/finance/fixed-assets/categories": {
         queryKey: queryKeys.fixedAssetCategories.list(),
