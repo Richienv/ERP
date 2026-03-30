@@ -143,6 +143,13 @@ export function NewVendorDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen?: b
     const { isSubmitting } = form.formState
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
+        // Optimistic: add temp vendor to list
+        const prevVendors = queryClient.getQueryData(queryKeys.vendors.list())
+        queryClient.setQueryData(queryKeys.vendors.list(), (old: any) => {
+            if (!Array.isArray(old)) return old
+            return [{ id: `temp-${Date.now()}`, ...values, isActive: true, _optimistic: true }, ...old]
+        })
+
         try {
             const result = await createVendor(values) as any
 
@@ -155,9 +162,11 @@ export function NewVendorDialog({ autoOpen, onAutoOpenConsumed }: { autoOpen?: b
                 queryClient.invalidateQueries({ queryKey: queryKeys.supplierCategories.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })
             } else {
+                if (prevVendors) queryClient.setQueryData(queryKeys.vendors.list(), prevVendors)
                 toast.error(result.error || "Gagal membuat vendor")
             }
         } catch (error) {
+            if (prevVendors) queryClient.setQueryData(queryKeys.vendors.list(), prevVendors)
             toast.error("An unexpected error occurred")
             console.error(error)
         }

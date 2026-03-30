@@ -25,7 +25,7 @@ const fetchJson = async (url: string, fallback: unknown = []) => {
 }
 /**
  * Maps sidebar routes to their data prefetch config.
- * Used for both hover-prefetch and warm-cache-on-mount.
+ * Used for hover-prefetch on sidebar and background master data prefetch.
  */
 export const routePrefetchMap: Record<string, { queryKey: readonly unknown[]; queryFn: () => Promise<unknown> }> = {
     "/sales/customers": {

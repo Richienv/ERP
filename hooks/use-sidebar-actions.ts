@@ -10,6 +10,7 @@ export interface SidebarActionCounts {
     lowStockProducts: number
     pendingPurchaseRequests: number
     pendingApprovals: number
+    pendingInvoices: number
 }
 
 export function useSidebarActions() {

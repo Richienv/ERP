@@ -72,9 +72,6 @@ export default function LoginPage() {
                 return
             }
 
-            // Clear cache warming flag so background warm runs after fresh login
-            sessionStorage.removeItem("erp_cache_warmed")
-
             // Save email only if "Remember Me" is checked (never store passwords)
             if (rememberMe) {
                 localStorage.setItem('rememberedEmail', email)

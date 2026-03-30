@@ -1,6 +1,6 @@
 "use client"
 
-import Link from "next/link"
+import { useState } from "react"
 import {
     IconAlertTriangle,
     IconPackage,
@@ -10,15 +10,16 @@ import {
     IconCircleCheck,
     IconClipboardList,
     IconArrowRight,
+    IconFileInvoice,
 } from "@tabler/icons-react"
 import { useSidebarActions } from "@/hooks/use-sidebar-actions"
+import { TaskActionDialog, type TaskType } from "@/components/dashboard/task-action-dialog"
 
 interface TaskItem {
-    id: string
+    id: TaskType
     icon: React.ReactNode
     label: string
     count: number
-    href: string
     priority: "urgent" | "warning" | "info"
 }
 
@@ -26,6 +27,7 @@ const priorityOrder = { urgent: 0, warning: 1, info: 2 }
 
 export function TodaysTasks() {
     const { data: counts, isLoading } = useSidebarActions()
+    const [activeTask, setActiveTask] = useState<TaskType | null>(null)
 
     if (isLoading) {
         return (
@@ -52,7 +54,6 @@ export function TodaysTasks() {
                 icon: <IconAlertTriangle className="w-4 h-4 text-red-500" />,
                 label: `${counts.lowStockProducts} produk stok rendah`,
                 count: counts.lowStockProducts,
-                href: "/inventory/alerts",
                 priority: "urgent",
             })
         }
@@ -62,7 +63,6 @@ export function TodaysTasks() {
                 icon: <IconChecklist className="w-4 h-4 text-orange-500" />,
                 label: `${counts.pendingApprovals} PO menunggu approval`,
                 count: counts.pendingApprovals,
-                href: "/procurement/orders",
                 priority: "warning",
             })
         }
@@ -72,7 +72,6 @@ export function TodaysTasks() {
                 icon: <IconShoppingCart className="w-4 h-4 text-orange-500" />,
                 label: `${counts.pendingPurchaseRequests} purchase request menunggu`,
                 count: counts.pendingPurchaseRequests,
-                href: "/procurement/requests",
                 priority: "warning",
             })
         }
@@ -82,7 +81,6 @@ export function TodaysTasks() {
                 icon: <IconUsers className="w-4 h-4 text-amber-500" />,
                 label: `${counts.vendorsIncomplete} vendor data belum lengkap`,
                 count: counts.vendorsIncomplete,
-                href: "/procurement/vendors",
                 priority: "info",
             })
         }
@@ -92,7 +90,6 @@ export function TodaysTasks() {
                 icon: <IconPackage className="w-4 h-4 text-amber-500" />,
                 label: `${counts.productsIncomplete} produk data belum lengkap`,
                 count: counts.productsIncomplete,
-                href: "/inventory/products",
                 priority: "info",
             })
         }
@@ -102,8 +99,16 @@ export function TodaysTasks() {
                 icon: <IconUsers className="w-4 h-4 text-amber-500" />,
                 label: `${counts.customersIncomplete} pelanggan data belum lengkap`,
                 count: counts.customersIncomplete,
-                href: "/sales/customers",
                 priority: "info",
+            })
+        }
+        if (counts.pendingInvoices > 0) {
+            tasks.push({
+                id: "pending-invoices",
+                icon: <IconFileInvoice className="w-4 h-4 text-orange-500" />,
+                label: `${counts.pendingInvoices} invoice menunggu persetujuan`,
+                count: counts.pendingInvoices,
+                priority: "warning",
             })
         }
     }
@@ -153,10 +158,11 @@ export function TodaysTasks() {
                 ) : (
                     <div className="space-y-1.5">
                         {tasks.map((task) => (
-                            <Link
+                            <button
                                 key={task.id}
-                                href={task.href}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded border transition-all hover:translate-x-0.5 hover:shadow-sm ${priorityColors[task.priority]}`}
+                                type="button"
+                                onClick={() => setActiveTask(task.id)}
+                                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded border transition-all hover:translate-x-0.5 hover:shadow-sm cursor-pointer text-left ${priorityColors[task.priority]}`}
                             >
                                 <div className="shrink-0">{task.icon}</div>
                                 <span className="flex-1 text-sm text-zinc-800 dark:text-zinc-200 font-medium">
@@ -168,11 +174,18 @@ export function TodaysTasks() {
                                     {task.count}
                                 </span>
                                 <IconArrowRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-                            </Link>
+                            </button>
                         ))}
                     </div>
                 )}
             </div>
+
+            {/* Popup dialogs */}
+            <TaskActionDialog
+                taskType={activeTask}
+                open={activeTask !== null}
+                onClose={() => setActiveTask(null)}
+            />
         </div>
     )
 }

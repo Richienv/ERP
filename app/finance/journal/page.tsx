@@ -460,8 +460,8 @@ export default function GeneralLedgerPage() {
                             </span>
                         </motion.div>
                     ) : (
-                        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {filteredEntries.map((entry, idx) => {
+                        (() => {
+                            const renderEntry = (entry: typeof filteredEntries[number], idx: number, style?: React.CSSProperties) => {
                                 const isDraft = entry.status === "DRAFT"
                                 const isExpanded = expandedIds.has(entry.id)
                                 const toggleExpand = () => {
@@ -476,11 +476,12 @@ export default function GeneralLedgerPage() {
                                     <motion.div
                                         key={entry.id}
                                         custom={idx}
-                                        variants={fadeX}
-                                        initial="hidden"
-                                        animate="show"
-                                        transition={{ delay: idx * 0.03 }}
-                                        className={`group/row transition-all duration-200 border-l-[3px] ${
+                                        variants={shouldVirtualize ? undefined : fadeX}
+                                        initial={shouldVirtualize ? undefined : "hidden"}
+                                        animate={shouldVirtualize ? undefined : "show"}
+                                        transition={shouldVirtualize ? undefined : { delay: idx * 0.03 }}
+                                        style={style}
+                                        className={`group/row transition-all duration-200 border-l-[3px] border-b border-zinc-100 dark:border-zinc-800 ${
                                             isExpanded
                                                 ? isDraft
                                                     ? "border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10"
@@ -636,8 +637,27 @@ export default function GeneralLedgerPage() {
                                         </div>
                                     </motion.div>
                                 )
-                            })}
-                        </div>
+                            }
+
+                            return shouldVirtualize ? (
+                                <div ref={scrollRef} className="overflow-auto" style={{ maxHeight: 600 }}>
+                                    <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+                                        {rowVirtualizer.getVirtualItems().map(virtualRow => {
+                                            const entry = filteredEntries[virtualRow.index]
+                                            return renderEntry(entry, virtualRow.index, {
+                                                position: 'absolute',
+                                                top: virtualRow.start,
+                                                width: '100%',
+                                            })
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                    {filteredEntries.map((entry, idx) => renderEntry(entry, idx))}
+                                </div>
+                            )
+                        })()
                     )}
                 </div>
 

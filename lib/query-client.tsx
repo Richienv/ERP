@@ -72,18 +72,9 @@ export async function clearPersistedCache() {
     if (browserQueryClient) {
         browserQueryClient.clear()
     }
-    // Clear the session flag so overlay can re-trigger on next login
-    try { sessionStorage.removeItem("erp_cache_warmed") } catch {}
 }
 
 let browserQueryClient: QueryClient | undefined
-
-/**
- * Global flag set to true after prefetch overlay dismisses.
- * Used in dev mode to detect cache misses (queries that fetch AFTER prefetch).
- */
-export let prefetchComplete = false
-export function markPrefetchComplete() { prefetchComplete = true }
 
 function getQueryClient() {
     if (typeof window === "undefined") {

@@ -51,7 +51,7 @@ export type CacheTier = keyof typeof CACHE_TIERS
 
 /**
  * Route-to-tier mapping.
- * Used by CacheWarmingOverlay to apply correct staleTime when prefetching.
+ * Used by useNavPrefetch and useBackgroundRefresh for tier-aware caching.
  */
 export const ROUTE_TIERS: Record<string, CacheTier> = {
     // ── Dashboards (T4) ──

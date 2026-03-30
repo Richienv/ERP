@@ -481,9 +481,9 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                             </span>
                         </div>
 
-                        <div className="overflow-x-auto">
+                        <div ref={shouldVirtualize ? scrollRef : undefined} className={`overflow-x-auto ${shouldVirtualize ? "max-h-[600px] overflow-y-auto" : ""}`}>
                             <table className="w-full">
-                                <thead>
+                                <thead className={shouldVirtualize ? "sticky top-0 z-10" : ""}>
                                     <tr className="bg-zinc-100 border-b-2 border-black">
                                         <th className="text-left px-3 py-2 w-10">
                                             <button onClick={toggleSelectAll} className="text-zinc-500 hover:text-black">
@@ -514,6 +514,85 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
                                                 Data karyawan tidak ditemukan
                                             </td>
                                         </tr>
+                                    ) : shouldVirtualize ? (
+                                        <>
+                                            {/* Spacer row for total virtual height */}
+                                            <tr style={{ height: rowVirtualizer.getTotalSize() }}>
+                                                <td colSpan={10} className="p-0 border-0" style={{ padding: 0, height: 0, lineHeight: 0 }}>
+                                                    <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }} />
+                                                </td>
+                                            </tr>
+                                            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                                                const emp = filteredEmployees[virtualRow.index]
+                                                const isSelected = selectedIds.has(emp.id)
+                                                return (
+                                                    <tr
+                                                        key={emp.id}
+                                                        data-index={virtualRow.index}
+                                                        ref={rowVirtualizer.measureElement}
+                                                        className={`border-b border-zinc-200 last:border-b-0 transition-colors ${
+                                                            isSelected ? "bg-blue-50" : "hover:bg-zinc-50"
+                                                        }`}
+                                                        style={{
+                                                            position: "absolute",
+                                                            top: 0,
+                                                            left: 0,
+                                                            width: "100%",
+                                                            transform: `translateY(${virtualRow.start}px)`,
+                                                        }}
+                                                    >
+                                                        <td className="px-3 py-2">
+                                                            <button
+                                                                onClick={() => toggleSelect(emp.id)}
+                                                                className="text-zinc-500 hover:text-black"
+                                                            >
+                                                                {isSelected ? (
+                                                                    <CheckSquare className="h-4 w-4 text-blue-600" />
+                                                                ) : (
+                                                                    <Square className="h-4 w-4" />
+                                                                )}
+                                                            </button>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-xs font-mono font-bold">{emp.employeeCode}</td>
+                                                        <td className="px-3 py-2 text-sm font-bold">{emp.name}</td>
+                                                        <td className="px-3 py-2 text-xs text-zinc-600">{emp.position}</td>
+                                                        <td className="px-3 py-2 text-xs text-zinc-600">{emp.department}</td>
+                                                        <td className="px-3 py-2">
+                                                            <span className={`inline-block text-[9px] font-bold px-2 py-0.5 border ${STATUS_BADGE[emp.status] || "bg-zinc-100 text-zinc-600 border-zinc-300"}`}>
+                                                                {STATUS_LABEL[emp.status] || emp.status}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-xs font-mono text-zinc-600">
+                                                            {new Date(emp.joinDate).toLocaleDateString("id-ID")}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-xs font-mono text-right">
+                                                            {formatIDR(emp.baseSalary || 0)}
+                                                        </td>
+                                                        <td className="px-3 py-2 text-xs text-zinc-500">{emp.email || "-"}</td>
+                                                        <td className="px-3 py-2">
+                                                            <div className="flex items-center justify-center gap-1">
+                                                                <button
+                                                                    onClick={() => openEditDialog(emp)}
+                                                                    className="p-1.5 border border-zinc-300 hover:border-black hover:bg-zinc-100 transition-colors"
+                                                                    title="Edit"
+                                                                >
+                                                                    <Pencil className="h-3 w-3" />
+                                                                </button>
+                                                                {emp.status !== "INACTIVE" && emp.status !== "TERMINATED" && (
+                                                                    <button
+                                                                        onClick={() => handleDeactivate(emp)}
+                                                                        className="p-1.5 border border-red-300 text-red-600 hover:border-red-600 hover:bg-red-50 transition-colors"
+                                                                        title="Nonaktifkan"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )
+                                            })}
+                                        </>
                                     ) : (
                                         filteredEmployees.map((emp) => {
                                             const isSelected = selectedIds.has(emp.id)

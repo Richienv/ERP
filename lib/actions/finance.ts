@@ -3713,6 +3713,28 @@ export async function getARAgingReport() {
 
             const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
 
+            // Fetch DRAFT invoices separately (not mixed into aging buckets)
+            const pendingInvoices = await basePrisma.invoice.findMany({
+                where: {
+                    type: 'INV_OUT',
+                    status: 'DRAFT',
+                },
+                include: {
+                    customer: { select: { id: true, name: true, code: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+            })
+
+            const pending = pendingInvoices.map(inv => ({
+                id: inv.id,
+                invoiceNumber: inv.number,
+                customerName: inv.customer?.name || 'Tanpa Pelanggan',
+                customerId: inv.customer?.id || '',
+                totalAmount: toNum(inv.totalAmount),
+                createdAt: inv.createdAt,
+                dueDate: inv.dueDate,
+            }))
+
             return {
                 summary: {
                     ...buckets,
@@ -3721,6 +3743,7 @@ export async function getARAgingReport() {
                 },
                 byCustomer: Array.from(customerMap.values()).sort((a, b) => b.total - a.total),
                 details: details.sort((a, b) => b.daysOverdue - a.daysOverdue),
+                pending,
             }
     } catch (error) {
         console.error("Failed to generate AR aging report:", error)
@@ -3728,6 +3751,7 @@ export async function getARAgingReport() {
             summary: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, invoiceCount: 0 },
             byCustomer: [],
             details: [],
+            pending: [],
         }
     }
 }
@@ -3828,6 +3852,28 @@ export async function getAPAgingReport() {
 
             const totalOutstanding = buckets.current + buckets.d1_30 + buckets.d31_60 + buckets.d61_90 + buckets.d90_plus
 
+            // Fetch DRAFT bills separately (not mixed into aging buckets)
+            const pendingBills = await basePrisma.invoice.findMany({
+                where: {
+                    type: 'INV_IN',
+                    status: 'DRAFT',
+                },
+                include: {
+                    supplier: { select: { id: true, name: true, code: true } },
+                },
+                orderBy: { createdAt: 'desc' },
+            })
+
+            const pending = pendingBills.map(bill => ({
+                id: bill.id,
+                invoiceNumber: bill.number,
+                supplierName: bill.supplier?.name || 'Tanpa Supplier',
+                supplierId: bill.supplier?.id || '',
+                totalAmount: toNum(bill.totalAmount),
+                createdAt: bill.createdAt,
+                dueDate: bill.dueDate,
+            }))
+
             return {
                 summary: {
                     ...buckets,
@@ -3836,6 +3882,7 @@ export async function getAPAgingReport() {
                 },
                 bySupplier: Array.from(supplierMap.values()).sort((a, b) => b.total - a.total),
                 details: details.sort((a, b) => b.daysOverdue - a.daysOverdue),
+                pending,
             }
     } catch (error) {
         console.error("Failed to generate AP aging report:", error)
@@ -3843,6 +3890,7 @@ export async function getAPAgingReport() {
             summary: { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0, totalOutstanding: 0, billCount: 0 },
             bySupplier: [],
             details: [],
+            pending: [],
         }
     }
 }

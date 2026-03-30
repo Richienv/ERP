@@ -5,14 +5,13 @@ import { useQueryClient } from "@tanstack/react-query"
 import { routePrefetchMap, masterDataPrefetchMap } from "@/hooks/use-nav-prefetch"
 import { useAuth } from "@/lib/auth-context"
 import { ROUTE_TIERS, MASTER_DATA_TIERS, CACHE_TIERS, type CacheTier } from "@/lib/cache-tiers"
-import { P1_ROUTES, P1_MASTER_DATA } from "@/lib/prefetch-manifest"
-import { prefetchComplete } from "@/lib/query-client"
 
 /**
  * Background data freshness — runs AFTER the app is interactive.
  *
- * 1. Post-hydration: silently refetches P1 data to pick up any changes
- *    since the IndexedDB snapshot. Completely invisible to user.
+ * 1. Master data prefetch: silently prefetches master data (units, brands,
+ *    colors, categories, suppliers, GL accounts, etc.) for form dropdowns.
+ *    Non-blocking — fires and forgets.
  *
  * 2. Window focus: invalidates T4/T5/T6 queries (dashboards, transactional,
  *    realtime) so TanStack Query refetches them in background.
@@ -26,55 +25,25 @@ export function useBackgroundRefresh() {
     const queryClient = useQueryClient()
     const hasRefreshed = useRef(false)
 
-    // ── Post-hydration: silently refetch P1 data ──
+    // ── Background master data prefetch ──
+    // Non-blocking prefetch of master data for form dropdowns.
+    // Fires once after auth, no progress bar, no blocking.
     useEffect(() => {
         if (!isAuthenticated || hasRefreshed.current) return
         hasRefreshed.current = true
 
-        // Delay to let the app settle after hydration / prefetch completion
+        // Delay 1s to let the current page finish rendering first
         const timer = setTimeout(() => {
-            // Silently refetch P1 routes — uses staleTime to skip fresh data
-            for (const route of P1_ROUTES) {
-                const config = routePrefetchMap[route]
-                if (!config) continue
-                queryClient.invalidateQueries({
+            // Prefetch all master data for form dropdowns
+            for (const [, config] of Object.entries(masterDataPrefetchMap)) {
+                queryClient.prefetchQuery({
                     queryKey: config.queryKey,
-                    refetchType: "active",  // only refetch if a component is mounted using this key
+                    queryFn: config.queryFn,
                 })
             }
-
-            // Silently refetch P1 master data
-            for (const key of P1_MASTER_DATA) {
-                const config = masterDataPrefetchMap[key]
-                if (!config) continue
-                queryClient.invalidateQueries({
-                    queryKey: config.queryKey,
-                    refetchType: "active",
-                })
-            }
-        }, 3000) // 3s after mount — app is settled, don't compete with initial render
+        }, 1000)
 
         return () => clearTimeout(timer)
-    }, [isAuthenticated, queryClient])
-
-    // ── Dev: post-prefetch fetch detector ──
-    // Logs a warning whenever a query fetches AFTER prefetch has completed.
-    // This reveals cache misses — queries that SHOULD have been prefetched but weren't.
-    useEffect(() => {
-        if (process.env.NODE_ENV !== "development" || !isAuthenticated) return
-
-        const cache = queryClient.getQueryCache()
-        const unsubscribe = cache.subscribe((event) => {
-            if (!prefetchComplete) return
-            if (event.type !== "updated" || event.action.type !== "fetch") return
-            // Skip queries that were previously cached — these are intentional refreshes
-            // (e.g. background refresh, window focus), not true cache misses
-            if (event.query.state.dataUpdateCount > 1) return
-            const key = event.query.queryKey
-            console.warn("[POST-PREFETCH FETCH]", JSON.stringify(key), "— this should have been cached!")
-        })
-
-        return unsubscribe
     }, [isAuthenticated, queryClient])
 
     // ── Window focus: refetch T4/T5/T6 queries ──
@@ -107,7 +76,6 @@ export function useBackgroundRefresh() {
             // TanStack Query will only actually refetch queries that:
             //   1. Have an active observer (component is mounted)
             //   2. Are stale (older than their staleTime)
-            // This means only the data the user is currently viewing gets refetched.
             for (const queryKey of focusRefetchKeys) {
                 queryClient.invalidateQueries({
                     queryKey,

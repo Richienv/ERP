@@ -234,6 +234,33 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             return
         }
 
+        // Optimistic: add temp payment to registry
+        const prevPayments = queryClient.getQueryData(queryKeys.arPayments.all)
+        queryClient.setQueryData(queryKeys.arPayments.all, (old: any) => {
+            if (!old || !old.registry) return old
+            const tempPayment = {
+                id: `temp-${Date.now()}`,
+                number: 'PAY-...',
+                customerId: createForm.customerId,
+                amount,
+                date: createForm.date || new Date().toISOString().slice(0, 10),
+                method: createForm.method,
+                reference: createForm.reference,
+                notes: createForm.notes,
+                status: 'COMPLETED',
+                _optimistic: true,
+            }
+            return {
+                ...old,
+                registry: [tempPayment, ...old.registry],
+                stats: old.stats ? {
+                    ...old.stats,
+                    totalReceived: (old.stats.totalReceived || 0) + amount,
+                    count: (old.stats.count || 0) + 1,
+                } : old.stats,
+            }
+        })
+
         setSubmittingPayment(true)
         try {
             const result = await recordARPayment({
@@ -270,6 +297,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
         } catch {
+            if (prevPayments) queryClient.setQueryData(queryKeys.arPayments.all, prevPayments)
             toast.error("Terjadi kesalahan saat mencatat penerimaan")
         } finally {
             setSubmittingPayment(false)

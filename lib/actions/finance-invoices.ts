@@ -1468,3 +1468,37 @@ export async function createBillFromPR(
         return { success: false, error: error.message || "Gagal membuat bill dari Purchase Request" }
     }
 }
+
+/**
+ * Cancel a DRAFT invoice/bill — sets status to CANCELLED.
+ * Only DRAFT invoices can be cancelled via this action.
+ */
+export async function cancelInvoice(invoiceId: string, reason?: string) {
+    try {
+        const result = await withPrismaAuth(async (prisma) => {
+            const existing = await prisma.invoice.findUnique({
+                where: { id: invoiceId },
+                select: { id: true, number: true, status: true },
+            })
+
+            if (!existing) throw new Error("Invoice tidak ditemukan")
+            if (existing.status !== 'DRAFT') {
+                throw new Error(`Invoice ${existing.number} berstatus ${existing.status}, hanya DRAFT yang bisa dibatalkan.`)
+            }
+
+            await prisma.invoice.update({
+                where: { id: invoiceId },
+                data: {
+                    status: 'CANCELLED',
+                },
+            })
+
+            return { number: existing.number }
+        })
+
+        return { success: true, invoiceNumber: result.number }
+    } catch (error: any) {
+        console.error("Failed to cancel invoice:", error)
+        return { success: false, error: error.message || "Gagal membatalkan invoice" }
+    }
+}

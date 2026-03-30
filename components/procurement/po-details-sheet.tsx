@@ -50,6 +50,20 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
     const canShip = isPurchasing && order.status === 'VENDOR_CONFIRMED'
 
     const handleAction = async (action: 'submit' | 'approve' | 'order' | 'vendor_confirm' | 'ship' | 'reject') => {
+        // Optimistic: update PO status in list cache before mutation
+        const prevOrders = queryClient.getQueryData(queryKeys.purchaseOrders.list())
+        if (prevOrders) {
+            queryClient.setQueryData(queryKeys.purchaseOrders.list(), (old: any) => {
+                if (!old?.orders) return old
+                return {
+                    ...old,
+                    orders: old.orders.map((o: any) =>
+                        o.dbId === order.dbId ? { ...o, status: action.toUpperCase() } : o
+                    ),
+                }
+            })
+        }
+
         setProcessing(true)
         try {
             let res
@@ -72,9 +86,11 @@ export function PODetailsSheet({ order, isOpen, onClose, userRole }: PODetailsSh
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             } else {
+                if (prevOrders) queryClient.setQueryData(queryKeys.purchaseOrders.list(), prevOrders)
                 toast.error("Action failed")
             }
         } catch {
+            if (prevOrders) queryClient.setQueryData(queryKeys.purchaseOrders.list(), prevOrders)
             toast.error("Error performing action")
         } finally {
             setProcessing(false)

@@ -105,6 +105,24 @@ export default function NewJournalEntryPage() {
             return;
         }
 
+        // Optimistic: add temp journal entry to list cache
+        const prevJournal = queryClient.getQueryData(queryKeys.journal.list())
+        queryClient.setQueryData(queryKeys.journal.list(), (old: any) => {
+            if (!old?.entries) return old
+            const tempEntry = {
+                id: `temp-${Date.now()}`,
+                date: transactionDate,
+                reference: reference.trim(),
+                description: description.trim(),
+                status: 'POSTED',
+                totalDebit: validLines.reduce((sum: number, l: any) => sum + Number(l.debit || 0), 0),
+                totalCredit: validLines.reduce((sum: number, l: any) => sum + Number(l.credit || 0), 0),
+                lineCount: validLines.length,
+                _optimistic: true,
+            }
+            return { ...old, entries: [tempEntry, ...old.entries] }
+        })
+
         setIsLoading(true);
         try {
             const accountById = new Map(accounts.map((acc) => [acc.id, acc]));
@@ -140,6 +158,7 @@ export default function NewJournalEntryPage() {
             queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all });
             router.push("/finance/journal");
         } catch (error: any) {
+            if (prevJournal) queryClient.setQueryData(queryKeys.journal.list(), prevJournal)
             toast.error(error?.message || "Terjadi kesalahan saat menyimpan jurnal");
         } finally {
             setIsLoading(false);

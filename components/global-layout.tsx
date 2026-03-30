@@ -13,10 +13,10 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 
 import { AuthProvider } from "@/lib/auth-context"
 import { RouteGuard } from "@/components/route-guard"
-import { CacheWarmingOverlay } from "@/components/cache-warming-overlay"
 import { PageTransition } from "@/components/page-transition"
 import { OfflineIndicator } from "@/components/offline-indicator"
 import { BackgroundRefresh } from "@/components/background-refresh"
+import { RealtimeProvider } from "@/components/realtime-provider"
 import { RouteProgress } from "@/components/route-progress"
 
 // Lazy-load non-critical shell components — these don't affect first paint
@@ -62,8 +62,8 @@ export function GlobalLayout({ children }: GlobalLayoutProps) {
           )}
         </RouteGuard>
         <OfflineIndicator />
-        <CacheWarmingOverlay />
         <BackgroundRefresh />
+        <RealtimeProvider />
         <ServiceWorkerRegister />
         <PerformanceTracker />
         <CommandPalette />

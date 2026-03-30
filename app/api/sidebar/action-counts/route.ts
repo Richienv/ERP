@@ -64,6 +64,13 @@ export async function GET() {
                     status: "PENDING_APPROVAL",
                 },
             }),
+
+            // 7. Draft invoices awaiting approval
+            prisma.invoice.count({
+                where: {
+                    status: "DRAFT",
+                },
+            }),
         ])
 
         const valueOf = <T>(result: PromiseSettledResult<T>, fallback: T): T =>
@@ -100,6 +107,7 @@ export async function GET() {
 
         const pendingPurchaseRequests = valueOf(results[4], 0)
         const pendingApprovals = valueOf(results[5], 0)
+        const pendingInvoices = valueOf(results[6], 0)
 
         return NextResponse.json({
             vendorsIncomplete,
@@ -108,6 +116,7 @@ export async function GET() {
             lowStockProducts,
             pendingPurchaseRequests,
             pendingApprovals,
+            pendingInvoices,
         })
     } catch (error) {
         console.error("[API] sidebar/action-counts error:", error)
@@ -119,6 +128,7 @@ export async function GET() {
                 lowStockProducts: 0,
                 pendingPurchaseRequests: 0,
                 pendingApprovals: 0,
+                pendingInvoices: 0,
             },
             { status: 500 }
         )

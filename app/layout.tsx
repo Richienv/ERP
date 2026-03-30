@@ -4,6 +4,7 @@ import { GlobalLayout } from "@/components/global-layout";
 import { ThemeProvider } from "next-themes";
 import { WorkflowConfigProvider } from "@/components/workflow/workflow-config-context";
 import { QueryProvider } from "@/lib/query-client";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -44,6 +45,7 @@ export default function RootLayout({
             </WorkflowConfigProvider>
           </QueryProvider>
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
