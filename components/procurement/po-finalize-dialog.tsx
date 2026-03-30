@@ -17,15 +17,29 @@ import { updatePurchaseOrderVendor, submitPOForApproval } from "@/lib/actions/pr
 import { formatIDR } from "@/lib/utils"
 import { toast } from "sonner"
 
+interface InitialOrder {
+    id: string
+    dbId: string
+    vendorId?: string
+    vendor: string
+    date: string
+    total: number
+    status: string
+    items: number
+    requester?: string
+    approver?: string
+}
+
 interface POFinalizeDialogProps {
     poId: string | null
     isOpen: boolean
     onClose: () => void
     vendors: { id: string, name: string }[]
+    initialOrder?: InitialOrder | null
 }
 
-export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeDialogProps) {
-    const [loading, setLoading] = useState(false)
+export function POFinalizeDialog({ poId, isOpen, onClose, vendors, initialOrder }: POFinalizeDialogProps) {
+    const [loadingItems, setLoadingItems] = useState(false)
     const [processing, setProcessing] = useState(false)
     const [poData, setPoData] = useState<any>(null)
     const [selectedVendor, setSelectedVendor] = useState<string>("")
@@ -33,6 +47,10 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
 
     useEffect(() => {
         if (isOpen && poId) {
+            // Pre-fill vendor select immediately from initialOrder
+            if (initialOrder?.vendorId) {
+                setSelectedVendor(initialOrder.vendorId)
+            }
             fetchDetails(poId)
         } else {
             setPoData(null)
@@ -41,18 +59,18 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
     }, [isOpen, poId])
 
     const fetchDetails = async (id: string) => {
-        setLoading(true)
+        setLoadingItems(true)
         try {
             const data = await getPODetails(id)
             if (data) {
                 setPoData(data)
-                setSelectedVendor(data.supplierId || "")
+                if (!selectedVendor) setSelectedVendor(data.supplierId || "")
             }
         } catch {
             toast.error("Gagal memuat detail PO")
             onClose()
         } finally {
-            setLoading(false)
+            setLoadingItems(false)
         }
     }
 
@@ -87,9 +105,19 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
 
     if (!isOpen) return null
 
+    // Use fetched data when available, fall back to initialOrder for instant display
+    const displayNumber = poData?.number || initialOrder?.id || '-'
+    const displayDate = poData?.orderDate
+        ? new Date(poData.orderDate).toLocaleDateString('id-ID')
+        : initialOrder?.date || '-'
+    const displayRequester = poData?.requester || (initialOrder as any)?.requester || 'System'
+    const displayApprover = poData?.approver || (initialOrder as any)?.approver || '-'
+
     const subtotal = poData?.subtotal ?? poData?.items?.reduce((acc: number, item: any) => acc + item.totalPrice, 0) ?? 0
     const tax = poData?.taxAmount ?? Math.round(subtotal * 0.11)
     const total = poData?.netAmount ?? (subtotal + tax)
+
+    const hasHeaderData = !!poData || !!initialOrder
 
     return (
         <NBDialog open={isOpen} onOpenChange={onClose} size="wide">
@@ -99,11 +127,11 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                 subtitle="Tinjau detail, tetapkan vendor, dan buat dokumen PDF resmi."
             />
 
-            {loading ? (
+            {!hasHeaderData ? (
                 <div className="flex items-center justify-center py-16">
                     <Loader2 className="h-8 w-8 animate-spin text-zinc-300" />
                 </div>
-            ) : poData ? (
+            ) : (
                 <NBDialogBody>
                     {/* Row 1: PO Info Strip */}
                     <NBSection icon={Hash} title="Informasi PO">
@@ -113,28 +141,28 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                                     <Hash className="h-3 w-3 text-zinc-400" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">No. PO</span>
                                 </div>
-                                <span className="text-sm font-black font-mono">{poData.number}</span>
+                                <span className="text-sm font-black font-mono">{displayNumber}</span>
                             </div>
                             <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <Calendar className="h-3 w-3 text-zinc-400" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Tanggal</span>
                                 </div>
-                                <span className="text-sm font-bold">{new Date(poData.orderDate).toLocaleDateString('id-ID')}</span>
+                                <span className="text-sm font-bold">{displayDate}</span>
                             </div>
                             <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <User className="h-3 w-3 text-zinc-400" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Pemohon</span>
                                 </div>
-                                <span className="text-sm font-bold">{poData.requester || 'System'}</span>
+                                <span className="text-sm font-bold">{displayRequester}</span>
                             </div>
                             <div className="border border-zinc-200 dark:border-zinc-700 p-3">
                                 <div className="flex items-center gap-1.5 mb-1">
                                     <ShieldCheck className="h-3 w-3 text-zinc-400" />
                                     <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Disetujui</span>
                                 </div>
-                                <span className="text-sm font-bold">{poData.approver || '-'}</span>
+                                <span className="text-sm font-bold">{displayApprover}</span>
                             </div>
                         </div>
                     </NBSection>
@@ -172,57 +200,78 @@ export function POFinalizeDialog({ poId, isOpen, onClose, vendors }: POFinalizeD
                         </div>
                     </NBSection>
 
-                    {/* Row 3: Items Table + Totals — kept as-is (complex table) */}
+                    {/* Row 3: Items Table + Totals */}
                     <NBSection icon={Package} title="Item Pesanan">
-                        <div className="border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-                            <div className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
-                                <div className="grid grid-cols-12 gap-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                                    <div className="col-span-5 px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-700">Item</div>
-                                    <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Qty</div>
-                                    <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Harga Satuan</div>
-                                    <div className="col-span-3 px-4 py-2.5 text-right">Total</div>
+                        {loadingItems && !poData ? (
+                            <div className="border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                <div className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                                    <div className="grid grid-cols-12 gap-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                        <div className="col-span-5 px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-700">Item</div>
+                                        <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Qty</div>
+                                        <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Harga Satuan</div>
+                                        <div className="col-span-3 px-4 py-2.5 text-right">Total</div>
+                                    </div>
                                 </div>
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} className="grid grid-cols-12 gap-0 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0">
+                                        <div className="col-span-5 px-4 py-3"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-3/4" /></div>
+                                        <div className="col-span-2 px-4 py-3"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-1/2 ml-auto" /></div>
+                                        <div className="col-span-2 px-4 py-3"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-2/3 ml-auto" /></div>
+                                        <div className="col-span-3 px-4 py-3"><div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded animate-pulse w-3/4 ml-auto" /></div>
+                                    </div>
+                                ))}
                             </div>
-                            {(poData.items || []).map((item: any, idx: number) => (
-                                <div key={idx} className={`grid grid-cols-12 gap-0 ${idx < poData.items.length - 1 ? 'border-b border-zinc-200 dark:border-zinc-700' : ''}`}>
-                                    <div className="col-span-5 px-4 py-3 flex items-center gap-2">
-                                        <Package className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-                                        <div>
-                                            <span className="font-bold text-sm">{item.productName}</span>
-                                            <span className="text-[10px] text-zinc-400 font-mono ml-2">{item.productCode}</span>
+                        ) : poData?.items ? (
+                            <div className="border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                                <div className="bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                                    <div className="grid grid-cols-12 gap-0 text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                        <div className="col-span-5 px-4 py-2.5 border-r border-zinc-200 dark:border-zinc-700">Item</div>
+                                        <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Qty</div>
+                                        <div className="col-span-2 px-4 py-2.5 text-right border-r border-zinc-200 dark:border-zinc-700">Harga Satuan</div>
+                                        <div className="col-span-3 px-4 py-2.5 text-right">Total</div>
+                                    </div>
+                                </div>
+                                {(poData.items || []).map((item: any, idx: number) => (
+                                    <div key={idx} className={`grid grid-cols-12 gap-0 ${idx < poData.items.length - 1 ? 'border-b border-zinc-200 dark:border-zinc-700' : ''}`}>
+                                        <div className="col-span-5 px-4 py-3 flex items-center gap-2">
+                                            <Package className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+                                            <div>
+                                                <span className="font-bold text-sm">{item.productName}</span>
+                                                <span className="text-[10px] text-zinc-400 font-mono ml-2">{item.productCode}</span>
+                                            </div>
+                                        </div>
+                                        <div className="col-span-2 px-4 py-3 text-right font-mono font-bold text-sm self-center">
+                                            {item.quantity} <span className="text-[10px] text-zinc-400">{item.unit}</span>
+                                        </div>
+                                        <div className="col-span-2 px-4 py-3 text-right font-mono text-sm text-zinc-600 self-center">
+                                            {formatIDR(item.unitPrice)}
+                                        </div>
+                                        <div className="col-span-3 px-4 py-3 text-right font-black text-sm self-center">
+                                            {formatIDR(item.totalPrice)}
                                         </div>
                                     </div>
-                                    <div className="col-span-2 px-4 py-3 text-right font-mono font-bold text-sm self-center">
-                                        {item.quantity} <span className="text-[10px] text-zinc-400">{item.unit}</span>
+                                ))}
+                                {/* Totals */}
+                                <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                                    <div className="grid grid-cols-12 gap-0">
+                                        <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">Subtotal</div>
+                                        <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(subtotal)}</div>
                                     </div>
-                                    <div className="col-span-2 px-4 py-3 text-right font-mono text-sm text-zinc-600 self-center">
-                                        {formatIDR(item.unitPrice)}
+                                    <div className="grid grid-cols-12 gap-0 border-t border-zinc-200 dark:border-zinc-700">
+                                        <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">PPN 11%</div>
+                                        <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(tax)}</div>
                                     </div>
-                                    <div className="col-span-3 px-4 py-3 text-right font-black text-sm self-center">
-                                        {formatIDR(item.totalPrice)}
+                                    <div className="grid grid-cols-12 gap-0 border-t-2 border-black dark:border-white">
+                                        <div className="col-span-9 px-4 py-3 text-right text-sm font-black uppercase">Grand Total</div>
+                                        <div className="col-span-3 px-4 py-3 text-right font-black text-base">{formatIDR(total)}</div>
                                     </div>
-                                </div>
-                            ))}
-                            {/* Totals */}
-                            <div className="border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
-                                <div className="grid grid-cols-12 gap-0">
-                                    <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">Subtotal</div>
-                                    <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(subtotal)}</div>
-                                </div>
-                                <div className="grid grid-cols-12 gap-0 border-t border-zinc-200 dark:border-zinc-700">
-                                    <div className="col-span-9 px-4 py-2 text-right text-xs text-zinc-500 font-bold uppercase">PPN 11%</div>
-                                    <div className="col-span-3 px-4 py-2 text-right font-mono text-sm">{formatIDR(tax)}</div>
-                                </div>
-                                <div className="grid grid-cols-12 gap-0 border-t-2 border-black dark:border-white">
-                                    <div className="col-span-9 px-4 py-3 text-right text-sm font-black uppercase">Grand Total</div>
-                                    <div className="col-span-3 px-4 py-3 text-right font-black text-base">{formatIDR(total)}</div>
                                 </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className="py-8 text-center text-red-500 font-bold text-sm">Gagal memuat item</div>
+                        )}
                     </NBSection>
                 </NBDialogBody>
-            ) : (
-                <div className="py-16 text-center text-red-500 font-bold">Gagal memuat data</div>
             )}
 
             {/* Custom footer with Konfirmasi & Buat PDF button */}

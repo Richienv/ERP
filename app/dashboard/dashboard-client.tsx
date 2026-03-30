@@ -53,6 +53,11 @@ function NonZeroMetric({ label, value, alert, sub }: { label: string; value: str
     return <CardMetric label={label} value={value} alert={alert} sub={sub} />
 }
 
+/** Format ISO date string to short Indonesian format */
+function fmtDate(iso: string) {
+    try { return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" }) } catch { return "—" }
+}
+
 /** Only render StatBlock if value is meaningful */
 function NonZeroStat({ label, value, accent, icon }: { label: string; value: string; accent: string; icon?: React.ReactNode }) {
     if (value === "0" || value === "0%" || value === "Rp 0") return null
@@ -66,7 +71,7 @@ export function DashboardPageClient() {
         return <CardPageSkeleton accentColor="bg-zinc-700" />
     }
 
-    const { financials, operations, sales, hr, activity, tax: taxFromRoot } = data
+    const { financials, operations, sales, hr, activity, tax: taxFromRoot, details } = data as any
     const tax = taxFromRoot ?? operations?.tax ?? { ppnOut: 0, ppnIn: 0, ppnNet: 0 }
 
     const pendingApprovals = (operations?.procurement?.pendingApproval?.length ?? 0) + (operations?.procurement?.pendingPRs ?? 0)
@@ -113,6 +118,14 @@ export function DashboardPageClient() {
     const presentCount = operations?.workforceStatus?.presentCount ?? 0
     const lateCount = operations?.workforceStatus?.lateCount ?? 0
     const hasFinData = (financials?.cashBalance ?? 0) > 0 || recentInvoices.length > 0 || overdueCount > 0 || upcomingPayables.length > 0 || (tax?.ppnOut ?? 0) > 0
+
+    // Card detail rows (from /api/dashboard details)
+    const recentPOs = details?.recentPOs ?? []
+    const recentCustomers = details?.recentCustomers ?? []
+    const detailProducts = details?.products ?? []
+    const recentPayments = details?.recentPayments ?? []
+    const topRevenueSources = details?.topRevenueSources ?? []
+    const activeWorkOrders = details?.activeWorkOrders ?? []
 
     // New module data
     const cashFlow = operations?.cashFlow ?? { kasMasuk: 0, kasKeluar: 0, netCashFlow: 0, topExpenses: [] }
@@ -255,6 +268,26 @@ export function DashboardPageClient() {
                                         </div>
                                     </>
                                 )}
+
+                                {topRevenueSources.length > 0 && (
+                                    <>
+                                        <SectionDivider label="Sumber Pendapatan" />
+                                        <div className="space-y-1">
+                                            {topRevenueSources.slice(0, 3).map((inv: any) => (
+                                                <Link key={inv.id} href={`/finance/invoices`} className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
+                                                    <div className="min-w-0">
+                                                        <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block">{inv.customer}</span>
+                                                        <span className="text-[10px] text-zinc-400">{inv.number}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-black text-emerald-700 dark:text-emerald-400 tabular-nums">{formatCurrency(inv.totalAmount)}</span>
+                                                        <IconArrowRight className="w-3 h-3 text-zinc-300 group-hover:text-zinc-500 transition-colors" />
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
                             </ModuleCard>
 
                             {/* PELANGGAN */}
@@ -274,7 +307,7 @@ export function DashboardPageClient() {
                                         <SectionDivider label="Top Pelanggan" />
                                         <div className="space-y-1">
                                             {(customerInsights.top3Customers as any[]).slice(0, 3).map((c: any, i: number) => (
-                                                <div key={i} className="flex items-center justify-between text-[11px] px-1 py-1 group">
+                                                <Link key={i} href={c.id ? `/sales/customers/${c.id}` : "/sales/customers"} className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
                                                     <div className="flex items-center gap-2 min-w-0">
                                                         <span className="w-4 h-4 flex items-center justify-center bg-violet-100 dark:bg-violet-900/30 text-violet-600 text-[9px] font-black shrink-0">{i + 1}</span>
                                                         <span className="text-zinc-600 dark:text-zinc-400 truncate">{c.name}</span>
@@ -282,8 +315,36 @@ export function DashboardPageClient() {
                                                     <div className="flex items-center gap-2">
                                                         <span className="font-black text-zinc-900 dark:text-zinc-100 tabular-nums">{formatCurrency(c.total)}</span>
                                                         <FlagButton title={`Follow up pelanggan: ${c.name}`} sourceType="CUSTOMER" sourceId={c.id || `cust-${i}`} sourceLabel={c.name} />
+                                                        <IconArrowRight className="w-3 h-3 text-zinc-300 group-hover:text-zinc-500 transition-colors" />
                                                     </div>
-                                                </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {recentCustomers.length > 0 && (
+                                    <>
+                                        <SectionDivider label="Pelanggan Terbaru" />
+                                        <div className="space-y-1">
+                                            {recentCustomers.slice(0, 3).map((c: any) => (
+                                                <Link key={c.id} href={`/sales/customers/${c.id}`} className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                                            c.customerType === "COMPANY" ? "bg-blue-500" : c.customerType === "GOVERNMENT" ? "bg-purple-500" : "bg-green-500"
+                                                        }`} />
+                                                        <div className="min-w-0">
+                                                            <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block">{c.name}</span>
+                                                            <span className="text-[10px] text-zinc-400">
+                                                                {c.customerType === "COMPANY" ? "Perusahaan" : c.customerType === "GOVERNMENT" ? "Pemerintah" : "Perorangan"} · {fmtDate(c.createdAt)}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] text-zinc-400">{c.invoiceCount} invoice</span>
+                                                        <IconArrowRight className="w-3 h-3 text-zinc-300 group-hover:text-zinc-500 transition-colors" />
+                                                    </div>
+                                                </Link>
                                             ))}
                                         </div>
                                     </>
@@ -305,6 +366,36 @@ export function DashboardPageClient() {
                                     <CardMetric label="Gudang Aktif" value={String(operations?.inventorySummary?.warehouseCount ?? 0)} />
                                     {lowStockCount > 0 && <CardMetric label="Stok Rendah" value={String(lowStockCount)} alert />}
                                 </div>
+
+                                {detailProducts.length > 0 && (
+                                    <>
+                                        <SectionDivider label="Produk" />
+                                        <div className="space-y-1">
+                                            {detailProducts.slice(0, 4).map((p: any) => (
+                                                <Link key={p.id} href={`/inventory/products/${p.id}`} className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                                            p.totalStock <= 0 ? "bg-red-500" :
+                                                            p.totalStock <= (p.minStock || 0) ? "bg-amber-500" : "bg-emerald-500"
+                                                        }`} />
+                                                        <div className="min-w-0">
+                                                            <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block max-w-[180px]">{p.name}</span>
+                                                            <span className="text-[10px] text-zinc-400">{p.code}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`text-[10px] font-mono font-bold tabular-nums ${
+                                                            p.totalStock <= 0 ? "text-red-600" : p.totalStock <= (p.minStock || 0) ? "text-amber-600" : "text-zinc-600"
+                                                        }`}>
+                                                            Stok: {p.totalStock}
+                                                        </span>
+                                                        <IconArrowRight className="w-3 h-3 text-zinc-300 group-hover:text-zinc-500 transition-colors" />
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
 
                                 {warehouses.length > 0 && (
                                     <>
@@ -400,6 +491,33 @@ export function DashboardPageClient() {
                                                         </Link>
                                                     </div>
                                                 </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {recentPOs.length > 0 && (
+                                    <>
+                                        <SectionDivider label="PO Terbaru" />
+                                        <div className="space-y-1">
+                                            {recentPOs.slice(0, 3).map((po: any) => (
+                                                <Link key={po.id} href="/procurement/orders" className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                                            po.status === "APPROVED" || po.status === "COMPLETED" || po.status === "RECEIVED" ? "bg-emerald-500" :
+                                                            po.status === "ORDERED" || po.status === "SHIPPED" ? "bg-blue-500" :
+                                                            po.status === "PO_DRAFT" ? "bg-zinc-400" : "bg-amber-500"
+                                                        }`} />
+                                                        <div className="min-w-0">
+                                                            <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block">{po.supplier}</span>
+                                                            <span className="text-[10px] text-zinc-400">{po.number} · {po.status.replace(/_/g, " ")}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-black text-zinc-900 dark:text-zinc-100 tabular-nums">{formatCurrency(po.totalAmount)}</span>
+                                                        <IconArrowRight className="w-3 h-3 text-zinc-300 group-hover:text-zinc-500 transition-colors" />
+                                                    </div>
+                                                </Link>
                                             ))}
                                         </div>
                                     </>
@@ -573,6 +691,32 @@ export function DashboardPageClient() {
                                         </div>
                                     </>
                                 )}
+
+                                {!hasMfgData && activeWorkOrders.length > 0 && (
+                                    <>
+                                        <SectionDivider label="Order Produksi Aktif" />
+                                        <div className="space-y-1">
+                                            {activeWorkOrders.slice(0, 3).map((wo: any) => (
+                                                <Link key={wo.id} href="/manufacturing/orders" className="flex items-center justify-between text-[11px] hover:bg-zinc-50 dark:hover:bg-zinc-800 -mx-1 px-2 py-1.5 transition-colors group">
+                                                    <div className="min-w-0">
+                                                        <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block">{wo.product}</span>
+                                                        <span className="text-[10px] text-zinc-400">{wo.number} · {wo.status.replace(/_/g, " ")}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold tabular-nums text-zinc-600">{wo.actualQty}/{wo.plannedQty}</span>
+                                                        <IconArrowRight className="w-3 h-3 text-zinc-300 group-hover:text-zinc-500 transition-colors" />
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+
+                                {!hasMfgData && activeWorkOrders.length === 0 && (
+                                    <div className="text-[11px] text-zinc-400 py-3 text-center">
+                                        Belum ada order produksi aktif
+                                    </div>
+                                )}
                             </ModuleCard>
                         </div>
 
@@ -694,6 +838,30 @@ export function DashboardPageClient() {
                                                     />
                                                 </AreaChart>
                                             </ResponsiveContainer>
+                                        </div>
+                                    </>
+                                )}
+
+                                {recentPayments.length > 0 && (
+                                    <>
+                                        <SectionDivider label="Transaksi Terakhir" />
+                                        <div className="space-y-1">
+                                            {recentPayments.slice(0, 3).map((tx: any) => (
+                                                <div key={tx.id} className="flex items-center justify-between text-[11px] px-1 py-1.5">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span className={`text-xs font-bold ${tx.type === "INCOMING" ? "text-emerald-600" : "text-red-600"}`}>
+                                                            {tx.type === "INCOMING" ? "↓" : "↑"}
+                                                        </span>
+                                                        <div className="min-w-0">
+                                                            <span className="text-zinc-900 dark:text-zinc-100 font-medium truncate block max-w-[140px]">{tx.counterparty}</span>
+                                                            <span className="text-[10px] text-zinc-400">{tx.method} · {fmtDate(tx.date)}</span>
+                                                        </div>
+                                                    </div>
+                                                    <span className={`font-black tabular-nums ${tx.type === "INCOMING" ? "text-emerald-600" : "text-red-600"}`}>
+                                                        {tx.type === "INCOMING" ? "+" : "-"}{formatCurrency(tx.amount)}
+                                                    </span>
+                                                </div>
+                                            ))}
                                         </div>
                                     </>
                                 )}

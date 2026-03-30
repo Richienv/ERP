@@ -179,12 +179,143 @@ async function fetchDirectFallbacks() {
     }
 }
 
+/**
+ * Fetch detail rows for each dashboard card (recent POs, customers, products, etc.)
+ * Always runs — provides clickable previews in each card.
+ */
+async function fetchCardDetails() {
+    try {
+        const [recentPOs, recentCustomers, productsRaw, recentPayments, topRevenueSources, activeWorkOrders] = await Promise.all([
+            prisma.purchaseOrder.findMany({
+                where: { status: { notIn: ["CANCELLED"] } },
+                select: {
+                    id: true, number: true, status: true,
+                    totalAmount: true, orderDate: true,
+                    supplier: { select: { name: true } },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 3,
+            }).catch(() => [] as any[]),
+
+            prisma.customer.findMany({
+                where: { isActive: true },
+                select: {
+                    id: true, name: true, createdAt: true,
+                    customerType: true,
+                    _count: { select: { Invoice: true } },
+                },
+                orderBy: { createdAt: "desc" },
+                take: 3,
+            }).catch(() => [] as any[]),
+
+            prisma.product.findMany({
+                where: { isActive: true },
+                select: {
+                    id: true, name: true, code: true, minStock: true,
+                    stockLevels: { select: { quantity: true } },
+                },
+                take: 5,
+            }).catch(() => [] as any[]),
+
+            prisma.payment.findMany({
+                select: {
+                    id: true, amount: true, date: true, method: true,
+                    invoice: {
+                        select: {
+                            type: true, number: true,
+                            customer: { select: { name: true } },
+                            supplier: { select: { name: true } },
+                        },
+                    },
+                },
+                orderBy: { date: "desc" },
+                take: 5,
+            }).catch(() => [] as any[]),
+
+            prisma.invoice.findMany({
+                where: { type: "INV_OUT", status: "PAID" },
+                select: {
+                    id: true, number: true, totalAmount: true,
+                    customer: { select: { name: true } },
+                },
+                orderBy: { totalAmount: "desc" },
+                take: 3,
+            }).catch(() => [] as any[]),
+
+            prisma.workOrder.findMany({
+                where: { status: { in: ["PLANNED", "IN_PROGRESS"] } },
+                select: {
+                    id: true, number: true, status: true,
+                    product: { select: { name: true } },
+                    plannedQty: true, actualQty: true,
+                },
+                orderBy: { createdAt: "desc" },
+                take: 3,
+            }).catch(() => [] as any[]),
+        ])
+
+        // Transform products: aggregate stock across warehouses, sort low-stock first
+        const products = productsRaw.map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            code: p.code,
+            minStock: p.minStock,
+            totalStock: (p.stockLevels ?? []).reduce((sum: number, sl: any) => sum + (sl.quantity ?? 0), 0),
+        })).sort((a: any, b: any) => a.totalStock - b.totalStock)
+
+        return {
+            recentPOs: recentPOs.map((po: any) => ({
+                id: po.id,
+                number: po.number,
+                status: String(po.status),
+                totalAmount: Number(po.totalAmount ?? 0),
+                supplier: po.supplier?.name ?? "—",
+            })),
+            recentCustomers: recentCustomers.map((c: any) => ({
+                id: c.id,
+                name: c.name,
+                customerType: String(c.customerType),
+                createdAt: c.createdAt?.toISOString?.() ?? new Date().toISOString(),
+                invoiceCount: c._count?.Invoice ?? 0,
+            })),
+            products,
+            recentPayments: recentPayments.map((p: any) => ({
+                id: p.id,
+                amount: Number(p.amount ?? 0),
+                date: p.date?.toISOString?.() ?? new Date().toISOString(),
+                method: String(p.method ?? "TRANSFER"),
+                type: p.invoice?.type === "INV_OUT" ? "INCOMING" : "OUTGOING",
+                counterparty: p.invoice?.customer?.name ?? p.invoice?.supplier?.name ?? "—",
+                invoiceNumber: p.invoice?.number ?? null,
+            })),
+            topRevenueSources: topRevenueSources.map((inv: any) => ({
+                id: inv.id,
+                number: inv.number,
+                totalAmount: Number(inv.totalAmount ?? 0),
+                customer: inv.customer?.name ?? "—",
+            })),
+            activeWorkOrders: activeWorkOrders.map((wo: any) => ({
+                id: wo.id,
+                number: wo.number,
+                status: String(wo.status),
+                product: wo.product?.name ?? "—",
+                plannedQty: wo.plannedQty ?? 0,
+                actualQty: wo.actualQty ?? 0,
+            })),
+        }
+    } catch (error) {
+        console.error("[Dashboard API] Card details fetch failed:", error)
+        return null
+    }
+}
+
 export async function GET() {
     try {
         const start = Date.now()
 
-        // Start direct fallback in parallel — it's lightweight and serves as insurance
+        // Start direct fallback + card details in parallel — lightweight insurance
         const fallbackPromise = fetchDirectFallbacks()
+        const detailsPromise = fetchCardDetails()
 
         const [financials, operations, activity, charts, sales] = await Promise.all([
             withTimeout(
@@ -211,7 +342,7 @@ export async function GET() {
 
         // Enhance operations with direct DB fallback if server action returned zeros
         const ops = { ...operations } as typeof FALLBACK_OPERATIONS
-        const fb = await fallbackPromise
+        const [fb, details] = await Promise.all([fallbackPromise, detailsPromise])
 
         if (fb) {
             // Profitability: use direct invoice data if journal-based query returned 0
@@ -251,6 +382,10 @@ export async function GET() {
             sales,
             hr: (ops as any)?.hr ?? { totalSalary: 0, lateEmployees: [] },
             tax: (ops as any)?.tax ?? { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
+            details: details ?? {
+                recentPOs: [], recentCustomers: [], products: [],
+                recentPayments: [], topRevenueSources: [], activeWorkOrders: [],
+            },
         })
     } catch (error) {
         console.error("Dashboard API error:", error)
@@ -262,6 +397,10 @@ export async function GET() {
             sales: FALLBACK_SALES,
             hr: { totalSalary: 0, lateEmployees: [] },
             tax: { ppnOut: 0, ppnIn: 0, ppnNet: 0 },
+            details: {
+                recentPOs: [], recentCustomers: [], products: [],
+                recentPayments: [], topRevenueSources: [], activeWorkOrders: [],
+            },
         })
     }
 }

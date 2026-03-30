@@ -1253,6 +1253,7 @@ export async function getAllPurchaseOrders() {
             return {
                 id: po.revision > 0 ? `${po.number} Rev.${po.revision}` : po.number,
                 dbId: po.id,
+                vendorId: po.supplierId,
                 vendor: po.supplier?.name || 'Unknown',
                 vendorEmail: po.supplier?.email || '',
                 vendorPhone: po.supplier?.phone || '',
