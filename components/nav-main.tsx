@@ -113,7 +113,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                           <div className={`size-2 rounded-full ${accent.bg}`} />
                           <p className={`text-[11px] font-bold uppercase tracking-wider ${accent.text}`}>{item.title}</p>
                         </div>
-                        {item.items!.map((subItem) => {
+                        {(item.items ?? []).map((subItem) => {
                           if (subItem.locked) {
                             return (
                               <div key={subItem.title} className="flex items-center gap-2 px-2.5 py-1.5 text-[12.5px] text-zinc-300 dark:text-zinc-600 cursor-not-allowed">
@@ -201,7 +201,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                       <div className={`ml-[18px] pl-3 border-l ${accent.borderLight} mt-1 mb-2 space-y-0.5`}>
                         {(() => {
                           let lastGroup: string | undefined
-                          return item.items!.map((subItem) => {
+                          return (item.items ?? []).map((subItem) => {
                             const showGroupHeader = subItem.group && subItem.group !== lastGroup
                             const isFirstGroup = !lastGroup && subItem.group
                             if (subItem.group) lastGroup = subItem.group

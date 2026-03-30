@@ -11,8 +11,23 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
 
-  // Bundle optimization — tree-shake heavy libraries
+  // React Compiler — auto-memoizes components, removes need for manual useMemo/useCallback
+  reactCompiler: true,
+
   experimental: {
+    // Client-side router cache — prevents RSC payload refetch on every navigation
+    // dynamic: 30s keeps dynamic pages cached for 30s before refetch
+    // static: 300s (5min) keeps static pages cached for 5min
+    staleTimes: {
+      dynamic: 30,
+      static: 300,
+    },
+
+    // NOTE: cacheComponents (PPR) is incompatible with `export const dynamic = "force-dynamic"`
+    // which is used in 93+ API routes. Enabling requires migrating all those routes first.
+    // cacheComponents: true,
+
+    // Bundle optimization — tree-shake heavy libraries
     optimizePackageImports: [
       "lucide-react",
       "@tabler/icons-react",
@@ -21,13 +36,18 @@ const nextConfig: NextConfig = {
       "recharts",
       "framer-motion",
       "@radix-ui/react-icons",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-popover",
+      "@radix-ui/react-select",
+      "@tanstack/react-query",
     ],
   },
 
   // Include Typst binary and templates in Vercel serverless function bundles
   outputFileTracingIncludes: {
     "/api/documents/purchase-order/[id]": ["./bin/**/*", "./templates/**/*"],
-    "/api/documents/payroll/[period]": ["./bin/**/*", "./templates/**/*"],
+    "/api/documents/payroll/[id]": ["./bin/**/*", "./templates/**/*"],
     "/api/documents/payslip/[period]/[employeeId]": ["./bin/**/*", "./templates/**/*"],
   },
 };

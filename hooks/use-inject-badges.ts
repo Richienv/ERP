@@ -41,7 +41,7 @@ export function useInjectBadges(
           : sub
       })
       const parentBadge = subItems?.reduce((sum: number, s: SidebarSubItem) => sum + (s.badge || 0), 0) || badgeMap.get(item.url)?.count || 0
-      return { ...item, items: subItems, badge: parentBadge }
+      return { ...item, ...(subItems ? { items: subItems } : {}), badge: parentBadge }
     })
   }, [items, actionCounts])
 }

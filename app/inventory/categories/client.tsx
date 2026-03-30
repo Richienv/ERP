@@ -65,17 +65,18 @@ interface CategoriesClientProps {
     allCategories: { id: string, name: string }[] // For dropdown
 }
 
-export function CategoriesClient({ categories, allCategories }: CategoriesClientProps) {
+export function CategoriesClient({ categories = [], allCategories = [] }: CategoriesClientProps) {
     const [selectedCategory, setSelectedCategory] = useState<any>(null)
     const [isCreateOpen, setIsCreateOpen] = useState(false)
     const [search, setSearch] = useState("")
     const invalidateCategories = useInvalidateCategories()
 
     const uiCategories = useMemo(() => {
+        if (!categories || !Array.isArray(categories)) return []
         return categories.filter(c => !c.parentId).map(cat => ({
             ...cat,
             itemCount: cat._count?.products ?? 0,
-            subs: cat.children.map((child: any) => ({
+            subs: (cat.children || []).map((child: any) => ({
                 id: child.id,
                 code: child.code,
                 name: child.name,
