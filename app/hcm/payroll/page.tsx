@@ -709,7 +709,7 @@ export default function PayrollPage() {
                             <span className="text-zinc-300 dark:text-zinc-600">-</span>
                           )}
                         </div>
-                        <div><span className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency(line.bpjsKesehatan + line.bpjsKetenagakerjaan)}</span></div>
+                        <div><span className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency((line.bpjsKesehatan ?? 0) + (line.bpjsKetenagakerjaan ?? 0))}</span></div>
                         <div><span className="font-mono text-sm tabular-nums text-red-600 dark:text-red-400">{formatCurrency(line.pph21)}</span></div>
                         <div><span className="font-mono text-sm font-black tabular-nums text-zinc-900 dark:text-zinc-100">{formatCurrency(line.netSalary)}</span></div>
                         <div>
@@ -872,17 +872,17 @@ export default function PayrollPage() {
                   </div>
 
                   {/* Compliance Section */}
-                  {compliance && (
+                  {compliance && compliance.totals && (
                     <div className="border-2 border-black p-4">
                       <div className="mb-3 flex items-center gap-2">
                         <IconShieldCheck className="h-4 w-4 text-zinc-600" />
                         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Ringkasan Compliance</span>
                       </div>
                       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                        <ComplianceMetric label="BPJS Kesehatan" value={formatCurrency(compliance.totals.bpjsKesehatan)} />
+                        <ComplianceMetric label="BPJS Kesehatan" value={formatCurrency(compliance.totals.bpjsKesehatan ?? 0)} />
                         <ComplianceMetric label="BPJS JHT" value={formatCurrency(compliance.totals.bpjsJHT ?? 0)} />
                         <ComplianceMetric label="BPJS JP" value={formatCurrency(compliance.totals.bpjsJP ?? 0)} />
-                        <ComplianceMetric label="PPh21" value={formatCurrency(compliance.totals.pph21)} />
+                        <ComplianceMetric label="PPh21" value={formatCurrency(compliance.totals.pph21 ?? 0)} />
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.95 }}>

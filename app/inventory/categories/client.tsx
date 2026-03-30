@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo } from "react"
 import {
     FolderOpen,
     FolderPlus,
@@ -31,7 +31,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { createCategory, updateCategory, deleteCategory, getNextCategoryCode, getProductsByCategory, getProductsNotInCategory, assignProductToCategory, removeProductFromCategory } from "@/app/actions/inventory"
 import { ComboboxWithCreate } from "@/components/ui/combobox-with-create"
 import { toast } from "sonner"
-import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { useInvalidateCategories } from "@/hooks/use-categories"
 import { queryKeys } from "@/lib/query-keys"
@@ -70,13 +69,12 @@ export function CategoriesClient({ categories, allCategories }: CategoriesClient
     const [selectedCategory, setSelectedCategory] = useState<any>(null)
     const [isCreateOpen, setIsCreateOpen] = useState(false)
     const [search, setSearch] = useState("")
-    const router = useRouter()
     const invalidateCategories = useInvalidateCategories()
 
     const uiCategories = useMemo(() => {
         return categories.filter(c => !c.parentId).map(cat => ({
             ...cat,
-            itemCount: cat._count.products,
+            itemCount: cat._count?.products ?? 0,
             subs: cat.children.map((child: any) => ({
                 id: child.id,
                 code: child.code,
@@ -507,7 +505,6 @@ function CategoryDetailDialog({ category, open, onOpenChange }: { category: any,
     const [isSaving, setIsSaving] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
 
-    const router = useRouter()
     const queryClient = useQueryClient()
     const invalidateCategories = useInvalidateCategories()
 
