@@ -397,31 +397,29 @@ export async function updateJournalEntry(
             })
             const accountMap = new Map(accounts.map(a => [a.code, a]))
 
-            await prisma.$transaction(async (tx) => {
-                // Delete old lines
-                await tx.journalLine.deleteMany({ where: { entryId } })
+            // Delete old lines
+            await prisma.journalLine.deleteMany({ where: { entryId } })
 
-                // Update entry + create new lines
-                await tx.journalEntry.update({
-                    where: { id: entryId },
-                    data: {
-                        date: data.date,
-                        description: data.description,
-                        reference: data.reference,
-                        lines: {
-                            create: data.lines.map(line => {
-                                const account = accountMap.get(line.accountCode)
-                                if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
-                                return {
-                                    accountId: account.id,
-                                    debit: line.debit,
-                                    credit: line.credit,
-                                    description: line.description || data.description
-                                }
-                            })
-                        }
+            // Update entry + create new lines
+            await prisma.journalEntry.update({
+                where: { id: entryId },
+                data: {
+                    date: data.date,
+                    description: data.description,
+                    reference: data.reference,
+                    lines: {
+                        create: data.lines.map(line => {
+                            const account = accountMap.get(line.accountCode)
+                            if (!account) throw new Error(`Account code not found: ${line.accountCode}`)
+                            return {
+                                accountId: account.id,
+                                debit: line.debit,
+                                credit: line.credit,
+                                description: line.description || data.description
+                            }
+                        })
                     }
-                })
+                }
             })
 
             return { success: true }
@@ -463,58 +461,52 @@ export async function reverseJournalEntry(journalEntryId: string) {
                 throw new Error(`Periode fiskal ${fiscalPeriod.name} sudah ditutup. Tidak bisa posting jurnal balik ke periode ini.`)
             }
 
-            let reversalId: string | undefined
-
-            await prisma.$transaction(async (tx) => {
-                // Create reversal entry with swapped debit/credit lines
-                const reversal = await tx.journalEntry.create({
-                    data: {
-                        date: reversalDate,
-                        description: `Pembalikan: ${original.description}`,
-                        reference: original.reference ? `REV-${original.reference}` : `REV-${journalEntryId.slice(0, 8)}`,
-                        status: 'POSTED',
-                        lines: {
-                            create: original.lines.map(line => ({
-                                accountId: line.accountId,
-                                debit: toNum(line.credit),   // swap: original credit → reversal debit
-                                credit: toNum(line.debit),   // swap: original debit → reversal credit
-                                description: `Pembalikan: ${line.description || original.description}`
-                            }))
-                        }
+            // Create reversal entry with swapped debit/credit lines
+            const reversal = await prisma.journalEntry.create({
+                data: {
+                    date: reversalDate,
+                    description: `Pembalikan: ${original.description}`,
+                    reference: original.reference ? `REV-${original.reference}` : `REV-${journalEntryId.slice(0, 8)}`,
+                    status: 'POSTED',
+                    lines: {
+                        create: original.lines.map(line => ({
+                            accountId: line.accountId,
+                            debit: toNum(line.credit),   // swap: original credit → reversal debit
+                            credit: toNum(line.debit),   // swap: original debit → reversal credit
+                            description: `Pembalikan: ${line.description || original.description}`
+                        }))
                     }
-                })
-
-                reversalId = reversal.id
-
-                // Mark original as reversed, linking to reversal entry
-                await tx.journalEntry.update({
-                    where: { id: journalEntryId },
-                    data: {
-                        isReversed: true,
-                        reversedById: reversal.id
-                    }
-                })
-
-                // Update GL account balances (reverse the original impact)
-                for (const line of original.lines) {
-                    let balanceChange = 0
-                    const debit = toNum(line.credit)   // swapped
-                    const credit = toNum(line.debit)    // swapped
-
-                    if (['ASSET', 'EXPENSE'].includes(line.account.type)) {
-                        balanceChange = debit - credit
-                    } else {
-                        balanceChange = credit - debit
-                    }
-
-                    await tx.gLAccount.update({
-                        where: { id: line.accountId },
-                        data: { balance: { increment: balanceChange } }
-                    })
                 }
             })
 
-            return { success: true, id: reversalId }
+            // Mark original as reversed, linking to reversal entry
+            await prisma.journalEntry.update({
+                where: { id: journalEntryId },
+                data: {
+                    isReversed: true,
+                    reversedById: reversal.id
+                }
+            })
+
+            // Update GL account balances (reverse the original impact)
+            for (const line of original.lines) {
+                let balanceChange = 0
+                const debit = toNum(line.credit)   // swapped
+                const credit = toNum(line.debit)    // swapped
+
+                if (['ASSET', 'EXPENSE'].includes(line.account.type)) {
+                    balanceChange = debit - credit
+                } else {
+                    balanceChange = credit - debit
+                }
+
+                await prisma.gLAccount.update({
+                    where: { id: line.accountId },
+                    data: { balance: { increment: balanceChange } }
+                })
+            }
+
+            return { success: true, id: reversal.id }
         })
     } catch (error: any) {
         console.error("Journal Reversal Error:", error)
@@ -606,43 +598,41 @@ export async function postOpeningBalances(data: {
             })
             const accountMap = new Map(accounts.map(a => [a.code, a]))
 
-            await prisma.$transaction(async (tx) => {
-                await tx.journalEntry.create({
-                    data: {
-                        date: new Date(`${data.year}-01-01T00:00:00Z`),
-                        description: 'Saldo Awal',
-                        reference: `OPENING-BALANCE-${data.year}`,
-                        status: 'POSTED',
-                        lines: {
-                            create: filledLines.map(line => {
-                                const account = accountMap.get(line.accountCode)
-                                if (!account) throw new Error(`Kode akun tidak ditemukan: ${line.accountCode}`)
-                                return {
-                                    accountId: account.id,
-                                    debit: line.debit,
-                                    credit: line.credit,
-                                    description: 'Saldo Awal'
-                                }
-                            })
-                        }
+            await prisma.journalEntry.create({
+                data: {
+                    date: new Date(`${data.year}-01-01T00:00:00Z`),
+                    description: 'Saldo Awal',
+                    reference: `OPENING-BALANCE-${data.year}`,
+                    status: 'POSTED',
+                    lines: {
+                        create: filledLines.map(line => {
+                            const account = accountMap.get(line.accountCode)
+                            if (!account) throw new Error(`Kode akun tidak ditemukan: ${line.accountCode}`)
+                            return {
+                                accountId: account.id,
+                                debit: line.debit,
+                                credit: line.credit,
+                                description: 'Saldo Awal'
+                            }
+                        })
                     }
-                })
-
-                // Update account balances
-                for (const line of filledLines) {
-                    const account = accountMap.get(line.accountCode)!
-                    let balanceChange = 0
-                    if (['ASSET', 'EXPENSE'].includes(account.type)) {
-                        balanceChange = line.debit - line.credit
-                    } else {
-                        balanceChange = line.credit - line.debit
-                    }
-                    await tx.gLAccount.update({
-                        where: { id: account.id },
-                        data: { balance: { increment: balanceChange } }
-                    })
                 }
             })
+
+            // Update account balances
+            for (const line of filledLines) {
+                const account = accountMap.get(line.accountCode)!
+                let balanceChange = 0
+                if (['ASSET', 'EXPENSE'].includes(account.type)) {
+                    balanceChange = line.debit - line.credit
+                } else {
+                    balanceChange = line.credit - line.debit
+                }
+                await prisma.gLAccount.update({
+                    where: { id: account.id },
+                    data: { balance: { increment: balanceChange } }
+                })
+            }
 
             return { success: true }
         })
@@ -803,52 +793,50 @@ export async function processRecurringEntries(): Promise<{
                 const entryDate = template.nextRecurringDate || new Date()
                 await assertPeriodOpen(entryDate)
 
-                await prisma.$transaction(async (tx) => {
-                    // Create the actual posted entry
-                    await tx.journalEntry.create({
-                        data: {
-                            date: entryDate,
-                            description: `[Otomatis] ${template.description}`,
-                            reference: template.reference,
-                            status: 'POSTED',
-                            isRecurring: false,
-                            lines: {
-                                create: template.lines.map((l) => ({
-                                    accountId: l.accountId,
-                                    debit: l.debit,
-                                    credit: l.credit,
-                                    description: l.description,
-                                })),
-                            },
+                // Create the actual posted entry
+                await prisma.journalEntry.create({
+                    data: {
+                        date: entryDate,
+                        description: `[Otomatis] ${template.description}`,
+                        reference: template.reference,
+                        status: 'POSTED',
+                        isRecurring: false,
+                        lines: {
+                            create: template.lines.map((l) => ({
+                                accountId: l.accountId,
+                                debit: l.debit,
+                                credit: l.credit,
+                                description: l.description,
+                            })),
                         },
-                    })
+                    },
+                })
 
-                    // Update GL account balances
-                    for (const line of template.lines) {
-                        let balanceChange = 0
-                        if (['ASSET', 'EXPENSE'].includes(line.account.type)) {
-                            balanceChange = toNum(line.debit) - toNum(line.credit)
-                        } else {
-                            balanceChange = toNum(line.credit) - toNum(line.debit)
-                        }
-
-                        await tx.gLAccount.update({
-                            where: { id: line.accountId },
-                            data: { balance: { increment: balanceChange } },
-                        })
+                // Update GL account balances
+                for (const line of template.lines) {
+                    let balanceChange = 0
+                    if (['ASSET', 'EXPENSE'].includes(line.account.type)) {
+                        balanceChange = toNum(line.debit) - toNum(line.credit)
+                    } else {
+                        balanceChange = toNum(line.credit) - toNum(line.debit)
                     }
 
-                    // Advance the next recurring date
-                    const pattern = (template.recurringPattern || 'MONTHLY') as RecurringPattern
-                    const nextDate = calculateNextDate(
-                        template.nextRecurringDate || new Date(),
-                        pattern
-                    )
-
-                    await tx.journalEntry.update({
-                        where: { id: template.id },
-                        data: { nextRecurringDate: nextDate },
+                    await prisma.gLAccount.update({
+                        where: { id: line.accountId },
+                        data: { balance: { increment: balanceChange } },
                     })
+                }
+
+                // Advance the next recurring date
+                const pattern = (template.recurringPattern || 'MONTHLY') as RecurringPattern
+                const nextDate = calculateNextDate(
+                    template.nextRecurringDate || new Date(),
+                    pattern
+                )
+
+                await prisma.journalEntry.update({
+                    where: { id: template.id },
+                    data: { nextRecurringDate: nextDate },
                 })
 
                 count++
@@ -1079,43 +1067,41 @@ export async function postOpeningBalancesGL(data: {
             })
             const accountMap = new Map(accounts.map(a => [a.code, a]))
 
-            await prisma.$transaction(async (tx) => {
-                await tx.journalEntry.create({
-                    data: {
-                        date: data.date,
-                        description: 'Saldo Awal',
-                        reference: `OPENING-BALANCE-${year}`,
-                        status: 'POSTED',
-                        lines: {
-                            create: filledRows.map(row => {
-                                const account = accountMap.get(row.accountCode)
-                                if (!account) throw new Error(`Kode akun tidak ditemukan: ${row.accountCode}`)
-                                return {
-                                    accountId: account.id,
-                                    debit: row.debit,
-                                    credit: row.credit,
-                                    description: 'Saldo Awal',
-                                }
-                            })
-                        }
+            await prisma.journalEntry.create({
+                data: {
+                    date: data.date,
+                    description: 'Saldo Awal',
+                    reference: `OPENING-BALANCE-${year}`,
+                    status: 'POSTED',
+                    lines: {
+                        create: filledRows.map(row => {
+                            const account = accountMap.get(row.accountCode)
+                            if (!account) throw new Error(`Kode akun tidak ditemukan: ${row.accountCode}`)
+                            return {
+                                accountId: account.id,
+                                debit: row.debit,
+                                credit: row.credit,
+                                description: 'Saldo Awal',
+                            }
+                        })
                     }
-                })
-
-                // Update GL account balances
-                for (const row of filledRows) {
-                    const account = accountMap.get(row.accountCode)!
-                    let balanceChange = 0
-                    if (['ASSET', 'EXPENSE'].includes(account.type)) {
-                        balanceChange = row.debit - row.credit
-                    } else {
-                        balanceChange = row.credit - row.debit
-                    }
-                    await tx.gLAccount.update({
-                        where: { id: account.id },
-                        data: { balance: { increment: balanceChange } }
-                    })
                 }
             })
+
+            // Update GL account balances
+            for (const row of filledRows) {
+                const account = accountMap.get(row.accountCode)!
+                let balanceChange = 0
+                if (['ASSET', 'EXPENSE'].includes(account.type)) {
+                    balanceChange = row.debit - row.credit
+                } else {
+                    balanceChange = row.credit - row.debit
+                }
+                await prisma.gLAccount.update({
+                    where: { id: account.id },
+                    data: { balance: { increment: balanceChange } }
+                })
+            }
 
             return { success: true }
         })
@@ -1508,42 +1494,40 @@ export async function postClosingJournal(fiscalYear: number): Promise<{
                 throw new Error(`Jurnal tidak seimbang: Debit (${totalDebit}) != Kredit (${totalCredit})`)
             }
 
-            return await prisma.$transaction(async (tx) => {
-                // Create the closing journal entry
-                const entry = await tx.journalEntry.create({
-                    data: {
-                        date: new Date(fiscalYear, 11, 31), // Dec 31 of fiscal year
-                        description: `Jurnal Penutup Tahun Fiskal ${fiscalYear}`,
-                        reference: `CLOSING-${fiscalYear}`,
-                        status: 'POSTED',
-                        lines: {
-                            create: lines.map(line => ({
-                                accountId: line.accountId,
-                                debit: line.debit,
-                                credit: line.credit,
-                                description: line.description,
-                            })),
-                        },
+            // Create the closing journal entry
+            const entry = await prisma.journalEntry.create({
+                data: {
+                    date: new Date(fiscalYear, 11, 31), // Dec 31 of fiscal year
+                    description: `Jurnal Penutup Tahun Fiskal ${fiscalYear}`,
+                    reference: `CLOSING-${fiscalYear}`,
+                    status: 'POSTED',
+                    lines: {
+                        create: lines.map(line => ({
+                            accountId: line.accountId,
+                            debit: line.debit,
+                            credit: line.credit,
+                            description: line.description,
+                        })),
                     },
-                })
+                },
+            })
 
-                // Update GL account balances
-                for (const line of lines) {
-                    let balanceChange = 0
-                    if (['ASSET', 'EXPENSE'].includes(line.accountType)) {
-                        balanceChange = line.debit - line.credit
-                    } else {
-                        balanceChange = line.credit - line.debit
-                    }
-
-                    await tx.gLAccount.update({
-                        where: { id: line.accountId },
-                        data: { balance: { increment: balanceChange } },
-                    })
+            // Update GL account balances
+            for (const line of lines) {
+                let balanceChange = 0
+                if (['ASSET', 'EXPENSE'].includes(line.accountType)) {
+                    balanceChange = line.debit - line.credit
+                } else {
+                    balanceChange = line.credit - line.debit
                 }
 
-                return entry.id
-            })
+                await prisma.gLAccount.update({
+                    where: { id: line.accountId },
+                    data: { balance: { increment: balanceChange } },
+                })
+            }
+
+            return entry.id
         })
 
         return { success: true, entryId }

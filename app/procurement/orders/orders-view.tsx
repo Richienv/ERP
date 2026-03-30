@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { usePurchaseOrders } from "@/hooks/use-purchase-orders"
 import {
     Search,
     ArrowRight,
@@ -19,6 +20,7 @@ import {
     CheckCircle2,
     Clock,
     AlertCircle,
+    Hourglass,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -68,10 +70,14 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
     const pathname = usePathname()
     const queryClient = useQueryClient()
 
+    // Use reactive query — falls back to server-rendered initialOrders
+    const { data: liveData } = usePurchaseOrders()
+    const orders = liveData?.orders ?? initialOrders
+
     // Auto-scroll & highlight when arriving with ?highlight=
     useEffect(() => {
-        if (!highlightId || initialOrders.length === 0) return
-        const match = initialOrders.find(o => o.dbId === highlightId)
+        if (!highlightId || orders.length === 0) return
+        const match = orders.find(o => o.dbId === highlightId)
         if (match) {
             setHighlightedDbId(match.dbId)
             // Clear the ?highlight param from URL
@@ -80,7 +86,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
             const timer = setTimeout(() => setHighlightedDbId(null), 4000)
             return () => clearTimeout(timer)
         }
-    }, [highlightId, initialOrders, router, pathname])
+    }, [highlightId, orders, router, pathname])
 
     // Scroll into view once the highlighted row renders
     useEffect(() => {
@@ -89,7 +95,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
         }
     }, [highlightedDbId])
 
-    const filteredOrders = initialOrders.filter(order => {
+    const filteredOrders = orders.filter(order => {
         const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
             order.vendor.toLowerCase().includes(searchTerm.toLowerCase())
         const matchesStatus = filterStatus === "ALL" ||
@@ -100,10 +106,10 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
     })
 
     // Stats
-    const totalOrders = initialOrders.length
-    const activeOrders = initialOrders.filter(o => ['PO_DRAFT', 'PENDING_APPROVAL', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'].includes(o.status)).length
-    const approvedOrders = initialOrders.filter(o => o.status === 'APPROVED').length
-    const completedOrders = initialOrders.filter(o => ['COMPLETED', 'RECEIVED'].includes(o.status)).length
+    const totalOrders = orders.length
+    const activeOrders = orders.filter(o => ['PO_DRAFT', 'PENDING_APPROVAL', 'ORDERED', 'VENDOR_CONFIRMED', 'SHIPPED'].includes(o.status)).length
+    const approvedOrders = orders.filter(o => o.status === 'APPROVED').length
+    const completedOrders = orders.filter(o => ['COMPLETED', 'RECEIVED'].includes(o.status)).length
 
     const getStatusStyle = (status: string) => {
         switch (status) {
@@ -348,25 +354,32 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                         <div className="text-[10px] text-zinc-400 font-medium">{po.items} Items</div>
                                     </td>
                                     <td className="p-4 text-right">
-                                        <div className="flex justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                        <div className="flex justify-end gap-1 items-center">
+                                            {/* View PDF — always visible */}
                                             <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" title="View PDF">
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" title="Lihat PDF">
                                                     <Eye className="h-3.5 w-3.5" />
                                                 </Button>
                                             </a>
+                                            {/* Download PDF — always visible */}
                                             <a href={`/api/documents/purchase-order/${po.dbId}?disposition=attachment`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
                                                 <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" title="Download PDF">
                                                     <Download className="h-3.5 w-3.5" />
                                                 </Button>
                                             </a>
+                                            {/* Status-specific action */}
                                             {po.status === 'PO_DRAFT' ? (
-                                                <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black hover:text-white" onClick={(e) => { e.stopPropagation(); setFinalizePO(po) }}>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white border border-blue-200" title="Finalisasi PO" onClick={(e) => { e.stopPropagation(); setFinalizePO(po) }}>
                                                     <ArrowRight className="h-3.5 w-3.5" />
+                                                </Button>
+                                            ) : po.status === 'PENDING_APPROVAL' ? (
+                                                <Button variant="ghost" size="icon" className="h-7 w-7 bg-amber-50 text-amber-600 border border-amber-200 cursor-default" title="Menunggu persetujuan">
+                                                    <Hourglass className="h-3.5 w-3.5" />
                                                 </Button>
                                             ) : po.status === 'APPROVED' ? (
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-600 hover:text-white" disabled={sendingOrderId === po.dbId}>
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white border border-emerald-200" title="Kirim ke vendor" disabled={sendingOrderId === po.dbId}>
                                                             {sendingOrderId === po.dbId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageSquare className="h-3.5 w-3.5" />}
                                                         </Button>
                                                     </DropdownMenuTrigger>
@@ -377,7 +390,7 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                                             onClick={(e) => { e.stopPropagation(); handleSendToVendor(po, "whatsapp") }}
                                                         >
                                                             <MessageSquare className="h-4 w-4 mr-2" />
-                                                            Send WhatsApp + Mark Ordered
+                                                            Kirim WhatsApp + Tandai Ordered
                                                         </DropdownMenuItem>
                                                         <DropdownMenuItem
                                                             className="cursor-pointer text-xs font-bold"
@@ -385,17 +398,11 @@ export function OrdersView({ initialOrders, vendors, products, warehouses, highl
                                                             onClick={(e) => { e.stopPropagation(); handleSendToVendor(po, "gmail") }}
                                                         >
                                                             <Mail className="h-4 w-4 mr-2" />
-                                                            Send Gmail + Mark Ordered
+                                                            Kirim Gmail + Tandai Ordered
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
-                                            ) : (
-                                                <a href={`/api/documents/purchase-order/${po.dbId}?disposition=inline`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-emerald-600 hover:text-white" title="View PDF">
-                                                        <Eye className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </a>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </td>
                                 </tr>

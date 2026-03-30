@@ -17,7 +17,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useState } from "react"
+import { useRef, useState } from "react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { GoodsReceiptDialog } from "./goods-receipt-dialog"
 import { PurchaseRequestDialog } from "./purchase-request-dialog"
 import { ShoppingBag } from "lucide-react"
@@ -144,7 +145,16 @@ export function DetailedMaterialTable({ data }: { data: GapData[] }) {
     // Debugging Render
     // console.log("[DetailedMaterialTable] Render. Optimistic Keys:", Object.keys(optimisticPOs))
 
-
+    // Virtual scrolling for large lists (>50 items)
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const useVirtual = filteredData.length > 50
+    const rowVirtualizer = useVirtualizer({
+        count: filteredData.length,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 120, // approximate row height for these dense rows
+        overscan: 10,
+        enabled: useVirtual,
+    })
 
     if (!data.length) return <div className="p-8 text-center text-muted-foreground border-2 border-dashed border-black">No material data found.</div>
 

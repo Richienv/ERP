@@ -963,9 +963,8 @@ export async function recordPartialShipment(
 ): Promise<{ success: boolean; error?: string }> {
     try {
         await withPrismaAuth(async (prisma) => {
-            // Entire shipment flow in $transaction to prevent stock race conditions
-            await prisma.$transaction(async (tx) => {
-                const item = await tx.salesOrderItem.findUniqueOrThrow({
+            // prisma is already a transaction client from withPrismaAuth
+                const item = await prisma.salesOrderItem.findUniqueOrThrow({
                     where: { id: salesOrderItemId },
                     select: {
                         quantity: true, qtyDelivered: true, salesOrderId: true, productId: true,
@@ -982,7 +981,7 @@ export async function recordPartialShipment(
                 }
 
                 // Find stock and deduct atomically within same transaction
-                const stockLevel = await tx.stockLevel.findFirst({
+                const stockLevel = await prisma.stockLevel.findFirst({
                     where: { productId: item.productId, quantity: { gte: qtyShipped } },
                     select: { id: true, warehouseId: true, quantity: true, reservedQty: true },
                 })
@@ -996,7 +995,7 @@ export async function recordPartialShipment(
                 const releaseFromReserved = Math.min(qtyShipped, stockLevel.reservedQty)
                 const releaseFromAvailable = qtyShipped - releaseFromReserved
 
-                const updated = await tx.stockLevel.updateMany({
+                const updated = await prisma.stockLevel.updateMany({
                     where: { id: stockLevel.id, quantity: { gte: qtyShipped } },
                     data: {
                         quantity: { decrement: qtyShipped },
@@ -1009,7 +1008,7 @@ export async function recordPartialShipment(
                     throw new Error("Stok tidak mencukupi untuk pengiriman")
                 }
 
-                const salesOrder = await tx.salesOrder.findUniqueOrThrow({
+                const salesOrder = await prisma.salesOrder.findUniqueOrThrow({
                     where: { id: item.salesOrderId },
                     select: { id: true, number: true },
                 })
@@ -1017,7 +1016,7 @@ export async function recordPartialShipment(
                 const unitCost = item.product?.costPrice ? Number(item.product.costPrice) : 0
                 const totalValue = unitCost * qtyShipped
 
-                const invTx = await tx.inventoryTransaction.create({
+                const invTx = await prisma.inventoryTransaction.create({
                     data: {
                         productId: item.productId,
                         warehouseId: stockLevel.warehouseId,
@@ -1034,7 +1033,7 @@ export async function recordPartialShipment(
                 // Post GL entry: DR COGS (5100) / CR Inventory Asset (1300)
                 if (totalValue > 0) {
                     const productName = item.product?.name || item.productId.slice(0, 8)
-                    await postInventoryGLEntry(tx, {
+                    await postInventoryGLEntry(prisma, {
                         transactionId: invTx.id,
                         type: 'SO_SHIPMENT',
                         productName,
@@ -1045,12 +1044,12 @@ export async function recordPartialShipment(
                     })
                 }
 
-                await tx.salesOrderItem.update({
+                await prisma.salesOrderItem.update({
                     where: { id: salesOrderItemId },
                     data: { qtyDelivered: newDelivered },
                 })
 
-                const allItems = await tx.salesOrderItem.findMany({
+                const allItems = await prisma.salesOrderItem.findMany({
                     where: { salesOrderId: item.salesOrderId },
                     select: { quantity: true, qtyDelivered: true },
                 })
@@ -1060,7 +1059,7 @@ export async function recordPartialShipment(
                 )
 
                 if (allFulfilled) {
-                    await tx.salesOrder.update({
+                    await prisma.salesOrder.update({
                         where: { id: item.salesOrderId },
                         data: { status: 'DELIVERED' },
                     })
@@ -1078,18 +1077,17 @@ export async function recordPartialShipment(
                         console.warn("[Auto-AR] Invoice creation failed (shipment still recorded):", invErr)
                     }
                 } else {
-                    const so = await tx.salesOrder.findUnique({
+                    const so = await prisma.salesOrder.findUnique({
                         where: { id: item.salesOrderId },
                         select: { status: true },
                     })
                     if (so?.status === 'CONFIRMED') {
-                        await tx.salesOrder.update({
+                        await prisma.salesOrder.update({
                             where: { id: item.salesOrderId },
                             data: { status: 'IN_PROGRESS' },
                         })
                     }
                 }
-            })
         })
 
         revalidatePath("/inventory")
@@ -1189,9 +1187,9 @@ export async function createSalesReturn(
         await assertPeriodOpen(new Date())
 
         const result = await withPrismaAuth(async (prisma) => {
-            return await prisma.$transaction(async (tx) => {
+            // prisma is already a transaction client from withPrismaAuth
                 // 1. Load Sales Order with items
-                const so = await tx.salesOrder.findUniqueOrThrow({
+                const so = await prisma.salesOrder.findUniqueOrThrow({
                     where: { id: input.salesOrderId },
                     include: {
                         customer: { select: { id: true, name: true } },
@@ -1238,7 +1236,7 @@ export async function createSalesReturn(
                 const totalAmount = subtotal + ppnAmount
 
                 // 4. Generate credit note number
-                const cnCount = await tx.debitCreditNote.count({ where: { type: 'SALES_CN' } })
+                const cnCount = await prisma.debitCreditNote.count({ where: { type: 'SALES_CN' } })
                 const year = new Date().getFullYear()
                 const cnNumber = `CN-${year}-${String(cnCount + 1).padStart(4, '0')}`
 
@@ -1256,7 +1254,7 @@ export async function createSalesReturn(
                 const reasonCode = reasonMap[firstReason] || 'RET_DEFECT'
 
                 // 6. Create DebitCreditNote (Credit Note)
-                const creditNote = await tx.debitCreditNote.create({
+                const creditNote = await prisma.debitCreditNote.create({
                     data: {
                         number: cnNumber,
                         type: 'SALES_CN',
@@ -1296,7 +1294,7 @@ export async function createSalesReturn(
                     const soItem = so.items.find(i => i.id === item.salesOrderItemId)!
 
                     // Find a warehouse with existing stock level for this product
-                    const stockLevel = await tx.stockLevel.findFirst({
+                    const stockLevel = await prisma.stockLevel.findFirst({
                         where: { productId: item.productId },
                         select: { id: true, warehouseId: true },
                     })
@@ -1306,13 +1304,13 @@ export async function createSalesReturn(
                     if (stockLevel) {
                         warehouseId = stockLevel.warehouseId
                     } else {
-                        const warehouse = await tx.warehouse.findFirst({ select: { id: true } })
+                        const warehouse = await prisma.warehouse.findFirst({ select: { id: true } })
                         if (!warehouse) throw new Error("Tidak ada gudang tersedia")
                         warehouseId = warehouse.id
                     }
 
                     // Create inventory transaction (positive qty for RETURN_IN)
-                    await tx.inventoryTransaction.create({
+                    await prisma.inventoryTransaction.create({
                         data: {
                             productId: item.productId,
                             warehouseId,
@@ -1328,7 +1326,7 @@ export async function createSalesReturn(
 
                     // Update stock level
                     if (stockLevel) {
-                        await tx.stockLevel.update({
+                        await prisma.stockLevel.update({
                             where: { id: stockLevel.id },
                             data: {
                                 quantity: { increment: item.quantity },
@@ -1336,7 +1334,7 @@ export async function createSalesReturn(
                             },
                         })
                     } else {
-                        await tx.stockLevel.create({
+                        await prisma.stockLevel.create({
                             data: {
                                 productId: item.productId,
                                 warehouseId,
@@ -1350,7 +1348,7 @@ export async function createSalesReturn(
                     // Update SO item qtyDelivered (reduce by returned qty)
                     const currentDelivered = Number(soItem.qtyDelivered)
                     const newDelivered = Math.max(0, currentDelivered - item.quantity)
-                    await tx.salesOrderItem.update({
+                    await prisma.salesOrderItem.update({
                         where: { id: item.salesOrderItemId },
                         data: { qtyDelivered: newDelivered },
                     })
@@ -1358,7 +1356,7 @@ export async function createSalesReturn(
 
                 // 8. Update invoice balance if linked
                 if (invoiceId) {
-                    await tx.invoice.update({
+                    await prisma.invoice.update({
                         where: { id: invoiceId },
                         data: {
                             balanceDue: { decrement: totalAmount },
@@ -1366,7 +1364,7 @@ export async function createSalesReturn(
                     })
 
                     // Create settlement record
-                    await tx.debitCreditNoteSettlement.create({
+                    await prisma.debitCreditNoteSettlement.create({
                         data: {
                             noteId: creditNote.id,
                             invoiceId,
@@ -1375,7 +1373,7 @@ export async function createSalesReturn(
                     })
 
                     // Update credit note settled amount
-                    await tx.debitCreditNote.update({
+                    await prisma.debitCreditNote.update({
                         where: { id: creditNote.id },
                         data: { settledAmount: totalAmount, status: 'APPLIED' },
                     })
@@ -1385,7 +1383,6 @@ export async function createSalesReturn(
                     creditNoteId: creditNote.id,
                     creditNoteNumber: creditNote.number,
                 }
-            })
         })
 
         // 9. Post GL entry outside transaction
@@ -1507,8 +1504,8 @@ export async function cancelSalesOrder(
 ): Promise<{ success: boolean; error?: string }> {
     try {
         return await withPrismaAuth(async (prisma) => {
-            return await prisma.$transaction(async (tx) => {
-                const so = await tx.salesOrder.findUnique({
+            // prisma is already a transaction client from withPrismaAuth
+                const so = await prisma.salesOrder.findUnique({
                     where: { id: salesOrderId },
                     select: { id: true, number: true, status: true },
                 })
@@ -1522,7 +1519,7 @@ export async function cancelSalesOrder(
                     }
                 }
 
-                await tx.salesOrder.update({
+                await prisma.salesOrder.update({
                     where: { id: salesOrderId },
                     data: {
                         status: 'CANCELLED',
@@ -1531,13 +1528,13 @@ export async function cancelSalesOrder(
                 })
 
                 // Release any reserved stock
-                const soItems = await tx.salesOrderItem.findMany({
+                const soItems = await prisma.salesOrderItem.findMany({
                     where: { salesOrderId: salesOrderId },
                     select: { productId: true, quantity: true },
                 })
 
                 for (const item of soItems) {
-                    const stockLevels = await tx.stockLevel.findMany({
+                    const stockLevels = await prisma.stockLevel.findMany({
                         where: {
                             productId: item.productId,
                             reservedQty: { gt: 0 },
@@ -1549,7 +1546,7 @@ export async function cancelSalesOrder(
                     for (const sl of stockLevels) {
                         if (remainingToRelease <= 0) break
                         const releaseQty = Math.min(remainingToRelease, Number(sl.reservedQty))
-                        await tx.stockLevel.update({
+                        await prisma.stockLevel.update({
                             where: { id: sl.id },
                             data: {
                                 reservedQty: { decrement: releaseQty },
@@ -1561,7 +1558,6 @@ export async function cancelSalesOrder(
                 }
 
                 return { success: true }
-            })
         })
     } catch (error: any) {
         console.error("[cancelSalesOrder] Error:", error)

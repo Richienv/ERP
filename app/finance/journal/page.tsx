@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import {
     BookText,
     Download,
@@ -15,6 +15,7 @@ import {
     Pencil,
     ChevronDown,
 } from "lucide-react"
+import { useVirtualizer } from "@tanstack/react-virtual"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import {
@@ -101,6 +102,17 @@ export default function GeneralLedgerPage() {
         setSearchText("")
         setSelectedStatuses([])
     }
+
+    // ─── Virtual scrolling for large lists ───
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const shouldVirtualize = filteredEntries.length > 50
+    const rowVirtualizer = useVirtualizer({
+        count: filteredEntries.length,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 64,
+        overscan: 10,
+        enabled: shouldVirtualize,
+    })
 
     const handleExport = () => {
         const header = [

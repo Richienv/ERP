@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo, useTransition } from "react"
+import React, { useState, useEffect, useMemo, useRef, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
@@ -46,6 +46,7 @@ import {
     getDistinctPositions,
 } from "@/app/actions/hcm"
 import { ComboboxWithCreate, type ComboboxOption } from "@/components/ui/combobox-with-create"
+import { useVirtualizer } from "@tanstack/react-virtual"
 
 // ==============================================================================
 // Types
@@ -317,6 +318,17 @@ export function EmployeeMasterClient({ initialEmployees }: Props) {
     const deactivatableSelected = Array.from(selectedIds).filter((id) => {
         const emp = employees.find((e) => e.id === id)
         return emp && emp.status !== "INACTIVE" && emp.status !== "TERMINATED"
+    })
+
+    // Virtual scrolling for large lists
+    const scrollRef = useRef<HTMLDivElement>(null)
+    const shouldVirtualize = filteredEmployees.length > 50
+    const rowVirtualizer = useVirtualizer({
+        count: filteredEmployees.length,
+        getScrollElement: () => scrollRef.current,
+        estimateSize: () => 52,
+        overscan: 10,
+        enabled: shouldVirtualize,
     })
 
     return (
