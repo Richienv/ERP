@@ -54,14 +54,14 @@ export function TaskActionDialog({ taskType, open, onClose, onTaskActioned }: Ta
         case "pending-invoices":
             return <InvoiceApprovalPopup open={open} onClose={onClose} onAllActioned={handleAllActioned} />
         case "pending-pr":
-            return <PRApprovalPopup open={open} onClose={onClose} />
+            return <PRApprovalPopup open={open} onClose={onClose} onAllActioned={handleAllActioned} />
         case "vendors-incomplete":
-            return <VendorQuickEditPopup open={open} onClose={onClose} />
+            return <VendorQuickEditPopup open={open} onClose={onClose} onAllActioned={handleAllActioned} />
         case "products-incomplete":
         case "customers-incomplete":
-            return <ProductQuickEditPopup open={open} onClose={onClose} taskType={taskType} />
+            return <ProductQuickEditPopup open={open} onClose={onClose} taskType={taskType} onAllActioned={handleAllActioned} />
         case "low-stock":
-            return <LowStockPopup open={open} onClose={onClose} />
+            return <LowStockPopup open={open} onClose={onClose} onAllActioned={handleAllActioned} />
         default:
             return null
     }
