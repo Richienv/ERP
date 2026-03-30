@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { usePaymentTerms } from "@/hooks/use-payment-terms"
 import { useCurrencies } from "@/hooks/use-currencies"
+import { getFallbackPaymentTermOptions } from "@/lib/payment-term-options"
 import { SelectItem } from "@/components/ui/select"
 import {
   Form,
@@ -91,7 +92,7 @@ export function CustomerForm({
   isEdit = false
 }: CustomerFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { data: paymentTermOptions = [] } = usePaymentTerms()
+  const { data: paymentTermOptions = getFallbackPaymentTermOptions() } = usePaymentTerms()
   const { data: currencies = [] } = useCurrencies()
 
   // ── Auto-code state ──
@@ -533,13 +534,13 @@ export function CustomerForm({
                     onValueChange={(v) => {
                       field.onChange(v)
                       termManuallySetRef.current = true
+                      // Sync creditTerm from selected payment term
+                      const matched = paymentTermOptions.find((t: any) => t.code === v)
+                      if (matched) setValue("creditTerm", matched.days)
                     }}
                     placeholder="Pilih term"
-                  >
-                    {paymentTermOptions.map((t: any) => (
-                      <SelectItem key={t.id} value={t.code}>{t.name}</SelectItem>
-                    ))}
-                  </NBSelect>
+                    options={paymentTermOptions.map((t: any) => ({ value: t.code, label: t.name }))}
+                  />
                   <FormMessage />
                 </FormItem>
               )} />
