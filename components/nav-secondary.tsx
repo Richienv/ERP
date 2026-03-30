@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { type Icon } from "@tabler/icons-react"
+import { useNavPrefetch } from "@/hooks/use-nav-prefetch"
 
 import {
   SidebarGroup,
@@ -23,6 +24,7 @@ export function NavSecondary({
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname()
+  const { prefetchRoute } = useNavPrefetch()
 
   return (
     <SidebarGroup {...props}>
@@ -42,6 +44,7 @@ export function NavSecondary({
                 <Link
                   href={item.url}
                   prefetch
+                  onMouseEnter={() => prefetchRoute(item.url)}
                   data-slot="sidebar-menu-button"
                   data-sidebar="menu-button"
                   className={`flex w-full items-center gap-2 rounded-sm px-3 py-1.5 transition-all duration-100 outline-none group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! group-data-[collapsible=icon]:justify-center ${
