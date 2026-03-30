@@ -634,6 +634,10 @@ export interface UnallocatedPayment {
     date: Date
     method: string
     reference: string | null
+    allocated?: boolean
+    invoiceId?: string | null
+    invoiceNumber?: string | null
+    invoiceStatus?: string | null
 }
 
 export interface OpenInvoice {
@@ -710,7 +714,6 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
     try {
         return await withPrismaAuth(async (prisma) => {
             const paymentWhere: any = {
-                invoiceId: null,
                 customerId: { not: null },
             }
             const invoiceWhere: any = {
@@ -742,7 +745,10 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
             const [payments, invoices, paymentsTotal, invoicesTotal, recentPayments, allCustomers] = await Promise.all([
                 prisma.payment.findMany({
                     where: paymentWhere,
-                    include: { customer: { select: { id: true, name: true } } },
+                    include: {
+                        customer: { select: { id: true, name: true } },
+                        invoice: { select: { id: true, number: true, status: true } },
+                    },
                     orderBy: { date: 'desc' },
                     skip: (query.paymentPage - 1) * query.pageSize,
                     take: query.pageSize,
@@ -786,7 +792,11 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     amount: toNum(p.amount),
                     date: p.date,
                     method: p.method,
-                    reference: p.reference
+                    reference: p.reference,
+                    allocated: p.invoiceId != null,
+                    invoiceId: p.invoiceId,
+                    invoiceNumber: p.invoice?.number ?? null,
+                    invoiceStatus: p.invoice?.status ?? null,
                 })),
                 openInvoices: invoices.map((inv) => ({
                     id: inv.id,

@@ -129,6 +129,17 @@ export function InvoicesPageClient() {
     const [editParties, setEditParties] = useState<Array<{ id: string; name: string; type: 'CUSTOMER' | 'SUPPLIER' }>>([])
     const [editNumber, setEditNumber] = useState("")
 
+    // View dialog (non-DRAFT invoices — read-only)
+    const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+    const [viewLoading, setViewLoading] = useState(false)
+    const [viewData, setViewData] = useState<{
+        number: string; status: string; type: string
+        customerName: string; issueDate: string; dueDate: string
+        items: Array<{ description: string; quantity: number; unitPrice: number; lineTotal: number }>
+        subtotal: number; taxAmount: number; discountAmount: number; totalAmount: number; balanceDue: number
+        payments: Array<{ id: string; number: string; amount: number; date: string; method: string }>
+    } | null>(null)
+
     const [searchText, setSearchText] = useState("")
     const router = useRouter()
     const pathname = usePathname()
@@ -217,7 +228,11 @@ export function InvoicesPageClient() {
         if (!highlightId || loading || allInvoices.length === 0) return
         const invoice = allInvoices.find(i => i.id === highlightId)
         if (invoice) {
-            openEditDialog(invoice)
+            if (invoice.status === "DRAFT") {
+                openEditDialog(invoice)
+            } else {
+                openViewDialog(invoice)
+            }
             const next = new URLSearchParams(searchParams.toString())
             next.delete("highlight")
             const qs = next.toString()
@@ -251,6 +266,48 @@ export function InvoicesPageClient() {
         setPPhRate(2)
         setBuktiPotongNo("")
         setIsPayDialogOpen(true)
+    }
+
+    const openViewDialog = async (invoice: InvoiceKanbanItem) => {
+        setActiveInvoice(invoice)
+        setViewLoading(true)
+        setIsViewDialogOpen(true)
+        try {
+            const detailResult = await getInvoiceDetail(invoice.id) as any
+            if (detailResult.success && detailResult.data) {
+                const inv = detailResult.data
+                setViewData({
+                    number: inv.number,
+                    status: inv.status,
+                    type: inv.type,
+                    customerName: inv.customer?.name || inv.supplier?.name || "—",
+                    issueDate: new Date(inv.issueDate).toLocaleDateString("id-ID"),
+                    dueDate: new Date(inv.dueDate).toLocaleDateString("id-ID"),
+                    items: inv.items.map((item: any) => ({
+                        description: item.description || "",
+                        quantity: Number(item.quantity),
+                        unitPrice: Number(item.unitPrice),
+                        lineTotal: Number(item.lineTotal),
+                    })),
+                    subtotal: inv.subtotal,
+                    taxAmount: inv.taxAmount,
+                    discountAmount: inv.discountAmount,
+                    totalAmount: inv.totalAmount,
+                    balanceDue: inv.balanceDue,
+                    payments: (inv.payments || []).map((p: any) => ({
+                        id: p.id,
+                        number: p.number,
+                        amount: Number(p.amount),
+                        date: new Date(p.date).toLocaleDateString("id-ID"),
+                        method: p.method,
+                    })),
+                })
+            }
+        } catch {
+            toast.error("Gagal memuat detail invoice")
+        } finally {
+            setViewLoading(false)
+        }
     }
 
     const openEditDialog = async (invoice: InvoiceKanbanItem) => {
@@ -1219,6 +1276,164 @@ export function InvoicesPageClient() {
                         <Button onClick={handleSaveEdit} disabled={editSaving || editLoading} className={NB.submitBtnOrange}>
                             {editSaving ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Menyimpan...</> : "Simpan Perubahan"}
                         </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* ─── VIEW DIALOG (read-only for non-DRAFT) ─── */}
+            <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+                <DialogContent className={`${NB.content} overflow-y-auto max-h-[90vh]`}>
+                    <DialogHeader className={NB.header}>
+                        <DialogTitle className={NB.title}>
+                            <Receipt className="h-5 w-5" /> Detail Invoice
+                        </DialogTitle>
+                        <p className={NB.subtitle}>Detail lengkap invoice</p>
+                        {viewData && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <span className="font-mono text-sm font-black bg-zinc-800 border border-zinc-600 text-white px-3 py-1">{viewData.number}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${
+                                    viewData.status === "PAID" ? "bg-emerald-900/50 border-emerald-400 text-emerald-300"
+                                    : viewData.status === "ISSUED" ? "bg-blue-900/50 border-blue-400 text-blue-300"
+                                    : viewData.status === "PARTIAL" ? "bg-amber-900/50 border-amber-400 text-amber-300"
+                                    : viewData.status === "OVERDUE" ? "bg-red-900/50 border-red-400 text-red-300"
+                                    : "bg-zinc-700/50 border-zinc-500 text-zinc-300"
+                                }`}>
+                                    {viewData.status === "PAID" ? "Lunas" : viewData.status === "ISSUED" ? "Terkirim" : viewData.status === "PARTIAL" ? "Sebagian" : viewData.status === "OVERDUE" ? "Jatuh Tempo" : viewData.status}
+                                </span>
+                                <span className={`text-[10px] font-black uppercase tracking-wide px-2 py-0.5 border rounded-none ${viewData.type === 'INV_OUT' ? 'bg-blue-900/50 border-blue-400 text-blue-300' : 'bg-purple-900/50 border-purple-400 text-purple-300'}`}>
+                                    {viewData.type === 'INV_OUT' ? 'Invoice' : 'Bill'}
+                                </span>
+                            </div>
+                        )}
+                    </DialogHeader>
+                    <div className="p-6 space-y-5">
+                        {viewLoading ? (
+                            <div className="flex items-center justify-center py-12 text-zinc-400">
+                                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                                <span className="text-xs font-bold uppercase tracking-widest">Memuat detail invoice...</span>
+                            </div>
+                        ) : viewData ? (
+                            <div className="space-y-5">
+                                {/* Info */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">{viewData.type === 'INV_OUT' ? 'Pelanggan' : 'Vendor'}</span>
+                                        <div className="text-sm font-bold text-zinc-900 dark:text-zinc-100">{viewData.customerName}</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Tanggal Terbit</span>
+                                        <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{viewData.issueDate}</div>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Jatuh Tempo</span>
+                                        <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{viewData.dueDate}</div>
+                                    </div>
+                                </div>
+
+                                {/* Items table */}
+                                <div>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-2">Item</span>
+                                    <div className="border-2 border-black dark:border-white overflow-hidden">
+                                        <div className="grid grid-cols-[1fr_60px_100px_100px] gap-0 bg-zinc-100 dark:bg-zinc-800 border-b-2 border-black dark:border-white">
+                                            <span className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500">Deskripsi</span>
+                                            <span className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 text-center">Qty</span>
+                                            <span className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 text-right">Harga</span>
+                                            <span className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-zinc-500 text-right">Jumlah</span>
+                                        </div>
+                                        {viewData.items.map((item, i) => (
+                                            <div key={i} className="grid grid-cols-[1fr_60px_100px_100px] gap-0 border-b border-zinc-200 dark:border-zinc-700 last:border-b-0">
+                                                <span className="px-3 py-2 text-sm text-zinc-800 dark:text-zinc-200">{item.description}</span>
+                                                <span className="px-3 py-2 text-sm font-mono text-center text-zinc-600 dark:text-zinc-400">{item.quantity}</span>
+                                                <span className="px-3 py-2 text-sm font-mono text-right text-zinc-600 dark:text-zinc-400">{formatIDR(item.unitPrice)}</span>
+                                                <span className="px-3 py-2 text-sm font-mono font-bold text-right text-zinc-800 dark:text-zinc-200">{formatIDR(item.lineTotal)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Totals */}
+                                <div className="border-2 border-black dark:border-white bg-zinc-900 dark:bg-zinc-100 px-4 py-3 space-y-1.5">
+                                    <div className="flex justify-between items-center text-xs text-zinc-400 dark:text-zinc-500">
+                                        <span>Subtotal</span>
+                                        <span className="font-mono font-bold">{formatIDR(viewData.subtotal)}</span>
+                                    </div>
+                                    {viewData.discountAmount > 0 && (
+                                        <div className="flex justify-between items-center text-xs text-red-400 dark:text-red-500">
+                                            <span>Diskon</span>
+                                            <span className="font-mono font-bold">- {formatIDR(viewData.discountAmount)}</span>
+                                        </div>
+                                    )}
+                                    {viewData.taxAmount > 0 && (
+                                        <div className="flex justify-between items-center text-xs text-zinc-400 dark:text-zinc-500">
+                                            <span>PPN 11%</span>
+                                            <span className="font-mono font-bold">{formatIDR(viewData.taxAmount)}</span>
+                                        </div>
+                                    )}
+                                    <div className="flex justify-between items-center border-t border-zinc-700 dark:border-zinc-300 pt-2 mt-1">
+                                        <span className="text-[11px] font-black uppercase tracking-wider text-white dark:text-zinc-900">Total</span>
+                                        <span className="font-mono font-black text-xl text-white dark:text-zinc-900">{formatIDR(viewData.totalAmount)}</span>
+                                    </div>
+                                    {viewData.status !== "PAID" && viewData.balanceDue > 0 && viewData.balanceDue !== viewData.totalAmount && (
+                                        <div className="flex justify-between items-center text-xs text-amber-400">
+                                            <span>Sisa Tagihan</span>
+                                            <span className="font-mono font-bold">{formatIDR(viewData.balanceDue)}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Payment history */}
+                                {viewData.payments.length > 0 && (
+                                    <div>
+                                        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block mb-2">Riwayat Pembayaran</span>
+                                        <div className="border-2 border-black dark:border-white overflow-hidden divide-y divide-zinc-200 dark:divide-zinc-700">
+                                            {viewData.payments.map((p) => (
+                                                <div key={p.id} className="flex items-center justify-between px-3 py-2">
+                                                    <div>
+                                                        <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">{p.method}</div>
+                                                        <div className="text-[10px] text-zinc-400">{p.date}</div>
+                                                    </div>
+                                                    <span className="font-mono font-bold text-sm text-emerald-700 dark:text-emerald-400">{formatIDR(p.amount)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Audit log */}
+                                {activeInvoice && (
+                                    <div className={NB.section}>
+                                        <div className={NB.sectionHead}>
+                                            <Clock className="h-4 w-4 text-zinc-500" />
+                                            <span className={NB.sectionTitle}>Riwayat Perubahan</span>
+                                        </div>
+                                        <AuditLogTimeline entityType="Invoice" entityId={activeInvoice.id} />
+                                    </div>
+                                )}
+                            </div>
+                        ) : null}
+                    </div>
+                    <DialogFooter className="p-6 pt-3 border-t border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 flex gap-2">
+                        <Button
+                            variant="outline"
+                            className={NB.cancelBtn}
+                            onClick={() => activeInvoice && window.open(`/api/documents/invoice/${activeInvoice.id}?disposition=inline`, '_blank')}
+                            disabled={!activeInvoice}
+                        >
+                            <Download className="h-3.5 w-3.5 mr-1.5" /> Cetak PDF
+                        </Button>
+                        <div className="flex-1" />
+                        {activeInvoice && viewData && (viewData.status === "ISSUED" || viewData.status === "OVERDUE" || viewData.status === "PARTIAL") && (
+                            <Button
+                                className={NB.submitBtnOrange}
+                                onClick={() => {
+                                    setIsViewDialogOpen(false)
+                                    if (activeInvoice) openPayDialog(activeInvoice)
+                                }}
+                            >
+                                <Banknote className="h-3.5 w-3.5 mr-1.5" /> Catat Pembayaran
+                            </Button>
+                        )}
+                        <Button variant="outline" className={NB.cancelBtn} onClick={() => setIsViewDialogOpen(false)}>Tutup</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -432,4 +432,8 @@ export const queryKeys = {
         movements: (start?: string, end?: string) => [...["fixedAssetReports"], "movements", start, end] as const,
         nbv: () => [...["fixedAssetReports"], "nbv"] as const,
     },
+    invoiceAvailableOrders: {
+        all: ["invoiceAvailableOrders"] as const,
+        list: () => [...queryKeys.invoiceAvailableOrders.all, "list"] as const,
+    },
 } as const

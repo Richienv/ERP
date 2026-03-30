@@ -1,19 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { FileText, Receipt, CreditCard, CalendarDays, Loader2 } from "lucide-react"
+import { useState } from "react"
+import { FileText, Receipt, CreditCard, CalendarDays, Loader2, Package } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { SelectItem } from "@/components/ui/select"
 import { toast } from "sonner"
-import { useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 import { formatIDR } from "@/lib/utils"
+import { TAX_RATES } from "@/lib/tax-rates"
 import {
-    getInvoiceCustomers,
     createCustomerInvoice,
-    getPendingSalesOrders,
-    getPendingPurchaseOrders,
-    getExpenseAccounts,
 } from "@/lib/actions/finance"
 import {
     createInvoiceFromSalesOrder,
@@ -30,6 +28,33 @@ import {
     NBCurrencyInput,
     NBSelect,
 } from "@/components/ui/nb-dialog"
+
+/* ─── Types ─── */
+interface OrderItem {
+    id: string
+    productName: string
+    sku?: string
+    description?: string
+    quantity: number
+    unitPrice: number
+}
+
+interface PendingOrder {
+    id: string
+    number: string
+    customerName?: string
+    vendorName?: string
+    amount: number
+    date: string
+    items: OrderItem[]
+}
+
+interface AvailableOrdersData {
+    parties: Array<{ id: string; name: string; type: "CUSTOMER" | "SUPPLIER" }>
+    accounts: Array<{ id: string; code: string; name: string }>
+    salesOrders: PendingOrder[]
+    purchaseOrders: PendingOrder[]
+}
 
 /* ─── Animation variants ─── */
 const sectionFade = {
@@ -53,10 +78,6 @@ const parseDateInput = (value: string) => {
 
 export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogProps) {
     const queryClient = useQueryClient()
-    const [customers, setCustomers] = useState<Array<{ id: string; name: string; type?: string }>>([])
-    const [pendingSOs, setPendingSOs] = useState<any[]>([])
-    const [pendingPOs, setPendingPOs] = useState<any[]>([])
-    const [dataReady, setDataReady] = useState(false)
     const [creating, setCreating] = useState(false)
 
     const [sourceType, setSourceType] = useState<'SO' | 'PO' | 'MANUAL'>('MANUAL')
@@ -69,38 +90,26 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     const [includeTax, setIncludeTax] = useState(true)
     const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0])
     const [dueDate, setDueDate] = useState("")
-    const [revenueAccounts, setRevenueAccounts] = useState<Array<{ id: string; code: string; name: string }>>([])
     const [selectedAccountId, setSelectedAccountId] = useState("")
 
-    // Prefetch ALL data in parallel on dialog open
-    useEffect(() => {
-        if (!open) return
-        let active = true
-        setDataReady(false)
-        const loadAll = async () => {
-            try {
-                const [customerList, accountsData, soData, poData] = await Promise.all([
-                    getInvoiceCustomers(),
-                    getExpenseAccounts(),
-                    getPendingSalesOrders().catch(() => []),
-                    getPendingPurchaseOrders().catch(() => []),
-                ])
-                if (active) {
-                    setCustomers(customerList)
-                    setRevenueAccounts([...(accountsData.revenueAccounts ?? []), ...(accountsData.expenseAccounts ?? [])])
-                    setPendingSOs(soData)
-                    setPendingPOs(poData)
-                    setDataReady(true)
-                }
-            } catch {
-                if (active) setDataReady(true)
-            }
-        }
-        loadAll()
-        return () => { active = false }
-    }, [open])
+    // Single API call fetches all data — no withPrismaAuth transaction overhead
+    const { data, isLoading: dataLoading } = useQuery<AvailableOrdersData>({
+        queryKey: queryKeys.invoiceAvailableOrders.list(),
+        queryFn: async () => {
+            const res = await fetch("/api/finance/invoices/available-orders")
+            if (!res.ok) throw new Error("Failed to load invoice data")
+            return res.json()
+        },
+        ...CACHE_TIERS.TRANSACTIONAL,
+    })
+
+    const parties = data?.parties ?? []
+    const accounts = data?.accounts ?? []
+    const pendingSOs = data?.salesOrders ?? []
+    const pendingPOs = data?.purchaseOrders ?? []
 
     const pendingOrders = sourceType === 'SO' ? pendingSOs : pendingPOs
+    const selectedOrder = pendingOrders.find(o => o.id === selectedOrderId)
 
     const resetForm = () => {
         setSourceType('MANUAL')
@@ -150,6 +159,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.bills.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.invoiceAvailableOrders.all })
             } else {
                 toast.error(('error' in result ? result.error : "Gagal membuat invoice") || "Gagal membuat invoice")
             }
@@ -161,7 +171,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
     }
 
     const subtotal = (parseFloat(manualPrice) || 0) * manualQty
-    const tax = includeTax ? Math.round(subtotal * 0.11) : 0
+    const tax = includeTax ? Math.round(subtotal * TAX_RATES.PPN) : 0
     const total = subtotal + tax
 
     return (
@@ -199,6 +209,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                 initial="hidden"
                                 animate="show"
                                 exit="exit"
+                                className="space-y-2"
                             >
                                 <NBSelect
                                     label={`Pilih ${sourceType === 'SO' ? 'Sales Order' : 'Purchase Order'}`}
@@ -207,19 +218,68 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                     onValueChange={setSelectedOrderId}
                                     placeholder={`Pilih ${sourceType === 'SO' ? 'Order' : 'PO'}`}
                                 >
-                                    {!dataReady ? (
-                                        <SelectItem value="__loading__" disabled>Memuat data...</SelectItem>
+                                    {dataLoading ? (
+                                        <SelectItem value="__loading__" disabled>
+                                            <span className="flex items-center gap-1.5">
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                Memuat data...
+                                            </span>
+                                        </SelectItem>
                                     ) : pendingOrders.length === 0 ? (
                                         <SelectItem value="__empty__" disabled>
                                             Tidak ada {sourceType === 'SO' ? 'order' : 'PO'} pending
                                         </SelectItem>
-                                    ) : pendingOrders.map((order: any) => (
+                                    ) : pendingOrders.map((order) => (
                                         <SelectItem key={order.id} value={order.id}>
                                             {order.number} - {order.customerName || order.vendorName} ({formatIDR(order.amount)})
                                         </SelectItem>
                                     ))}
                                 </NBSelect>
                                 <p className={NB.labelHint}>Hanya order yang belum di-invoice yang ditampilkan</p>
+
+                                {/* ── Item Preview ── */}
+                                <AnimatePresence>
+                                    {selectedOrder && selectedOrder.items.length > 0 && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: "auto" }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="border border-zinc-200 dark:border-zinc-700 mt-2">
+                                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
+                                                    <Package className="h-3 w-3 text-zinc-400" />
+                                                    <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-500">
+                                                        Preview Item ({selectedOrder.items.length})
+                                                    </span>
+                                                </div>
+                                                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                                    {selectedOrder.items.map((item) => (
+                                                        <div key={item.id} className="flex items-center justify-between px-3 py-1.5 text-xs">
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className="font-medium text-zinc-700 dark:text-zinc-300 truncate block">
+                                                                    {item.productName}
+                                                                </span>
+                                                                {item.sku && (
+                                                                    <span className="text-[10px] text-zinc-400 font-mono">{item.sku}</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-right ml-3 shrink-0">
+                                                                <span className="font-mono text-zinc-600 dark:text-zinc-400">
+                                                                    {item.quantity} × {formatIDR(item.unitPrice)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                <div className="border-t border-zinc-200 dark:border-zinc-700 px-3 py-2 flex justify-between items-center bg-zinc-50/50 dark:bg-zinc-800/30">
+                                                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Subtotal</span>
+                                                    <span className="font-mono font-bold text-sm text-zinc-700 dark:text-zinc-300">{formatIDR(selectedOrder.amount)}</span>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -268,14 +328,14 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                     onValueChange={setSelectedCustomer}
                                     placeholder="Pilih pihak"
                                 >
-                                    {!dataReady ? (
+                                    {dataLoading ? (
                                         <SelectItem value="__loading__" disabled>Memuat data...</SelectItem>
-                                    ) : customers.filter(c => (c as any).type === manualType).length === 0 ? (
+                                    ) : parties.filter(c => c.type === manualType).length === 0 ? (
                                         <SelectItem value="__empty__" disabled>
                                             Tidak ada {manualType.toLowerCase()} aktif
                                         </SelectItem>
-                                    ) : customers.filter(c => (c as any).type === manualType).map((customer) => (
-                                        <SelectItem key={customer.id} value={customer.id}>{customer.name}</SelectItem>
+                                    ) : parties.filter(c => c.type === manualType).map((party) => (
+                                        <SelectItem key={party.id} value={party.id}>{party.name}</SelectItem>
                                     ))}
                                 </NBSelect>
 
@@ -334,7 +394,7 @@ export function CreateInvoiceDialog({ open, onOpenChange }: CreateInvoiceDialogP
                                     placeholder="Pilih akun COA"
                                     emptyLabel="Tanpa akun COA"
                                 >
-                                    {revenueAccounts.map((a) => (
+                                    {accounts.map((a) => (
                                         <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>
                                     ))}
                                 </NBSelect>
