@@ -40,16 +40,19 @@ interface TaskActionDialogProps {
     taskType: TaskType | null
     open: boolean
     onClose: () => void
+    onTaskActioned?: (taskType: TaskType) => void
 }
 
-export function TaskActionDialog({ taskType, open, onClose }: TaskActionDialogProps) {
+export function TaskActionDialog({ taskType, open, onClose, onTaskActioned }: TaskActionDialogProps) {
     if (!taskType || !open) return null
+
+    const handleAllActioned = () => onTaskActioned?.(taskType)
 
     switch (taskType) {
         case "pending-approvals":
-            return <POApprovalPopup open={open} onClose={onClose} />
+            return <POApprovalPopup open={open} onClose={onClose} onAllActioned={handleAllActioned} />
         case "pending-invoices":
-            return <InvoiceApprovalPopup open={open} onClose={onClose} />
+            return <InvoiceApprovalPopup open={open} onClose={onClose} onAllActioned={handleAllActioned} />
         case "pending-pr":
             return <PRApprovalPopup open={open} onClose={onClose} />
         case "vendors-incomplete":

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { formatIDR } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
+import type { SidebarActionCounts } from "@/hooks/use-sidebar-actions"
 import { moveInvoiceToSent, cancelInvoice } from "@/lib/actions/finance-invoices"
 
 interface PendingInvoice {
@@ -28,9 +29,10 @@ interface PendingInvoice {
 interface InvoiceApprovalPopupProps {
     open: boolean
     onClose: () => void
+    onAllActioned?: () => void
 }
 
-export function InvoiceApprovalPopup({ open, onClose }: InvoiceApprovalPopupProps) {
+export function InvoiceApprovalPopup({ open, onClose, onAllActioned }: InvoiceApprovalPopupProps) {
     const [items, setItems] = useState<PendingInvoice[]>([])
     const [loading, setLoading] = useState(true)
     const [acting, setActing] = useState<string | null>(null)
@@ -67,10 +69,17 @@ export function InvoiceApprovalPopup({ open, onClose }: InvoiceApprovalPopupProp
             const result = await moveInvoiceToSent(inv.id)
             if (result.success) {
                 toast.success(`Invoice ${inv.number} dikirim`)
+                queryClient.setQueryData<SidebarActionCounts | null>(
+                    queryKeys.sidebarActions.list(),
+                    (old) => old ? { ...old, pendingInvoices: Math.max(0, old.pendingInvoices - 1) } : old
+                )
                 const remaining = items.filter((i) => i.id !== inv.id)
                 setItems(remaining)
                 invalidateAll()
-                if (remaining.length === 0) onClose()
+                if (remaining.length === 0) {
+                    onAllActioned?.()
+                    onClose()
+                }
             } else {
                 toast.error(result.error || "Gagal mengirim invoice")
             }
@@ -79,7 +88,7 @@ export function InvoiceApprovalPopup({ open, onClose }: InvoiceApprovalPopupProp
         } finally {
             setActing(null)
         }
-    }, [items, invalidateAll, onClose])
+    }, [items, invalidateAll, onClose, onAllActioned, queryClient])
 
     const handleReject = useCallback(async (inv: PendingInvoice) => {
         const reason = window.prompt(`Alasan pembatalan Invoice ${inv.number}:`)
@@ -90,10 +99,17 @@ export function InvoiceApprovalPopup({ open, onClose }: InvoiceApprovalPopupProp
             const result = await cancelInvoice(inv.id, reason)
             if (result.success) {
                 toast.success(`Invoice ${inv.number} dibatalkan`)
+                queryClient.setQueryData<SidebarActionCounts | null>(
+                    queryKeys.sidebarActions.list(),
+                    (old) => old ? { ...old, pendingInvoices: Math.max(0, old.pendingInvoices - 1) } : old
+                )
                 const remaining = items.filter((i) => i.id !== inv.id)
                 setItems(remaining)
                 invalidateAll()
-                if (remaining.length === 0) onClose()
+                if (remaining.length === 0) {
+                    onAllActioned?.()
+                    onClose()
+                }
             } else {
                 toast.error(result.error || "Gagal membatalkan invoice")
             }
@@ -102,7 +118,7 @@ export function InvoiceApprovalPopup({ open, onClose }: InvoiceApprovalPopupProp
         } finally {
             setActing(null)
         }
-    }, [items, invalidateAll, onClose])
+    }, [items, invalidateAll, onClose, onAllActioned, queryClient])
 
     return (
         <NBDialog open={open} onOpenChange={(v) => !v && onClose()}>

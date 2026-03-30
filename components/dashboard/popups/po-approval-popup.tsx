@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { formatIDR } from "@/lib/utils"
 import { queryKeys } from "@/lib/query-keys"
+import type { SidebarActionCounts } from "@/hooks/use-sidebar-actions"
 import { approvePurchaseOrder, rejectPurchaseOrder } from "@/lib/actions/procurement"
 
 interface PendingPO {
@@ -27,9 +28,10 @@ interface PendingPO {
 interface POApprovalPopupProps {
     open: boolean
     onClose: () => void
+    onAllActioned?: () => void
 }
 
-export function POApprovalPopup({ open, onClose }: POApprovalPopupProps) {
+export function POApprovalPopup({ open, onClose, onAllActioned }: POApprovalPopupProps) {
     const [items, setItems] = useState<PendingPO[]>([])
     const [loading, setLoading] = useState(true)
     const [acting, setActing] = useState<string | null>(null)
@@ -65,10 +67,17 @@ export function POApprovalPopup({ open, onClose }: POApprovalPopupProps) {
             const result = await approvePurchaseOrder(po.id)
             if (result.success) {
                 toast.success(`PO ${po.number} disetujui`)
+                queryClient.setQueryData<SidebarActionCounts | null>(
+                    queryKeys.sidebarActions.list(),
+                    (old) => old ? { ...old, pendingApprovals: Math.max(0, old.pendingApprovals - 1) } : old
+                )
                 const remaining = items.filter((i) => i.id !== po.id)
                 setItems(remaining)
                 invalidateAll()
-                if (remaining.length === 0) onClose()
+                if (remaining.length === 0) {
+                    onAllActioned?.()
+                    onClose()
+                }
             } else {
                 toast.error(result.error || "Gagal menyetujui PO")
             }
@@ -77,7 +86,7 @@ export function POApprovalPopup({ open, onClose }: POApprovalPopupProps) {
         } finally {
             setActing(null)
         }
-    }, [items, invalidateAll, onClose])
+    }, [items, invalidateAll, onClose, onAllActioned, queryClient])
 
     const handleReject = useCallback(async (po: PendingPO) => {
         const reason = window.prompt(`Alasan penolakan PO ${po.number}:`)
@@ -88,10 +97,17 @@ export function POApprovalPopup({ open, onClose }: POApprovalPopupProps) {
             const result = await rejectPurchaseOrder(po.id, reason)
             if (result.success) {
                 toast.success(`PO ${po.number} ditolak`)
+                queryClient.setQueryData<SidebarActionCounts | null>(
+                    queryKeys.sidebarActions.list(),
+                    (old) => old ? { ...old, pendingApprovals: Math.max(0, old.pendingApprovals - 1) } : old
+                )
                 const remaining = items.filter((i) => i.id !== po.id)
                 setItems(remaining)
                 invalidateAll()
-                if (remaining.length === 0) onClose()
+                if (remaining.length === 0) {
+                    onAllActioned?.()
+                    onClose()
+                }
             } else {
                 toast.error(result.error || "Gagal menolak PO")
             }
@@ -100,7 +116,7 @@ export function POApprovalPopup({ open, onClose }: POApprovalPopupProps) {
         } finally {
             setActing(null)
         }
-    }, [items, invalidateAll, onClose])
+    }, [items, invalidateAll, onClose, onAllActioned, queryClient])
 
     return (
         <NBDialog open={open} onOpenChange={(v) => !v && onClose()}>
