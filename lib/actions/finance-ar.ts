@@ -648,6 +648,7 @@ export interface OpenInvoice {
     balanceDue: number
     dueDate: Date
     isOverdue: boolean
+    status: string
 }
 
 type ARRegistryQueryInput = {
@@ -805,7 +806,8 @@ export async function getARPaymentRegistry(input?: ARRegistryQueryInput): Promis
                     amount: toNum(inv.totalAmount),
                     balanceDue: toNum(inv.balanceDue),
                     dueDate: inv.dueDate,
-                    isOverdue: inv.dueDate < now
+                    isOverdue: inv.dueDate < now,
+                    status: inv.status,
                 })),
                 recentPayments: recentPayments.map((p) => ({
                     id: p.id,
@@ -923,7 +925,8 @@ export async function getOpenInvoices(): Promise<OpenInvoice[]> {
                 amount: toNum(inv.totalAmount),
                 balanceDue: toNum(inv.balanceDue),
                 dueDate: inv.dueDate,
-                isOverdue: inv.dueDate < now
+                isOverdue: inv.dueDate < now,
+                status: inv.status,
             }))
         })
     } catch (error) {

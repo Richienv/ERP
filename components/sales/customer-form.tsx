@@ -113,7 +113,6 @@ export function CustomerForm({
 
   // ── Manual override tracking ──
   const typeManuallySetRef = useRef(isEdit)
-  const termManuallySetRef = useRef(isEdit)
 
   const form = useForm<CreateCustomerInput>({
     resolver: zodResolver(createCustomerSchema),
@@ -146,7 +145,7 @@ export function CustomerForm({
   const customerType = watch("customerType")
   const isTaxable = watch("isTaxable")
   const nameValue = watch("name")
-  const creditTerm = watch("creditTerm")
+  const paymentTermValue = watch("paymentTerm")
   const emailValue = watch("email")
   const npwpValue = watch("npwp")
 
@@ -182,17 +181,14 @@ export function CustomerForm({
     setValue("taxStatus", isTaxable ? "PKP" : "NON_PKP")
   }, [isTaxable, setValue])
 
-  // ── 9. creditTerm → paymentTerm auto-suggest ──
+  // ── 9. paymentTerm → creditTerm auto-sync (Raymond: pick term first, days auto-fill) ──
+  const isCashTerm = paymentTermValue === "CASH" || paymentTermValue === "COD"
   useEffect(() => {
-    if (termManuallySetRef.current || paymentTermOptions.length === 0) return
-    if (creditTerm === 0) {
-      const cod = paymentTermOptions.find((t: any) => t.code === "COD" || t.days === 0)
-      if (cod) setValue("paymentTerm", cod.code as CreateCustomerInput["paymentTerm"])
-      return
-    }
-    const matched = paymentTermOptions.find((t: any) => t.days === creditTerm)
-    if (matched) setValue("paymentTerm", matched.code as CreateCustomerInput["paymentTerm"])
-  }, [creditTerm, paymentTermOptions, setValue])
+    if (paymentTermOptions.length === 0) return
+    const matched = paymentTermOptions.find((t: any) => t.code === paymentTermValue)
+    if (matched) setValue("creditTerm", matched.days)
+    if (isCashTerm) setValue("creditLimit", 0)
+  }, [paymentTermValue, isCashTerm, paymentTermOptions, setValue])
 
   // ── Derived values ──
   const npwpDigits = getNpwpDigits(npwpValue)
@@ -496,51 +492,49 @@ export function CustomerForm({
 
             {/* ═══ Manajemen Kredit ═══ */}
             <NBSection icon={CreditCard} title="Manajemen Kredit">
-              {/* 7. Limit Kredit — emerald glow when >0 */}
+              {/* 7. Limit Kredit — disabled for cash/COD */}
               <FormField control={form.control} name="creditLimit" render={({ field }) => (
                 <FormItem>
                   <NBCurrencyInput
                     label="Limit Kredit"
                     value={field.value ? String(field.value) : ""}
                     onChange={(v) => field.onChange(Number(v) || 0)}
+                    disabled={isCashTerm}
                   />
+                  {isCashTerm && (
+                    <p className="text-[10px] font-medium text-zinc-400 mt-0.5">Tidak berlaku untuk pembayaran tunai</p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )} />
 
-              {/* 8. Term Kredit — default 30 days */}
-              <FormField control={form.control} name="creditTerm" render={({ field }) => (
-                <FormItem>
-                  <NBInput
-                    label="Term Kredit (Hari)"
-                    type="number"
-                    value={field.value ? String(field.value) : ""}
-                    onChange={(v) => {
-                      const num = Number(v) || 0
-                      field.onChange(num)
-                    }}
-                    placeholder="30"
-                  />
-                  <FormMessage />
-                </FormItem>
-              )} />
-
-              {/* 9. Term Pembayaran — auto-suggest from creditTerm */}
+              {/* 8. Term Pembayaran — pick FIRST, auto-fills credit days */}
               <FormField control={form.control} name="paymentTerm" render={({ field }) => (
                 <FormItem>
                   <NBSelect
                     label="Term Pembayaran"
                     value={field.value || ""}
-                    onValueChange={(v) => {
-                      field.onChange(v)
-                      termManuallySetRef.current = true
-                      // Sync creditTerm from selected payment term
-                      const matched = paymentTermOptions.find((t: any) => t.code === v)
-                      if (matched) setValue("creditTerm", matched.days)
-                    }}
+                    onValueChange={field.onChange}
                     placeholder="Pilih term"
                     options={paymentTermOptions.map((t: any) => ({ value: t.code, label: t.name }))}
                   />
+                  <FormMessage />
+                </FormItem>
+              )} />
+
+              {/* 9. Term Kredit — auto-filled from Term Pembayaran, read-only */}
+              <FormField control={form.control} name="creditTerm" render={({ field }) => (
+                <FormItem>
+                  <NBInput
+                    label="Term Kredit (Hari)"
+                    type="number"
+                    value={String(field.value ?? 0)}
+                    onChange={() => {}}
+                    disabled
+                  />
+                  <p className="text-[10px] font-medium text-zinc-400 mt-0.5">
+                    {isCashTerm ? "Tunai = 0 hari kredit" : `Otomatis dari ${(paymentTermValue || "").replace(/_/g, " ")}`}
+                  </p>
                   <FormMessage />
                 </FormItem>
               )} />

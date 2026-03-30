@@ -77,7 +77,9 @@ export async function GET() {
             poNumber: grn.purchaseOrder.number,
             vendorName: grn.purchaseOrder.supplier.name,
             warehouseName: grn.warehouse.name,
-            receivedBy: `${grn.receivedBy.firstName} ${grn.receivedBy.lastName || ""}`.trim(),
+            receivedBy: grn.receivedBy
+                ? `${grn.receivedBy.firstName} ${grn.receivedBy.lastName || ""}`.trim()
+                : "Unknown",
             receivedDate: grn.receivedDate,
             status: grn.status,
             notes: grn.notes,

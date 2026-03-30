@@ -11,6 +11,8 @@ import { NB } from "@/lib/dialog-styles"
 import { Banknote } from "lucide-react"
 import { getARAgingReport } from "@/lib/actions/finance"
 import { PendingApprovalSection } from "@/components/finance/pending-approval-section"
+import { queryKeys } from "@/lib/query-keys"
+import { CACHE_TIERS } from "@/lib/cache-tiers"
 
 const PaymentsTab = dynamic(() => import("@/app/finance/payments/page"), {
     ssr: false,
@@ -29,10 +31,10 @@ export function ReceivablesPageClient() {
     const initialTab = searchParams.get("tab") || "penerimaan"
     const [activeTab, setActiveTab] = useState(initialTab)
 
-    const { data: aging } = useQuery({
-        queryKey: ["finance", "ar-aging"],
+    const { data: aging, isLoading } = useQuery({
+        queryKey: queryKeys.arAging.all,
         queryFn: () => getARAgingReport(),
-        staleTime: 30_000,
+        ...CACHE_TIERS.TRANSACTIONAL,
     })
     const b = aging?.summary || { current: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90_plus: 0 }
     const total = b.current + b.d1_30 + b.d31_60 + b.d61_90 + b.d90_plus

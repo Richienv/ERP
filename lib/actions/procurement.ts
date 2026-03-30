@@ -1988,9 +1988,12 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
             if (!item.unitPrice || item.unitPrice < 0) throw new Error("Harga satuan tidak valid")
         }
 
-        // Get employee ID for GRN receivedBy
-        const employeeId = await getEmployeeIdForUserEmail(user.email)
-        if (!employeeId) throw new Error("Data karyawan tidak ditemukan untuk user ini")
+        // Get employee ID for GRN receivedBy (optional — users without Employee records can still receive)
+        const empRecord = await prisma.employee.findFirst({
+            where: { email: user.email ?? undefined },
+            select: { id: true }
+        })
+        const employeeId = empRecord?.id || null
 
         const result = await withPrismaAuth(async (prisma) => {
             const pAny = prisma as any
@@ -2065,9 +2068,9 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                     number: grnNumber,
                     purchaseOrderId: po.id,
                     warehouseId: input.warehouseId,
-                    receivedById: employeeId,
+                    receivedById: employeeId || undefined,
                     status: 'ACCEPTED',
-                    acceptedBy: employeeId,
+                    acceptedBy: employeeId || user.id,
                     acceptedAt: now,
                     notes: input.notes || 'Pembelian langsung — otomatis diterima',
                     items: {
@@ -2102,27 +2105,33 @@ export async function createDirectPurchase(input: DirectPurchaseInput) {
                     }
                 })
 
-                // Upsert stock level
-                await prisma.stockLevel.upsert({
+                // Update stock level (findFirst + create/update to avoid Prisma null-in-composite-key issue)
+                const existingStock = await prisma.stockLevel.findFirst({
                     where: {
-                        productId_warehouseId_locationId: {
-                            productId: poItem.productId,
-                            warehouseId: input.warehouseId,
-                            locationId: null as any,
-                        }
-                    },
-                    create: {
                         productId: poItem.productId,
                         warehouseId: input.warehouseId,
-                        quantity: poItem.quantity,
-                        availableQty: poItem.quantity,
-                        reservedQty: 0,
-                    },
-                    update: {
-                        quantity: { increment: poItem.quantity },
-                        availableQty: { increment: poItem.quantity },
+                        locationId: null,
                     }
                 })
+                if (existingStock) {
+                    await prisma.stockLevel.update({
+                        where: { id: existingStock.id },
+                        data: {
+                            quantity: { increment: poItem.quantity },
+                            availableQty: { increment: poItem.quantity },
+                        }
+                    })
+                } else {
+                    await prisma.stockLevel.create({
+                        data: {
+                            productId: poItem.productId,
+                            warehouseId: input.warehouseId,
+                            quantity: poItem.quantity,
+                            availableQty: poItem.quantity,
+                            reservedQty: 0,
+                        }
+                    })
+                }
             }
 
             // ─── 7. Create vendor bill (INV_IN, DRAFT) ───

@@ -66,6 +66,13 @@ import { NB } from "@/lib/dialog-styles"
 import { getDefaultRate, calculateWithholding } from "@/lib/pph-helpers"
 import type { PPhTypeValue } from "@/lib/pph-helpers"
 
+import {
+    ModulePageHeader,
+    StatusBadge,
+    ActionButtonGroup,
+    type ActionButton,
+} from "@/components/module"
+
 /* ─── Animation variants ─── */
 const stagger = {
     hidden: { opacity: 0 },
@@ -180,6 +187,7 @@ export function InvoicesPageClient() {
         queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.financeReports.all })
@@ -193,6 +201,7 @@ export function InvoicesPageClient() {
         queryClient.invalidateQueries({ queryKey: queryKeys.journal.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.accountTransactions.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
+        queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all })
         queryClient.invalidateQueries({ queryKey: queryKeys.chartAccounts.all })
     }
 
@@ -510,16 +519,26 @@ export function InvoicesPageClient() {
         pushSearchParams((params) => { params.delete("q") })
     }
 
-    const statusConfig: Record<string, { label: string; bg: string; text: string; dot: string }> = {
-        DRAFT: { label: 'Draft', bg: 'bg-zinc-100 border-zinc-300', text: 'text-zinc-700', dot: 'bg-zinc-400' },
-        ISSUED: { label: 'Terkirim', bg: 'bg-blue-50 border-blue-300', text: 'text-blue-700', dot: 'bg-blue-500' },
-        OVERDUE: { label: 'Jatuh Tempo', bg: 'bg-red-50 border-red-300', text: 'text-red-700', dot: 'bg-red-500' },
-        PARTIAL: { label: 'Sebagian', bg: 'bg-amber-50 border-amber-300', text: 'text-amber-700', dot: 'bg-amber-500' },
-        PAID: { label: 'Lunas', bg: 'bg-emerald-50 border-emerald-300', text: 'text-emerald-700', dot: 'bg-emerald-500' },
-    }
-
     const totalAmount = useMemo(() => allInvoices.reduce((s, i) => s + (i.amount || 0), 0), [allInvoices])
     const overdueAmount = useMemo(() => invoices.overdue.reduce((s, i) => s + (i.amount || 0), 0), [invoices.overdue])
+
+    /** Build action button config per invoice based on its status */
+    const getInvoiceActions = (invoice: InvoiceKanbanItem): ActionButton[] => {
+        const isDraft = invoice.status === 'DRAFT'
+        const canPay = invoice.status === 'ISSUED' || invoice.status === 'OVERDUE' || invoice.status === 'PARTIAL'
+        const actions: ActionButton[] = []
+
+        if (isDraft) {
+            actions.push({ icon: "edit", onClick: () => openEditDialog(invoice), tooltip: "Edit Invoice" })
+            actions.push({ icon: "send", onClick: () => openSendDialog(invoice), tooltip: "Kirim Invoice" })
+        }
+        if (canPay) {
+            actions.push({ icon: "pay", onClick: () => openPayDialog(invoice), tooltip: "Catat Pembayaran", variant: "primary" })
+        }
+        actions.push({ icon: "download", onClick: () => window.open(`/api/documents/invoice/${invoice.id}?disposition=inline`, '_blank'), tooltip: "Cetak Invoice PDF" })
+
+        return actions
+    }
 
     return (
         <motion.div
@@ -528,32 +547,17 @@ export function InvoicesPageClient() {
             initial="hidden"
             animate="show"
         >
-            {/* ─── Unified Page Header ─── */}
-            <motion.div
-                variants={fadeUp}
-                className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900"
-            >
-                {/* Orange accent bar */}
-                <div className="h-1 bg-gradient-to-r from-orange-500 via-amber-400 to-orange-500" />
-
-                {/* Row 1: Title + Actions */}
-                <div className="px-5 py-3.5 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800">
-                    <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 bg-orange-500 flex items-center justify-center">
-                            <Receipt className="h-4.5 w-4.5 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-base font-black uppercase tracking-wider text-zinc-900 dark:text-white">
-                                Invoice Center
-                            </h1>
-                            <p className="text-zinc-400 text-[11px] font-medium">
-                                Kelola invoice, tagihan, dan pembayaran
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-0">
-                        <Button
-                            onClick={() => {
+            {/* ─── Unified Page Header (ModulePageHeader) ─── */}
+            <motion.div variants={fadeUp}>
+                <ModulePageHeader
+                    icon={<Receipt className="h-4.5 w-4.5 text-white" />}
+                    title="Invoice Center"
+                    subtitle="Kelola invoice, tagihan, dan pembayaran"
+                    secondaryActions={[
+                        {
+                            label: "Export",
+                            icon: <Download className="h-3.5 w-3.5" />,
+                            onClick: () => {
                                 const cols = [
                                     { header: "No. Invoice", accessorKey: "number" },
                                     { header: "Tipe", accessorKey: "type" },
@@ -564,165 +568,150 @@ export function InvoicesPageClient() {
                                     { header: "Jatuh Tempo", accessorKey: "dueDate" },
                                 ]
                                 exportToExcel(cols, filteredInvoices as unknown as Record<string, unknown>[], { filename: "invoices" })
-                            }}
-                            variant="outline"
-                            className="border border-zinc-300 dark:border-zinc-700 border-r-0 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-                        >
-                            <Download className="h-3.5 w-3.5 mr-1.5" /> Export
-                        </Button>
-                        <Button
-                            onClick={() => router.push('/finance/transactions')}
-                            variant="outline"
-                            className="border border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
-                        >
-                            <BookOpen className="h-3.5 w-3.5 mr-1.5" /> Transaksi
-                        </Button>
-                        <Button
-                            onClick={() => setIsCreatorOpen(true)}
-                            className="bg-orange-500 text-white border border-orange-600 hover:bg-orange-600 font-bold uppercase text-[10px] tracking-wider px-4 h-9 rounded-none transition-colors ml-2"
-                        >
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Buat Invoice
-                        </Button>
-                    </div>
-                </div>
-
-                {/* Row 2: KPI Summary Strip — label + count side by side */}
-                <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 divide-x divide-zinc-200 dark:divide-zinc-800">
-                    {[
-                        { label: 'Semua', count: counts.all, amount: totalAmount, color: 'orange' },
-                        { label: 'Draft', count: counts.draft, amount: null, color: 'zinc' },
-                        { label: 'Terkirim', count: counts.sent, amount: null, color: 'blue' },
-                        { label: 'Jatuh Tempo', count: counts.overdue, amount: overdueAmount, color: 'red' },
-                        { label: 'Lunas', count: counts.paid, amount: null, color: 'emerald' },
-                    ].map((kpi) => (
-                        <div
-                            key={kpi.label}
-                            className="flex-1 px-4 py-3 flex items-center justify-between gap-3 cursor-default"
-                        >
-                            <div className="flex items-center gap-1.5">
-                                <span className={`w-2 h-2 ${
-                                    kpi.color === 'orange' ? 'bg-orange-500' :
-                                    kpi.color === 'zinc' ? 'bg-zinc-400' :
-                                    kpi.color === 'blue' ? 'bg-blue-500' :
-                                    kpi.color === 'red' ? 'bg-red-500' : 'bg-emerald-500'
-                                }`} />
-                                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <motion.span
-                                    key={kpi.count}
-                                    initial={{ scale: 0.8, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
-                                    className={`text-xl font-black ${
-                                        kpi.color === 'red' && kpi.count > 0
-                                            ? 'text-red-600 dark:text-red-400'
-                                            : 'text-zinc-900 dark:text-white'
-                                    }`}
-                                >
-                                    {kpi.count}
-                                </motion.span>
-                                {kpi.amount !== null && kpi.amount > 0 && (
-                                    <AnimatePresence>
-                                        {showAmounts && (
-                                            <motion.span
-                                                initial={{ opacity: 0, x: -8 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                exit={{ opacity: 0, x: -8 }}
-                                                transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
-                                                className="text-xs font-mono font-bold text-zinc-500 dark:text-zinc-400"
-                                            >
-                                                {formatIDR(kpi.amount)}
-                                            </motion.span>
-                                        )}
-                                    </AnimatePresence>
-                                )}
-                                {/* Eye toggle — show on every cell that has an amount */}
-                                {kpi.amount !== null && (
-                                    <button
-                                        onClick={() => setShowAmounts(!showAmounts)}
-                                        className="p-0.5 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
-                                        title={showAmounts ? "Sembunyikan nominal" : "Tampilkan nominal"}
+                            },
+                        },
+                        {
+                            label: "Transaksi",
+                            icon: <BookOpen className="h-3.5 w-3.5" />,
+                            onClick: () => router.push('/finance/transactions'),
+                        },
+                    ]}
+                    primaryAction={{
+                        label: "Buat Invoice",
+                        icon: <Plus className="h-3.5 w-3.5" />,
+                        onClick: () => setIsCreatorOpen(true),
+                    }}
+                >
+                    {/* Row 2: KPI Summary Strip — label + count side by side */}
+                    <div className="flex items-center border-b border-zinc-200 dark:border-zinc-800 divide-x divide-zinc-200 dark:divide-zinc-800">
+                        {[
+                            { label: 'Semua', count: counts.all, amount: totalAmount, color: 'orange' },
+                            { label: 'Draft', count: counts.draft, amount: null, color: 'zinc' },
+                            { label: 'Terkirim', count: counts.sent, amount: null, color: 'blue' },
+                            { label: 'Jatuh Tempo', count: counts.overdue, amount: overdueAmount, color: 'red' },
+                            { label: 'Lunas', count: counts.paid, amount: null, color: 'emerald' },
+                        ].map((kpi) => (
+                            <div
+                                key={kpi.label}
+                                className="flex-1 px-4 py-3 flex items-center justify-between gap-3 cursor-default"
+                            >
+                                <div className="flex items-center gap-1.5">
+                                    <span className={`w-2 h-2 ${
+                                        kpi.color === 'orange' ? 'bg-orange-500' :
+                                        kpi.color === 'zinc' ? 'bg-zinc-400' :
+                                        kpi.color === 'blue' ? 'bg-blue-500' :
+                                        kpi.color === 'red' ? 'bg-red-500' : 'bg-emerald-500'
+                                    }`} />
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">{kpi.label}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <motion.span
+                                        key={kpi.count}
+                                        initial={{ scale: 0.8, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        transition={{ type: "spring" as const, stiffness: 400, damping: 20 }}
+                                        className={`text-xl font-black ${
+                                            kpi.color === 'red' && kpi.count > 0
+                                                ? 'text-red-600 dark:text-red-400'
+                                                : 'text-zinc-900 dark:text-white'
+                                        }`}
                                     >
-                                        {showAmounts ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                        {kpi.count}
+                                    </motion.span>
+                                    {kpi.amount !== null && kpi.amount > 0 && (
+                                        <AnimatePresence>
+                                            {showAmounts && (
+                                                <motion.span
+                                                    initial={{ opacity: 0, x: -8 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: -8 }}
+                                                    transition={{ type: "spring" as const, stiffness: 300, damping: 25 }}
+                                                    className="text-xs font-mono font-bold text-zinc-500 dark:text-zinc-400"
+                                                >
+                                                    {formatIDR(kpi.amount)}
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                    )}
+                                    {kpi.amount !== null && (
+                                        <button
+                                            onClick={() => setShowAmounts(!showAmounts)}
+                                            className="p-0.5 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
+                                            title={showAmounts ? "Sembunyikan nominal" : "Tampilkan nominal"}
+                                        >
+                                            {showAmounts ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Row 3: Filter Toolbar */}
+                    <div className="px-5 py-2.5 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-800/30">
+                        <div className="flex items-center gap-0">
+                            <div className="relative">
+                                <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 z-10 transition-colors ${searchText ? 'text-orange-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
+                                <input
+                                    className={`border border-r-0 font-medium h-9 w-[320px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
+                                        searchText
+                                            ? 'border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white'
+                                            : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900'
+                                    }`}
+                                    placeholder="Cari invoice, customer, supplier..."
+                                    value={searchText}
+                                    onChange={(e) => setSearchText(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                                />
+                                {searchText && (
+                                    <button
+                                        onClick={() => { setSearchText(""); resetFilters() }}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors z-10"
+                                    >
+                                        <X className="h-3 w-3" />
                                     </button>
                                 )}
                             </div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Row 3: Filter Toolbar — same joined-button system as header */}
-                <div className="px-5 py-2.5 flex items-center justify-between bg-zinc-50/80 dark:bg-zinc-800/30">
-                    {/* Left: Search + Filters joined as one toolbar */}
-                    <div className="flex items-center gap-0">
-                        {/* Search input — plain <input> to avoid shadcn focus ring covering the icon */}
-                        <div className="relative">
-                            <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 z-10 transition-colors ${searchText ? 'text-orange-500' : 'text-zinc-500 dark:text-zinc-400'}`} />
-                            <input
-                                className={`border border-r-0 font-medium h-9 w-[320px] text-xs rounded-none pl-9 pr-8 outline-none placeholder:text-zinc-400 transition-all ${
-                                    searchText
-                                        ? 'border-orange-400 dark:border-orange-500 bg-orange-50/50 dark:bg-orange-950/20 text-zinc-900 dark:text-white'
-                                        : 'border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900'
-                                }`}
-                                placeholder="Cari invoice, customer, supplier..."
-                                value={searchText}
-                                onChange={(e) => setSearchText(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+                            <CheckboxFilter
+                                label="Tipe"
+                                hideLabel
+                                triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all rounded-none"
+                                triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                                options={[
+                                    { value: "INV_OUT", label: "Invoice Keluar" },
+                                    { value: "INV_IN", label: "Invoice Masuk" },
+                                ]}
+                                selected={selectedTypes}
+                                onChange={setSelectedTypes}
                             />
-                            {searchText && (
-                                <button
-                                    onClick={() => { setSearchText(""); resetFilters() }}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 flex items-center justify-center text-zinc-400 hover:text-zinc-600 transition-colors z-10"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
+                            <CheckboxFilter
+                                label="Status"
+                                hideLabel
+                                triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all rounded-none"
+                                triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
+                                options={[
+                                    { value: "DRAFT", label: "Draft" },
+                                    { value: "ISSUED", label: "Terkirim" },
+                                    { value: "OVERDUE", label: "Jatuh Tempo" },
+                                    { value: "PAID", label: "Lunas" },
+                                ]}
+                                selected={selectedStatuses}
+                                onChange={setSelectedStatuses}
+                            />
+                            <Button onClick={applyFilters} variant="outline" className="border border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
+                                <Filter className="h-3.5 w-3.5 mr-1.5" /> Terapkan
+                            </Button>
+                            {(selectedTypes.length > 0 || selectedStatuses.length > 0 || q) && (
+                                <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
+                                    <RotateCcw className="h-3 w-3 mr-1" /> Reset
+                                </Button>
                             )}
                         </div>
-                        {/* Tipe filter */}
-                        <CheckboxFilter
-                            label="Tipe"
-                            hideLabel
-                            triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all rounded-none"
-                            triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
-                            options={[
-                                { value: "INV_OUT", label: "Invoice Keluar" },
-                                { value: "INV_IN", label: "Invoice Masuk" },
-                            ]}
-                            selected={selectedTypes}
-                            onChange={setSelectedTypes}
-                        />
-                        {/* Status filter */}
-                        <CheckboxFilter
-                            label="Status"
-                            hideLabel
-                            triggerClassName="flex items-center gap-2 border border-zinc-300 dark:border-zinc-700 border-r-0 h-9 px-3 bg-white dark:bg-zinc-900 text-xs font-medium min-w-[120px] justify-between hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all rounded-none"
-                            triggerActiveClassName="flex items-center gap-2 border border-orange-400 dark:border-orange-500 border-r-0 h-9 px-3 bg-orange-50/50 dark:bg-orange-950/20 text-xs font-medium min-w-[120px] justify-between transition-all rounded-none"
-                            options={[
-                                { value: "DRAFT", label: "Draft" },
-                                { value: "ISSUED", label: "Terkirim" },
-                                { value: "OVERDUE", label: "Jatuh Tempo" },
-                                { value: "PAID", label: "Lunas" },
-                            ]}
-                            selected={selectedStatuses}
-                            onChange={setSelectedStatuses}
-                        />
-                        {/* Terapkan */}
-                        <Button onClick={applyFilters} variant="outline" className="border border-zinc-300 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 text-[10px] font-bold uppercase tracking-wider h-9 px-3.5 rounded-none hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors">
-                            <Filter className="h-3.5 w-3.5 mr-1.5" /> Terapkan
-                        </Button>
-                        {/* Reset — only when filters active, separated with gap */}
-                        {(selectedTypes.length > 0 || selectedStatuses.length > 0 || q) && (
-                            <Button variant="ghost" onClick={resetFilters} className="text-zinc-400 text-[10px] font-bold uppercase h-9 px-3 rounded-none hover:text-zinc-700 dark:hover:text-zinc-200 ml-1.5">
-                                <RotateCcw className="h-3 w-3 mr-1" /> Reset
-                            </Button>
-                        )}
+                        <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
+                            <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filteredInvoices.length}</span> invoice
+                        </span>
                     </div>
-                    {/* Right: Count */}
-                    <span className="hidden md:inline text-[11px] font-medium text-zinc-400">
-                        <span className="font-mono font-bold text-zinc-600 dark:text-zinc-300">{filteredInvoices.length}</span> invoice
-                    </span>
-                </div>
+                </ModulePageHeader>
             </motion.div>
 
             {/* ─── Invoice Table ─── */}
@@ -773,9 +762,6 @@ export function InvoicesPageClient() {
                     ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                             {pagedInvoices.map((invoice, idx) => {
-                                const cfg = statusConfig[invoice.status] || statusConfig.DRAFT
-                                const isDraft = invoice.status === 'DRAFT'
-                                const canPay = invoice.status === 'ISSUED' || invoice.status === 'OVERDUE' || invoice.status === 'PARTIAL'
                                 const isOverdue = invoice.status === 'OVERDUE'
 
                                 return (
@@ -813,10 +799,10 @@ export function InvoicesPageClient() {
                                             )}
                                         </div>
                                         <div>
-                                            <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2 py-1 border rounded-none ${cfg.bg} ${cfg.text} ${isOverdue ? 'animate-pulse' : ''}`}>
-                                                <span className={`w-1.5 h-1.5 ${cfg.dot}`} />
-                                                {cfg.label}
-                                            </span>
+                                            <StatusBadge
+                                                status={invoice.status}
+                                                className={isOverdue ? 'animate-pulse' : ''}
+                                            />
                                             {invoice.status === 'ISSUED' && invoice.issueDate && (
                                                 <p className="text-[9px] text-zinc-400 mt-0.5 font-medium">
                                                     {new Date(invoice.issueDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
@@ -828,49 +814,9 @@ export function InvoicesPageClient() {
                                                 {new Date(invoice.dueDate).toLocaleDateString('id-ID')}
                                             </span>
                                         </div>
-                                        <div className="flex gap-1">
-                                            {isDraft && (
-                                                <>
-                                                    <motion.button
-                                                        whileHover={{ y: -1 }}
-                                                        whileTap={{ scale: 0.92 }}
-                                                        onClick={() => openEditDialog(invoice)}
-                                                        title="Edit Invoice"
-                                                        className="h-7 w-7 flex items-center justify-center border border-orange-300 dark:border-orange-600 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:border-orange-500 transition-colors rounded-none"
-                                                    >
-                                                        <Pencil className="h-3 w-3" />
-                                                    </motion.button>
-                                                    <motion.button
-                                                        whileHover={{ y: -1 }}
-                                                        whileTap={{ scale: 0.92 }}
-                                                        onClick={() => openSendDialog(invoice)}
-                                                        title="Kirim Invoice"
-                                                        className="h-7 w-7 flex items-center justify-center border border-blue-300 dark:border-blue-600 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/30 hover:border-blue-500 transition-colors rounded-none"
-                                                    >
-                                                        <Send className="h-3 w-3" />
-                                                    </motion.button>
-                                                </>
-                                            )}
-                                            {canPay && (
-                                                <motion.button
-                                                    whileHover={{ y: -1 }}
-                                                    whileTap={{ scale: 0.92 }}
-                                                    onClick={() => openPayDialog(invoice)}
-                                                    title="Catat Pembayaran"
-                                                    className="h-7 w-7 flex items-center justify-center border border-emerald-300 dark:border-emerald-600 text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:border-emerald-500 transition-colors rounded-none"
-                                                >
-                                                    <Banknote className="h-3 w-3" />
-                                                </motion.button>
-                                            )}
-                                            <motion.button
-                                                whileHover={{ y: -1 }}
-                                                whileTap={{ scale: 0.92 }}
-                                                onClick={() => window.open(`/api/documents/invoice/${invoice.id}?disposition=inline`, '_blank')}
-                                                title="Cetak Invoice PDF"
-                                                className="h-7 w-7 flex items-center justify-center border border-zinc-200 dark:border-zinc-600 text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:border-zinc-400 hover:text-zinc-600 transition-colors rounded-none"
-                                            >
-                                                <Download className="h-3 w-3" />
-                                            </motion.button>
+                                        <div className="flex gap-1 items-center">
+                                            <ActionButtonGroup actions={getInvoiceActions(invoice)} size="sm" />
+                                            {/* Attachment toggle — custom button (not in standard action set) */}
                                             <motion.button
                                                 whileHover={{ y: -1 }}
                                                 whileTap={{ scale: 0.92 }}

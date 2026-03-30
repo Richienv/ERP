@@ -1,22 +1,23 @@
 "use client"
 
-import { useState } from "react"
-import {
-    Search,
-    Package,
-    CheckCircle2,
-    Truck,
-    ClipboardCheck,
-    Calendar,
-    FileText,
-    Printer,
-} from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
+import { useState, useMemo } from "react"
+import { ClipboardCheck, Printer } from "lucide-react"
 import { formatIDR } from "@/lib/utils"
 import { CreateGRNDialog } from "@/components/procurement/create-grn-dialog"
 import { GRNDetailsSheet } from "@/components/procurement/grn-details-sheet"
+import {
+    ModulePageLayout,
+    ModulePageHeader,
+    SummaryCards,
+    SearchFilterBar,
+    DataTableShell,
+    ShellTableStyles,
+    StatusBadge,
+    ActionButtonGroup,
+} from "@/components/module"
+import type { SummaryCard, ActionButton } from "@/components/module"
+
+// ── Types ──
 
 interface POItem {
     id: string
@@ -90,175 +91,102 @@ interface ReceivingViewProps {
     employees: Employee[]
 }
 
+// ── Component ──
+
 export function ReceivingView({ pendingPOs, grns, warehouses, employees }: ReceivingViewProps) {
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedGRN, setSelectedGRN] = useState<GRN | null>(null)
     const [activeTab, setActiveTab] = useState<"pending" | "grns">("pending")
 
-    const filteredPOs = pendingPOs.filter(po =>
-        po.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        po.vendorName.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filteredPOs = useMemo(() =>
+        pendingPOs.filter(po =>
+            po.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            po.vendorName.toLowerCase().includes(searchTerm.toLowerCase())
+        ), [pendingPOs, searchTerm])
 
-    const filteredGRNs = grns.filter(grn =>
-        grn.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        grn.poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        grn.vendorName.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    const filteredGRNs = useMemo(() =>
+        grns.filter(grn =>
+            grn.number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            grn.poNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            grn.vendorName.toLowerCase().includes(searchTerm.toLowerCase())
+        ), [grns, searchTerm])
 
-    const draftGRNs = grns.filter(g => g.status === 'DRAFT')
-    const acceptedGRNs = grns.filter(g => g.status === 'ACCEPTED')
+    const draftCount = grns.filter(g => g.status === "DRAFT").length
+    const acceptedGRNs = grns.filter(g => g.status === "ACCEPTED")
 
-    const getStatusStyle = (status: string) => {
-        switch (status) {
-            case 'ACCEPTED':
-                return 'bg-emerald-50 text-emerald-700 border-emerald-300'
-            case 'DRAFT':
-                return 'bg-amber-50 text-amber-700 border-amber-300'
-            case 'INSPECTING':
-                return 'bg-blue-50 text-blue-700 border-blue-300'
-            case 'REJECTED':
-                return 'bg-red-50 text-red-600 border-red-300'
-            default:
-                return 'bg-zinc-100 text-zinc-600 border-zinc-300'
-        }
-    }
+    // ── KPI cards ──
+    const kpiCards: SummaryCard[] = [
+        { label: "PO Menunggu", value: pendingPOs.length, color: "blue", subValue: "siap terima" },
+        { label: "SJ Masuk Draft", value: draftCount, color: "orange", subValue: "verifikasi" },
+        { label: "Diterima", value: acceptedGRNs.length, color: "green", subValue: "SJ diterima" },
+        { label: "Item Diterima", value: acceptedGRNs.reduce((s, g) => s + g.totalAccepted, 0), subValue: "unit bulan ini" },
+    ]
 
     return (
         <div className="mf-page">
-
-            {/* ═══ COMMAND HEADER ═══ */}
-            <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden bg-white dark:bg-zinc-900">
-                <div className="px-6 py-4 flex items-center justify-between border-l-[6px] border-l-emerald-400">
-                    <div className="flex items-center gap-3">
-                        <ClipboardCheck className="h-5 w-5 text-emerald-500" />
-                        <div>
-                            <h1 className="text-xl font-black uppercase tracking-tight text-zinc-900 dark:text-white">
-                                Surat Jalan Masuk
-                            </h1>
-                            <p className="text-zinc-400 text-xs font-medium mt-0.5">
-                                Terima dan verifikasi barang masuk dari supplier
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══ KPI PULSE STRIP ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="grid grid-cols-2 md:grid-cols-4">
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-blue-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Truck className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">PO Menunggu</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-blue-600">{pendingPOs.length}</div>
-                        <div className="text-[10px] font-bold text-blue-600 mt-1">Ready to receive</div>
-                    </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800 border-b-2 md:border-b-0">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-amber-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <FileText className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">SJ Masuk Draft</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-amber-600">{draftGRNs.length}</div>
-                        <div className="text-[10px] font-bold text-amber-600 mt-1">Menunggu verifikasi</div>
-                    </div>
-                    <div className="relative p-4 md:p-5 border-r-2 border-zinc-100 dark:border-zinc-800">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <CheckCircle2 className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Diterima</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-emerald-600">{acceptedGRNs.length}</div>
-                        <div className="text-[10px] font-bold text-emerald-600 mt-1">SJ diterima</div>
-                    </div>
-                    <div className="relative p-4 md:p-5">
-                        <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-400" />
-                        <div className="flex items-center gap-2 mb-2">
-                            <Package className="h-4 w-4 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Item Diterima</span>
-                        </div>
-                        <div className="text-2xl md:text-3xl font-black tracking-tighter text-indigo-600">
-                            {acceptedGRNs.reduce((sum, g) => sum + g.totalAccepted, 0)}
-                        </div>
-                        <div className="text-[10px] font-bold text-indigo-600 mt-1">Unit bulan ini</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══ SEARCH & TAB BAR ═══ */}
-            <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                <div className="px-4 py-3 flex items-center gap-3">
-                    <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                        <Input
-                            placeholder="Cari No. PO, SJ Masuk, atau Vendor..."
-                            className="pl-9 border-2 border-black font-bold h-10 placeholder:text-zinc-400 rounded-none"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <div className="flex border-2 border-black">
-                        <button
-                            onClick={() => setActiveTab("pending")}
-                            className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all border-r border-black flex items-center gap-1.5 ${
-                                activeTab === "pending" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
-                            }`}
-                        >
-                            PO Menunggu <span className={`text-[9px] px-1 ${activeTab === "pending" ? "bg-white/20" : "bg-zinc-200"} rounded-full`}>{filteredPOs.length}</span>
-                        </button>
-                        <button
-                            onClick={() => setActiveTab("grns")}
-                            className={`px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${
-                                activeTab === "grns" ? "bg-black text-white" : "bg-white text-zinc-400 hover:bg-zinc-50"
-                            }`}
-                        >
-                            Riwayat Surat Jalan <span className={`text-[9px] px-1 ${activeTab === "grns" ? "bg-white/20" : "bg-zinc-200"} rounded-full`}>{filteredGRNs.length}</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* ═══ PENDING POs TABLE ═══ */}
-            {activeTab === "pending" && (
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
+            <ModulePageLayout
+                header={
+                    <ModulePageHeader
+                        icon={<ClipboardCheck className="h-5 w-5 text-white" />}
+                        title="Surat Jalan Masuk"
+                        subtitle="Terima dan verifikasi barang masuk dari supplier"
+                        tabs={[
+                            { label: `PO Menunggu (${filteredPOs.length})`, value: "pending" },
+                            { label: `Riwayat SJ (${filteredGRNs.length})`, value: "grns" },
+                        ]}
+                        activeTab={activeTab}
+                        onTabChange={(v) => setActiveTab(v as "pending" | "grns")}
+                    />
+                }
+                summaryCards={<SummaryCards cards={kpiCards} columns={4} />}
+                searchBar={
+                    <SearchFilterBar
+                        searchPlaceholder="Cari No. PO, SJ Masuk, atau Vendor..."
+                        searchValue={searchTerm}
+                        onSearchChange={setSearchTerm}
+                        resultCount={activeTab === "pending"
+                            ? `${filteredPOs.length} PO`
+                            : `${filteredGRNs.length} surat jalan`}
+                    />
+                }
+            >
+                {/* ── Pending POs Table ── */}
+                {activeTab === "pending" && (
+                    <DataTableShell
+                        title="PO MENUNGGU PENERIMAAN"
+                        titleCount={filteredPOs.length}
+                        isEmpty={filteredPOs.length === 0}
+                        emptyState={{ message: "TIDAK ADA PO YANG MENUNGGU PENERIMAAN" }}
+                    >
+                        <table className="w-full text-sm">
+                            <thead className={ShellTableStyles.thead}>
                                 <tr>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">PO Number</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Items</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Total</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Action</th>
+                                    <th className={ShellTableStyles.th}>PO Number</th>
+                                    <th className={ShellTableStyles.th}>Vendor</th>
+                                    <th className={ShellTableStyles.th}>Tanggal</th>
+                                    <th className={ShellTableStyles.th + " text-center"}>Status</th>
+                                    <th className={ShellTableStyles.th + " text-center"}>Items</th>
+                                    <th className={ShellTableStyles.th + " text-right"}>Total</th>
+                                    <th className={ShellTableStyles.th + " text-right"}>Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                {filteredPOs.map((po) => (
-                                    <tr key={po.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                                        <td className="p-4 font-mono font-bold text-xs text-blue-600">{po.number}</td>
-                                        <td className="p-4 font-bold text-xs text-zinc-900 dark:text-white">{po.vendorName}</td>
-                                        <td className="p-4 text-zinc-500 font-medium text-xs">
-                                            <div className="flex items-center gap-1.5">
-                                                <Calendar className="h-3 w-3 opacity-70" />
-                                                {new Date(po.orderDate).toLocaleDateString('id-ID')}
-                                            </div>
+                            <tbody>
+                                {filteredPOs.map(po => (
+                                    <tr key={po.id} className={ShellTableStyles.tr}>
+                                        <td className={ShellTableStyles.td + " font-mono font-bold text-blue-600"}>{po.number}</td>
+                                        <td className={ShellTableStyles.td + " font-bold"}>{po.vendorName}</td>
+                                        <td className={ShellTableStyles.td + " text-zinc-500 font-medium"}>
+                                            {new Date(po.orderDate).toLocaleDateString("id-ID")}
                                         </td>
-                                        <td className="p-4">
-                                            <Badge variant="outline" className="font-black uppercase text-[9px] tracking-widest border bg-blue-50 text-blue-700 border-blue-300">
-                                                {po.status}
-                                            </Badge>
+                                        <td className={ShellTableStyles.td + " text-center"}>
+                                            <StatusBadge status={po.status} />
                                         </td>
-                                        <td className="p-4 text-center">
-                                            <span className="font-black text-xs">{po.items.filter(i => i.remainingQty > 0).length}</span>
+                                        <td className={ShellTableStyles.td + " text-center"}>
+                                            <span className="font-black">{po.items.filter(i => i.remainingQty > 0).length}</span>
                                             <span className="text-zinc-400 text-[10px]"> / {po.items.length}</span>
                                         </td>
-                                        <td className="p-4 text-right font-black text-xs">{formatIDR(po.totalAmount)}</td>
-                                        <td className="p-4 text-right">
+                                        <td className={ShellTableStyles.td + " text-right font-mono font-bold"}>{formatIDR(po.totalAmount)}</td>
+                                        <td className={ShellTableStyles.td + " text-right"}>
                                             <CreateGRNDialog
                                                 purchaseOrder={po}
                                                 warehouses={warehouses}
@@ -267,99 +195,81 @@ export function ReceivingView({ pendingPOs, grns, warehouses, employees }: Recei
                                         </td>
                                     </tr>
                                 ))}
-                                {filteredPOs.length === 0 && (
-                                    <tr>
-                                        <td colSpan={7} className="p-12 text-center">
-                                            <Truck className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Tidak ada PO yang menunggu penerimaan</p>
-                                        </td>
-                                    </tr>
-                                )}
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            )}
+                    </DataTableShell>
+                )}
 
-            {/* ═══ GRN HISTORY TABLE ═══ */}
-            {activeTab === "grns" && (
-                <div className="bg-white dark:bg-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-zinc-50 dark:bg-zinc-800 border-b-2 border-black">
+                {/* ── GRN History Table ── */}
+                {activeTab === "grns" && (
+                    <DataTableShell
+                        title="RIWAYAT SURAT JALAN MASUK"
+                        titleCount={filteredGRNs.length}
+                        isEmpty={filteredGRNs.length === 0}
+                        emptyState={{ message: "BELUM ADA RIWAYAT PENERIMAAN BARANG" }}
+                    >
+                        <table className="w-full text-sm">
+                            <thead className={ShellTableStyles.thead}>
                                 <tr>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">No. Surat Jalan</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">PO</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Vendor</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Gudang</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Tanggal</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500">Status</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-center">Diterima</th>
-                                    <th className="h-10 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-500 text-right">Action</th>
+                                    <th className={ShellTableStyles.th}>No. Surat Jalan</th>
+                                    <th className={ShellTableStyles.th}>PO</th>
+                                    <th className={ShellTableStyles.th}>Vendor</th>
+                                    <th className={ShellTableStyles.th}>Gudang</th>
+                                    <th className={ShellTableStyles.th}>Tanggal</th>
+                                    <th className={ShellTableStyles.th + " text-center"}>Status</th>
+                                    <th className={ShellTableStyles.th + " text-center"}>Diterima</th>
+                                    <th className={ShellTableStyles.th + " text-right"}>Action</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                {filteredGRNs.map((grn) => (
-                                    <tr
-                                        key={grn.id}
-                                        className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
-                                        onClick={() => setSelectedGRN(grn)}
-                                    >
-                                        <td className="p-4 font-mono font-bold text-xs text-emerald-600">{grn.number}</td>
-                                        <td className="p-4 font-medium text-xs text-blue-600">{grn.poNumber}</td>
-                                        <td className="p-4 font-bold text-xs text-zinc-900 dark:text-white">{grn.vendorName}</td>
-                                        <td className="p-4 text-zinc-500 text-xs">{grn.warehouseName}</td>
-                                        <td className="p-4 text-zinc-500 font-medium text-xs">
-                                            {new Date(grn.receivedDate).toLocaleDateString('id-ID')}
-                                        </td>
-                                        <td className="p-4">
-                                            <Badge variant="outline" className={`font-black uppercase text-[9px] tracking-widest border ${getStatusStyle(grn.status)}`}>
-                                                {grn.status}
-                                            </Badge>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <span className="font-black text-xs text-emerald-600">{grn.totalAccepted}</span>
-                                            {grn.totalRejected > 0 && (
-                                                <span className="text-red-500 text-[10px] ml-1">(-{grn.totalRejected})</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex items-center justify-end gap-1.5">
-                                                {grn.status === 'ACCEPTED' && (
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
-                                                        onClick={(e) => { e.stopPropagation(); window.open(`/api/documents/surat-jalan-masuk/${grn.id}?disposition=inline`, '_blank'); }}
-                                                    >
-                                                        <Printer className="h-3 w-3 mr-1" /> Cetak
-                                                    </Button>
+                            <tbody>
+                                {filteredGRNs.map(grn => {
+                                    const actions: ActionButton[] = [
+                                        { icon: "view", onClick: () => setSelectedGRN(grn), tooltip: "Detail" },
+                                    ]
+                                    if (grn.status === "ACCEPTED") {
+                                        actions.push({
+                                            icon: "print",
+                                            onClick: () => window.open(`/api/documents/surat-jalan-masuk/${grn.id}?disposition=inline`, "_blank"),
+                                            tooltip: "Cetak SJ",
+                                        })
+                                    }
+
+                                    return (
+                                        <tr
+                                            key={grn.id}
+                                            className={ShellTableStyles.tr + " cursor-pointer"}
+                                            onClick={() => setSelectedGRN(grn)}
+                                        >
+                                            <td className={ShellTableStyles.td + " font-mono font-bold text-emerald-600"}>{grn.number}</td>
+                                            <td className={ShellTableStyles.td + " font-mono text-xs text-blue-600"}>{grn.poNumber}</td>
+                                            <td className={ShellTableStyles.td + " font-bold"}>{grn.vendorName}</td>
+                                            <td className={ShellTableStyles.td + " text-zinc-500"}>{grn.warehouseName}</td>
+                                            <td className={ShellTableStyles.td + " text-zinc-500 font-medium"}>
+                                                {new Date(grn.receivedDate).toLocaleDateString("id-ID")}
+                                            </td>
+                                            <td className={ShellTableStyles.td + " text-center"}>
+                                                <StatusBadge
+                                                    status={grn.status}
+                                                    variant={grn.status === "ACCEPTED" ? "approved" : grn.status === "INSPECTING" ? "production" : undefined}
+                                                />
+                                            </td>
+                                            <td className={ShellTableStyles.td + " text-center"}>
+                                                <span className="font-black text-emerald-600">{grn.totalAccepted}</span>
+                                                {grn.totalRejected > 0 && (
+                                                    <span className="text-red-500 text-[10px] ml-1">(-{grn.totalRejected})</span>
                                                 )}
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className="border-2 border-black text-[10px] font-black uppercase tracking-widest h-7"
-                                                    onClick={(e) => { e.stopPropagation(); setSelectedGRN(grn); }}
-                                                >
-                                                    Detail
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {filteredGRNs.length === 0 && (
-                                    <tr>
-                                        <td colSpan={8} className="p-12 text-center">
-                                            <ClipboardCheck className="h-8 w-8 mx-auto text-zinc-300 mb-2" />
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Belum ada riwayat penerimaan barang</p>
-                                        </td>
-                                    </tr>
-                                )}
+                                            </td>
+                                            <td className={ShellTableStyles.td + " text-right"} onClick={(e) => e.stopPropagation()}>
+                                                <ActionButtonGroup actions={actions} />
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            )}
+                    </DataTableShell>
+                )}
+            </ModulePageLayout>
 
             {/* GRN Details Sheet */}
             <GRNDetailsSheet

@@ -1368,7 +1368,7 @@ model GoodsReceivedNote {
   warehouseId     String @db.Uuid
 
   receivedDate DateTime @default(now())
-  receivedById String   @db.Uuid
+  receivedById String?  @db.Uuid
 
   status GRNStatus @default(DRAFT)
   notes  String?
@@ -1382,7 +1382,7 @@ model GoodsReceivedNote {
   // Relations
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
   warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
-  receivedBy    Employee      @relation(fields: [receivedById], references: [id])
+  receivedBy    Employee?     @relation(fields: [receivedById], references: [id])
   items         GRNItem[]
 
   createdAt DateTime @default(now())

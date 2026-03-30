@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query"
 import { queryKeys } from "@/lib/query-keys"
 
 export function invalidateFinanceQueries(queryClient: QueryClient) {
-    queryClient.invalidateQueries({ queryKey: ["finance", "ar-aging"] })
+    queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all })
     queryClient.invalidateQueries({ queryKey: ["finance", "ap-aging"] })
     queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
     queryClient.invalidateQueries({ queryKey: queryKeys.sidebarActions.all })

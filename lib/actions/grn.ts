@@ -38,12 +38,13 @@ async function createPurchaseOrderEvent(tx: typeof prisma, params: {
     })
 }
 
-async function getEmployeeIdForUserEmail(email?: string | null) {
+async function getEmployeeForUserEmail(email?: string | null) {
     if (!email) return null
     const employee = await (prisma as any).employee.findFirst({
-        where: { email }
+        where: { email },
+        select: { id: true, firstName: true, lastName: true }
     })
-    return employee?.id || null
+    return employee || null
 }
 
 // ==========================================
@@ -164,7 +165,9 @@ export async function getAllGRNs() {
             poNumber: grn.purchaseOrder.number,
             vendorName: grn.purchaseOrder.supplier.name,
             warehouseName: grn.warehouse.name,
-            receivedBy: `${grn.receivedBy.firstName} ${grn.receivedBy.lastName || ''}`.trim(),
+            receivedBy: grn.receivedBy
+                ? `${grn.receivedBy.firstName} ${grn.receivedBy.lastName || ''}`.trim()
+                : 'Unknown',
             receivedDate: grn.receivedDate,
             status: grn.status,
             notes: grn.notes,
@@ -225,7 +228,9 @@ export async function getGRNById(id: string) {
             warehouseId: grn.warehouseId,
             warehouseName: grn.warehouse.name,
             receivedById: grn.receivedById,
-            receivedBy: `${grn.receivedBy.firstName} ${grn.receivedBy.lastName || ''}`.trim(),
+            receivedBy: grn.receivedBy
+                ? `${grn.receivedBy.firstName} ${grn.receivedBy.lastName || ''}`.trim()
+                : 'Unknown',
             receivedDate: grn.receivedDate,
             status: grn.status,
             notes: grn.notes,
@@ -259,8 +264,8 @@ export async function createGRN(data: CreateGRNInput) {
         const user = await getAuthzUser()
         assertRole(user, RECEIVING_ROLES)
 
-        const receivedById = await getEmployeeIdForUserEmail(user.email)
-        if (!receivedById) throw new Error("Employee record not found for current user")
+        const employee = await getEmployeeForUserEmail(user.email)
+        const receivedById = employee?.id || null
 
         // Create GRN with items in a transaction (withPrismaAuth already wraps in $transaction)
         const grn = await withPrismaAuth(async (prisma) => {
@@ -342,7 +347,7 @@ export async function createGRN(data: CreateGRNInput) {
                     number,
                     purchaseOrderId: data.purchaseOrderId,
                     warehouseId: data.warehouseId,
-                    receivedById,
+                    receivedById: receivedById || undefined,
                     notes: data.notes,
                     status: 'DRAFT',
                     items: {
@@ -434,7 +439,8 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
             }
 
             // 2. Atomic status transition — only succeeds if still DRAFT (prevents double-accept race)
-            const acceptedById = await getEmployeeIdForUserEmail(user.email)
+            const acceptEmployee = await getEmployeeForUserEmail(user.email)
+            const acceptedById = acceptEmployee?.id || null
             const updated = await prismaAny.goodsReceivedNote.updateMany({
                 where: { id: grnId, status: 'DRAFT' },
                 data: {
@@ -491,27 +497,34 @@ export async function acceptGRN(grnId: string, overrideReason?: string) {
                         }
                     })
 
-                    // 5. Update stock levels
-                    await prisma.stockLevel.upsert({
+                    // 5. Update stock levels (findFirst + create/update to avoid Prisma null-in-composite-key issue)
+                    const existingStock = await prisma.stockLevel.findFirst({
                         where: {
-                            productId_warehouseId_locationId: {
-                                productId: grnItem.productId,
-                                warehouseId: grn.warehouseId,
-                                locationId: null as any
-                            }
-                        },
-                        create: {
                             productId: grnItem.productId,
                             warehouseId: grn.warehouseId,
-                            quantity: grnItem.quantityAccepted,
-                            availableQty: grnItem.quantityAccepted,
-                            reservedQty: 0
-                        },
-                        update: {
-                            quantity: { increment: grnItem.quantityAccepted },
-                            availableQty: { increment: grnItem.quantityAccepted }
+                            locationId: null,
                         }
                     })
+
+                    if (existingStock) {
+                        await prisma.stockLevel.update({
+                            where: { id: existingStock.id },
+                            data: {
+                                quantity: { increment: grnItem.quantityAccepted },
+                                availableQty: { increment: grnItem.quantityAccepted },
+                            }
+                        })
+                    } else {
+                        await prisma.stockLevel.create({
+                            data: {
+                                productId: grnItem.productId,
+                                warehouseId: grn.warehouseId,
+                                quantity: grnItem.quantityAccepted,
+                                availableQty: grnItem.quantityAccepted,
+                                reservedQty: 0,
+                            }
+                        })
+                    }
 
                     // 6. Post GL entry: DR Inventory Asset (1300) / CR Accounts Payable (2100)
                     const productName = grnItem.product?.name || grnItem.productId.slice(0, 8)
@@ -623,7 +636,8 @@ export async function rejectGRN(grnId: string, reason: string) {
 
         await withPrismaAuth(async (prisma) => {
             // Atomic status transition — only succeeds if still DRAFT (prevents double-reject race)
-            const rejectedById = await getEmployeeIdForUserEmail(user.email)
+            const rejectEmployee = await getEmployeeForUserEmail(user.email)
+            const rejectedById = rejectEmployee?.id || null
             const updated = await (prisma as any).goodsReceivedNote.updateMany({
                 where: { id: grnId, status: 'DRAFT' },
                 data: {

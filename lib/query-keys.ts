@@ -312,6 +312,9 @@ export const queryKeys = {
         all: ["receiving"] as const,
         list: () => [...queryKeys.receiving.all, "list"] as const,
     },
+    arAging: {
+        all: ["finance", "ar-aging"] as const,
+    },
     arPayments: {
         all: ["arPayments"] as const,
         list: () => [...queryKeys.arPayments.all, "list"] as const,

@@ -235,18 +235,29 @@ export function CustomerEditDialog({ customerId, open, onOpenChange }: CustomerE
                                 label="Limit Kredit"
                                 value={String(form.creditLimit)}
                                 onChange={(v) => setForm(p => ({ ...p, creditLimit: Number(v) || 0 }))}
-                            />
-                            <NBInput
-                                label="Tenor Kredit (Hari)"
-                                type="number"
-                                value={String(form.creditTerm)}
-                                onChange={(v) => setForm(p => ({ ...p, creditTerm: Number(v) || 0 }))}
+                                disabled={form.paymentTerm === "CASH" || form.paymentTerm === "COD"}
                             />
                             <NBSelect
                                 label="Term Pembayaran"
                                 value={form.paymentTerm}
-                                onValueChange={(v) => setForm(p => ({ ...p, paymentTerm: v }))}
+                                onValueChange={(v) => {
+                                    const matched = paymentTermOptions.find(t => t.code === v)
+                                    const isCash = v === "CASH" || v === "COD"
+                                    setForm(p => ({
+                                        ...p,
+                                        paymentTerm: v,
+                                        creditTerm: matched ? matched.days : p.creditTerm,
+                                        ...(isCash ? { creditLimit: 0 } : {}),
+                                    }))
+                                }}
                                 options={paymentTermOptions.map(t => ({ value: t.code, label: t.name }))}
+                            />
+                            <NBInput
+                                label="Term Kredit (Hari)"
+                                type="number"
+                                value={String(form.creditTerm)}
+                                onChange={() => {}}
+                                disabled
                             />
                             <NBSelect
                                 label="Status Kredit"

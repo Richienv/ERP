@@ -75,9 +75,11 @@ interface OpenInvoice {
     id: string
     number: string
     customer: { id: string; name: string } | null
+    amount: number
     balanceDue: number
     dueDate: Date
     isOverdue: boolean
+    status: string
 }
 
 interface RecentPayment {
@@ -209,6 +211,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 setSelectedInvoiceId(null)
                 setActiveTab("payments")
                 queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
+                queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
                 queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
@@ -292,6 +295,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                 invoiceId: ""
             })
             queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all })
+            queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all })
             queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all })
@@ -395,7 +399,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         <Button variant="outline" onClick={() => { exportToExcel([{ header: "No.", accessorKey: "number" }, { header: "Dari", accessorKey: "from" }, { header: "Jumlah", accessorKey: "amount" }, { header: "Metode", accessorKey: "method" }, { header: "Referensi", accessorKey: "reference" }, { header: "Tanggal", accessorKey: "date" }, { header: "Status", accessorKey: "allocated" }], unallocated.map(p => ({ number: p.number, from: p.from, amount: p.amount, method: p.method, reference: p.reference || "-", date: new Date(p.date).toLocaleDateString("id-ID"), allocated: p.allocated ? "Teralokasi" : "Belum" })) as Record<string, unknown>[], { filename: "penerimaan-ar" }) }} className={`${NB.toolbarBtn} ${NB.toolbarBtnJoin}`}>
                             <Download className="h-3.5 w-3.5 mr-1" /> Export
                         </Button>
-                        <Button variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }); queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all }); queryClient.invalidateQueries({ queryKey: queryKeys.journal.all }) }} className={NB.toolbarBtn}>
+                        <Button variant="outline" onClick={() => { queryClient.invalidateQueries({ queryKey: queryKeys.arPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.arAging.all }); queryClient.invalidateQueries({ queryKey: queryKeys.invoices.all }); queryClient.invalidateQueries({ queryKey: queryKeys.vendorPayments.all }); queryClient.invalidateQueries({ queryKey: queryKeys.financeDashboard.all }); queryClient.invalidateQueries({ queryKey: queryKeys.journal.all }) }} className={NB.toolbarBtn}>
                             <RefreshCcw className="h-3.5 w-3.5 mr-1" /> Refresh
                         </Button>
                         <Button onClick={() => setIsCreateDialogOpen(true)} className={NB.toolbarBtnPrimary}>
@@ -404,6 +408,99 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                     </div>
                 </div>
             </div>
+
+            {/* ═══════════════════════════════════════════ */}
+            {/* INVOICE TERBUKA — open invoices table        */}
+            {/* ═══════════════════════════════════════════ */}
+            {openInvoices.length > 0 && (
+                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
+                    <div className="px-4 py-2.5 border-b-2 border-black bg-blue-50/40 dark:bg-blue-950/20 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                            <span className="text-[11px] font-black uppercase tracking-wider text-zinc-900 dark:text-white">Invoice Terbuka</span>
+                            <span className="text-[10px] font-mono font-bold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5">{openInvoices.length}</span>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-blue-700 dark:text-blue-300">
+                            {formatIDR(openInvoices.reduce((sum, inv) => sum + inv.balanceDue, 0))}
+                        </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr className="text-[10px] uppercase text-zinc-500 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/30">
+                                    <th className="text-left px-4 py-2 font-bold tracking-wider">No. Invoice</th>
+                                    <th className="text-left px-4 py-2 font-bold tracking-wider">Pelanggan</th>
+                                    <th className="text-center px-4 py-2 font-bold tracking-wider">Status</th>
+                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Total</th>
+                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Dibayar</th>
+                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Sisa</th>
+                                    <th className="text-right px-4 py-2 font-bold tracking-wider">Jatuh Tempo</th>
+                                    <th className="text-center px-4 py-2 font-bold tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                {openInvoices.map((inv) => {
+                                    const paid = (inv.amount || 0) - inv.balanceDue
+                                    const statusLabel = inv.status === "ISSUED" ? "Terkirim" : inv.status === "PARTIAL" ? "Sebagian" : inv.status === "OVERDUE" ? "Jatuh Tempo" : inv.status
+                                    const statusColor = inv.status === "OVERDUE" ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-300 dark:border-red-700" : inv.status === "PARTIAL" ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-300 dark:border-amber-700" : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-300 dark:border-blue-700"
+                                    return (
+                                        <tr key={inv.id} className="hover:bg-zinc-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                                            <td className="px-4 py-2.5 font-mono font-bold text-zinc-900 dark:text-zinc-100">{inv.number}</td>
+                                            <td className="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{inv.customer?.name ?? "—"}</td>
+                                            <td className="px-4 py-2.5 text-center">
+                                                <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 border ${statusColor}`}>{statusLabel}</span>
+                                            </td>
+                                            <td className="px-4 py-2.5 text-right font-mono text-zinc-700 dark:text-zinc-300">{formatIDR(inv.amount || 0)}</td>
+                                            <td className="px-4 py-2.5 text-right font-mono text-emerald-600 dark:text-emerald-400">{paid > 0 ? formatIDR(paid) : "—"}</td>
+                                            <td className="px-4 py-2.5 text-right font-mono font-bold text-zinc-900 dark:text-zinc-100">{formatIDR(inv.balanceDue)}</td>
+                                            <td className={`px-4 py-2.5 text-right font-mono text-xs ${inv.isOverdue ? "text-red-600 dark:text-red-400 font-bold" : "text-zinc-500"}`}>
+                                                {new Date(inv.dueDate).toLocaleDateString("id-ID")}
+                                                {inv.isOverdue && <AlertTriangle className="inline h-3 w-3 ml-1 text-red-500" />}
+                                            </td>
+                                            <td className="px-4 py-2.5 text-center">
+                                                <button
+                                                    onClick={() => {
+                                                        setCreateForm({
+                                                            customerId: inv.customer?.id ?? "",
+                                                            amount: String(inv.balanceDue),
+                                                            date: todayAsInput(),
+                                                            method: "TRANSFER",
+                                                            reference: "",
+                                                            notes: "",
+                                                            invoiceId: inv.id,
+                                                        })
+                                                        setIsCreateDialogOpen(true)
+                                                    }}
+                                                    className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-wider transition-colors"
+                                                >
+                                                    Terima
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                            <tfoot>
+                                <tr className="border-t-2 border-black bg-zinc-50 dark:bg-zinc-800/50">
+                                    <td colSpan={3} className="px-4 py-2 text-[10px] uppercase text-zinc-500 font-bold tracking-wider">
+                                        Total {openInvoices.length} invoice terbuka
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono font-bold text-zinc-700 dark:text-zinc-300">
+                                        {formatIDR(openInvoices.reduce((sum, inv) => sum + (inv.amount || 0), 0))}
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono font-bold text-emerald-600">
+                                        {formatIDR(openInvoices.reduce((sum, inv) => sum + ((inv.amount || 0) - inv.balanceDue), 0))}
+                                    </td>
+                                    <td className="px-4 py-2 text-right font-mono font-black text-orange-600">
+                                        {formatIDR(openInvoices.reduce((sum, inv) => sum + inv.balanceDue, 0))}
+                                    </td>
+                                    <td colSpan={2} />
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* ═══════════════════════════════════════════ */}
             {/* RIWAYAT TERAKHIR — shared component         */}
