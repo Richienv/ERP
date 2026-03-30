@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { formatIDR } from "@/lib/utils"
+import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
 import {
     ArrowRightLeft,
     ArrowUpRight,
@@ -11,7 +12,6 @@ import {
     ChevronLeft,
     ChevronRight,
     CircleDollarSign,
-    Clock,
     FileText,
     Loader2,
     Plus,
@@ -66,7 +66,9 @@ interface UnallocatedPayment {
     method: string
     reference: string | null
     allocated?: boolean
+    invoiceId?: string | null
     invoiceNumber?: string | null
+    invoiceStatus?: string | null
 }
 
 interface OpenInvoice {
@@ -404,127 +406,28 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
             </div>
 
             {/* ═══════════════════════════════════════════ */}
-            {/* RIWAYAT TERAKHIR — rich table with actions  */}
+            {/* RIWAYAT TERAKHIR — shared component         */}
             {/* ═══════════════════════════════════════════ */}
-            {recentPayments.length > 0 && (
-                <div className="border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-white dark:bg-zinc-900 overflow-hidden">
-                    {/* Header bar */}
-                    <div className="px-4 py-2 flex items-center justify-between bg-zinc-50 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700">
-                        <div className="flex items-center gap-2">
-                            <Clock className="h-3.5 w-3.5 text-zinc-400" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">Riwayat Terakhir</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-zinc-400 bg-zinc-200 dark:bg-zinc-700 px-2 py-0.5">{recentPayments.length}</span>
-                    </div>
-
-                    {/* Table header */}
-                    <div className="grid grid-cols-12 gap-2 px-4 py-1.5 border-b border-zinc-200 dark:border-zinc-700 bg-zinc-50/60 dark:bg-zinc-800/30">
-                        <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">Invoice</div>
-                        <div className="col-span-3 text-[9px] font-black uppercase tracking-widest text-zinc-400">Pelanggan</div>
-                        <div className="col-span-1 text-[9px] font-black uppercase tracking-widest text-zinc-400 text-center">Metode</div>
-                        <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-zinc-400">Referensi</div>
-                        <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">Jumlah</div>
-                        <div className="col-span-2 text-[9px] font-black uppercase tracking-widest text-zinc-400 text-right">Tanggal</div>
-                    </div>
-
-                    {/* Table rows */}
-                    <div className="max-h-[200px] overflow-auto">
-                        {recentPayments.map((payment, idx) => (
-                            <button
-                                key={payment.id}
-                                type="button"
-                                onClick={() => {
-                                    if (payment.invoice?.id) {
-                                        router.push(`/finance/invoices?highlight=${payment.invoice.id}`)
-                                    }
-                                }}
-                                className={`group w-full grid grid-cols-12 gap-2 px-4 py-2.5 border-b border-zinc-100 dark:border-zinc-800 items-center text-left transition-all duration-150 ${
-                                    idx % 2 === 1 ? "bg-zinc-50/40 dark:bg-zinc-800/20" : ""
-                                } hover:bg-orange-50/40 dark:hover:bg-orange-950/15 hover:border-l-4 hover:border-l-orange-400 hover:pl-3 ${
-                                    payment.invoice ? "cursor-pointer" : "cursor-default"
-                                }`}
-                            >
-                                {/* Invoice # */}
-                                <div className="col-span-2 flex items-center gap-1.5 min-w-0">
-                                    <span className="font-mono text-xs font-bold text-zinc-800 dark:text-zinc-100 truncate">
-                                        {payment.invoice?.number ?? payment.number}
-                                    </span>
-                                    {payment.invoice && (
-                                        <ArrowUpRight className="h-3 w-3 text-orange-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                                    )}
-                                </div>
-
-                                {/* Customer */}
-                                <div className="col-span-3 min-w-0">
-                                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-300 truncate block">
-                                        {payment.customerName ?? "—"}
-                                    </span>
-                                </div>
-
-                                {/* Method badge */}
-                                <div className="col-span-1 flex justify-center">
-                                    <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 border text-center whitespace-nowrap ${
-                                        payment.method === "TRANSFER"
-                                            ? "border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 bg-blue-50/50 dark:bg-blue-950/20"
-                                            : payment.method === "CASH"
-                                            ? "border-emerald-300 dark:border-emerald-700 text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20"
-                                            : payment.method === "CHECK" || payment.method === "GIRO"
-                                            ? "border-amber-300 dark:border-amber-700 text-amber-600 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20"
-                                            : "border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 bg-zinc-50/50 dark:bg-zinc-800/30"
-                                    }`}>
-                                        {METHOD_LABEL[payment.method as PaymentMethod]?.split(" ")[0] ?? payment.method}
-                                    </span>
-                                </div>
-
-                                {/* Reference */}
-                                <div className="col-span-2 min-w-0">
-                                    <span className="font-mono text-[10px] text-zinc-400 dark:text-zinc-500 truncate block">
-                                        {payment.reference || "—"}
-                                    </span>
-                                </div>
-
-                                {/* Amount */}
-                                <div className="col-span-2 text-right">
-                                    <span className="font-mono font-bold text-xs text-emerald-700 dark:text-emerald-400">
-                                        {formatIDR(payment.amount)}
-                                    </span>
-                                </div>
-
-                                {/* Date + Status */}
-                                <div className="col-span-2 flex items-center justify-end gap-2">
-                                    <span className="text-[10px] font-bold text-zinc-400 whitespace-nowrap">
-                                        {new Date(payment.date).toLocaleDateString("id-ID")}
-                                    </span>
-                                    {payment.invoice?.status && (
-                                        <span className={`text-[8px] font-black uppercase px-1.5 py-0.5 ${
-                                            payment.invoice.status === "PAID"
-                                                ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400"
-                                                : payment.invoice.status === "PARTIAL"
-                                                ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
-                                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
-                                        }`}>
-                                            {payment.invoice.status === "PAID" ? "Lunas" : payment.invoice.status === "PARTIAL" ? "Sebagian" : payment.invoice.status}
-                                        </span>
-                                    )}
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Summary footer */}
-                    <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/50 border-t border-zinc-200 dark:border-zinc-700">
-                        <div className="col-span-8 text-[10px] font-black uppercase tracking-widest text-zinc-400 flex items-center">
-                            Total {recentPayments.length} pembayaran
-                        </div>
-                        <div className="col-span-2 text-right">
-                            <span className="font-mono font-black text-xs text-zinc-800 dark:text-zinc-100">
-                                {formatIDR(recentPayments.reduce((sum, p) => sum + p.amount, 0))}
-                            </span>
-                        </div>
-                        <div className="col-span-2" />
-                    </div>
-                </div>
-            )}
+            <PaymentHistoryTable
+                title="Riwayat Terakhir"
+                rows={recentPayments.map((p): PaymentHistoryRow => ({
+                    id: p.id,
+                    documentNumber: p.invoice?.number ?? p.number,
+                    counterpartyName: p.customerName ?? "—",
+                    method: p.method,
+                    methodLabel: METHOD_LABEL[p.method as PaymentMethod]?.split(" ")[0] ?? p.method,
+                    reference: p.reference,
+                    amount: p.amount,
+                    date: p.date,
+                    status: p.invoice?.status,
+                }))}
+                documentLabel="Invoice"
+                counterpartyLabel="Pelanggan"
+                onRowClick={(row) => {
+                    const match = recentPayments.find(p => p.id === row.id)
+                    if (match?.invoice?.id) router.push(`/finance/invoices?highlight=${match.invoice.id}`)
+                }}
+            />
 
             {/* ═══════════════════════════════════════════ */}
             {/* COMBINED PANEL — tabs + items + pagination  */}
@@ -588,6 +491,7 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                         ) : (
                             filteredPayments.map((item) => {
                                 const isSelected = selectedPaymentId === item.id
+                                const isAllocated = item.allocated === true
                                 return (
                                     <button
                                         key={item.id}
@@ -595,17 +499,24 @@ export function ARPaymentsView({ unallocated, openInvoices, recentPayments, allC
                                         type="button"
                                         className={`w-full px-4 py-2.5 text-left transition-colors ${isSelected
                                             ? "bg-emerald-50 dark:bg-emerald-950/30 border-l-4 border-l-emerald-500"
+                                            : isAllocated
+                                            ? "bg-zinc-50/40 dark:bg-zinc-800/20 border-l-4 border-l-transparent"
                                             : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 border-l-4 border-l-transparent"
                                             }`}
-                                        onClick={() => handleSelectPayment(item.id)}
+                                        onClick={() => { if (!isAllocated) handleSelectPayment(item.id) }}
                                     >
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <span className="font-mono text-sm font-bold text-zinc-900 dark:text-zinc-100">{item.number}</span>
                                                 <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400 truncate">{item.from}</span>
+                                                {isAllocated && (
+                                                    <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-700 shrink-0">
+                                                        {item.invoiceStatus === "PAID" ? "Lunas" : "Dialokasi"} &middot; {item.invoiceNumber}
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="flex items-center gap-2.5 shrink-0">
-                                                <span className="font-mono font-black text-sm text-emerald-700 dark:text-emerald-400">{formatIDR(item.amount)}</span>
+                                                <span className={`font-mono font-black text-sm ${isAllocated ? "text-zinc-500 dark:text-zinc-400" : "text-emerald-700 dark:text-emerald-400"}`}>{formatIDR(item.amount)}</span>
                                                 <span className="text-[10px] font-bold text-zinc-400">{new Date(item.date).toLocaleDateString("id-ID")}</span>
                                             </div>
                                         </div>

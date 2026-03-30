@@ -14,6 +14,14 @@ import { toNum } from "@/lib/utils"
 // VENDOR BILLS (AP - From Purchase Orders)
 // ==========================================
 
+export interface VendorBillPayment {
+    id: string
+    amount: number
+    method: string
+    reference: string | null
+    date: Date
+}
+
 export interface VendorBill {
     id: string
     number: string
@@ -31,6 +39,7 @@ export interface VendorBill {
     balanceDue: number
     status: string
     isOverdue: boolean
+    payments?: VendorBillPayment[]
 }
 
 type VendorBillQueryInput = {
@@ -126,7 +135,7 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
         return await withPrismaAuth(async (prisma) => {
             const where: any = {
                 type: 'INV_IN',
-                status: { in: ['DRAFT', 'ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED'] }
+                status: { in: ['DRAFT', 'ISSUED', 'PARTIAL', 'OVERDUE', 'DISPUTED', 'PAID'] }
             }
 
             if (query.status) where.status = query.status
@@ -149,6 +158,17 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                                 bankAccountNumber: true,
                                 bankAccountName: true
                             }
+                        },
+                        payments: {
+                            select: {
+                                id: true,
+                                amount: true,
+                                method: true,
+                                reference: true,
+                                date: true,
+                            },
+                            orderBy: { date: 'desc' },
+                            take: 3,
                         }
                     },
                     orderBy: [{ dueDate: 'asc' }, { issueDate: 'desc' }],
@@ -175,7 +195,14 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 amount: toNum(bill.totalAmount),
                 balanceDue: toNum(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < now && bill.status !== 'PAID'
+                isOverdue: bill.dueDate < now && bill.status !== 'PAID',
+                payments: bill.payments?.map(p => ({
+                    id: p.id,
+                    amount: toNum(p.amount),
+                    method: p.method || 'TRANSFER',
+                    reference: p.reference,
+                    date: p.date,
+                })) ?? [],
             }))
 
             return {

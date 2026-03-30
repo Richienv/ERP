@@ -2374,6 +2374,7 @@ export interface VendorBill {
     balanceDue: number
     status: string
     isOverdue: boolean
+    payments?: { id: string; amount: number; method: string; reference: string | null; date: Date }[]
 }
 
 /**
@@ -3459,6 +3460,17 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                                 bankAccountNumber: true,
                                 bankAccountName: true
                             }
+                        },
+                        payments: {
+                            select: {
+                                id: true,
+                                amount: true,
+                                method: true,
+                                reference: true,
+                                date: true,
+                            },
+                            orderBy: { date: 'desc' },
+                            take: 3,
                         }
                     },
                     orderBy: [{ dueDate: 'asc' }, { issueDate: 'desc' }],
@@ -3485,7 +3497,14 @@ export async function getVendorBillsRegistry(input?: VendorBillQueryInput): Prom
                 amount: Number(bill.totalAmount),
                 balanceDue: Number(bill.balanceDue),
                 status: bill.status,
-                isOverdue: bill.dueDate < now && bill.status !== 'PAID'
+                isOverdue: bill.dueDate < now && bill.status !== 'PAID',
+                payments: bill.payments?.map(p => ({
+                    id: p.id,
+                    amount: Number(p.amount),
+                    method: p.method || 'TRANSFER',
+                    reference: p.reference,
+                    date: p.date,
+                })) ?? [],
             }))
 
             return {

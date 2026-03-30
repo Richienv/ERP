@@ -46,6 +46,7 @@ import { CheckboxFilter } from "@/components/ui/checkbox-filter"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { disputeBill, recordMultiBillPayment, type VendorBill } from "@/lib/actions/finance"
+import { PaymentHistoryTable, type PaymentHistoryRow } from "@/components/finance/payment-history-table"
 import { processXenditPayout } from "@/lib/actions/xendit"
 import { formatIDR } from "@/lib/utils"
 import { NB } from "@/lib/dialog-styles"
@@ -321,11 +322,16 @@ export default function APBillsStackPage() {
 
     const openBillDetail = (bill: VendorBill) => { setActiveBill(bill); setStamped(false); setIsDetailOpen(true) }
 
-    // KPI
-    const totalBills = billMeta.total
-    const pendingBills = bills.filter((b) => b.status === "ISSUED" || b.status === "DRAFT").length
-    const overdueBills = bills.filter((b) => b.isOverdue).length
-    const totalAmount = bills.reduce((sum, b) => sum + b.balanceDue, 0)
+    // Separate active vs completed bills
+    const activeBills = bills.filter((b) => b.status !== "PAID")
+    const completedBills = bills.filter((b) => b.status === "PAID")
+    const completedTotal = completedBills.reduce((sum, b) => sum + b.amount, 0)
+
+    // KPI (only count active bills)
+    const totalBills = activeBills.length
+    const pendingBills = activeBills.filter((b) => b.status === "ISSUED" || b.status === "DRAFT").length
+    const overdueBills = activeBills.filter((b) => b.isOverdue).length
+    const totalAmount = activeBills.reduce((sum, b) => sum + b.balanceDue, 0)
     const hasActiveFilters = searchText || selectedStatuses.length > 0
 
     const getStatusColor = (status: string, isOverdue: boolean) => {
@@ -343,6 +349,28 @@ export default function APBillsStackPage() {
 
     return (
         <div className="mf-page">
+            {/* ─── RIWAYAT PEMBAYARAN — above active bills ─── */}
+            <PaymentHistoryTable
+                title="Riwayat Pembayaran"
+                rows={completedBills.map((bill): PaymentHistoryRow => ({
+                    id: bill.id,
+                    documentNumber: bill.number,
+                    counterpartyName: bill.vendor?.name ?? "—",
+                    method: bill.payments?.[0]?.method ?? "—",
+                    reference: bill.payments?.[0]?.reference ?? null,
+                    amount: bill.amount,
+                    date: bill.payments?.[0]?.date ?? bill.date,
+                    status: "PAID",
+                }))}
+                documentLabel="No. Bill"
+                counterpartyLabel="Vendor"
+                onRowClick={(row) => {
+                    const match = completedBills.find(b => b.id === row.id)
+                    if (match) openBillDetail(match)
+                }}
+                maxHeight={250}
+            />
+
             {/* ─── Single unified card: KPI + Filter + Table ─── */}
             <motion.div
                 variants={fadeUp}
@@ -456,9 +484,9 @@ export default function APBillsStackPage() {
                     ))}
                 </div>
 
-                {/* ─── Table Body ─── */}
+                {/* ─── Table Body (active bills only) ─── */}
                 <div className="min-h-[200px]">
-                    {bills.length === 0 ? (
+                    {activeBills.length === 0 ? (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -472,7 +500,7 @@ export default function APBillsStackPage() {
                         </motion.div>
                     ) : (
                         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                            {bills.map((bill, idx) => {
+                            {activeBills.map((bill, idx) => {
                                 const isOverdue = bill.isOverdue
                                 return (
                                     <motion.div
@@ -535,7 +563,7 @@ export default function APBillsStackPage() {
                                             >
                                                 <Eye className="h-3 w-3" />
                                             </motion.button>
-                                            {bill.status !== "PAID" && bill.balanceDue > 0 && (
+                                            {["ISSUED", "PARTIAL", "OVERDUE"].includes(bill.status) && bill.balanceDue > 0 && (
                                                 <motion.button
                                                     whileHover={{ y: -1 }}
                                                     whileTap={{ scale: 0.92 }}
@@ -546,6 +574,9 @@ export default function APBillsStackPage() {
                                                 >
                                                     <CreditCard className="h-3 w-3" /> Bayar
                                                 </motion.button>
+                                            )}
+                                            {bill.status === "DRAFT" && (
+                                                <span className="text-[9px] italic text-zinc-400 dark:text-zinc-500 px-1">Perlu persetujuan</span>
                                             )}
                                         </div>
                                     </motion.div>
@@ -613,14 +644,62 @@ export default function APBillsStackPage() {
                                     </div>
                                 </div>
                             )}
+                            {activeBill.payments && activeBill.payments.length > 0 && (
+                                <div className={NB.section}>
+                                    <div className={NB.sectionHead}><CreditCard className="h-3.5 w-3.5" /><span className={NB.sectionTitle}>Riwayat Pembayaran</span></div>
+                                    <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                        {activeBill.payments.map((p) => (
+                                            <div key={p.id} className="px-4 py-2.5 flex items-center justify-between text-xs">
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`text-[9px] font-bold uppercase px-2 py-0.5 border ${
+                                                        p.method === "TRANSFER" ? "border-blue-300 text-blue-600 bg-blue-50/50" :
+                                                        p.method === "CASH" ? "border-emerald-300 text-emerald-600 bg-emerald-50/50" :
+                                                        "border-amber-300 text-amber-600 bg-amber-50/50"
+                                                    }`}>{p.method}</span>
+                                                    <span className="font-mono text-zinc-400 text-[10px]">{p.reference || "—"}</span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400">{formatIDR(p.amount)}</span>
+                                                    <span className="text-zinc-400">{new Date(p.date).toLocaleDateString("id-ID")}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="px-6 py-4 border-t-2 border-black bg-zinc-50 dark:bg-zinc-800 flex items-center justify-between gap-3">
-                            <Button variant="outline" onClick={() => { setIsDetailOpen(false); setIsDisputeOpen(true) }} disabled={activeBill.status === "PAID"} className={NB.cancelBtn}>
-                                <XCircle className="mr-2 h-3.5 w-3.5" /> Dispute
-                            </Button>
-                            <Button onClick={() => { setIsDetailOpen(false); setIsPayOpen(true) }} disabled={activeBill.status === "PAID" || activeBill.balanceDue <= 0} className={NB.submitBtnGreen}>
-                                <CreditCard className="mr-2 h-3.5 w-3.5" /> Bayar Sekarang
-                            </Button>
+                            {activeBill.status === "PAID" ? (
+                                <>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[8px] font-black uppercase px-2 py-1 bg-emerald-100 text-emerald-700 border border-emerald-300">Lunas</span>
+                                        {activeBill.payments?.[0] && (
+                                            <span className="text-[10px] text-zinc-400">
+                                                {new Date(activeBill.payments[0].date).toLocaleDateString("id-ID")}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Button variant="outline" onClick={() => setIsDetailOpen(false)} className={NB.cancelBtn}>
+                                        Tutup
+                                    </Button>
+                                </>
+                            ) : activeBill.status === "DRAFT" ? (
+                                <>
+                                    <span className="text-[10px] italic text-zinc-400">Tagihan ini masih draft — perlu persetujuan sebelum dibayar</span>
+                                    <Button variant="outline" onClick={() => setIsDetailOpen(false)} className={NB.cancelBtn}>
+                                        Tutup
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <Button variant="outline" onClick={() => { setIsDetailOpen(false); setIsDisputeOpen(true) }} className={NB.cancelBtn}>
+                                        <XCircle className="mr-2 h-3.5 w-3.5" /> Dispute
+                                    </Button>
+                                    <Button onClick={() => { setIsDetailOpen(false); setIsPayOpen(true) }} disabled={activeBill.balanceDue <= 0} className={NB.submitBtnGreen}>
+                                        <CreditCard className="mr-2 h-3.5 w-3.5" /> Bayar Sekarang
+                                    </Button>
+                                </>
+                            )}
                         </div>
                     </>)}
                 </DialogContent>
