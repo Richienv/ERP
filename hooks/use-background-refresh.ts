@@ -26,24 +26,20 @@ export function useBackgroundRefresh() {
     const hasRefreshed = useRef(false)
 
     // ── Background master data prefetch ──
-    // Non-blocking prefetch of master data for form dropdowns.
-    // Fires once after auth, no progress bar, no blocking.
+    // Fires IMMEDIATELY on auth — no delay. These are tiny payloads (<50 rows)
+    // critical for form dropdowns (units, brands, categories, suppliers, GL accounts).
     useEffect(() => {
         if (!isAuthenticated || hasRefreshed.current) return
         hasRefreshed.current = true
 
-        // Delay 1s to let the current page finish rendering first
-        const timer = setTimeout(() => {
-            // Prefetch all master data for form dropdowns
-            for (const [, config] of Object.entries(masterDataPrefetchMap)) {
-                queryClient.prefetchQuery({
-                    queryKey: config.queryKey,
-                    queryFn: config.queryFn,
-                })
-            }
-        }, 1000)
-
-        return () => clearTimeout(timer)
+        // Fire all at once — no delay, no blocking
+        for (const [, config] of Object.entries(masterDataPrefetchMap)) {
+            queryClient.prefetchQuery({
+                queryKey: config.queryKey,
+                queryFn: config.queryFn,
+                staleTime: 30 * 60 * 1000, // 30 min — master data rarely changes
+            })
+        }
     }, [isAuthenticated, queryClient])
 
     // ── Window focus: refetch T4/T5/T6 queries ──
